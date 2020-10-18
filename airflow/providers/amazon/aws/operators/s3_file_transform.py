@@ -84,18 +84,20 @@ class S3FileTransformOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, *,
-            source_s3_key: str,
-            dest_s3_key: str,
-            transform_script: Optional[str] = None,
-            select_expression=None,
-            script_args: Optional[Sequence[str]] = None,
-            source_aws_conn_id: str = 'aws_default',
-            source_verify: Optional[Union[bool, str]] = None,
-            dest_aws_conn_id: str = 'aws_default',
-            dest_verify: Optional[Union[bool, str]] = None,
-            replace: bool = False,
-            **kwargs) -> None:
+        self,
+        *,
+        source_s3_key: str,
+        dest_s3_key: str,
+        transform_script: Optional[str] = None,
+        select_expression=None,
+        script_args: Optional[Sequence[str]] = None,
+        source_aws_conn_id: str = 'aws_default',
+        source_verify: Optional[Union[bool, str]] = None,
+        dest_aws_conn_id: str = 'aws_default',
+        dest_verify: Optional[Union[bool, str]] = None,
+        replace: bool = False,
+        **kwargs,
+    ) -> None:
         # pylint: disable=too-many-arguments
         super().__init__(**kwargs)
         self.source_s3_key = source_s3_key
@@ -112,29 +114,21 @@ class S3FileTransformOperator(BaseOperator):
 
     def execute(self, context):
         if self.transform_script is None and self.select_expression is None:
-            raise AirflowException(
-                "Either transform_script or select_expression must be specified")
+            raise AirflowException("Either transform_script or select_expression must be specified")
 
         source_s3 = S3Hook(aws_conn_id=self.source_aws_conn_id, verify=self.source_verify)
         dest_s3 = S3Hook(aws_conn_id=self.dest_aws_conn_id, verify=self.dest_verify)
 
         self.log.info("Downloading source S3 file %s", self.source_s3_key)
         if not source_s3.check_for_key(self.source_s3_key):
-            raise AirflowException(
-                "The source key {0} does not exist".format(self.source_s3_key))
+            raise AirflowException("The source key {0} does not exist".format(self.source_s3_key))
         source_s3_key_object = source_s3.get_key(self.source_s3_key)
 
         with NamedTemporaryFile("wb") as f_source, NamedTemporaryFile("wb") as f_dest:
-            self.log.info(
-                "Dumping S3 file %s contents to local file %s",
-                self.source_s3_key, f_source.name
-            )
+            self.log.info("Dumping S3 file %s contents to local file %s", self.source_s3_key, f_source.name)
 
             if self.select_expression is not None:
-                content = source_s3.select_key(
-                    key=self.source_s3_key,
-                    expression=self.select_expression
-                )
+                content = source_s3.select_key(key=self.source_s3_key, expression=self.select_expression)
                 f_source.write(content.encode("utf-8"))
             else:
                 source_s3_key_object.download_fileobj(Fileobj=f_source)
@@ -145,7 +139,7 @@ class S3FileTransformOperator(BaseOperator):
                     [self.transform_script, f_source.name, f_dest.name, *self.script_args],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
-                    close_fds=True
+                    close_fds=True,
                 )
 
                 self.log.info("Output:")
@@ -155,13 +149,10 @@ class S3FileTransformOperator(BaseOperator):
                 process.wait()
 
                 if process.returncode:
-                    raise AirflowException(
-                        "Transform script failed: {0}".format(process.returncode)
-                    )
+                    raise AirflowException("Transform script failed: {0}".format(process.returncode))
                 else:
                     self.log.info(
-                        "Transform script successful. Output temporarily located at %s",
-                        f_dest.name
+                        "Transform script successful. Output temporarily located at %s", f_dest.name
                     )
 
             self.log.info("Uploading transformed file to S3")
@@ -169,6 +160,6 @@ class S3FileTransformOperator(BaseOperator):
             dest_s3.load_file(
                 filename=f_dest.name if self.transform_script else f_source.name,
                 key=self.dest_s3_key,
-                replace=self.replace
+                replace=self.replace,
             )
             self.log.info("Upload successful")

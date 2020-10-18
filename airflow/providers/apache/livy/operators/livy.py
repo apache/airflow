@@ -74,7 +74,8 @@ class LivyOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         file: str,
         class_name: Optional[str] = None,
         args: Optional[Sequence[Union[str, int, float]]] = None,
@@ -93,7 +94,7 @@ class LivyOperator(BaseOperator):
         proxy_user: Optional[str] = None,
         livy_conn_id: str = 'livy_default',
         polling_interval: int = 0,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> None:
         # pylint: disable-msg=too-many-arguments
 
@@ -115,7 +116,7 @@ class LivyOperator(BaseOperator):
             'queue': queue,
             'name': name,
             'conf': conf,
-            'proxy_user': proxy_user
+            'proxy_user': proxy_user,
         }
 
         self._livy_conn_id = livy_conn_id

@@ -29,7 +29,6 @@ except ImportError:
 
 @unittest.skipIf(mock_sns is None, 'moto package not present')
 class TestAwsSnsHook(unittest.TestCase):
-
     @mock_sns
     def test_get_conn_returns_a_boto3_connection(self):
         hook = AwsSnsHook(aws_conn_id='aws_default')
@@ -56,12 +55,16 @@ class TestAwsSnsHook(unittest.TestCase):
         topic_name = "test-topic"
         target = hook.get_conn().create_topic(Name=topic_name).get('TopicArn')
 
-        response = hook.publish_to_target(target, message, message_attributes={
-            'test-string': 'string-value',
-            'test-number': 123456,
-            'test-array': ['first', 'second', 'third'],
-            'test-binary': b'binary-value',
-        })
+        response = hook.publish_to_target(
+            target,
+            message,
+            message_attributes={
+                'test-string': 'string-value',
+                'test-number': 123456,
+                'test-array': ['first', 'second', 'third'],
+                'test-binary': b'binary-value',
+            },
+        )
 
         assert 'MessageId' in response
 

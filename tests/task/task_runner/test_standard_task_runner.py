@@ -68,7 +68,11 @@ class TestStandardTaskRunner(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        clear_db_runs()
+        try:
+            clear_db_runs()
+        except Exception:  # noqa pylint: disable=broad-except
+            # It might happen that we lost connection to the server here so we need to ignore any errors here
+            pass
 
     def test_start_and_terminate(self):
         local_task_job = mock.Mock()
@@ -149,6 +153,7 @@ class TestStandardTaskRunner(unittest.TestCase):
                           session=session)
         ti = TI(task=task, execution_date=DEFAULT_DATE)
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
+        session.commit()
 
         runner = StandardTaskRunner(job1)
         runner.start()

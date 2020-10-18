@@ -186,7 +186,7 @@ dmypy.json
 /.kube
 /.inputrc
 log.txt*
-/backport_packages/CHANGELOG.txt
+/provider_packages/CHANGELOG.txt
 
 # Local .terraform directories
 **/.terraform/*
@@ -202,3 +202,8 @@ Chart.lock
 
 # Chart dependencies
 **/charts/*.tgz
+
+# Might be generated when you build wheels
+pip-wheel-metadata
+
+.pypirc

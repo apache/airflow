@@ -97,12 +97,7 @@ class DockerSwarmOperator(DockerOperator):
     """
 
     @apply_defaults
-    def __init__(
-            self,
-            *,
-            image: str,
-            enable_logging: bool = True,
-            **kwargs) -> None:
+    def __init__(self, *, image: str, enable_logging: bool = True, **kwargs) -> None:
         super().__init__(image=image, **kwargs)
 
         self.enable_logging = enable_logging
@@ -129,10 +124,10 @@ class DockerSwarmOperator(DockerOperator):
                     tty=self.tty,
                 ),
                 restart_policy=types.RestartPolicy(condition='none'),
-                resources=types.Resources(mem_limit=self.mem_limit)
+                resources=types.Resources(mem_limit=self.mem_limit),
             ),
             name='airflow-%s' % get_random_string(),
-            labels={'name': 'airflow__%s__%s' % (self.dag_id, self.task_id)}
+            labels={'name': 'airflow__%s__%s' % (self.dag_id, self.task_id)},
         )
 
         self.log.info('Service started: %s', str(self.service))
@@ -159,9 +154,7 @@ class DockerSwarmOperator(DockerOperator):
     def _service_status(self) -> Optional[str]:
         if not self.cli:
             raise Exception("The 'cli' should be initialized before!")
-        return self.cli.tasks(
-            filters={'service': self.service['ID']}
-        )[0]['Status']['State']
+        return self.cli.tasks(filters={'service': self.service['ID']})[0]['Status']['State']
 
     def _has_service_terminated(self) -> bool:
         status = self._service_status()

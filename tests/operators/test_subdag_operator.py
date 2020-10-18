@@ -163,6 +163,37 @@ class TestSubDagOperator(unittest.TestCase):
         subdag.create_dagrun.assert_called_once_with(
             run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
+            conf=None,
+            state=State.RUNNING,
+            external_trigger=True,
+        )
+
+        self.assertEqual(3, len(subdag_task._get_dagrun.mock_calls))
+
+    def test_execute_create_dagrun_with_conf(self):
+        """
+        When SubDagOperator executes, it creates a DagRun if there is no existing one
+        and wait until the DagRun succeeds.
+        """
+        conf = {"key": "value"}
+        dag = DAG('parent', default_args=default_args)
+        subdag = DAG('parent.test', default_args=default_args)
+        subdag_task = SubDagOperator(task_id='test', subdag=subdag, dag=dag, poke_interval=1, conf=conf)
+
+        subdag.create_dagrun = Mock()
+        subdag.create_dagrun.return_value = self.dag_run_running
+
+        subdag_task._get_dagrun = Mock()
+        subdag_task._get_dagrun.side_effect = [None, self.dag_run_success, self.dag_run_success]
+
+        subdag_task.pre_execute(context={'execution_date': DEFAULT_DATE})
+        subdag_task.execute(context={'execution_date': DEFAULT_DATE})
+        subdag_task.post_execute(context={'execution_date': DEFAULT_DATE})
+
+        subdag.create_dagrun.assert_called_once_with(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+            conf=conf,
             state=State.RUNNING,
             external_trigger=True,
         )

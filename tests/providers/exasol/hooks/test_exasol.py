@@ -27,7 +27,6 @@ from airflow.providers.exasol.hooks.exasol import ExasolHook
 
 
 class TestExasolHookConn(unittest.TestCase):
-
     def setUp(self):
         super(TestExasolHookConn, self).setUp()
 
@@ -67,7 +66,6 @@ class TestExasolHookConn(unittest.TestCase):
 
 
 class TestExasolHook(unittest.TestCase):
-
     def setUp(self):
         super(TestExasolHook, self).setUp()
 

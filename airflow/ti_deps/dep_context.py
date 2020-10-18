@@ -62,6 +62,7 @@ class DepContext:
     :param finished_tasks: A list of all the finished tasks of this run
     :type finished_tasks: list[airflow.models.TaskInstance]
     """
+
     def __init__(
             self,
             deps=None,
@@ -99,7 +100,7 @@ class DepContext:
             self.finished_tasks = dag.get_task_instances(
                 start_date=execution_date,
                 end_date=execution_date,
-                state=State.finished() + [State.UPSTREAM_FAILED],
+                state=State.finished | {State.UPSTREAM_FAILED},
                 session=session,
             )
         return self.finished_tasks

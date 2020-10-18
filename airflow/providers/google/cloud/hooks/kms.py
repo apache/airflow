@@ -31,16 +31,15 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 def _b64encode(s: bytes) -> str:
-    """ Base 64 encodes a bytes object to a string """
+    """Base 64 encodes a bytes object to a string"""
     return base64.b64encode(s).decode("ascii")
 
 
 def _b64decode(s: str) -> bytes:
-    """ Base 64 decodes a string to bytes. """
+    """Base 64 decodes a string to bytes"""
     return base64.b64decode(s.encode("utf-8"))
 
 
-# noinspection PyAbstractClass
 class CloudKMSHook(GoogleBaseHook):
     """
     Hook for Google Cloud Key Management service.
@@ -84,8 +83,7 @@ class CloudKMSHook(GoogleBaseHook):
         """
         if not self._conn:
             self._conn = KeyManagementServiceClient(
-                credentials=self._get_credentials(),
-                client_info=self.client_info
+                credentials=self._get_credentials(), client_info=self.client_info
             )
         return self._conn
 

@@ -26,7 +26,6 @@ from airflow.providers.amazon.aws.operators.s3_copy_object import S3CopyObjectOp
 
 
 class TestS3CopyObjectOperator(unittest.TestCase):
-
     def setUp(self):
         self.source_bucket = "bucket1"
         self.source_key = "path1/data.txt"
@@ -38,23 +37,21 @@ class TestS3CopyObjectOperator(unittest.TestCase):
         conn = boto3.client('s3')
         conn.create_bucket(Bucket=self.source_bucket)
         conn.create_bucket(Bucket=self.dest_bucket)
-        conn.upload_fileobj(Bucket=self.source_bucket,
-                            Key=self.source_key,
-                            Fileobj=io.BytesIO(b"input"))
+        conn.upload_fileobj(Bucket=self.source_bucket, Key=self.source_key, Fileobj=io.BytesIO(b"input"))
 
         # there should be nothing found before S3CopyObjectOperator is executed
-        self.assertFalse('Contents' in conn.list_objects(Bucket=self.dest_bucket,
-                                                         Prefix=self.dest_key))
+        self.assertFalse('Contents' in conn.list_objects(Bucket=self.dest_bucket, Prefix=self.dest_key))
 
-        op = S3CopyObjectOperator(task_id="test_task_s3_copy_object",
-                                  source_bucket_key=self.source_key,
-                                  source_bucket_name=self.source_bucket,
-                                  dest_bucket_key=self.dest_key,
-                                  dest_bucket_name=self.dest_bucket)
+        op = S3CopyObjectOperator(
+            task_id="test_task_s3_copy_object",
+            source_bucket_key=self.source_key,
+            source_bucket_name=self.source_bucket,
+            dest_bucket_key=self.dest_key,
+            dest_bucket_name=self.dest_bucket,
+        )
         op.execute(None)
 
-        objects_in_dest_bucket = conn.list_objects(Bucket=self.dest_bucket,
-                                                   Prefix=self.dest_key)
+        objects_in_dest_bucket = conn.list_objects(Bucket=self.dest_bucket, Prefix=self.dest_key)
         # there should be object found, and there should only be one object found
         self.assertEqual(len(objects_in_dest_bucket['Contents']), 1)
         # the object found should be consistent with dest_key specified earlier
@@ -65,23 +62,21 @@ class TestS3CopyObjectOperator(unittest.TestCase):
         conn = boto3.client('s3')
         conn.create_bucket(Bucket=self.source_bucket)
         conn.create_bucket(Bucket=self.dest_bucket)
-        conn.upload_fileobj(Bucket=self.source_bucket,
-                            Key=self.source_key,
-                            Fileobj=io.BytesIO(b"input"))
+        conn.upload_fileobj(Bucket=self.source_bucket, Key=self.source_key, Fileobj=io.BytesIO(b"input"))
 
         # there should be nothing found before S3CopyObjectOperator is executed
-        self.assertFalse('Contents' in conn.list_objects(Bucket=self.dest_bucket,
-                                                         Prefix=self.dest_key))
+        self.assertFalse('Contents' in conn.list_objects(Bucket=self.dest_bucket, Prefix=self.dest_key))
 
         source_key_s3_url = "s3://{}/{}".format(self.source_bucket, self.source_key)
         dest_key_s3_url = "s3://{}/{}".format(self.dest_bucket, self.dest_key)
-        op = S3CopyObjectOperator(task_id="test_task_s3_copy_object",
-                                  source_bucket_key=source_key_s3_url,
-                                  dest_bucket_key=dest_key_s3_url)
+        op = S3CopyObjectOperator(
+            task_id="test_task_s3_copy_object",
+            source_bucket_key=source_key_s3_url,
+            dest_bucket_key=dest_key_s3_url,
+        )
         op.execute(None)
 
-        objects_in_dest_bucket = conn.list_objects(Bucket=self.dest_bucket,
-                                                   Prefix=self.dest_key)
+        objects_in_dest_bucket = conn.list_objects(Bucket=self.dest_bucket, Prefix=self.dest_key)
         # there should be object found, and there should only be one object found
         self.assertEqual(len(objects_in_dest_bucket['Contents']), 1)
         # the object found should be consistent with dest_key specified earlier

@@ -38,6 +38,7 @@ determine what actually executes when your DAG runs.
     google/index
     http
     kubernetes
+    microsoft/index
     papermill
     python
     external_task_sensor

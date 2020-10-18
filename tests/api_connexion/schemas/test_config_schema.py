@@ -27,13 +27,13 @@ class TestConfigSchema:
                     options=[
                         ConfigOption(key='apache', value='airflow'),
                         ConfigOption(key='hello', value='world'),
-                    ]
+                    ],
                 ),
                 ConfigSection(
                     name='sec2',
                     options=[
                         ConfigOption(key='foo', value='bar'),
-                    ]
+                    ],
                 ),
             ]
         )
@@ -45,13 +45,13 @@ class TestConfigSchema:
                     'options': [
                         {'key': 'apache', 'value': 'airflow'},
                         {'key': 'hello', 'value': 'world'},
-                    ]
+                    ],
                 },
                 {
                     'name': 'sec2',
                     'options': [
                         {'key': 'foo', 'value': 'bar'},
-                    ]
+                    ],
                 },
             ]
         }

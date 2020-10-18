@@ -68,7 +68,7 @@ Variable                                Description
                                         with deserialized JSON object, append the path to the
                                         key within the JSON object
 ``{{ task_instance_key_str }}``         a unique, human-readable key to the task instance
-                                        formatted ``{dag_id}_{task_id}_{ds}``
+                                        formatted ``{dag_id}__{task_id}__{ds_nodash}``
 ``{{ conf }}``                          the full configuration object located at
                                         ``airflow.configuration.conf`` which
                                         represents the content of your

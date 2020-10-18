@@ -33,7 +33,7 @@
       secretKeyRef:
         name: {{ template "airflow_metadata_secret" . }}
         key: connection
-  {{- if eq .Values.executor "CeleryExecutor" }}
+  {{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
   - name: AIRFLOW__CELERY__CELERY_RESULT_BACKEND
     valueFrom:
       secretKeyRef:
@@ -72,7 +72,7 @@
   {{- range $i, $config := .Values.env }}
   - name: {{ $config.name }}
     value: {{ $config.value | quote }}
-    {{- if eq $.Values.executor "KubernetesExecutor" }}
+    {{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
   - name: AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__{{ $config.name }}
     value: {{ $config.value | quote }}
     {{- end }}
@@ -85,7 +85,7 @@
         name: {{ $config.secretName }}
         key: {{ default "value" $config.secretKey }}
   {{- end }}
-  {{- if eq .Values.executor "KubernetesExecutor" }}
+    {{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
     {{- range $i, $config := .Values.secret }}
   - name: AIRFLOW__KUBERNETES_SECRETS__{{ $config.envName }}
     value: {{ printf "%s=%s" $config.secretName $config.secretKey }}
@@ -105,6 +105,8 @@
 {{- define "git_sync_container"}}
 - name: {{ .Values.dags.gitSync.containerName }}
   image: "{{ .Values.dags.gitSync.containerRepository }}:{{ .Values.dags.gitSync.containerTag }}"
+  securityContext:
+    runAsUser: {{ .Values.dags.gitSync.uid }}
   env:
     {{- if .Values.dags.gitSync.sshKeySecret }}
     - name: GIT_SSH_KEY_FILE
@@ -178,7 +180,7 @@
 {{- end }}
 
 {{ define "flower_image" -}}
-{{ printf "%s:%s" (.Values.images.airflow.repository | default .Values.defaultAirflowRepository) (.Values.images.airflow.tag | default .Values.defaultAirflowTag) }}
+{{ printf "%s:%s" (.Values.images.flower.repository | default .Values.defaultAirflowRepository) (.Values.images.flower.tag | default .Values.defaultAirflowTag) }}
 {{- end }}
 
 {{ define "statsd_image" -}}
@@ -213,8 +215,16 @@
 {{ default (printf "%s-airflow-result-backend" .Release.Name) .Values.data.resultBackendSecretName }}
 {{- end }}
 
+{{ define "airflow_pod_template_file" -}}
+{{ (printf "%s/pod_templates" .Values.airflowHome) }}
+{{- end }}
+
 {{ define "pgbouncer_config_secret" -}}
 {{ .Release.Name }}-pgbouncer-config
+{{- end }}
+
+{{ define "pgbouncer_certificates_secret" -}}
+{{ .Release.Name }}-pgbouncer-certificates
 {{- end }}
 
 {{ define "pgbouncer_stats_secret" -}}
@@ -227,6 +237,14 @@
 
 {{ define "elasticsearch_secret" -}}
 {{ default (printf "%s-elasticsearch" .Release.Name) .Values.elasticsearch.secretName }}
+{{- end }}
+
+{{ define "kerberos_keytab_secret" -}}
+{{ .Release.Name }}-kerberos-keytab
+{{- end }}
+
+{{ define "kerberos_ccache_path" -}}
+{{ printf "%s/%s" .Values.kerberos.ccacheMountPath .Values.kerberos.ccacheFileName }}
 {{- end }}
 
 {{ define "pgbouncer_config" }}
@@ -248,6 +266,20 @@ max_client_conn = {{ .Values.pgbouncer.maxClientConn }}
 verbose = {{ .Values.pgbouncer.verbose }}
 log_disconnections = {{ .Values.pgbouncer.logDisconnections }}
 log_connections = {{ .Values.pgbouncer.logConnections }}
+
+server_tls_sslmode = {{ .Values.pgbouncer.sslmode }}
+server_tls_ciphers = {{ .Values.pgbouncer.ciphers }}
+
+{{- if .Values.pgbouncer.ssl.ca }}
+server_tls_ca_file = /etc/pgbouncer/root.crt
+{{- end }}
+{{- if .Values.pgbouncer.ssl.cert }}
+server_tls_cert_file = /etc/pgbouncer/server.crt
+{{- end }}
+{{- if .Values.pgbouncer.ssl.key }}
+server_tls_key_file = /etc/pgbouncer/server.key
+{{- end }}
+
 {{- end }}
 
 {{ define "pgbouncer_users" }}
@@ -257,6 +289,10 @@ log_connections = {{ .Values.pgbouncer.logConnections }}
 
 {{ define "airflow_logs" -}}
 {{ (printf "%s/logs" .Values.airflowHome) | quote }}
+{{- end }}
+
+{{ define "airflow_logs_no_quote" -}}
+{{ (printf "%s/logs" .Values.airflowHome) }}
 {{- end }}
 
 {{ define "airflow_dags" -}}

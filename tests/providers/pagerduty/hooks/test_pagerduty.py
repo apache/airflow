@@ -31,21 +31,25 @@ class TestPagerdutyHook(unittest.TestCase):
     @classmethod
     @provide_session
     def setUpClass(cls, session=None):
-        session.add(Connection(
-            conn_id=DEFAULT_CONN_ID,
-            conn_type='http',
-            password="pagerduty_token",
-            extra='{"routing_key": "route"}',
-        ))
+        session.add(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type='http',
+                password="pagerduty_token",
+                extra='{"routing_key": "route"}',
+            )
+        )
         session.commit()
 
     @provide_session
     def test_without_routing_key_extra(self, session):
-        session.add(Connection(
-            conn_id="pagerduty_no_extra",
-            conn_type='http',
-            password="pagerduty_token_without_extra",
-        ))
+        session.add(
+            Connection(
+                conn_id="pagerduty_no_extra",
+                conn_type='http',
+                password="pagerduty_token_without_extra",
+            )
+        )
         session.commit()
         hook = PagerdutyHook(pagerduty_conn_id="pagerduty_no_extra")
         self.assertEqual(hook.token, 'pagerduty_token_without_extra', 'token initialised.')
@@ -84,7 +88,8 @@ class TestPagerdutyHook(unittest.TestCase):
                     "source": "airflow_test",
                     "summary": "test",
                 },
-            })
+            },
+        )
 
     @mock.patch('airflow.providers.pagerduty.hooks.pagerduty.pypd.EventV2.create')
     def test_create_event_with_default_routing_key(self, mock_event_create):
@@ -112,4 +117,5 @@ class TestPagerdutyHook(unittest.TestCase):
                     "summary": "test",
                     "custom_details": '{"foo": "bar"}',
                 },
-            })
+            },
+        )

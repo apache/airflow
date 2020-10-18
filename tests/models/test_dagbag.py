@@ -174,6 +174,7 @@ class TestDagBag(unittest.TestCase):
         for file in invalid_dag_files:
             dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, file))
         self.assertEqual(len(dagbag.import_errors), len(invalid_dag_files))
+        self.assertEqual(len(dagbag.dags), 0)
 
     @patch.object(DagModel, 'get_current')
     def test_get_dag_without_refresh(self, mock_dagmodel):
@@ -701,6 +702,26 @@ class TestDagBag(unittest.TestCase):
         self.assertCountEqual(updated_ser_dag_1.tags, ["example", "new_tag"])
         self.assertGreater(updated_ser_dag_1_update_time, ser_dag_1_update_time)
 
+    def test_collect_dags_from_db(self):
+        """DAGs are collected from Database"""
+        example_dags_folder = airflow.example_dags.__path__[0]
+        dagbag = DagBag(example_dags_folder)
+
+        example_dags = dagbag.dags
+        for dag in example_dags.values():
+            SerializedDagModel.write_dag(dag)
+
+        new_dagbag = DagBag(read_dags_from_db=True)
+        self.assertEqual(len(new_dagbag.dags), 0)
+        new_dagbag.collect_dags_from_db()
+        new_dags = new_dagbag.dags
+        self.assertEqual(len(example_dags), len(new_dags))
+        for dag_id, dag in example_dags.items():
+            serialized_dag = new_dags[dag_id]
+
+            self.assertEqual(serialized_dag.dag_id, dag.dag_id)
+            self.assertEqual(set(serialized_dag.task_dict), set(dag.task_dict))
+
     @patch("airflow.settings.policy", cluster_policies.cluster_policy)
     def test_cluster_policy_violation(self):
         """test that file processing results in import error when task does not
@@ -708,7 +729,9 @@ class TestDagBag(unittest.TestCase):
         """
         dag_file = os.path.join(TEST_DAGS_FOLDER, "test_missing_owner.py")
 
-        dagbag = DagBag(dag_folder=dag_file)
+        dagbag = DagBag(dag_folder=dag_file,
+                        include_smart_sensor=False,
+                        include_examples=False)
         self.assertEqual(set(), set(dagbag.dag_ids))
         expected_import_errors = {
             dag_file: (
@@ -727,7 +750,9 @@ class TestDagBag(unittest.TestCase):
         dag_file = os.path.join(TEST_DAGS_FOLDER,
                                 "test_with_non_default_owner.py")
 
-        dagbag = DagBag(dag_folder=dag_file)
+        dagbag = DagBag(dag_folder=dag_file,
+                        include_examples=False,
+                        include_smart_sensor=False)
         self.assertEqual({"test_with_non_default_owner"}, set(dagbag.dag_ids))
 
         self.assertEqual({}, dagbag.import_errors)

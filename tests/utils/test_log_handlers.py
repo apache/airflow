@@ -105,7 +105,7 @@ class TestFileTaskLogHandler(unittest.TestCase):
         # We should expect our log line from the callable above to appear in
         # the logs we read back
         self.assertRegex(
-            logs[0],
+            logs[0][0][-1],
             target_re,
             "Logs were " + str(logs)
         )

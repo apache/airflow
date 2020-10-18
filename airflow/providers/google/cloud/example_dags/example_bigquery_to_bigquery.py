@@ -23,7 +23,9 @@ import os
 
 from airflow import models
 from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryDeleteDatasetOperator,
+    BigQueryCreateEmptyDatasetOperator,
+    BigQueryCreateEmptyTableOperator,
+    BigQueryDeleteDatasetOperator,
 )
 from airflow.providers.google.cloud.transfers.bigquery_to_bigquery import BigQueryToBigQueryOperator
 from airflow.utils.dates import days_ago
@@ -45,9 +47,7 @@ with models.DAG(
         destination_project_dataset_table=f"{DATASET_NAME}.{TARGET}",
     )
 
-    create_dataset = BigQueryCreateEmptyDatasetOperator(
-        task_id="create_dataset", dataset_id=DATASET_NAME
-    )
+    create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET_NAME)
 
     for table in [ORIGIN, TARGET]:
         create_table = BigQueryCreateEmptyTableOperator(

@@ -25,16 +25,15 @@ from airflow.providers.ftp.sensors.ftp import FTPSensor
 
 
 class TestFTPSensor(unittest.TestCase):
-
     @mock.patch('airflow.providers.ftp.sensors.ftp.FTPHook', spec=FTPHook)
     def test_poke(self, mock_hook):
-        op = FTPSensor(path="foobar.json", ftp_conn_id="bob_ftp",
-                       task_id="test_task")
+        op = FTPSensor(path="foobar.json", ftp_conn_id="bob_ftp", task_id="test_task")
 
         mock_hook.return_value.__enter__.return_value.get_mod_time.side_effect = [
             error_perm("550: Can't check for file existence"),
             error_perm("550: Directory or file does not exist"),
-            error_perm("550 - Directory or file does not exist"), None
+            error_perm("550 - Directory or file does not exist"),
+            None,
         ]
 
         self.assertFalse(op.poke(None))
@@ -44,11 +43,11 @@ class TestFTPSensor(unittest.TestCase):
 
     @mock.patch('airflow.providers.ftp.sensors.ftp.FTPHook', spec=FTPHook)
     def test_poke_fails_due_error(self, mock_hook):
-        op = FTPSensor(path="foobar.json", ftp_conn_id="bob_ftp",
-                       task_id="test_task")
+        op = FTPSensor(path="foobar.json", ftp_conn_id="bob_ftp", task_id="test_task")
 
-        mock_hook.return_value.__enter__.return_value.get_mod_time.side_effect = \
-            error_perm("530: Login authentication failed")
+        mock_hook.return_value.__enter__.return_value.get_mod_time.side_effect = error_perm(
+            "530: Login authentication failed"
+        )
 
         with self.assertRaises(error_perm) as context:
             op.execute(None)
@@ -57,11 +56,11 @@ class TestFTPSensor(unittest.TestCase):
 
     @mock.patch('airflow.providers.ftp.sensors.ftp.FTPHook', spec=FTPHook)
     def test_poke_fail_on_transient_error(self, mock_hook):
-        op = FTPSensor(path="foobar.json", ftp_conn_id="bob_ftp",
-                       task_id="test_task")
+        op = FTPSensor(path="foobar.json", ftp_conn_id="bob_ftp", task_id="test_task")
 
-        mock_hook.return_value.__enter__.return_value\
-            .get_mod_time.side_effect = error_perm("434: Host unavailable")
+        mock_hook.return_value.__enter__.return_value.get_mod_time.side_effect = error_perm(
+            "434: Host unavailable"
+        )
 
         with self.assertRaises(error_perm) as context:
             op.execute(None)
@@ -70,11 +69,13 @@ class TestFTPSensor(unittest.TestCase):
 
     @mock.patch('airflow.providers.ftp.sensors.ftp.FTPHook', spec=FTPHook)
     def test_poke_ignore_transient_error(self, mock_hook):
-        op = FTPSensor(path="foobar.json", ftp_conn_id="bob_ftp",
-                       task_id="test_task", fail_on_transient_errors=False)
+        op = FTPSensor(
+            path="foobar.json", ftp_conn_id="bob_ftp", task_id="test_task", fail_on_transient_errors=False
+        )
 
         mock_hook.return_value.__enter__.return_value.get_mod_time.side_effect = [
-            error_perm("434: Host unavailable"), None
+            error_perm("434: Host unavailable"),
+            None,
         ]
 
         self.assertFalse(op.poke(None))

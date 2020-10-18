@@ -79,6 +79,7 @@ Content
     start
     installation
     tutorial
+    tutorial_decorated_flows
     howto/index
     ui
     concepts
@@ -86,18 +87,20 @@ Content
     executor/index
     dag-run
     plugins
-    security
+    security/index
+    logging-monitoring/index
     timezone
     Using the CLI <usage-cli>
     integration
-    metrics
-    errors
     kubernetes
     lineage
     dag-serialization
-    Using the REST API <stable-rest-api/index>
+    modules_management
+    backport-providers
+    smart-sensor
     changelog
     best-practices
+    production-deployment
     faq
     privacy_notice
 
@@ -106,9 +109,9 @@ Content
     :caption: References
 
     Operators and hooks <operators-and-hooks-ref>
-    CLI <cli-ref>
+    CLI <cli-and-env-variables-ref>
     Macros <macros-ref>
     Python API <_api/index>
     Experimental REST API <rest-api-ref>
-    Stable REST API <stable-rest-api/redoc>
+    Stable REST API <stable-rest-api-ref>
     Configurations <configurations-ref>

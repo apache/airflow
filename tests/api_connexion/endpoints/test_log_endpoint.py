@@ -27,9 +27,11 @@ from unittest.mock import PropertyMock
 from itsdangerous.url_safe import URLSafeSerializer
 
 from airflow import DAG, settings
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.types import DagRunType
@@ -48,16 +50,25 @@ class TestGetLog(unittest.TestCase):
     def setUpClass(cls):
         settings.configure_orm()
         cls.session = settings.Session
-        with conf_vars(
-            {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
-        ):
+        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)
-        # TODO: Add new role for each view to test permission.
-        create_user(cls.app, username="test", role="Admin")
+
+        create_user(
+            cls.app,
+            username="test",
+            role_name="Test",
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+            ],
+        )
+        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")
 
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")
+        delete_user(cls.app, username="test_no_permissions")
 
     def setUp(self) -> None:
         self.default_time = "2020-06-10T20:00:00+00:00"
@@ -86,9 +97,9 @@ class TestGetLog(unittest.TestCase):
         logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
         logging_config['handlers']['task']['base_log_folder'] = self.log_dir
 
-        logging_config['handlers']['task']['filename_template'] = \
-            '{{ ti.dag_id }}/{{ ti.task_id }}/' \
-            '{{ ts | replace(":", ".") }}/{{ try_number }}.log'
+        logging_config['handlers']['task'][
+            'filename_template'
+        ] = '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts | replace(":", ".") }}/{{ try_number }}.log'
 
         # Write the custom logging configuration to a file
         self.settings_folder = tempfile.mkdtemp()
@@ -98,10 +109,12 @@ class TestGetLog(unittest.TestCase):
             handle.writelines(new_logging_file)
         sys.path.append(self.settings_folder)
 
-        with conf_vars({
-            ('logging', 'logging_config_class'): 'airflow_local_settings.LOGGING_CONFIG',
-            ("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"
-        }):
+        with conf_vars(
+            {
+                ('logging', 'logging_config_class'): 'airflow_local_settings.LOGGING_CONFIG',
+                ("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend",
+            }
+        ):
             self.app = app.create_app(testing=True)
             self.client = self.app.test_client()
             settings.configure_logging()
@@ -114,14 +127,13 @@ class TestGetLog(unittest.TestCase):
         with create_session() as session:
             self.ti = TaskInstance(
                 task=DummyOperator(task_id=self.TASK_ID, dag=dag),
-                execution_date=timezone.parse(self.default_time)
+                execution_date=timezone.parse(self.default_time),
             )
             self.ti.try_number = 1
             session.merge(self.ti)
 
     def _prepare_log_files(self):
-        dir_path = f"{self.log_dir}/{self.DAG_ID}/{self.TASK_ID}/" \
-                   f"{self.default_time.replace(':', '.')}/"
+        dir_path = f"{self.log_dir}/{self.DAG_ID}/{self.TASK_ID}/" f"{self.default_time.replace(':', '.')}/"
         os.makedirs(dir_path)
         with open(f"{dir_path}/1.log", "w+") as file:
             file.write("Log for testing.")
@@ -152,23 +164,17 @@ class TestGetLog(unittest.TestCase):
             f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
             headers={'Accept': 'application/json'},
-            environ_overrides={'REMOTE_USER': "test"}
+            environ_overrides={'REMOTE_USER': "test"},
         )
         expected_filename = "{}/{}/{}/{}/1.log".format(
-            self.log_dir,
-            self.DAG_ID,
-            self.TASK_ID,
-            self.default_time.replace(":", ".")
+            self.log_dir, self.DAG_ID, self.TASK_ID, self.default_time.replace(":", ".")
         )
         self.assertEqual(
             response.json['content'],
-            f"*** Reading local file: {expected_filename}\nLog for testing."
+            f"[('', '*** Reading local file: {expected_filename}\\nLog for testing.')]",
         )
         info = serializer.loads(response.json['continuation_token'])
-        self.assertEqual(
-            info,
-            {'end_of_log': True}
-        )
+        self.assertEqual(info, {'end_of_log': True})
         self.assertEqual(200, response.status_code)
 
     @provide_session
@@ -182,18 +188,15 @@ class TestGetLog(unittest.TestCase):
             f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
             headers={'Accept': 'text/plain'},
-            environ_overrides={'REMOTE_USER': "test"}
+            environ_overrides={'REMOTE_USER': "test"},
         )
         expected_filename = "{}/{}/{}/{}/1.log".format(
-            self.log_dir,
-            self.DAG_ID,
-            self.TASK_ID,
-            self.default_time.replace(':', '.')
+            self.log_dir, self.DAG_ID, self.TASK_ID, self.default_time.replace(':', '.')
         )
         self.assertEqual(200, response.status_code)
         self.assertEqual(
             response.data.decode('utf-8'),
-            f"*** Reading local file: {expected_filename}\nLog for testing.\n"
+            f"\n*** Reading local file: {expected_filename}\nLog for testing.\n",
         )
 
     @provide_session
@@ -206,7 +209,7 @@ class TestGetLog(unittest.TestCase):
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/Invalid-Task-ID/logs/1?token={token}",
-            environ_overrides={'REMOTE_USER': "test"}
+            environ_overrides={'REMOTE_USER': "test"},
         )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json['detail'], "Task instance did not exist in the DB")
@@ -215,17 +218,17 @@ class TestGetLog(unittest.TestCase):
     def test_get_logs_with_metadata_as_download_large_file(self, session):
         self._create_dagrun(session)
         with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read") as read_mock:
-            first_return = (['1st line'], [{}])
-            second_return = (['2nd line'], [{'end_of_log': False}])
-            third_return = (['3rd line'], [{'end_of_log': True}])
-            fourth_return = (['should never be read'], [{'end_of_log': True}])
+            first_return = ([[('', '1st line')]], [{}])
+            second_return = ([[('', '2nd line')]], [{'end_of_log': False}])
+            third_return = ([[('', '3rd line')]], [{'end_of_log': True}])
+            fourth_return = ([[('', 'should never be read')]], [{'end_of_log': True}])
             read_mock.side_effect = [first_return, second_return, third_return, fourth_return]
 
             response = self.client.get(
                 f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
                 f"taskInstances/{self.TASK_ID}/logs/1?full_content=True",
                 headers={"Accept": 'text/plain'},
-                environ_overrides={'REMOTE_USER': "test"}
+                environ_overrides={'REMOTE_USER': "test"},
             )
 
             self.assertIn('1st line', response.data.decode('utf-8'))
@@ -246,12 +249,10 @@ class TestGetLog(unittest.TestCase):
             f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
             headers={'Content-Type': 'application/jso'},
-            environ_overrides={'REMOTE_USER': "test"}
+            environ_overrides={'REMOTE_USER': "test"},
         )
         self.assertEqual(400, response.status_code)
-        self.assertIn(
-            'Task log handler does not support read logs.',
-            response.data.decode('utf-8'))
+        self.assertIn('Task log handler does not support read logs.', response.data.decode('utf-8'))
 
     @provide_session
     def test_bad_signature_raises(self, session):
@@ -262,7 +263,7 @@ class TestGetLog(unittest.TestCase):
             f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
             headers={'Accept': 'application/json'},
-            environ_overrides={'REMOTE_USER': "test"}
+            environ_overrides={'REMOTE_USER': "test"},
         )
         self.assertEqual(
             response.json,
@@ -270,8 +271,8 @@ class TestGetLog(unittest.TestCase):
                 'detail': None,
                 'status': 400,
                 'title': "Bad Signature. Please use only the tokens provided by the API.",
-                'type': 'about:blank'
-            }
+                'type': EXCEPTIONS_LINK_MAP[400],
+            },
         )
 
     def test_raises_404_for_invalid_dag_run_id(self):
@@ -279,16 +280,11 @@ class TestGetLog(unittest.TestCase):
             f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN/"  # invalid dagrun_id
             f"taskInstances/{self.TASK_ID}/logs/1?",
             headers={'Accept': 'application/json'},
-            environ_overrides={'REMOTE_USER': "test"}
+            environ_overrides={'REMOTE_USER': "test"},
         )
         self.assertEqual(
             response.json,
-            {
-                'detail': None,
-                'status': 404,
-                'title': "DAG Run not found",
-                'type': 'about:blank'
-            }
+            {'detail': None, 'status': 404, 'title': "DAG Run not found", 'type': EXCEPTIONS_LINK_MAP[404]},
         )
 
     def test_should_raises_401_unauthenticated(self):
@@ -303,3 +299,16 @@ class TestGetLog(unittest.TestCase):
         )
 
         assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        key = self.app.config["SECRET_KEY"]
+        serializer = URLSafeSerializer(key)
+        token = serializer.dumps({"download_logs": True})
+
+        response = self.client.get(
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
+            f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
+            headers={'Accept': 'text/plain'},
+            environ_overrides={'REMOTE_USER': "test_no_permissions"},
+        )
+        assert response.status_code == 403

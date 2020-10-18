@@ -26,13 +26,13 @@ COMMAND_MAP = {
     "list_dag": "dags list",
     "dag_status": "dags status",
     "backfill": "dags backfill",
-    "list_dag_runs": "dags list_runs",
+    "list_dag_runs": "dags list-runs",
     "pause": "dags pause",
     "unpause": "dags unpause",
     "test": "tasks test",
     "clear": "tasks clear",
     "list_tasks": "tasks list",
-    "task_failed_deps": "tasks failed_deps",
+    "task_failed_deps": "tasks failed-deps",
     "task_state": "tasks state",
     "run": "tasks run",
     "render": "tasks render",
@@ -49,7 +49,7 @@ COMMAND_MAP = {
 
 
 def check_legacy_command(action, value):
-    """ Checks command value and raise error if value is in removed command """
+    """Checks command value and raise error if value is in removed command"""
     new_command = COMMAND_MAP.get(value)
     if new_command is not None:
         msg = f"`airflow {value}` command, has been removed, please use `airflow {new_command}`"

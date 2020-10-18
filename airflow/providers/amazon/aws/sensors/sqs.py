@@ -44,12 +44,9 @@ class SQSSensor(BaseSensorOperator):
     template_fields = ('sqs_queue', 'max_messages')
 
     @apply_defaults
-    def __init__(self, *,
-                 sqs_queue,
-                 aws_conn_id='aws_default',
-                 max_messages=5,
-                 wait_time_seconds=1,
-                 **kwargs):
+    def __init__(
+        self, *, sqs_queue, aws_conn_id='aws_default', max_messages=5, wait_time_seconds=1, **kwargs
+    ):
         super().__init__(**kwargs)
         self.sqs_queue = sqs_queue
         self.aws_conn_id = aws_conn_id
@@ -69,25 +66,29 @@ class SQSSensor(BaseSensorOperator):
 
         self.log.info('SQSSensor checking for message on queue: %s', self.sqs_queue)
 
-        messages = sqs_conn.receive_message(QueueUrl=self.sqs_queue,
-                                            MaxNumberOfMessages=self.max_messages,
-                                            WaitTimeSeconds=self.wait_time_seconds)
+        messages = sqs_conn.receive_message(
+            QueueUrl=self.sqs_queue,
+            MaxNumberOfMessages=self.max_messages,
+            WaitTimeSeconds=self.wait_time_seconds,
+        )
 
         self.log.info("received message %s", str(messages))
 
         if 'Messages' in messages and messages['Messages']:
-            entries = [{'Id': message['MessageId'], 'ReceiptHandle': message['ReceiptHandle']}
-                       for message in messages['Messages']]
+            entries = [
+                {'Id': message['MessageId'], 'ReceiptHandle': message['ReceiptHandle']}
+                for message in messages['Messages']
+            ]
 
-            result = sqs_conn.delete_message_batch(QueueUrl=self.sqs_queue,
-                                                   Entries=entries)
+            result = sqs_conn.delete_message_batch(QueueUrl=self.sqs_queue, Entries=entries)
 
             if 'Successful' in result:
                 context['ti'].xcom_push(key='messages', value=messages)
                 return True
             else:
                 raise AirflowException(
-                    'Delete SQS Messages failed ' + str(result) + ' for messages ' + str(messages))
+                    'Delete SQS Messages failed ' + str(result) + ' for messages ' + str(messages)
+                )
 
         return False
 

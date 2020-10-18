@@ -275,6 +275,31 @@ class TestPythonOperator(TestPythonBase):
             python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
             self.assertTrue('dag' in context.exception, "'dag' not found in the exception")
 
+    def test_provide_context_does_not_fail(self):
+        """
+        ensures that provide_context doesn't break dags in 2.0
+        """
+        self.dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            external_trigger=False,
+        )
+
+        def func(custom, dag):
+            self.assertEqual(1, custom, "custom should be 1")
+            self.assertIsNotNone(dag, "dag should be set")
+
+        python_operator = PythonOperator(
+            task_id='python_operator',
+            op_kwargs={'custom': 1},
+            python_callable=func,
+            provide_context=True,
+            dag=self.dag
+        )
+        python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
     def test_context_with_conflicting_op_args(self):
         self.dag.create_dagrun(
             run_type=DagRunType.MANUAL,
@@ -602,6 +627,22 @@ class TestAirflowTaskDecorator(TestPythonBase):
             add_2(test_number)
 
         assert 'add_2' in self.dag.task_ids
+
+    def test_task_documentation(self):
+        """Tests that task_decorator loads doc_md from function doc"""
+
+        @task_decorator
+        def add_2(number: int):
+            """
+            Adds 2 to number.
+            """
+            return number + 2
+
+        test_number = 10
+        with self.dag:
+            ret = add_2(test_number)
+
+        assert ret.operator.doc_md.strip(), "Adds 2 to number."  # pylint: disable=maybe-no-member
 
 
 class TestBranchOperator(unittest.TestCase):
@@ -1429,3 +1470,42 @@ class TestCurrentContextRuntime:
         with DAG(dag_id="edge_case_context_dag", default_args=DEFAULT_ARGS):
             op = PythonOperator(python_callable=get_all_the_context, task_id="get_all_the_context")
             op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)
+
+
+@pytest.mark.parametrize(
+    "choice,expected_states",
+    [
+        ("task1", [State.SUCCESS, State.SUCCESS, State.SUCCESS]),
+        ("join", [State.SUCCESS, State.SKIPPED, State.SUCCESS]),
+    ]
+)
+def test_empty_branch(choice, expected_states):
+    """
+    Tests that BranchPythonOperator handles empty branches properly.
+    """
+    with DAG(
+        'test_empty_branch',
+        start_date=DEFAULT_DATE,
+    ) as dag:
+        branch = BranchPythonOperator(task_id='branch', python_callable=lambda: choice)
+        task1 = DummyOperator(task_id='task1')
+        join = DummyOperator(task_id='join', trigger_rule="none_failed_or_skipped")
+
+        branch >> [task1, join]
+        task1 >> join
+
+    dag.clear(start_date=DEFAULT_DATE)
+
+    task_ids = ["branch", "task1", "join"]
+
+    tis = {}
+    for task_id in task_ids:
+        task_instance = TI(dag.get_task(task_id), execution_date=DEFAULT_DATE)
+        tis[task_id] = task_instance
+        task_instance.run()
+
+    def get_state(ti):
+        ti.refresh_from_db()
+        return ti.state
+
+    assert [get_state(tis[task_id]) for task_id in task_ids] == expected_states

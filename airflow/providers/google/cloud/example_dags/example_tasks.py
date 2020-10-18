@@ -19,7 +19,7 @@
 """
 Example Airflow DAG that creates, gets, lists, updates, purges, pauses, resumes
 and deletes Queues and creates, gets, lists, runs and deletes Tasks in the Google
-Cloud Tasks service in the Google Cloud Platform.
+Cloud Tasks service in the Google Cloud.
 """
 
 
@@ -31,7 +31,9 @@ from google.protobuf import timestamp_pb2
 
 from airflow import models
 from airflow.providers.google.cloud.operators.tasks import (
-    CloudTasksQueueCreateOperator, CloudTasksTaskCreateOperator, CloudTasksTaskRunOperator,
+    CloudTasksQueueCreateOperator,
+    CloudTasksTaskCreateOperator,
+    CloudTasksTaskRunOperator,
 )
 from airflow.utils.dates import days_ago
 

@@ -210,6 +210,7 @@ exclude_patterns: List[str] = [
     # Templates or partials
     'autoapi_templates',
     'howto/operator/google/_partials',
+    'howto/operator/microsoft/_partials'
 ]
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
@@ -549,10 +550,11 @@ OPENAPI_FILE = os.path.join(
 redoc = [
     {
         'name': 'Airflow REST API',
-        'page': 'stable-rest-api/redoc',
+        'page': 'stable-rest-api-ref',
         'spec': OPENAPI_FILE,
         'opts': {
             'hide-hostname': True,
+            'no-auto-auth': True,
         }
     },
 ]

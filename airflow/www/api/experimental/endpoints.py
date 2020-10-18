@@ -171,14 +171,14 @@ def dag_runs(dag_id):
 @api_experimental.route('/test', methods=['GET'])
 @requires_authentication
 def test():
-    """ Test endpoint to check authentication """
+    """Test endpoint to check authentication"""
     return jsonify(status='OK')
 
 
 @api_experimental.route('/info', methods=['GET'])
 @requires_authentication
 def info():
-    """ Get Airflow Version """
+    """Get Airflow Version"""
     return jsonify(version=version)
 
 
@@ -198,7 +198,7 @@ def get_dag_code(dag_id):
 @api_experimental.route('/dags/<string:dag_id>/tasks/<string:task_id>', methods=['GET'])
 @requires_authentication
 def task_info(dag_id, task_id):
-    """Returns a JSON with a task's public instance variables. """
+    """Returns a JSON with a task's public instance variables"""
     try:
         t_info = get_task(dag_id, task_id)
     except AirflowException as err:
@@ -219,7 +219,6 @@ def task_info(dag_id, task_id):
 @requires_authentication
 def dag_paused(dag_id, paused):
     """(Un)pauses a dag"""
-
     is_paused = bool(paused == 'true')
 
     models.DagModel.get_dagmodel(dag_id).set_is_paused(
@@ -233,7 +232,6 @@ def dag_paused(dag_id, paused):
 @requires_authentication
 def dag_is_paused(dag_id):
     """Get paused state of a dag"""
-
     is_paused = models.DagModel.get_dagmodel(dag_id).is_paused
 
     return jsonify({'is_paused': is_paused})
@@ -250,7 +248,6 @@ def task_instance_info(dag_id, execution_date, task_id):
     "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15". This will
     of course need to have been encoded for URL in the request.
     """
-
     # Convert string datetime into actual datetime
     try:
         execution_date = timezone.parse(execution_date)
@@ -291,7 +288,6 @@ def dag_run_status(dag_id, execution_date):
     "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15". This will
     of course need to have been encoded for URL in the request.
     """
-
     # Convert string datetime into actual datetime
     try:
         execution_date = timezone.parse(execution_date)
@@ -320,7 +316,7 @@ def dag_run_status(dag_id, execution_date):
 @api_experimental.route('/latest_runs', methods=['GET'])
 @requires_authentication
 def latest_dag_runs():
-    """Returns the latest DagRun for each DAG formatted for the UI. """
+    """Returns the latest DagRun for each DAG formatted for the UI"""
     from airflow.models import DagRun
     dagruns = DagRun.get_latest_runs()
     payload = []
@@ -400,9 +396,8 @@ def delete_pool(name):
 
 @api_experimental.route('/lineage/<string:dag_id>/<string:execution_date>',
                         methods=['GET'])
-@requires_authentication
 def get_lineage(dag_id: str, execution_date: str):
-    """ Get Lineage details for a DagRun """
+    """Get Lineage details for a DagRun"""
     # Convert string datetime into actual datetime
     try:
         execution_dt = timezone.parse(execution_date)

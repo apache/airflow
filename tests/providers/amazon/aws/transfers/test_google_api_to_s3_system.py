@@ -28,7 +28,10 @@ from airflow.providers.amazon.aws.example_dags.example_google_api_to_s3_transfer
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from tests.providers.google.cloud.utils.gcp_authenticator import GMP_KEY
 from tests.test_utils.amazon_system_helpers import (
-    AWS_DAG_FOLDER, AmazonSystemTest, provide_aws_context, provide_aws_s3_bucket,
+    AWS_DAG_FOLDER,
+    AmazonSystemTest,
+    provide_aws_context,
+    provide_aws_s3_bucket,
 )
 from tests.test_utils.gcp_system_helpers import GoogleSystemTest, provide_gcp_context
 
@@ -51,7 +54,6 @@ def provide_s3_bucket_advanced():
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GMP_KEY)
 class GoogleApiToS3TransferExampleDagsSystemTest(GoogleSystemTest, AmazonSystemTest):
-
     @pytest.mark.usefixtures("provide_s3_bucket_basic")
     @provide_aws_context()
     @provide_gcp_context(GMP_KEY, scopes=['https://www.googleapis.com/auth/spreadsheets.readonly'])

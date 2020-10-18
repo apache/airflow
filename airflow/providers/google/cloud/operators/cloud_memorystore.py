@@ -56,7 +56,7 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
         :class:`~google.cloud.redis_v1.types.Instance`
     :type instance: Union[Dict, google.cloud.redis_v1.types.Instance]
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
@@ -66,8 +66,17 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -79,11 +88,13 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         instance_id: str,
         instance: Union[Dict, Instance],
@@ -92,7 +103,8 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -103,9 +115,12 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
-        hook = CloudMemorystoreHook(gcp_conn_id=self.gcp_conn_id)
+    def execute(self, context: dict):
+        hook = CloudMemorystoreHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         result = hook.create_instance(
             location=self.location,
             instance_id=self.instance_id,
@@ -131,7 +146,7 @@ class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
     :param instance: The logical name of the Redis instance in the customer project.
     :type instance: str
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
@@ -141,15 +156,34 @@ class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("location", "instance", "project_id", "retry", "timeout", "metadata", "gcp_conn_id")
+    template_fields = (
+        "location",
+        "instance",
+        "project_id",
+        "retry",
+        "timeout",
+        "metadata",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         instance: str,
         project_id: Optional[str] = None,
@@ -157,7 +191,8 @@ class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -167,9 +202,12 @@ class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
-        hook = CloudMemorystoreHook(gcp_conn_id=self.gcp_conn_id)
+    def execute(self, context: dict) -> None:
+        hook = CloudMemorystoreHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         hook.delete_instance(
             location=self.location,
             instance=self.instance,
@@ -200,7 +238,7 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
         :class:`~google.cloud.redis_v1.types.OutputConfig`
     :type output_config: Union[Dict, google.cloud.redis_v1.types.OutputConfig]
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :type retry: google.api_core.retry.Retry
@@ -209,8 +247,17 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -222,11 +269,13 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         instance: str,
         output_config: Union[Dict, OutputConfig],
@@ -235,7 +284,8 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -246,9 +296,12 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
-        hook = CloudMemorystoreHook(gcp_conn_id=self.gcp_conn_id)
+    def execute(self, context: dict) -> None:
+        hook = CloudMemorystoreHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
 
         hook.export_instance(
             location=self.location,
@@ -278,7 +331,7 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
         unspecified, data protection mode will be LIMITED_DATA_LOSS by default.
     :type data_protection_mode: google.cloud.redis_v1.gapic.enums.FailoverInstanceRequest.DataProtectionMode
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :type retry: google.api_core.retry.Retry
@@ -287,8 +340,17 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -300,11 +362,13 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         instance: str,
         data_protection_mode: FailoverInstanceRequest.DataProtectionMode,
@@ -313,7 +377,8 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -324,9 +389,12 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
-        hook = CloudMemorystoreHook(gcp_conn_id=self.gcp_conn_id)
+    def execute(self, context: dict) -> None:
+        hook = CloudMemorystoreHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         hook.failover_instance(
             location=self.location,
             instance=self.instance,
@@ -351,7 +419,7 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
     :param instance: The logical name of the Redis instance in the customer project.
     :type instance: str
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :type retry: google.api_core.retry.Retry
@@ -360,15 +428,34 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("location", "instance", "project_id", "retry", "timeout", "metadata", "gcp_conn_id")
+    template_fields = (
+        "location",
+        "instance",
+        "project_id",
+        "retry",
+        "timeout",
+        "metadata",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         instance: str,
         project_id: Optional[str] = None,
@@ -376,7 +463,8 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -386,9 +474,12 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
-        hook = CloudMemorystoreHook(gcp_conn_id=self.gcp_conn_id)
+    def execute(self, context: dict):
+        hook = CloudMemorystoreHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         result = hook.get_instance(
             location=self.location,
             instance=self.instance,
@@ -421,7 +512,7 @@ class CloudMemorystoreImportOperator(BaseOperator):
         :class:`~google.cloud.redis_v1.types.InputConfig`
     :type input_config: Union[Dict, google.cloud.redis_v1.types.InputConfig]
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :type retry: google.api_core.retry.Retry
@@ -430,8 +521,17 @@ class CloudMemorystoreImportOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -443,11 +543,13 @@ class CloudMemorystoreImportOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         instance: str,
         input_config: Union[Dict, InputConfig],
@@ -456,7 +558,8 @@ class CloudMemorystoreImportOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -467,9 +570,12 @@ class CloudMemorystoreImportOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
-        hook = CloudMemorystoreHook(gcp_conn_id=self.gcp_conn_id)
+    def execute(self, context: dict) -> None:
+        hook = CloudMemorystoreHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         hook.import_instance(
             location=self.location,
             instance=self.instance,
@@ -498,7 +604,7 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
         streaming is performed per-page, this determines the maximum number of resources in a page.
     :type page_size: int
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :type retry: google.api_core.retry.Retry
@@ -507,15 +613,34 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("location", "page_size", "project_id", "retry", "timeout", "metadata", "gcp_conn_id")
+    template_fields = (
+        "location",
+        "page_size",
+        "project_id",
+        "retry",
+        "timeout",
+        "metadata",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         page_size: int,
         project_id: Optional[str] = None,
@@ -523,7 +648,8 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -533,9 +659,12 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
-        hook = CloudMemorystoreHook(gcp_conn_id=self.gcp_conn_id)
+    def execute(self, context: dict):
+        hook = CloudMemorystoreHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         result = hook.list_instances(
             location=self.location,
             page_size=self.page_size,
@@ -577,8 +706,8 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
     :type location: str
     :param instance_id: The logical name of the Redis instance in the customer project.
     :type instance_id: str
-    :param project_id:  Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: Project ID of the project that contains the instance. If set
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
@@ -588,8 +717,17 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -602,11 +740,13 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         update_mask: Union[Dict, FieldMask],
         instance: Union[Dict, Instance],
         location: Optional[str] = None,
@@ -616,7 +756,8 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.update_mask = update_mask
@@ -628,9 +769,12 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
-        hook = CloudMemorystoreHook(gcp_conn_id=self.gcp_conn_id)
+    def execute(self, context: dict) -> None:
+        hook = CloudMemorystoreHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         hook.update_instance(
             update_mask=self.update_mask,
             instance=self.instance,
@@ -657,8 +801,8 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
     :type location: str
     :param instance_id: The logical name of the Redis instance in the customer project.
     :type instance_id: str
-    :param project_id:  Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: Project ID of the project that contains the instance. If set
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
@@ -668,8 +812,17 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -681,11 +834,13 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         memory_size_gb: int,
         location: Optional[str] = None,
         instance_id: Optional[str] = None,
@@ -694,7 +849,8 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.memory_size_gb = memory_size_gb
@@ -705,9 +861,12 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
-        hook = CloudMemorystoreHook(gcp_conn_id=self.gcp_conn_id)
+    def execute(self, context: dict) -> None:
+        hook = CloudMemorystoreHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
 
         hook.update_instance(
             update_mask={"paths": ["memory_size_gb"]},
@@ -755,7 +914,7 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
         :class:`~google.cloud.redis_v1.types.InputConfig`
     :type input_config: Union[Dict, google.cloud.redis_v1.types.InputConfig]
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
@@ -765,8 +924,17 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -779,11 +947,13 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         instance_id: str,
         instance: Union[Dict, Instance],
@@ -793,7 +963,8 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -805,9 +976,12 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
-        hook = CloudMemorystoreHook(gcp_conn_id=self.gcp_conn_id)
+    def execute(self, context: dict) -> None:
+        hook = CloudMemorystoreHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
 
         hook.create_instance(
             location=self.location,
@@ -851,7 +1025,7 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
         :class:`~google.cloud.redis_v1.types.OutputConfig`
     :type output_config: Union[Dict, google.cloud.redis_v1.types.OutputConfig]
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :type retry: google.api_core.retry.Retry
@@ -860,8 +1034,17 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -873,11 +1056,13 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         instance: str,
         output_config: Union[Dict, OutputConfig],
@@ -886,7 +1071,8 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -897,9 +1083,12 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
-        hook = CloudMemorystoreHook(gcp_conn_id=self.gcp_conn_id)
+    def execute(self, context: dict) -> None:
+        hook = CloudMemorystoreHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
 
         hook.export_instance(
             location=self.location,

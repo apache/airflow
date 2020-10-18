@@ -139,7 +139,7 @@ def pod_mutation_hook(pod):  # pylint: disable=unused-argument
 
 # pylint: disable=global-statement
 def configure_vars():
-    """ Configure Global Variables from airflow.cfg"""
+    """Configure Global Variables from airflow.cfg"""
     global SQL_ALCHEMY_CONN
     global DAGS_FOLDER
     global PLUGINS_FOLDER
@@ -154,16 +154,39 @@ def configure_vars():
 
 
 def configure_orm(disable_connection_pool=False):
-    """ Configure ORM using SQLAlchemy"""
+    """Configure ORM using SQLAlchemy"""
     log.debug("Setting up DB connection pool (PID %s)", os.getpid())
     global engine
     global Session
-    engine_args = {}
+    engine_args = prepare_engine_args(disable_connection_pool)
 
+    # Allow the user to specify an encoding for their DB otherwise default
+    # to utf-8 so jobs & users with non-latin1 characters can still use us.
+    engine_args['encoding'] = conf.get('core', 'SQL_ENGINE_ENCODING', fallback='utf-8')
+
+    if conf.has_option('core', 'sql_alchemy_connect_args'):
+        connect_args = conf.getimport('core', 'sql_alchemy_connect_args')
+    else:
+        connect_args = {}
+
+    engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args)
+    setup_event_handlers(engine)
+
+    Session = scoped_session(sessionmaker(
+        autocommit=False,
+        autoflush=False,
+        bind=engine,
+        expire_on_commit=False,
+    ))
+
+
+def prepare_engine_args(disable_connection_pool=False):
+    """Prepare SQLAlchemy engine args"""
+    engine_args = {}
     pool_connections = conf.getboolean('core', 'SQL_ALCHEMY_POOL_ENABLED')
     if disable_connection_pool or not pool_connections:
         engine_args['poolclass'] = NullPool
-        log.debug("settings.configure_orm(): Using NullPool")
+        log.debug("settings.prepare_engine_args(): Using NullPool")
     elif 'sqlite' not in SQL_ALCHEMY_CONN:
         # Pool size engine args not supported by sqlite.
         # If no config value is defined for the pool size, select a reasonable value.
@@ -195,34 +218,17 @@ def configure_orm(disable_connection_pool=False):
         # https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
         pool_pre_ping = conf.getboolean('core', 'SQL_ALCHEMY_POOL_PRE_PING', fallback=True)
 
-        log.debug("settings.configure_orm(): Using pool settings. pool_size=%d, max_overflow=%d, "
+        log.debug("settings.prepare_engine_args(): Using pool settings. pool_size=%d, max_overflow=%d, "
                   "pool_recycle=%d, pid=%d", pool_size, max_overflow, pool_recycle, os.getpid())
         engine_args['pool_size'] = pool_size
         engine_args['pool_recycle'] = pool_recycle
         engine_args['pool_pre_ping'] = pool_pre_ping
         engine_args['max_overflow'] = max_overflow
-
-    # Allow the user to specify an encoding for their DB otherwise default
-    # to utf-8 so jobs & users with non-latin1 characters can still use us.
-    engine_args['encoding'] = conf.get('core', 'SQL_ENGINE_ENCODING', fallback='utf-8')
-
-    if conf.has_option('core', 'sql_alchemy_connect_args'):
-        connect_args = conf.getimport('core', 'sql_alchemy_connect_args')
-    else:
-        connect_args = {}
-
-    engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args)
-    setup_event_handlers(engine)
-
-    Session = scoped_session(
-        sessionmaker(autocommit=False,
-                     autoflush=False,
-                     bind=engine,
-                     expire_on_commit=False))
+    return engine_args
 
 
 def dispose_orm():
-    """ Properly close pooled database connections """
+    """Properly close pooled database connections"""
     log.debug("Disposing DB connection pool (PID %s)", os.getpid())
     global engine
     global Session
@@ -236,7 +242,7 @@ def dispose_orm():
 
 
 def configure_adapters():
-    """ Register Adapters and DB Converters """
+    """Register Adapters and DB Converters"""
     from pendulum import DateTime as Pendulum
     try:
         from sqlite3 import register_adapter
@@ -256,7 +262,7 @@ def configure_adapters():
 
 
 def validate_session():
-    """ Validate ORM Session """
+    """Validate ORM Session"""
     worker_precheck = conf.getboolean('core', 'worker_precheck', fallback=False)
     if not worker_precheck:
         return True
@@ -285,7 +291,6 @@ def prepare_syspath():
     """
     Ensures that certain subfolders of AIRFLOW_HOME are on the classpath
     """
-
     if DAGS_FOLDER not in sys.path:
         sys.path.append(DAGS_FOLDER)
 
@@ -300,7 +305,7 @@ def prepare_syspath():
 
 
 def import_local_settings():
-    """ Import airflow_local_settings.py files to allow overriding any configs in settings.py file """
+    """Import airflow_local_settings.py files to allow overriding any configs in settings.py file"""
     try:  # pylint: disable=too-many-nested-blocks
         import airflow_local_settings
 
@@ -318,7 +323,7 @@ def import_local_settings():
 
 
 def initialize():
-    """ Initialize Airflow with all the settings from this file """
+    """Initialize Airflow with all the settings from this file"""
     configure_vars()
     prepare_syspath()
     import_local_settings()
@@ -366,3 +371,29 @@ STORE_DAG_CODE = conf.getboolean("core", "store_dag_code", fallback=STORE_SERIAL
 # to get all the logs from the print & log statements in the DAG files before a task is run
 # The handlers are restored after the task completes execution.
 DONOT_MODIFY_HANDLERS = conf.getboolean('logging', 'donot_modify_handlers', fallback=False)
+
+CAN_FORK = hasattr(os, "fork")
+
+EXECUTE_TASKS_NEW_PYTHON_INTERPRETER = not CAN_FORK or conf.getboolean(
+    'core',
+    'execute_tasks_new_python_interpreter',
+    fallback=False,
+)
+
+ALLOW_FUTURE_EXEC_DATES = conf.getboolean('scheduler', 'allow_trigger_in_future', fallback=False)
+
+# Whether or not to check each dagrun against defined SLAs
+CHECK_SLAS = conf.getboolean('core', 'check_slas', fallback=True)
+
+# Number of times, the code should be retried in case of DB Operational Errors
+# Retries are done using tenacity. Not all transactions should be retried as it can cause
+# undesired state.
+# Currently used in the following places:
+# `DagFileProcessor.process_file` to retry `dagbag.sync_to_db`
+MAX_DB_RETRIES = conf.getint('core', 'max_db_retries', fallback=3)
+
+USE_JOB_SCHEDULE = conf.getboolean('scheduler', 'use_job_schedule', fallback=True)
+
+# By default Airflow plugins are lazily-loaded (only loaded when required). Set it to False,
+# if you want to load plugins whenever 'airflow' is invoked via cli or loaded from module.
+LAZY_LOAD_PLUGINS = conf.getboolean('core', 'lazy_load_plugins', fallback=True)

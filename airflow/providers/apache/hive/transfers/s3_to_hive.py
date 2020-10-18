@@ -107,25 +107,26 @@ class S3ToHiveOperator(BaseOperator):  # pylint: disable=too-many-instance-attri
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-            self,
-            *,
-            s3_key: str,
-            field_dict: Dict,
-            hive_table: str,
-            delimiter: str = ',',
-            create: bool = True,
-            recreate: bool = False,
-            partition: Optional[Dict] = None,
-            headers: bool = False,
-            check_headers: bool = False,
-            wildcard_match: bool = False,
-            aws_conn_id: str = 'aws_default',
-            verify: Optional[Union[bool, str]] = None,
-            hive_cli_conn_id: str = 'hive_cli_default',
-            input_compressed: bool = False,
-            tblproperties: Optional[Dict] = None,
-            select_expression: Optional[str] = None,
-            **kwargs) -> None:
+        self,
+        *,
+        s3_key: str,
+        field_dict: Dict,
+        hive_table: str,
+        delimiter: str = ',',
+        create: bool = True,
+        recreate: bool = False,
+        partition: Optional[Dict] = None,
+        headers: bool = False,
+        check_headers: bool = False,
+        wildcard_match: bool = False,
+        aws_conn_id: str = 'aws_default',
+        verify: Optional[Union[bool, str]] = None,
+        hive_cli_conn_id: str = 'hive_cli_default',
+        input_compressed: bool = False,
+        tblproperties: Optional[Dict] = None,
+        select_expression: Optional[str] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.s3_key = s3_key
         self.field_dict = field_dict
@@ -144,10 +145,8 @@ class S3ToHiveOperator(BaseOperator):  # pylint: disable=too-many-instance-attri
         self.tblproperties = tblproperties
         self.select_expression = select_expression
 
-        if (self.check_headers and
-                not (self.field_dict is not None and self.headers)):
-            raise AirflowException("To check_headers provide " +
-                                   "field_dict and headers")
+        if self.check_headers and not (self.field_dict is not None and self.headers):
+            raise AirflowException("To check_headers provide " + "field_dict and headers")
 
     def execute(self, context):
         # Downloading file from S3
@@ -165,18 +164,13 @@ class S3ToHiveOperator(BaseOperator):  # pylint: disable=too-many-instance-attri
             s3_key_object = s3_hook.get_key(self.s3_key)
 
         _, file_ext = os.path.splitext(s3_key_object.key)
-        if (self.select_expression and self.input_compressed and
-                file_ext.lower() != '.gz'):
-            raise AirflowException("GZIP is the only compression " +
-                                   "format Amazon S3 Select supports")
+        if self.select_expression and self.input_compressed and file_ext.lower() != '.gz':
+            raise AirflowException("GZIP is the only compression " + "format Amazon S3 Select supports")
 
-        with TemporaryDirectory(prefix='tmps32hive_') as tmp_dir,\
-                NamedTemporaryFile(mode="wb",
-                                   dir=tmp_dir,
-                                   suffix=file_ext) as f:
-            self.log.info(
-                "Dumping S3 key %s contents to local file %s", s3_key_object.key, f.name
-            )
+        with TemporaryDirectory(prefix='tmps32hive_') as tmp_dir, NamedTemporaryFile(
+            mode="wb", dir=tmp_dir, suffix=file_ext
+        ) as f:
+            self.log.info("Dumping S3 key %s contents to local file %s", s3_key_object.key, f.name)
             if self.select_expression:
                 option = {}
                 if self.headers:
@@ -192,7 +186,7 @@ class S3ToHiveOperator(BaseOperator):  # pylint: disable=too-many-instance-attri
                     bucket_name=s3_key_object.bucket_name,
                     key=s3_key_object.key,
                     expression=self.select_expression,
-                    input_serialization=input_serialization
+                    input_serialization=input_serialization,
                 )
                 f.write(content.encode("utf-8"))
             else:
@@ -209,14 +203,13 @@ class S3ToHiveOperator(BaseOperator):  # pylint: disable=too-many-instance-attri
                     partition=self.partition,
                     delimiter=self.delimiter,
                     recreate=self.recreate,
-                    tblproperties=self.tblproperties)
+                    tblproperties=self.tblproperties,
+                )
             else:
                 # Decompressing file
                 if self.input_compressed:
                     self.log.info("Uncompressing file %s", f.name)
-                    fn_uncompressed = uncompress_file(f.name,
-                                                      file_ext,
-                                                      tmp_dir)
+                    fn_uncompressed = uncompress_file(f.name, file_ext, tmp_dir)
                     self.log.info("Uncompressed to %s", fn_uncompressed)
                     # uncompressed file available now so deleting
                     # compressed file to save disk space
@@ -233,20 +226,19 @@ class S3ToHiveOperator(BaseOperator):  # pylint: disable=too-many-instance-attri
 
                 # Deleting top header row
                 self.log.info("Removing header from file %s", fn_uncompressed)
-                headless_file = (
-                    self._delete_top_row_and_compress(fn_uncompressed,
-                                                      file_ext,
-                                                      tmp_dir))
+                headless_file = self._delete_top_row_and_compress(fn_uncompressed, file_ext, tmp_dir)
                 self.log.info("Headless file %s", headless_file)
                 self.log.info("Loading file %s into Hive", headless_file)
-                hive_hook.load_file(headless_file,
-                                    self.hive_table,
-                                    field_dict=self.field_dict,
-                                    create=self.create,
-                                    partition=self.partition,
-                                    delimiter=self.delimiter,
-                                    recreate=self.recreate,
-                                    tblproperties=self.tblproperties)
+                hive_hook.load_file(
+                    headless_file,
+                    self.hive_table,
+                    field_dict=self.field_dict,
+                    create=self.create,
+                    partition=self.partition,
+                    delimiter=self.delimiter,
+                    recreate=self.recreate,
+                    tblproperties=self.tblproperties,
+                )
 
     def _get_top_row_as_list(self, file_name):
         with open(file_name, 'rt') as file:
@@ -263,22 +255,19 @@ class S3ToHiveOperator(BaseOperator):  # pylint: disable=too-many-instance-attri
                 "Headers count mismatch File headers:\n %s\nField names: \n %s\n", header_list, field_names
             )
             return False
-        test_field_match = [h1.lower() == h2.lower()
-                            for h1, h2 in zip(header_list, field_names)]
+        test_field_match = [h1.lower() == h2.lower() for h1, h2 in zip(header_list, field_names)]
         if not all(test_field_match):
             self.log.warning(
                 "Headers do not match field names File headers:\n %s\nField names: \n %s\n",
-                header_list, field_names
+                header_list,
+                field_names,
             )
             return False
         else:
             return True
 
     @staticmethod
-    def _delete_top_row_and_compress(
-            input_file_name,
-            output_file_ext,
-            dest_dir):
+    def _delete_top_row_and_compress(input_file_name, output_file_ext, dest_dir):
         # When output_file_ext is not defined, file is not compressed
         open_fn = open
         if output_file_ext.lower() == '.gz':

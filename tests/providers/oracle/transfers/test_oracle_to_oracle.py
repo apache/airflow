@@ -25,7 +25,6 @@ from airflow.providers.oracle.transfers.oracle_to_oracle import OracleToOracleOp
 
 
 class TestOracleToOracleTransfer(unittest.TestCase):
-
     @staticmethod
     def test_execute():
         oracle_destination_conn_id = 'oracle_destination_conn_id'
@@ -36,7 +35,7 @@ class TestOracleToOracleTransfer(unittest.TestCase):
         rows_chunk = 5000
         cursor_description = [
             ('id', "<class 'cx_Oracle.NUMBER'>", 39, None, 38, 0, 0),
-            ('description', "<class 'cx_Oracle.STRING'>", 60, 240, None, None, 1)
+            ('description', "<class 'cx_Oracle.STRING'>", 60, 240, None, None, 1),
         ]
         cursor_rows = [[1, 'description 1'], [2, 'description 2']]
 
@@ -54,7 +53,8 @@ class TestOracleToOracleTransfer(unittest.TestCase):
             oracle_source_conn_id=oracle_source_conn_id,
             source_sql=source_sql,
             source_sql_params=source_sql_params,
-            rows_chunk=rows_chunk)
+            rows_chunk=rows_chunk,
+        )
 
         op._execute(mock_src_hook, mock_dest_hook, None)
 
@@ -68,7 +68,5 @@ class TestOracleToOracleTransfer(unittest.TestCase):
         ]
         mock_cursor.fetchmany.assert_has_calls(calls)
         mock_dest_hook.bulk_insert_rows.assert_called_once_with(
-            destination_table,
-            cursor_rows,
-            commit_every=rows_chunk,
-            target_fields=['id', 'description'])
+            destination_table, cursor_rows, commit_every=rows_chunk, target_fields=['id', 'description']
+        )

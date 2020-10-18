@@ -44,7 +44,9 @@ from airflow import version
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.providers.google.cloud.utils.credentials_provider import (
-    _get_scopes, _get_target_principal_and_delegates, get_credentials_and_project_id,
+    _get_scopes,
+    _get_target_principal_and_delegates,
+    get_credentials_and_project_id,
 )
 from airflow.utils.process_utils import patch_environ
 
@@ -76,18 +78,10 @@ def is_soft_quota_exception(exception: Exception):
     * Google Video Intelligence
     """
     if isinstance(exception, Forbidden):
-        return any(
-            reason in error.details()
-            for reason in INVALID_REASONS
-            for error in exception.errors
-        )
+        return any(reason in error.details() for reason in INVALID_REASONS for error in exception.errors)
 
     if isinstance(exception, (ResourceExhausted, TooManyRequests)):
-        return any(
-            key in error.details()
-            for key in INVALID_KEYS
-            for error in exception.errors
-        )
+        return any(key in error.details() for key in INVALID_KEYS for error in exception.errors)
 
     return False
 
@@ -132,7 +126,7 @@ class GoogleBaseHook(BaseHook):
 
     The class also contains some miscellaneous helper functions.
 
-    All hook derived from this base hook use the 'Google Cloud Platform' connection
+    All hook derived from this base hook use the 'Google Cloud' connection
     type. Three ways of authentication are supported:
 
     Default credentials: Only the 'Project Id' is required. You'll need to
@@ -291,7 +285,7 @@ class GoogleBaseHook(BaseHook):
         It allows for better errors tracking.
 
         This object is only used by the google-cloud-* libraries that are built specifically for
-        the Google Cloud Platform. It is not supported by The Google APIs Python Client that use Discovery
+        the Google Cloud. It is not supported by The Google APIs Python Client that use Discovery
         based APIs.
         """
         client_info = ClientInfo(client_library_version='airflow_v' + version.version)
@@ -315,6 +309,7 @@ class GoogleBaseHook(BaseHook):
         A decorator that provides a mechanism to repeat requests in response to exceeding a temporary quote
         limit.
         """
+
         def decorator(fun: Callable):
             default_kwargs = {
                 'wait': tenacity.wait_exponential(multiplier=1, max=100),
@@ -323,9 +318,8 @@ class GoogleBaseHook(BaseHook):
                 'after': tenacity.after_log(log, logging.DEBUG),
             }
             default_kwargs.update(**kwargs)
-            return tenacity.retry(
-                *args, **default_kwargs
-            )(fun)
+            return tenacity.retry(*args, **default_kwargs)(fun)
+
         return decorator
 
     @staticmethod
@@ -335,6 +329,7 @@ class GoogleBaseHook(BaseHook):
         operation in progress (HTTP 409)
         limit.
         """
+
         def decorator(fun: T):
             default_kwargs = {
                 'wait': tenacity.wait_exponential(multiplier=1, max=300),
@@ -343,15 +338,14 @@ class GoogleBaseHook(BaseHook):
                 'after': tenacity.after_log(log, logging.DEBUG),
             }
             default_kwargs.update(**kwargs)
-            return cast(T, tenacity.retry(
-                *args, **default_kwargs
-            )(fun))
+            return cast(T, tenacity.retry(*args, **default_kwargs)(fun))
+
         return decorator
 
     @staticmethod
     def fallback_to_default_project_id(func: Callable[..., RT]) -> Callable[..., RT]:
         """
-        Decorator that provides fallback for Google Cloud Platform project id. If
+        Decorator that provides fallback for Google Cloud project id. If
         the project is None it will be replaced with the project_id from the
         service account the Hook is authenticated with. Project id can be specified
         either via project_id kwarg or via first parameter in positional args.
@@ -359,50 +353,60 @@ class GoogleBaseHook(BaseHook):
         :param func: function to wrap
         :return: result of the function call
         """
+
         @functools.wraps(func)
         def inner_wrapper(self: GoogleBaseHook, *args, **kwargs) -> RT:
             if args:
                 raise AirflowException(
-                    "You must use keyword arguments in this methods rather than"
-                    " positional")
+                    "You must use keyword arguments in this methods rather than" " positional"
+                )
             if 'project_id' in kwargs:
                 kwargs['project_id'] = kwargs['project_id'] or self.project_id
             else:
                 kwargs['project_id'] = self.project_id
             if not kwargs['project_id']:
-                raise AirflowException("The project id must be passed either as "
-                                       "keyword project_id parameter or as project_id extra "
-                                       "in GCP connection definition. Both are not set!")
+                raise AirflowException(
+                    "The project id must be passed either as "
+                    "keyword project_id parameter or as project_id extra "
+                    "in Google Cloud connection definition. Both are not set!"
+                )
             return func(self, *args, **kwargs)
+
         return inner_wrapper
 
     @staticmethod
     def provide_gcp_credential_file(func: T) -> T:
         """
-        Function decorator that provides a GCP credentials for application supporting Application
+        Function decorator that provides a Google Cloud credentials for application supporting Application
         Default Credentials (ADC) strategy.
 
         It is recommended to use ``provide_gcp_credential_file_as_context`` context manager to limit the
         scope when authorization data is available. Using context manager also
         makes it easier to use multiple connection in one function.
         """
+
         @functools.wraps(func)
         def wrapper(self: GoogleBaseHook, *args, **kwargs):
             with self.provide_gcp_credential_file_as_context():
                 return func(self, *args, **kwargs)
+
         return cast(T, wrapper)
 
     @contextmanager
     def provide_gcp_credential_file_as_context(self):
         """
-        Context manager that provides a GCP credentials for application supporting `Application
+        Context manager that provides a Google Cloud credentials for application supporting `Application
         Default Credentials (ADC) strategy <https://cloud.google.com/docs/authentication/production>`__.
 
         It can be used to provide credentials for external programs (e.g. gcloud) that expect authorization
         file in ``GOOGLE_APPLICATION_CREDENTIALS`` environment variable.
         """
-        key_path = self._get_field('key_path', None)  # type: Optional[str]  # noqa: E501  #  pylint: disable=protected-access
-        keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[Dict]  # noqa: E501  # pylint: disable=protected-access
+        key_path = self._get_field(
+            'key_path', None
+        )  # type: Optional[str]  # noqa: E501  #  pylint: disable=protected-access
+        keyfile_dict = self._get_field(
+            'keyfile_dict', None
+        )  # type: Optional[Dict]  # noqa: E501  # pylint: disable=protected-access
         if key_path and keyfile_dict:
             raise AirflowException(
                 "The `keyfile_dict` and `key_path` fields are mutually exclusive. "
@@ -410,9 +414,7 @@ class GoogleBaseHook(BaseHook):
             )
         elif key_path:
             if key_path.endswith('.p12'):
-                raise AirflowException(
-                    'Legacy P12 key file are not supported, use a JSON key file.'
-                )
+                raise AirflowException('Legacy P12 key file are not supported, use a JSON key file.')
             with patch_environ({CREDENTIALS: key_path}):
                 yield key_path
         elif keyfile_dict:
@@ -430,7 +432,7 @@ class GoogleBaseHook(BaseHook):
         """
         Provides a separate gcloud configuration with current credentials.
 
-        The gcloud allows you to login to GCP only - ``gcloud auth login`` and
+        The gcloud tool allows you to login to Google Cloud only - ``gcloud auth login`` and
         for the needs of Application Default Credentials ``gcloud auth application-default login``.
         In our case, we want all commands to use only the credentials from ADCm so
         we need to configure the credentials in gcloud manually.
@@ -438,42 +440,42 @@ class GoogleBaseHook(BaseHook):
         credentials_path = _cloud_sdk.get_application_default_credentials_path()
         project_id = self.project_id
 
+        # fmt: off
         with self.provide_gcp_credential_file_as_context(), \
                 tempfile.TemporaryDirectory() as gcloud_config_tmp, \
                 patch_environ({'CLOUDSDK_CONFIG': gcloud_config_tmp}):
 
+            # fmt: on
             if project_id:
                 # Don't display stdout/stderr for security reason
-                check_output([
-                    "gcloud", "config", "set", "core/project", project_id
-                ])
+                check_output(["gcloud", "config", "set", "core/project", project_id])
             if CREDENTIALS in os.environ:
                 # This solves most cases when we are logged in using the service key in Airflow.
                 # Don't display stdout/stderr for security reason
-                check_output([
-                    "gcloud", "auth", "activate-service-account", f"--key-file={os.environ[CREDENTIALS]}",
-                ])
+                check_output(
+                    ["gcloud", "auth", "activate-service-account", f"--key-file={os.environ[CREDENTIALS]}",]
+                )
             elif os.path.exists(credentials_path):
                 # If we are logged in by `gcloud auth application-default` then we need to log in manually.
                 # This will make the `gcloud auth application-default` and `gcloud auth` credentials equals.
                 with open(credentials_path) as creds_file:
                     creds_content = json.loads(creds_file.read())
                     # Don't display stdout/stderr for security reason
-                    check_output([
-                        "gcloud", "config", "set", "auth/client_id", creds_content["client_id"]
-                    ])
+                    check_output(["gcloud", "config", "set", "auth/client_id", creds_content["client_id"]])
                     # Don't display stdout/stderr for security reason
-                    check_output([
-                        "gcloud", "config", "set", "auth/client_secret", creds_content["client_secret"]
-                    ])
+                    check_output(
+                        ["gcloud", "config", "set", "auth/client_secret", creds_content["client_secret"]]
+                    )
                     # Don't display stdout/stderr for security reason
-                    check_output([
-                        "gcloud",
-                        "auth",
-                        "activate-refresh-token",
-                        creds_content["client_id"],
-                        creds_content["refresh_token"],
-                    ])
+                    check_output(
+                        [
+                            "gcloud",
+                            "auth",
+                            "activate-refresh-token",
+                            creds_content["client_id"],
+                            creds_content["refresh_token"],
+                        ]
+                    )
             yield
 
     @staticmethod

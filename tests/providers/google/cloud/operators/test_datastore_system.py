@@ -28,7 +28,6 @@ BUCKET = os.environ.get("GCP_DATASTORE_BUCKET", "datastore-system-test")
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GCP_DATASTORE_KEY)
 class GcpDatastoreSystemTest(GoogleSystemTest):
-
     @provide_gcp_context(GCP_DATASTORE_KEY)
     def setUp(self):
         super().setUp()

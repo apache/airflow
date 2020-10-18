@@ -24,7 +24,8 @@ from mock import MagicMock, patch
 
 from airflow.providers.google.cloud.hooks.secret_manager import SecretsManagerHook
 from tests.providers.google.cloud.utils.base_gcp_mock import (
-    GCP_PROJECT_ID_HOOK_UNIT_TEST, mock_base_gcp_hook_default_project_id,
+    GCP_PROJECT_ID_HOOK_UNIT_TEST,
+    mock_base_gcp_hook_default_project_id,
 )
 
 BASE_PACKAGE = 'airflow.providers.google.common.hooks.base_google.'
@@ -33,10 +34,11 @@ INTERNAL_CLIENT_PACKAGE = 'airflow.providers.google.cloud._internal_client.secre
 
 
 class TestSecretsManagerHook(unittest.TestCase):
-
     @patch(INTERNAL_CLIENT_PACKAGE + "._SecretManagerClient.client", return_value=MagicMock())
-    @patch(SECRETS_HOOK_PACKAGE + 'SecretsManagerHook._get_credentials_and_project_id',
-           return_value=(MagicMock(), GCP_PROJECT_ID_HOOK_UNIT_TEST))
+    @patch(
+        SECRETS_HOOK_PACKAGE + 'SecretsManagerHook._get_credentials_and_project_id',
+        return_value=(MagicMock(), GCP_PROJECT_ID_HOOK_UNIT_TEST),
+    )
     @patch(BASE_PACKAGE + 'GoogleBaseHook.__init__', new=mock_base_gcp_hook_default_project_id)
     def test_get_missing_key(self, mock_get_credentials, mock_client):
         mock_client.secret_version_path.return_value = "full-path"
@@ -49,8 +51,10 @@ class TestSecretsManagerHook(unittest.TestCase):
         self.assertIsNone(secret)
 
     @patch(INTERNAL_CLIENT_PACKAGE + "._SecretManagerClient.client", return_value=MagicMock())
-    @patch(SECRETS_HOOK_PACKAGE + 'SecretsManagerHook._get_credentials_and_project_id',
-           return_value=(MagicMock(), GCP_PROJECT_ID_HOOK_UNIT_TEST))
+    @patch(
+        SECRETS_HOOK_PACKAGE + 'SecretsManagerHook._get_credentials_and_project_id',
+        return_value=(MagicMock(), GCP_PROJECT_ID_HOOK_UNIT_TEST),
+    )
     @patch(BASE_PACKAGE + 'GoogleBaseHook.__init__', new=mock_base_gcp_hook_default_project_id)
     def test_get_existing_key(self, mock_get_credentials, mock_client):
         mock_client.secret_version_path.return_value = "full-path"

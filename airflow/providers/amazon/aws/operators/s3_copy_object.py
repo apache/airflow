@@ -64,20 +64,21 @@ class S3CopyObjectOperator(BaseOperator):
     :type verify: bool or str
     """
 
-    template_fields = ('source_bucket_key', 'dest_bucket_key',
-                       'source_bucket_name', 'dest_bucket_name')
+    template_fields = ('source_bucket_key', 'dest_bucket_key', 'source_bucket_name', 'dest_bucket_name')
 
     @apply_defaults
     def __init__(
-            self, *,
-            source_bucket_key,
-            dest_bucket_key,
-            source_bucket_name=None,
-            dest_bucket_name=None,
-            source_version_id=None,
-            aws_conn_id='aws_default',
-            verify=None,
-            **kwargs):
+        self,
+        *,
+        source_bucket_key,
+        dest_bucket_key,
+        source_bucket_name=None,
+        dest_bucket_name=None,
+        source_version_id=None,
+        aws_conn_id='aws_default',
+        verify=None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
 
         self.source_bucket_key = source_bucket_key
@@ -90,6 +91,10 @@ class S3CopyObjectOperator(BaseOperator):
 
     def execute(self, context):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
-        s3_hook.copy_object(self.source_bucket_key, self.dest_bucket_key,
-                            self.source_bucket_name, self.dest_bucket_name,
-                            self.source_version_id)
+        s3_hook.copy_object(
+            self.source_bucket_key,
+            self.dest_bucket_key,
+            self.source_bucket_name,
+            self.dest_bucket_name,
+            self.source_version_id,
+        )

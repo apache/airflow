@@ -43,7 +43,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 You can create the operator with or without project id. If project id is missing
-it will be retrieved from the GCP connection used. Both variants are shown:
+it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_spanner.py
     :language: python
@@ -82,7 +82,7 @@ Using the operator
 """"""""""""""""""
 
 You can create the operator with or without project id. If project id is missing
-it will be retrieved from the GCP connection used. Both variants are shown:
+it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_spanner.py
     :language: python
@@ -122,7 +122,7 @@ Using the operator
 """"""""""""""""""
 
 You can create the operator with or without project id. If project id is missing
-it will be retrieved from the GCP connection used. Both variants are shown:
+it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_spanner.py
     :language: python
@@ -166,7 +166,7 @@ Using the operator
 """"""""""""""""""
 
 You can create the operator with or without project id. If project id is missing
-it will be retrieved from the GCP connection used. Both variants are shown:
+it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_spanner.py
     :language: python
@@ -209,7 +209,7 @@ Using the operator
 """"""""""""""""""
 
 You can create the operator with or without project id. If project id is missing
-it will be retrieved from the GCP connection used. Both variants are shown:
+it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_spanner.py
     :language: python
@@ -248,7 +248,7 @@ Using the operator
 """"""""""""""""""
 
 You can create the operator with or without project id. If project id is missing
-it will be retrieved from the GCP connection used. Both variants are shown:
+it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_spanner.py
     :language: python

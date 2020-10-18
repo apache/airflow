@@ -26,7 +26,6 @@ from airflow.providers.sqlite.hooks.sqlite import SqliteHook
 
 
 class TestSqliteHookConn(unittest.TestCase):
-
     def setUp(self):
 
         self.connection = Connection(host='host')
@@ -52,7 +51,6 @@ class TestSqliteHookConn(unittest.TestCase):
 
 
 class TestSqliteHook(unittest.TestCase):
-
     def setUp(self):
 
         self.cur = mock.MagicMock()

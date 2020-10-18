@@ -110,3 +110,6 @@ the example below.
 
 .. note::
     For more information on configuration options, see :doc:`../configurations-ref`
+
+.. note::
+    See :doc:`../modules_management` for details on how Python and Airflow manage modules.

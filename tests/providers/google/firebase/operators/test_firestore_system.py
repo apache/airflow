@@ -18,7 +18,8 @@
 import pytest
 
 from airflow.providers.google.firebase.example_dags.example_firestore import (
-    DATASET_NAME, EXPORT_DESTINATION_URL,
+    DATASET_NAME,
+    EXPORT_DESTINATION_URL,
 )
 from tests.providers.google.cloud.utils.gcp_authenticator import G_FIREBASE_KEY
 from tests.test_utils.gcp_system_helpers import FIREBASE_DAG_FOLDER, GoogleSystemTest, provide_gcp_context

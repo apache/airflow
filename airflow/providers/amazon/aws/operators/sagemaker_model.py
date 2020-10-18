@@ -37,11 +37,8 @@ class SageMakerModelOperator(SageMakerBaseOperator):
     """
 
     @apply_defaults
-    def __init__(self, *,
-                 config,
-                 **kwargs):
-        super().__init__(config=config,
-                         **kwargs)
+    def __init__(self, *, config, **kwargs):
+        super().__init__(config=config, **kwargs)
 
         self.config = config
 
@@ -58,8 +55,4 @@ class SageMakerModelOperator(SageMakerBaseOperator):
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             raise AirflowException('Sagemaker model creation failed: %s' % response)
         else:
-            return {
-                'Model': self.hook.describe_model(
-                    self.config['ModelName']
-                )
-            }
+            return {'Model': self.hook.describe_model(self.config['ModelName'])}

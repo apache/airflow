@@ -20,7 +20,7 @@ Transfer data in Google Cloud Storage
 
 The `Google Cloud Storage <https://cloud.google.com/storage/>`__  (GCS) is used to store large data from various applications.
 Note that files are called objects in GCS terminology, so the use of the term "object" and "file" in this guide is
-interchangeable. There are several operators for whose purpose is to copy data as part of the Google CLoud Service.
+interchangeable. There are several operators for whose purpose is to copy data as part of the Google Cloud Service.
 This page shows how to use these operators.
 
 Overview
@@ -37,7 +37,7 @@ You can also use the previous operator for this service -
 
 These operators do not control the copying process locally, but uses Google resources, which allows them to
 perform this task faster and more economically. The economic effects are especially prominent when
-Airflow is not hosted in Google Cloud Platform, because these operators reduce egress traffic.
+Airflow is not hosted in Google Cloud, because these operators reduce egress traffic.
 
 These operators modify source objects if the option that specifies whether objects should be deleted
 from the source after they are transferred to the sink is enabled.

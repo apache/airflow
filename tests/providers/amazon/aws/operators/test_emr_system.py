@@ -22,6 +22,7 @@ class EmrSystemTest(AmazonSystemTest):
     """
     System tests for AWS EMR operators
     """
+
     @classmethod
     def setup_class(cls):
         cls.create_emr_default_roles()

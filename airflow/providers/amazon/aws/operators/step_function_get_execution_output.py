@@ -36,6 +36,7 @@ class StepFunctionGetExecutionOutputOperator(BaseOperator):
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
     :type aws_conn_id: str
     """
+
     template_fields = ['execution_arn']
     template_ext = ()
     ui_color = '#f9c915'

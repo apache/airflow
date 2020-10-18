@@ -57,9 +57,9 @@ the ``DAG`` objects. You can have as many DAGs as you want, each describing an
 arbitrary number of tasks. In general, each one should correspond to a single
 logical workflow.
 
-.. note:: When searching for DAGs, Airflow only considers python files
+.. note:: When searching for DAGs, Airflow only considers Python files
    that contain the strings "airflow" and "DAG" by default. To consider
-   all python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE``
+   all Python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE``
    configuration flag.
 
 Scope
@@ -116,17 +116,23 @@ DAGs can be used as context managers to automatically assign new operators to th
 
     op.dag is dag # True
 
-.. _concepts:functional_dags:
+.. _concepts:decorated_flows:
 
-Functional DAGs
+Decorated Flows
 ---------------
 
-DAGs can be defined using functional abstractions. Outputs and inputs are sent between tasks using
-:ref:`XCom values <concepts:xcom>`. In addition, you can wrap functions as tasks using the
-:ref:`task decorator <concepts:task_decorator>`. Airflow will also automatically add dependencies between
-tasks to ensure that XCom messages are available when operators are executed.
+.. versionadded:: 2.0.0
 
-Example DAG with functional abstraction
+Airflow 2.0 adds a new style of authoring dags called Decorated Flows which removes a lot of the boilerplate
+around creating PythonOperators, managing dependencies between task and accessing XCom values. (During
+development this feature was called "Functional DAGs", so if you see or hear any references to that, it's the
+same thing)
+
+Outputs and inputs are sent between tasks using :ref:`XCom values <concepts:xcom>`. In addition, you can wrap
+functions as tasks using the :ref:`task decorator <concepts:task_decorator>`. Airflow will also automatically
+add dependencies between tasks to ensure that XCom messages are available when operators are executed.
+
+Example DAG with decorated style
 
 .. code-block:: python
 
@@ -155,6 +161,15 @@ Example DAG with functional abstraction
         subject=email_info['subject'],
         html_content=email_info['body']
     )
+
+.. _concepts:executor_config:
+
+executor_config
+===============
+
+The executor_config is an argument placed into operators that allow airflow users to override tasks
+before launch. Currently this is primarily used by the :class:`KubernetesExecutor`, but will soon be available
+for other overrides.
 
 .. _concepts:dagruns:
 
@@ -218,9 +233,10 @@ When a DAG Run is created, task_1 will start running and task_2 waits for task_1
 Python task decorator
 ---------------------
 
+.. versionadded:: 2.0.0
+
 Airflow ``task`` decorator converts any Python function to an Airflow operator.
 The decorated function can be called once to set the arguments and key arguments for operator execution.
-
 
 .. code-block:: python
 
@@ -241,10 +257,10 @@ The decorated function can be called once to set the arguments and key arguments
 
       hello_name('Airflow users')
 
-Task decorator captures returned values and sends them to the :ref:`XCom backend <concepts:xcom>`. By default, returned
-value is saved as a single XCom value. You can set ``multiple_outputs`` key argument to ``True`` to unroll dictionaries,
-lists or tuples into separate XCom values. This can be used with regular operators to create
-:ref:`functional DAGs <concepts:functional_dags>`.
+Task decorator captures returned values and sends them to the :ref:`XCom backend <concepts:xcom>`. By default,
+the returned value is saved as a single XCom value. You can set ``multiple_outputs`` key argument to ``True``
+to unroll dictionaries, lists or tuples into separate XCom values. This can be used with regular operators to
+create :ref:`decorated DAGs <concepts:decorated_flows>`.
 
 Calling a decorated function returns an ``XComArg`` instance. You can use it to set templated fields on downstream
 operators.
@@ -741,11 +757,13 @@ for inter-task communication rather than global settings.
 Custom XCom backend
 -------------------
 
-It is possible to change ``XCom`` behaviour os serialization and deserialization of tasks' result.
+It is possible to change ``XCom`` behaviour of serialization and deserialization of tasks' result.
 To do this one have to change ``xcom_backend`` parameter in Airflow config. Provided value should point
 to a class that is subclass of :class:`~airflow.models.xcom.BaseXCom`. To alter the serialization /
 deserialization mechanism the custom class should override ``serialize_value`` and ``deserialize_value``
 methods.
+
+See :doc:`modules_management` for details on how Python and Airflow manage modules.
 
 .. _concepts:variables:
 
@@ -927,6 +945,48 @@ See ``airflow/example_dags`` for a demonstration.
 
 Note that airflow pool is not honored by SubDagOperator. Hence resources could be
 consumed by SubdagOperators.
+
+
+TaskGroup
+=========
+TaskGroup can be used to organize tasks into hierarchical groups in Graph View. It is
+useful for creating repeating patterns and cutting down visual clutter. Unlike SubDagOperator,
+TaskGroup is a UI grouping concept. Tasks in TaskGroups live on the same original DAG. They
+honor all the pool configurations.
+
+Dependency relationships can be applied across all tasks in a TaskGroup with the ``>>`` and ``<<``
+operators. For example, the following code puts ``task1`` and ``task2`` in TaskGroup ``group1``
+and then puts both tasks upstream of ``task3``:
+
+.. code-block:: python
+
+    with TaskGroup("group1") as group1:
+        task1 = DummyOperator(task_id="task1")
+        task2 = DummyOperator(task_id="task2")
+
+    task3 = DummyOperator(task_id="task3")
+
+    group1 >> task3
+
+.. note::
+   By default, child tasks and TaskGroups have their task_id and group_id prefixed with the
+   group_id of their parent TaskGroup. This ensures uniqueness of group_id and task_id throughout
+   the DAG. To disable the prefixing, pass ``prefix_group_id=False`` when creating the TaskGroup.
+   This then gives the user full control over the actual group_id and task_id. They have to ensure
+   group_id and task_id are unique throughout the DAG. The option ``prefix_group_id=False`` is
+   mainly useful for putting tasks on existing DAGs into TaskGroup without altering their task_id.
+
+Here is a more complicated example DAG with multiple levels of nested TaskGroups:
+
+.. exampleinclude:: /../airflow/example_dags/example_task_group.py
+    :language: python
+    :start-after: [START howto_task_group]
+    :end-before: [END howto_task_group]
+
+This animated gif shows the UI interactions. TaskGroups are expanded or collapsed when clicked:
+
+.. image:: img/task_group.gif
+
 
 SLAs
 ====
@@ -1131,7 +1191,7 @@ may look like inside your ``airflow_local_settings.py``:
 .. code-block:: python
 
     def policy(task):
-        if task.__class__.__name__ == 'HivePartitionSensor':
+        if task.task_type == 'HivePartitionSensor':
             task.queue = "sensor_queue"
         if task.timeout > timedelta(hours=48):
             task.timeout = timedelta(hours=48)
@@ -1196,6 +1256,8 @@ Where to put ``airflow_local_settings.py``?
 
 Add a ``airflow_local_settings.py`` file to your ``$PYTHONPATH``
 or to ``$AIRFLOW_HOME/config`` folder.
+
+See :doc:`modules_management` for details on how Python and Airflow manage modules.
 
 
 Documentation & Notes
@@ -1346,8 +1408,8 @@ Exceptions
 ==========
 
 Airflow defines a number of exceptions; most of these are used internally, but a few
-are relevant to authors of custom operators or python callables called from ``PythonOperator``
-tasks. Normally any exception raised from an ``execute`` method or python callable will either
+are relevant to authors of custom operators or Python callables called from ``PythonOperator``
+tasks. Normally any exception raised from an ``execute`` method or Python callable will either
 cause a task instance to fail if it is not configured to retry or has reached its limit on
 retry attempts, or to be marked as "up for retry". A few exceptions can be used when different
 behavior is desired:
@@ -1432,7 +1494,7 @@ do the same, but then it is more suitable to use a virtualenv and pip.
 
 .. note:: packaged dags cannot contain dynamic libraries (eg. libz.so) these need
    to be available on the system if a module needs those. In other words only
-   pure python modules can be packaged.
+   pure Python modules can be packaged.
 
 
 .airflowignore

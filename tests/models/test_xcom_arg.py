@@ -78,29 +78,31 @@ class TestXComArgBuild:
         with DAG("test_set_downstream", default_args=DEFAULT_ARGS):
             op_a = BashOperator(task_id="a", bash_command="echo a")
             op_b = BashOperator(task_id="b", bash_command="echo b")
-            bash_op = BashOperator(task_id="c", bash_command="echo c")
+            bash_op1 = BashOperator(task_id="c", bash_command="echo c")
+            bash_op2 = BashOperator(task_id="d", bash_command="echo c")
             xcom_args_a = XComArg(op_a)
             xcom_args_b = XComArg(op_b)
 
-            xcom_args_a >> xcom_args_b >> bash_op
+            bash_op1 >> xcom_args_a >> xcom_args_b >> bash_op2
 
-        assert len(op_a.downstream_list) == 2
+        assert op_a in bash_op1.downstream_list
         assert op_b in op_a.downstream_list
-        assert bash_op in op_a.downstream_list
+        assert bash_op2 in op_b.downstream_list
 
     def test_set_upstream(self):
         with DAG("test_set_upstream", default_args=DEFAULT_ARGS):
             op_a = BashOperator(task_id="a", bash_command="echo a")
             op_b = BashOperator(task_id="b", bash_command="echo b")
-            bash_op = BashOperator(task_id="c", bash_command="echo c")
+            bash_op1 = BashOperator(task_id="c", bash_command="echo c")
+            bash_op2 = BashOperator(task_id="d", bash_command="echo c")
             xcom_args_a = XComArg(op_a)
             xcom_args_b = XComArg(op_b)
 
-            xcom_args_a << xcom_args_b << bash_op
+            bash_op1 << xcom_args_a << xcom_args_b << bash_op2
 
-        assert len(op_a.upstream_list) == 2
+        assert op_a in bash_op1.upstream_list
         assert op_b in op_a.upstream_list
-        assert bash_op in op_a.upstream_list
+        assert bash_op2 in op_b.upstream_list
 
     def test_xcom_arg_property_of_base_operator(self):
         with DAG("test_xcom_arg_property_of_base_operator", default_args=DEFAULT_ARGS):

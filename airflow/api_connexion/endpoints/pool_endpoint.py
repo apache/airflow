@@ -24,10 +24,11 @@ from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.pool_schema import PoolCollection, pool_collection_schema, pool_schema
 from airflow.models.pool import Pool
+from airflow.security import permissions
 from airflow.utils.session import provide_session
 
 
-@security.requires_authentication
+@security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_POOL)])
 @provide_session
 def delete_pool(pool_name: str, session):
     """
@@ -41,7 +42,7 @@ def delete_pool(pool_name: str, session):
         return Response(status=204)
 
 
-@security.requires_authentication
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL)])
 @provide_session
 def get_pool(pool_name, session):
     """
@@ -53,24 +54,19 @@ def get_pool(pool_name, session):
     return pool_schema.dump(obj)
 
 
-@security.requires_authentication
-@format_parameters({
-    'limit': check_limit
-})
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL)])
+@format_parameters({'limit': check_limit})
 @provide_session
 def get_pools(session, limit, offset=None):
     """
     Get all pools
     """
-
     total_entries = session.query(func.count(Pool.id)).scalar()
     pools = session.query(Pool).order_by(Pool.id).offset(offset).limit(limit).all()
-    return pool_collection_schema.dump(
-        PoolCollection(pools=pools, total_entries=total_entries)
-    )
+    return pool_collection_schema.dump(PoolCollection(pools=pools, total_entries=total_entries))
 
 
-@security.requires_authentication
+@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_POOL)])
 @provide_session
 def patch_pool(pool_name, session, update_mask=None):
     """
@@ -121,7 +117,7 @@ def patch_pool(pool_name, session, update_mask=None):
     return pool_schema.dump(pool)
 
 
-@security.requires_authentication
+@security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_POOL)])
 @provide_session
 def post_pool(session):
     """

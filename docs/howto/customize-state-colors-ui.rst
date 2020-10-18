@@ -68,3 +68,8 @@ After
 .. image:: ../img/change-ui-colors/graph-view-new.png
 
 .. image:: ../img/change-ui-colors/tree-view-new.png
+
+
+.. note::
+
+    See :doc:`../modules_management` for details on how Python and Airflow manage modules.

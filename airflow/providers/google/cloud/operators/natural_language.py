@@ -53,23 +53,39 @@ class CloudNaturalLanguageAnalyzeEntitiesOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START natural_language_analyze_entities_template_fields]
-    template_fields = ("document", "gcp_conn_id")
+    template_fields = (
+        "document",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
     # [END natural_language_analyze_entities_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.document = document
@@ -78,9 +94,13 @@ class CloudNaturalLanguageAnalyzeEntitiesOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudNaturalLanguageHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudNaturalLanguageHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
 
         self.log.info("Start analyzing entities")
         response = hook.analyze_entities(
@@ -112,24 +132,41 @@ class CloudNaturalLanguageAnalyzeEntitySentimentOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+
     :rtype: google.cloud.language_v1.types.AnalyzeEntitiesResponse
     """
+
     # [START natural_language_analyze_entity_sentiment_template_fields]
-    template_fields = ("document", "gcp_conn_id")
+    template_fields = (
+        "document",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
     # [END natural_language_analyze_entity_sentiment_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.document = document
@@ -138,9 +175,13 @@ class CloudNaturalLanguageAnalyzeEntitySentimentOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudNaturalLanguageHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudNaturalLanguageHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
 
         self.log.info("Start entity sentiment analyze")
         response = hook.analyze_entity_sentiment(
@@ -175,24 +216,41 @@ class CloudNaturalLanguageAnalyzeSentimentOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+
     :rtype: google.cloud.language_v1.types.AnalyzeEntitiesResponse
     """
+
     # [START natural_language_analyze_sentiment_template_fields]
-    template_fields = ("document", "gcp_conn_id")
+    template_fields = (
+        "document",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
     # [END natural_language_analyze_sentiment_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.document = document
@@ -201,9 +259,13 @@ class CloudNaturalLanguageAnalyzeSentimentOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudNaturalLanguageHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudNaturalLanguageHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
 
         self.log.info("Start sentiment analyze")
         response = hook.analyze_sentiment(
@@ -232,22 +294,38 @@ class CloudNaturalLanguageClassifyTextOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START natural_language_classify_text_template_fields]
-    template_fields = ("document", "gcp_conn_id")
+    template_fields = (
+        "document",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
     # [END natural_language_classify_text_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         document: Union[dict, Document],
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.document = document
@@ -255,9 +333,13 @@ class CloudNaturalLanguageClassifyTextOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudNaturalLanguageHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudNaturalLanguageHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
 
         self.log.info("Start text classify")
         response = hook.classify_text(

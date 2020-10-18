@@ -21,6 +21,7 @@ import tempfile
 from datetime import datetime
 from unittest import TestCase
 
+from airflow.exceptions import DagRunAlreadyExists
 from airflow.models import DAG, DagModel, DagRun, Log, TaskInstance
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.utils import timezone
@@ -140,3 +141,32 @@ class TestDagRunOperator(TestCase):
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
             self.assertEqual(len(dagruns), 1)
             self.assertTrue(dagruns[0].conf, {"foo": TEST_DAG_ID})
+
+    def test_trigger_dagrun_with_reset_dag_run_false(self):
+        """Test TriggerDagRunOperator with reset_dag_run."""
+        execution_date = DEFAULT_DATE
+        task = TriggerDagRunOperator(task_id="test_task",
+                                     trigger_dag_id=TRIGGERED_DAG_ID,
+                                     execution_date=execution_date,
+                                     reset_dag_run=False,
+                                     dag=self.dag)
+        task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
+
+        with self.assertRaises(DagRunAlreadyExists):
+            task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
+
+    def test_trigger_dagrun_with_reset_dag_run_true(self):
+        """Test TriggerDagRunOperator with reset_dag_run."""
+        execution_date = DEFAULT_DATE
+        task = TriggerDagRunOperator(task_id="test_task",
+                                     trigger_dag_id=TRIGGERED_DAG_ID,
+                                     execution_date=execution_date,
+                                     reset_dag_run=True,
+                                     dag=self.dag)
+        task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
+        task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
+
+        with create_session() as session:
+            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            self.assertEqual(len(dagruns), 1)
+            self.assertTrue(dagruns[0].external_trigger)

@@ -60,5 +60,6 @@ class CloudantHook(BaseHook):
     def _validate_connection(self, conn: cloudant) -> None:
         for conn_param in ['login', 'password']:
             if not getattr(conn, conn_param):
-                raise AirflowException('missing connection parameter {conn_param}'.format(
-                    conn_param=conn_param))
+                raise AirflowException(
+                    'missing connection parameter {conn_param}'.format(conn_param=conn_param)
+                )

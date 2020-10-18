@@ -25,9 +25,10 @@ retrieve data from it, and write that data to a file for other uses.
 """
 import logging
 import time
+from typing import Optional, List, Iterable
 
 import pandas as pd
-from simple_salesforce import Salesforce
+from simple_salesforce import Salesforce, api
 
 from airflow.hooks.base_hook import BaseHook
 
@@ -54,12 +55,12 @@ class SalesforceHook(BaseHook):
 
     """
 
-    def __init__(self, conn_id):
+    def __init__(self, conn_id: str) -> None:
         super().__init__()
         self.conn_id = conn_id
         self.conn = None
 
-    def get_conn(self):
+    def get_conn(self) -> api.Salesforce:
         """
         Sign into Salesforce, only if we are not already signed in.
         """
@@ -71,11 +72,13 @@ class SalesforceHook(BaseHook):
                 password=connection.password,
                 security_token=extras['security_token'],
                 instance_url=connection.host,
-                domain=extras.get('domain', None)
+                domain=extras.get('domain'),
             )
         return self.conn
 
-    def make_query(self, query, include_deleted=False, query_params=None):
+    def make_query(
+        self, query: str, include_deleted: bool = False, query_params: Optional[dict] = None
+    ) -> dict:
         """
         Make a query to Salesforce.
 
@@ -94,12 +97,13 @@ class SalesforceHook(BaseHook):
         query_params = query_params or {}
         query_results = conn.query_all(query, include_deleted=include_deleted, **query_params)
 
-        self.log.info("Received results: Total size: %s; Done: %s",
-                      query_results['totalSize'], query_results['done'])
+        self.log.info(
+            "Received results: Total size: %s; Done: %s", query_results['totalSize'], query_results['done']
+        )
 
         return query_results
 
-    def describe_object(self, obj):
+    def describe_object(self, obj: str) -> dict:
         """
         Get the description of an object from Salesforce.
         This description is the object's schema and
@@ -114,7 +118,7 @@ class SalesforceHook(BaseHook):
 
         return conn.__getattr__(obj).describe()
 
-    def get_available_fields(self, obj):
+    def get_available_fields(self, obj: str) -> List[str]:
         """
         Get a list of all available fields for an object.
 
@@ -129,7 +133,7 @@ class SalesforceHook(BaseHook):
 
         return [field['name'] for field in obj_description['fields']]
 
-    def get_object_from_salesforce(self, obj, fields):
+    def get_object_from_salesforce(self, obj: str, fields: Iterable[str]) -> dict:
         """
         Get all instances of the `object` from Salesforce.
         For each model, only get the fields specified in fields.
@@ -146,13 +150,15 @@ class SalesforceHook(BaseHook):
         """
         query = "SELECT {} FROM {}".format(",".join(fields), obj)
 
-        self.log.info("Making query to Salesforce: %s",
-                      query if len(query) < 30 else " ... ".join([query[:15], query[-15:]]))
+        self.log.info(
+            "Making query to Salesforce: %s",
+            query if len(query) < 30 else " ... ".join([query[:15], query[-15:]]),
+        )
 
         return self.make_query(query)
 
     @classmethod
-    def _to_timestamp(cls, column):
+    def _to_timestamp(cls, column: pd.Series) -> pd.Series:
         """
         Convert a column of a dataframe to UNIX timestamps if applicable
 
@@ -189,12 +195,14 @@ class SalesforceHook(BaseHook):
 
         return pd.Series(converted, index=column.index)
 
-    def write_object_to_file(self,
-                             query_results,
-                             filename,
-                             fmt="csv",
-                             coerce_to_timestamp=False,
-                             record_time_added=False):
+    def write_object_to_file(
+        self,
+        query_results: List[dict],
+        filename: str,
+        fmt: str = "csv",
+        coerce_to_timestamp: bool = False,
+        record_time_added: bool = False,
+    ) -> pd.DataFrame:
         """
         Write query results to file.
 
@@ -236,8 +244,11 @@ class SalesforceHook(BaseHook):
         if fmt not in ['csv', 'json', 'ndjson']:
             raise ValueError("Format value is not recognized: {}".format(fmt))
 
-        df = self.object_to_df(query_results=query_results, coerce_to_timestamp=coerce_to_timestamp,
-                               record_time_added=record_time_added)
+        df = self.object_to_df(
+            query_results=query_results,
+            coerce_to_timestamp=coerce_to_timestamp,
+            record_time_added=record_time_added,
+        )
 
         # write the CSV or JSON file depending on the option
         # NOTE:
@@ -253,8 +264,10 @@ class SalesforceHook(BaseHook):
             # we remove these newlines so that the output is a valid CSV format
             self.log.info("Cleaning data and writing to CSV")
             possible_strings = df.columns[df.dtypes == "object"]
-            df[possible_strings] = df[possible_strings].astype(str).apply(
-                lambda x: x.str.replace("\r\n", "").str.replace("\n", "")
+            df[possible_strings] = (
+                df[possible_strings]
+                .astype(str)
+                .apply(lambda x: x.str.replace("\r\n", "").str.replace("\n", ""))
             )
             # write the dataframe
             df.to_csv(filename, index=False)
@@ -265,8 +278,9 @@ class SalesforceHook(BaseHook):
 
         return df
 
-    def object_to_df(self, query_results, coerce_to_timestamp=False,
-                     record_time_added=False):
+    def object_to_df(
+        self, query_results: List[dict], coerce_to_timestamp: bool = False, record_time_added: bool = False
+    ) -> pd.DataFrame:
         """
         Export query results to dataframe.
 
@@ -287,7 +301,6 @@ class SalesforceHook(BaseHook):
         :return: the dataframe.
         :rtype: pandas.Dataframe
         """
-
         # this line right here will convert all integers to floats
         # if there are any None/np.nan values in the column
         # that's because None/np.nan cannot exist in an integer column

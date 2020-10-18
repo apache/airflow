@@ -58,23 +58,25 @@ class S3ToRedshiftOperator(BaseOperator):
     :type copy_options: list
     """
 
-    template_fields = ()
+    template_fields = ('s3_key',)
     template_ext = ()
     ui_color = '#ededed'
 
     @apply_defaults
     def __init__(
-            self, *,
-            schema: str,
-            table: str,
-            s3_bucket: str,
-            s3_key: str,
-            redshift_conn_id: str = 'redshift_default',
-            aws_conn_id: str = 'aws_default',
-            verify: Optional[Union[bool, str]] = None,
-            copy_options: Optional[List] = None,
-            autocommit: bool = False,
-            **kwargs) -> None:
+        self,
+        *,
+        schema: str,
+        table: str,
+        s3_bucket: str,
+        s3_key: str,
+        redshift_conn_id: str = 'redshift_default',
+        aws_conn_id: str = 'aws_default',
+        verify: Optional[Union[bool, str]] = None,
+        copy_options: Optional[List] = None,
+        autocommit: bool = False,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.schema = schema
         self.table = table
@@ -85,29 +87,29 @@ class S3ToRedshiftOperator(BaseOperator):
         self.verify = verify
         self.copy_options = copy_options or []
         self.autocommit = autocommit
-        self._s3_hook = None
-        self._postgres_hook = None
 
-    def execute(self, context):
-        self._postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
-        self._s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
-        credentials = self._s3_hook.get_credentials()
+    def execute(self, context) -> None:
+        postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
+        s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+        credentials = s3_hook.get_credentials()
         copy_options = '\n\t\t\t'.join(self.copy_options)
 
         copy_query = """
             COPY {schema}.{table}
-            FROM 's3://{s3_bucket}/{s3_key}/{table}'
+            FROM 's3://{s3_bucket}/{s3_key}'
             with credentials
             'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
             {copy_options};
-        """.format(schema=self.schema,
-                   table=self.table,
-                   s3_bucket=self.s3_bucket,
-                   s3_key=self.s3_key,
-                   access_key=credentials.access_key,
-                   secret_key=credentials.secret_key,
-                   copy_options=copy_options)
+        """.format(
+            schema=self.schema,
+            table=self.table,
+            s3_bucket=self.s3_bucket,
+            s3_key=self.s3_key,
+            access_key=credentials.access_key,
+            secret_key=credentials.secret_key,
+            copy_options=copy_options,
+        )
 
         self.log.info('Executing COPY command...')
-        self._postgres_hook.run(copy_query, self.autocommit)
+        postgres_hook.run(copy_query, self.autocommit)
         self.log.info("COPY command complete...")

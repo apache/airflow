@@ -48,7 +48,7 @@ class PodRuntimeInfoEnv(K8SModel):
             name=self.name,
             value_from=k8s.V1EnvVarSource(
                 field_ref=k8s.V1ObjectFieldSelector(
-                    self.field_path
+                    field_path=self.field_path
                 )
             )
         )

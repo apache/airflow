@@ -83,53 +83,74 @@ class SqoopOperator(BaseOperator):
         If a key doesn't have a value, just pass an empty string to it.
         Don't include prefix of -- for sqoop options.
     """
-    template_fields = ('conn_id', 'cmd_type', 'table', 'query', 'target_dir',
-                       'file_type', 'columns', 'split_by',
-                       'where', 'export_dir', 'input_null_string',
-                       'input_null_non_string', 'staging_table',
-                       'enclosed_by', 'escaped_by', 'input_fields_terminated_by',
-                       'input_lines_terminated_by', 'input_optionally_enclosed_by',
-                       'properties', 'extra_import_options', 'driver',
-                       'extra_export_options', 'hcatalog_database', 'hcatalog_table',)
+
+    template_fields = (
+        'conn_id',
+        'cmd_type',
+        'table',
+        'query',
+        'target_dir',
+        'file_type',
+        'columns',
+        'split_by',
+        'where',
+        'export_dir',
+        'input_null_string',
+        'input_null_non_string',
+        'staging_table',
+        'enclosed_by',
+        'escaped_by',
+        'input_fields_terminated_by',
+        'input_lines_terminated_by',
+        'input_optionally_enclosed_by',
+        'properties',
+        'extra_import_options',
+        'driver',
+        'extra_export_options',
+        'hcatalog_database',
+        'hcatalog_table',
+    )
     ui_color = '#7D8CA4'
 
     # pylint: disable=too-many-arguments,too-many-locals
     @apply_defaults
-    def __init__(self, *,
-                 conn_id: str = 'sqoop_default',
-                 cmd_type: str = 'import',
-                 table: Optional[str] = None,
-                 query: Optional[str] = None,
-                 target_dir: Optional[str] = None,
-                 append: bool = False,
-                 file_type: str = 'text',
-                 columns: Optional[str] = None,
-                 num_mappers: Optional[int] = None,
-                 split_by: Optional[str] = None,
-                 where: Optional[str] = None,
-                 export_dir: Optional[str] = None,
-                 input_null_string: Optional[str] = None,
-                 input_null_non_string: Optional[str] = None,
-                 staging_table: Optional[str] = None,
-                 clear_staging_table: bool = False,
-                 enclosed_by: Optional[str] = None,
-                 escaped_by: Optional[str] = None,
-                 input_fields_terminated_by: Optional[str] = None,
-                 input_lines_terminated_by: Optional[str] = None,
-                 input_optionally_enclosed_by: Optional[str] = None,
-                 batch: bool = False,
-                 direct: bool = False,
-                 driver: Optional[Any] = None,
-                 verbose: bool = False,
-                 relaxed_isolation: bool = False,
-                 properties: Optional[Dict[str, Any]] = None,
-                 hcatalog_database: Optional[str] = None,
-                 hcatalog_table: Optional[str] = None,
-                 create_hcatalog_table: bool = False,
-                 extra_import_options: Optional[Dict[str, Any]] = None,
-                 extra_export_options: Optional[Dict[str, Any]] = None,
-                 **kwargs: Any
-                 ) -> None:
+    def __init__(
+        self,
+        *,
+        conn_id: str = 'sqoop_default',
+        cmd_type: str = 'import',
+        table: Optional[str] = None,
+        query: Optional[str] = None,
+        target_dir: Optional[str] = None,
+        append: bool = False,
+        file_type: str = 'text',
+        columns: Optional[str] = None,
+        num_mappers: Optional[int] = None,
+        split_by: Optional[str] = None,
+        where: Optional[str] = None,
+        export_dir: Optional[str] = None,
+        input_null_string: Optional[str] = None,
+        input_null_non_string: Optional[str] = None,
+        staging_table: Optional[str] = None,
+        clear_staging_table: bool = False,
+        enclosed_by: Optional[str] = None,
+        escaped_by: Optional[str] = None,
+        input_fields_terminated_by: Optional[str] = None,
+        input_lines_terminated_by: Optional[str] = None,
+        input_optionally_enclosed_by: Optional[str] = None,
+        batch: bool = False,
+        direct: bool = False,
+        driver: Optional[Any] = None,
+        verbose: bool = False,
+        relaxed_isolation: bool = False,
+        properties: Optional[Dict[str, Any]] = None,
+        hcatalog_database: Optional[str] = None,
+        hcatalog_table: Optional[str] = None,
+        create_hcatalog_table: bool = False,
+        extra_import_options: Optional[Dict[str, Any]] = None,
+        extra_export_options: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(**kwargs)
         self.conn_id = conn_id
         self.cmd_type = cmd_type
@@ -187,7 +208,8 @@ class SqoopOperator(BaseOperator):
                 input_optionally_enclosed_by=self.input_optionally_enclosed_by,
                 batch=self.batch,
                 relaxed_isolation=self.relaxed_isolation,
-                extra_export_options=self.extra_export_options)
+                extra_export_options=self.extra_export_options,
+            )
         elif self.cmd_type == 'import':
             # add create hcatalog table to extra import options if option passed
             # if new params are added to constructor can pass them in here
@@ -196,9 +218,7 @@ class SqoopOperator(BaseOperator):
                 self.extra_import_options['create-hcatalog-table'] = ''
 
             if self.table and self.query:
-                raise AirflowException(
-                    'Cannot specify query and table together. Need to specify either or.'
-                )
+                raise AirflowException('Cannot specify query and table together. Need to specify either or.')
 
             if self.table:
                 self.hook.import_table(
@@ -211,7 +231,8 @@ class SqoopOperator(BaseOperator):
                     where=self.where,
                     direct=self.direct,
                     driver=self.driver,
-                    extra_import_options=self.extra_import_options)
+                    extra_import_options=self.extra_import_options,
+                )
             elif self.query:
                 self.hook.import_query(
                     query=self.query,
@@ -221,11 +242,10 @@ class SqoopOperator(BaseOperator):
                     split_by=self.split_by,
                     direct=self.direct,
                     driver=self.driver,
-                    extra_import_options=self.extra_import_options)
-            else:
-                raise AirflowException(
-                    "Provide query or table parameter to import using Sqoop"
+                    extra_import_options=self.extra_import_options,
                 )
+            else:
+                raise AirflowException("Provide query or table parameter to import using Sqoop")
         else:
             raise AirflowException("cmd_type should be 'import' or 'export'")
 
@@ -242,5 +262,5 @@ class SqoopOperator(BaseOperator):
             num_mappers=self.num_mappers,
             hcatalog_database=self.hcatalog_database,
             hcatalog_table=self.hcatalog_table,
-            properties=self.properties
+            properties=self.properties,
         )

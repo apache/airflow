@@ -20,6 +20,7 @@
 This module contains a hook (AwsLogsHook) with some very basic
 functionality for interacting with AWS CloudWatch.
 """
+from typing import Dict, Generator, Optional
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -35,10 +36,18 @@ class AwsLogsHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(client_type='logs', *args, **kwargs)
+    def __init__(self, *args, **kwargs) -> None:
+        kwargs["client_type"] = "logs"
+        super().__init__(*args, **kwargs)
 
-    def get_log_events(self, log_group, log_stream_name, start_time=0, skip=0, start_from_head=True):
+    def get_log_events(
+        self,
+        log_group: str,
+        log_stream_name: str,
+        start_time: int = 0,
+        skip: int = 0,
+        start_from_head: bool = True,
+    ) -> Generator:
         """
         A generator for log items in a single stream. This will yield all the
         items that are available at the current moment.
@@ -61,21 +70,22 @@ class AwsLogsHook(AwsBaseHook):
                  |   'message' (str): The log event data.
                  |   'ingestionTime' (int): The time in milliseconds the event was ingested.
         """
-
         next_token = None
 
         event_count = 1
         while event_count > 0:
             if next_token is not None:
-                token_arg = {'nextToken': next_token}
+                token_arg: Optional[Dict[str, str]] = {'nextToken': next_token}
             else:
                 token_arg = {}
 
-            response = self.get_conn().get_log_events(logGroupName=log_group,
-                                                      logStreamName=log_stream_name,
-                                                      startTime=start_time,
-                                                      startFromHead=start_from_head,
-                                                      **token_arg)
+            response = self.get_conn().get_log_events(
+                logGroupName=log_group,
+                logStreamName=log_stream_name,
+                startTime=start_time,
+                startFromHead=start_from_head,
+                **token_arg,
+            )
 
             events = response['events']
             event_count = len(events)
@@ -84,7 +94,7 @@ class AwsLogsHook(AwsBaseHook):
                 events = events[skip:]
                 skip = 0
             else:
-                skip = skip - event_count
+                skip -= event_count
                 events = []
 
             yield from events

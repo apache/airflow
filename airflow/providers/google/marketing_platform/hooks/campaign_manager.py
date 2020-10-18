@@ -156,9 +156,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         )
         return response
 
-    def run_report(
-        self, profile_id: str, report_id: str, synchronous: Optional[bool] = None
-    ) -> Any:
+    def run_report(self, profile_id: str, report_id: str, synchronous: Optional[bool] = None) -> Any:
         """
         Runs a report.
 
@@ -214,9 +212,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         )
         return response
 
-    def get_report_file(
-        self, file_id: str, profile_id: str, report_id: str
-    ) -> http.HttpRequest:
+    def get_report_file(self, file_id: str, profile_id: str, report_id: str) -> http.HttpRequest:
         """
         Retrieves a media part of report file.
 

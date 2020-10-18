@@ -48,6 +48,8 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
     :type connections_prefix: str
     :param variables_prefix: Specifies the prefix of the secret to read to get Variables.
     :type variables_prefix: str
+    :param config_prefix: Specifies the prefix of the secret to read to get Variables.
+    :type config_prefix: str
     :param profile_name: The name of a profile to use. If not given, then the default profile is used.
     :type profile_name: str
     """
@@ -56,12 +58,14 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         self,
         connections_prefix: str = '/airflow/connections',
         variables_prefix: str = '/airflow/variables',
+        config_prefix: str = '/airflow/config',
         profile_name: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__()
         self.connections_prefix = connections_prefix.rstrip("/")
         self.variables_prefix = variables_prefix.rstrip('/')
+        self.config_prefix = config_prefix.rstrip('/')
         self.profile_name = profile_name
         self.kwargs = kwargs
 
@@ -91,6 +95,15 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         """
         return self._get_secret(self.variables_prefix, key)
 
+    def get_config(self, key: str) -> Optional[str]:
+        """
+        Get Airflow Configuration
+
+        :param key: Configuration Option Key
+        :return: Configuration Option Value
+        """
+        return self._get_secret(self.config_prefix, key)
+
     def _get_secret(self, path_prefix: str, secret_id: str) -> Optional[str]:
         """
         Get secret value from Parameter Store.
@@ -102,14 +115,13 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         """
         ssm_path = self.build_path(path_prefix, secret_id)
         try:
-            response = self.client.get_parameter(
-                Name=ssm_path, WithDecryption=True
-            )
+            response = self.client.get_parameter(Name=ssm_path, WithDecryption=True)
             value = response["Parameter"]["Value"]
             return value
         except self.client.exceptions.ParameterNotFound:
             self.log.info(
                 "An error occurred (ParameterNotFound) when calling the GetParameter operation: "
-                "Parameter %s not found.", ssm_path
+                "Parameter %s not found.",
+                ssm_path,
             )
             return None

@@ -23,6 +23,7 @@ import abc
 import json
 import warnings
 from tempfile import NamedTemporaryFile
+from typing import Optional, Sequence, Union
 
 import unicodecsv as csv
 
@@ -56,6 +57,8 @@ class BaseSQLToGCSOperator(BaseOperator):
     :type export_format: str
     :param field_delimiter: The delimiter to be used for CSV files.
     :type field_delimiter: str
+    :param null_marker: The null marker to be used for CSV files.
+    :type null_marker: str
     :param gzip: Option to compress file for upload (does not apply to schemas).
     :type gzip: bool
     :param schema: The schema to use, if any. Should be a list of dict or
@@ -63,43 +66,70 @@ class BaseSQLToGCSOperator(BaseOperator):
         dict. Examples could be seen: https://cloud.google.com/bigquery/docs
         /schemas#specifying_a_json_schema_file
     :type schema: str or list
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
-    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
-        Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
+    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
+        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to
-        work, the service account making the request must have domain-wide
-        delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
     :param parameters: a parameters dict that is substituted at query runtime.
     :type parameters: dict
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ('sql', 'bucket', 'filename', 'schema_filename', 'schema', 'parameters')
+
+    template_fields = (
+        'sql',
+        'bucket',
+        'filename',
+        'schema_filename',
+        'schema',
+        'parameters',
+        'impersonation_chain',
+    )
     template_ext = ('.sql',)
     ui_color = '#a0e08c'
 
     @apply_defaults
-    def __init__(self, *,  # pylint: disable=too-many-arguments
-                 sql,
-                 bucket,
-                 filename,
-                 schema_filename=None,
-                 approx_max_file_size_bytes=1900000000,
-                 export_format='json',
-                 field_delimiter=',',
-                 gzip=False,
-                 schema=None,
-                 parameters=None,
-                 gcp_conn_id='google_cloud_default',
-                 google_cloud_storage_conn_id=None,
-                 delegate_to=None,
-                 **kwargs):
+    def __init__(
+        self,
+        *,  # pylint: disable=too-many-arguments
+        sql: str,
+        bucket: str,
+        filename: str,
+        schema_filename: Optional[str] = None,
+        approx_max_file_size_bytes: int = 1900000000,
+        export_format: str = 'json',
+        field_delimiter: str = ',',
+        null_marker: Optional[str] = None,
+        gzip: bool = False,
+        schema: Optional[Union[str, list]] = None,
+        parameters: Optional[dict] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        google_cloud_storage_conn_id: Optional[str] = None,
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
 
         if google_cloud_storage_conn_id:
             warnings.warn(
                 "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+                "the gcp_conn_id parameter.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
             gcp_conn_id = google_cloud_storage_conn_id
 
         self.sql = sql
@@ -109,11 +139,13 @@ class BaseSQLToGCSOperator(BaseOperator):
         self.approx_max_file_size_bytes = approx_max_file_size_bytes
         self.export_format = export_format.lower()
         self.field_delimiter = field_delimiter
+        self.null_marker = null_marker
         self.gzip = gzip
         self.schema = schema
         self.parameters = parameters
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
         self.log.info("Executing query")
@@ -138,12 +170,9 @@ class BaseSQLToGCSOperator(BaseOperator):
         for tmp_file in files_to_upload:
             tmp_file['file_handle'].close()
 
-    def convert_types(self, schema, col_type_dict, row):
+    def convert_types(self, schema, col_type_dict, row) -> list:
         """Convert values from DBAPI to output-friendly formats."""
-        return [
-            self.convert_type(value, col_type_dict.get(name))
-            for name, value in zip(schema, row)
-        ]
+        return [self.convert_type(value, col_type_dict.get(name)) for name, value in zip(schema, row)]
 
     def _write_local_data_files(self, cursor):
         """
@@ -161,11 +190,13 @@ class BaseSQLToGCSOperator(BaseOperator):
             file_mime_type = 'text/csv'
         else:
             file_mime_type = 'application/json'
-        files_to_upload = [{
-            'file_name': self.filename.format(file_no),
-            'file_handle': tmp_file_handle,
-            'file_mime_type': file_mime_type
-        }]
+        files_to_upload = [
+            {
+                'file_name': self.filename.format(file_no),
+                'file_handle': tmp_file_handle,
+                'file_mime_type': file_mime_type,
+            }
+        ]
         self.log.info("Current file count: %d", len(files_to_upload))
 
         if self.export_format == 'csv':
@@ -177,6 +208,8 @@ class BaseSQLToGCSOperator(BaseOperator):
             row = self.convert_types(schema, col_type_dict, row)
 
             if self.export_format == 'csv':
+                if self.null_marker is not None:
+                    row = [value if value is not None else self.null_marker for value in row]
                 csv_writer.writerow(row)
             else:
                 row_dict = dict(zip(schema, row))
@@ -192,11 +225,13 @@ class BaseSQLToGCSOperator(BaseOperator):
             if tmp_file_handle.tell() >= self.approx_max_file_size_bytes:
                 file_no += 1
                 tmp_file_handle = NamedTemporaryFile(delete=True)
-                files_to_upload.append({
-                    'file_name': self.filename.format(file_no),
-                    'file_handle': tmp_file_handle,
-                    'file_mime_type': file_mime_type
-                })
+                files_to_upload.append(
+                    {
+                        'file_name': self.filename.format(file_no),
+                        'file_handle': tmp_file_handle,
+                        'file_mime_type': file_mime_type,
+                    }
+                )
                 self.log.info("Current file count: %d", len(files_to_upload))
                 if self.export_format == 'csv':
                     csv_writer = self._configure_csv_file(tmp_file_handle, schema)
@@ -207,8 +242,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         """Configure a csv writer with the file_handle and write schema
         as headers for the new file.
         """
-        csv_writer = csv.writer(file_handle, encoding='utf-8',
-                                delimiter=self.field_delimiter)
+        csv_writer = csv.writer(file_handle, encoding='utf-8', delimiter=self.field_delimiter)
         csv_writer.writerow(schema)
         return csv_writer
 
@@ -234,16 +268,17 @@ class BaseSQLToGCSOperator(BaseOperator):
         elif isinstance(self.schema, list):
             schema = self.schema
         elif self.schema is not None:
-            self.log.warning('Using default schema due to unexpected type.'
-                             'Should be a string or list.')
+            self.log.warning('Using default schema due to unexpected type.' 'Should be a string or list.')
 
         col_type_dict = {}
         try:
             col_type_dict = {col['name']: col['type'] for col in schema}
         except KeyError:
-            self.log.warning('Using default schema due to missing name or type. Please '
-                             'refer to: https://cloud.google.com/bigquery/docs/schemas'
-                             '#specifying_a_json_schema_file')
+            self.log.warning(
+                'Using default schema due to missing name or type. Please '
+                'refer to: https://cloud.google.com/bigquery/docs/schemas'
+                '#specifying_a_json_schema_file'
+            )
         return col_type_dict
 
     def _write_local_schema_file(self, cursor):
@@ -285,9 +320,14 @@ class BaseSQLToGCSOperator(BaseOperator):
         """
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to)
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
         for tmp_file in files_to_upload:
-            hook.upload(self.bucket, tmp_file.get('file_name'),
-                        tmp_file.get('file_handle').name,
-                        mime_type=tmp_file.get('file_mime_type'),
-                        gzip=self.gzip if tmp_file.get('file_name') != self.schema_filename else False)
+            hook.upload(
+                self.bucket,
+                tmp_file.get('file_name'),
+                tmp_file.get('file_handle').name,
+                mime_type=tmp_file.get('file_mime_type'),
+                gzip=self.gzip if tmp_file.get('file_name') != self.schema_filename else False,
+            )

@@ -24,7 +24,9 @@ from facebook_business.adobjects.adsinsights import AdsInsights
 
 from airflow import models
 from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryDeleteDatasetOperator,
+    BigQueryCreateEmptyDatasetOperator,
+    BigQueryCreateEmptyTableOperator,
+    BigQueryDeleteDatasetOperator,
     BigQueryExecuteQueryOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
@@ -49,16 +51,13 @@ FIELDS = [
     AdsInsights.Field.clicks,
     AdsInsights.Field.impressions,
 ]
-PARAMS = {
-    'level': 'ad',
-    'date_preset': 'yesterday'
-}
+PARAMS = {'level': 'ad', 'date_preset': 'yesterday'}
 # [END howto_FB_ADS_variables]
 
 with models.DAG(
     "example_facebook_ads_to_gcs",
     schedule_interval=None,  # Override to match your needs
-    start_date=days_ago(1)
+    start_date=days_ago(1),
 ) as dag:
 
     create_bucket = GCSCreateBucketOperator(
@@ -103,7 +102,7 @@ with models.DAG(
         bucket=GCS_BUCKET,
         source_objects=[GCS_OBJ_PATH],
         destination_project_dataset_table=f"{DATASET_NAME}.{TABLE_NAME}",
-        write_disposition='WRITE_TRUNCATE'
+        write_disposition='WRITE_TRUNCATE',
     )
 
     read_data_from_gcs_many_chunks = BigQueryExecuteQueryOperator(

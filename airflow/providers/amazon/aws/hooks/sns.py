@@ -20,6 +20,7 @@
 This module contains AWS SNS hook
 """
 import json
+from typing import Optional, Union, Dict
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -33,8 +34,9 @@ def _get_message_attribute(o):
         return {'DataType': 'Number', 'StringValue': str(o)}
     if hasattr(o, '__iter__'):
         return {'DataType': 'String.Array', 'StringValue': json.dumps(o)}
-    raise TypeError('Values in MessageAttributes must be one of bytes, str, int, float, or iterable; '
-                    f'got {type(o)}')
+    raise TypeError(
+        'Values in MessageAttributes must be one of bytes, str, int, float, or iterable; ' f'got {type(o)}'
+    )
 
 
 class AwsSnsHook(AwsBaseHook):
@@ -51,7 +53,13 @@ class AwsSnsHook(AwsBaseHook):
     def __init__(self, *args, **kwargs):
         super().__init__(client_type='sns', *args, **kwargs)
 
-    def publish_to_target(self, target_arn, message, subject=None, message_attributes=None):
+    def publish_to_target(
+        self,
+        target_arn: str,
+        message: str,
+        subject: Optional[str] = None,
+        message_attributes: Optional[dict] = None,
+    ):
         """
         Publish a message to a topic or an endpoint.
 
@@ -71,12 +79,10 @@ class AwsSnsHook(AwsBaseHook):
 
         :type message_attributes: dict
         """
-        publish_kwargs = {
+        publish_kwargs: Dict[str, Union[str, dict]] = {
             'TargetArn': target_arn,
             'MessageStructure': 'json',
-            'Message': json.dumps({
-                'default': message
-            }),
+            'Message': json.dumps({'default': message}),
         }
 
         # Construct args this way because boto3 distinguishes from missing args and those set to None

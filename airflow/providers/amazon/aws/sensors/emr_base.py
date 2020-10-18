@@ -38,13 +38,11 @@ class EmrBaseSensor(BaseSensorOperator):
     :param aws_conn_id: aws connection to uses
     :type aws_conn_id: str
     """
+
     ui_color = '#66c3ff'
 
     @apply_defaults
-    def __init__(
-            self, *,
-            aws_conn_id='aws_default',
-            **kwargs):
+    def __init__(self, *, aws_conn_id='aws_default', **kwargs):
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.target_states = None  # will be set in subclasses
@@ -86,8 +84,7 @@ class EmrBaseSensor(BaseSensorOperator):
         :return: response
         :rtype: dict[str, Any]
         """
-        raise NotImplementedError(
-            'Please implement get_emr_response() in subclass')
+        raise NotImplementedError('Please implement get_emr_response() in subclass')
 
     @staticmethod
     def state_from_response(response: Dict[str, Any]) -> str:
@@ -99,8 +96,7 @@ class EmrBaseSensor(BaseSensorOperator):
         :return: state
         :rtype: str
         """
-        raise NotImplementedError(
-            'Please implement state_from_response() in subclass')
+        raise NotImplementedError('Please implement state_from_response() in subclass')
 
     @staticmethod
     def failure_message_from_response(response: Dict[str, Any]) -> Optional[str]:
@@ -112,5 +108,4 @@ class EmrBaseSensor(BaseSensorOperator):
         :return: failure message
         :rtype: Optional[str]
         """
-        raise NotImplementedError(
-            'Please implement failure_message_from_response() in subclass')
+        raise NotImplementedError('Please implement failure_message_from_response() in subclass')

@@ -27,9 +27,13 @@ from typing import Any, Dict
 
 from airflow import models
 from airflow.providers.google.cloud.operators.datastore import (
-    CloudDatastoreAllocateIdsOperator, CloudDatastoreBeginTransactionOperator, CloudDatastoreCommitOperator,
-    CloudDatastoreExportEntitiesOperator, CloudDatastoreImportEntitiesOperator,
-    CloudDatastoreRollbackOperator, CloudDatastoreRunQueryOperator,
+    CloudDatastoreAllocateIdsOperator,
+    CloudDatastoreBeginTransactionOperator,
+    CloudDatastoreCommitOperator,
+    CloudDatastoreExportEntitiesOperator,
+    CloudDatastoreImportEntitiesOperator,
+    CloudDatastoreRollbackOperator,
+    CloudDatastoreRunQueryOperator,
 )
 from airflow.utils import dates
 
@@ -93,9 +97,7 @@ COMMIT_BODY = {
 # [START how_to_query_def]
 QUERY = {
     "partitionId": {"projectId": GCP_PROJECT_ID, "namespaceId": ""},
-    "readOptions": {
-        "transaction": "{{ task_instance.xcom_pull('begin_transaction_query') }}"
-    },
+    "readOptions": {"transaction": "{{ task_instance.xcom_pull('begin_transaction_query') }}"},
     "query": {},
 }
 # [END how_to_query_def]
@@ -135,9 +137,7 @@ with models.DAG(
     )
 
     # [START how_to_run_query]
-    run_query = CloudDatastoreRunQueryOperator(
-        task_id="run_query", body=QUERY, project_id=GCP_PROJECT_ID
-    )
+    run_query = CloudDatastoreRunQueryOperator(task_id="run_query", body=QUERY, project_id=GCP_PROJECT_ID)
     # [END how_to_run_query]
 
     allocate_ids >> begin_transaction_query >> run_query

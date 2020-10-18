@@ -78,7 +78,7 @@ class CloudSpeechToTextHook(GoogleBaseHook):
         config: Union[Dict, RecognitionConfig],
         audio: Union[Dict, RecognitionAudio],
         retry: Optional[Retry] = None,
-        timeout: Optional[float] = None
+        timeout: Optional[float] = None,
     ):
         """
         Recognizes audio input

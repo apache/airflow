@@ -23,9 +23,10 @@ from typing import Optional  # noqa: W0611
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
+
 # Please keep these variables in alphabetical order.
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
-from tests.utils.logging_command_executor import LoggingCommandExecutor
+from tests.test_utils.logging_command_executor import LoggingCommandExecutor
 
 GCP_AI_KEY = 'gcp_ai.json'
 GCP_AUTOML_KEY = 'gcp_automl.json'
@@ -172,7 +173,7 @@ class GcpAuthenticator(LoggingCommandExecutor):
         Authenticate with service account specified via key name.
         """
         self._validate_key_set()
-        self.log.info("Setting the GCP key to %s", self.full_key_path)
+        self.log.info("Setting the Google Cloud key to %s", self.full_key_path)
         # Checking if we can authenticate using service account credentials provided
         self.execute_cmd(
             [
@@ -226,4 +227,4 @@ class GcpAuthenticator(LoggingCommandExecutor):
                 ]
             )
         else:
-            self.log.info("Not restoring the original GCP account: it is not set")
+            self.log.info("Not restoring the original Google Cloud account: it is not set")

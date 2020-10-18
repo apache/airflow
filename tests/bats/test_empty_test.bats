@@ -17,11 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+
 @test "empty test" {
   load bats_utils
 
-  initialize_common_environment
-
   run pwd
-  [ "${status}" == 0 ]
+  assert_success
 }

@@ -112,7 +112,6 @@ def downgrade():
     """
     Make TaskInstance.pool field nullable.
     """
-
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
         op.drop_index('ti_pool', table_name='task_instance')

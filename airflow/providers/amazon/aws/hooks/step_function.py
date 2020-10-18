@@ -32,11 +32,16 @@ class StepFunctionHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    def __init__(self, region_name=None, *args, **kwargs):
-        super().__init__(client_type='stepfunctions', *args, **kwargs)
+    def __init__(self, region_name: Optional[str] = None, *args, **kwargs) -> None:
+        kwargs["client_type"] = "stepfunctions"
+        super().__init__(*args, **kwargs)
 
-    def start_execution(self, state_machine_arn: str, name: Optional[str] = None,
-                        state_machine_input: Union[dict, str, None] = None) -> str:
+    def start_execution(
+        self,
+        state_machine_arn: str,
+        name: Optional[str] = None,
+        state_machine_input: Union[dict, str, None] = None,
+    ) -> str:
         """
         Start Execution of the State Machine.
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/stepfunctions.html#SFN.Client.start_execution
@@ -50,9 +55,7 @@ class StepFunctionHook(AwsBaseHook):
         :return: Execution ARN
         :rtype: str
         """
-        execution_args = {
-            'stateMachineArn': state_machine_arn
-        }
+        execution_args = {'stateMachineArn': state_machine_arn}
         if name is not None:
             execution_args['name'] = name
         if state_machine_input is not None:
@@ -64,7 +67,7 @@ class StepFunctionHook(AwsBaseHook):
         self.log.info('Executing Step Function State Machine: %s', state_machine_arn)
 
         response = self.conn.start_execution(**execution_args)
-        return response.get('executionArn', None)
+        return response.get('executionArn')
 
     def describe_execution(self, execution_arn: str) -> dict:
         """

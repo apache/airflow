@@ -101,8 +101,8 @@ tasks using :class:`~airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Ope
 **Overriding Operator Links of Existing Operators**:
 
 It is also possible to replace a built in link on an operator via a Plugin. For example
-:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryExecuteQueryOperator` includes a link to the GCP
-console, but if we wanted to change that link we could:
+:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryExecuteQueryOperator` includes a link to the Google Cloud
+Console, but if we wanted to change that link we could:
 
 .. code-block:: python
 

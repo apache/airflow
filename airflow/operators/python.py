@@ -22,6 +22,7 @@ import pickle
 import re
 import sys
 import types
+import warnings
 from inspect import signature
 from itertools import islice
 from tempfile import TemporaryDirectory
@@ -66,6 +67,7 @@ class PythonOperator(BaseOperator):
         processing templated fields, for examples ``['.sql', '.hql']``
     :type templates_exts: list[str]
     """
+
     template_fields = ('templates_dict', 'op_args', 'op_kwargs')
     ui_color = '#ffefeb'
 
@@ -84,6 +86,10 @@ class PythonOperator(BaseOperator):
         templates_exts: Optional[List[str]] = None,
         **kwargs
     ) -> None:
+        if kwargs.get("provide_context"):
+            warnings.warn("provide_context is deprecated as of 2.0 and is no longer required",
+                          DeprecationWarning, stacklevel=2)
+            kwargs.pop('provide_context', None)
         super().__init__(**kwargs)
         if not callable(python_callable):
             raise AirflowException('`python_callable` param must be callable')
@@ -150,7 +156,7 @@ class PythonOperator(BaseOperator):
         return self.python_callable(*self.op_args, **self.op_kwargs)
 
 
-class _PythonFunctionalOperator(BaseOperator):
+class _PythonDecoratedOperator(BaseOperator):
     """
     Wraps a Python callable and captures args/kwargs when called for execution.
 
@@ -186,7 +192,7 @@ class _PythonFunctionalOperator(BaseOperator):
         multiple_outputs: bool = False,
         **kwargs
     ) -> None:
-        kwargs['task_id'] = self._get_unique_task_id(task_id, kwargs.get('dag', None))
+        kwargs['task_id'] = self._get_unique_task_id(task_id, kwargs.get('dag'))
         super().__init__(**kwargs)
         self.python_callable = python_callable
 
@@ -278,16 +284,18 @@ def task(
     """
     def wrapper(f: T):
         """
-        Python wrapper to generate PythonFunctionalOperator out of simple python functions.
-        Used for Airflow functional interface
+        Python wrapper to generate PythonDecoratedOperator out of simple python functions.
+        Used for Airflow Decorated interface
         """
-        _PythonFunctionalOperator.validate_python_callable(f)
+        _PythonDecoratedOperator.validate_python_callable(f)
         kwargs.setdefault('task_id', f.__name__)
 
         @functools.wraps(f)
         def factory(*args, **f_kwargs):
-            op = _PythonFunctionalOperator(python_callable=f, op_args=args, op_kwargs=f_kwargs,
-                                           multiple_outputs=multiple_outputs, **kwargs)
+            op = _PythonDecoratedOperator(python_callable=f, op_args=args, op_kwargs=f_kwargs,
+                                          multiple_outputs=multiple_outputs, **kwargs)
+            if f.__doc__:
+                op.doc_md = f.__doc__
             return XComArg(op)
         return cast(T, factory)
     if callable(python_callable):
@@ -563,10 +571,18 @@ def get_current_context() -> Dict[str, Any]:
     Obtain the execution context for the currently executing operator without
     altering user method's signature.
     This is the simplest method of retrieving the execution context dictionary.
-    ** Old style:
+
+    **Old style:**
+
+    .. code:: python
+
         def my_task(**context):
             ti = context["ti"]
-    ** New style:
+
+    **New style:**
+
+    .. code:: python
+
         from airflow.task.context import get_current_context
         def my_task():
             context = get_current_context()

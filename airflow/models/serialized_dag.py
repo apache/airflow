@@ -25,12 +25,13 @@ from typing import Any, Dict, List, Optional
 
 import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, String, and_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, backref, relationship
 from sqlalchemy.sql import exists
 
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagcode import DagCode
+from airflow.models.dagrun import DagRun
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
 from airflow.utils import timezone
@@ -58,6 +59,7 @@ class SerializedDagModel(Base):
     Because reading from database is lightweight compared to importing from files,
     it solves the webserver scalability issue.
     """
+
     __tablename__ = 'serialized_dag'
 
     dag_id = Column(String(ID_LEN), primary_key=True)
@@ -70,6 +72,22 @@ class SerializedDagModel(Base):
 
     __table_args__ = (
         Index('idx_fileloc_hash', fileloc_hash, unique=False),
+    )
+
+    dag_runs = relationship(
+        DagRun,
+        primaryjoin=dag_id == DagRun.dag_id,
+        foreign_keys=dag_id,
+        backref=backref('serialized_dag', uselist=False, innerjoin=True),
+    )
+
+    dag_model = relationship(
+        DagModel,
+        primaryjoin=dag_id == DagModel.dag_id,  # type: ignore
+        foreign_keys=dag_id,
+        uselist=False,
+        innerjoin=True,
+        backref=backref('serialized_dag', uselist=False, innerjoin=True),
     )
 
     def __init__(self, dag: DAG):
@@ -147,8 +165,7 @@ class SerializedDagModel(Base):
         if isinstance(self.data, dict):
             dag = SerializedDAG.from_dict(self.data)  # type: Any
         else:
-            # noinspection PyTypeChecker
-            dag = SerializedDAG.from_json(self.data)
+            dag = SerializedDAG.from_json(self.data)  # noqa
         return dag
 
     @classmethod
@@ -164,25 +181,22 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def remove_stale_dags(cls, expiration_date, session: Session = None):
-        """
-        Deletes Serialized DAGs that were last touched by the scheduler before
-        the expiration date. These DAGs were likely deleted.
+    def remove_deleted_dags(cls, alive_dag_filelocs: List[str], session=None):
+        """Deletes DAGs not included in alive_dag_filelocs.
 
-        :param expiration_date: set inactive DAGs that were touched before this
-            time
-        :type expiration_date: datetime
+        :param alive_dag_filelocs: file paths of alive DAGs
         :param session: ORM Session
-        :type session: Session
-        :return: None
         """
-        log.debug("Deleting Serialized DAGs that haven't been touched by the "
-                  "scheduler since %s from %s table ", expiration_date, cls.__tablename__)
+        alive_fileloc_hashes = [
+            DagCode.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
 
-        session.execute(
-            # pylint: disable=no-member
-            cls.__table__.delete().where(cls.last_updated < expiration_date)
-        )
+        log.debug("Deleting Serialized DAGs (for which DAG files are deleted) "
+                  "from %s table ", cls.__tablename__)
+
+        # pylint: disable=no-member
+        session.execute(cls.__table__.delete().where(
+            and_(cls.fileloc_hash.notin_(alive_fileloc_hashes),
+                 cls.fileloc.notin_(alive_dag_filelocs))))
 
     @classmethod
     @provide_session
@@ -250,3 +264,18 @@ class SerializedDagModel(Base):
         :type session: Session
         """
         return session.query(cls.last_updated).filter(cls.dag_id == dag_id).scalar()
+
+    @classmethod
+    @provide_session
+    def get_latest_version_hash(cls, dag_id: str, session: Session = None) -> str:
+        """
+        Get the latest DAG version for a given DAG ID.
+
+        :param dag_id: DAG ID
+        :type dag_id: str
+        :param session: ORM Session
+        :type session: Session
+        :return: DAG Hash
+        :rtype: str
+        """
+        return session.query(cls.dag_hash).filter(cls.dag_id == dag_id).scalar()

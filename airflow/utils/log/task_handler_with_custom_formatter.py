@@ -29,6 +29,7 @@ class TaskHandlerWithCustomFormatter(StreamHandler):
     """
     Custom implementation of StreamHandler, a class which writes logging records for Airflow
     """
+
     def __init__(self, stream):
         super().__init__()
         self.prefix_jinja_template = None

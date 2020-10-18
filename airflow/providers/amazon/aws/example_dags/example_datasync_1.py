@@ -33,16 +33,13 @@ from airflow.providers.amazon.aws.operators.datasync import AWSDataSyncOperator
 from airflow.utils.dates import days_ago
 
 # [START howto_operator_datasync_1_args_1]
-TASK_ARN = getenv(
-    "TASK_ARN", "my_aws_datasync_task_arn")
+TASK_ARN = getenv("TASK_ARN", "my_aws_datasync_task_arn")
 # [END howto_operator_datasync_1_args_1]
 
 # [START howto_operator_datasync_1_args_2]
-SOURCE_LOCATION_URI = getenv(
-    "SOURCE_LOCATION_URI", "smb://hostname/directory/")
+SOURCE_LOCATION_URI = getenv("SOURCE_LOCATION_URI", "smb://hostname/directory/")
 
-DESTINATION_LOCATION_URI = getenv(
-    "DESTINATION_LOCATION_URI", "s3://mybucket/prefix")
+DESTINATION_LOCATION_URI = getenv("DESTINATION_LOCATION_URI", "s3://mybucket/prefix")
 # [END howto_operator_datasync_1_args_2]
 
 
@@ -55,9 +52,7 @@ with models.DAG(
 
     # [START howto_operator_datasync_1_1]
     datasync_task_1 = AWSDataSyncOperator(
-        aws_conn_id="aws_default",
-        task_id="datasync_task_1",
-        task_arn=TASK_ARN
+        aws_conn_id="aws_default", task_id="datasync_task_1", task_arn=TASK_ARN
     )
     # [END howto_operator_datasync_1_1]
 
