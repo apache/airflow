@@ -133,7 +133,7 @@ jobs:
         run: |
           if [[ ${EVENT_NAME} == "pull_request" ]]; then
             # Run selective checks
-            ./scripts/ci/selective_ci_checks.sh "${MERGE_COMMIT_SHA}"
+            ./scripts/ci/selective_ci_checks.sh "${MERGE_COMMIT_SHA}" "${GITHUB_SHA}"
           else
             # Run all checks
             ./scripts/ci/selective_ci_checks.sh
