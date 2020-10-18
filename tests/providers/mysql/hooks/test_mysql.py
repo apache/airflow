@@ -399,7 +399,7 @@ class TestMySql(unittest.TestCase):
         with MySqlContext(client):
             hook = MySqlHook('airflow_db')
             priv = hook.get_first("SELECT @@global.secure_file_priv")
-            # Use random names to alllow re-running
+            # Use random names to allow re-running
             if priv and priv[0]:
                 # Confirm that no error occurs
                 hook.bulk_dump(
