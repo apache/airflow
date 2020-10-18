@@ -424,13 +424,13 @@ else
 fi
 
 if [[ ${tests_needed} == "true" ]]; then
-    run_tests
+    run_tests "true"
 else
-    skip_running_tests
+    run_tests "false"
 fi
 
 if [[ ${kubernetes_tests_needed} == "true" ]]; then
-    run_kubernetes_tests
+    run_kubernetes_tests "true"
 else
-    skip_running_kubernetes_tests
+    run_kubernetes_tests "false"
 fi
