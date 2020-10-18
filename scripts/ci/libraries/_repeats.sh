@@ -20,7 +20,7 @@
 # Parameters:
 #   $1 - how many times to repeat
 #   $2 - command to repeat (run through bash -c)
-function repeats::repeat_up_to_n_times() {
+function repeats::run_with_retry() {
     local num_repeats="${1}"
     local command="${2}"
     for ((n=0;n<num_repeats;n++));
