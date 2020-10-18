@@ -123,6 +123,10 @@ function breeze::setup_default_breeze_constants() {
     # If set to true, the sample dags will be used
     export LOAD_EXAMPLES="false"
 
+    # If set to true, Breeze db volumes will be preserved when breeze is stopped and reused next time
+    # Which means that you do not have to start from scratch
+    export PRESERVE_VOLUMES="false"
+
     # If set to true, Backport packages are prepared not the Regular ones
     export BACKPORT_PACKAGES="false"
 
@@ -1136,6 +1140,12 @@ function breeze::parse_arguments() {
             echo
             shift
             ;;
+        --preserve-volumes)
+            export PRESERVE_VOLUMES="true"
+            echo "Preserves data volumes when stopping airflow"
+            echo
+            shift
+            ;;
         --no-rbac-ui)
             export DISABLE_RBAC="true"
             echo "When installing Airflow 1.10, RBAC UI will be disabled."
@@ -1376,6 +1386,9 @@ function breeze::parse_arguments() {
         exit 0
     fi
 
+    if [[ ${PRESERVE_VOLUMES} != "true" ]]; then
+        EXTRA_DC_OPTIONS+=("--volumes")
+    fi
     # EXTRA_DC_OPTIONS is only used by Breeze. It's value is set here as well.
     readonly EXTRA_DC_OPTIONS
 
@@ -1567,8 +1580,6 @@ ${CMDNAME} shell [FLAGS] [-- <EXTRA_ARGS>]
       '${CMDNAME} \\
             --github-image-id 209845560' - pull/use image with RUN_ID
 
-Flags:
-$(breeze::flag_footer)
 "
     readonly DETAILED_USAGE_SHELL
     export DETAILED_USAGE_EXEC="
@@ -1817,6 +1828,9 @@ ${CMDNAME} stop
       Brings down running docker compose environment. When you start the environment, the docker
       containers will continue running so that startup time is shorter. But they take quite a lot of
       memory and CPU. This command stops all running containers from the environment.
+
+Flags:
+$(breeze::flag_stop_airflow)
 "
     readonly DETAILED_USAGE_STOP
     export DETAILED_USAGE_RESTART="
@@ -1827,7 +1841,7 @@ ${CMDNAME} restart [FLAGS]
       especially useful if you switch between different versions of Airflow.
 
 Flags:
-$(breeze::flag_footer)
+$(breeze::flag_stop_airflow)
 "
     readonly DETAILED_USAGE_RESTART
     export DETAILED_USAGE_STATIC_CHECK="
@@ -2518,6 +2532,25 @@ function breeze::flag_start_airflow() {
 
 #####################################################################################################
 #
+# Prints flags that control how Airflow should be populated with the command stop-airflow
+#
+# Outputs:
+#    Flag information.
+#######################################################################################################
+function breeze::flag_stop_airflow() {
+    echo "
+--preserve-volumes
+        Use this flag if you would like to preserve data volumes from the databases used
+        by the integrations. By default, those volumes are deleted, so when you run 'stop'
+        or 'restart' commands you start from scratch, but by using this flag you can
+        preserve them. If you want to delete those volumes after stopping Breeze, just
+        run the 'breeze stop' again without this flag.
+"
+}
+
+
+#####################################################################################################
+#
 # Prints flags that control tests
 #
 # Outputs:
@@ -2565,8 +2598,12 @@ $(breeze::print_star_line)
 $(breeze::flag_breeze_actions)
 
 $(breeze::print_star_line)
- Additional actions executed starting Airflow
+ Additional actions executed while starting Airflow
 $(breeze::flag_start_airflow)
+
+$(breeze::print_star_line)
+ Cleanup options when stopping Airflow
+$(breeze::flag_stop_airflow)
 
 $(breeze::print_star_line)
  Kind kubernetes and Kubernetes tests configuration(optional)

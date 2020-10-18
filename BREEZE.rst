@@ -376,6 +376,16 @@ Set up local development environment:
     * Setup local virtualenv with ``breeze setup-virtualenv`` command
     * Setup autocomplete for itself with ``breeze setup-autocomplete`` command
 
+Database volumes in Breeze
+--------------------------
+
+Breeze keeps data for all it's integration in named docker volumes. Each backend and integration
+keeps data in their own volume. Those volumes are persisted until ``./breeze stop`` command or
+``./breeze restart`` command is run. You can also preserve the volumes by adding flag
+``--preserve-volumes`` when you run either of those commands. Then, next time when you start
+``Breeze``, it will have the data pre-populated. You can always delete the volumes by
+runnint ``./breeze stop`` without the ``--preserve-volumes`` flag.
+
 Launching multiple terminals
 ----------------------------
 
@@ -1141,10 +1151,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
         'breeze \
               --github-image-id 209845560' - pull/use image with RUN_ID
 
-  Flags:
-
-  Run 'breeze flags' to see all applicable flags.
-
 
   ####################################################################################################
 
@@ -1620,6 +1626,15 @@ This is the current syntax for  `./breeze <./breeze>`_:
         containers will continue running so that startup time is shorter. But they take quite a lot of
         memory and CPU. This command stops all running containers from the environment.
 
+  Flags:
+
+  --preserve-volumes
+          Use this flag if you would like to preserve data volumes from the databases used
+          by the integrations. By default, those volumes are deleted, so when you run 'stop'
+          or 'restart' commands you start from scratch, but by using this flag you can
+          preserve them. If you want to delete those volumes after stopping Breeze, just
+          run the 'breeze stop' again without this flag.
+
 
   ####################################################################################################
 
@@ -1635,7 +1650,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Flags:
 
-  Run 'breeze flags' to see all applicable flags.
+  --preserve-volumes
+          Use this flag if you would like to preserve data volumes from the databases used
+          by the integrations. By default, those volumes are deleted, so when you run 'stop'
+          or 'restart' commands you start from scratch, but by using this flag you can
+          preserve them. If you want to delete those volumes after stopping Breeze, just
+          run the 'breeze stop' again without this flag.
 
 
   ####################################################################################################
@@ -2125,13 +2145,23 @@ This is the current syntax for  `./breeze <./breeze>`_:
           init.sh. It will be executed after the environment is configured and started.
 
   ****************************************************************************************************
-   Additional actions executed starting Airflow
+   Additional actions executed while starting Airflow
 
   --load-example-dags
           Include Airflow example dags.
 
   --load-default-connections
           Include Airflow Default Connections.
+
+  ****************************************************************************************************
+   Cleanup options when stopping Airflow
+
+  --preserve-volumes
+          Use this flag if you would like to preserve data volumes from the databases used
+          by the integrations. By default, those volumes are deleted, so when you run 'stop'
+          or 'restart' commands you start from scratch, but by using this flag you can
+          preserve them. If you want to delete those volumes after stopping Breeze, just
+          run the 'breeze stop' again without this flag.
 
   ****************************************************************************************************
    Kind kubernetes and Kubernetes tests configuration(optional)

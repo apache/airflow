@@ -125,6 +125,10 @@ function initialization::initialize_base_variables() {
     # If set to true, the test connections will be created
     export LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS:="false"}
 
+    # If set to true, Breeze db volumes will be persisted when breeze is stopped and reused next time
+    # Which means that you do not have to start from scratch
+    export PRESERVE_VOLUMES="false"
+
     # If set to true, RBAC UI will not be used for 1.10 version
     export DISABLE_RBAC=${DISABLE_RBAC:="false"}
 

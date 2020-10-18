@@ -20,6 +20,7 @@
 import json
 import os
 import unittest
+import uuid
 from unittest import mock
 
 import MySQLdb.cursors
@@ -398,11 +399,15 @@ class TestMySql(unittest.TestCase):
         with MySqlContext(client):
             hook = MySqlHook('airflow_db')
             priv = hook.get_first("SELECT @@global.secure_file_priv")
+            # Use random names to alllow re-running
             if priv and priv[0]:
                 # Confirm that no error occurs
-                hook.bulk_dump("INFORMATION_SCHEMA.TABLES", os.path.join(priv[0], "TABLES_{}".format(client)))
+                hook.bulk_dump(
+                    "INFORMATION_SCHEMA.TABLES",
+                    os.path.join(priv[0], "TABLES_{}-{}".format(client, uuid.uuid1())),
+                )
             elif priv == ("",):
-                hook.bulk_dump("INFORMATION_SCHEMA.TABLES", "TABLES_{}".format(client))
+                hook.bulk_dump("INFORMATION_SCHEMA.TABLES", "TABLES_{}_{}".format(client, uuid.uuid1()))
             else:
                 self.skipTest("Skip test_mysql_hook_test_bulk_load " "since file output is not permitted")
 

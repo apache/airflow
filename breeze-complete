@@ -157,6 +157,7 @@ runtime-apt-deps: additional-runtime-apt-deps: runtime-apt-command: additional-r
 load-default-connections load-example-dags
 install-wheels no-rbac-ui
 test-type:
+preserve-volumes
 "
 
 _breeze_commands="

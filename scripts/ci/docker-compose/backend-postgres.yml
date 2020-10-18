@@ -32,5 +32,8 @@ services:
       - POSTGRES_DB=airflow
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
+      - postgres-db-volume:/var/lib/postgresql/data
     ports:
       - "${POSTGRES_HOST_PORT}:5432"
+volumes:
+  postgres-db-volume:
