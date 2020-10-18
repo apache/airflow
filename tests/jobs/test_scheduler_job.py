@@ -23,12 +23,12 @@ import shutil
 import unittest
 from datetime import timedelta
 from tempfile import NamedTemporaryFile, mkdtemp
+from unittest import mock
+from unittest.mock import MagicMock, patch
 from zipfile import ZipFile
 
-import mock
 import psutil
 import pytest
-from mock import MagicMock, patch
 from parameterized import parameterized
 from sqlalchemy import func
 from sqlalchemy.exc import OperationalError

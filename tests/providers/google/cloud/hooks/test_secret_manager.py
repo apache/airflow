@@ -17,10 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from unittest.mock import MagicMock, patch
 
 from google.api_core.exceptions import NotFound
 from google.cloud.secretmanager_v1.proto.service_pb2 import AccessSecretVersionResponse
-from mock import MagicMock, patch
 
 from airflow.providers.google.cloud.hooks.secret_manager import SecretsManagerHook
 from tests.providers.google.cloud.utils.base_gcp_mock import (

@@ -19,7 +19,7 @@
 import unittest
 from datetime import datetime
 
-import mock
+from unittest import mock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import WILDCARD, GCSToGCSOperator

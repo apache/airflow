@@ -17,7 +17,7 @@
 # under the License.
 import unittest
 
-import mock
+from unittest import mock
 from parameterized import parameterized
 
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import GcpTransferOperationStatus

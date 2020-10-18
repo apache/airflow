@@ -17,8 +17,8 @@
 
 import socket
 import unittest
+from unittest import mock
 
-import mock
 from urllib3.connection import HTTPConnection, HTTPSConnection
 
 from airflow.kubernetes.kube_client import RefreshConfiguration, _enable_tcp_keepalive, get_kube_client

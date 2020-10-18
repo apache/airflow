@@ -35,12 +35,12 @@ derived from the moto test suite for testing the batch client.
 import inspect
 import unittest
 from typing import NamedTuple, Optional
+from unittest import mock
 
 import boto3
 import botocore.client
 import botocore.exceptions
 import botocore.waiter
-import mock
 import pytest
 from moto import mock_batch, mock_ec2, mock_ecs, mock_iam, mock_logs
 

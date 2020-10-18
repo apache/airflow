@@ -22,9 +22,9 @@ import time
 import unittest
 import uuid
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
-from mock import patch
 
 from airflow import settings
 from airflow.exceptions import AirflowException

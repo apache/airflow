@@ -17,7 +17,7 @@
 # under the License.
 import unittest
 
-import mock
+from unittest import mock
 
 from airflow.providers.google.cloud.operators.bigquery_dts import (
     BigQueryCreateDataTransferOperator,

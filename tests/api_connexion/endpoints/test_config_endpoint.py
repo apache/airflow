@@ -17,7 +17,7 @@
 
 import textwrap
 
-from mock import patch
+from unittest.mock import patch
 
 from airflow.security import permissions
 from airflow.www import app

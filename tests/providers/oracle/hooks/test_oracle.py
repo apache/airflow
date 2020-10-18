@@ -20,7 +20,7 @@ import json
 import unittest
 from datetime import datetime
 
-import mock
+from unittest import mock
 import numpy
 
 from airflow.models import Connection

@@ -17,7 +17,7 @@
 # under the License.
 import unittest
 
-import mock
+from unittest import mock
 
 from airflow.providers.google.cloud.transfers.bigquery_to_mysql import BigQueryToMySqlOperator
 

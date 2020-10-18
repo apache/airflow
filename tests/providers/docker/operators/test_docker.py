@@ -18,7 +18,7 @@
 import logging
 import unittest
 
-import mock
+from unittest import mock
 
 from airflow.exceptions import AirflowException
 

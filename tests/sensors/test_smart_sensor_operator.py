@@ -21,9 +21,9 @@ import logging
 import os
 import time
 import unittest
+from unittest.mock import Mock
 
 from freezegun import freeze_time
-from mock import Mock
 
 from airflow import DAG, settings
 from airflow.configuration import conf

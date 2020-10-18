@@ -18,8 +18,8 @@
 
 import datetime
 import unittest
+from unittest import mock
 
-import mock
 from parameterized import parameterized
 
 from airflow import models, settings

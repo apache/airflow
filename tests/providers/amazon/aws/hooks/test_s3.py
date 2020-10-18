@@ -19,10 +19,10 @@
 import gzip as gz
 import os
 import tempfile
+from unittest import mock
 from unittest.mock import Mock
 
 import boto3
-import mock
 import pytest
 from botocore.exceptions import ClientError, NoCredentialsError
 

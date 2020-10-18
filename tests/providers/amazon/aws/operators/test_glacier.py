@@ -18,7 +18,7 @@
 
 from unittest import TestCase
 
-import mock
+from unittest import mock
 
 from airflow.providers.amazon.aws.operators.glacier import (
     GlacierCreateJobOperator,

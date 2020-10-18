@@ -19,7 +19,7 @@
 import json
 import unittest
 
-import mock
+from unittest import mock
 
 from airflow.models import Connection
 from airflow.utils import db

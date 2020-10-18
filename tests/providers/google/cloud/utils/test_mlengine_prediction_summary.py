@@ -18,9 +18,9 @@
 import base64
 import binascii
 import unittest
+from unittest import mock
 
 import dill
-import mock
 
 try:
     from airflow.providers.google.cloud.utils import mlengine_prediction_summary

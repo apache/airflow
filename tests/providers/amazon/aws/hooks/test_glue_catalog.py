@@ -17,9 +17,9 @@
 # under the License.
 
 import unittest
+from unittest import mock
 
 import boto3
-import mock
 
 from airflow.providers.amazon.aws.hooks.glue_catalog import AwsGlueCatalogHook
 

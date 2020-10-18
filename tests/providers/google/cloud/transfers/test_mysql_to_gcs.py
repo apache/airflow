@@ -20,7 +20,7 @@ import datetime
 import decimal
 import unittest
 
-import mock
+from unittest import mock
 from _mysql_exceptions import ProgrammingError
 from parameterized import parameterized
 

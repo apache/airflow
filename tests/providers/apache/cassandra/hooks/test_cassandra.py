@@ -18,7 +18,7 @@
 
 import unittest
 
-import mock
+from unittest import mock
 import pytest
 from cassandra.cluster import Cluster
 from cassandra.policies import (

@@ -18,8 +18,8 @@
 import unittest
 from argparse import Namespace
 from tempfile import NamedTemporaryFile
+from unittest import mock
 
-import mock
 import pytest
 import sqlalchemy
 

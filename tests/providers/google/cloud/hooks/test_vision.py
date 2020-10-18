@@ -17,7 +17,7 @@
 # under the License.
 import unittest
 
-import mock
+from unittest import mock
 from google.cloud.vision import enums
 from google.cloud.vision_v1 import ProductSearchClient
 from google.cloud.vision_v1.proto.image_annotator_pb2 import (

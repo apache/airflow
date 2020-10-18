@@ -18,7 +18,7 @@
 
 import unittest
 
-import mock
+from unittest import mock
 from google.cloud.speech_v1.proto.cloud_speech_pb2 import (
     RecognizeResponse,
     SpeechRecognitionAlternative,
