@@ -21,8 +21,11 @@ services:
     image: rabbitmq:3.7
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
+      - rabbitmq-db-volume:/var/lib/rabbitmq
   airflow:
     environment:
       - INTEGRATION_RABBITMQ=true
     depends_on:
       - rabbitmq
+volumes:
+  rabbitmq-db-volume:
