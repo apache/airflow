@@ -269,13 +269,13 @@ Let's run a few commands to validate this script further.
     airflow db init
 
     # print the list of active DAGs
-    airflow dags list
+    airflow list_dags
 
     # prints the list of tasks in the "tutorial" DAG
-    airflow tasks list tutorial
+    airflow list_tasks tutorial
 
     # prints the hierarchy of tasks in the "tutorial" DAG
-    airflow tasks list tutorial --tree
+    airflow list_tasks tutorial --tree
 
 
 Testing
