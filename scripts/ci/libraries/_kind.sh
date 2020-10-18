@@ -67,7 +67,7 @@ function kind::make_sure_kubernetes_tools_are_installed() {
     if [[ ! -f "${KUBECTL_BINARY_PATH}" || ${DOWNLOADED_KUBECTL_VERSION} != "${KUBECTL_VERSION}" ]]; then
         echo
         echo "Downloading Kubectl version ${KUBECTL_VERSION}"
-        repeats::repeat_up_to_n_times 4 \
+        repeats::run_with_retry 4 \
             "curl --fail --location '${KUBECTL_URL}' --output '${KUBECTL_BINARY_PATH}'"
         chmod a+x "${KUBECTL_BINARY_PATH}"
     else
