@@ -384,7 +384,7 @@ keeps data in their own volume. Those volumes are persisted until ``./breeze sto
 ``./breeze restart`` command is run. You can also preserve the volumes by adding flag
 ``--preserve-volumes`` when you run either of those commands. Then, next time when you start
 ``Breeze``, it will have the data pre-populated. You can always delete the volumes by
-runnint ``./breeze stop`` without the ``--preserve-volumes`` flag.
+running ``./breeze stop`` without the ``--preserve-volumes`` flag.
 
 Launching multiple terminals
 ----------------------------
