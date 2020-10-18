@@ -99,14 +99,13 @@ jobs:
       # First fetch the sha of merge commit in case it is pull request so that we can
       # Run selective tests
       - name: >
-          Fetch merge commit ${{ github.ref }} ( ${{ github.sha }}:
-          merge_commit ${{ github.event.pull_request.merge_commit_sha }} )
+          Fetch merge commit ${{ github.ref }} ( ${{ github.sha }} )
         uses: actions/checkout@v2
         with:
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 2
         if: github.event_name  == 'pull_request'
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }} )"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }})"
         uses: actions/checkout@v2
       - name: >
           Event: ${{ github.event_name }}
@@ -114,7 +113,6 @@ jobs:
           Branch: ${{ github.head_ref }}
           Run id: ${{ github.run_id }}
           Sha: ${{ github.sha }}
-          Merge commit sha: ${{ github.merge_commit_sha }}
           Ref: ${{ github.ref }}
         run: printenv
       - name: Set wait for image
@@ -129,11 +127,11 @@ jobs:
         id: selective-checks
         env:
           EVENT_NAME: ${{ github.event_name }}
-          MERGE_COMMIT_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
           if [[ ${EVENT_NAME} == "pull_request" ]]; then
             # Run selective checks
-            ./scripts/ci/selective_ci_checks.sh "${MERGE_COMMIT_SHA}"
+            ./scripts/ci/selective_ci_checks.sh "${COMMIT_SHA}"
           else
             # Run all checks
             ./scripts/ci/selective_ci_checks.sh
@@ -148,7 +146,7 @@ jobs:
       needs.build-info.outputs.needs-helm-tests == 'true' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }} )"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
       - name: "Helm Tests"
         run: ./scripts/ci/kubernetes/ci_run_helm_testing.sh
@@ -160,7 +158,7 @@ jobs:
       needs.build-info.outputs.needs-api-tests == 'true' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
       - name: "Generate client codegen diff"
         run: ./scripts/ci/openapi/client_codegen_diff.sh
@@ -176,7 +174,7 @@ jobs:
     env:
       BACKEND: sqlite
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }} )"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         if: needs.build-info.outputs.waitForImage == 'true'
       - name: "Setup python"
@@ -211,7 +209,7 @@ jobs:
       needs.build-info.outputs.basic-checks-only == 'false' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }} )"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
       - name: "Setup python"
         uses: actions/setup-python@v2
@@ -251,13 +249,11 @@ jobs:
     steps:
       # First fetch the sha of merge commit. The basic-checks-only can only be true in pull_request event!
       - name: >
-          Fetch merge commit ${{ github.ref }} ( ${{ github.sha }}:
-          merge_commit ${{ github.event.pull_request.merge_commit_sha }} )
-        uses: actions/checkout@v2
+          Fetch merge commit ${{ github.ref }} ( ${{ github.sha }} )
         with:
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 2
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }} )"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         with:
           fetch-depth: 2
@@ -276,8 +272,7 @@ jobs:
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Static checks: basic checks only"
         run: |
-          ./scripts/ci/static_checks/run_basic_static_checks.sh \
-              "${{ github.event.pull_request.merge_commit_sha }}"
+          ./scripts/ci/static_checks/run_basic_static_checks.sh "${{ github.sha }}"
         env:
           VERBOSE: false
 
@@ -296,7 +291,7 @@ jobs:
       MOUNT_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
+      - name: "Checkout ${{ github.ref }} (${{ github.sha }} )"
         uses: actions/checkout@v2
       - name: "Setup python"
         uses: actions/setup-python@v2
@@ -327,7 +322,7 @@ jobs:
       needs.build-info.outputs.basic-checks-only == 'false' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
+      - name: "Checkout ${{ github.ref }} (${{ github.sha }} )"
         uses: actions/checkout@v2
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
@@ -351,7 +346,7 @@ jobs:
       needs.build-info.outputs.basic-checks-only == 'false' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }} )"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : )"
         uses: actions/checkout@v2
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
@@ -371,7 +366,7 @@ jobs:
       needs.build-info.outputs.basic-checks-only == 'false' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
+      - name: "Checkout ${{ github.ref }} (${{ github.sha }} )"
         uses: actions/checkout@v2
       - name: "Setup python"
         uses: actions/setup-python@v2
@@ -408,7 +403,7 @@ jobs:
       needs.build-info.outputs.basic-checks-only == 'false' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
+      - name: "Checkout ${{ github.ref }} (${{ github.sha }} )"
         uses: actions/checkout@v2
       - name: "Setup python"
         uses: actions/setup-python@v2
@@ -455,7 +450,7 @@ jobs:
         needs.build-info.outputs.run-tests == 'true' &&
         (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
+      - name: "Checkout ${{ github.ref }} (${{ github.sha }} )"
         uses: actions/checkout@v2
       - name: "Setup python"
         uses: actions/setup-python@v2
@@ -501,7 +496,7 @@ jobs:
         needs.build-info.outputs.run-tests == 'true' &&
         (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
+      - name: "Checkout ${{ github.ref }} (${{ github.sha }} )"
         uses: actions/checkout@v2
       - name: "Setup python"
         uses: actions/setup-python@v2
@@ -544,7 +539,7 @@ jobs:
         needs.build-info.outputs.run-tests == 'true' &&
         (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
+      - name: "Checkout ${{ github.ref }} (${{ github.sha }} )"
         uses: actions/checkout@v2
       - name: "Setup python"
         uses: actions/setup-python@v2
@@ -593,7 +588,7 @@ jobs:
       needs.build-info.outputs.run-tests == 'true' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
+      - name: "Checkout ${{ github.ref }} (${{ github.sha }} )"
         uses: actions/checkout@v2
       - name: "Setup python"
         uses: actions/setup-python@v2
@@ -714,7 +709,7 @@ jobs:
       needs.build-info.outputs.run-kubernetes-tests == 'true' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
+      - name: "Checkout ${{ github.ref }} (${{ github.sha }} )"
         uses: actions/checkout@v2
       - name: "Setup python"
         uses: actions/setup-python@v2
@@ -839,7 +834,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
+      - name: "Checkout ${{ github.ref }} (${{ github.sha }} )"
         uses: actions/checkout@v2
       - name: "Setup python"
         uses: actions/setup-python@v2
@@ -876,7 +871,7 @@ jobs:
       github.event_name != 'pull' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
+      - name: "Checkout ${{ github.ref }} (${{ github.sha }} )"
         uses: actions/checkout@v2
       - name: "Setup python"
         uses: actions/setup-python@v2
@@ -948,7 +943,7 @@ jobs:
       needs.build-info.outputs.basic-checks-only == 'false' &&
       github.event_name == 'schedule' &&  github.repository == 'apache/airflow'
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
+      - name: "Checkout ${{ github.ref }} (${{ github.sha }} )"
         uses: actions/checkout@v2
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh

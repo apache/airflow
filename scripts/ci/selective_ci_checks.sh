@@ -392,18 +392,18 @@ if (($# < 1)); then
     set_outputs_run_everything_and_exit
 fi
 
-MERGE_COMMIT_SHA="${1}"
-readonly MERGE_COMMIT_SHA
+COMMIT_SHA="${1}"
+readonly COMMIT_SHA
 
 echo
-echo "Merge commit SHA: ${MERGE_COMMIT_SHA}"
+echo "Merge commit SHA: ${COMMIT_SHA}"
 echo
 
 image_build_needed="false"
 tests_needed="false"
 kubernetes_tests_needed="false"
 
-get_changed_files "${MERGE_COMMIT_SHA}"
+get_changed_files "${COMMIT_SHA}"
 run_all_tests_if_environment_files_changed
 check_if_docs_should_be_generated
 check_if_helm_tests_should_be_run
@@ -424,13 +424,13 @@ else
 fi
 
 if [[ ${tests_needed} == "true" ]]; then
-    run_tests
+    run_tests "true"
 else
-    skip_running_tests
+    run_tests "false"
 fi
 
 if [[ ${kubernetes_tests_needed} == "true" ]]; then
-    run_kubernetes_tests
+    run_kubernetes_tests "true"
 else
-    skip_running_kubernetes_tests
+    run_kubernetes_tests "false"
 fi
