@@ -20,7 +20,7 @@
 # shellcheck disable=SC2030,SC2031
 
 @test "Test get_known_values short" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
 
@@ -29,7 +29,7 @@
 }
 
 @test "Test get_known_values long" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
 
@@ -38,7 +38,7 @@
 }
 
 @test "Test wrong get_known_values" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
 
@@ -47,7 +47,7 @@
 }
 
 @test "Test build options for breeze short" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
 
@@ -56,7 +56,7 @@
 }
 
 @test "Test build options for breeze long" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
 
@@ -65,7 +65,7 @@
 }
 
 @test "Test listcontains matches" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
 
@@ -74,7 +74,7 @@
 }
 
 @test "Test listcontains does not match" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
 
@@ -83,7 +83,7 @@
 }
 
 @test "Test convert options short" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
   all_options=""
@@ -95,7 +95,7 @@
 }
 
 @test "Test convert options long" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
   all_options=""
@@ -107,7 +107,7 @@
 }
 
 @test "Test autocomplete --pyt" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
   COMP_CWORD=0
@@ -118,7 +118,7 @@
 }
 
 @test "Test autocomplete --python " {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
   COMP_CWORD=1
@@ -129,7 +129,7 @@
 }
 
 @test "Test autocomplete --python with prefix" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
   COMP_CWORD=1
@@ -140,7 +140,7 @@
 }
 
 @test "Test autocomplete build-" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
   COMP_CWORD=0
@@ -151,7 +151,7 @@
 }
 
 @test "Test allowed python versions are same as ALL" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
 
@@ -159,7 +159,7 @@
 }
 
 @test "Test allowed Kubernetes versions same as CURRENT" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
 
@@ -167,7 +167,7 @@
 }
 
 @test "Test default Kubernetes version same as DEFAULT" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
 
@@ -175,7 +175,7 @@
 }
 
 @test "Test allowed Kubernetes modes same as CURRENT" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
 
@@ -183,7 +183,7 @@
 }
 
 @test "Test default Kubernetes mode same as DEFAULT" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
 
@@ -192,7 +192,7 @@
 
 
 @test "Test allowed Helm versions same as CURRENT" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
 
@@ -200,7 +200,7 @@
 }
 
 @test "Test default Helm version same as DEFAULT" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
 
@@ -208,7 +208,7 @@
 }
 
 @test "Test allowed Kind versions same as CURRENT" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
 
@@ -216,7 +216,7 @@
 }
 
 @test "Test default Kind version same as DEFAULT" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
 
@@ -224,7 +224,7 @@
 }
 
 @test "Test allowed MySQL versions same as CURRENT" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
 
@@ -232,7 +232,7 @@
 }
 
 @test "Test default MySQL version same as MYSQL_VERSION" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
 
@@ -240,7 +240,7 @@
 }
 
 @test "Test allowed Postgres versions same as CURRENT" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
 
@@ -248,7 +248,7 @@
 }
 
 @test "Test default Postgres version same as POSTGRES_VERSION" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
 
@@ -256,7 +256,7 @@
 }
 
 @test "Test default test type same as TEST_TYPE" {
-  load bats_utils
+  load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
 

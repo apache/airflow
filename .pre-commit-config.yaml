@@ -356,12 +356,6 @@ repos:
         language: system
         pass_filenames: false
         files: ^common/_common_values.sh$|^breeze-complete$
-      - id: build
-        name: Check if image build is needed
-        entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.6 false
-        language: system
-        always_run: true
-        pass_filenames: false
       - id: check-apache-license
         name: Check if licenses are OK for Apache
         entry: "./scripts/ci/pre_commit/pre_commit_check_license.sh"
@@ -400,11 +394,57 @@ repos:
         language: docker_image
         entry: koalaman/shellcheck:stable -x -a
         files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$|\.bats$
-      - id: bats-in-container-tests
-        name: Run in container bats tests
+      - id: bats-tests
+        name: Run BATS bash tests for changed Breeze bash files
         language: system
-        entry: "./scripts/ci/pre_commit/pre_commit_in_container_bats_test.sh"
-        files: ^tests/bats/in_container/.*.bats$|^scripts/in_container/.*sh
+        entry: "./scripts/ci/pre_commit/pre_commit_bat_tests.sh tests/bats/breeze/"
+        files: ^breeze$|^breeze-complete$|^tests/bats/breeze
+        pass_filenames: false
+      - id: bats-tests
+        name: Run BATS bash tests for changed bash files
+        language: system
+        entry: "./scripts/ci/pre_commit/pre_commit_bat_tests.sh"
+        files: \.sh$|\.bash$|\.bats$
+        exclude: ^tests/bats/in_container|^scripts/in_container|^tests/bats/breeze
+        pass_filenames: true
+        require_serial: true
+      - id: stylelint
+        name: stylelint
+        entry: "stylelint"
+        language: node
+        files: ^airflow/www/.*\.(css|scss|sass)$
+        # Keep dependency versions in sync w/ airflow/www/package.json
+        additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0']
+      - id: mermaid
+        name: Generate mermaid images
+        entry: ./scripts/ci/pre_commit/pre_commit_mermaid.sh
+        language: system
+        files: \.mermaid$
+        require_serial: true
+      - id: pre-commit-descriptions
+        name: Check if pre-commits are described
+        entry: ./scripts/ci/pre_commit/pre_commit_check_pre_commits.sh
+        language: system
+        files: ^.pre-commit-config.yaml$|^STATIC_CODE_CHECKS.rst|^breeze-complete$
+        require_serial: true
+      - id: sort-in-the-wild
+        name: Sort INTHEWILD.md alphabetically
+        entry: ./scripts/ci/pre_commit/pre_commit_sort_in_the_wild.sh
+        language: system
+        files: ^.pre-commit-config.yaml$|^INTHEWILD.md$
+        require_serial: true
+      - id: helm-lint
+        name: Lint Helm Chart
+        entry: ./scripts/ci/pre_commit/pre_commit_helm_lint.sh
+        language: system
+        pass_filenames: false
+        files: ^chart
+        require_serial: true
+      - id: build
+        name: Check if image build is needed
+        entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.6 false
+        language: system
+        always_run: true
         pass_filenames: false
       - id: mypy
         name: Run mypy
@@ -427,23 +467,9 @@ repos:
         entry: "./scripts/ci/pre_commit/pre_commit_flake8.sh"
         files: \.py$
         pass_filenames: true
-      - id: bats-tests
-        name: Run BATS bash tests for changed bash files
+      - id: bats-in-container-tests
+        name: Run in container bats tests
         language: system
-        entry: "./scripts/ci/pre_commit/pre_commit_bat_tests.sh"
-        files: ^breeze$|^breeze-complete$|\.sh$|\.bash$|\.bats$
-        exclude: ^tests/bats/in_container/.*bats$|^scripts/in_container/.*sh$
+        entry: "./scripts/ci/pre_commit/pre_commit_in_container_bats_test.sh"
+        files: ^tests/bats/in_container/.*.bats$|^scripts/in_container/.*sh
         pass_filenames: false
-      - id: stylelint
-        name: stylelint
-        entry: "stylelint"
-        language: node
-        files: ^airflow/www/.*\.(css|scss|sass)$
-        # Keep dependency versions in sync w/ airflow/www/package.json
-        additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0']
-      - id: mermaid
-        name: Generate mermaid images
-        entry: ./scripts/ci/pre_commit/pre_commit_mermaid.sh
-        language: system
-        files: \.mermaid$
-        require_serial: true
