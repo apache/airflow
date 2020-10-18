@@ -2651,14 +2651,17 @@ function breeze::print_cheatsheet() {
         echo
         echo "   Ports are forwarded to the running docker containers for webserver and database"
         echo "     * ${WEBSERVER_HOST_PORT} -> forwarded to Airflow webserver -> airflow:8080"
+        echo "     * ${FLOWER_HOST_PORT} -> forwarded to Flower dashboard -> airflow:5555"
         echo "     * ${POSTGRES_HOST_PORT} -> forwarded to Postgres database -> postgres:5432"
         echo "     * ${MYSQL_HOST_PORT} -> forwarded to MySQL database  -> mysql:3306"
+        echo "     * ${REDIS_HOST_PORT} -> forwarded to Redis broker -> redis:6379"
         echo
         echo "   Here are links to those services that you can use on host:"
-        echo "     * Webserver: http://127.0.0.1:28080"
-        echo "     * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow"
-        echo "     * Mysql:     jdbc:mysql://localhost:23306/airflow?user=root"
-        echo
+        echo "     * Webserver: http://127.0.0.1:${WEBSERVER_HOST_PORT}"
+        echo "     * Flower:    http://127.0.0.1:${FLOWER_HOST_PORT}"
+        echo "     * Postgres:  jdbc:postgresql://127.0.0.1:${POSTGRES_HOST_PORT}/airflow?user=postgres&password=airflow"
+        echo "     * Mysql:     jdbc:mysql://127.0.0.1:${MYSQL_HOST_PORT}/airflow?user=root"
+        echo "     * Redis:     redis://127.0.0.1:${REDIS_HOST_PORT}/0"
     else
         echo
     fi
