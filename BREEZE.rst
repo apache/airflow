@@ -960,14 +960,18 @@ Port Forwarding
 When you run Airflow Breeze, the following ports are automatically forwarded:
 
 * 28080 -> forwarded to Airflow webserver -> airflow:8080
+* 25555 -> forwarded to Flower dashboard -> airflow:5555
 * 25433 -> forwarded to Postgres database -> postgres:5432
 * 23306 -> forwarded to MySQL database  -> mysql:3306
+* 26379 -> forwarded to Redis broker -> redis:6379
 
 You can connect to these ports/databases using:
 
 * Webserver: ``http://127.0.0.1:28080``
+* Flower: ``http://127.0.0.1:25555``
 * Postgres: ``jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow``
-* Mysql: ``jdbc:mysql://localhost:23306/airflow?user=root``
+* Mysql: ``jdbc:mysql://127.0.0.1:23306/airflow?user=root``
+* Redis: ``redis://127.0.0.1:26379/0```
 
 Start the webserver manually with the ``airflow webserver`` command if you want to connect
 to the webserver. You can use ``tmux`` to multiply terminals. You may need to create a user prior to

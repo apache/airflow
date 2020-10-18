@@ -21,6 +21,8 @@ services:
     image: redis:5.0.1
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
+    ports:
+      - "${REDIS_HOST_PORT}:6379"
   airflow:
     environment:
       - INTEGRATION_REDIS=true
