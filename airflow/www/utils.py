@@ -307,8 +307,8 @@ def dag_run_link(attr):
     return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)
 
 
-def dag_sorting_query(sorting_key, sorting_order, session):
-    """Builds a DAG sorting query based on the variables passed to the view (presumably as URL params)."""
+def dag_query_for_key(sorting_key):
+    """Maps sorting key param in the URL params to DB queries on appropriate attributes."""
     dag_query_key_map = {
         'dag_id': DagModel.dag_id,
         'owner': DagModel.owners,
@@ -320,20 +320,31 @@ def dag_sorting_query(sorting_key, sorting_order, session):
         (sorting_key or '').lower(),
         DagModel.dag_id)  # default to original default behavior
 
+    return query_key
+
+
+def ordering_transform_for_query(query_key, sorting_order):
+    """Maps sort order param in the URL params to an appropriate transform of an attribute query."""
     sorting_map = {
         # not the biggest map in the world, but it's extensible and gives us nice default-handling
         'asc': query_key.asc,
         'desc': query_key.desc,
     }
 
-    # asc/desc are functions, but the mapping should be lazily evaluated after decide what to call...
-    _query_with_sorting_raw = sorting_map.get(
+    # the mapping should be lazily evaluated, so we get back a nullary callable
+    sorting_transform = sorting_map.get(
         (sorting_order or '').lower(),
         query_key.asc)  # default to original default behavior
 
-    # ...so we do that here:
-    query_with_sorting = _query_with_sorting_raw()
+    return sorting_transform
 
+
+def build_dag_sorting_query(sorting_key, sorting_order):
+    """Builds a DAG sorting query based on the variables passed to the view (presumably as URL params)."""
+    query_key = dag_query_for_key(sorting_key=sorting_key)
+    ordering_transform = ordering_transform_for_query(query_key=query_key, sorting_order=sorting_order)
+    # ordering_transform is a callable, we need to run it to extract the value:
+    query_with_sorting = ordering_transform()
     return query_with_sorting
 
 
