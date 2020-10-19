@@ -123,11 +123,20 @@ origin https://github.com/<USER>/airflow (fetch)
 origin https://github.com/<USER>/airflow (push)
 ```
 
-#### JIRA
-Users should set environment variables `JIRA_USERNAME` and `JIRA_PASSWORD` corresponding to their ASF JIRA login. This will allow the tool to automatically close issues. If they are not set, the user will be prompted every time.
+You can iterate and re-generate the same readme content as many times as you want.
+Generated readme files should be eventually committed to the repository.
 
-#### GitHub OAuth Token
-Unauthenticated users can only make 60 requests/hour to the Github API. If you get an error about exceeding the rate, you will need to set a `GITHUB_OAUTH_KEY` environment variable that contains a token value. Users can generate tokens from their GitHub profile.
+### Build regular provider packages for SVN apache upload
+
+There is a slightly different procedure if you build pre-release (alpha/beta) packages and the
+release candidates. For the Alpha artifacts there is no voting and signature/checksum check, so
+we do not need to care about this part. For release candidates - those packages might get promoted
+to "final" packages by just renaming the files, so internally they should keep the final version
+number without the rc suffix, even if they are rc1/rc2/... candidates.
+
+They also need to be signed and have checksum files. You can generate the checksum/signature files by running
+the "dev/sign.sh" script (assuming you have the right PGP key set-up for signing). The script
+generates corresponding .asc and .sha512 files for each file to sign.
 
 ## Airflow release signing tool
 The release signing tool can be used to create the SHA512/MD5 and ASC files that required for Apache releases.
@@ -135,14 +144,124 @@ The release signing tool can be used to create the SHA512/MD5 and ASC files that
 ### Execution
 To create a release tar ball execute following command from Airflow's root.
 
-`python setup.py compile_assets sdist --formats=gztar`
+For alpha/beta releases you need to specify both - svn and pyp i - suffixes, and they have to match. This is
+verified by the breeze script. Note that the script will clean up dist folder before generating the
+packages, so it will only contain the packages you intended to build.
+
+* Pre-release packages:
+
+```shell script
+export VERSION=0.0.1alpha1
+
+./breeze prepare-provider-packages --version-suffix-for-svn a1 --version-suffix-for-pypi a1
+```
+
+if you ony build few packages, run:
+
+```shell script
+./breeze prepare-provider-packages --version-suffix-for-svn a1 --version-suffix-for-pypi a1 \
+    PACKAGE PACKAGE ....
+```
+
+* Release candidate packages:
 
 *Note: `compile_assets` command build the frontend assets (JS and CSS) files for the
 Web UI using webpack and yarn. Please make sure you have `yarn` installed on your local machine globally.
 Details on how to install `yarn` can be found in CONTRIBUTING.rst file.*
 
-After that navigate to relative directory i.e., `cd dist` and sign the release files.
+./breeze prepare-provider-packages --version-suffix-for-svn rc1
+```
 
 `../dev/sign.sh <the_created_tar_ball.tar.gz`
 
-Signing files will be created in the same directory.
+```shell script
+./breeze prepare-provider-packages --version-suffix-for-svn rc1 PACKAGE PACKAGE ....
+```
+
+* Sign all your packages
+
+```shell script
+pushd dist
+../dev/sign.sh *
+popd
+```
+
+#### Commit the source packages to Apache SVN repo
+
+* Push the artifacts to ASF dev dist repo
+
+```shell script
+# First clone the repo if you do not have it
+svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
+
+# update the repo in case you have it already
+cd airflow-dev
+svn update
+
+# Create a new folder for the release.
+cd airflow-dev/providers
+svn mkdir ${VERSION}
+
+# Move the artifacts to svn folder
+mv ${AIRFLOW_REPO_ROOT}/dist/* ${VERSION}/
+
+# Add and commit
+svn add ${VERSION}/*
+svn commit -m "Add artifacts for Airflow Providers ${VERSION}"
+
+cd ${AIRFLOW_REPO_ROOT}
+```
+
+Verify that the files are available at
+[backport-providers](https://dist.apache.org/repos/dist/dev/airflow/backport-providers/)
+
+### Publish the Regular convenience package to PyPI
+
+
+In case of pre-release versions you build the same packages for both PyPI and SVN so you can simply use
+packages generated in the previous step and you can skip the "prepare" step below.
+
+In order to publish release candidate to PyPI you just need to build and release packages.
+The packages should however contain the rcN suffix in the version file name but not internally in the package,
+so you need to use `--version-suffix-for-pypi` switch to prepare those packages.
+Note that these are different packages than the ones used for SVN upload
+though they should be generated from the same sources.
+
+* Generate the packages with the right RC version (specify the version suffix with PyPI switch). Note that
+this will clean up dist folder before generating the packages, so you will only have the right packages there.
+
+```shell script
+./breeze prepare-provider-packages --version-suffix-for-pypi a1 --version-suffix-for-SVN a1
+```
+
+if you ony build few packages, run:
+
+```shell script
+./breeze prepare-provider-packages --version-suffix-for-pypi a1 \
+    PACKAGE PACKAGE ....
+```
+
+* Verify the artifacts that would be uploaded:
+
+```shell script
+twine check dist/*
+```
+
+* Upload the package to PyPi's test environment:
+
+```shell script
+twine upload -r pypitest dist/*
+```
+
+* Verify that the test packages look good by downloading it and installing them into a virtual environment.
+Twine prints the package links as output - separately for each package.
+
+* Upload the package to PyPi's production environment:
+
+```shell script
+twine upload -r pypi dist/*
+```
+
+* Copy the list of links to the uploaded packages - they will be useful in preparing VOTE email.
+
+* Again, confirm that the packages are available under the links printed.
