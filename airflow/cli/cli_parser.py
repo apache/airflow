@@ -68,12 +68,8 @@ class DefaultHelpParser(argparse.ArgumentParser):
             raise ArgumentError(action, message)
         if value == 'kubernetes':
             try:
-                from kubernetes.client import models
-                if not models:
-                    message = "kubernetes subcommand requires that ' \
-                              'you run pip install 'apache-airflow[cncf.kubernetes]'"
-                    raise ArgumentError(action, message)
-            except Exception:  # pylint: disable=W0703
+                import kubernetes.client  # noqa: F401 pylint: disable=unused-import
+            except ImportError:
                 message = 'kubernetes subcommand requires that you pip install the kubernetes python client'
                 raise ArgumentError(action, message)
 
