@@ -44,10 +44,10 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
         self.print_log = print_log
         self.positions = {}
         self.stream_names = []
-        self.instance_count = None
-        self.state = None
+        self.instance_count = 1
+        self.state = LogState.STARTING
         self.last_description = {}
-        self.last_describe_job_call = None
+        self.last_describe_job_call = 0
         self.log_resource_inited = False
 
     def init_log_resource(self, hook: SageMakerHook):
