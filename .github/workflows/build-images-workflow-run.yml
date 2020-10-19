@@ -89,7 +89,6 @@ jobs:
           cancelMode: namedJobs
           token: ${{ secrets.GITHUB_TOKEN }}
           notifyPRCancel: true
-          skipEventTypes: '["schedule", "push"]'
           jobNameRegexps: >
             [".*Event: ${{ steps.source-run-info.outputs.sourceEvent }}
             Repo: ${{ steps.source-run-info.outputs.sourceHeadRepo }}
@@ -112,7 +111,6 @@ jobs:
           cancelMode: failedJobs
           sourceRunId: ${{ github.event.workflow_run.id }}
           notifyPRCancel: true
-          skipEventTypes: '["schedule", "push"]'
           jobNameRegexps: >
             ["^Pylint$", "^Static checks$", "^Build docs$", "^Spell check docs$", "^Backport packages$",
              "^Checks: Helm tests$", "^Test OpenAPI*"]
@@ -146,6 +144,14 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           notifyPRCancel: true
           jobNameRegexps: ${{ steps.extract-cancelled-failed-runs.outputs.matching-regexp }}
+      - name: "Cancel duplicated 'CodeQL' runs"
+        uses: potiuk/cancel-workflow-runs@f696c622a83e4a63fff74848d3b149074658607d # v3_2
+        id: cancel
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          cancelMode: duplicates
+          sourceRunId: ${{ github.event.workflow_run.id }}
+          notifyPRCancel: true
       - name: "Set Docker Cache Directive"
         id: cache-directive
         run: |
