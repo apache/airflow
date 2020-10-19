@@ -32,67 +32,6 @@ However part of the philosophy we have is that we are not tightly coupled with a
 environments we use. Most of our CI jobs are written as bash scripts which are executed as steps in
 the CI jobs. And we have  a number of variables determine build behaviour.
 
-
-Github Actions runs
--------------------
-
-Our builds on CI I highly optimized. They utilise some of the latest features provided by GitHub Actions
-environment that make it possible to reuse parts of the build process across different Jobs.
-
-Big part of our CI runs use Container Images. Airflow has a lot of dependencies and in order to make
-sure that we are running tests in a well configured and repeatable environment, most of the tests,
-documentation building, and some more sophisticated static checks are run inside a docker container
-environment. This environment consist of two types of images: CI images and PROD images. CI Images
-are used for most of the tests and checks where PROD images are used in the Kubernetes tests.
-
-In order to run the tests, we need to make sure tha the images are built using latest sources and that it
-is done quickly (full rebuild of such image from scratch might take ~15 minutes). Therefore optimisation
-techniques have been implemented that use efficiently cache from the GitHub Docker registry - in most cases
-this brings down the time needed to rebuild the image to ~4 minutes. In some cases (when dependencies change)
-it can be ~6-7 minutes and in case base image of Python releases new patch-level, it can be ~12 minutes.
-
-Currently in master version of Airflow we run tests in 3 different versions of Python (3.6, 3.7, 3.8)
-which means that we have to build 6 images (3 CI ones and 3 PROD ones). Yet we run around 12 jobs
-with each of the CI images. That is a lot of time to just build the environment to run. Therefore
-we are utilising ``workflow_run`` feature of GitHub Actions. This feature allows to run a separate,
-independent workflow, when the main workflow is run - this separate workflow is different than the main
-one, because by default it runs using ``master`` version of the sources but also - and most of all - that
-it has WRITE access to the repository. This is especially important in our case where Pull Requests to
-Airflow might come from any repository, and it would be a huge security issue if anyone from outside could
-utilise the WRITE access to Apache Airflow repository via an external Pull Request.
-
-Thanks to the WRITE access and fact that the 'workflow_run' by default uses the 'master' version of the
-sources, we can safely run some logic there will checkout the incoming Pull Request, build the container
-image from the sources from the incoming PR and push such image to an Github Docker Registry - so that
-this image can be built only once and used by all the jobs running tests. The image is tagged with unique
-``RUN_ID`` of the incoming Pull Request and the tests run in the Pull Request can simply pull such image
-rather than build it from the scratch. Pulling such image takes ~ 1 minute, thanks to that we are saving
-a lot of precious time for jobs.
-
-
-Local runs
-----------
-
-The main goal of the CI philosophy we have that no matter how complex the test and integration
-infrastructure, as a developer you should be able to reproduce and re-run any of the failed checks
-locally. One part of it are pre-commit checks, that allow you to run the same static checks in CI
-and locally, but another part is the CI environment which is replicated locally with Breeze.
-
-You can read more about Breeze in `BREEZE.rst <BREEZE.rst>`_ but in essence it is a script that allows
-you to re-create CI environment in your local development instance and interact with it. In its basic
-form, when you do development you can run all the same tests that will be run in CI - but locally,
-before you submit them as PR. Another use case where Breeze is useful is when tests fail on CI. You can
-take the ``RUN_ID`` of failed build pass it as ``--github-image-id`` parameter of Breeze and it will
-download the very same version of image that was used in CI and run it locally. This way, you can very
-easily reproduce any failed test that happens in CI - even if you do not check out the sources
-connected with the run.
-
-You can read more about it in `BREEZE.rst <BREEZE.rst>`_ and `TESTING.rst <TESTING.rst>`_
-
-
-Difference between local runs and Github Action workflows
----------------------------------------------------------
-
 Depending whether the scripts are run locally (most often via `Breeze <BREEZE.rst>`_) or whether they
 are run in "CI Build" or "Build Image" workflows they can take different values.
 
@@ -424,13 +363,14 @@ that to your own repository by setting those environment variables:
 CI Architecture
 ===============
 
+.. image:: images/ci/CI.png
+    :align: center
+    :alt: CI architecture of Apache Airflow
+
  .. This image is an export from the 'draw.io' graph available in
     https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-23+Migrate+out+of+Travis+CI
     You can edit it there and re-export.
 
-.. image:: images/ci/CI.png
-    :align: center
-    :alt: CI architecture of Apache Airflow
 
 The following components are part of the CI infrastructure
 
@@ -688,90 +628,6 @@ delete old artifacts that are > 7 days old. It only runs for the 'apache/airflow
 
 We also have a script that can help to clean-up the old artifacts:
 `remove_artifacts.sh <dev/remove_artifacts.sh>`_
-
-Selective CI Checks
-===================
-
-In order to optimise our CI builds, we've implemented optimisations to only run selected checks for some
-kind of changes. The logic implemented reflects the internal architecture of Airflow 2.0 packages
-and it helps to keep down both the usage of jobs in GitHub Actions as well as CI feedback time to
-contributors in case of simpler changes.
-
-We have the following test types (separated by packages in which they are):
-
-* Core - for the core Airflow functionality (core folder)
-* API - Tests for the Airflow API (api and api_connexion folders)
-* CLI - Tests for the Airflow CLI (cli folder)
-* WWW - Tests for the Airflow webserver (www and www_rbac in 1.10 folders)
-* Providers - Tests for all Providers of Airflow (providers folder)
-* Other - all other tests (all other folders that are not part of any of the above)
-
-We also have several special kinds of tests that are not separated by packages but they are marked with
-pytest markers. They can be found in any of those packages and they can be selected by the appropriate
-pylint custom command line options. See `TESTING.rst <TESTING.rst>`_ for details but those are:
-
-* Integration - tests that require external integration images running in docker-compose
-* Heisentests - tests that are vulnerable to some side effects and are better to be run on their own
-* Quarantined - tests that are flaky and need to be fixed
-* Postgres - tests that require Postgres database. They are only run when backend is Postgres
-* MySQL - tests that require MySQL database. They are only run when backend is MySQL
-
-Even if the types are separated, In case they share the same backend version/python version, they are
-run sequentially in the same job, on the same CI machine. Each of them in a separate ``docker run`` command
-and with additional docker cleaning between the steps to not fall into the trap of exceeding resource
-usage in one big test run, but also not to increase the number of jobs per each Pull Request.
-
-The logic implemented for the changes works as follows:
-
-1) In case of direct push (so when PR gets merged) or scheduled run, we always run all tests and checks.
-   This is in order to make sure that the merge did not miss anything important. The remainder of the logic
-   is executed only in case of Pull Requests.
-
-2) We retrieve which files have changed in the incoming Merge Commit (github.sha is a merge commit
-   automatically prepared by GitHub in case of Pull Request, so we can retrieve the list of changed
-   files from that commit directly).
-
-3) If any of the important, environment files changed (Dockerfile, ci scripts, setup.py, GitHub workflow
-   files), then we again run all tests and checks. Those are cases where the logic of the checks changed
-   or the environment for the checks changed so we want to make sure to check everything.
-
-4) If any of docs changed: we need to have CI image so we enable image building
-
-5) If any of chart files changed, we need to run helm tests so we enable helm unit tests
-
-6) If any of API files changed, we need to run API tests so we enable them
-
-7) If any of the relevant source files that trigger the tests have changed at all. Those are airflow
-   sources, chart, tests and kubernetes_tests. If any of those files changed, we enable tests and we
-   enable image building, because the CI images are needed to run tests.
-
-8) Then we determine which types of the tests should be run. We count all the changed files in the
-   relevant airflow sources (airflow, chart, tests, kubernetes_tests) first and then we count how many
-   files changed in different packages:
-
-   a) if any of the Airflow API files changed we enable ``API`` test type
-   b) if any of the Airflow CLI files changed we enable ``CLI`` test type
-   c) if any of the Provider files changed we enable ``Providers`` test type
-   d) if any of the WWW files changed we enable ``WWW`` test type
-   e) if any of the Kubernetes files changed we enable ``Kubernetes`` test type
-   f) Then we subtract count of all the ``specific`` above per-type changed files from the count of
-      all changed files. In case there are any files changed, then we assume that some unknown files
-      changed (likely from the core of airflow) and in this case we enable all test types above and the
-      Core test types - simply because we do not want to risk to miss anything.
-    g) In all cases where tests are enabled we also add Heisentests, Integration and - depending on
-       the backend used = Postgres or MySQL types of tests.
-
-9) Quarantined tests are always run when tests are run - we need to run them often to observe how
-   often they fail so that we can decide to move them out of quarantine. Details about the
-   Quarantined tests are described in `TESTING.rst <TESTING.rst>`_
-
-10) There is a special case of static checks. In case the above logic determines that the CI image
-    needs to be build, we run long and more comprehensive version of static checks - including Pylint,
-    MyPy, Flake8. And those tests are run on all files, no matter how many files changed.
-    In case the image is not built, we run only simpler set of changes - the longer static checks
-    that require CI image are skipped, and we only run the tests on the files that changed in the incoming
-    commit - unlike pylint/flake8/mypy, those static checks are per-file based and they should not miss any
-    important change.
 
 
 Naming conventions for stored images

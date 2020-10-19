@@ -185,26 +185,13 @@ jobs:
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
-      pythonVersions: ${{ steps.selective-checks.python-versions }}
-      allPythonVersions: ${{ steps.selective-checks.outputs.all-python-versions }}
-      defaultPythonVersion: ${{ steps.selective-checks.outputs.default-python-version }}
-      run-tests: ${{ steps.selective-checks.outputs.run-tests }}
-      run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
-      basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
+      pythonVersions: ${{ steps.versions.outputs.python-versions }}
+      allPythonVersions: ${{ steps.versions.outputs.all-python-versions }}
+      defaultPythonVersion: ${{ steps.versions.outputs.default-python-version }}
     if: >
       needs.cancel-workflow-runs.outputs.buildImages == 'true' &&
       (github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule')
     steps:
-      # First fetch the sha of merge commit in case it is pull request so that we can
-      # Run selective tests
-      - name: >
-          Fetch merge commit ${{ github.ref }} ( ${{ github.sha }}:
-          merge_commit ${{ needs.cancel-workflow-runs.outputs.mergeCommitSha }} )
-        uses: actions/checkout@v2
-        with:
-          ref: ${{ needs.cancel-workflow-runs.outputs.mergeCommitSha }}
-          fetch-depth: 2
-        if: needs.cancel-workflow-runs.outputs.sourceEvent  == 'pull_request'
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
       - name: >
@@ -217,20 +204,19 @@ jobs:
           Source Sha: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
           Merge commit Sha: ${{ needs.cancel-workflow-runs.outputs.mergeCommitSha }}
           Target commit Sha: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
-        run: printenv
-      - name: Selective checks
-        id: selective-checks
-        env:
-          EVENT_NAME: ${{ needs.cancel-workflow-runs.outputs.sourceEvent }}
-          MERGE_COMMIT_SHA: ${{ needs.cancel-workflow-runs.outputs.mergeCommitSha }}
         run: |
-          if [[ ${EVENT_NAME} == "pull_request" ]]; then
-            # Run selective checks
-            ./scripts/ci/selective_ci_checks.sh "${MERGE_COMMIT_SHA}"
-          else
-            # Run all checks
-            ./scripts/ci/selective_ci_checks.sh
-          fi
+          printenv
+      - name: Set versions
+        id: versions
+        run: |
+          . ./scripts/ci/libraries/_script_init.sh
+
+          initialization::ga_output python-versions \
+              "$(initialization::parameters_to_json "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
+          initialization::ga_output default-python-version "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[0]}"
+
+          initialization::ga_output all-python-versions \
+              "$(initialization::parameters_to_json "${ALL_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
 
   build-images:
     timeout-minutes: 80
@@ -245,7 +231,6 @@ jobs:
         image-type: [CI, PROD]
       fail-fast: true
     if: >
-      needs.build-info.outputs.basic-checks-only == 'false' &&
       needs.cancel-workflow-runs.outputs.buildImages == 'true' &&
       (github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule')
     env:
