@@ -325,10 +325,16 @@ jobs:
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
-        if: always()
+        if: failure()
         with:
           name: airflow-logs-${{matrix.python-version}}-${{matrix.postgres-version}}
           path: "./files/airflow_logs*"
+      - name: "Upload container logs"
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: container-logs-postgres-${{matrix.python-version}}-${{matrix.postgres-version}}
+          path: "./files/container_logs*"
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
@@ -371,10 +377,16 @@ jobs:
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
-        if: always()
+        if: failure()
         with:
           name: airflow-logs-${{matrix.python-version}}-${{matrix.mysql-version}}
           path: "./files/airflow_logs*"
+      - name: "Upload container logs"
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: container-logs-mysql-${{matrix.python-version}}-${{matrix.mysql-version}}
+          path: "./files/container_logs*"
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
@@ -414,10 +426,16 @@ jobs:
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
-        if: always()
+        if: failure()
         with:
           name: airflow-logs-${{matrix.python-version}}
           path: './files/airflow_logs*'
+      - name: "Upload container logs"
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: container-logs-sqlite-${{matrix.python-version}}
+          path: "./files/container_logs*"
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
@@ -481,14 +499,20 @@ jobs:
           path: "files/test_result.xml"
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
-        if: always()
+        if: failure()
         with:
-          name: airflow-logs-quarantined-${{matrix.python-version}}-${{ matrix.postgres-version }}
+          name: airflow-logs-quarantined-${{ matrix.backend }}
           path: "./files/airflow_logs*"
+      - name: "Upload container logs"
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: container-logs-quarantined-${{ matrix.backend }}
+          path: "./files/container_logs*"
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
-          name: coverage-quarantined-${{matrix.python-version}}
+          name: coverage-quarantined-${{ matrix.backend }}
           path: "./files/coverage.xml"
 
   upload-coverage:
