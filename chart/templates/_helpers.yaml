@@ -152,6 +152,10 @@
       value: {{ .Values.dags.gitSync.wait | quote }}
     - name: GIT_SYNC_MAX_SYNC_FAILURES
       value: {{ .Values.dags.gitSync.maxFailures | quote }}
+    {{- if .is_init }}
+    - name: GIT_SYNC_ONE_TIME
+      value: "true"
+    {{- end }}
   volumeMounts:
   - name: dags
     mountPath: {{ .Values.dags.gitSync.root }}
@@ -172,6 +176,10 @@
 # This helper will change when customers deploy a new image.
 {{ define "airflow_image" -}}
 {{ printf "%s:%s" (.Values.images.airflow.repository | default .Values.defaultAirflowRepository) (.Values.images.airflow.tag | default .Values.defaultAirflowTag) }}
+{{- end }}
+
+{{ define "pod_template_image" -}}
+{{ printf "%s:%s" (.Values.images.pod_template.repository | default .Values.defaultAirflowRepository) (.Values.images.pod_template.tag | default .Values.defaultAirflowTag) }}
 {{- end }}
 
 # This helper is used for airflow containers that do not need the users code.
