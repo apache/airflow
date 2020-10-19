@@ -20,39 +20,26 @@
 """
 This module contains Google BigQuery operators.
 """
-import datetime
 import enum
 import hashlib
 import json
-import logging
-import random
 import re
-import string
 import uuid
 import warnings
-import uuid
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, SupportsAbs, Union
-from urllib.parse import urlsplit
 
 import attr
 from google.api_core.exceptions import Conflict
 from google.cloud.bigquery import TableReference
 
-from airflow.providers.greatexpectations.operators.greatexpectations_base import GreatExpectationsBaseOperator
-from great_expectations.data_context.types.base import DataContextConfig
-from great_expectations.data_context import BaseDataContext
-
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
-from airflow.models import BaseOperator, BaseOperatorLink, Variable
+from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.check_operator import CheckOperator, IntervalCheckOperator, ValueCheckOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
-from airflow.utils.email import send_email
 from airflow.utils.decorators import apply_defaults
 
-log = logging.getLogger(__name__)
 BIGQUERY_JOB_DETAILS_LINK_FMT = "https://console.cloud.google.com/bigquery?j={job_id}"
 
 _DEPRECATION_MSG = (
@@ -111,32 +98,26 @@ class BigQueryCheckOperator(CheckOperator):
     a sql query that will return a single row. Each value on that
     first row is evaluated using python ``bool`` casting. If any of the
     values return ``False`` the check is failed and errors out.
-
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BigQueryCheckOperator`
-
     Note that Python bool casting evals the following as ``False``:
-
     * ``False``
     * ``0``
     * Empty string (``""``)
     * Empty list (``[]``)
     * Empty dictionary or set (``{}``)
-
     Given a query like ``SELECT COUNT(*) FROM foo``, it will fail only if
     the count ``== 0``. You can craft much more complex query that could,
     for instance, check that the table has the same number of rows as
     the source table upstream, or that the count of today's partition is
     greater than yesterday's partition, or that a set of metrics are less
     than 3 standard deviation for the 7 day average.
-
     This operator can be used as a data quality check in your pipeline, and
     depending on where you put it in your DAG, you have the choice to
     stop the critical path, preventing from
     publishing dubious data, or on the side and receive email alerts
     without stopping the progress of the DAG.
-
     :param sql: the sql to be executed
     :type sql: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
@@ -204,11 +185,9 @@ class BigQueryCheckOperator(CheckOperator):
 class BigQueryValueCheckOperator(ValueCheckOperator):
     """
     Performs a simple value check using sql code.
-
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BigQueryValueCheckOperator`
-
     :param sql: the sql to be executed
     :type sql: str
     :param use_legacy_sql: Whether to use legacy SQL (true)
@@ -280,16 +259,12 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
     """
     Checks that the values of metrics given as SQL expressions are within
     a certain tolerance of the ones from days_back before.
-
     This method constructs a query like so ::
-
         SELECT {metrics_threshold_dict_key} FROM {table}
         WHERE {date_filter_column}=<date>
-
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BigQueryIntervalCheckOperator`
-
     :param table: the table name
     :type table: str
     :param days_back: number of days between ds and the ds we want to check
@@ -377,13 +352,10 @@ class BigQueryGetDataOperator(BaseOperator):
     and returns data in a python list. The number of elements in the returned list will
     be equal to the number of rows fetched. Each element in the list will again be a list
     where element would represent the columns values for that row.
-
     **Example Result**: ``[['Tony', '10'], ['Mike', '20'], ['Steve', '15']]``
-
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BigQueryGetDataOperator`
-
     .. note::
         If you pass fields to ``selected_fields`` which are in different order than the
         order of columns already in
@@ -391,9 +363,7 @@ class BigQueryGetDataOperator(BaseOperator):
         For example if the BQ table has 3 columns as
         ``[A,B,C]`` and you pass 'B,A' in the ``selected_fields``
         the data would still be of the form ``'A,B'``.
-
     **Example**: ::
-
         get_data = BigQueryGetDataOperator(
             task_id='get_data_from_bq',
             dataset_id='test_dataset',
@@ -402,7 +372,6 @@ class BigQueryGetDataOperator(BaseOperator):
             selected_fields='DATE',
             gcp_conn_id='airflow-conn-id'
         )
-
     :param dataset_id: The dataset ID of the requested table. (templated)
     :type dataset_id: str
     :param table_id: The table ID of the requested table. (templated)
@@ -509,7 +478,6 @@ class BigQueryExecuteQueryOperator(BaseOperator):
     """
     Executes BigQuery SQL queries in a specific BigQuery database.
     This operator does not assert idempotency.
-
     :param sql: the sql code to be executed (templated)
     :type sql: Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.
@@ -591,7 +559,6 @@ class BigQueryExecuteQueryOperator(BaseOperator):
     :type location: str
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
         **Example**: ::
-
             encryption_configuration = {
                 "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
             }
@@ -765,17 +732,14 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     """
     Creates a new, empty table in the specified BigQuery dataset,
     optionally with schema.
-
     The schema to be used for the BigQuery table may be specified in one of
     two ways. You may either directly pass the schema fields in, or you may
     point the operator to a Google Cloud Storage object name. The object in
     Google Cloud Storage must be a JSON file with the schema fields in it.
     You can also create a table without schema.
-
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BigQueryCreateEmptyTableOperator`
-
     :param project_id: The project to create the table into. (templated)
     :type project_id: str
     :param dataset_id: The dataset to create the table into. (templated)
@@ -788,12 +752,9 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     :type table_resource: Dict[str, Any]
     :param schema_fields: If set, the schema field list as defined here:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
-
         **Example**: ::
-
             schema_fields=[{"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
                            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}]
-
     :type schema_fields: list
     :param gcs_schema_object: Full path to the JSON file containing
         schema (templated). For
@@ -801,7 +762,6 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     :type gcs_schema_object: str
     :param time_partitioning: configure optional time partitioning fields i.e.
         partition by field, type and  expiration as per API specifications.
-
         .. seealso::
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timePartitioning
     :type time_partitioning: dict
@@ -816,9 +776,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         domain-wide delegation enabled.
     :type delegate_to: str
     :param labels: a dictionary containing labels for the table, passed to BigQuery
-
         **Example (with schema JSON in GCS)**: ::
-
             CreateTable = BigQueryCreateEmptyTableOperator(
                 task_id='BigQueryCreateEmptyTableOperator_task',
                 dataset_id='ODS',
@@ -828,9 +786,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 bigquery_conn_id='airflow-conn-id',
                 google_cloud_storage_conn_id='airflow-conn-id'
             )
-
         **Corresponding Schema file** (``employee_schema.json``): ::
-
             [
               {
                 "mode": "NULLABLE",
@@ -843,9 +799,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 "type": "INTEGER"
               }
             ]
-
         **Example (with schema in the DAG)**: ::
-
             CreateTable = BigQueryCreateEmptyTableOperator(
                 task_id='BigQueryCreateEmptyTableOperator_task',
                 dataset_id='ODS',
@@ -859,13 +813,11 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     :type labels: dict
     :param view: [Optional] A dictionary containing definition for the view.
         If set, it will create a view instead of a table:
-
         .. seealso::
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#ViewDefinition
     :type view: dict
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
         **Example**: ::
-
             encryption_configuration = {
                 "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
             }
@@ -875,7 +827,6 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     :param cluster_fields: [Optional] The fields used for clustering.
             Must be specified with time_partitioning, data in the table will be first
             partitioned and subsequently clustered.
-
             .. seealso::
                 https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#clustering.fields
     :type cluster_fields: list
@@ -990,16 +941,13 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     """
     Creates a new external table in the dataset with the data from Google Cloud
     Storage.
-
     The schema to be used for the BigQuery table may be specified in one of
     two ways. You may either directly pass the schema fields in, or you may
     point the operator to a Google Cloud Storage object name. The object in
     Google Cloud Storage must be a JSON file with the schema fields in it.
-
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BigQueryCreateExternalTableOperator`
-
     :param bucket: The bucket to point the external table to. (templated)
     :type bucket: str
     :param source_objects: List of Google Cloud Storage URIs to point
@@ -1011,12 +959,9 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     :type destination_project_dataset_table: str
     :param schema_fields: If set, the schema field list as defined here:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
-
         **Example**: ::
-
             schema_fields=[{"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
                            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}]
-
         Should not be set when source_format is 'DATASTORE_BACKUP'.
     :param table_resource: Table resource as described in documentation:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table
@@ -1067,7 +1012,6 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     :type labels: dict
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
         **Example**: ::
-
             encryption_configuration = {
                 "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
             }
@@ -1240,11 +1184,9 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
     """
     This operator deletes an existing dataset from your Project in Big query.
     https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/delete
-
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BigQueryDeleteDatasetOperator`
-
     :param project_id: The project id of the dataset.
     :type project_id: str
     :param dataset_id: The dataset to be deleted.
@@ -1272,9 +1214,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
-
     **Example**: ::
-
         delete_temp_data = BigQueryDeleteDatasetOperator(
             dataset_id='temp-dataset',
             project_id='temp-project',
@@ -1340,11 +1280,9 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
     """
     This operator is used to create new dataset for your Project in BigQuery.
     https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
-
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BigQueryCreateEmptyDatasetOperator`
-
     :param project_id: The name of the project where we want to create the dataset.
     :type project_id: str
     :param dataset_id: The id of dataset. Don't need to provide, if datasetId in dataset_reference.
@@ -1374,7 +1312,6 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
         **Example**: ::
-
             create_new_dataset = BigQueryCreateEmptyDatasetOperator(
                 dataset_id='new-dataset',
                 project_id='my-project',
@@ -1450,11 +1387,9 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
 class BigQueryGetDatasetOperator(BaseOperator):
     """
     This operator is used to return the dataset specified by dataset_id.
-
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BigQueryGetDatasetOperator`
-
     :param dataset_id: The id of dataset. Don't need to provide,
         if datasetId in dataset_reference.
     :type dataset_id: str
@@ -1476,7 +1411,6 @@ class BigQueryGetDatasetOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
-
     :rtype: dataset
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
     """
@@ -1523,11 +1457,9 @@ class BigQueryGetDatasetOperator(BaseOperator):
 class BigQueryGetDatasetTablesOperator(BaseOperator):
     """
     This operator retrieves the list of tables in the specified dataset.
-
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BigQueryGetDatasetTablesOperator`
-
     :param dataset_id: the dataset ID of the requested dataset.
     :type dataset_id: str
     :param project_id: (Optional) the project of the requested dataset. If None,
@@ -1597,11 +1529,9 @@ class BigQueryPatchDatasetOperator(BaseOperator):
     """
     This operator is used to patch dataset for your Project in BigQuery.
     It only replaces fields that are provided in the submitted dataset resource.
-
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BigQueryPatchDatasetOperator`
-
     :param dataset_id: The id of dataset. Don't need to provide,
         if datasetId in dataset_reference.
     :type dataset_id: str
@@ -1626,7 +1556,6 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
-
     :rtype: dataset
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
     """
@@ -1685,11 +1614,9 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
     is listed in ``fields`` and is ``None`` in dataset, it will be deleted.
     If no ``fields`` are provided then all fields of provided ``dataset_reources``
     will be used.
-
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BigQueryUpdateDatasetOperator`
-
     :param dataset_id: The id of dataset. Don't need to provide,
         if datasetId in dataset_reference.
     :type dataset_id: str
@@ -1716,7 +1643,6 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
-
     :rtype: dataset
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
     """
@@ -1770,11 +1696,9 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
 class BigQueryDeleteTableOperator(BaseOperator):
     """
     Deletes BigQuery tables
-
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BigQueryDeleteTableOperator`
-
     :param deletion_dataset_table: A dotted
         ``(<project>.|<project>:)<dataset>.<table>`` that indicates which table
         will be deleted. (templated)
@@ -1855,11 +1779,9 @@ class BigQueryDeleteTableOperator(BaseOperator):
 class BigQueryUpsertTableOperator(BaseOperator):
     """
     Upsert BigQuery table
-
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BigQueryUpsertTableOperator`
-
     :param dataset_id: A dotted
         ``(<project>.|<project>:)<dataset>`` that indicates which dataset
         will be updated. (templated)
@@ -1952,25 +1874,18 @@ class BigQueryInsertJobOperator(BaseOperator):
     """
     Executes a BigQuery job. Waits for the job to complete and returns job id.
     This operator work in the following way:
-
     - it calculates a unique hash of the job using job's configuration or uuid if ``force_rerun`` is True
     - creates ``job_id`` in form of
         ``[provided_job_id | airflow_{dag_id}_{task_id}_{exec_date}]_{uniqueness_suffix}``
     - submits a BigQuery job using the ``job_id``
     - if job with given id already exists then it tries to reattach to the job if its not done and its
         state is in ``reattach_states``. If the job is done the operator will raise ``AirflowException``.
-
     Using ``force_rerun`` will submit a new job every time without attaching to already existing ones.
-
     For job definition see here:
-
         https://cloud.google.com/bigquery/docs/reference/v2/jobs
-
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BigQueryInsertJobOperator`
-
-
     :param configuration: The configuration parameter maps directly to BigQuery's
         configuration field in the job  object. For more details see
         https://cloud.google.com/bigquery/docs/reference/v2/jobs
@@ -2122,287 +2037,3 @@ class BigQueryInsertJobOperator(BaseOperator):
     def on_kill(self):
         if self.job_id and self.cancel_on_kill:
             self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=self.location)
-
-
-class GreatExpectationsValidations(enum.Enum):
-    SQL = "SQL"
-    TABLE = "TABLE"
-
-
-class GreatExpectationsBigQueryOperator(GreatExpectationsBaseOperator):
-    """
-    Use Great Expectations to validate data expectations against a BigQuery table or the result of a SQL query.
-         The expectations need to be stored in a JSON file sitting in an accessible GCS bucket.  The validation results
-         are output to GCS in both JSON and HTML formats.
-         Here's the current list of expectations types:
-         https://docs.greatexpectations.io/en/latest/reference/glossary_of_expectations.html
-         Here's how to create expectations files:
-         https://docs.greatexpectations.io/en/latest/guides/tutorials/how_to_create_expectations.html
-        :param gcp_project:  The GCP project which houses the GCS buckets where the expectations files are stored
-            and where the validation files & data docs will be output (e.g. HTML docs showing if the data matches
-            expectations).
-        :type gcp_project: str
-        :param expectations_file_name: The name of the JSON file containing the expectations for the data.
-        :type expectations_file_name: str
-        :param gcs_bucket:  Google Cloud Storage bucket where expectation files are stored and where validation outputs
-            and data docs will be saved.
-            (e.g. gs://<gcs_bucket>/<gcs_expectations_prefix>/<expectations_file_name>
-                  gs://mybucket/myprefix/myexpectationsfile.json )
-        :type gcs_bucket: str
-        :param gcs_expectations_prefix:  Google Cloud Storage prefix where the expectations file can be found.
-            (e.g. 'ge/expectations')
-        :type gcs_expectations_prefix: str
-        :param gcs_validations_prefix:  Google Cloud Storage prefix where the validation output files should be saved.
-            (e.g. 'ge/validations')
-        :type gcs_validations_prefix: str
-        :param gcs_datadocs_prefix:  Google Cloud Storage prefix where the validation datadocs files should be saved.
-            (e.g. 'ge/datadocs')
-        :type gcs_datadocs_prefix: str
-        :param validation_type: For the set of data to be validated (i.e. compared against expectations), is it already
-            sitting in a BigQuery table or do you want to validate the data returned by a SQL query?  The options are
-            'TABLE' or 'SQL'.
-        :type validation_type: str
-        :param validation_type_input:  The name of the BigQuery table (dataset_name.table_name) if the validation_type
-            is 'TABLE' or the SQL query string if the validation_type is 'SQL'.
-        :type validation_type_input: str
-        :param bigquery_conn_id: Name of the BigQuery connection that contains the connection and credentials
-            info needed to connect to BigQuery.
-        :type bigquery_conn_id: str
-        :param bq_dataset_name:  The name of the BigQuery data set where any temp tables will be created that are needed
-            as part of the GE validation process.
-        :type bq_dataset_name: str
-        :param send_alert_email:  Send an alert email if one or more expectations fail to be met?  Defaults to True.
-        :type send_alert_email: boolean
-        :param datadocs_link_in_email:  Include in the alert email a link to the data doc in GCS that shows the
-            validation results?  Defaults to False because there's extra setup needed to serve HTML data docs stored in
-            GCS.  When set to False, only a GCS path to the results are included in the email.
-            Set up a GAE app to serve the data docs if you want a clickable link for the data doc to be included in the
-            email.  See here for set up instructions:
-            https://docs.greatexpectations.io/en/latest/guides/how_to_guides/configuring_data_docs/how_to_host_and_share_data_docs_on_gcs.html
-        :type datadocs_link_in_email: boolean
-        :param datadocs_domain: The domain from which the data docs are set up to be served (e.g. ge-data-docs-dot-my-gcp-project.ue.r.appspot.com).
-            This only needs to be set if datadocs_link_in_email is set to True.
-        :type datadocs_domain: str
-        :param email_to:  Email address to receive any alerts when expectations are not met.
-        :type email_to: str
-        :param fail_if_expectations_not_met: Fail the Airflow task if expectations are not met?  Defaults to True.
-        :type fail_if_expectations_not_met: boolean
-    """
-
-    _EMAIL_CONTENT = '''
-            <html>
-              <head>
-                <meta charset="utf-8">
-              </head>
-              <body style="background-color: #fafafa; font-family: Roboto, sans-serif=;">
-                <div style="width: 600px; margin:0 auto;">
-                    <div style="background-color: white; border-top: 4px solid #22a667; border-left: 1px solid #eee; border-right: 1px solid #eee; border-radius: 6px 6px 0 0; height: 24px;"></div>
-                        <div style="background-color: white; border-left: 1px solid #eee; border-right: 1px solid #eee; padding: 0 24px; overflow: hidden;">
-                          <div style="margin-left: 35px;">
-                            Great Expectations Alert<br>
-                            One or more data expectations were not met in the {0} file. {1}
-                       </div>
-              </body>
-            </html>
-            '''
-
-    @apply_defaults
-    def __init__(self, *, gcp_project, expectations_file_name, gcs_bucket, gcs_expectations_prefix,
-                 gcs_validations_prefix, gcs_datadocs_prefix, validation_type, validation_type_input,
-                 bq_dataset_name, email_to, datadocs_domain='none', send_alert_email=True, datadocs_link_in_email=False,
-                 fail_if_expectations_not_met=True,
-                 bigquery_conn_id='bigquery_default', **kwargs):
-
-        super().__init__(**kwargs)
-
-        great_expectations_valid_type = set(item.value for item in GreatExpectationsValidations)
-
-        self.expectations_file_name = expectations_file_name
-        if validation_type.upper() not in GreatExpectationsValidations:
-            raise AirflowException(f"argument 'validation_type' must be one of {great_expectations_valid_type}")
-        self.validation_type = validation_type
-        self.validation_type_input = validation_type_input
-        self.bigquery_conn_id = bigquery_conn_id
-        self.bq_dataset_name = bq_dataset_name
-        self.gcp_project = gcp_project
-        self.gcs_bucket = gcs_bucket
-        self.gcs_expectations_prefix = gcs_expectations_prefix
-        self.gcs_validations_prefix = gcs_validations_prefix
-        self.gcs_datadocs_prefix = gcs_datadocs_prefix
-        self.email_to = email_to
-        self.datadocs_domain = datadocs_domain
-        self.send_alert_email = send_alert_email
-        self.datadocs_link_in_email = datadocs_link_in_email
-        self.fail_if_expectations_not_met = fail_if_expectations_not_met
-
-    def instantiate_data_context(self):
-
-        conn = BaseHook.get_connection(self.bigquery_conn_id)
-        connection_json = conn.extra_dejson
-
-        project_config = DataContextConfig(
-            config_version=2,
-            datasources={
-                "bq_datasource": {
-                    "credentials": {
-                        "url": "bigquery://" + connection_json[
-                            'extra__google_cloud_platform__project'] + "/" + self.bq_dataset_name + "?credentials_path=" +
-                               connection_json['extra__google_cloud_platform__key_path']
-                    },
-                    "class_name": "SqlAlchemyDatasource",
-                    "module_name": "great_expectations.datasource",
-                    "data_asset_type": {
-                        "module_name": "great_expectations.dataset",
-                        "class_name": "SqlAlchemyDataset"
-                    }
-                }
-            },
-            expectations_store_name="expectations_GCS_store",
-            validations_store_name="validations_GCS_store",
-            evaluation_parameter_store_name="evaluation_parameter_store",
-            plugins_directory=None,
-            validation_operators={
-                "action_list_operator": {
-                    "class_name": "ActionListValidationOperator",
-                    "action_list": [
-                        {
-                            "name": "store_validation_result",
-                            "action": {"class_name": "StoreValidationResultAction"},
-                        },
-                        {
-                            "name": "store_evaluation_params",
-                            "action": {"class_name": "StoreEvaluationParametersAction"},
-                        },
-                        {
-                            "name": "update_data_docs",
-                            "action": {"class_name": "UpdateDataDocsAction"},
-                        },
-                    ],
-                }
-            },
-            stores={
-                'expectations_GCS_store': {
-                    'class_name': 'ExpectationsStore',
-                    'store_backend': {
-                        'class_name': 'TupleGCSStoreBackend',
-                        'project': self.gcp_project,
-                        'bucket': self.gcs_bucket,
-                        'prefix': self.gcs_expectations_prefix
-                    }
-                },
-                'validations_GCS_store': {
-                    'class_name': 'ValidationsStore',
-                    'store_backend': {
-                        'class_name': 'TupleGCSStoreBackend',
-                        'project': self.gcp_project,
-                        'bucket': self.gcs_bucket,
-                        'prefix': self.gcs_validations_prefix
-                    }
-                },
-                "evaluation_parameter_store": {"class_name": "EvaluationParameterStore"},
-            },
-            data_docs_sites={
-                "GCS_site": {
-                    "class_name": "SiteBuilder",
-                    "store_backend": {
-                        "class_name": "TupleGCSStoreBackend",
-                        "project": self.gcp_project,
-                        "bucket": self.gcs_bucket,
-                        'prefix': self.gcs_datadocs_prefix
-                    },
-                    "site_index_builder": {
-                        "class_name": "DefaultSiteIndexBuilder",
-                    },
-                }
-            },
-            config_variables_file_path=None,
-            commented_map=None,
-        )
-        data_context = BaseDataContext(project_config=project_config)
-
-        return data_context
-
-    def get_batch_kwargs(self):
-
-        # Tell GE where to fetch the batch of data to be validated.
-        batch_kwargs = {
-            "datasource": "bq_datasource",
-        }
-
-        if self.validation_type == GreatExpectationsValidations.SQL.value:
-            batch_kwargs["query"] = self.validation_type_input
-            batch_kwargs["data_asset_name"] = self.bq_dataset_name
-            batch_kwargs["bigquery_temp_table"] = self.get_temp_table_name()
-        elif self.validation_type == GreatExpectationsValidations.TABLE.value:
-            batch_kwargs["table"] = self.validation_type_input
-            batch_kwargs["data_asset_name"] = self.bq_dataset_name
-
-        self.log.info("batch_kwargs: " + str(batch_kwargs))
-
-        return batch_kwargs
-
-    def execute(self, context):
-
-        data_context = self.instantiate_data_context()
-
-        log.info("Loading expectations...")
-        suite = data_context.get_expectation_suite((self.expectations_file_name.rsplit(".", 1)[0]))
-
-        batch_kwargs = self.get_batch_kwargs()
-
-        log.info("Getting the batch of data to be validated...")
-        batch = data_context.get_batch(batch_kwargs, suite)
-
-        run_id = {
-            "run_name": 'bq',
-            "run_time": datetime.datetime.now(datetime.timezone.utc)
-        }
-
-        log.info("Validating batch against expectations...")
-        results = data_context.run_validation_operator(
-            "action_list_operator",
-            assets_to_validate=[batch],
-            run_id=run_id)
-
-        validation_result_identifier = list(results['run_results'].keys())[0]
-        # For the given validation_result_identifier, get a link to the data docs that were generated by Great
-        # Expectations as part of the validation.
-        data_docs_url = \
-            data_context.get_docs_sites_urls(resource_identifier=validation_result_identifier, site_name='GCS_site')[0][
-                'site_url']
-        log.info("Data docs url is: %s", data_docs_url)
-        if results["success"]:
-            self.log.info('All expectations met')
-        else:
-            self.log.info('One or more expectations were not met.')
-            if self.send_alert_email:
-                self.log.info('Sending alert email...')
-                self.send_alert(data_docs_url)
-            if self.fail_if_expectations_not_met:
-                raise AirflowException('One or more expectations were not met')
-
-    # Generate a unique name for a temporary BQ table
-    def get_temp_table_name(self):
-        now = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-        name_start = "temp_great_expectations_" + now + '_'
-        full_name = name_start + ''.join(str(uuid.uuid4().hex))
-        log.info("Generated name for temporary table: %s", full_name)
-        return full_name
-
-    def send_alert(self, data_docs_url):
-        if self.datadocs_link_in_email:
-            # Get the domain name of the service serving the data docs.
-            if self.datadocs_domain == 'none':
-                raise AirflowException("datadocs_link_in_email is set to True but datadocs_domain is 'none'.  datadocs_domain should be set to the domain from which datadocs are being served")
-            # Replace the domain returned by GE with the domain set up to serve the data docs
-            parsed = urlsplit(data_docs_url)
-            new_url = parsed._replace(netloc=self.datadocs_domain)
-            results = '  See the results <a href=' + new_url.geturl() + '>here</a>.'
-        else:
-            # From the data docs url, pull out just the GCS path and send it to the users in the email.
-            parsed = urlsplit(data_docs_url)
-            results = '  See the following GCS location for results:' + parsed.path
-        email_content = self._EMAIL_CONTENT.format(self.expectations_file_name, results)
-        send_email(self.email_to, 'expectations in ' + self.expectations_file_name + ' not met', email_content,
-                   files=None, cc=None, bcc=None,
-                   mime_subtype='mixed', mime_charset='us_ascii')
