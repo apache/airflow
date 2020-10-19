@@ -96,7 +96,6 @@ class StreamLogWriter:
 
         This is a no-op method.
         """
-        pass
 
     @property
     def closed(self):   # noqa: D402
