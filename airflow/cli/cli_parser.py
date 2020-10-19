@@ -70,7 +70,10 @@ class DefaultHelpParser(argparse.ArgumentParser):
             try:
                 import kubernetes.client  # noqa: F401 pylint: disable=unused-import
             except ImportError:
-                message = 'kubernetes subcommand requires that you pip install the kubernetes python client'
+                message = (
+                    'The kubernetes subcommand requires that you pip install the kubernetes python client.'
+                    "To do it, run you run: pip install 'apache-airflow[cncf.kubernetes]'"
+                )
                 raise ArgumentError(action, message)
 
         if action.choices is not None and value not in action.choices:
