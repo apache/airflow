@@ -86,7 +86,7 @@ def is_soft_quota_exception(exception: Exception):
     return False
 
 
-def is_operation_in_progress_exception(exception: Exception):
+def is_operation_in_progress_exception(exception: Exception) -> bool:
     """
     Some of the calls return 429 (too many requests!) or 409 errors (Conflict)
     in case of operation in progress.
@@ -479,7 +479,7 @@ class GoogleBaseHook(BaseHook):
             yield
 
     @staticmethod
-    def download_content_from_request(file_handle, request, chunk_size):
+    def download_content_from_request(file_handle, request: dict, chunk_size: int) -> None:
         """
         Download media resources.
         Note that  the Python file object is compatible with io.Base and can be used with this class also.

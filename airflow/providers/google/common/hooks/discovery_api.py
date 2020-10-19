@@ -19,7 +19,7 @@
 """
 This module allows you to connect to the Google Discovery API Service and query it.
 """
-from typing import Dict, Optional, Sequence, Union
+from typing import Optional, Sequence, Union
 
 from googleapiclient.discovery import Resource, build
 
@@ -70,7 +70,7 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
         self.api_service_name = api_service_name
         self.api_version = api_version
 
-    def get_conn(self):
+    def get_conn(self) -> Resource:
         """
         Creates an authenticated api client for the given api service name and credentials.
 
@@ -89,7 +89,7 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
             )
         return self._conn
 
-    def query(self, endpoint: str, data: Dict, paginate: bool = False, num_retries: int = 0) -> Dict:
+    def query(self, endpoint: str, data: dict, paginate: bool = False, num_retries: int = 0) -> dict:
         """
         Creates a dynamic API call to any Google API registered in Google's API Client Library
         and queries it.

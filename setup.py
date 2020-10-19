@@ -737,12 +737,16 @@ INSTALL_REQUIREMENTS = [
     'typing-extensions>=3.7.4;python_version<"3.8"',
     'tzlocal>=1.4,<2.0.0',
     'unicodecsv>=0.14.1',
-    'werkzeug<1.0.0',
+    'werkzeug<1.1.0',
 ]
 
 
 def do_setup():
     """Perform the Airflow package setup."""
+    install_providers_from_sources = os.getenv('INSTALL_PROVIDERS_FROM_SOURCES')
+    exclude_patterns = \
+        [] if install_providers_from_sources and install_providers_from_sources == 'true' \
+        else ['airflow.providers', 'airflow.providers.*']
     write_version()
     setup(
         name='apache-airflow',
@@ -753,7 +757,7 @@ def do_setup():
         version=version,
         packages=find_packages(
             include=['airflow*'],
-            exclude=['airflow.providers', 'airflow.providers.*']),
+            exclude=exclude_patterns),
         package_data={
             'airflow': ['py.typed'],
             '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb",

@@ -101,6 +101,8 @@ class TestAzureBatchOperator(unittest.TestCase):  # pylint: disable=too-many-ins
             batch_task_id=BATCH_TASK_ID,
             vm_publisher=self.test_vm_publisher,
             vm_offer=self.test_vm_offer,
+            vm_sku=self.test_vm_sku,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
             sku_starts_with=self.test_vm_sku,
             batch_task_command_line="echo hello",
             azure_batch_conn_id=self.test_vm_conn_id,
@@ -113,9 +115,7 @@ class TestAzureBatchOperator(unittest.TestCase):  # pylint: disable=too-many-ins
             batch_pool_vm_size=BATCH_VM_SIZE,
             batch_job_id=BATCH_JOB_ID,
             batch_task_id=BATCH_TASK_ID,
-            vm_publisher=self.test_vm_publisher,
-            vm_offer=self.test_vm_offer,
-            sku_starts_with=self.test_vm_sku,
+            os_family="4",
             batch_task_command_line="echo hello",
             azure_batch_conn_id=self.test_vm_conn_id,
             enable_auto_scale=True,
@@ -128,9 +128,7 @@ class TestAzureBatchOperator(unittest.TestCase):  # pylint: disable=too-many-ins
             batch_pool_vm_size=BATCH_VM_SIZE,
             batch_job_id=BATCH_JOB_ID,
             batch_task_id=BATCH_TASK_ID,
-            vm_publisher=self.test_vm_publisher,
-            vm_offer=self.test_vm_offer,
-            sku_starts_with=self.test_vm_sku,
+            os_family='4',
             batch_task_command_line="echo hello",
             azure_batch_conn_id=self.test_vm_conn_id,
             enable_auto_scale=True,
@@ -142,11 +140,37 @@ class TestAzureBatchOperator(unittest.TestCase):  # pylint: disable=too-many-ins
             batch_pool_vm_size=BATCH_VM_SIZE,
             batch_job_id=BATCH_JOB_ID,
             batch_task_id=BATCH_TASK_ID,
+            os_family='4',
+            batch_task_command_line="echo hello",
+            azure_batch_conn_id=self.test_vm_conn_id,
+            timeout=2,
+        )
+        self.operator_mutual_exclusive = AzureBatchOperator(
+            task_id=TASK_ID,
+            batch_pool_id=BATCH_POOL_ID,
+            batch_pool_vm_size=BATCH_VM_SIZE,
+            batch_job_id=BATCH_JOB_ID,
+            batch_task_id=BATCH_TASK_ID,
             vm_publisher=self.test_vm_publisher,
             vm_offer=self.test_vm_offer,
+            vm_sku=self.test_vm_sku,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
+            os_family="5",
             sku_starts_with=self.test_vm_sku,
             batch_task_command_line="echo hello",
             azure_batch_conn_id=self.test_vm_conn_id,
+            target_dedicated_nodes=1,
+            timeout=2,
+        )
+        self.operator_invalid = AzureBatchOperator(
+            task_id=TASK_ID,
+            batch_pool_id=BATCH_POOL_ID,
+            batch_pool_vm_size=BATCH_VM_SIZE,
+            batch_job_id=BATCH_JOB_ID,
+            batch_task_id=BATCH_TASK_ID,
+            batch_task_command_line="echo hello",
+            azure_batch_conn_id=self.test_vm_conn_id,
+            target_dedicated_nodes=1,
             timeout=2,
         )
         self.batch_client = mock_batch.return_value
@@ -207,6 +231,25 @@ class TestAzureBatchOperator(unittest.TestCase):  # pylint: disable=too-many-ins
         with self.assertRaises(AirflowException) as e:
             self.operator2_no_formula.execute(None)
         self.assertEqual(str(e.exception), "The auto_scale_formula is required when enable_auto_scale is set")
+
+    @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
+    def test_operator_fails_mutual_exclusive(self, wait_mock):
+        wait_mock.return_value = True
+        with self.assertRaises(AirflowException) as e:
+            self.operator_mutual_exclusive.execute(None)
+        self.assertEqual(
+            str(e.exception),
+            "Cloud service configuration and virtual machine configuration "
+            "are mutually exclusive. You must specify either of os_family and"
+            " vm_publisher",
+        )
+
+    @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
+    def test_operator_fails_invalid_args(self, wait_mock):
+        wait_mock.return_value = True
+        with self.assertRaises(AirflowException) as e:
+            self.operator_invalid.execute(None)
+        self.assertEqual(str(e.exception), "You must specify either vm_publisher or os_family")
 
     def test_cleaning_works(self):
         self.operator.clean_up(job_id="myjob")

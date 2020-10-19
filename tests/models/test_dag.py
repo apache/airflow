@@ -44,6 +44,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SubDagOperator
+from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
@@ -1338,15 +1339,23 @@ class TestDag(unittest.TestCase):
     def test_create_dagrun_run_id_is_generated(self):
         dag = DAG(dag_id="run_id_is_generated")
         dr = dag.create_dagrun(run_type=DagRunType.MANUAL, execution_date=DEFAULT_DATE, state=State.NONE)
-        assert dr.run_id == f"{DagRunType.MANUAL.value}__{DEFAULT_DATE.isoformat()}"
+        assert dr.run_id == f"manual__{DEFAULT_DATE.isoformat()}"
 
     def test_create_dagrun_run_type_is_obtained_from_run_id(self):
         dag = DAG(dag_id="run_type_is_obtained_from_run_id")
-        dr = dag.create_dagrun(run_id=f"{DagRunType.SCHEDULED.value}__", state=State.NONE)
+        dr = dag.create_dagrun(run_id="scheduled__", state=State.NONE)
         assert dr.run_type == DagRunType.SCHEDULED.value
 
         dr = dag.create_dagrun(run_id="custom_is_set_to_manual", state=State.NONE)
         assert dr.run_type == DagRunType.MANUAL.value
+
+    def test_create_dagrun_job_id_is_set(self):
+        job_id = 42
+        dag = DAG(dag_id="test_create_dagrun_job_id_is_set")
+        dr = dag.create_dagrun(
+            run_id="test_create_dagrun_job_id_is_set", state=State.NONE, creating_job_id=job_id
+        )
+        assert dr.creating_job_id == job_id
 
     @parameterized.expand(
         [
@@ -1655,8 +1664,14 @@ class TestDag(unittest.TestCase):
         assert next_subdag_date is None, "SubDags should never have DagRuns created by the scheduler"
 
     def test_replace_outdated_access_control_actions(self):
-        outdated_permissions = {'role1': {'can_read', 'can_edit'}, 'role2': {'can_dag_read', 'can_dag_edit'}}
-        updated_permissions = {'role1': {'can_read', 'can_edit'}, 'role2': {'can_read', 'can_edit'}}
+        outdated_permissions = {
+            'role1': {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT},
+            'role2': {permissions.DEPRECATED_ACTION_CAN_DAG_READ, permissions.DEPRECATED_ACTION_CAN_DAG_EDIT}
+        }
+        updated_permissions = {
+            'role1': {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT},
+            'role2': {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}
+        }
 
         with pytest.warns(DeprecationWarning):
             dag = DAG(dag_id='dag_with_outdated_perms', access_control=outdated_permissions)

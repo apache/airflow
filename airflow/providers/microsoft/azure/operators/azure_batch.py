@@ -131,6 +131,21 @@ class AzureBatchOperator(BaseOperator):
         use_latest_image_and_sku is set to True
     :type sku_starts_with: Optional[str]
 
+    :param vm_sku: The name of the virtual machine sku to use
+    :type vm_sku: Optional[str]
+
+    :param vm_version: The version of the virtual machine
+    :param vm_version: Optional[str]
+
+    :param vm_node_agent_sku_id: The node agent sku id of the virtual machine
+    :type vm_node_agent_sku_id: Optional[str]
+
+    :param os_family: The Azure Guest OS family to be installed on the virtual machines in the Pool.
+    :type os_family: Optional[str]
+
+    :param os_version: The OS family version
+    :type os_version: Optionale[str]
+
     :param timeout: The amount of time to wait for the job to complete in minutes. Default is 25
     :type timeout: int
 
@@ -161,9 +176,14 @@ class AzureBatchOperator(BaseOperator):
         batch_job_id: str,
         batch_task_command_line: str,
         batch_task_id: str,
-        vm_publisher: str,
-        vm_offer: str,
-        sku_starts_with: str,
+        vm_publisher: Optional[str] = None,
+        vm_offer: Optional[str] = None,
+        sku_starts_with: Optional[str] = None,
+        vm_sku: Optional[str] = None,
+        vm_version: Optional[str] = None,
+        vm_node_agent_sku_id: Optional[str] = None,
+        os_family: Optional[str] = None,
+        os_version: Optional[str] = None,
         batch_pool_display_name: Optional[str] = None,
         batch_job_display_name: Optional[str] = None,
         batch_job_manager_task: Optional[batch_models.JobManagerTask] = None,
@@ -215,23 +235,44 @@ class AzureBatchOperator(BaseOperator):
         self.vm_publisher = vm_publisher
         self.vm_offer = vm_offer
         self.sku_starts_with = sku_starts_with
+        self.vm_sku = vm_sku
+        self.vm_version = vm_version
+        self.vm_node_agent_sku_id = vm_node_agent_sku_id
+        self.os_family = os_family
+        self.os_version = os_version
         self.timeout = timeout
         self.should_delete_job = should_delete_job
         self.should_delete_pool = should_delete_pool
         self.hook = self.get_hook()
 
     def _check_inputs(self) -> Any:
+        if not self.os_family and not self.vm_publisher:
+            raise AirflowException("You must specify either vm_publisher or os_family")
+        if self.os_family and self.vm_publisher:
+            raise AirflowException(
+                "Cloud service configuration and virtual machine configuration "
+                "are mutually exclusive. You must specify either of os_family and"
+                " vm_publisher"
+            )
 
         if self.use_latest_image:
-            if not all(elem for elem in [self.vm_publisher, self.vm_offer, self.sku_starts_with]):
+            if not all(elem for elem in [self.vm_publisher, self.vm_offer]):
                 raise AirflowException(
                     "If use_latest_image_and_sku is"
                     " set to True then the parameters vm_publisher, vm_offer, "
-                    "sku_starts_with must all be set. Found "
-                    "vm_publisher={}, vm_offer={}, sku_starts_with={}".format(
-                        self.vm_publisher, self.vm_offer, self.sku_starts_with
-                    )
+                    "must all be set. Found "
+                    "vm_publisher={}, vm_offer={}".format(self.vm_publisher, self.vm_offer)
                 )
+        if self.vm_publisher:
+            if not all([self.vm_sku, self.vm_offer, self.vm_node_agent_sku_id]):
+                raise AirflowException(
+                    "If vm_publisher is set, then the parameters vm_sku, vm_offer,"
+                    "vm_node_agent_sku_id must be set. Found "
+                    f"vm_publisher={self.vm_publisher}, vm_offer={self.vm_offer} "
+                    f"vm_node_agent_sku_id={self.vm_node_agent_sku_id}, "
+                    f"vm_version={self.vm_version}"
+                )
+
         if not self.target_dedicated_nodes and not self.enable_auto_scale:
             raise AirflowException(
                 "Either target_dedicated_nodes or enable_auto_scale must be set. None was set"
@@ -279,6 +320,11 @@ class AzureBatchOperator(BaseOperator):
             vm_publisher=self.vm_publisher,
             vm_offer=self.vm_offer,
             sku_starts_with=self.sku_starts_with,
+            vm_sku=self.vm_sku,
+            vm_version=self.vm_version,
+            vm_node_agent_sku_id=self.vm_node_agent_sku_id,
+            os_family=self.os_family,
+            os_version=self.os_version,
             target_low_priority_nodes=self.target_low_priority_nodes,
             enable_auto_scale=self.enable_auto_scale,
             auto_scale_formula=self.auto_scale_formula,

@@ -620,7 +620,9 @@
         // In this order, if any of these states appeared in children_states, return it as
         // the group state.
         var priority = ["failed", "upstream_failed", "up_for_retry","up_for_reschedule",
-                        "queued", "no_status", "success", "skipped"]
+                        "queued", "scheduled", "sensing", "running", "shutdown", "removed",
+                        "no_status", "success", "skipped"]
+
         for(const state of priority) {
           if (children_states.has(state))
             return state

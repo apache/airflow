@@ -105,6 +105,10 @@ g.node.skipped rect {
   stroke: pink;
 }
 
+g.node.removed rect {
+  stroke: black;
+}
+
 .svg-wrapper {
   border-radius: 4px;
   background-color: #f0f0f0;

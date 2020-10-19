@@ -29,6 +29,7 @@ from sqlalchemy.orm.session import make_transient
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.models import DagRun
 from airflow.models.base import ID_LEN, Base
 from airflow.models.taskinstance import TaskInstance
 from airflow.stats import Stats
@@ -78,6 +79,14 @@ class BaseJob(Base, LoggingMixin):
         foreign_keys=id,
         backref=backref('queued_by_job', uselist=False),
     )
+
+    dag_runs = relationship(
+        DagRun,
+        primaryjoin=id == DagRun.creating_job_id,
+        foreign_keys=id,
+        backref=backref('creating_job'),
+    )
+
     """
     TaskInstances which have been enqueued by this Job.
 

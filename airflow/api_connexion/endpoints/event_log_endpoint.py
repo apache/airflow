@@ -27,10 +27,11 @@ from airflow.api_connexion.schemas.event_log_schema import (
     event_log_schema,
 )
 from airflow.models import Log
+from airflow.security import permissions
 from airflow.utils.session import provide_session
 
 
-@security.requires_access([('can_read', 'Log')])
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG)])
 @provide_session
 def get_event_log(event_log_id, session):
     """
@@ -42,7 +43,7 @@ def get_event_log(event_log_id, session):
     return event_log_schema.dump(event_log)
 
 
-@security.requires_access([('can_read', 'Log')])
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG)])
 @format_parameters({'limit': check_limit})
 @provide_session
 def get_event_logs(session, limit, offset=None):

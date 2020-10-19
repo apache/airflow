@@ -18,6 +18,18 @@
 # Resource Constants
 RESOURCE_DAGS = 'Dags'
 RESOURCE_DAG_PREFIX = 'DAG:'
+RESOURCE_CONFIG = 'Config'
+RESOURCE_CONNECTION = 'Connection'
+RESOURCE_DAG_CODE = 'DagCode'
+RESOURCE_DAG_RUN = 'DagRun'
+RESOURCE_IMPORT_ERROR = 'ImportError'
+RESOURCE_LOG = 'Log'
+RESOURCE_POOL = 'Pool'
+RESOURCE_TASK = 'Task'
+RESOURCE_TASK_INSTANCE = 'TaskInstance'
+RESOURCE_VARIABLE = "Variable"
+RESOURCE_WEBSITE = 'Website'
+RESOURCE_XCOM = 'XCom'
 
 # Action Constants
 ACTION_CAN_CREATE = 'can_create'

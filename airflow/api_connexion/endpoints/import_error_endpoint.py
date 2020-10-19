@@ -26,10 +26,11 @@ from airflow.api_connexion.schemas.error_schema import (
     import_error_schema,
 )
 from airflow.models.errors import ImportError  # pylint: disable=redefined-builtin
+from airflow.security import permissions
 from airflow.utils.session import provide_session
 
 
-@security.requires_access([('can_read', 'ImportError')])
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR)])
 @provide_session
 def get_import_error(import_error_id, session):
     """
@@ -45,7 +46,7 @@ def get_import_error(import_error_id, session):
     return import_error_schema.dump(error)
 
 
-@security.requires_access([('can_read', 'ImportError')])
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR)])
 @format_parameters({'limit': check_limit})
 @provide_session
 def get_import_errors(session, limit, offset=None):

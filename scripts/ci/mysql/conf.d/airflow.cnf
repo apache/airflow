@@ -19,5 +19,5 @@
 
 [mysqld]
 explicit_defaults_for_timestamp = 1
-secure_file_priv = ""
+secure_file_priv = "/var/lib/mysql"
 local_infile = 1

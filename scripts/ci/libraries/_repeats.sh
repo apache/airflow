@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,16 +15,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-version: "2.2"
-services:
-  airflow:
-    environment:
-      - BACKEND=sqlite
-      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=${SQLITE_URL}
-      - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
-    volumes:
-      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
-      - sqlite-db-volume:/root/airflow
-volumes:
-  sqlite-db-volume:
+
+# Repeat the command up to n times in case of failure
+# Parameters:
+#   $1 - how many times to repeat
+#   $2 - command to repeat (run through bash -c)
+function repeats::run_with_retry() {
+    local num_repeats="${1}"
+    local command="${2}"
+    for ((n=0;n<num_repeats;n++));
+    do
+        local res
+        echo "Attempt no. ${n} to execute ${command}"
+        set +e
+        bash -c "${command}"
+        res=$?
+        set -e
+        if [[ ${res} == "0" ]]; then
+            return 0
+        fi
+        >&2 echo
+        >&2 echo "Unsuccessful attempt no. ${n}. Result: ${res}"
+        >&2 echo
+    done
+    >&2 echo
+    >&2 echo "Giving up after ${num_repeats} attempts!"
+    >&2 echo
+    return ${res}
+}

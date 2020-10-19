@@ -1735,18 +1735,18 @@ class TestDagACLView(TestBase):
                    password='test')
         dag_tester_role = self.appbuilder.sm.find_role('dag_acl_tester')
         edit_perm_on_dag = self.appbuilder.sm.\
-            find_permission_view_menu('can_edit', 'DAG:example_bash_operator')
+            find_permission_view_menu(permissions.ACTION_CAN_EDIT, 'DAG:example_bash_operator')
         self.appbuilder.sm.add_permission_role(dag_tester_role, edit_perm_on_dag)
         read_perm_on_dag = self.appbuilder.sm.\
-            find_permission_view_menu('can_read', 'DAG:example_bash_operator')
+            find_permission_view_menu(permissions.ACTION_CAN_READ, 'DAG:example_bash_operator')
         self.appbuilder.sm.add_permission_role(dag_tester_role, read_perm_on_dag)
 
         all_dag_role = self.appbuilder.sm.find_role('all_dag_role')
         edit_perm_on_all_dag = self.appbuilder.sm.\
-            find_permission_view_menu('can_edit', permissions.RESOURCE_DAGS)
+            find_permission_view_menu(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS)
         self.appbuilder.sm.add_permission_role(all_dag_role, edit_perm_on_all_dag)
         read_perm_on_all_dag = self.appbuilder.sm.\
-            find_permission_view_menu('can_read', permissions.RESOURCE_DAGS)
+            find_permission_view_menu(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS)
         self.appbuilder.sm.add_permission_role(all_dag_role, read_perm_on_all_dag)
 
         role_user = self.appbuilder.sm.find_role('User')
@@ -1754,7 +1754,7 @@ class TestDagACLView(TestBase):
         self.appbuilder.sm.add_permission_role(role_user, edit_perm_on_all_dag)
 
         read_only_perm_on_dag = self.appbuilder.sm.\
-            find_permission_view_menu('can_read', 'DAG:example_bash_operator')
+            find_permission_view_menu(permissions.ACTION_CAN_READ, 'DAG:example_bash_operator')
         dag_read_only_role = self.appbuilder.sm.find_role('dag_acl_read_only')
         self.appbuilder.sm.add_permission_role(dag_read_only_role, read_only_perm_on_dag)
 
@@ -2409,8 +2409,8 @@ class TestTriggerDag(TestBase):
 
         run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
         self.assertIsNotNone(run)
-        self.assertIn(DagRunType.MANUAL.value, run.run_id)
-        self.assertEqual(run.run_type, DagRunType.MANUAL.value)
+        self.assertIn(DagRunType.MANUAL, run.run_id)
+        self.assertEqual(run.run_type, DagRunType.MANUAL)
 
     @pytest.mark.quarantined
     def test_trigger_dag_conf(self):
@@ -2426,8 +2426,8 @@ class TestTriggerDag(TestBase):
 
         run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
         self.assertIsNotNone(run)
-        self.assertIn(DagRunType.MANUAL.value, run.run_id)
-        self.assertEqual(run.run_type, DagRunType.MANUAL.value)
+        self.assertIn(DagRunType.MANUAL, run.run_id)
+        self.assertEqual(run.run_type, DagRunType.MANUAL)
         self.assertEqual(run.conf, conf_dict)
 
     def test_trigger_dag_conf_malformed(self):

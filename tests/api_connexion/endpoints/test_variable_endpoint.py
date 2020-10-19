@@ -18,6 +18,7 @@ import unittest
 
 from parameterized import parameterized
 
+from airflow.security import permissions
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import Variable
 from airflow.www import app
@@ -38,10 +39,10 @@ class TestVariableEndpoint(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                ("can_create", "Variable"),
-                ("can_read", "Variable"),
-                ("can_edit", "Variable"),
-                ("can_delete", "Variable"),
+                (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE),
+                (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE),
             ],
         )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore

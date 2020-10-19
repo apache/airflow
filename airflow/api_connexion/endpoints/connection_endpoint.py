@@ -30,10 +30,11 @@ from airflow.api_connexion.schemas.connection_schema import (
     connection_schema,
 )
 from airflow.models import Connection
+from airflow.security import permissions
 from airflow.utils.session import provide_session
 
 
-@security.requires_access([("can_delete", "Connection")])
+@security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_CONNECTION)])
 @provide_session
 def delete_connection(connection_id, session):
     """
@@ -49,7 +50,7 @@ def delete_connection(connection_id, session):
     return NoContent, 204
 
 
-@security.requires_access([("can_read", "Connection")])
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION)])
 @provide_session
 def get_connection(connection_id, session):
     """
@@ -64,7 +65,7 @@ def get_connection(connection_id, session):
     return connection_collection_item_schema.dump(connection)
 
 
-@security.requires_access([("can_read", "Connection")])
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION)])
 @format_parameters({'limit': check_limit})
 @provide_session
 def get_connections(session, limit, offset=0):
@@ -79,7 +80,7 @@ def get_connections(session, limit, offset=0):
     )
 
 
-@security.requires_access([("can_edit", "Connection")])
+@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_CONNECTION)])
 @provide_session
 def patch_connection(connection_id, session, update_mask=None):
     """
@@ -115,7 +116,7 @@ def patch_connection(connection_id, session, update_mask=None):
     return connection_schema.dump(connection)
 
 
-@security.requires_access([("can_create", "Connection")])
+@security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION)])
 @provide_session
 def post_connection(session):
     """

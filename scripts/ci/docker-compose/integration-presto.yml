@@ -21,8 +21,11 @@ services:
     image: prestosql/presto:330
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
+      - presto-db-volume:/data/presto
   airflow:
     environment:
       - INTEGRATION_PRESTO=true
     depends_on:
       - presto
+volumes:
+  presto-db-volume:

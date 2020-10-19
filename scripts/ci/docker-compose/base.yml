@@ -72,3 +72,4 @@ services:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
     ports:
       - "${WEBSERVER_HOST_PORT}:8080"
+      - "${FLOWER_HOST_PORT}:5555"

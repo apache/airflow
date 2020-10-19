@@ -20,7 +20,7 @@ This module contains Google Analytics 360 operators.
 """
 import csv
 from tempfile import NamedTemporaryFile
-from typing import Dict, Optional, Sequence, Union
+from typing import Dict, Optional, Sequence, Union, Any, List
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -71,14 +71,14 @@ class GoogleAnalyticsListAccountsOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
 
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> List[Dict[str, Any]]:
         hook = GoogleAnalyticsHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
@@ -147,7 +147,7 @@ class GoogleAnalyticsGetAdsLinkOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> Dict[str, Any]:
         hook = GoogleAnalyticsHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
@@ -206,7 +206,7 @@ class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
 
         self.account_id = account_id
@@ -215,7 +215,7 @@ class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> List[Dict[str, Any]]:
         hook = GoogleAnalyticsHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
@@ -287,7 +287,7 @@ class GoogleAnalyticsDataImportUploadOperator(BaseOperator):
         api_version: str = "v3",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.storage_bucket = storage_bucket
         self.storage_name_object = storage_name_object
@@ -300,7 +300,7 @@ class GoogleAnalyticsDataImportUploadOperator(BaseOperator):
         self.api_version = api_version
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -376,7 +376,7 @@ class GoogleAnalyticsDeletePreviousDataUploadsOperator(BaseOperator):
         api_version: str = "v3",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
 
         self.account_id = account_id
@@ -387,7 +387,7 @@ class GoogleAnalyticsDeletePreviousDataUploadsOperator(BaseOperator):
         self.api_version = api_version
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         ga_hook = GoogleAnalyticsHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -461,7 +461,7 @@ class GoogleAnalyticsModifyFileHeadersDataImportOperator(BaseOperator):
         custom_dimension_header_mapping: Optional[Dict[str, str]] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super(GoogleAnalyticsModifyFileHeadersDataImportOperator, self).__init__(**kwargs)
         self.storage_bucket = storage_bucket
         self.storage_name_object = storage_name_object
@@ -503,7 +503,7 @@ class GoogleAnalyticsModifyFileHeadersDataImportOperator(BaseOperator):
         with open(tmp_file_location, "w") as write_file:
             write_file.writelines(all_data)
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

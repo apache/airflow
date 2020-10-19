@@ -29,7 +29,11 @@ from airflow.utils.session import provide_session
 
 
 @security.requires_access(
-    [('can_read', permissions.RESOURCE_DAGS), ('can_read', 'DagRun'), ('can_read', 'Task')]
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+    ]
 )
 @provide_session
 def get_log(session, dag_id, dag_run_id, task_id, task_try_number, full_content=False, token=None):

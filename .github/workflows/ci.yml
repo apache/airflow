@@ -43,6 +43,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.run_id }}"
   GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
+  INSTALL_PROVIDERS_FROM_SOURCES: "true"
 
   # You can switch between building the image in "Build Images" workflow or building them in CI workflow
   # Separately for each job.
@@ -653,6 +654,16 @@ jobs:
         with:
           path: .build/.kubernetes_venv
           key: "${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}"
+      - name: "Cache bin folder with tools for kubernetes testing"
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-kubernetes-tests-bin-v6
+        with:
+          path: .build/bin
+          key: "${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}\
+-${{ needs.build-info.outputs.defaultKindVersion }}\
+-${{ needs.build-info.outputs.defaultHelmVersion }}\
+-$${{ matrix.kubernetes-version }}"
       - name: "Kubernetes Tests"
         run: ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh
       - name: "Upload KinD logs"

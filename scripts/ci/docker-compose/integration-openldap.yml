@@ -27,8 +27,11 @@ services:
     volumes:
       - ../openldap/ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom:ro
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
+      - openldap-db-volume:/var/lib/ldap
   airflow:
     environment:
       - INTEGRATION_OPENLDAP=true
     depends_on:
       - openldap
+volumes:
+  openldap-db-volume:

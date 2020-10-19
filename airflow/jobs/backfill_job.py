@@ -325,6 +325,7 @@ class BackfillJob(BaseJob):
             session=session,
             conf=self.conf,
             run_type=DagRunType.BACKFILL_JOB,
+            creating_job_id=self.id,
         )
 
         # set required transient field
@@ -333,7 +334,7 @@ class BackfillJob(BaseJob):
         # explicitly mark as backfill and running
         run.state = State.RUNNING
         run.run_id = run.generate_run_id(DagRunType.BACKFILL_JOB, run_date)
-        run.run_type = DagRunType.BACKFILL_JOB.value
+        run.run_type = DagRunType.BACKFILL_JOB
         run.verify_integrity(session=session)
         return run
 
@@ -864,7 +865,7 @@ class BackfillJob(BaseJob):
                 .filter(
                     # pylint: disable=comparison-with-callable
                     DagRun.state == State.RUNNING,
-                    DagRun.run_type != DagRunType.BACKFILL_JOB.value,
+                    DagRun.run_type != DagRunType.BACKFILL_JOB,
                     TaskInstance.state.in_(resettable_states))).all()
         else:
             resettable_tis = filter_by_dag_run.get_task_instances(state=resettable_states,

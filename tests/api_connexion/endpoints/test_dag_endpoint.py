@@ -53,10 +53,10 @@ class TestDagEndpoint(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                ("can_create", permissions.RESOURCE_DAGS),
-                ("can_read", permissions.RESOURCE_DAGS),
-                ("can_edit", permissions.RESOURCE_DAGS),
-                ("can_delete", permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAGS),
             ],
         )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
@@ -64,7 +64,8 @@ class TestDagEndpoint(unittest.TestCase):
             cls.app, username="test_granular_permissions", role_name="TestGranularDag"  # type: ignore
         )
         cls.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
-            "TEST_DAG_1", access_control={'TestGranularDag': ['can_edit', 'can_read']}
+            "TEST_DAG_1",
+            access_control={'TestGranularDag': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
         )
 
         with DAG(cls.dag_id, start_date=datetime(2020, 6, 15), doc_md="details") as dag:

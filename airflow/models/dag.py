@@ -1655,7 +1655,8 @@ class DAG(BaseDag, LoggingMixin):
         conf=None,
         run_type=None,
         session=None,
-        dag_hash=None
+        dag_hash=None,
+        creating_job_id=None,
     ):
         """
         Creates a dag run from this dag including the tasks associated with this dag.
@@ -1675,6 +1676,8 @@ class DAG(BaseDag, LoggingMixin):
         :type external_trigger: bool
         :param conf: Dict containing configuration/parameters to pass to the DAG
         :type conf: dict
+        :param creating_job_id: id of the job creating this DagRun
+        :type creating_job_id: int
         :param session: database session
         :type session: sqlalchemy.orm.session.Session
         :param dag_hash: Hash of Serialized DAG
@@ -1701,8 +1704,9 @@ class DAG(BaseDag, LoggingMixin):
             external_trigger=external_trigger,
             conf=conf,
             state=state,
-            run_type=run_type.value,
-            dag_hash=dag_hash
+            run_type=run_type,
+            dag_hash=dag_hash,
+            creating_job_id=creating_job_id
         )
         session.add(run)
         session.flush()
@@ -1769,8 +1773,8 @@ class DAG(BaseDag, LoggingMixin):
         most_recent_dag_runs = dict(session.query(DagRun.dag_id, func.max_(DagRun.execution_date)).filter(
             DagRun.dag_id.in_(existing_dag_ids),
             or_(
-                DagRun.run_type == DagRunType.BACKFILL_JOB.value,
-                DagRun.run_type == DagRunType.SCHEDULED.value,
+                DagRun.run_type == DagRunType.BACKFILL_JOB,
+                DagRun.run_type == DagRunType.SCHEDULED,
                 DagRun.external_trigger.is_(True),
             ),
         ).group_by(DagRun.dag_id).all())

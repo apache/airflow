@@ -41,20 +41,25 @@ class TestXComEndpoint(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                ("can_read", permissions.RESOURCE_DAGS),
-                ("can_read", "DagRun"),
-                ("can_read", "Task"),
-                ("can_read", "XCom"),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
             ],
         )
         create_user(
             cls.app,  # type: ignore
             username="test_granular_permissions",
             role_name="TestGranularDag",
-            permissions=[("can_read", "DagRun"), ("can_read", "Task"), ("can_read", "XCom")],
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
+            ],
         )
         cls.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
-            "test-dag-id-1", access_control={'TestGranularDag': ['can_edit', 'can_read']}
+            "test-dag-id-1",
+            access_control={'TestGranularDag': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
         )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
@@ -156,7 +161,7 @@ class TestGetXComEntry(TestXComEndpoint):
             run_id=dag_run_id,
             execution_date=execution_date,
             start_date=execution_date,
-            run_type=DagRunType.MANUAL.value,
+            run_type=DagRunType.MANUAL,
         )
         session.add(dagrun)
 
@@ -339,7 +344,7 @@ class TestGetXComEntries(TestXComEndpoint):
             run_id=dag_run_id,
             execution_date=execution_date,
             start_date=execution_date,
-            run_type=DagRunType.MANUAL.value,
+            run_type=DagRunType.MANUAL,
         )
         session.add(dagrun)
 
@@ -413,7 +418,7 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
             run_id=self.dag_run_id,
             execution_date=self.execution_date_parsed,
             start_date=self.execution_date_parsed,
-            run_type=DagRunType.MANUAL.value,
+            run_type=DagRunType.MANUAL,
         )
         xcom_models = self._create_xcoms(10)
         session.add_all(xcom_models)

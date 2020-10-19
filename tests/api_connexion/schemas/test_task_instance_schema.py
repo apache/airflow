@@ -16,6 +16,7 @@
 # under the License.
 
 import datetime as dt
+import getpass
 import unittest
 
 from marshmallow import ValidationError
@@ -85,7 +86,7 @@ class TestTaskInstanceSchema(unittest.TestCase):
             "state": "running",
             "task_id": "TEST_TASK_ID",
             "try_number": 0,
-            "unixname": "root",
+            "unixname": getpass.getuser(),
         }
         self.assertDictEqual(serialized_ti, expected_json)
 
@@ -131,7 +132,7 @@ class TestTaskInstanceSchema(unittest.TestCase):
             "state": "running",
             "task_id": "TEST_TASK_ID",
             "try_number": 0,
-            "unixname": "root",
+            "unixname": getpass.getuser(),
         }
         self.assertDictEqual(serialized_ti, expected_json)
 

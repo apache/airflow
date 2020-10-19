@@ -52,10 +52,10 @@ class TestGetExtraLinks(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                ('can_read', permissions.RESOURCE_DAGS),
-                ('can_read', 'DagRun'),
-                ('can_read', 'Task'),
-                ('can_read', 'TaskInstance'),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             ],
         )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
@@ -80,7 +80,7 @@ class TestGetExtraLinks(unittest.TestCase):
             dag_id=self.dag.dag_id,
             run_id="TEST_DAG_RUN_ID",
             execution_date=self.default_time,
-            run_type=DagRunType.MANUAL.value,
+            run_type=DagRunType.MANUAL,
         )
         session.add(dr)
         session.commit()

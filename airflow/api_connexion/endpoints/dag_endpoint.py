@@ -32,7 +32,7 @@ from airflow.security import permissions
 from airflow.utils.session import provide_session
 
 
-@security.requires_access([("can_read", permissions.RESOURCE_DAGS)])
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS)])
 @provide_session
 def get_dag(dag_id, session):
     """
@@ -46,7 +46,7 @@ def get_dag(dag_id, session):
     return dag_schema.dump(dag)
 
 
-@security.requires_access([("can_read", permissions.RESOURCE_DAGS)])
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS)])
 def get_dag_details(dag_id):
     """
     Get details of DAG.
@@ -57,7 +57,7 @@ def get_dag_details(dag_id):
     return dag_detail_schema.dump(dag)
 
 
-@security.requires_access([("can_read", permissions.RESOURCE_DAGS)])
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS)])
 @format_parameters({'limit': check_limit})
 def get_dags(limit, offset=0):
     """
@@ -70,7 +70,7 @@ def get_dags(limit, offset=0):
     return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
 
 
-@security.requires_access([("can_edit", permissions.RESOURCE_DAGS)])
+@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS)])
 @provide_session
 def patch_dag(session, dag_id, update_mask=None):
     """

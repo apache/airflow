@@ -78,6 +78,8 @@ function initialization::initialize_base_variables() {
     export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="28080"}
     export POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:="25433"}
     export MYSQL_HOST_PORT=${MYSQL_HOST_PORT:="23306"}
+    export FLOWER_HOST_PORT=${FLOWER_HOST_PORT:="25555"}
+    export REDIS_HOST_PORT=${REDIS_HOST_PORT:="26379"}
 
     # The SQLite URL used for sqlite runs
     export SQLITE_URL="sqlite:////root/airflow/airflow.db"
@@ -123,6 +125,10 @@ function initialization::initialize_base_variables() {
     # If set to true, the test connections will be created
     export LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS:="false"}
 
+    # If set to true, Breeze db volumes will be persisted when breeze is stopped and reused next time
+    # Which means that you do not have to start from scratch
+    export PRESERVE_VOLUMES="false"
+
     # If set to true, RBAC UI will not be used for 1.10 version
     export DISABLE_RBAC=${DISABLE_RBAC:="false"}
 
@@ -144,6 +150,9 @@ function initialization::initialize_base_variables() {
     # If no Airflow Home defined - fallback to ${HOME}/airflow
     AIRFLOW_HOME_DIR=${AIRFLOW_HOME:=${HOME}/airflow}
     export AIRFLOW_HOME_DIR
+
+    INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES:="true"}
+    export INSTALL_PROVIDERS_FROM_SOURCES
 }
 
 # Determine current branch

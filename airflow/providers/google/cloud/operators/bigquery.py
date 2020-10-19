@@ -570,8 +570,8 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         partition by field, type and expiration as per API specifications.
     :type time_partitioning: dict
     :param cluster_fields: Request that the result of this query be stored sorted
-        by one or more columns. This is only available in conjunction with
-        time_partitioning. The order of columns given determines the sort order.
+        by one or more columns. BigQuery supports clustering for both partitioned and
+        non-partitioned tables. The order of columns given determines the sort order.
     :type cluster_fields: list[str]
     :param location: The geographic location of the job. Required except for
         US and EU. See details at
@@ -861,8 +861,8 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     :param location: The location used for the operation.
     :type location: str
     :param cluster_fields: [Optional] The fields used for clustering.
-            Must be specified with time_partitioning, data in the table will be first
-            partitioned and subsequently clustered.
+            BigQuery supports clustering for both partitioned and
+            non-partitioned tables.
 
             .. seealso::
                 https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#clustering.fields

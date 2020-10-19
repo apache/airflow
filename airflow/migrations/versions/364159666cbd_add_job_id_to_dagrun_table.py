@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,16 +15,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-version: "2.2"
-services:
-  airflow:
-    environment:
-      - BACKEND=sqlite
-      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=${SQLITE_URL}
-      - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
-    volumes:
-      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
-      - sqlite-db-volume:/root/airflow
-volumes:
-  sqlite-db-volume:
+
+"""Add creating_job_id to DagRun table
+
+Revision ID: 364159666cbd
+Revises: 849da589634d
+Create Date: 2020-10-10 09:08:07.332456
+
+"""
+
+import sqlalchemy as sa
+from alembic import op
+
+# revision identifiers, used by Alembic.
+revision = '364159666cbd'
+down_revision = '849da589634d'
+branch_labels = None
+depends_on = None
+
+
+def upgrade():
+    """Apply Add creating_job_id to DagRun table"""
+    op.add_column('dag_run', sa.Column('creating_job_id', sa.Integer))
+
+
+def downgrade():
+    """Unapply Add job_id to DagRun table"""
+    op.drop_column('dag_run', 'creating_job_id')

@@ -2440,7 +2440,7 @@ class XComModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(XCom)
 
-    base_permissions = ['can_list', 'can_delete']
+    base_permissions = ['can_list', permissions.ACTION_CAN_DELETE]
 
     search_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
     list_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
@@ -2481,7 +2481,7 @@ class ConnectionModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(Connection)  # noqa # type: ignore
 
-    base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete']
+    base_permissions = ['can_add', 'can_list', permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_DELETE]
 
     extra_fields = ['extra__jdbc__drv_path', 'extra__jdbc__drv_clsname',
                     'extra__google_cloud_platform__project',
@@ -2553,7 +2553,7 @@ class PoolModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.Pool)  # noqa # type: ignore
 
-    base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete']
+    base_permissions = ['can_add', 'can_list', permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_DELETE]
 
     list_columns = ['pool', 'slots', 'running_slots', 'queued_slots']
     add_columns = ['pool', 'slots', 'description']
@@ -2627,7 +2627,8 @@ class VariableModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.Variable)  # noqa # type: ignore
 
-    base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete', 'can_varimport']
+    base_permissions = ['can_add', 'can_list', permissions.ACTION_CAN_EDIT,
+                        permissions.ACTION_CAN_DELETE, 'can_varimport']
 
     list_columns = ['key', 'val', 'is_encrypted']
     add_columns = ['key', 'val']

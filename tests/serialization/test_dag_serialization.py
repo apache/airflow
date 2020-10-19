@@ -37,6 +37,7 @@ from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import DAG, Connection, DagBag, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
+from airflow.security import permissions
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink
@@ -134,8 +135,8 @@ serialized_simple_dag_ground_truth = {
                 "test_role": {
                     "__type": "set",
                     "__var": [
-                        "can_read",
-                        "can_edit"
+                        permissions.ACTION_CAN_READ,
+                        permissions.ACTION_CAN_EDIT
                     ]
                 }
             }
@@ -166,7 +167,7 @@ def make_simple_dag():
         start_date=datetime(2019, 8, 1),
         is_paused_upon_creation=False,
         access_control={
-            "test_role": {"can_read", "can_edit"}
+            "test_role": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}
         }
     ) as dag:
         CustomOperator(task_id='custom_task')

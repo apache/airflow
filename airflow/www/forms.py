@@ -153,7 +153,7 @@ class DagRunForm(DynamicForm):
     def populate_obj(self, item):
         """Populates the attributes of the passed obj with data from the form’s fields."""
         super().populate_obj(item)  # pylint: disable=no-member
-        item.run_type = DagRunType.from_run_id(item.run_id).value
+        item.run_type = DagRunType.from_run_id(item.run_id)
         if item.conf:
             item.conf = json.loads(item.conf)
 

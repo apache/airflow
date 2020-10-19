@@ -23,11 +23,13 @@ from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.schemas.dag_source_schema import dag_source_schema
 from airflow.models.dagcode import DagCode
+from airflow.security import permissions
+
 
 log = logging.getLogger(__name__)
 
 
-@security.requires_access([("can_read", "DagCode")])
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE)])
 def get_dag_source(file_token: str):
     """
     Get source code using file token

@@ -376,6 +376,16 @@ Set up local development environment:
     * Setup local virtualenv with ``breeze setup-virtualenv`` command
     * Setup autocomplete for itself with ``breeze setup-autocomplete`` command
 
+Database volumes in Breeze
+--------------------------
+
+Breeze keeps data for all it's integration in named docker volumes. Each backend and integration
+keeps data in their own volume. Those volumes are persisted until ``./breeze stop`` command or
+``./breeze restart`` command is run. You can also preserve the volumes by adding flag
+``--preserve-volumes`` when you run either of those commands. Then, next time when you start
+``Breeze``, it will have the data pre-populated. You can always delete the volumes by
+running ``./breeze stop`` without the ``--preserve-volumes`` flag.
+
 Launching multiple terminals
 ----------------------------
 
@@ -960,14 +970,18 @@ Port Forwarding
 When you run Airflow Breeze, the following ports are automatically forwarded:
 
 * 28080 -> forwarded to Airflow webserver -> airflow:8080
+* 25555 -> forwarded to Flower dashboard -> airflow:5555
 * 25433 -> forwarded to Postgres database -> postgres:5432
 * 23306 -> forwarded to MySQL database  -> mysql:3306
+* 26379 -> forwarded to Redis broker -> redis:6379
 
 You can connect to these ports/databases using:
 
 * Webserver: ``http://127.0.0.1:28080``
+* Flower: ``http://127.0.0.1:25555``
 * Postgres: ``jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow``
-* Mysql: ``jdbc:mysql://localhost:23306/airflow?user=root``
+* Mysql: ``jdbc:mysql://127.0.0.1:23306/airflow?user=root``
+* Redis: ``redis://127.0.0.1:26379/0```
 
 Start the webserver manually with the ``airflow webserver`` command if you want to connect
 to the webserver. You can use ``tmux`` to multiply terminals. You may need to create a user prior to
@@ -1137,10 +1151,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
         'breeze \
               --github-image-id 209845560' - pull/use image with RUN_ID
 
-  Flags:
-
-  Run 'breeze flags' to see all applicable flags.
-
 
   ####################################################################################################
 
@@ -1238,6 +1248,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --image-tag TAG
           Additional tag in the image.
+
+  --skip-installing-airflow-providers
+          By default 'pip install' in Airflow 2.0 installs only the provider packages that
+          are needed by the extras but in Breeze (which is development environment) providers are
+          installed by default. You can disable it by adding this flag.
 
   --skip-installing-airflow-via-pip
           Skips installing Airflow via PIP. If you use this flag and want to install
@@ -1611,6 +1626,15 @@ This is the current syntax for  `./breeze <./breeze>`_:
         containers will continue running so that startup time is shorter. But they take quite a lot of
         memory and CPU. This command stops all running containers from the environment.
 
+  Flags:
+
+  --preserve-volumes
+          Use this flag if you would like to preserve data volumes from the databases used
+          by the integrations. By default, those volumes are deleted, so when you run 'stop'
+          or 'restart' commands you start from scratch, but by using this flag you can
+          preserve them. If you want to delete those volumes after stopping Breeze, just
+          run the 'breeze stop' again without this flag.
+
 
   ####################################################################################################
 
@@ -1626,7 +1650,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Flags:
 
-  Run 'breeze flags' to see all applicable flags.
+  --preserve-volumes
+          Use this flag if you would like to preserve data volumes from the databases used
+          by the integrations. By default, those volumes are deleted, so when you run 'stop'
+          or 'restart' commands you start from scratch, but by using this flag you can
+          preserve them. If you want to delete those volumes after stopping Breeze, just
+          run the 'breeze stop' again without this flag.
 
 
   ####################################################################################################
@@ -1757,6 +1786,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --image-tag TAG
           Additional tag in the image.
+
+  --skip-installing-airflow-providers
+          By default 'pip install' in Airflow 2.0 installs only the provider packages that
+          are needed by the extras but in Breeze (which is development environment) providers are
+          installed by default. You can disable it by adding this flag.
 
   --skip-installing-airflow-via-pip
           Skips installing Airflow via PIP. If you use this flag and want to install
@@ -2111,13 +2145,23 @@ This is the current syntax for  `./breeze <./breeze>`_:
           init.sh. It will be executed after the environment is configured and started.
 
   ****************************************************************************************************
-   Additional actions executed starting Airflow
+   Additional actions executed while starting Airflow
 
   --load-example-dags
           Include Airflow example dags.
 
   --load-default-connections
           Include Airflow Default Connections.
+
+  ****************************************************************************************************
+   Cleanup options when stopping Airflow
+
+  --preserve-volumes
+          Use this flag if you would like to preserve data volumes from the databases used
+          by the integrations. By default, those volumes are deleted, so when you run 'stop'
+          or 'restart' commands you start from scratch, but by using this flag you can
+          preserve them. If you want to delete those volumes after stopping Breeze, just
+          run the 'breeze stop' again without this flag.
 
   ****************************************************************************************************
    Kind kubernetes and Kubernetes tests configuration(optional)
@@ -2231,6 +2275,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --image-tag TAG
           Additional tag in the image.
+
+  --skip-installing-airflow-providers
+          By default 'pip install' in Airflow 2.0 installs only the provider packages that
+          are needed by the extras but in Breeze (which is development environment) providers are
+          installed by default. You can disable it by adding this flag.
 
   --skip-installing-airflow-via-pip
           Skips installing Airflow via PIP. If you use this flag and want to install
