@@ -122,7 +122,7 @@ class CustomOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self, bash_command=None, **kwargs):
-        super(CustomOperator, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.bash_command = bash_command
 
     def execute(self, context):

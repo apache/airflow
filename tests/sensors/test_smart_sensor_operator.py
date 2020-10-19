@@ -47,9 +47,9 @@ class DummySmartSensor(SmartSensorOperator):
                  shard_max=conf.getint('smart_sensor', 'shard_code_upper_limit'),
                  shard_min=0,
                  **kwargs):
-        super(DummySmartSensor, self).__init__(shard_min=shard_min,
-                                               shard_max=shard_max,
-                                               **kwargs)
+        super().__init__(shard_min=shard_min,
+                         shard_max=shard_max,
+                         **kwargs)
 
 
 class DummySensor(BaseSensorOperator):
@@ -57,7 +57,7 @@ class DummySensor(BaseSensorOperator):
     exec_fields = ('soft_fail', 'execution_timeout', 'timeout')
 
     def __init__(self, input_field='test', return_value=False, **kwargs):
-        super(DummySensor, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.input_field = input_field
         self.return_value = return_value
 
