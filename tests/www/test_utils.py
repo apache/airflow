@@ -176,38 +176,20 @@ class TestUtils(unittest.TestCase):
         self.assertNotEqual(schedule_query, dag_id_query)
         self.assertNotEqual(schedule_query, owner_query)
 
-        dag_id_asc_transform = utils.ordering_transform_for_query(
-            query_key=dag_id_query,
-            sorting_order='asc')
+        asc_transform = utils.query_ordering_transform_for_key(sorting_order='asc')
+        asc_transform_casetest = utils.query_ordering_transform_for_key(sorting_order='aSc')
 
-        dag_id_asc_transform_casetest = utils.ordering_transform_for_query(
-            query_key=dag_id_query,
-            sorting_order='AsC')
+        self.assertIsNotNone(asc_transform)
+        self.assertEqual(asc_transform, asc_transform_casetest)
 
-        self.assertIsNotNone(dag_id_asc_transform)
-        self.assertEqual(dag_id_asc_transform, dag_id_asc_transform_casetest)
+        desc_transform = utils.query_ordering_transform_for_key(sorting_order='desc')
+        desc_transform_casetest = utils.query_ordering_transform_for_key(sorting_order='DeSC')
 
-        dag_id_asc_transform = utils.ordering_transform_for_query(
-            query_key=dag_id_query,
-            sorting_order='asc')
+        self.assertIsNotNone(desc_transform)
+        self.assertEqual(desc_transform, desc_transform_casetest)
 
-        dag_id_asc_transform_casetest = utils.ordering_transform_for_query(
-            query_key=dag_id_query,
-            sorting_order='AsC')
-
-        self.assertIsNotNone(dag_id_asc_transform)
-        self.assertEqual(dag_id_asc_transform, dag_id_asc_transform_casetest)
-
-        schedule_desc_transform = utils.ordering_transform_for_query(
-            query_key=schedule_query,
-            sorting_order='desc')
-
-        schedule_desc_transform_casetest = utils.ordering_transform_for_query(
-            query_key=schedule_query,
-            sorting_order='DeSC')
-
-        self.assertIsNotNone(schedule_desc_transform)
-        self.assertEqual(schedule_desc_transform, schedule_desc_transform_casetest)
+        self.assertNotEqual(asc_transform, desc_transform)
+        self.assertNotEqual(asc_transform_casetest, desc_transform_casetest)
 
         asc_dag_id_query = utils.build_dag_sorting_query(sorting_key='dag_id', sorting_order='asc')
         self.assertIsNotNone(asc_dag_id_query)
@@ -222,6 +204,7 @@ class TestUtils(unittest.TestCase):
         self.assertIsNotNone(asc_schedule_query)
         self.assertIsNotNone(asc_owner_query)
         self.assertIsNotNone(desc_owner_query)
+
         self.assertNotEqual(asc_schedule_query, asc_owner_query)
         self.assertNotEqual(desc_owner_query, asc_owner_query)
         self.assertNotEqual(asc_schedule_query, asc_dag_id_query)

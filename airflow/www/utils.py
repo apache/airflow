@@ -323,18 +323,19 @@ def dag_query_for_key(sorting_key):
     return query_key
 
 
-def ordering_transform_for_query(query_key, sorting_order):
+def query_ordering_transform_for_key(sorting_order):
     """Maps sort order param in the URL params to an appropriate transform of an attribute query."""
+    from sqlalchemy import asc, desc
     sorting_map = {
         # not the biggest map in the world, but it's extensible and gives us nice default-handling
-        'asc': query_key.asc,
-        'desc': query_key.desc,
+        'asc': asc,
+        'desc': desc,
     }
 
     # the mapping should be lazily evaluated, so we get back a nullary callable
     sorting_transform = sorting_map.get(
         (sorting_order or '').lower(),
-        query_key.asc)  # default to original default behavior
+        asc)  # default to original default behavior
 
     return sorting_transform
 
@@ -342,9 +343,9 @@ def ordering_transform_for_query(query_key, sorting_order):
 def build_dag_sorting_query(sorting_key, sorting_order):
     """Builds a DAG sorting query based on the variables passed to the view (presumably as URL params)."""
     query_key = dag_query_for_key(sorting_key=sorting_key)
-    ordering_transform = ordering_transform_for_query(query_key=query_key, sorting_order=sorting_order)
+    ordering_transform = query_ordering_transform_for_key(sorting_order=sorting_order)
     # ordering_transform is a callable, we need to run it to extract the value:
-    query_with_sorting = ordering_transform()
+    query_with_sorting = ordering_transform(query_key)
     return query_with_sorting
 
 
