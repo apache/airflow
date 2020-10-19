@@ -62,6 +62,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from airflow.www import app as application
+from tests.test_utils import fab_utils
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
@@ -1784,6 +1785,9 @@ class TestDagACLView(TestBase):
         self.logout()
         self.login(username='test',
                    password='test')
+        website_permission = self.appbuilder.sm.\
+            find_permission_view_menu(permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE)
+
         dag_tester_role = self.appbuilder.sm.find_role('dag_acl_tester')
         edit_perm_on_dag = self.appbuilder.sm.\
             find_permission_view_menu(permissions.ACTION_CAN_EDIT, 'DAG:example_bash_operator')
@@ -1791,6 +1795,7 @@ class TestDagACLView(TestBase):
         read_perm_on_dag = self.appbuilder.sm.\
             find_permission_view_menu(permissions.ACTION_CAN_READ, 'DAG:example_bash_operator')
         self.appbuilder.sm.add_permission_role(dag_tester_role, read_perm_on_dag)
+        self.appbuilder.sm.add_permission_role(dag_tester_role, website_permission)
 
         all_dag_role = self.appbuilder.sm.find_role('all_dag_role')
         edit_perm_on_all_dag = self.appbuilder.sm.\
@@ -1799,20 +1804,34 @@ class TestDagACLView(TestBase):
         read_perm_on_all_dag = self.appbuilder.sm.\
             find_permission_view_menu(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS)
         self.appbuilder.sm.add_permission_role(all_dag_role, read_perm_on_all_dag)
+        self.appbuilder.sm.add_permission_role(all_dag_role, website_permission)
 
         role_user = self.appbuilder.sm.find_role('User')
         self.appbuilder.sm.add_permission_role(role_user, read_perm_on_all_dag)
         self.appbuilder.sm.add_permission_role(role_user, edit_perm_on_all_dag)
+        self.appbuilder.sm.add_permission_role(role_user, website_permission)
 
         read_only_perm_on_dag = self.appbuilder.sm.\
             find_permission_view_menu(permissions.ACTION_CAN_READ, 'DAG:example_bash_operator')
         dag_read_only_role = self.appbuilder.sm.find_role('dag_acl_read_only')
         self.appbuilder.sm.add_permission_role(dag_read_only_role, read_only_perm_on_dag)
+        self.appbuilder.sm.add_permission_role(dag_read_only_role, website_permission)
 
     def test_permission_exist(self):
         self.logout()
-        self.login(username='test',
-                   password='test')
+        username = 'permission_exist_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='permission_exist_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, 'DAG:example_bash_operator'),
+                (permissions.ACTION_CAN_EDIT, 'DAG:example_bash_operator'),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
+
         test_view_menu = self.appbuilder.sm.find_view_menu('DAG:example_bash_operator')
         perms_views = self.appbuilder.sm.find_permissions_view_menu(test_view_menu)
         self.assertEqual(len(perms_views), 2)
@@ -1827,16 +1846,39 @@ class TestDagACLView(TestBase):
 
     def test_role_permission_associate(self):
         self.logout()
-        self.login(username='test',
-                   password='test')
-        test_role = self.appbuilder.sm.find_role('dag_acl_tester')
+        username = 'role_permission_associate_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='role_permission_associate_role',
+            permissions=[
+                (permissions.ACTION_CAN_EDIT, 'DAG:example_bash_operator'),
+                (permissions.ACTION_CAN_READ, 'DAG:example_bash_operator'),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
+
+        test_role = self.appbuilder.sm.find_role('role_permission_associate_role')
         perms = {str(perm) for perm in test_role.permissions}
         self.assertIn('can edit on DAG:example_bash_operator', perms)
         self.assertIn('can read on DAG:example_bash_operator', perms)
 
     def test_index_success(self):
         self.logout()
-        self.login()
+        username = 'index_success_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='index_success_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE)
+            ],
+        )
+        self.login(username=username,
+                   password=username)
+
         resp = self.client.get('/', follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
 
@@ -1849,8 +1891,19 @@ class TestDagACLView(TestBase):
 
     def test_index_for_all_dag_user(self):
         self.logout()
-        self.login(username='all_dag_user',
-                   password='all_dag_user')
+        username = 'index_for_all_dag_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='index_for_all_dag_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE)
+            ],
+        )
+        self.login(username=username,
+                   password=username)
+
         resp = self.client.get('/', follow_redirects=True)
         # The all dag user can access/view all dags.
         self.check_content_in_response('example_subdag_operator', resp)
@@ -1867,7 +1920,20 @@ class TestDagACLView(TestBase):
 
     def test_dag_stats_success(self):
         self.logout()
-        self.login()
+        username = 'dag_stats_success_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='dag_stats_success_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
+
         resp = self.client.post('dag_stats', follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
         self.assertEqual(set(list(resp.json.items())[0][1][0].keys()),
@@ -1881,8 +1947,20 @@ class TestDagACLView(TestBase):
 
     def test_dag_stats_success_for_all_dag_user(self):
         self.logout()
-        self.login(username='all_dag_user',
-                   password='all_dag_user')
+        username = 'dag_stats_success_for_all_dag_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='dag_stats_success_for_all_dag_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
+
         resp = self.client.post('dag_stats', follow_redirects=True)
         self.check_content_in_response('example_subdag_operator', resp)
         self.check_content_in_response('example_bash_operator', resp)
@@ -1908,7 +1986,21 @@ class TestDagACLView(TestBase):
 
     def test_task_stats_success(self):
         self.logout()
-        self.login()
+        username = 'task_stats_success_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='task_stats_success_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
+
         resp = self.client.post('task_stats', follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
 
@@ -1920,16 +2012,41 @@ class TestDagACLView(TestBase):
 
     def test_task_stats_success_for_all_dag_user(self):
         self.logout()
-        self.login(username='all_dag_user',
-                   password='all_dag_user')
+        username = 'task_stats_success_for_all_dag_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='task_stats_success_for_all_dag_user_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
+
         resp = self.client.post('task_stats', follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
         self.check_content_in_response('example_subdag_operator', resp)
 
     def test_task_stats_success_when_selecting_dags(self):
         self.logout()
-        self.login(username='all_dag_user',
-                   password='all_dag_user')
+        username = 'task_stats_success_when_selecting_dags_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='task_stats_success_when_selecting_dags_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
 
         resp = self.client.post('task_stats',
                                 data={'dag_ids': ['example_subdag_operator']},
@@ -1951,23 +2068,59 @@ class TestDagACLView(TestBase):
 
     def test_code_success(self):
         self.logout()
-        self.login()
+        username = 'code_success_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='code_success_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
+
         url = 'code?dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
 
     def test_code_failure(self):
         self.logout()
-        self.login(username='dag_faker',
-                   password='dag_faker')
+        username = 'code_failure_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='code_failure_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
+
         url = 'code?dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_not_in_response('example_bash_operator', resp)
 
     def test_code_success_for_all_dag_user(self):
         self.logout()
-        self.login(username='all_dag_user',
-                   password='all_dag_user')
+        username = 'code_success_for_all_dag_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='code_success_for_all_dag_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
+
         url = 'code?dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
@@ -1978,7 +2131,20 @@ class TestDagACLView(TestBase):
 
     def test_dag_details_success(self):
         self.logout()
-        self.login()
+        username = 'dag_details_success_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='dag_details_success_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
+
         url = 'dag_details?dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('DAG Details', resp)
@@ -1993,8 +2159,20 @@ class TestDagACLView(TestBase):
 
     def test_dag_details_success_for_all_dag_user(self):
         self.logout()
-        self.login(username='all_dag_user',
-                   password='all_dag_user')
+        username = 'dag_details_success_for_all_dag_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='dag_details_success_for_all_dag_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
+
         url = 'dag_details?dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
@@ -2005,7 +2183,20 @@ class TestDagACLView(TestBase):
 
     def test_rendered_success(self):
         self.logout()
-        self.login()
+        username = 'rendered_success_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='rendered_success_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
+
         url = ('rendered?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
                .format(self.percent_encode(self.default_date)))
         resp = self.client.get(url, follow_redirects=True)
@@ -2022,8 +2213,20 @@ class TestDagACLView(TestBase):
 
     def test_rendered_success_for_all_dag_user(self):
         self.logout()
-        self.login(username='all_dag_user',
-                   password='all_dag_user')
+        username = 'rendered_success_for_all_dag_user_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='rendered_success_for_all_dag_user_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE)
+            ],
+        )
+        self.login(username=username,
+                   password=username)
+
         url = ('rendered?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
                .format(self.percent_encode(self.default_date)))
         resp = self.client.get(url, follow_redirects=True)
@@ -2031,7 +2234,21 @@ class TestDagACLView(TestBase):
 
     def test_task_success(self):
         self.logout()
-        self.login()
+        username = 'task_success_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='task_success_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
+
         url = ('task?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
                .format(self.percent_encode(self.default_date)))
         resp = self.client.get(url, follow_redirects=True)
@@ -2048,8 +2265,21 @@ class TestDagACLView(TestBase):
 
     def test_task_success_for_all_dag_user(self):
         self.logout()
-        self.login(username='all_dag_user',
-                   password='all_dag_user')
+        username = 'task_success_for_all_dag_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='task_success_for_all_dag_user_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
+
         url = ('task?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
                .format(self.percent_encode(self.default_date)))
         resp = self.client.get(url, follow_redirects=True)
@@ -2057,7 +2287,21 @@ class TestDagACLView(TestBase):
 
     def test_xcom_success(self):
         self.logout()
-        self.login()
+        username = 'xcom_success_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='xcom_success_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
+
         url = ('xcom?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
                .format(self.percent_encode(self.default_date)))
         resp = self.client.get(url, follow_redirects=True)
@@ -2074,8 +2318,21 @@ class TestDagACLView(TestBase):
 
     def test_xcom_success_for_all_dag_user(self):
         self.logout()
-        self.login(username='all_dag_user',
-                   password='all_dag_user')
+        username = 'xcom_success_for_all_dag_user_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='xcom_success_for_all_dag_user_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
+
         url = ('xcom?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
                .format(self.percent_encode(self.default_date)))
         resp = self.client.get(url, follow_redirects=True)
@@ -2109,17 +2366,42 @@ class TestDagACLView(TestBase):
         self.check_content_in_response('', resp, resp_code=302)
 
     def test_blocked_success(self):
-        url = 'blocked'
         self.logout()
-        self.login()
+        username = 'blocked_success_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='blocked_success_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ]
+        )
+        self.login(username=username,
+                   password=username)
+        url = 'blocked'
+
         resp = self.client.post(url, follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
 
     def test_blocked_success_for_all_dag_user(self):
         url = 'blocked'
         self.logout()
-        self.login(username='all_dag_user',
-                   password='all_dag_user')
+        username = 'block_success_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='block_success_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
+
         resp = self.client.post(url, follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
         self.check_content_in_response('example_subdag_operator', resp)
@@ -2145,7 +2427,20 @@ class TestDagACLView(TestBase):
 
     def test_failed_success(self):
         self.logout()
-        self.login()
+        username = 'failed_success_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='failed_success_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
         form = dict(
             task_id="run_this_last",
             dag_id="example_bash_operator",
@@ -2161,7 +2456,20 @@ class TestDagACLView(TestBase):
     def test_duration_success(self):
         url = 'duration?days=30&dag_id=example_bash_operator'
         self.logout()
-        self.login()
+        username = 'duration_success_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='duration_success_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
 
@@ -2177,7 +2485,20 @@ class TestDagACLView(TestBase):
     def test_tries_success(self):
         url = 'tries?days=30&dag_id=example_bash_operator'
         self.logout()
-        self.login()
+        username = 'tries_success_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='tries_success_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
 
@@ -2191,9 +2512,22 @@ class TestDagACLView(TestBase):
         self.check_content_not_in_response('example_bash_operator', resp)
 
     def test_landing_times_success(self):
-        url = 'landing_times?days=30&dag_id=example_bash_operator'
         self.logout()
-        self.login()
+        username = 'landing_times_success_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='landing_times_success_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
+        url = 'landing_times?days=30&dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
 
@@ -2222,7 +2556,20 @@ class TestDagACLView(TestBase):
     def test_gantt_success(self):
         url = 'gantt?dag_id=example_bash_operator'
         self.logout()
-        self.login()
+        username = 'gantt_success_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='gantt_success_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
 
@@ -2234,11 +2581,22 @@ class TestDagACLView(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_not_in_response('example_bash_operator', resp)
 
-    def test_success_fail_for_read_only_role(self):
+    def test_success_fail_for_read_only_task_instance_access(self):
         # success endpoint need can_edit, which read only role can not access
         self.logout()
-        self.login(username='dag_read_only',
-                   password='dag_read_only')
+        username = 'task_instance_read_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='task_instance_read_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
 
         form = dict(
             task_id="run_this_last",
@@ -2255,8 +2613,21 @@ class TestDagACLView(TestBase):
     def test_tree_success_for_read_only_role(self):
         # tree view only allows can_read, which read only role could access
         self.logout()
-        self.login(username='dag_read_only',
-                   password='dag_read_only')
+        username = 'tree_success_for_read_only_role_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='tree_success_for_read_only_role_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
 
         url = 'tree?dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
@@ -2264,7 +2635,20 @@ class TestDagACLView(TestBase):
 
     def test_log_success(self):
         self.logout()
-        self.login()
+        username = 'log_success_user'
+        fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='log_success_role',
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
+        self.login(username=username,
+                   password=username)
         url = ('log?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
                .format(self.percent_encode(self.default_date)))
         resp = self.client.get(url, follow_redirects=True)

@@ -98,31 +98,23 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     # [START security_viewer_perms]
     VIEWER_PERMS = {
         'menu_access',
-        'can_index',
         'can_list',
         'can_show',
-        'can_chart',
-        'can_dag_stats',
-        'can_dag_details',
-        'can_task_stats',
-        'can_code',
-        'can_log',
-        'can_get_logs_with_metadata',
-        'can_tries',
-        'can_graph',
-        'can_tree',
-        'can_task',
-        'can_task_instances',
-        'can_xcom',
-        'can_gantt',
-        'can_landing_times',
-        'can_last_dagruns',
-        'can_duration',
-        'can_blocked',
-        'can_rendered',
         'can_version',
-        'can_extra_links',
+        'can_chart',
     }
+
+    RESOURCE_VIEWER_PERMISSIONS = [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+        ('menu_access', 'Airflow'),
+    ]
     # [END security_viewer_perms]
 
     # [START security_user_perms]
@@ -144,6 +136,17 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'clear',
         'can_clear',
     }
+
+    RESOURCE_USER_PERMS = [
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_TASK_INSTANCE),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
+    ]
     # [END security_user_perms]
 
     # [START security_op_perms]
@@ -164,16 +167,23 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     ###########################################################################
 
     ROLE_CONFIGS = [
-        {'role': 'Viewer', 'perms': VIEWER_PERMS | READ_DAG_PERMS, 'vms': VIEWER_VMS | DAG_VMS},
+        {
+            'role': 'Viewer',
+            'perms': VIEWER_PERMS | READ_DAG_PERMS,
+            'vms': VIEWER_VMS | DAG_VMS,
+            'resource_perms': RESOURCE_VIEWER_PERMISSIONS
+        },
         {
             'role': 'User',
             'perms': VIEWER_PERMS | USER_PERMS | DAG_PERMS,
             'vms': VIEWER_VMS | DAG_VMS | USER_VMS,
+            'resource_perms': RESOURCE_VIEWER_PERMISSIONS + RESOURCE_USER_PERMS,
         },
         {
             'role': 'Op',
             'perms': VIEWER_PERMS | USER_PERMS | OP_PERMS | DAG_PERMS,
             'vms': VIEWER_VMS | DAG_VMS | USER_VMS | OP_VMS,
+            'resource_perms': RESOURCE_VIEWER_PERMISSIONS + RESOURCE_USER_PERMS,
         },
     ]
 
@@ -192,13 +202,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             view.datamodel = CustomSQLAInterface(view.datamodel.obj)
         self.perms = None
 
-    def init_role(self, role_name, role_vms, role_perms):
+    def init_role(self, role_name, role_resources, role_actions, resource_perms=None):
         """
         Initialize the role with the permissions and related view-menus.
 
         :param role_name:
-        :param role_vms:
-        :param role_perms:
+        :param role_resources:
+        :param role_actions:
+        :param resource_perms:
         :return:
         """
         pvms = self.get_session.query(sqla_models.PermissionView).all()
@@ -210,17 +221,27 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         if len(role.permissions) == 0:
             self.log.info('Initializing permissions for role:%s in the database.', role_name)
-            role_pvms = set()
+            role_permissions = set()
             for pvm in pvms:
-                if pvm.view_menu.name in role_vms and pvm.permission.name in role_perms:
-                    role_pvms.add(pvm)
-            role.permissions = list(role_pvms)
+                action = pvm.permission
+                resource = pvm.view_menu
+                if resource.name in role_resources and action.name in role_actions:
+                    role_permissions.add(pvm)
+            role.permissions = list(role_permissions)
             self.get_session.merge(role)
             self.get_session.commit()
         else:
             self.log.debug(
                 'Existing permissions for the role:%s ' 'within the database will persist.', role_name
             )
+        if resource_perms:
+            self.add_permissions(role, set(resource_perms))
+
+    def add_permissions(self, role, perms):
+        """Adds resource permissions to a given role."""
+        for perm_name, view_name in perms:
+            perm_view = self.add_permission_view_menu(perm_name, view_name)
+            self.add_permission_role(role, perm_view)
 
     def delete_role(self, role_name):
         """
@@ -368,7 +389,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         if not user:
             user = g.user
-        # breakpoint()
+
         if user.is_anonymous:
             return self.is_item_public(permission, resource)
 
@@ -548,7 +569,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     def update_admin_perm_view(self):
         """
         Admin should has all the permission-views, except the dag views.
-        because Admin have already have Dag permission.
+        because Admin already has Dags permission.
         Add the missing ones to the table for admin.
 
         :return: None.
@@ -594,7 +615,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             role = config['role']
             vms = config['vms']
             perms = config['perms']
-            self.init_role(role, vms, perms)
+            resource_perms = config['resource_perms']
+            self.init_role(role, vms, perms, resource_perms)
         self.create_custom_dag_permission_view()
         # init existing roles, the rest role could be created through UI.
         self.update_admin_perm_view()
