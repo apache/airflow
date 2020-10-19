@@ -417,13 +417,15 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         if request.args.get('reset_tags') is not None:
             flask_session[FILTER_TAGS_COOKIE] = None
-            arg_tags_filter = None
-        else:
-            cookie_val = flask_session.get(FILTER_TAGS_COOKIE)
-            if arg_tags_filter:
-                flask_session[FILTER_TAGS_COOKIE] = ','.join(arg_tags_filter)
-            elif cookie_val:
-                arg_tags_filter = cookie_val.split(',')
+            # Remove the reset_tags=reset from the URL
+            return redirect(url_for('Airflow.index'))
+
+        cookie_val = flask_session.get(FILTER_TAGS_COOKIE)
+        if arg_tags_filter:
+            flask_session[FILTER_TAGS_COOKIE] = ','.join(arg_tags_filter)
+        elif cookie_val:
+            # If tags exist in cookie, but not URL, add them to the URL
+            return redirect(url_for('Airflow.index', tags=cookie_val.split(',')))
 
         if arg_status_filter is None:
             cookie_val = flask_session.get(FILTER_STATUS_COOKIE)
@@ -536,7 +538,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             status_filter=arg_status_filter,
             status_count_all=all_dags_count,
             status_count_active=status_count_active,
-            status_count_paused=status_count_paused)
+            status_count_paused=status_count_paused,
+            tags_filter=arg_tags_filter)
 
     @expose('/dag_stats', methods=['POST'])
     @has_access
@@ -1241,13 +1244,24 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Triggers DAG Run."""
         dag_id = request.values.get('dag_id')
         origin = get_safe_url(request.values.get('origin'))
+        request_conf = request.values.get('conf')
 
         if request.method == 'GET':
+            # Populate conf textarea with conf requests parameter, or dag.params
+            default_conf = ''
+            if request_conf:
+                default_conf = request_conf
+            else:
+                try:
+                    dag = current_app.dag_bag.get_dag(dag_id)
+                    default_conf = json.dumps(dag.params, indent=4)
+                except TypeError:
+                    flash("Could not pre-populate conf field due to non-JSON-serializable data-types")
             return self.render_template(
                 'airflow/trigger.html',
                 dag_id=dag_id,
                 origin=origin,
-                conf=''
+                conf=default_conf
             )
 
         dag_orm = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
@@ -1263,7 +1277,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             return redirect(origin)
 
         run_conf = {}
-        request_conf = request.values.get('conf')
         if request_conf:
             try:
                 run_conf = json.loads(request_conf)

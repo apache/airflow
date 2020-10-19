@@ -46,15 +46,16 @@
           </div>
         </div>
         <div class="col-sm-4">
-          <form id="filter_form" class="form-inline" style="width: 100%; text-align: left;">
-            <div class="form-group" style="width: 100%;">
-              <select multiple name="tags" id="tags_filter" class="select2-drop-mask" style="width: 60%;">
+          <form id="tags_form" class="form-inline" style="width: 100%; text-align: left;">
+            <div class="form-group search-input" style="width: 80%;">
+              <select multiple name="tags" id="tags_filter" class="select2-drop-mask" style="width: 100%;">
                 {% for tag in tags %}
                   <option value="{{ tag.name }}" {% if tag.selected %}selected{% endif %}>{{ tag.name }}</option>
                 {% endfor %}
               </select>
-              <input type="submit" value="Filter tags" class="btn btn-default">
-              <input type="submit" value="Reset" class="btn btn-default" name="reset_tags">
+              {% if tags_filter|length > 0 %}
+                <button type="reset" aria-label="Clear all tags" class="btn btn-default btn-sm material-icons search-input__clear-btn">cancel</button>
+              {% endif %}
             </div>
           </form>
         </div>
@@ -231,6 +232,31 @@
     $('#tags_filter').select2({
       placeholder: 'Filter DAGs by tag',
       allowClear: true
+    });
+
+    $('#tags_filter').on('change', function (e) {
+      e.preventDefault();
+      var query = new URLSearchParams(window.location.search);
+      if (!!e.val.length) {
+        if (query.has('tags')) query.delete('tags');
+        e.val.map(function(value) {
+          query.append('tags', value);
+        })
+      } else {
+        query.delete('tags');
+        query.set('reset_tags', 'reset')
+      }
+      if (query.has('page')) query.delete('page');
+      window.location = `${DAGS_INDEX}?${query.toString()}`;
+    });
+
+    $('#tags_form').on('reset', function(e) {
+      e.preventDefault();
+      var query = new URLSearchParams(window.location.search);
+      query.delete('tags');
+      if (query.has('page')) query.delete('page');
+      query.set('reset_tags', 'reset')
+      window.location = `${DAGS_INDEX}?${query.toString()}`;
     });
 
     $('#dag_query').on('keypress', function (e) {
