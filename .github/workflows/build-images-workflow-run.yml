@@ -89,7 +89,6 @@ jobs:
           cancelMode: namedJobs
           token: ${{ secrets.GITHUB_TOKEN }}
           notifyPRCancel: true
-          skipEventTypes: '["schedule", "push"]'
           jobNameRegexps: >
             [".*Event: ${{ steps.source-run-info.outputs.sourceEvent }}
             Repo: ${{ steps.source-run-info.outputs.sourceHeadRepo }}
@@ -112,7 +111,6 @@ jobs:
           cancelMode: failedJobs
           sourceRunId: ${{ github.event.workflow_run.id }}
           notifyPRCancel: true
-          skipEventTypes: '["schedule", "push"]'
           jobNameRegexps: >
             ["^Pylint$", "^Static checks$", "^Build docs$", "^Spell check docs$", "^Backport packages$",
              "^Checks: Helm tests$", "^Test OpenAPI*"]
