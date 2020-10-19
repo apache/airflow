@@ -23,11 +23,8 @@ class MesosExecutorRemovedRule(BaseRule):
     """
     MesosExecutorRemovedRule class to ease upgrade to Airflow 2.0
     """
-
     title = "Removal of Mesos Executor"
-    description = """
-    The Mesos Executor has been deprecated as it was not widely used and not maintained.
-    """
+    description = "The Mesos Executor has been deprecated as it was not widely used and not maintained."
 
     def check(self):
         executor_key = conf.get(section="core", key="executor")
