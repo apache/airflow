@@ -81,7 +81,6 @@ from airflow.www.forms import (
 from airflow.www.widgets import AirflowModelListWidget
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
-FILTER_TAGS_COOKIE = 'tags_filter'
 FILTER_STATUS_COOKIE = 'dag_status_filter'
 
 
@@ -415,16 +414,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         arg_tags_filter = request.args.getlist('tags')
         arg_status_filter = request.args.get('status')
 
-        if request.args.get('reset_tags') is not None:
-            flask_session[FILTER_TAGS_COOKIE] = None
-            arg_tags_filter = None
-        else:
-            cookie_val = flask_session.get(FILTER_TAGS_COOKIE)
-            if arg_tags_filter:
-                flask_session[FILTER_TAGS_COOKIE] = ','.join(arg_tags_filter)
-            elif cookie_val:
-                arg_tags_filter = cookie_val.split(',')
-
         if arg_status_filter is None:
             cookie_val = flask_session.get(FILTER_STATUS_COOKIE)
             if cookie_val:
@@ -536,7 +525,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             status_filter=arg_status_filter,
             status_count_all=all_dags_count,
             status_count_active=status_count_active,
-            status_count_paused=status_count_paused)
+            status_count_paused=status_count_paused,
+            tags_filter=arg_tags_filter)
 
     @expose('/dag_stats', methods=['POST'])
     @has_access
