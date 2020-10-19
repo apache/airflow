@@ -16,6 +16,7 @@
 # under the License.
 
 # Resource Constants
+RESOURCE_AIRFLOW = 'Airflow'
 RESOURCE_DAGS = 'Dags'
 RESOURCE_DAG_PREFIX = 'DAG:'
 RESOURCE_CONFIG = 'Config'
@@ -25,8 +26,10 @@ RESOURCE_DAG_RUN = 'DagRun'
 RESOURCE_IMPORT_ERROR = 'ImportError'
 RESOURCE_LOG = 'Log'
 RESOURCE_POOL = 'Pool'
+RESOURCE_SLA_MISS = 'SLA Misses'
 RESOURCE_TASK = 'Task'
 RESOURCE_TASK_INSTANCE = 'TaskInstance'
+RESOURCE_TASK_RESCHEDULE = 'TaskReschedule'
 RESOURCE_VARIABLE = "Variable"
 RESOURCE_WEBSITE = 'Website'
 RESOURCE_XCOM = 'XCom'
@@ -36,5 +39,6 @@ ACTION_CAN_CREATE = 'can_create'
 ACTION_CAN_READ = 'can_read'
 ACTION_CAN_EDIT = 'can_edit'
 ACTION_CAN_DELETE = 'can_delete'
+ACTION_CAN_ACCESS_MENU = 'menu_access'
 DEPRECATED_ACTION_CAN_DAG_READ = 'can_dag_read'
 DEPRECATED_ACTION_CAN_DAG_EDIT = 'can_dag_edit'
