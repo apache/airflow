@@ -74,8 +74,7 @@ def secondary_training_status_changed(current_job_description: dict, prev_job_de
 
     :return: Whether the secondary status message of a training job changed or not.
     """
-    current_secondary_status_transitions = current_job_description.get('SecondaryStatusTransitions')
-    if current_secondary_status_transitions is None or len(current_secondary_status_transitions) == 0:
+    if len(current_job_description.get('SecondaryStatusTransitions', [])) == 0:
         return False
 
     prev_job_secondary_status_transitions = (
