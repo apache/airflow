@@ -24,7 +24,7 @@ import calendar
 import logging
 import os
 import time
-from typing import Optional
+from typing import Optional, cast
 
 import pendulum
 import yaml
@@ -34,10 +34,8 @@ from kubernetes.config.kube_config import KUBE_CONFIG_DEFAULT_LOCATION, KubeConf
 
 
 def _parse_timestamp(ts_str: str) -> int:
-    parsed_dt = pendulum.parse(ts_str)
-    if isinstance(parsed_dt, pendulum.DateTime):
-        return calendar.timegm(parsed_dt.timetuple())
-    raise ValueError(f"timestamp string '{ts_str}' could not be parsed to DateTime.")
+    parsed_dt = cast(pendulum.DateTime, pendulum.parse(ts_str))
+    return calendar.timegm(parsed_dt.timetuple())
 
 
 class RefreshKubeConfigLoader(KubeConfigLoader):
