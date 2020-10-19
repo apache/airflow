@@ -81,6 +81,7 @@ from airflow.www.forms import (
 from airflow.www.widgets import AirflowModelListWidget
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
+FILTER_TAGS_COOKIE = 'tags_filter'
 FILTER_STATUS_COOKIE = 'dag_status_filter'
 
 
@@ -413,6 +414,19 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         arg_search_query = request.args.get('search')
         arg_tags_filter = request.args.getlist('tags')
         arg_status_filter = request.args.get('status')
+
+        if request.args.get('reset_tags') is not None:
+            flask_session[FILTER_TAGS_COOKIE] = None
+            arg_tags_filter = None
+            # Remove the reset_tags=reset from the URL
+            return redirect(url_for('Airflow.index'))
+        else:
+            cookie_val = flask_session.get(FILTER_TAGS_COOKIE)
+            if arg_tags_filter:
+                flask_session[FILTER_TAGS_COOKIE] = ','.join(arg_tags_filter)
+            elif cookie_val:
+                # If tags exist in cookie, but not URL, add them to the URL
+                return redirect(url_for('Airflow.index', tags=cookie_val.split(',')))
 
         if arg_status_filter is None:
             cookie_val = flask_session.get(FILTER_STATUS_COOKIE)

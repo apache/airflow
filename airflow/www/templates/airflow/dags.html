@@ -237,13 +237,14 @@
     $('#tags_filter').on('change', function (e) {
       e.preventDefault();
       var query = new URLSearchParams(window.location.search);
-      if (!!e.val) {
+      if (!!e.val.length) {
         if (query.has('tags')) query.delete('tags');
         e.val.map(function(value) {
           query.append('tags', value);
         })
       } else {
         query.delete('tags');
+        query.set('reset_tags', 'reset')
       }
       if (query.has('page')) query.delete('page');
       window.location = `${DAGS_INDEX}?${query.toString()}`;
@@ -254,6 +255,7 @@
       var query = new URLSearchParams(window.location.search);
       query.delete('tags');
       if (query.has('page')) query.delete('page');
+      query.set('reset_tags', 'reset')
       window.location = `${DAGS_INDEX}?${query.toString()}`;
     });
 
