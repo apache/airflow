@@ -18,7 +18,6 @@
 
 import time
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
 from airflow.providers.amazon.aws.sensors.sagemaker_base import SageMakerBaseSensor
 from airflow.utils.decorators import apply_defaults
@@ -47,7 +46,7 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
         self.stream_names = []
         self.instance_count = None
         self.state = None
-        self.last_description = None
+        self.last_description = {}
         self.last_describe_job_call = None
         self.log_resource_inited = False
 
@@ -75,15 +74,6 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
         if self.print_log:
             if not self.log_resource_inited:
                 self.init_log_resource(self.get_hook())
-            if (
-                self.instance_count is None
-                or self.state is None
-                or self.last_description is None
-                or self.last_describe_job_call is None
-            ):
-                raise AirflowException(
-                    "instance_count, state, last_description, last_describe_job_call must be specified"
-                )
             (
                 self.state,
                 self.last_description,

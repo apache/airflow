@@ -17,7 +17,7 @@
 # under the License.
 
 import json
-from typing import Iterable
+from typing import Iterable, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
@@ -46,7 +46,7 @@ class SageMakerBaseOperator(BaseOperator):
 
         self.aws_conn_id = aws_conn_id
         self.config = config
-        self.hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
+        self.hook: Optional[SageMakerHook] = None
 
     def parse_integer(self, config, field):
         """Recursive method for parsing string fields holding integer values to integers."""

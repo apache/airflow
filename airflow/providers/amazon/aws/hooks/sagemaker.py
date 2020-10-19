@@ -108,8 +108,7 @@ def secondary_training_status_message(job_description: Optional[dict], prev_desc
     if job_description is None:
         return ''
 
-    secondary_status_transitions = job_description.get('SecondaryStatusTransitions')
-    if secondary_status_transitions is None or len(secondary_status_transitions) == 0:
+    if len(job_description.get('SecondaryStatusTransitions', [])) == 0:
         return ''
 
     prev_description_secondary_transitions = (
@@ -298,7 +297,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             self.logs_hook.get_log_events(log_group, s, positions[s].timestamp, positions[s].skip)
             for s in streams
         ]
-        events: List[Optional[Any]] = []
+        events: List[Any] = []
         for event_stream in event_iters:
             if not event_stream:
                 events.append(None)
