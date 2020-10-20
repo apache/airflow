@@ -306,12 +306,12 @@ def test_aws_batch_job_waiting(aws_clients, aws_region, job_queue_name, job_defi
 
     # wait for job to be running (or complete)
     job_running_waiter.config.delay = 1  # sec delays between status checks
-    job_running_waiter.config.max_attempts = 120
+    job_running_waiter.config.max_attempts = 500
     job_running_waiter.wait(jobs=[job_id])
 
     # wait for job completion
     job_complete_waiter.config.delay = 1
-    job_complete_waiter.config.max_attempts = 120
+    job_complete_waiter.config.max_attempts = 500
     job_complete_waiter.wait(jobs=[job_id])
 
     job_description = aws_clients.batch.describe_jobs(jobs=[job_id])

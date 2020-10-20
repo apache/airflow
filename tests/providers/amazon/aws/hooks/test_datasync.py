@@ -20,7 +20,6 @@ import unittest
 from unittest import mock
 
 import boto3
-import mock
 from moto import mock_datasync
 
 from airflow.exceptions import AirflowTaskTimeout
