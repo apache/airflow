@@ -1,11 +1,17 @@
 {
   "extends": "airbnb-base",
   "parser": "babel-eslint",
-  "plugins": [ "html" ],
+  "plugins": [
+    "html",
+    "import",
+    "node",
+    "promise",
+    "standard",
+  ],
   "settings": {
     "import/resolver": {
-      node: {},
-      webpack: {},
+      "node": {},
+      "webpack": {},
     },
   },
 }
