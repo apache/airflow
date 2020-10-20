@@ -20,7 +20,7 @@
 
 
 setup() {
-  load bats_utils
+  load ../bats_utils
   rm -f "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
 }
 

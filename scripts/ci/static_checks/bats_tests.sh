@@ -18,24 +18,51 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 
 #######################################################################################################
-# Runs tests for bash scripts in a docker container. This script is the entrypoint for the bats-tests
-# pre-commit hook where it runs all the bats tests (exluding in container tests).
+# Runs tests for bash scripts in a docker container. This argument is the entrypoint for the bats-tests
+# pre-commit hook where it runs all the bats tests (excluding in container tests).
+# It runs All tests if no arguments specified
+# If some arguments specifed it runs:
+#  * The .bats tests directly if specified as parameters
+#  * The .bats tests corresponding (using the argument location) to the .sh files passed as parameters
+#  * All .bats files found in the directory if directory specified
+#
+#  All of the above can be mixed in one set of command line arguments
 ########################################################################################################
 function run_bats_tests() {
-    local bats_scripts=()
-    for script in "$@"
+    local bats_arguments=()
+    for argument in "${@}"
     do
-        if [[ $script =~ \bats$ ]];
+        if [[ ${argument} =~ \.sh$ ]];
         then
-            bats_scripts+=( "$script" )
+            # Find tests corresponding to the modified scripts
+            script_file_path=${argument#scripts/}
+            bats_script="tests/bats/${script_file_path%.sh}.bats"
+            if [[ -f ${bats_script} ]]; then
+                bats_arguments+=( "${bats_script}" )
+            fi
+        elif [[ ${argument} =~ .*\.bats$ ]];
+        then
+            # or if the bats files were modified themselves - run them directly
+            bats_arguments+=( "$argument" )
+        elif [[ -d ${argument} ]]; then
+            # add it if it is a directory
+            bats_arguments+=( "$argument" )
         fi
+
     done
-    if [[ "${#@}" == "0" || "${#bats_scripts[@]}" != "${#@}" ]]; then
+    # deduplicate
+    FS=" " read -r -a bats_arguments <<< "$(tr ' ' '\n' <<< "${bats_arguments[@]}" | sort -u | tr '\n' ' ' )"
+    if [[ ${#@} == "0" ]]; then
+        # Run all tests
         docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
             apache/airflow:bats-2020.09.05-1.2.1 --tap /airflow/tests/bats/
+    elif [[ ${#bats_arguments} == "0" ]]; then
+        # Skip running anything if all filtered out
+        true
     else
+        # Run selected tests
         docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
-            apache/airflow:bats-2020.09.05-1.2.1 --tap "${bats_scripts[@]}"
+            apache/airflow:bats-2020.09.05-1.2.1 --tap "${bats_arguments[@]}"
     fi
 }
 
