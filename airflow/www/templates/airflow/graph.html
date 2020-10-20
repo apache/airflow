@@ -145,7 +145,7 @@
 
       // Below variables are being used in dag.js
       var tasks = {{ tasks|tojson }};
-      var task_instances = {{ task_instances|tojson }};
+      var taskInstances = {{ task_instances|tojson }};
       var getTaskInstanceURL = "{{ url_for('Airflow.task_instances') }}" +
         "?dag_id=" + encodeURIComponent(dag_id) + "&execution_date=" +
         encodeURIComponent(execution_date);
@@ -207,8 +207,8 @@
           } else if (node_id in tasks) {
             // A task node
             task = tasks[node_id];
-            if (node_id in task_instances)
-              try_number = task_instances[node_id].try_number;
+            if (node_id in taskInstances)
+              try_number = taskInstances[node_id].try_number;
             else
               try_number = 0;
 
@@ -248,7 +248,7 @@
           d3.selectAll("g.edgePath")
             .style("opacity", 1);
         });
-        updateNodesStates(task_instances);
+        updateNodesStates(taskInstances);
         setUpZoomSupport();
       }
 
@@ -463,8 +463,8 @@
         $.get(getTaskInstanceURL)
           .done(
             (tis) => {
-              task_instances = JSON.parse(tis)
-              updateNodesStates(task_instances);
+              tInstances = JSON.parse(tis)
+              updateNodesStates(tInstances);
               setTimeout(function() { $('#loading-dots').hide(); }, 500);
               $('#error').hide();
             }

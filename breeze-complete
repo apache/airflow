@@ -87,6 +87,7 @@ detect-private-key
 doctoc
 dont-use-safe-filter
 end-of-file-fixer
+eslint
 fix-encoding-pragma
 flake8
 forbid-tabs

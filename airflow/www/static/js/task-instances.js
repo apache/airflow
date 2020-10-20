@@ -35,16 +35,16 @@ function makeDateTimeHTML(start, end) {
   );
 }
 
-function generateTooltipDateTimes(startDate, endDate, dagTZ) {
-  if (!startDate) {
+function generateTooltipDateTimes(start, end, dagTimezone) {
+  if (!start) {
     return '<br><em>Not yet started</em>';
   }
 
   const tzFormat = 'z (Z)';
   const localTZ = moment.defaultZone.name;
-  startDate = moment.utc(startDate);
-  endDate = moment.utc(endDate);
-  dagTZ = dagTZ.toUpperCase();
+  const startDate = moment.utc(start);
+  const endDate = moment.utc(end);
+  const dagTZ = dagTimezone.toUpperCase();
 
   // Generate UTC Start and End Date
   let tooltipHTML = '<br><strong>UTC:</strong><br>';
@@ -69,6 +69,7 @@ function generateTooltipDateTimes(startDate, endDate, dagTZ) {
 
 export default function tiTooltip(ti, { includeTryNumber = false } = {}) {
   let tt = '';
+  let tiDuration = '';
   if (ti.state !== undefined) {
     tt += `<strong>Status:</strong> ${escapeHtml(ti.state)}<br><br>`;
   }
@@ -91,10 +92,10 @@ export default function tiTooltip(ti, { includeTryNumber = false } = {}) {
   // Calculate duration on the fly if task instance is still running
   if (ti.state === 'running') {
     const startDate = ti.start_date instanceof moment ? ti.start_date : moment(ti.start_date);
-    ti.duration = moment().diff(startDate, 'second');
+    tiDuration = moment().diff(startDate, 'second');
   }
 
-  tt += `Duration: ${escapeHtml(convertSecsToHumanReadable(ti.duration))}<br>`;
+  tt += `Duration: ${escapeHtml(convertSecsToHumanReadable(tiDuration))}<br>`;
 
   if (includeTryNumber) {
     tt += `Try Number: ${escapeHtml(ti.try_number)}<br>`;

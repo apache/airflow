@@ -2001,7 +2001,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  check-apache-license check-builtin-literals check-executables-have-shebangs
                  check-hooks-apply check-integrations check-merge-conflict check-xml
                  consistent-pylint daysago-import-check debug-statements detect-private-key doctoc
-                 dont-use-safe-filter end-of-file-fixer fix-encoding-pragma flake8 forbid-tabs
+                 dont-use-safe-filter end-of-file-fixer eslint fix-encoding-pragma flake8 forbid-tabs
                  helm-lint incorrect-use-of-LoggingMixin insert-license isort language-matters
                  lint-dockerfile lint-openapi mermaid mixed-line-ending mypy mypy-helm
                  no-relative-imports pre-commit-descriptions provide-create-sessions pydevd
