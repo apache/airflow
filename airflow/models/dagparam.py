@@ -42,7 +42,7 @@ class DagParam:
     :type default: Any
     """
 
-    def __init__(self, current_dag: 'airflow.models.DAG', name: str, default: Optional[Any] = None):
+    def __init__(self, current_dag, name: str, default: Optional[Any] = None):
         if default:
             current_dag.params[name] = default
         self._name = name
