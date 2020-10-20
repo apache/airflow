@@ -28,9 +28,7 @@ warnings.warn(
 
 
 class GKEClusterHook(GKEHook):
-    """
-    This class is deprecated. Please use `airflow.providers.google.cloud.hooks.container.GKEHook`.
-    """
+    """This class is deprecated. Please use `airflow.providers.google.cloud.hooks.container.GKEHook`."""
 
     def __init__(self, *args, **kwargs):
         warnings.warn(

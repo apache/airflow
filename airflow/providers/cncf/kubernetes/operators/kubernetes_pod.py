@@ -452,9 +452,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         return final_state, self.pod, result
 
     def patch_already_checked(self, pod: k8s.V1Pod):
-        """
-        Add an "already tried annotation to ensure we only retry once
-        """
+        """Add an "already tried annotation to ensure we only retry once"""
         pod.metadata.labels["already_checked"] = "True"
         body = PodGenerator.serialize_pod(pod)
         self.client.patch_namespaced_pod(pod.metadata.name, pod.metadata.namespace, body)

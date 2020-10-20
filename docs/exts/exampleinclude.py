@@ -42,9 +42,7 @@ logger = logging.getLogger(__name__)
 
 
 class ExampleHeader(nodes.reference, nodes.FixedTextElement):  # pylint: disable=too-many-ancestors
-    """
-    Header for examples.
-    """
+    """Header for examples."""
 
 
 class ExampleInclude(SphinxDirective):

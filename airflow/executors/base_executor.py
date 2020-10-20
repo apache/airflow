@@ -14,9 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Base executor - this is the base class for all the implemented executors.
-"""
+"""Base executor - this is the base class for all the implemented executors."""
 import sys
 from collections import OrderedDict
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -68,9 +66,7 @@ class BaseExecutor(LoggingMixin):
         self.event_buffer: Dict[TaskInstanceKey, EventBufferValueType] = {}
 
     def start(self):  # pragma: no cover
-        """
-        Executors may need to get things started.
-        """
+        """Executors may need to get things started."""
 
     def queue_command(self,
                       task_instance: TaskInstance,
@@ -135,9 +131,7 @@ class BaseExecutor(LoggingMixin):
         """
 
     def heartbeat(self) -> None:
-        """
-        Heartbeat sent to trigger new jobs.
-        """
+        """Heartbeat sent to trigger new jobs."""
         if not self.parallelism:
             open_slots = len(self.queued_tasks)
         else:
@@ -265,9 +259,7 @@ class BaseExecutor(LoggingMixin):
         raise NotImplementedError()
 
     def terminate(self):
-        """
-        This method is called when the daemon receives a SIGTERM
-        """
+        """This method is called when the daemon receives a SIGTERM"""
         raise NotImplementedError()
 
     def try_adopt_task_instances(self, tis: List[TaskInstance]) -> List[TaskInstance]:
@@ -286,9 +278,7 @@ class BaseExecutor(LoggingMixin):
 
     @property
     def slots_available(self):
-        """
-        Number of new tasks this executor instance can accept
-        """
+        """Number of new tasks this executor instance can accept"""
         if self.parallelism:
             return self.parallelism - len(self.running) - len(self.queued_tasks)
         else:

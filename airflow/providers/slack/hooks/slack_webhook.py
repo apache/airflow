@@ -138,9 +138,7 @@ class SlackWebhookHook(HttpHook):
         return json.dumps(cmd)
 
     def execute(self) -> None:
-        """
-        Remote Popen (actually execute the slack webhook call)
-        """
+        """Remote Popen (actually execute the slack webhook call)"""
         proxies = {}
         if self.proxy:
             # we only need https proxy for Slack, as the endpoint is https

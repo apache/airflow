@@ -253,9 +253,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         return user.roles
 
     def get_all_permissions_views(self):
-        """
-        Returns a set of tuples with the perm name and view menu name
-        """
+        """Returns a set of tuples with the perm name and view menu name"""
         perms_views = set()
         for role in self.get_user_roles():
             perms_views.update(
@@ -386,23 +384,17 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         return has_access
 
     def _get_and_cache_perms(self):
-        """
-        Cache permissions-views
-        """
+        """Cache permissions-views"""
         self.perms = self.get_all_permissions_views()
 
     def _has_role(self, role_name_or_list):
-        """
-        Whether the user has this role name
-        """
+        """Whether the user has this role name"""
         if not isinstance(role_name_or_list, list):
             role_name_or_list = [role_name_or_list]
         return any(r.name in role_name_or_list for r in self.get_user_roles())
 
     def _has_perm(self, permission_name, view_menu_name):
-        """
-        Whether the user has this perm
-        """
+        """Whether the user has this perm"""
         if hasattr(self, 'perms'):
             if (permission_name, view_menu_name) in self.perms:
                 return True
@@ -424,9 +416,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         )
 
     def clean_perms(self):
-        """
-        FAB leaves faulty permissions that need to be cleaned up
-        """
+        """FAB leaves faulty permissions that need to be cleaned up"""
         self.log.debug('Cleaning faulty perms')
         sesh = self.get_session
         pvms = sesh.query(sqla_models.PermissionView).filter(
@@ -611,9 +601,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         self.clean_perms()
 
     def sync_resource_permissions(self, perms=None):
-        """
-        Populates resource-based permissions.
-        """
+        """Populates resource-based permissions."""
         if not perms:
             return
 
@@ -704,9 +692,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 self.add_permission_role(role, dag_perm)
 
     def create_perm_vm_for_all_dag(self):
-        """
-        Create perm-vm if not exist and insert into FAB security model for all-dags.
-        """
+        """Create perm-vm if not exist and insert into FAB security model for all-dags."""
         # create perm for global logical dag
         for dag_vm in self.DAG_VMS:
             for perm in self.DAG_PERMS:

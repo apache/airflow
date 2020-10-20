@@ -14,9 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Classes for interacting with Kubernetes API
-"""
+"""Classes for interacting with Kubernetes API"""
 import copy
 import uuid
 from typing import Tuple

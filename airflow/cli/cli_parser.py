@@ -1472,13 +1472,9 @@ def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
 
 
 def _sort_args(args: Iterable[Arg]) -> Iterable[Arg]:
-    """
-    Sort subcommand optional args, keep positional args
-    """
+    """Sort subcommand optional args, keep positional args"""
     def get_long_option(arg: Arg):
-        """
-        Get long option from Arg.flags
-        """
+        """Get long option from Arg.flags"""
         return arg.flags[0] if len(arg.flags) == 1 else arg.flags[1]
     positional, optional = partition(lambda x: x.flags[0].startswith("-"), args)
     yield from positional

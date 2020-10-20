@@ -22,9 +22,7 @@ from airflow.utils.state import State
 
 
 class DagrunRunningDep(BaseTIDep):
-    """
-    Determines whether a task's DagRun is in valid state.
-    """
+    """Determines whether a task's DagRun is in valid state."""
 
     NAME = "Dagrun Running"
     IGNOREABLE = True

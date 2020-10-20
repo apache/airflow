@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains a Google Sheets API hook
-"""
+"""This module contains a Google Sheets API hook"""
 
 from typing import Any, Dict, List, Optional, Sequence, Union
 

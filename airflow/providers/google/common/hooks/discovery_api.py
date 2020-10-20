@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module allows you to connect to the Google Discovery API Service and query it.
-"""
+"""This module allows you to connect to the Google Discovery API Service and query it."""
 from typing import Optional, Sequence, Union
 
 from googleapiclient.discovery import Resource, build

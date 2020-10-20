@@ -584,9 +584,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         last_description,
         last_describe_job_call,
     ):
-        """
-        Return the training job info associated with job_name and print CloudWatch logs
-        """
+        """Return the training job info associated with job_name and print CloudWatch logs"""
         log_group = '/aws/sagemaker/TrainingJobs'
 
         if len(stream_names) < instance_count:

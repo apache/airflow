@@ -55,9 +55,7 @@ class Variable(Base, LoggingMixin):
         return '{} : {}'.format(self.key, self._val)
 
     def get_val(self):
-        """
-        Get Airflow Variable from Metadata DB and decode it using the Fernet Key
-        """
+        """Get Airflow Variable from Metadata DB and decode it using the Fernet Key"""
         if self._val is not None and self.is_encrypted:
             try:
                 fernet = get_fernet()
@@ -72,9 +70,7 @@ class Variable(Base, LoggingMixin):
             return self._val
 
     def set_val(self, value):
-        """
-        Encode the specified value with Fernet Key and store it in Variables Table.
-        """
+        """Encode the specified value with Fernet Key and store it in Variables Table."""
         if value is not None:
             fernet = get_fernet()
             self._val = fernet.encrypt(bytes(value, 'utf-8')).decode()
@@ -82,9 +78,7 @@ class Variable(Base, LoggingMixin):
 
     @declared_attr
     def val(cls):   # pylint: disable=no-self-argument
-        """
-        Get Airflow Variable from Metadata DB and decode it using the Fernet Key
-        """
+        """Get Airflow Variable from Metadata DB and decode it using the Fernet Key"""
         return synonym('_val', descriptor=property(cls.get_val, cls.set_val))
 
     @classmethod

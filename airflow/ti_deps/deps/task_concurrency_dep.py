@@ -21,9 +21,7 @@ from airflow.utils.session import provide_session
 
 
 class TaskConcurrencyDep(BaseTIDep):
-    """
-    This restricts the number of running task instances for a particular task.
-    """
+    """This restricts the number of running task instances for a particular task."""
 
     NAME = "Task Concurrency"
     IGNOREABLE = True

@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Microsoft SQLServer hook module
-"""
+"""Microsoft SQLServer hook module"""
 
 import warnings
 
@@ -27,9 +25,7 @@ from airflow.hooks.dbapi_hook import DbApiHook
 
 
 class MsSqlHook(DbApiHook):
-    """
-    Interact with Microsoft SQL Server.
-    """
+    """Interact with Microsoft SQL Server."""
 
     conn_name_attr = 'mssql_conn_id'
     default_conn_name = 'mssql_default'
@@ -51,9 +47,7 @@ class MsSqlHook(DbApiHook):
     def get_conn(
         self,
     ) -> pymssql.connect:  # pylint: disable=protected-access  # pylint: disable=c-extension-no-member
-        """
-        Returns a mssql connection object
-        """
+        """Returns a mssql connection object"""
         conn = self.get_connection(
             self.mssql_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
         )

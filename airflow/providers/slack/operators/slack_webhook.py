@@ -103,9 +103,7 @@ class SlackWebhookOperator(SimpleHttpOperator):
         self.hook: Optional[SlackWebhookHook] = None
 
     def execute(self, context: Dict[str, Any]) -> None:
-        """
-        Call the SlackWebhookHook to post the provided Slack message
-        """
+        """Call the SlackWebhookHook to post the provided Slack message"""
         self.hook = SlackWebhookHook(
             self.http_conn_id,
             self.webhook_token,

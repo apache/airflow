@@ -26,9 +26,7 @@ from airflow.utils.decorators import apply_defaults
 
 
 class QuboleSensor(BaseSensorOperator):
-    """
-    Base class for all Qubole Sensors
-    """
+    """Base class for all Qubole Sensors"""
 
     template_fields = ('data', 'qubole_conn_id')
 

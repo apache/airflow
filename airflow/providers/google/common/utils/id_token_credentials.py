@@ -108,9 +108,7 @@ def _load_credentials_from_file(
 def _get_explicit_environ_credentials(
     target_audience: Optional[str],
 ) -> Optional[google_auth_credentials.Credentials]:
-    """
-    Gets credentials from the GOOGLE_APPLICATION_CREDENTIALS environment variable.
-    """
+    """Gets credentials from the GOOGLE_APPLICATION_CREDENTIALS environment variable."""
     explicit_file = os.environ.get(environment_vars.CREDENTIALS)
 
     if explicit_file is None:

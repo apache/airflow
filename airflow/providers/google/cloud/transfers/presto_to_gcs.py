@@ -93,9 +93,7 @@ class _PrestoToGCSPrestoCursorAdapter:
         return self.cursor.executemany(*args, **kwargs)
 
     def peekone(self) -> Any:
-        """
-        Return the next row without consuming it.
-        """
+        """Return the next row without consuming it."""
         self.initialized = True
         element = self.cursor.fetchone()
         self.rows.insert(0, element)
@@ -139,9 +137,7 @@ class _PrestoToGCSPrestoCursorAdapter:
         return result
 
     def __iter__(self) -> "_PrestoToGCSPrestoCursorAdapter":
-        """
-        Return self to make cursors compatible to the iteration protocol
-        """
+        """Return self to make cursors compatible to the iteration protocol"""
         return self
 
 
@@ -185,9 +181,7 @@ class PrestoToGCSOperator(BaseSQLToGCSOperator):
         self.presto_conn_id = presto_conn_id
 
     def query(self):
-        """
-        Queries presto and returns a cursor to the results.
-        """
+        """Queries presto and returns a cursor to the results."""
         presto = PrestoHook(presto_conn_id=self.presto_conn_id)
         conn = presto.get_conn()
         cursor = conn.cursor()

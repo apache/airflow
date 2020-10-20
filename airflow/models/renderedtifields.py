@@ -32,9 +32,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 
 class RenderedTaskInstanceFields(Base):
-    """
-    Save Rendered Template Fields
-    """
+    """Save Rendered Template Fields"""
 
     __tablename__ = "rendered_task_instance_fields"
 

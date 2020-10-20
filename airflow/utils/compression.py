@@ -23,9 +23,7 @@ from tempfile import NamedTemporaryFile
 
 
 def uncompress_file(input_file_name, file_extension, dest_dir):
-    """
-    Uncompress gz and bz2 files
-    """
+    """Uncompress gz and bz2 files"""
     if file_extension.lower() not in ('.gz', '.bz2'):
         raise NotImplementedError("Received {} format. Only gz and bz2 "
                                   "files can currently be uncompressed."

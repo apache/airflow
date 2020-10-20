@@ -31,9 +31,7 @@ from airflow.utils.session import provide_session
 @security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_POOL)])
 @provide_session
 def delete_pool(pool_name: str, session):
-    """
-    Delete a pool
-    """
+    """Delete a pool"""
     if pool_name == "default_pool":
         raise BadRequest(detail="Default Pool can't be deleted")
     elif session.query(Pool).filter(Pool.pool == pool_name).delete() == 0:
@@ -45,9 +43,7 @@ def delete_pool(pool_name: str, session):
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL)])
 @provide_session
 def get_pool(pool_name, session):
-    """
-    Get a pool
-    """
+    """Get a pool"""
     obj = session.query(Pool).filter(Pool.pool == pool_name).one_or_none()
     if obj is None:
         raise NotFound(detail=f"Pool with name:'{pool_name}' not found")
@@ -58,9 +54,7 @@ def get_pool(pool_name, session):
 @format_parameters({'limit': check_limit})
 @provide_session
 def get_pools(session, limit, offset=None):
-    """
-    Get all pools
-    """
+    """Get all pools"""
     total_entries = session.query(func.count(Pool.id)).scalar()
     pools = session.query(Pool).order_by(Pool.id).offset(offset).limit(limit).all()
     return pool_collection_schema.dump(PoolCollection(pools=pools, total_entries=total_entries))
@@ -69,9 +63,7 @@ def get_pools(session, limit, offset=None):
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_POOL)])
 @provide_session
 def patch_pool(pool_name, session, update_mask=None):
-    """
-    Update a pool
-    """
+    """Update a pool"""
     # Only slots can be modified in 'default_pool'
     try:
         if pool_name == Pool.DEFAULT_POOL_NAME and request.json["name"] != Pool.DEFAULT_POOL_NAME:
@@ -120,9 +112,7 @@ def patch_pool(pool_name, session, update_mask=None):
 @security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_POOL)])
 @provide_session
 def post_pool(session):
-    """
-    Create a pool
-    """
+    """Create a pool"""
     required_fields = ["name", "slots"]  # Pool would require both fields in the post request
     for field in required_fields:
         if field not in request.json.keys():

@@ -24,9 +24,7 @@ from airflow.utils.session import provide_session
 
 
 class PoolSlotsAvailableDep(BaseTIDep):
-    """
-    Dep for pool slots availability.
-    """
+    """Dep for pool slots availability."""
 
     NAME = "Pool Slots Available"
     IGNOREABLE = True

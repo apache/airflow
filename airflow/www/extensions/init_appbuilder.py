@@ -34,9 +34,7 @@ def init_appbuilder(app):
         )
 
     class AirflowAppBuilder(AppBuilder):
-        """
-        Custom class to prevent side effects of the session.
-        """
+        """Custom class to prevent side effects of the session."""
 
         def _check_and_init(self, baseview):
             if hasattr(baseview, 'datamodel'):

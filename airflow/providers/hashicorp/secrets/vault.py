@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Objects relating to sourcing connections & variables from Hashicorp Vault
-"""
+"""Objects relating to sourcing connections & variables from Hashicorp Vault"""
 from typing import Optional
 
 from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient  # noqa

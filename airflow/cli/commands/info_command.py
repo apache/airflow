@@ -436,9 +436,7 @@ def _send_report_to_fileio(info):
 
 
 def show_info(args):
-    """
-    Show information related to Airflow, system and other.
-    """
+    """Show information related to Airflow, system and other."""
     # Enforce anonymization, when file_io upload is tuned on.
     anonymizer = PiiAnonymizer() if args.anonymize or args.file_io else NullAnonymizer()
     info = AirflowInfo(anonymizer)

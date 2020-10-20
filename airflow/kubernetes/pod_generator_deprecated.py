@@ -34,9 +34,7 @@ MAX_LABEL_LEN = 63
 
 
 class PodDefaults:
-    """
-    Static defaults for Pods
-    """
+    """Static defaults for Pods"""
 
     XCOM_MOUNT_PATH = '/airflow/xcom'
     SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'

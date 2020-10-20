@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains a Google Cloud Dataproc hook.
-"""
+"""This module contains a Google Cloud Dataproc hook."""
 
 import time
 import uuid
@@ -47,9 +45,7 @@ from airflow.version import version as airflow_version
 
 
 class DataProcJobBuilder:
-    """
-    A helper class for building Dataproc job.
-    """
+    """A helper class for building Dataproc job."""
 
     def __init__(
         self,
@@ -214,9 +210,7 @@ class DataprocHook(GoogleBaseHook):
     """
 
     def get_cluster_client(self, location: Optional[str] = None) -> ClusterControllerClient:
-        """
-        Returns ClusterControllerClient.
-        """
+        """Returns ClusterControllerClient."""
         client_options = (
             {'api_endpoint': '{}-dataproc.googleapis.com:443'.format(location)} if location else None
         )
@@ -227,17 +221,13 @@ class DataprocHook(GoogleBaseHook):
 
     @cached_property
     def get_template_client(self) -> WorkflowTemplateServiceClient:
-        """
-        Returns WorkflowTemplateServiceClient.
-        """
+        """Returns WorkflowTemplateServiceClient."""
         return WorkflowTemplateServiceClient(
             credentials=self._get_credentials(), client_info=self.client_info
         )
 
     def get_job_client(self, location: Optional[str] = None) -> JobControllerClient:
-        """
-        Returns JobControllerClient.
-        """
+        """Returns JobControllerClient."""
         client_options = (
             {'api_endpoint': '{}-dataproc.googleapis.com:443'.format(location)} if location else None
         )

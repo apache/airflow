@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains sensors for AWS CloudFormation.
-"""
+"""This module contains sensors for AWS CloudFormation."""
 from airflow.providers.amazon.aws.hooks.cloud_formation import AWSCloudFormationHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults

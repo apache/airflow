@@ -31,9 +31,7 @@ from airflow.utils.session import provide_session
 
 @security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE)])
 def delete_variable(variable_key: str) -> Response:
-    """
-    Delete variable
-    """
+    """Delete variable"""
     if Variable.delete(variable_key) == 0:
         raise NotFound("Variable not found")
     return Response(status=204)
@@ -41,9 +39,7 @@ def delete_variable(variable_key: str) -> Response:
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)])
 def get_variable(variable_key: str) -> Response:
-    """
-    Get a variables by key
-    """
+    """Get a variables by key"""
     try:
         var = Variable.get(variable_key)
     except KeyError:
@@ -55,9 +51,7 @@ def get_variable(variable_key: str) -> Response:
 @format_parameters({'limit': check_limit})
 @provide_session
 def get_variables(session, limit: Optional[int], offset: Optional[int] = None) -> Response:
-    """
-    Get all variable values
-    """
+    """Get all variable values"""
     total_entries = session.query(func.count(Variable.id)).scalar()
     query = session.query(Variable).order_by(Variable.id)
     if offset:
@@ -75,9 +69,7 @@ def get_variables(session, limit: Optional[int], offset: Optional[int] = None) -
 
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE)])
 def patch_variable(variable_key: str, update_mask: Optional[List[str]] = None) -> Response:
-    """
-    Update a variable by key
-    """
+    """Update a variable by key"""
     try:
         data = variable_schema.load(request.json)
     except ValidationError as err:
@@ -98,9 +90,7 @@ def patch_variable(variable_key: str, update_mask: Optional[List[str]] = None) -
 
 @security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE)])
 def post_variables() -> Response:
-    """
-    Create a variable
-    """
+    """Create a variable"""
     try:
         data = variable_schema.load(request.json)
 

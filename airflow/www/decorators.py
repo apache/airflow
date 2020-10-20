@@ -32,9 +32,7 @@ T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 
 def action_logging(f: T) -> T:
-    """
-    Decorator to log user actions
-    """
+    """Decorator to log user actions"""
 
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
@@ -66,9 +64,7 @@ def action_logging(f: T) -> T:
 
 
 def gzipped(f: T) -> T:
-    """
-    Decorator to make a view compressed
-    """
+    """Decorator to make a view compressed"""
 
     @functools.wraps(f)
     def view_func(*args, **kwargs):
@@ -105,9 +101,7 @@ def gzipped(f: T) -> T:
 
 
 def has_dag_access(**dag_kwargs) -> Callable[[T], T]:
-    """
-    Decorator to check whether the user has read / write permission on the dag.
-    """
+    """Decorator to check whether the user has read / write permission on the dag."""
 
     def decorator(f: T):
         @functools.wraps(f)

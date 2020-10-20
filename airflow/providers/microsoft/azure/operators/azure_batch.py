@@ -378,10 +378,7 @@ class AzureBatchOperator(BaseOperator):
         self.log.info("Azure Batch job (%s) terminated: %s", self.batch_job_id, response)
 
     def get_hook(self) -> AzureBatchHook:
-        """
-        Create and return an AzureBatchHook.
-
-        """
+        """Create and return an AzureBatchHook."""
         return AzureBatchHook(azure_batch_conn_id=self.azure_batch_conn_id)
 
     def clean_up(self, pool_id: Optional[str] = None, job_id: Optional[str] = None) -> None:

@@ -14,9 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Handler that integrates with Stackdriver
-"""
+"""Handler that integrates with Stackdriver"""
 import logging
 from typing import Collection, Dict, List, Optional, Tuple, Type
 from urllib.parse import urlencode

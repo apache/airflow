@@ -34,18 +34,14 @@ def remove_escape_codes(text: str) -> str:
 
 
 class LoggingMixin:
-    """
-    Convenience super-class to have a logger configured with the class name
-    """
+    """Convenience super-class to have a logger configured with the class name"""
 
     def __init__(self, context=None):
         self._set_context(context)
 
     @property
     def log(self) -> Logger:
-        """
-        Returns a logger.
-        """
+        """Returns a logger."""
         try:
             # FIXME: LoggingMixin should have a default _log field.
             return self._log  # type: ignore
@@ -61,9 +57,7 @@ class LoggingMixin:
 
 
 class ExternalLoggingMixin:
-    """
-    Define a log handler based on an external service (e.g. ELK, StackDriver).
-    """
+    """Define a log handler based on an external service (e.g. ELK, StackDriver)."""
 
     @abc.abstractproperty
     def log_name(self) -> str:
@@ -71,16 +65,12 @@ class ExternalLoggingMixin:
 
     @abc.abstractmethod
     def get_external_log_url(self, task_instance, try_number) -> str:
-        """
-        Return the URL for log visualization in the external service.
-        """
+        """Return the URL for log visualization in the external service."""
 
 
 # TODO: Formally inherit from io.IOBase
 class StreamLogWriter:
-    """
-    Allows to redirect stdout and stderr to logger
-    """
+    """Allows to redirect stdout and stderr to logger"""
 
     encoding: None = None
 
@@ -111,9 +101,7 @@ class StreamLogWriter:
         return False
 
     def _propagate_log(self, message):
-        """
-        Propagate message removing escape codes.
-        """
+        """Propagate message removing escape codes."""
         self.logger.log(self.level, remove_escape_codes(message))
 
     def write(self, message):
@@ -130,9 +118,7 @@ class StreamLogWriter:
             self._buffer = ''
 
     def flush(self):
-        """
-        Ensure all logging output has been flushed
-        """
+        """Ensure all logging output has been flushed"""
         if len(self._buffer) > 0:
             self._propagate_log(self._buffer)
             self._buffer = ''
@@ -167,9 +153,7 @@ class RedirectStdHandler(StreamHandler):
 
     @property
     def stream(self):
-        """
-        Returns current stream.
-        """
+        """Returns current stream."""
         if self._use_stderr:
             return sys.stderr
 

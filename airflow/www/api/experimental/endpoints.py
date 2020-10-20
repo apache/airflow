@@ -132,9 +132,7 @@ def trigger_dag(dag_id):
 @api_experimental.route('/dags/<string:dag_id>', methods=['DELETE'])
 @requires_authentication
 def delete_dag(dag_id):
-    """
-    Delete all DB records related to the specified Dag.
-    """
+    """Delete all DB records related to the specified Dag."""
     try:
         count = delete.delete_dag(dag_id)
     except AirflowException as err:

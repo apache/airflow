@@ -81,9 +81,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
     @property
     def operator_extra_links(self):
-        """
-        Return operator extra links
-        """
+        """Return operator extra links"""
         return [ExternalTaskSensorLink()]
 
     @apply_defaults

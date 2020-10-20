@@ -64,9 +64,7 @@ def _config_to_json(config: Config) -> str:
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG)])
 def get_config() -> Response:
-    """
-    Get current configuration.
-    """
+    """Get current configuration."""
     serializer = {
         'text/plain': _config_to_text,
         'application/json': _config_to_json,

@@ -23,9 +23,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 
 class TaskFail(Base):
-    """
-    TaskFail tracks the failed run durations of each task instance.
-    """
+    """TaskFail tracks the failed run durations of each task instance."""
 
     __tablename__ = "task_fail"
 

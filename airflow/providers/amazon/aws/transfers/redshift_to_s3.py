@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Transfers data from AWS Redshift into a S3 Bucket.
-"""
+"""Transfers data from AWS Redshift into a S3 Bucket."""
 from typing import List, Optional, Union
 
 from airflow.models import BaseOperator

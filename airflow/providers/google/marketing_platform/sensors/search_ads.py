@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Search Ads sensor.
-"""
+"""This module contains Google Search Ads sensor."""
 from typing import Optional, Sequence, Union
 
 from airflow.providers.google.marketing_platform.hooks.search_ads import GoogleSearchAdsHook

@@ -63,9 +63,7 @@ class TriggerDagRunOperator(BaseOperator):
 
     @property
     def operator_extra_links(self):
-        """
-        Return operator extra links
-        """
+        """Return operator extra links"""
         return [TriggerDagRunLink()]
 
     @apply_defaults

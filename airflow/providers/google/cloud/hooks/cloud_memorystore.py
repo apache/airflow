@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Hooks for Cloud Memorystore service
-"""
+"""Hooks for Cloud Memorystore service"""
 from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import NotFound
@@ -70,10 +68,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
         self._client: Optional[CloudRedisClient] = None
 
     def get_conn(self):
-        """
-        Retrieves client library object that allow access to Cloud Memorystore service.
-
-        """
+        """Retrieves client library object that allow access to Cloud Memorystore service."""
         if not self._client:
             self._client = CloudRedisClient(credentials=self._get_credentials())
         return self._client

@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-PostgreSQL to GCS operator.
-"""
+"""PostgreSQL to GCS operator."""
 
 import datetime
 import json
@@ -65,9 +63,7 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
         self.postgres_conn_id = postgres_conn_id
 
     def query(self):
-        """
-        Queries Postgres and returns a cursor to the results.
-        """
+        """Queries Postgres and returns a cursor to the results."""
         hook = PostgresHook(postgres_conn_id=self.postgres_conn_id)
         conn = hook.get_conn()
         cursor = conn.cursor()
