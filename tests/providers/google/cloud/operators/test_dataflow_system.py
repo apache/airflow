@@ -54,6 +54,10 @@ class CloudDataflowExampleDagsSystemTest(GoogleSystemTest):
         self.run_dag('example_gcp_dataflow_native_python', CLOUD_DAG_FOLDER)
 
     @provide_gcp_context(GCP_DATAFLOW_KEY)
+    def test_run_example_gcp_dataflow_native_python_async(self):
+        self.run_dag('example_gcp_dataflow_native_python_async', CLOUD_DAG_FOLDER)
+
+    @provide_gcp_context(GCP_DATAFLOW_KEY)
     def test_run_example_gcp_dataflow_template(self):
         self.run_dag('example_gcp_dataflow_template', CLOUD_DAG_FOLDER)
 

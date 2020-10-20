@@ -634,6 +634,20 @@ class TestDataflowHook(unittest.TestCase):
             ValueError, self.dataflow_hook._build_dataflow_job_name, job_name=job_name, append_job_name=False
         )
 
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    def test_get_job(self, mock_conn, mock_dataflowjob):
+        method_fetch_job_by_id = mock_dataflowjob.return_value.fetch_job_by_id
+
+        self.dataflow_hook.get_job(job_id=TEST_JOB_ID, project_id=TEST_PROJECT_ID, location=TEST_LOCATION)
+        mock_conn.assert_called_once()
+        mock_dataflowjob.assert_called_once_with(
+            dataflow=mock_conn.return_value,
+            project_number=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+        )
+        method_fetch_job_by_id.assert_called_once_with(TEST_JOB_ID)
+
 
 class TestDataflowTemplateHook(unittest.TestCase):
     def setUp(self):
@@ -1010,7 +1024,12 @@ class TestDataflowJob(unittest.TestCase):
         mock_list.assert_called_once_with(projectId=TEST_PROJECT, location=TEST_LOCATION)
 
     def test_dataflow_job_wait_for_multiple_jobs(self):
-        job = {"id": TEST_JOB_ID, "name": UNIQUE_JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DONE}
+        job = {
+            "id": TEST_JOB_ID,
+            "name": UNIQUE_JOB_NAME,
+            "type": DataflowJobType.JOB_TYPE_BATCH,
+            "currentState": DataflowJobStatus.JOB_STATE_DONE,
+        }
         # fmt: off
         (
             self.mock_dataflow.projects.return_value.
@@ -1060,8 +1079,16 @@ class TestDataflowJob(unittest.TestCase):
             execute.return_value
         ) = {
             "jobs": [
-                {"id": "id-1", "name": "name-1", "currentState": DataflowJobStatus.JOB_STATE_DONE},
-                {"id": "id-2", "name": "name-2", "currentState": DataflowJobStatus.JOB_STATE_FAILED}
+                {
+                    "id": "id-1", "name": "name-1",
+                    "type": DataflowJobType.JOB_TYPE_BATCH,
+                    "currentState": DataflowJobStatus.JOB_STATE_DONE
+                },
+                {
+                    "id": "id-2", "name": "name-2",
+                    "type": DataflowJobType.JOB_TYPE_BATCH,
+                    "currentState": DataflowJobStatus.JOB_STATE_FAILED
+                }
             ]
         }
         (
@@ -1094,8 +1121,10 @@ class TestDataflowJob(unittest.TestCase):
             execute.return_value
         ) = {
             "jobs": [
-                {"id": "id-1", "name": "name-1", "currentState": DataflowJobStatus.JOB_STATE_DONE},
-                {"id": "id-2", "name": "name-2", "currentState": DataflowJobStatus.JOB_STATE_CANCELLED}
+                {"id": "id-1", "name": "name-1", "type": DataflowJobType.JOB_TYPE_BATCH,
+                 "currentState": DataflowJobStatus.JOB_STATE_DONE},
+                {"id": "id-2", "name": "name-2", "type": DataflowJobType.JOB_TYPE_BATCH,
+                 "currentState": DataflowJobStatus.JOB_STATE_CANCELLED}
             ]
         }
         (
@@ -1128,8 +1157,10 @@ class TestDataflowJob(unittest.TestCase):
             execute.return_value
         ) = {
             "jobs": [
-                {"id": "id-1", "name": "name-1", "currentState": DataflowJobStatus.JOB_STATE_DONE},
-                {"id": "id-2", "name": "name-2", "currentState": "unknown"}
+                {"id": "id-1", "name": "name-1", "type": DataflowJobType.JOB_TYPE_BATCH,
+                 "currentState": DataflowJobStatus.JOB_STATE_DONE},
+                {"id": "id-2", "name": "name-2", "type": DataflowJobType.JOB_TYPE_BATCH,
+                 "currentState": "unknown"}
             ]
         }
         (
@@ -1192,7 +1223,12 @@ class TestDataflowJob(unittest.TestCase):
         self.assertEqual(1, mock_jobs_list.call_count)
 
     def test_dataflow_job_wait_for_single_jobs(self):
-        job = {"id": TEST_JOB_ID, "name": UNIQUE_JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DONE}
+        job = {
+            "id": TEST_JOB_ID,
+            "name": UNIQUE_JOB_NAME,
+            "type": DataflowJobType.JOB_TYPE_BATCH,
+            "currentState": DataflowJobStatus.JOB_STATE_DONE,
+        }
         # fmt: off
         self.mock_dataflow.projects.return_value.locations.return_value. \
             jobs.return_value.get.return_value.execute.return_value = job
