@@ -80,7 +80,7 @@ elif [[ "${RES}" != "0" ]]; then
     >&2 echo "***********************************************************************************************"
 fi
 
-readonly MAIN_GITHUB_REPOSITORY='apache/airflow'
+readonly MAIN_GITHUB_REPOSITORY="apache/airflow"
 
 if [[ ${TEST_TYPE:=} == "Quarantined" ]]; then
     if [[ ${GITHUB_REPOSITORY} == "${MAIN_GITHUB_REPOSITORY}" ]]; then

@@ -322,14 +322,14 @@ EOF
 
 #######################################################################################################
 #
-# Clears the resourses associated with the scheduler heartbeat.
+# Clears the resources associated with the scheduler heartbeat.
 #
 # Used globals:
 #   HEARTBEAT_PID
 #
 #######################################################################################################
 function container_utils::stop_output_heartbeat() {
-    kill "${HEARTBEAT_PID}"
+    kill "${HEARTBEAT_PID}" || true
     wait "${HEARTBEAT_PID}" || true 2> /dev/null
 }
 
@@ -358,8 +358,8 @@ function container_utils::dump_airflow_logs() {
 
 
 #######################################################################################################
-# TODO(werbolis) wrong description
-# Dumps the airflow logs to the files directory in the container.
+#
+# Installs released version of airflow via pip
 #
 # Arguments:
 #   AIRFLOW
