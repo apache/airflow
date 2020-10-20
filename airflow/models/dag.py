@@ -696,7 +696,7 @@ class DAG(BaseDag, LoggingMixin):
     def pickle_id(self, value: int) -> None:
         self._pickle_id = value
 
-    def param(self, name, default = None):
+    def param(self, name: str, default=None) -> DagParam:
         """
         Return a DagParam object for current dag.
 
