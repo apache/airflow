@@ -1244,7 +1244,7 @@ class DAG(BaseDag, LoggingMixin):
 
                         for tii in external_tis:
                             if not dag_bag:
-                                dag_bag = DagBag()
+                                dag_bag = DagBag(read_dags_from_db=True)
                             external_dag = dag_bag.get_dag(tii.dag_id)
                             if not external_dag:
                                 raise AirflowException("Could not find dag {}".format(tii.dag_id))
