@@ -34,3 +34,4 @@ recursive-exclude airflow/www/node_modules *
 global-exclude __pycache__  *.pyc
 include airflow/providers/cncf/kubernetes/example_dags/example_spark_kubernetes_operator_spark_pi.yaml
 include airflow/api_connexion/openapi/v1.yaml
+include airflow/utils/python_virtualenv_script.jinja2
