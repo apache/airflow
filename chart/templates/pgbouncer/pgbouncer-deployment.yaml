@@ -117,6 +117,7 @@ spec:
                 command: ["/bin/sh", "-c", "killall -INT pgbouncer && sleep 120"]
         - name: metrics-exporter
           image: {{ template "pgbouncer_exporter_image" . }}
+          imagePullPolicy: {{ .Values.images.pgbouncerExporter.pullPolicy }}
           env:
             - name: DATABASE_URL
               valueFrom:

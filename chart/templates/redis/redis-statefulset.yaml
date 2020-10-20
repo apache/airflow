@@ -61,7 +61,7 @@ spec:
 {{ toYaml .Values.tolerations | indent 8 }}
       containers:
         - name: redis
-          image: {{- include "redis_image" . | indent 1 }}
+          image: {{ template "redis_image" . }}
           imagePullPolicy: {{ .Values.images.redis.pullPolicy }}
           command: ["/bin/sh"]
           resources:

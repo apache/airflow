@@ -172,6 +172,7 @@ spec:
         # we don't have elasticsearch enabled.
         - name: scheduler-logs
           image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           args: ["airflow", "serve_logs"]
           ports:
             - name: worker-logs

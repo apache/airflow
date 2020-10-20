@@ -58,7 +58,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: statsd
-          image: {{- include "statsd_image" . | indent 1 }}
+          image: {{ template "statsd_image" . }}
           imagePullPolicy: {{ .Values.images.statsd.pullPolicy }}
           args:
             - "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
