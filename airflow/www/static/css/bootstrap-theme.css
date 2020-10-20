@@ -1576,6 +1576,7 @@ th {
   line-height: 1.428571429;
   vertical-align: middle;
   border-top: 1px solid #ddd;
+  white-space: nowrap;
 }
 .table > thead > tr > th {
   vertical-align: bottom;
