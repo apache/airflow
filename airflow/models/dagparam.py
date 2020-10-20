@@ -35,14 +35,14 @@ class DagParam:
           EmailOperator(subject=dag.param('subject', 'Hi from Airflow!'))
 
     :param current_dag: Dag being used for parameter.
-    :type current_dag: DAG
+    :type current_dag: airflow.models.DAG
     :param name: key value which is used to set the parameter
     :type name: str
     :param default: Default value used if no parameter was set.
     :type default: Any
     """
 
-    def __init__(self, current_dag, name: str, default: Optional[Any] = None):
+    def __init__(self, current_dag: 'airflow.models.DAG', name: str, default: Optional[Any] = None):
         if default:
             current_dag.params[name] = default
         self._name = name
@@ -50,8 +50,7 @@ class DagParam:
 
     def resolve(self, context: Dict) -> Any:
         """
-        Pull DagParam value from DagRun context. This method is run during ``op.execute()``
-        in respectable context.
+        Pull DagParam value from DagRun context. This method is run during ``op.execute()``.
         """
         default = self._default
         if not self._default:

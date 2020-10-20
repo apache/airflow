@@ -95,7 +95,9 @@ class TestDagParamRuntime(unittest.TestCase):
 
     def test_dag_param_default(self):
         """Test dag param is overwritten from dagrun config"""
-        with DAG(dag_id="test_xcom_pass_to_op", default_args=self.DEFAULT_ARGS, params={'value': 'test'}) as dag:
+        with DAG(
+            dag_id="test_xcom_pass_to_op", default_args=self.DEFAULT_ARGS, params={'value': 'test'}
+        ) as dag:
             value = dag.param('value')
 
             @task
