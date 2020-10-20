@@ -23,7 +23,12 @@ from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
-from airflow.providers.google.cloud.sensors.dataflow import DataflowJobMetricsSensor, DataflowJobStatusSensor
+from airflow.providers.google.cloud.sensors.dataflow import (
+    DataflowJobAutoScalingEventsSensor,
+    DataflowJobMessagesSensor,
+    DataflowJobMetricsSensor,
+    DataflowJobStatusSensor,
+)
 
 TEST_TASK_ID = "tesk-id"
 TEST_JOB_ID = "test_job_id"
@@ -130,3 +135,137 @@ class TestDataflowJobMetricsSensor(unittest.TestCase):
         )
         mock_fetch_job_metrics_by_id.return_value.__getitem__.assert_called_once_with("metrics")
         callback.assert_called_once_with(mock_fetch_job_metrics_by_id.return_value.__getitem__.return_value)
+
+
+class DataflowJobMessagesSensorTest(unittest.TestCase):
+    @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowHook")
+    def test_poke(self, mock_hook):
+        mock_get_job = mock_hook.return_value.get_job
+        mock_fetch_job_messages_by_id = mock_hook.return_value.fetch_job_messages_by_id
+        callback = mock.MagicMock()
+
+        task = DataflowJobMessagesSensor(
+            task_id=TEST_TASK_ID,
+            job_id=TEST_JOB_ID,
+            callback=callback,
+            location=TEST_LOCATION,
+            project_id=TEST_PROJECT_ID,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
+        mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": DataflowJobStatus.JOB_STATE_RUNNING}
+
+        results = task.poke(mock.MagicMock())
+
+        self.assertEqual(callback.return_value, results)
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
+        mock_fetch_job_messages_by_id.assert_called_once_with(
+            job_id=TEST_JOB_ID, project_id=TEST_PROJECT_ID, location=TEST_LOCATION
+        )
+        callback.assert_called_once_with(mock_fetch_job_messages_by_id.return_value)
+
+    @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowHook")
+    def test_poke_raise_exception(self, mock_hook):
+        mock_get_job = mock_hook.return_value.get_job
+        mock_fetch_job_messages_by_id = mock_hook.return_value.fetch_job_messages_by_id
+        callback = mock.MagicMock()
+
+        task = DataflowJobMessagesSensor(
+            task_id=TEST_TASK_ID,
+            job_id=TEST_JOB_ID,
+            callback=callback,
+            location=TEST_LOCATION,
+            project_id=TEST_PROJECT_ID,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
+        mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": DataflowJobStatus.JOB_STATE_DONE}
+
+        with self.assertRaisesRegex(
+            AirflowException,
+            f"Job with id '{TEST_JOB_ID}' is already in terminal state: "
+            f"{DataflowJobStatus.JOB_STATE_DONE}",
+        ):
+            task.poke(mock.MagicMock())
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
+        mock_fetch_job_messages_by_id.assert_not_called()
+        callback.assert_not_called()
+
+
+class DataflowJobAutoScalingEventsSensorTest(unittest.TestCase):
+    @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowHook")
+    def test_poke(self, mock_hook):
+        mock_get_job = mock_hook.return_value.get_job
+        mock_fetch_job_autoscaling_events_by_id = mock_hook.return_value.fetch_job_autoscaling_events_by_id
+        callback = mock.MagicMock()
+
+        task = DataflowJobAutoScalingEventsSensor(
+            task_id=TEST_TASK_ID,
+            job_id=TEST_JOB_ID,
+            callback=callback,
+            location=TEST_LOCATION,
+            project_id=TEST_PROJECT_ID,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
+        mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": DataflowJobStatus.JOB_STATE_RUNNING}
+
+        results = task.poke(mock.MagicMock())
+
+        self.assertEqual(callback.return_value, results)
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
+        mock_fetch_job_autoscaling_events_by_id.assert_called_once_with(
+            job_id=TEST_JOB_ID, project_id=TEST_PROJECT_ID, location=TEST_LOCATION
+        )
+        callback.assert_called_once_with(mock_fetch_job_autoscaling_events_by_id.return_value)
+
+    @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowHook")
+    def test_poke_raise_exception(self, mock_hook):
+        mock_get_job = mock_hook.return_value.get_job
+        mock_fetch_job_autoscaling_events_by_id = mock_hook.return_value.fetch_job_autoscaling_events_by_id
+        callback = mock.MagicMock()
+
+        task = DataflowJobAutoScalingEventsSensor(
+            task_id=TEST_TASK_ID,
+            job_id=TEST_JOB_ID,
+            callback=callback,
+            location=TEST_LOCATION,
+            project_id=TEST_PROJECT_ID,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
+        mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": DataflowJobStatus.JOB_STATE_DONE}
+
+        with self.assertRaisesRegex(
+            AirflowException,
+            f"Job with id '{TEST_JOB_ID}' is already in terminal state: "
+            f"{DataflowJobStatus.JOB_STATE_DONE}",
+        ):
+            task.poke(mock.MagicMock())
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
+        mock_fetch_job_autoscaling_events_by_id.assert_not_called()
+        callback.assert_not_called()

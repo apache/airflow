@@ -28,7 +28,7 @@ import uuid
 import warnings
 from copy import deepcopy
 from tempfile import TemporaryDirectory
-from typing import Any, Callable, Dict, List, Optional, Sequence, Set, TypeVar, Union, cast
+from typing import Any, Callable, Dict, Generator, List, Optional, Sequence, Set, TypeVar, Union, cast
 
 from googleapiclient.discovery import build
 
@@ -263,6 +263,66 @@ class _DataflowJobsController(LoggingMixin):
 
         self.log.debug("fetch_job_metrics_by_id %s:\n%s", job_id, result)
         return result
+
+    def _fetch_list_job_messages_responses(self, job_id: str) -> Generator[dict, None, None]:
+        """
+        Helper method to fetch ListJobMessagesResponse with the specified Job ID.
+
+        :param job_id: Job ID to get.
+        :type job_id: str
+        :return: yields the ListJobMessagesResponse. See:
+            https://cloud.google.com/dataflow/docs/reference/rest/v1b3/ListJobMessagesResponse
+        :rtype: Generator[dict, None, None]
+        """
+        request = (
+            self._dataflow.projects()
+            .locations()
+            .jobs()
+            .messages()
+            .list(projectId=self._project_number, location=self._job_location, jobId=job_id)
+        )
+
+        while request is not None:
+            response = request.execute(num_retries=self._num_retries)
+            yield response
+
+            request = (
+                self._dataflow.projects()
+                .locations()
+                .jobs()
+                .messages()
+                .list_next(previous_request=request, previous_response=response)
+            )
+
+    def fetch_job_messages_by_id(self, job_id: str) -> List[dict]:
+        """
+        Helper method to fetch the job messages with the specified Job ID.
+
+        :param job_id: Job ID to get.
+        :type job_id: str
+        :return: the list of JobMessages. See:
+            https://cloud.google.com/dataflow/docs/reference/rest/v1b3/ListJobMessagesResponse#JobMessage
+        :rtype: List[dict]
+        """
+        messages: List[dict] = []
+        for response in self._fetch_list_job_messages_responses(job_id=job_id):
+            messages.extend(response.get("jobMessages", []))
+        return messages
+
+    def fetch_job_autoscaling_events_by_id(self, job_id: str) -> List[dict]:
+        """
+        Helper method to fetch the job autoscaling events with the specified Job ID.
+
+        :param job_id: Job ID to get.
+        :type job_id: str
+        :return: the list of AutoscalingEvents. See:
+            https://cloud.google.com/dataflow/docs/reference/rest/v1b3/ListJobMessagesResponse#autoscalingevent
+        :rtype: List[dict]
+        """
+        autoscaling_events: List[dict] = []
+        for response in self._fetch_list_job_messages_responses(job_id=job_id):
+            autoscaling_events.extend(response.get("autoscalingEvents", []))
+        return autoscaling_events
 
     def _fetch_all_jobs(self) -> List[dict]:
         request = (
@@ -1150,3 +1210,59 @@ class DataflowHook(GoogleBaseHook):
             location=location,
         )
         return jobs_controller.fetch_job_metrics_by_id(job_id)
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def fetch_job_messages_by_id(
+        self,
+        job_id: str,
+        project_id: str,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+    ) -> List[dict]:
+        """
+        Gets the job messages with the specified Job ID.
+
+        :param job_id: Job ID to get.
+        :type job_id: str
+        :param project_id: Optional, the Google Cloud project ID in which to start a job.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id:
+        :param location: Job location.
+        :type location: str
+        :return: the list of JobMessages. See:
+            https://cloud.google.com/dataflow/docs/reference/rest/v1b3/ListJobMessagesResponse#JobMessage
+        :rtype: List[dict]
+        """
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.get_conn(),
+            project_number=project_id,
+            location=location,
+        )
+        return jobs_controller.fetch_job_messages_by_id(job_id)
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def fetch_job_autoscaling_events_by_id(
+        self,
+        job_id: str,
+        project_id: str,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+    ) -> List[dict]:
+        """
+        Gets the job autoscaling events with the specified Job ID.
+
+        :param job_id: Job ID to get.
+        :type job_id: str
+        :param project_id: Optional, the Google Cloud project ID in which to start a job.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id:
+        :param location: Job location.
+        :type location: str
+        :return: the list of AutoscalingEvents. See:
+            https://cloud.google.com/dataflow/docs/reference/rest/v1b3/ListJobMessagesResponse#autoscalingevent
+        :rtype: List[dict]
+        """
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.get_conn(),
+            project_number=project_id,
+            location=location,
+        )
+        return jobs_controller.fetch_job_autoscaling_events_by_id(job_id)

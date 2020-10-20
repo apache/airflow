@@ -681,6 +681,40 @@ class TestDataflowHook(unittest.TestCase):
             jobId=TEST_JOB_ID, projectId=TEST_PROJECT_ID, location=TEST_LOCATION
         )
 
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    def test_fetch_job_messages_by_id(self, mock_conn, mock_dataflowjob):
+        method_fetch_job_messages_by_id = mock_dataflowjob.return_value.fetch_job_messages_by_id
+
+        self.dataflow_hook.fetch_job_messages_by_id(
+            job_id=TEST_JOB_ID, project_id=TEST_PROJECT_ID, location=TEST_LOCATION
+        )
+        mock_conn.assert_called_once()
+        mock_dataflowjob.assert_called_once_with(
+            dataflow=mock_conn.return_value,
+            project_number=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+        )
+        method_fetch_job_messages_by_id.assert_called_once_with(TEST_JOB_ID)
+
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    def test_fetch_job_autoscaling_events_by_id(self, mock_conn, mock_dataflowjob):
+        method_fetch_job_autoscaling_events_by_id = (
+            mock_dataflowjob.return_value.fetch_job_autoscaling_events_by_id
+        )
+
+        self.dataflow_hook.fetch_job_autoscaling_events_by_id(
+            job_id=TEST_JOB_ID, project_id=TEST_PROJECT_ID, location=TEST_LOCATION
+        )
+        mock_conn.assert_called_once()
+        mock_dataflowjob.assert_called_once_with(
+            dataflow=mock_conn.return_value,
+            project_number=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+        )
+        method_fetch_job_autoscaling_events_by_id.assert_called_once_with(TEST_JOB_ID)
+
 
 class TestDataflowTemplateHook(unittest.TestCase):
     def setUp(self):
@@ -1513,6 +1547,78 @@ class TestDataflowJob(unittest.TestCase):
 
         self.mock_dataflow.new_batch_http_request.assert_not_called()
         mock_jobs.return_value.update.assert_not_called()
+
+    def test_fetch_list_job_messages_responses(self):
+        # fmt: off
+        mock_list = (
+            self.mock_dataflow
+            .projects.return_value
+            .locations.return_value
+            .jobs.return_value
+            .messages.return_value
+            .list
+        )
+        mock_list_next = (
+            self.mock_dataflow.
+            projects.return_value.
+            locations.return_value.
+            jobs.return_value
+            .messages.return_value
+            .list_next
+        )
+        # fmt: on
+        mock_list.return_value.execute.return_value = "response_1"
+        mock_list_next.return_value = None
+
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            location=TEST_LOCATION,
+            job_id=TEST_JOB_ID,
+        )
+        result = list(jobs_controller._fetch_list_job_messages_responses(TEST_JOB_ID))
+
+        mock_list.assert_called_once_with(projectId=TEST_PROJECT, location=TEST_LOCATION, jobId=TEST_JOB_ID)
+        mock_list_next.assert_called_once_with(
+            previous_request=mock_list.return_value, previous_response="response_1"
+        )
+        self.assertEqual(result, ["response_1"])
+
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController._fetch_list_job_messages_responses'))
+    def test_fetch_job_messages_by_id(self, mock_fetch_responses):
+        mock_fetch_responses.return_value = iter(
+            [
+                {"jobMessages": ["message_1"]},
+                {"jobMessages": ["message_2"]},
+            ]
+        )
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            location=TEST_LOCATION,
+            job_id=TEST_JOB_ID,
+        )
+        result = jobs_controller.fetch_job_messages_by_id(TEST_JOB_ID)
+        mock_fetch_responses.assert_called_once_with(job_id=TEST_JOB_ID)
+        self.assertEqual(result, ['message_1', 'message_2'])
+
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController._fetch_list_job_messages_responses'))
+    def test_fetch_job_autoscaling_events_by_id(self, mock_fetch_responses):
+        mock_fetch_responses.return_value = iter(
+            [
+                {"autoscalingEvents": ["event_1"]},
+                {"autoscalingEvents": ["event_2"]},
+            ]
+        )
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            location=TEST_LOCATION,
+            job_id=TEST_JOB_ID,
+        )
+        result = jobs_controller.fetch_job_autoscaling_events_by_id(TEST_JOB_ID)
+        mock_fetch_responses.assert_called_once_with(job_id=TEST_JOB_ID)
+        self.assertEqual(result, ['event_1', 'event_2'])
 
 
 APACHE_BEAM_V_2_14_0_JAVA_SDK_LOG = f""""\
