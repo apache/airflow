@@ -42,7 +42,11 @@ metadata:
 {{- end }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
+{{- if .Values.multiNamespaceMode }}
   kind: ClusterRole
+{{- else }}
+  kind: Role
+{{- end }}
   name: {{ .Release.Name }}-pod-launcher-role
 subjects:
 {{- if $grantScheduler }}
