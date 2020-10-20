@@ -37,9 +37,7 @@ from airflow.utils.session import provide_session
 )
 @provide_session
 def get_extra_links(dag_id: str, dag_run_id: str, task_id: str, session):
-    """
-    Get extra links for task instance
-    """
+    """Get extra links for task instance"""
     dagbag: DagBag = current_app.dag_bag
     dag: DAG = dagbag.get_dag(dag_id)
     if not dag:

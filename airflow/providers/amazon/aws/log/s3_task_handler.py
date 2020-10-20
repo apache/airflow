@@ -41,9 +41,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
 
     @cached_property
     def hook(self):
-        """
-        Returns S3Hook.
-        """
+        """Returns S3Hook."""
         remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -71,9 +69,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                 pass
 
     def close(self):
-        """
-        Close and upload local log file to remote storage S3.
-        """
+        """Close and upload local log file to remote storage S3."""
         # When application exit, system shuts down all handlers by
         # calling close method. Here we check if logger is already
         # closed to prevent uploading the log to remote storage multiple

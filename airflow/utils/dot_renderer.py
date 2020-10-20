@@ -16,9 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Renderer DAG (tasks and dependencies) to the graphviz object.
-"""
+"""Renderer DAG (tasks and dependencies) to the graphviz object."""
 from typing import List, Optional
 
 import graphviz

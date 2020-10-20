@@ -149,9 +149,7 @@ def dag_backfill(args, dag=None):
 
 @cli_utils.action_logging
 def dag_trigger(args):
-    """
-    Creates a dag run for the specified dag
-    """
+    """Creates a dag run for the specified dag"""
     api_client = get_current_api_client()
     try:
         message = api_client.trigger_dag(dag_id=args.dag_id,
@@ -165,9 +163,7 @@ def dag_trigger(args):
 
 @cli_utils.action_logging
 def dag_delete(args):
-    """
-    Deletes all DB records related to the specified dag
-    """
+    """Deletes all DB records related to the specified dag"""
     api_client = get_current_api_client()
     if args.yes or input(
             "This will drop all existing records related to the specified DAG. "

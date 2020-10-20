@@ -16,10 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-"""
-This module contains a sqoop 1 operator
-"""
+"""This module contains a sqoop 1 operator"""
 import os
 import signal
 from typing import Any, Dict, Optional
@@ -187,9 +184,7 @@ class SqoopOperator(BaseOperator):
         self.hook: Optional[SqoopHook] = None
 
     def execute(self, context: Dict[str, Any]) -> None:
-        """
-        Execute sqoop job
-        """
+        """Execute sqoop job"""
         if self.hook is None:
             self.hook = self._get_hook()
 

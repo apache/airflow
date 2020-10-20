@@ -161,8 +161,6 @@ class GcpBodyFieldSanitizer(LoggingMixin):
                 )
 
     def sanitize(self, body) -> None:
-        """
-        Sanitizes the body according to specification.
-        """
+        """Sanitizes the body according to specification."""
         for elem in self._sanitize_specs:
             self._sanitize(body, elem, "")

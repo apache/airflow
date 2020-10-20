@@ -74,9 +74,7 @@ def check_authorization(
 
 
 def requires_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Callable[[T], T]:
-    """
-    Factory for decorator that checks current user's permissions against required permissions.
-    """
+    """Factory for decorator that checks current user's permissions against required permissions."""
     appbuilder = current_app.appbuilder
     appbuilder.sm.sync_resource_permissions(permissions)
 

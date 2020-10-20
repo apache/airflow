@@ -15,9 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-Sensor for detecting the completion of DV360 reports.
-"""
+"""Sensor for detecting the completion of DV360 reports."""
 from typing import Optional, Sequence, Union
 
 from airflow import AirflowException

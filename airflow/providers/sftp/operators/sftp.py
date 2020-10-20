@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains SFTP operator.
-"""
+"""This module contains SFTP operator."""
 import os
 from pathlib import Path
 from typing import Any
@@ -29,9 +27,7 @@ from airflow.utils.decorators import apply_defaults
 
 
 class SFTPOperation:
-    """
-    Operation that can be used with SFTP/
-    """
+    """Operation that can be used with SFTP/"""
 
     PUT = 'put'
     GET = 'get'

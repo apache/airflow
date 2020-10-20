@@ -38,7 +38,8 @@ TABLE_NAME = 'rendered_task_instance_fields'
 
 def upgrade():
     """
-    Recreate RenderedTaskInstanceFields table changing timestamp to datetime2(6) when using MSSQL as backend
+    Recreate RenderedTaskInstanceFields table changing timestamp to datetime2(6) when using MSSQL as
+    backend
     """
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
@@ -57,7 +58,8 @@ def upgrade():
 
 def downgrade():
     """
-    Recreate RenderedTaskInstanceFields table changing datetime2(6) to timestamp when using MSSQL as backend
+    Recreate RenderedTaskInstanceFields table changing datetime2(6) to timestamp when using MSSQL as
+    backend
     """
     conn = op.get_bind()
     if conn.dialect.name == "mssql":

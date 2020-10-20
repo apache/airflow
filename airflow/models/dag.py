@@ -630,9 +630,7 @@ class DAG(BaseDag, LoggingMixin):
         return run_dates
 
     def normalize_schedule(self, dttm):
-        """
-        Returns dttm + interval unless dttm is first interval then it returns dttm
-        """
+        """Returns dttm + interval unless dttm is first interval then it returns dttm"""
         following = self.following_schedule(dttm)
 
         # in case of @once
@@ -715,9 +713,7 @@ class DAG(BaseDag, LoggingMixin):
 
     @property
     def filepath(self) -> str:
-        """
-        File location of where the dag object is instantiated
-        """
+        """File location of where the dag object is instantiated"""
         fn = self.full_filepath.replace(settings.DAGS_FOLDER + '/', '')
         fn = fn.replace(os.path.dirname(__file__) + '/', '')
         return fn
@@ -756,9 +752,7 @@ class DAG(BaseDag, LoggingMixin):
 
     @property
     def concurrency_reached(self):
-        """
-        This attribute is deprecated. Please use `airflow.models.DAG.get_concurrency_reached` method.
-        """
+        """This attribute is deprecated. Please use `airflow.models.DAG.get_concurrency_reached` method."""
         warnings.warn(
             "This attribute is deprecated. Please use `airflow.models.DAG.get_concurrency_reached` method.",
             DeprecationWarning,
@@ -768,18 +762,14 @@ class DAG(BaseDag, LoggingMixin):
 
     @provide_session
     def get_is_paused(self, session=None):
-        """
-        Returns a boolean indicating whether this DAG is paused
-        """
+        """Returns a boolean indicating whether this DAG is paused"""
         qry = session.query(DagModel).filter(
             DagModel.dag_id == self.dag_id)
         return qry.value(DagModel.is_paused)
 
     @property
     def is_paused(self):
-        """
-        This attribute is deprecated. Please use `airflow.models.DAG.get_is_paused` method.
-        """
+        """This attribute is deprecated. Please use `airflow.models.DAG.get_is_paused` method."""
         warnings.warn(
             "This attribute is deprecated. Please use `airflow.models.DAG.get_is_paused` method.",
             DeprecationWarning,
@@ -911,18 +901,14 @@ class DAG(BaseDag, LoggingMixin):
 
     @provide_session
     def get_latest_execution_date(self, session=None):
-        """
-        Returns the latest date for which at least one dag run exists
-        """
+        """Returns the latest date for which at least one dag run exists"""
         return session.query(func.max(DagRun.execution_date)).filter(
             DagRun.dag_id == self.dag_id
         ).scalar()
 
     @property
     def latest_execution_date(self):
-        """
-        This attribute is deprecated. Please use `airflow.models.DAG.get_latest_execution_date` method.
-        """
+        """This attribute is deprecated. Please use `airflow.models.DAG.get_latest_execution_date` method."""
         warnings.warn(
             "This attribute is deprecated. Please use `airflow.models.DAG.get_latest_execution_date` method.",
             DeprecationWarning,
@@ -932,9 +918,7 @@ class DAG(BaseDag, LoggingMixin):
 
     @property
     def subdags(self):
-        """
-        Returns a list of the subdag objects associated to this DAG
-        """
+        """Returns a list of the subdag objects associated to this DAG"""
         # Check SubDag for class but don't check class directly
         from airflow.operators.subdag_operator import SubDagOperator
         subdag_lst = []
@@ -1636,9 +1620,7 @@ class DAG(BaseDag, LoggingMixin):
         job.run()
 
     def cli(self):
-        """
-        Exposes a CLI specific to this DAG
-        """
+        """Exposes a CLI specific to this DAG"""
         from airflow.cli import cli_parser
         parser = cli_parser.get_parser(dag_parser=True)
         args = parser.parse_args()
@@ -1947,9 +1929,7 @@ class DAG(BaseDag, LoggingMixin):
 
 
 class DagTag(Base):
-    """
-    A tag name per dag, to allow quick filtering in the DAG view.
-    """
+    """A tag name per dag, to allow quick filtering in the DAG view."""
 
     __tablename__ = "dag_tag"
     name = Column(String(100), primary_key=True)

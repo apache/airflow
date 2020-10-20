@@ -25,9 +25,7 @@ from airflow.utils.decorators import apply_defaults
 
 
 class JobStatus(Enum):
-    """
-    Glacier jobs description
-    """
+    """Glacier jobs description"""
 
     IN_PROGRESS = "InProgress"
     SUCCEEDED = "Succeeded"

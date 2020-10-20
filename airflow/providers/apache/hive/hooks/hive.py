@@ -108,9 +108,7 @@ class HiveCliHook(BaseHook):
         self.mapred_job_name = mapred_job_name
 
     def _get_proxy_user(self) -> str:
-        """
-        This function set the proper proxy_user value in case the user overwrite the default.
-        """
+        """This function set the proper proxy_user value in case the user overwrite the default."""
         conn = self.conn
 
         proxy_user_value: str = conn.extra_dejson.get('proxy_user', "")
@@ -123,9 +121,7 @@ class HiveCliHook(BaseHook):
         return proxy_user_value  # The default proxy user (undefined)
 
     def _prepare_cli_cmd(self) -> List[Any]:
-        """
-        This function creates the command list from available information
-        """
+        """This function creates the command list from available information"""
         conn = self.conn
         hive_bin = 'hive'
         cmd_extra = []
@@ -265,10 +261,7 @@ class HiveCliHook(BaseHook):
                 return stdout
 
     def test_hql(self, hql: Union[str, Text]) -> None:
-        """
-        Test an hql statement using the hive cli and EXPLAIN
-
-        """
+        """Test an hql statement using the hive cli and EXPLAIN"""
         create, insert, other = [], [], []
         for query in hql.split(';'):  # naive
             query_original = query
@@ -462,9 +455,7 @@ class HiveCliHook(BaseHook):
         self.run_cli(hql)
 
     def kill(self) -> None:
-        """
-        Kill Hive cli command
-        """
+        """Kill Hive cli command"""
         if hasattr(self, 'sp'):
             if self.sub_process.poll() is None:
                 print("Killing the Hive job")
@@ -496,9 +487,7 @@ class HiveMetastoreHook(BaseHook):
         self.__dict__['metastore'] = self.get_metastore_client()
 
     def get_metastore_client(self) -> Any:
-        """
-        Returns a Hive thrift client.
-        """
+        """Returns a Hive thrift client."""
         import hmsclient
         from thrift.protocol import TBinaryProtocol
         from thrift.transport import TSocket, TTransport
@@ -616,17 +605,13 @@ class HiveMetastoreHook(BaseHook):
             return client.get_table(dbname=db, tbl_name=table_name)
 
     def get_tables(self, db: str, pattern: str = '*') -> Any:
-        """
-        Get a metastore table object
-        """
+        """Get a metastore table object"""
         with self.metastore as client:
             tables = client.get_tables(db_name=db, pattern=pattern)
             return client.get_table_objects_by_name(db, tables)
 
     def get_databases(self, pattern: str = '*') -> Any:
-        """
-        Get a metastore table object
-        """
+        """Get a metastore table object"""
         with self.metastore as client:
             return client.get_databases(pattern)
 
@@ -827,9 +812,7 @@ class HiveServer2Hook(DbApiHook):
     supports_autocommit = False
 
     def get_conn(self, schema: Optional[str] = None) -> Any:
-        """
-        Returns a Hive connection object.
-        """
+        """Returns a Hive connection object."""
         username: Optional[str] = None
         # pylint: disable=no-member
         db = self.get_connection(self.hiveserver2_conn_id)  # type: ignore

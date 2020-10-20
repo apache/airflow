@@ -37,9 +37,7 @@ depends_on = None
 
 
 def upgrade():
-    """
-    Change datetime to datetime2(6) when using MSSQL as backend
-    """
+    """Change datetime to datetime2(6) when using MSSQL as backend"""
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
         result = conn.execute(
@@ -130,9 +128,7 @@ def upgrade():
 
 
 def downgrade():
-    """
-    Change datetime2(6) back to datetime
-    """
+    """Change datetime2(6) back to datetime"""
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
         result = conn.execute(

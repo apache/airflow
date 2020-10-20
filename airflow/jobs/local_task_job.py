@@ -34,9 +34,7 @@ from airflow.utils.state import State
 
 
 class LocalTaskJob(BaseJob):
-    """
-    LocalTaskJob runs a single task instance.
-    """
+    """LocalTaskJob runs a single task instance."""
 
     __mapper_args__ = {
         'polymorphic_identity': 'LocalTaskJob'

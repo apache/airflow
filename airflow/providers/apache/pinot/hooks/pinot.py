@@ -129,9 +129,7 @@ class PinotAdminHook(BaseHook):
         post_creation_verification: Optional[str] = None,
         retry: Optional[str] = None,
     ) -> Any:
-        """
-        Create Pinot segment by run CreateSegment command
-        """
+        """Create Pinot segment by run CreateSegment command"""
         cmd = ["CreateSegment"]
 
         if generator_config_file:
@@ -252,18 +250,14 @@ class PinotAdminHook(BaseHook):
 
 
 class PinotDbApiHook(DbApiHook):
-    """
-    Connect to pinot db (https://github.com/apache/incubator-pinot) to issue pql
-    """
+    """Connect to pinot db (https://github.com/apache/incubator-pinot) to issue pql"""
 
     conn_name_attr = 'pinot_broker_conn_id'
     default_conn_name = 'pinot_broker_default'
     supports_autocommit = False
 
     def get_conn(self) -> Any:
-        """
-        Establish a connection to pinot broker through pinot dbapi.
-        """
+        """Establish a connection to pinot broker through pinot dbapi."""
         # pylint: disable=no-member
         conn = self.get_connection(self.pinot_broker_conn_id)  # type: ignore
         # pylint: enable=no-member

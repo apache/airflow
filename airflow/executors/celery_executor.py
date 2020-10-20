@@ -479,9 +479,7 @@ class BulkStateFetcher(LoggingMixin):
         self._sync_parallelism = sync_parralelism
 
     def get_many(self, async_results) -> Mapping[str, EventBufferValueType]:
-        """
-        Gets status for many Celery tasks using the best method available.
-        """
+        """Gets status for many Celery tasks using the best method available."""
         if isinstance(app.backend, BaseKeyValueStoreBackend):
             result = self._get_many_from_kv_backend(async_results)
             return result

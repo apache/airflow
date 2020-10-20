@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains SFTP hook.
-"""
+"""This module contains SFTP hook."""
 import datetime
 import stat
 from typing import Dict, List, Optional, Tuple
@@ -94,9 +92,7 @@ class SFTPHook(SSHHook):
                     self.key_file = extra_options.get('private_key')
 
     def get_conn(self) -> pysftp.Connection:
-        """
-        Returns an SFTP connection object
-        """
+        """Returns an SFTP connection object"""
         if self.conn is None:
             cnopts = pysftp.CnOpts()
             if self.no_host_key_check:
@@ -119,9 +115,7 @@ class SFTPHook(SSHHook):
         return self.conn
 
     def close_conn(self) -> None:
-        """
-        Closes the connection
-        """
+        """Closes the connection"""
         if self.conn is not None:
             self.conn.close()
             self.conn = None

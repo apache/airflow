@@ -152,9 +152,7 @@ def clear_task_instances(tis,
 
 
 class TaskInstanceKey(NamedTuple):
-    """
-    Key used to identify task instance.
-    """
+    """Key used to identify task instance."""
 
     dag_id: str
     task_id: str
@@ -163,24 +161,18 @@ class TaskInstanceKey(NamedTuple):
 
     @property
     def primary(self) -> Tuple[str, str, datetime]:
-        """
-        Return task instance primary key part of the key
-        """
+        """Return task instance primary key part of the key"""
         return self.dag_id, self.task_id, self.execution_date
 
     @property
     def reduced(self) -> 'TaskInstanceKey':
-        """
-        Remake the key by subtracting 1 from try number to match in memory information
-        """
+        """Remake the key by subtracting 1 from try number to match in memory information"""
         return TaskInstanceKey(
             self.dag_id, self.task_id, self.execution_date, max(1, self.try_number - 1)
         )
 
     def with_try_number(self, try_number: int) -> 'TaskInstanceKey':
-        """
-        Returns TaskInstanceKey with provided ``try_number``
-        """
+        """Returns TaskInstanceKey with provided ``try_number``"""
         return TaskInstanceKey(
             self.dag_id, self.task_id, self.execution_date, try_number
         )
@@ -604,9 +596,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
 
     @property
     def key(self) -> TaskInstanceKey:
-        """
-        Returns a tuple that identifies the task instance uniquely
-        """
+        """Returns a tuple that identifies the task instance uniquely"""
         return TaskInstanceKey(self.dag_id, self.task_id, self.execution_date, self.try_number)
 
     @provide_session
@@ -1152,9 +1142,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             self,
             context,
             task):
-        """
-        Prepare Task for Execution
-        """
+        """Prepare Task for Execution"""
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
         task_copy = task.prepare_for_execution()
@@ -1822,9 +1810,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         ).scalar()
 
     def init_run_context(self, raw=False):
-        """
-        Sets the log context.
-        """
+        """Sets the log context."""
         self.raw = raw
         self._set_context(self)
 

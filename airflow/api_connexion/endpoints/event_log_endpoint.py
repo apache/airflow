@@ -34,9 +34,7 @@ from airflow.utils.session import provide_session
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG)])
 @provide_session
 def get_event_log(event_log_id, session):
-    """
-    Get a log entry
-    """
+    """Get a log entry"""
     event_log = session.query(Log).filter(Log.id == event_log_id).one_or_none()
     if event_log is None:
         raise NotFound("Event Log not found")
@@ -47,9 +45,7 @@ def get_event_log(event_log_id, session):
 @format_parameters({'limit': check_limit})
 @provide_session
 def get_event_logs(session, limit, offset=None):
-    """
-    Get all log entries from event log
-    """
+    """Get all log entries from event log"""
     total_entries = session.query(func.count(Log.id)).scalar()
     event_logs = session.query(Log).order_by(Log.id).offset(offset).limit(limit).all()
     return event_log_collection_schema.dump(

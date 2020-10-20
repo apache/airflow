@@ -27,9 +27,7 @@ from airflow.utils.process_utils import reap_process_group
 
 
 class StandardTaskRunner(BaseTaskRunner):
-    """
-    Standard runner for all tasks.
-    """
+    """Standard runner for all tasks."""
 
     def __init__(self, local_task_job):
         super().__init__(local_task_job)

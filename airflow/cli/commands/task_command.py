@@ -100,9 +100,7 @@ def _run_task_by_executor(args, dag, ti):
 
 
 def _run_task_by_local_task_job(args, ti):
-    """
-    Run LocalTaskJob, which monitors the raw task execution process
-    """
+    """Run LocalTaskJob, which monitors the raw task execution process"""
     run_job = LocalTaskJob(
         task_instance=ti,
         mark_success=args.mark_success,

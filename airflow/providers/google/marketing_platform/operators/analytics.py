@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Analytics 360 operators.
-"""
+"""This module contains Google Analytics 360 operators."""
 import csv
 from tempfile import NamedTemporaryFile
 from typing import Dict, Optional, Sequence, Union, Any, List

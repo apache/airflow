@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Cloud MLEngine operators.
-"""
+"""This module contains Google Cloud MLEngine operators."""
 import logging
 import re
 import warnings
@@ -1057,9 +1055,7 @@ class MLEngineDeleteVersionOperator(BaseOperator):
 
 
 class AIPlatformConsoleLink(BaseOperatorLink):
-    """
-    Helper class for constructing AI Platform Console link.
-    """
+    """Helper class for constructing AI Platform Console link."""
 
     name = "AI Platform Console"
 

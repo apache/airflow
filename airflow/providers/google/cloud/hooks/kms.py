@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains a Google Cloud KMS hook.
-"""
+"""This module contains a Google Cloud KMS hook"""
 
 
 import base64

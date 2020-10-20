@@ -117,16 +117,12 @@ class TaskGroup(TaskMixin):
 
     @classmethod
     def create_root(cls, dag: "DAG") -> "TaskGroup":
-        """
-        Create a root TaskGroup with no group_id or parent.
-        """
+        """Create a root TaskGroup with no group_id or parent."""
         return cls(group_id=None, dag=dag)
 
     @property
     def is_root(self) -> bool:
-        """
-        Returns True if this TaskGroup is the root TaskGroup. Otherwise False
-        """
+        """Returns True if this TaskGroup is the root TaskGroup. Otherwise False"""
         return not self.group_id
 
     def __iter__(self):
@@ -138,9 +134,7 @@ class TaskGroup(TaskMixin):
                 yield child
 
     def add(self, task: Union["BaseOperator", "TaskGroup"]) -> None:
-        """
-        Add a task to this TaskGroup.
-        """
+        """Add a task to this TaskGroup."""
         key = task.group_id if isinstance(task, TaskGroup) else task.task_id
 
         if key in self.children:
@@ -154,9 +148,7 @@ class TaskGroup(TaskMixin):
 
     @property
     def group_id(self) -> Optional[str]:
-        """
-        group_id of this TaskGroup.
-        """
+        """group_id of this TaskGroup."""
         if self._parent_group and self._parent_group.prefix_group_id and self._parent_group.group_id:
             return self._parent_group.child_id(self._group_id)
 
@@ -164,9 +156,7 @@ class TaskGroup(TaskMixin):
 
     @property
     def label(self) -> Optional[str]:
-        """
-        group_id excluding parent's group_id used as the node label in UI.
-        """
+        """group_id excluding parent's group_id used as the node label in UI."""
         return self._group_id
 
     def update_relative(self, other: "TaskMixin", upstream=True) -> None:
@@ -224,17 +214,13 @@ class TaskGroup(TaskMixin):
     def set_downstream(
         self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]
     ) -> None:
-        """
-        Set a TaskGroup/task/list of task downstream of this TaskGroup.
-        """
+        """Set a TaskGroup/task/list of task downstream of this TaskGroup."""
         self._set_relative(task_or_task_list, upstream=False)
 
     def set_upstream(
         self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]
     ) -> None:
-        """
-        Set a TaskGroup/task/list of task upstream of this TaskGroup.
-        """
+        """Set a TaskGroup/task/list of task upstream of this TaskGroup."""
         self._set_relative(task_or_task_list, upstream=True)
 
     def __enter__(self):
@@ -245,9 +231,7 @@ class TaskGroup(TaskMixin):
         TaskGroupContext.pop_context_managed_task_group()
 
     def has_task(self, task: "BaseOperator") -> bool:
-        """
-        Returns True if this TaskGroup or its children TaskGroups contains the given task.
-        """
+        """Returns True if this TaskGroup or its children TaskGroups contains the given task."""
         if task.task_id in self.children:
             return True
 
@@ -310,9 +294,7 @@ class TaskGroup(TaskMixin):
         return f"{self.group_id}.downstream_join_id"
 
     def get_task_group_dict(self) -> Dict[str, "TaskGroup"]:
-        """
-        Returns a flat dictionary of group_id: TaskGroup
-        """
+        """Returns a flat dictionary of group_id: TaskGroup"""
         task_group_map = {}
 
         def build_map(task_group):
@@ -328,34 +310,26 @@ class TaskGroup(TaskMixin):
         return task_group_map
 
     def get_child_by_label(self, label: str) -> Union["BaseOperator", "TaskGroup"]:
-        """
-        Get a child task/TaskGroup by its label (i.e. task_id/group_id without the group_id prefix)
-        """
+        """Get a child task/TaskGroup by its label (i.e. task_id/group_id without the group_id prefix)"""
         return self.children[self.child_id(label)]
 
 
 class TaskGroupContext:
-    """
-    TaskGroup context is used to keep the current TaskGroup when TaskGroup is used as ContextManager.
-    """
+    """TaskGroup context is used to keep the current TaskGroup when TaskGroup is used as ContextManager."""
 
     _context_managed_task_group: Optional[TaskGroup] = None
     _previous_context_managed_task_groups: List[TaskGroup] = []
 
     @classmethod
     def push_context_managed_task_group(cls, task_group: TaskGroup):
-        """
-        Push a TaskGroup into the list of managed TaskGroups.
-        """
+        """Push a TaskGroup into the list of managed TaskGroups."""
         if cls._context_managed_task_group:
             cls._previous_context_managed_task_groups.append(cls._context_managed_task_group)
         cls._context_managed_task_group = task_group
 
     @classmethod
     def pop_context_managed_task_group(cls) -> Optional[TaskGroup]:
-        """
-        Pops the last TaskGroup from the list of manged TaskGroups and update the current TaskGroup.
-        """
+        """Pops the last TaskGroup from the list of manged TaskGroups and update the current TaskGroup."""
         old_task_group = cls._context_managed_task_group
         if cls._previous_context_managed_task_groups:
             cls._context_managed_task_group = cls._previous_context_managed_task_groups.pop()
@@ -365,9 +339,7 @@ class TaskGroupContext:
 
     @classmethod
     def get_current_task_group(cls, dag: Optional["DAG"]) -> Optional[TaskGroup]:
-        """
-        Get the current TaskGroup.
-        """
+        """Get the current TaskGroup."""
         from airflow.models.dag import DagContext
 
         if not cls._context_managed_task_group:

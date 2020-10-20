@@ -20,9 +20,7 @@ from typing import Set
 
 
 class TriggerRule:
-    """
-    Class with task's trigger rules.
-    """
+    """Class with task's trigger rules."""
 
     ALL_SUCCESS = 'all_success'
     ALL_FAILED = 'all_failed'
@@ -38,16 +36,12 @@ class TriggerRule:
 
     @classmethod
     def is_valid(cls, trigger_rule):
-        """
-        Validates a trigger rule.
-        """
+        """Validates a trigger rule."""
         return trigger_rule in cls.all_triggers()
 
     @classmethod
     def all_triggers(cls):
-        """
-        Returns all trigger rules.
-        """
+        """Returns all trigger rules."""
         if not cls._ALL_TRIGGER_RULES:
             cls._ALL_TRIGGER_RULES = {
                 getattr(cls, attr)

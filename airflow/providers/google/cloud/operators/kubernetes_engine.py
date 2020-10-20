@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains Google Kubernetes Engine operators.
-"""
+"""This module contains Google Kubernetes Engine operators."""
 
 import os
 import tempfile

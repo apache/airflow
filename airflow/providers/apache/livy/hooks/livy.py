@@ -15,9 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains the Apache Livy hook.
-"""
+"""This module contains the Apache Livy hook."""
 import json
 import re
 from enum import Enum
@@ -31,9 +29,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class BatchState(Enum):
-    """
-    Batch session states
-    """
+    """Batch session states"""
 
     NOT_STARTED = 'not_started'
     STARTING = 'starting'

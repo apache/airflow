@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains Google Cloud Stackdriver operators.
-"""
+"""This module contains Google Cloud Stackdriver operators."""
 
 import json
 from typing import Any, Optional, Sequence, Union
@@ -34,9 +32,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 class StackdriverHook(GoogleBaseHook):
-    """
-    Stackdriver Hook for connecting with Google Cloud Stackdriver
-    """
+    """Stackdriver Hook for connecting with Google Cloud Stackdriver"""
 
     def __init__(
         self,

@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Facebook Ads Reporting hooks
-"""
+"""This module contains Facebook Ads Reporting hooks"""
 import time
 from enum import Enum
 from typing import Any, Dict, List
@@ -33,9 +31,7 @@ from airflow.hooks.base_hook import BaseHook
 
 
 class JobStatus(Enum):
-    """
-    Available options for facebook async task status
-    """
+    """Available options for facebook async task status"""
 
     COMPLETED = 'Job Completed'
     STARTED = 'Job Started'

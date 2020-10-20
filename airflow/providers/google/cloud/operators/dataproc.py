@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains Google Dataproc operators.
-"""
+"""This module contains Google Dataproc operators."""
 # pylint: disable=C0302
 
 import inspect
@@ -750,9 +748,7 @@ class DataprocScaleClusterOperator(BaseOperator):
         return {'seconds': timeout}
 
     def execute(self, context) -> None:
-        """
-        Scale, up or down, a cluster on Google Cloud Dataproc.
-        """
+        """Scale, up or down, a cluster on Google Cloud Dataproc."""
         self.log.info("Scaling cluster: %s", self.cluster_name)
 
         scaling_cluster_data = self._build_scale_cluster_data()
@@ -960,9 +956,7 @@ class DataprocJobBaseOperator(BaseOperator):
         self.asynchronous = asynchronous
 
     def create_job_template(self):
-        """
-        Initialize `self.job_template` with default values
-        """
+        """Initialize `self.job_template` with default values"""
         self.job_template = DataProcJobBuilder(
             project_id=self.project_id,
             task_id=self.task_id,
@@ -1464,9 +1458,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         return "{}_{}_{}".format(date, str(uuid.uuid4())[:8], ntpath.basename(filename))
 
     def _upload_file_temp(self, bucket, local_file):
-        """
-        Upload a local file to a Google Cloud Storage bucket.
-        """
+        """Upload a local file to a Google Cloud Storage bucket."""
         temp_filename = self._generate_temp_filename(local_file)
         if not bucket:
             raise AirflowException(

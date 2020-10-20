@@ -17,9 +17,7 @@
 # under the License.
 
 # pylint: disable=too-many-lines
-"""
-This module contains Google BigQuery operators.
-"""
+"""This module contains Google BigQuery operators."""
 import enum
 import hashlib
 import json
@@ -58,9 +56,7 @@ class BigQueryUIColors(enum.Enum):
 
 
 class BigQueryConsoleLink(BaseOperatorLink):
-    """
-    Helper class for constructing BigQuery link.
-    """
+    """Helper class for constructing BigQuery link."""
 
     name = 'BigQuery Console'
 
@@ -72,9 +68,7 @@ class BigQueryConsoleLink(BaseOperatorLink):
 
 @attr.s(auto_attribs=True)
 class BigQueryConsoleIndexableLink(BaseOperatorLink):
-    """
-    Helper class for constructing BigQuery link.
-    """
+    """Helper class for constructing BigQuery link."""
 
     index: int = attr.ib()
 
@@ -607,9 +601,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
 
     @property
     def operator_extra_links(self):
-        """
-        Return operator extra links
-        """
+        """Return operator extra links"""
         if isinstance(self.sql, str):
             return (BigQueryConsoleLink(),)
         return (BigQueryConsoleIndexableLink(i) for i, _ in enumerate(self.sql))

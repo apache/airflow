@@ -17,9 +17,7 @@
 # under the License.
 
 
-"""
-This module contains the AWS DynamoDB hook
-"""
+"""This module contains the AWS DynamoDB hook"""
 from typing import Iterable, List, Optional
 
 from airflow.exceptions import AirflowException
@@ -51,9 +49,7 @@ class AwsDynamoDBHook(AwsBaseHook):
         super().__init__(*args, **kwargs)
 
     def write_batch_data(self, items: Iterable) -> bool:
-        """
-        Write batch items to DynamoDB table with provisioned throughout capacity.
-        """
+        """Write batch items to DynamoDB table with provisioned throughout capacity."""
         try:
             table = self.get_conn().Table(self.table_name)
 

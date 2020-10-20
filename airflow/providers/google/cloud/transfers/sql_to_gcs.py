@@ -15,10 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Base operator for SQL to GCS operators.
-"""
-
+"""Base operator for SQL to GCS operators."""
 import abc
 import json
 import warnings
@@ -259,9 +256,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         """Convert a value from DBAPI to output-friendly formats."""
 
     def _get_col_type_dict(self):
-        """
-        Return a dict of column name and column type based on self.schema if not None.
-        """
+        """Return a dict of column name and column type based on self.schema if not None."""
         schema = []
         if isinstance(self.schema, str):
             schema = json.loads(self.schema)

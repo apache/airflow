@@ -94,9 +94,7 @@ import dill  # pylint: disable=wrong-import-order
 
 
 class JsonCoder:
-    """
-    JSON encoder/decoder.
-    """
+    """JSON encoder/decoder."""
 
     @staticmethod
     def encode(x):
@@ -111,9 +109,7 @@ class JsonCoder:
 
 @beam.ptransform_fn
 def MakeSummary(pcoll, metric_fn, metric_keys):  # pylint: disable=invalid-name
-    """
-    Summary PTransofrm used in Dataflow.
-    """
+    """Summary PTransofrm used in Dataflow."""
     return (
         pcoll
         | "ApplyMetricFnPerInstance" >> beam.Map(metric_fn)
@@ -129,9 +125,7 @@ def MakeSummary(pcoll, metric_fn, metric_keys):  # pylint: disable=invalid-name
 
 
 def run(argv=None):
-    """
-    Helper for obtaining prediction summary.
-    """
+    """Helper for obtaining prediction summary."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--prediction_path",
