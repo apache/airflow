@@ -19,13 +19,11 @@
 import errno
 import json
 import logging
-import os
 import signal
 import subprocess
 import sys
 from typing import List
 
-import yaml
 from graphviz.dot import Dot
 from tabulate import tabulate
 
@@ -374,47 +372,6 @@ def dag_list_dag_runs(args, dag=None):
         tablefmt=args.output
     )
     print(table)
-
-
-@cli_utils.action_logging
-def generate_pod_yaml(args):
-    """Generates yaml files for each task in the DAG. Used for testing output of KubernetesExecutor"""
-    from kubernetes.client.api_client import ApiClient
-
-    from airflow.executors.kubernetes_executor import KubeConfig, create_pod_id
-    from airflow.kubernetes import pod_generator
-    from airflow.kubernetes.pod_generator import PodGenerator
-    from airflow.settings import pod_mutation_hook
-
-    execution_date = args.execution_date
-    dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
-    yaml_output_path = args.output_path
-    kube_config = KubeConfig()
-    for task in dag.tasks:
-        ti = TaskInstance(task, execution_date)
-        pod = PodGenerator.construct_pod(
-            dag_id=args.dag_id,
-            task_id=ti.task_id,
-            pod_id=create_pod_id(
-                args.dag_id, ti.task_id),
-            try_number=ti.try_number,
-            kube_image=kube_config.kube_image,
-            date=ti.execution_date,
-            command=ti.command_as_list(),
-            pod_override_object=PodGenerator.from_obj(ti.executor_config),
-            scheduler_job_id="worker-config",
-            namespace=kube_config.executor_namespace,
-            base_worker_pod=PodGenerator.deserialize_model_file(kube_config.pod_template_file)
-        )
-        pod_mutation_hook(pod)
-        api_client = ApiClient()
-        date_string = pod_generator.datetime_to_label_safe_datestring(execution_date)
-        yaml_file_name = f"{args.dag_id}_{ti.task_id}_{date_string}.yml"
-        os.makedirs(os.path.dirname(yaml_output_path + "/airflow_yaml_output/"), exist_ok=True)
-        with open(yaml_output_path + "/airflow_yaml_output/" + yaml_file_name, "w") as output:
-            sanitized_pod = api_client.sanitize_for_serialization(pod)
-            output.write(yaml.dump(sanitized_pod))
-    print(f"YAML output can be found at {yaml_output_path}/airflow_yaml_output/")
 
 
 @provide_session

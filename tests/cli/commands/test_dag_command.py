@@ -138,18 +138,6 @@ class TestCliDags(unittest.TestCase):
         self.assertIn("graph [label=example_bash_operator labelloc=t rankdir=LR]", out)
         self.assertIn("runme_2 -> run_after_loop", out)
 
-    def test_generate_dag_yaml(self):
-        with tempfile.TemporaryDirectory("airflow_dry_run_test/") as directory:
-            file_name = "example_bash_operator_run_after_loop_2020-11-03T00_00_00_plus_00_00.yml"
-            dag_command.generate_pod_yaml(self.parser.parse_args([
-                'kubernetes', 'generate-dag-yaml',
-                'example_bash_operator', "2020-11-03", "--output-path", directory]))
-            self.assertEqual(len(os.listdir(directory)), 1)
-            out_dir = directory + "/airflow_yaml_output/"
-            self.assertEqual(len(os.listdir(out_dir)), 6)
-            self.assertTrue(os.path.isfile(out_dir + file_name))
-            self.assertGreater(os.stat(out_dir + file_name).st_size, 0)
-
     @mock.patch("airflow.cli.commands.dag_command.render_dag")
     def test_show_dag_dave(self, mock_render_dag):
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
