@@ -123,6 +123,35 @@ class TestGetDag(TestDagEndpoint):
             current_response,
         )
 
+    @provide_session
+    def test_should_response_200_with_schedule_interval_none(self, session=None):
+        dag_model = DagModel(
+            dag_id="TEST_DAG_1",
+            fileloc="/tmp/dag_1.py",
+            schedule_interval=None,
+        )
+        session.add(dag_model)
+        session.commit()
+        response = self.client.get("/api/v1/dags/TEST_DAG_1", environ_overrides={'REMOTE_USER': "test"})
+        assert response.status_code == 200
+
+        current_response = response.json
+        current_response["fileloc"] = "/tmp/test-dag.py"
+        self.assertEqual(
+            {
+                "dag_id": "TEST_DAG_1",
+                "description": None,
+                "fileloc": "/tmp/test-dag.py",
+                "is_paused": False,
+                "is_subdag": False,
+                "owners": [],
+                "root_dag_id": None,
+                "schedule_interval": None,
+                "tags": [],
+            },
+            current_response,
+        )
+
     def test_should_response_200_with_granular_dag_access(self):
         self._create_dag_models(1)
         response = self.client.get(

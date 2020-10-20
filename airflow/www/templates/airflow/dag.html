@@ -322,21 +322,31 @@
           </h4>
         </div>
         <div class="modal-body">
-          <form method="POST">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
-            <input type="hidden" name="execution_date">
-            <input type="hidden" name="origin" value="{{ request.base_url }}">
-            <button type="button" id="btn_dagrun_clear" class="btn btn-primary" data-action="{{ url_for('Airflow.dagrun_clear') }}">
-              Clear
-            </button>
-            <button type="button" id="btn_dagrun_failed" class="btn btn-primary" data-action="{{ url_for('Airflow.dagrun_failed') }}">
-              Mark Failed
-            </button>
-            <button type="button" id="btn_dagrun_success" class="btn btn-primary" data-action="{{ url_for('Airflow.dagrun_success') }}">
-              Mark Success
-            </button>
-          </form>
+          <div class="row">
+            <span class="btn-group col-md-8">
+              <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
+                <input type="hidden" name="execution_date">
+                <input type="hidden" name="origin" value="{{ request.base_url }}">
+                <button type="button" id="btn_dagrun_clear" class="btn btn-primary" data-action="{{ url_for('Airflow.dagrun_clear') }}">
+                  Clear
+                </button>
+                <button type="button" id="btn_dagrun_failed" class="btn btn-primary" data-action="{{ url_for('Airflow.dagrun_failed') }}">
+                  Mark Failed
+                </button>
+                <button type="button" id="btn_dagrun_success" class="btn btn-primary" data-action="{{ url_for('Airflow.dagrun_success') }}">
+                  Mark Success
+                </button>
+              </form>
+            </span>
+            <span class="col-md-4 text-right">
+              <a id="btn_dag_graph_view" class="btn" data-base-url="{{ url_for('Airflow.graph') }}" role="button">
+                <span class="material-icons" aria-hidden="true">account_tree</span>
+                Graph View
+              </a>
+            </span>
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
@@ -529,10 +539,14 @@
     }
 
     function call_modal_dag(dag) {
-      id = dag && dag.id;
       execution_date = dag && dag.execution_date;
+      dag_id = dag && dag.dag_id
       $('#dagModal').modal({});
       $('#dagModal').css('margin-top','0');
+      updateButtonUrl(buttons.dag_graph_view, {
+        dag_id: dag_id,
+        execution_date: execution_date,
+        });
     }
 
     function confirmTriggerDag(link, dag_id){

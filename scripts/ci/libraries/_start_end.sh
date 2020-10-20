@@ -44,6 +44,20 @@ function start_end::script_start {
     START_SCRIPT_TIME=$(date +%s)
 }
 
+function start_end::dump_container_logs() {
+    local container="${1}"
+    local dump_file
+    dump_file=${AIRFLOW_SOURCES}/files/container_logs_${container}_$(date "+%Y-%m-%d")_${CI_BUILD_ID}_${CI_JOB_ID}.log
+    echo "###########################################################################################"
+    echo "                   Dumping logs from ${container} container"
+    echo "###########################################################################################"
+    docker logs "${container}" > "${dump_file}"
+    echo "                   Container ${container} logs dumped to ${dump_file}"
+    popd || exit 1
+    echo "###########################################################################################"
+}
+
+
 #
 # Trap function executed always at the end of the script. In case of verbose output it also
 # Prints the exit code that the script exits with. Removes verbosity of commands in case it was run with
@@ -52,15 +66,20 @@ function start_end::script_start {
 #
 function start_end::script_end {
     #shellcheck disable=2181
-    EXIT_CODE=$?
-    if [[ ${EXIT_CODE} != 0 ]]; then
+    local exit_code=$?
+    if [[ ${exit_code} != 0 ]]; then
+        local container
+        for container in $(docker ps --format '{{.Names}}')
+        do
+            start_end::dump_container_logs "${container}"
+        done
         # Cat output log in case we exit with error but only if we do not PRINT_INFO_FROM_SCRIPTS
         # Because it will be printed immediately by "tee"
         if [[ -f "${OUTPUT_LOG}" && ${PRINT_INFO_FROM_SCRIPTS} == "false" ]]; then
             cat "${OUTPUT_LOG}"
         fi
         verbosity::print_info "###########################################################################################"
-        verbosity::print_info "                   EXITING WITH STATUS CODE ${EXIT_CODE}"
+        verbosity::print_info "                   EXITING WITH STATUS CODE ${exit_code}"
         verbosity::print_info "###########################################################################################"
     fi
     if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
@@ -77,7 +96,7 @@ function start_end::script_end {
         verbosity::print_info
         verbosity::print_info "Finished the script $(basename "$0")"
         verbosity::print_info "Elapsed time spent in the script: ${RUN_SCRIPT_TIME} seconds"
-        verbosity::print_info "Exit code ${EXIT_CODE}"
+        verbosity::print_info "Exit code ${exit_code}"
         verbosity::print_info
     fi
 }

@@ -105,6 +105,14 @@ class TestPostgresHookConn(unittest.TestCase):
         )
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
+    def test_get_conn_extra(self, mock_connect):
+        self.connection.extra = '{"connect_timeout": 3}'
+        self.db_hook.get_conn()
+        mock_connect.assert_called_once_with(
+            user='login', password='password', host='host', dbname='schema', port=None, connect_timeout=3
+        )
+
+    @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_client_type')
     def test_get_conn_rds_iam_redshift(self, mock_client, mock_connect):
         self.connection.extra = '{"iam":true, "redshift":true}'

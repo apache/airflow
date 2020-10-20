@@ -96,16 +96,12 @@ class PostgresHook(DbApiHook):
         raw_cursor = conn.extra_dejson.get('cursor', False)
         if raw_cursor:
             conn_args['cursor_factory'] = self._get_cursor(raw_cursor)
-        # check for ssl parameters in conn.extra
+
         for arg_name, arg_val in conn.extra_dejson.items():
-            if arg_name in [
-                'sslmode',
-                'sslcert',
-                'sslkey',
-                'sslrootcert',
-                'sslcrl',
-                'application_name',
-                'keepalives_idle',
+            if arg_name not in [
+                'iam',
+                'redshift',
+                'cursor',
             ]:
                 conn_args[arg_name] = arg_val
 

@@ -194,3 +194,32 @@ class TestPluginsManager(unittest.TestCase):
             # assert not logs
             with self.assertRaises(AssertionError), self.assertLogs(plugins_manager.log):
                 plugins_manager.initialize_web_ui_plugins()
+
+
+class TestPluginsDirectorySource(unittest.TestCase):
+    def test_should_return_correct_path_name(self):
+        from airflow import plugins_manager
+
+        source = plugins_manager.PluginsDirectorySource(__file__)
+        self.assertEqual("test_plugins_manager.py", source.path)
+        self.assertEqual("$PLUGINS_FOLDER/test_plugins_manager.py", str(source))
+        self.assertEqual("<em>$PLUGINS_FOLDER/</em>test_plugins_manager.py", source.__html__())
+
+
+class TestEntryPointSource(unittest.TestCase):
+    @mock.patch('airflow.plugins_manager.pkg_resources.iter_entry_points')
+    def test_should_return_correct_source_details(self, mock_ep_plugins):
+        from airflow import plugins_manager
+
+        mock_entrypoint = mock.Mock()
+        mock_entrypoint.name = 'test-entrypoint-plugin'
+        mock_entrypoint.module_name = 'module_name_plugin'
+        mock_entrypoint.dist = 'test-entrypoint-plugin==1.0.0'
+        mock_ep_plugins.return_value = [mock_entrypoint]
+
+        plugins_manager.load_entrypoint_plugins()
+
+        source = plugins_manager.EntryPointSource(mock_entrypoint)
+        self.assertEqual(str(mock_entrypoint), source.entrypoint)
+        self.assertEqual("test-entrypoint-plugin==1.0.0: " + str(mock_entrypoint), str(source))
+        self.assertEqual("<em>test-entrypoint-plugin==1.0.0:</em> " + str(mock_entrypoint), source.__html__())

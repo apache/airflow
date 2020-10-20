@@ -49,7 +49,7 @@ from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
 
 import airflow
-from airflow import models, settings
+from airflow import models, plugins_manager, settings
 from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_failed, set_dag_run_state_to_success,
 )
@@ -2544,6 +2544,58 @@ class ConnectionModelView(AirflowModelView):
             if value:
                 field = getattr(form, field)
                 field.data = value
+
+
+class PluginView(AirflowBaseView):
+    """View to show Airflow Plugins"""
+
+    default_view = 'list'
+
+    plugins_attributes_to_dump = [
+        "operators",
+        "sensors",
+        "hooks",
+        "executors",
+        "macros",
+        "admin_views",
+        "flask_blueprints",
+        "menu_links",
+        "appbuilder_views",
+        "appbuilder_menu_items",
+        "global_operator_extra_links",
+        "operator_extra_links",
+        "source",
+    ]
+
+    @expose('/plugin')
+    @has_access
+    def list(self):
+        """List loaded plugins."""
+        plugins_manager.ensure_plugins_loaded()
+        plugins_manager.integrate_dag_plugins()
+        plugins_manager.integrate_executor_plugins()
+        plugins_manager.initialize_extra_operators_links_plugins()
+        plugins_manager.initialize_web_ui_plugins()
+
+        plugins = []
+        for plugin_no, plugin in enumerate(plugins_manager.plugins, 1):
+            plugin_data = {
+                'plugin_no': plugin_no,
+                'plugin_name': plugin.name,
+                'attrs': {},
+            }
+            for attr_name in self.plugins_attributes_to_dump:
+                attr_value = getattr(plugin, attr_name)
+                plugin_data['attrs'][attr_name] = attr_value
+
+            plugins.append(plugin_data)
+
+        title = "Airflow Plugins"
+        return self.render_template(
+            'airflow/plugin.html',
+            plugins=plugins,
+            title=title,
+        )
 
 
 class PoolModelView(AirflowModelView):

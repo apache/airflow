@@ -111,7 +111,8 @@ class MySQLToS3Operator(BaseOperator):
                 notna_series = df[col].dropna().values
                 if np.isclose(notna_series, notna_series.astype(int)).all():
                     # set to dtype that retains integers and supports NaNs
-                    df[col] = np.where(df[col].isnull(), None, df[col]).astype(pd.Int64Dtype)
+                    df[col] = np.where(df[col].isnull(), None, df[col])
+                    df[col] = df[col].astype(pd.Int64Dtype())
 
     def execute(self, context) -> None:
         mysql_hook = MySqlHook(mysql_conn_id=self.mysql_conn_id)

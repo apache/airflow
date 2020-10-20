@@ -1945,7 +1945,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
         Prepares backport packages. You can provide (after --) optional list of packages to prepare.
         If no packages are specified, readme for all packages are generated. You can specify optional
         --version-suffix-for-svn flag to generate rc candidate packages to upload to SVN or
-        --version-suffix-for-pypi flag to generate rc candidates for PyPI packages.
+        --version-suffix-for-pypi flag to generate rc candidates for PyPI packages. You can also
+        provide both suffixes in case you prepare alpha/beta versions.
 
         Examples:
 
@@ -1953,6 +1954,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
         'breeze prepare-provider-packages google' or
         'breeze prepare-provider-packages --version-suffix-for-svn rc1 http google amazon' or
         'breeze prepare-provider-packages --version-suffix-for-pypi rc1 http google amazon'
+        'breeze prepare-provider-packages --version-suffix-for-pypi a1
+                                              --version-suffix-for-svn a1 http google amazon'
 
         General form:
 

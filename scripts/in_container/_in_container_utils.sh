@@ -274,17 +274,17 @@ function setup_kerberos() {
 }
 
 function dump_airflow_logs() {
-    DUMP_FILE=/files/airflow_logs_$(date "+%Y-%m-%d")_${CI_BUILD_ID}_${CI_JOB_ID}.log.tar.gz
+    local dump_file
+    dump_file=/files/airflow_logs_$(date "+%Y-%m-%d")_${CI_BUILD_ID}_${CI_JOB_ID}.log.tar.gz
     echo "###########################################################################################"
     echo "                   Dumping logs from all the airflow tasks"
     echo "###########################################################################################"
     pushd "${AIRFLOW_HOME}" || exit 1
-    tar -czf "${DUMP_FILE}" logs
-    echo "                   Logs dumped to ${DUMP_FILE}"
+    tar -czf "${dump_file}" logs
+    echo "                   Logs dumped to ${dump_file}"
     popd || exit 1
     echo "###########################################################################################"
 }
-
 
 function install_released_airflow_version() {
     pip uninstall -y apache-airflow || true

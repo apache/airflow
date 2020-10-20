@@ -1099,24 +1099,12 @@ function breeze::parse_arguments() {
             shift 2
             ;;
         -S | --version-suffix-for-pypi)
-            if [[ -n ${VERSION_SUFFIX_FOR_SVN=} ]]; then
-                echo
-                echo "You can only set one version suffix - either for PyPI or for SVN"
-                echo
-                exit 1
-            fi
             export VERSION_SUFFIX_FOR_PYPI="${2}"
             echo "Version suffix for PyPI ${VERSION_SUFFIX_FOR_PYPI}"
             echo
             shift 2
             ;;
         -N | --version-suffix-for-svn)
-            if [[ -n ${VERSION_SUFFIX_FOR_PYPI=} ]]; then
-                echo
-                echo "You can only set one version suffix - either for PyPI or for SVN"
-                echo
-                exit 1
-            fi
             export VERSION_SUFFIX_FOR_SVN="${2}"
             echo "Version suffix for SVN ${VERSION_SUFFIX_FOR_SVN}"
             echo
@@ -1725,7 +1713,8 @@ ${CMDNAME} prepare-provider-packages [FLAGS] [PACKAGE_ID ...]
       Prepares backport packages. You can provide (after --) optional list of packages to prepare.
       If no packages are specified, readme for all packages are generated. You can specify optional
       --version-suffix-for-svn flag to generate rc candidate packages to upload to SVN or
-      --version-suffix-for-pypi flag to generate rc candidates for PyPI packages.
+      --version-suffix-for-pypi flag to generate rc candidates for PyPI packages. You can also
+      provide both suffixes in case you prepare alpha/beta versions.
 
       Examples:
 
@@ -1733,6 +1722,8 @@ ${CMDNAME} prepare-provider-packages [FLAGS] [PACKAGE_ID ...]
       '${CMDNAME} prepare-provider-packages google' or
       '${CMDNAME} prepare-provider-packages --version-suffix-for-svn rc1 http google amazon' or
       '${CMDNAME} prepare-provider-packages --version-suffix-for-pypi rc1 http google amazon'
+      '${CMDNAME} prepare-provider-packages --version-suffix-for-pypi a1
+                                            --version-suffix-for-svn a1 http google amazon'
 
       General form:
 

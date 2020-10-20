@@ -1710,11 +1710,14 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             self.duration = None
         self.log.debug("Task Duration set to %s", self.duration)
 
+    @provide_session
     def xcom_push(
-            self,
-            key: str,
-            value: Any,
-            execution_date: Optional[datetime] = None) -> None:
+        self,
+        key: str,
+        value: Any,
+        execution_date: Optional[datetime] = None,
+        session: Session = None,
+    ) -> None:
         """
         Make an XCom available for tasks to pull.
 
@@ -1727,6 +1730,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             this date. This can be used, for example, to send a message to a
             task on a future date without it being immediately visible.
         :type execution_date: datetime
+        :param session: Sqlalchemy ORM Session
+        :type session: Session
         """
         if execution_date and execution_date < self.execution_date:
             raise ValueError(
@@ -1739,7 +1744,9 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             value=value,
             task_id=self.task_id,
             dag_id=self.dag_id,
-            execution_date=execution_date or self.execution_date)
+            execution_date=execution_date or self.execution_date,
+            session=session,
+        )
 
     @provide_session
     def xcom_pull(      # pylint: disable=inconsistent-return-statements

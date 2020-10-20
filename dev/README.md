@@ -1458,13 +1458,15 @@ Details about maintaining the SEMVER version are going to be discussed and imple
 You can iterate and re-generate the same readme content as many times as you want.
 Generated readme files should be eventually committed to the repository.
 
-### Build an Alpha release for SVN apache upload
+### Build regular provider packages for SVN apache upload
 
-The Alpha artifacts we vote upon should be the exact ones in the future we vote against, without any
-modification than renaming i.e. the contents of the files must be the same between voted
-release candidate and final release. Because of this the version in the built artifacts
-that will become the official Apache releases must not include the rcN suffix. They also need
-to be signed and have checksum files. You can generate the checksum/signature files by running
+There is a slightly different procedure if you build pre-release (alpha/beta) packages and the
+release candidates. For the Alpha artifacts there is no voting and signature/checksum check, so
+we do not need to care about this part. For release candidates - those packages might get promoted
+to "final" packages by just renaming the files, so internally they should keep the final version
+number without the rc suffix, even if they are rc1/rc2/... candidates.
+
+They also need to be signed and have checksum files. You can generate the checksum/signature files by running
 the "dev/sign.sh" script (assuming you have the right PGP key set-up for signing). The script
 generates corresponding .asc and .sha512 files for each file to sign.
 
@@ -1474,20 +1476,37 @@ Currently, we are releasing alpha provider packages together with the main sourc
 we are going to add procedure to release the sources of released provider packages separately.
 Details are in [the related issue](https://github.com/apache/airflow/issues/11425)
 
-* Generate the packages - since we are preparing packages for SVN repo, we should use the right switch. Note
-  that this will clean up dist folder before generating the packages, so it will only contain the packages
-  you intended to build.
+For alpha/beta releases you need to specify both - svn and pyp i - suffixes, and they have to match. This is
+verified by the breeze script. Note that the script will clean up dist folder before generating the
+packages, so it will only contain the packages you intended to build.
+
+* Pre-release packages:
 
 ```shell script
 export VERSION=0.0.1alpha1
 
-./breeze prepare-provider-packages --version-suffix-for-svn alpha1
+./breeze prepare-provider-packages --version-suffix-for-svn a1 --version-suffix-for-pypi a1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-svn alpha1 PACKAGE PACKAGE ....
+./breeze prepare-provider-packages --version-suffix-for-svn a1 --version-suffix-for-pypi a1 \
+    PACKAGE PACKAGE ....
+```
+
+* Release candidate packages:
+
+```shell script
+export VERSION=0.0.1alpha1
+
+./breeze prepare-provider-packages --version-suffix-for-svn rc1
+```
+
+if you ony build few packages, run:
+
+```shell script
+./breeze prepare-provider-packages --version-suffix-for-svn rc1 PACKAGE PACKAGE ....
 ```
 
 * Sign all your packages
@@ -1527,24 +1546,30 @@ cd ${AIRFLOW_REPO_ROOT}
 Verify that the files are available at
 [backport-providers](https://dist.apache.org/repos/dist/dev/airflow/backport-providers/)
 
-### Publish the Alpha convenience package to PyPI
+### Publish the Regular convenience package to PyPI
 
-In order to publish to PyPI you just need to build and release packages. The packages should however
-contain the rcN suffix in the version name as well, so you need to use `--version-suffix-for-pypi` switch
-to prepare those packages. Note that these are different packages than the ones used for SVN upload
+
+In case of pre-release versions you build the same packages for both PyPI and SVN so you can simply use
+packages generated in the previous step and you can skip the "prepare" step below.
+
+In order to publish release candidate to PyPI you just need to build and release packages.
+The packages should however contain the rcN suffix in the version file name but not internally in the package,
+so you need to use `--version-suffix-for-pypi` switch to prepare those packages.
+Note that these are different packages than the ones used for SVN upload
 though they should be generated from the same sources.
 
 * Generate the packages with the right RC version (specify the version suffix with PyPI switch). Note that
 this will clean up dist folder before generating the packages, so you will only have the right packages there.
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-pypi alpha1
+./breeze prepare-provider-packages --version-suffix-for-pypi a1 --version-suffix-for-SVN a1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-pypi alpha1 PACKAGE PACKAGE ....
+./breeze prepare-provider-packages --version-suffix-for-pypi a1 \
+    PACKAGE PACKAGE ....
 ```
 
 * Verify the artifacts that would be uploaded:

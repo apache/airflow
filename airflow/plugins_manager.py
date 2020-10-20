@@ -60,6 +60,43 @@ during deserialization
 """
 
 
+class AirflowPluginSource:
+    """Class used to define an AirflowPluginSource."""
+
+    def __str__(self):
+        raise NotImplementedError
+
+    def __html__(self):
+        raise NotImplementedError
+
+
+class PluginsDirectorySource(AirflowPluginSource):
+    """Class used to define Plugins loaded from Plugins Directory."""
+
+    def __init__(self, path):
+        self.path = os.path.relpath(path, settings.PLUGINS_FOLDER)
+
+    def __str__(self):
+        return f"$PLUGINS_FOLDER/{self.path}"
+
+    def __html__(self):
+        return f"<em>$PLUGINS_FOLDER/</em>{self.path}"
+
+
+class EntryPointSource(AirflowPluginSource):
+    """Class used to define Plugins loaded from entrypoint."""
+
+    def __init__(self, entrypoint):
+        self.dist = str(entrypoint.dist)
+        self.entrypoint = str(entrypoint)
+
+    def __str__(self):
+        return f"{self.dist}: {self.entrypoint}"
+
+    def __html__(self):
+        return f"<em>{self.dist}:</em> {self.entrypoint}"
+
+
 class AirflowPluginException(Exception):
     """Exception when loading plugin."""
 
@@ -68,6 +105,7 @@ class AirflowPlugin:
     """Class used to define AirflowPlugin."""
 
     name: Optional[str] = None
+    source: Optional[AirflowPluginSource] = None
     operators: List[Any] = []
     sensors: List[Any] = []
     hooks: List[Any] = []
@@ -151,6 +189,7 @@ def load_entrypoint_plugins():
                 plugin_instance = plugin_class()
                 if callable(getattr(plugin_instance, 'on_load', None)):
                     plugin_instance.on_load()
+                    plugin_instance.source = EntryPointSource(entry_point)
                     plugins.append(plugin_instance)
         except Exception as e:  # pylint: disable=broad-except
             log.exception("Failed to import plugin %s", entry_point.name)
@@ -184,6 +223,7 @@ def load_plugins_from_plugin_directory():
 
             for mod_attr_value in (m for m in mod.__dict__.values() if is_valid_plugin(m)):
                 plugin_instance = mod_attr_value()
+                plugin_instance.source = PluginsDirectorySource(file_path)
                 plugins.append(plugin_instance)
 
         except Exception as e:  # pylint: disable=broad-except
