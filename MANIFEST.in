@@ -24,14 +24,18 @@ graft licenses
 graft airflow/www
 graft airflow/www/static
 graft airflow/www/templates
-include airflow/alembic.ini
-include airflow/git_version
-include airflow/serialization/schema.json
 graft scripts/systemd
 graft scripts/upstart
 graft airflow/config_templates
 recursive-exclude airflow/www/node_modules *
 global-exclude __pycache__  *.pyc
-include airflow/providers/cncf/kubernetes/example_dags/example_spark_kubernetes_operator_spark_pi.yaml
+include airflow/alembic.ini
 include airflow/api_connexion/openapi/v1.yaml
+include airflow/git_version
+include airflow/providers/amazon/aws/hooks/batch_waiters.json
+include airflow/providers/cncf/kubernetes/example_dags/example_spark_kubernetes_operator_spark_pi.yaml
+include airflow/providers/google/cloud/example_dags/example_bigquery_query.sql
+include airflow/providers/google/cloud/example_dags/example_cloud_build.yaml
+include airflow/providers/google/cloud/example_dags/example_spanner.sql
+include airflow/serialization/schema.json
 include airflow/utils/python_virtualenv_script.jinja2
