@@ -154,7 +154,7 @@ def connections_export(args):
                       f"The file must have the extension {', '.join(allowed_formats)}"
                 raise SystemExit(msg)
 
-        connections = session.query(Connection).all()
+        connections = session.query(Connection).order_by(Connection.conn_id).all()
         msg = _format_connections(connections, filetype)
         args.file.write(msg)
 
