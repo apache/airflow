@@ -243,6 +243,27 @@ class _DataflowJobsController(LoggingMixin):
             .execute(num_retries=self._num_retries)
         )
 
+    def fetch_job_metrics_by_id(self, job_id: str) -> dict:
+        """
+        Helper method to fetch the job metrics with the specified Job ID.
+
+        :param job_id: Job ID to get.
+        :type job_id: str
+        :return: the JobMetrics. See:
+            https://cloud.google.com/dataflow/docs/reference/rest/v1b3/JobMetrics
+        :rtype: dict
+        """
+        result = (
+            self._dataflow.projects()
+            .locations()
+            .jobs()
+            .getMetrics(projectId=self._project_number, location=self._job_location, jobId=job_id)
+            .execute(num_retries=self._num_retries)
+        )
+
+        self.log.debug("fetch_job_metrics_by_id %s:\n%s", job_id, result)
+        return result
+
     def _fetch_all_jobs(self) -> List[dict]:
         request = (
             self._dataflow.projects()
@@ -1101,3 +1122,31 @@ class DataflowHook(GoogleBaseHook):
             location=location,
         )
         return jobs_controller.fetch_job_by_id(job_id)
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def fetch_job_metrics_by_id(
+        self,
+        job_id: str,
+        project_id: str,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+    ) -> dict:
+        """
+        Gets the job metrics with the specified Job ID.
+
+        :param job_id: Job ID to get.
+        :type job_id: str
+        :param project_id: Optional, the Google Cloud project ID in which to start a job.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id:
+        :param location: The location of the Dataflow job (for example europe-west1). See:
+            https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
+        :return: the JobMetrics. See:
+            https://cloud.google.com/dataflow/docs/reference/rest/v1b3/JobMetrics
+        :rtype: dict
+        """
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.get_conn(),
+            project_number=project_id,
+            location=location,
+        )
+        return jobs_controller.fetch_job_metrics_by_id(job_id)

@@ -909,7 +909,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         self.cancel_timeout = cancel_timeout
         self.wait_until_finished = wait_until_finished
         self.job_id = None
-        self.hook = None
+        self.hook: Optional[DataflowHook] = None
 
     def execute(self, context):
         """Execute the python dataflow job."""

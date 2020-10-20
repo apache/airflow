@@ -20,9 +20,11 @@
 Example Airflow DAG for Google Cloud Dataflow service
 """
 import os
+from typing import Callable, Dict, List
 from urllib.parse import urlparse
 
 from airflow import models
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
 from airflow.providers.google.cloud.operators.dataflow import (
     CheckJobRunning,
@@ -30,7 +32,7 @@ from airflow.providers.google.cloud.operators.dataflow import (
     DataflowCreatePythonJobOperator,
     DataflowTemplatedJobStartOperator,
 )
-from airflow.providers.google.cloud.sensors.dataflow import DataflowJobStatusSensor
+from airflow.providers.google.cloud.sensors.dataflow import DataflowJobMetricsSensor, DataflowJobStatusSensor
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
 from airflow.utils.dates import days_ago
 
@@ -159,7 +161,30 @@ with models.DAG(
         location='europe-west3',
     )
 
+    def check_metric_scalar_gte(metric_name: str, value: int) -> Callable:
+        """Check is metric greater than equals to given value."""
+
+        def callback(metrics: List[Dict]) -> bool:
+            dag_native_python_async.log.info("Looking for '%s' >= %d", metric_name, value)
+            for metric in metrics:
+                context = metric.get("name", {}).get("context", {})
+                original_name = context.get("original_name", "")
+                tentative = context.get("tentative", "")
+                if original_name == "Service-cpu_num_seconds" and not tentative:
+                    return metric["scalar"] >= value
+            raise AirflowException(f"Metric '{metric_name}' not found in metrics")
+
+        return callback
+
+    wait_for_python_job_async_metric = DataflowJobMetricsSensor(
+        task_id="wait-for-python-job-async-metric",
+        job_id="{{task_instance.xcom_pull('start-python-job-async')['job_id']}}",
+        location='europe-west3',
+        callback=check_metric_scalar_gte(metric_name="Service-cpu_num_seconds", value=100),
+    )
+
     start_python_job_async >> wait_for_python_job_async_done
+    start_python_job_async >> wait_for_python_job_async_metric
 
 
 with models.DAG(

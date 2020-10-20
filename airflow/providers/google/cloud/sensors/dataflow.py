@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Dataflow sensor."""
-from typing import Optional, Sequence, Set, Union
+from typing import Callable, Optional, Sequence, Set, Union
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataflow import (
@@ -116,3 +116,75 @@ class DataflowJobStatusSensor(BaseSensorOperator):
             raise AirflowException(f"Job with id '{self.job_id}' is already in terminal state: {job_status}")
 
         return False
+
+
+class DataflowJobMetricsSensor(BaseSensorOperator):
+    """
+    Checks the metrics of a job in Google Cloud Dataflow.
+
+    :param job_id: ID of the job to be checked.
+    :type job_id: str
+    :param callback: callback which is called with list of read job metrics
+        See:
+        https://cloud.google.com/dataflow/docs/reference/rest/v1b3/MetricUpdate
+    :type callback: callable
+    :param project_id: Optional, the Google Cloud project ID in which to start a job.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: str
+    :param location: The location of the Dataflow job (for example europe-west1). See:
+        https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+    """
+
+    template_fields = ['job_id']
+
+    @apply_defaults
+    def __init__(
+        self,
+        *,
+        job_id: str,
+        callback: Callable[[dict], bool],
+        project_id: Optional[str] = None,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.job_id = job_id
+        self.project_id = project_id
+        self.callback = callback
+        self.location = location
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
+        self.hook: Optional[DataflowHook] = None
+
+    def poke(self, context: dict) -> bool:
+        self.hook = DataflowHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
+        result = self.hook.fetch_job_metrics_by_id(
+            job_id=self.job_id,
+            project_id=self.project_id,
+            location=self.location,
+        )
+
+        return self.callback(result["metrics"])

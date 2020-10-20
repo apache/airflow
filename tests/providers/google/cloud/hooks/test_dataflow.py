@@ -648,6 +648,37 @@ class TestDataflowHook(unittest.TestCase):
         )
         method_fetch_job_by_id.assert_called_once_with(TEST_JOB_ID)
 
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    def test_fetch_job_metrics_by_id(self, mock_conn, mock_dataflowjob):
+        method_fetch_job_metrics_by_id = mock_dataflowjob.return_value.fetch_job_metrics_by_id
+
+        self.dataflow_hook.fetch_job_metrics_by_id(
+            job_id=TEST_JOB_ID, project_id=TEST_PROJECT_ID, location=TEST_LOCATION
+        )
+        mock_conn.assert_called_once()
+        mock_dataflowjob.assert_called_once_with(
+            dataflow=mock_conn.return_value,
+            project_number=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+        )
+        method_fetch_job_metrics_by_id.assert_called_once_with(TEST_JOB_ID)
+
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    def test_fetch_job_metrics_by_id_controller(self, mock_conn):
+        method_get_metrics = (
+            mock_conn.return_value.projects.return_value.locations.return_value.jobs.return_value.getMetrics
+        )
+        self.dataflow_hook.fetch_job_metrics_by_id(
+            job_id=TEST_JOB_ID, project_id=TEST_PROJECT_ID, location=TEST_LOCATION
+        )
+
+        mock_conn.assert_called_once()
+        method_get_metrics.return_value.execute.assert_called_once_with(num_retries=0)
+        method_get_metrics.assert_called_once_with(
+            jobId=TEST_JOB_ID, projectId=TEST_PROJECT_ID, location=TEST_LOCATION
+        )
+
 
 class TestDataflowTemplateHook(unittest.TestCase):
     def setUp(self):

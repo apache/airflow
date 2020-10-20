@@ -23,7 +23,7 @@ from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
-from airflow.providers.google.cloud.sensors.dataflow import DataflowJobStatusSensor
+from airflow.providers.google.cloud.sensors.dataflow import DataflowJobMetricsSensor, DataflowJobStatusSensor
 
 TEST_TASK_ID = "tesk-id"
 TEST_JOB_ID = "test_job_id"
@@ -98,3 +98,35 @@ class TestDataflowJobStatusSensor(unittest.TestCase):
         mock_get_job.assert_called_once_with(
             job_id=TEST_JOB_ID, project_id=TEST_PROJECT_ID, location=TEST_LOCATION
         )
+
+
+class TestDataflowJobMetricsSensor(unittest.TestCase):
+    @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowHook")
+    def test_poke(self, mock_hook):
+        mock_fetch_job_metrics_by_id = mock_hook.return_value.fetch_job_metrics_by_id
+        callback = mock.MagicMock()
+
+        task = DataflowJobMetricsSensor(
+            task_id=TEST_TASK_ID,
+            job_id=TEST_JOB_ID,
+            callback=callback,
+            location=TEST_LOCATION,
+            project_id=TEST_PROJECT_ID,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
+        results = task.poke(mock.MagicMock())
+
+        self.assertEqual(callback.return_value, results)
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
+        mock_fetch_job_metrics_by_id.assert_called_once_with(
+            job_id=TEST_JOB_ID, project_id=TEST_PROJECT_ID, location=TEST_LOCATION
+        )
+        mock_fetch_job_metrics_by_id.return_value.__getitem__.assert_called_once_with("metrics")
+        callback.assert_called_once_with(mock_fetch_job_metrics_by_id.return_value.__getitem__.return_value)
