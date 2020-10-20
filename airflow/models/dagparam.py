@@ -49,9 +49,7 @@ class DagParam:
         self._default = default
 
     def resolve(self, context: Dict) -> Any:
-        """
-        Pull DagParam value from DagRun context. This method is run during ``op.execute()``.
-        """
+        """Pull DagParam value from DagRun context. This method is run during ``op.execute()``."""
         default = self._default
         if not self._default:
             default = context['params'].get(self._name, None)
