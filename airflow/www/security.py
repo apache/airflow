@@ -96,11 +96,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
     ]
-    """
-    TODO:
-    Can Read on DagRunModelView
-    """
-
     # [END security_user_perms]
 
     # [START security_op_perms]
