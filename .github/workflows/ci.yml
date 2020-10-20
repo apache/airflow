@@ -124,15 +124,21 @@ jobs:
           else
               echo "::set-output name=wait-for-image::false"
           fi
+      - name: Fetch incoming commit ${{ github.sha }} with its parent
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+        if: github.event_name  == 'pull_request'
       - name: Selective checks
         id: selective-checks
         env:
           EVENT_NAME: ${{ github.event_name }}
-          MERGE_COMMIT_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          INCOMING_COMMIT_SHA: ${{ github.sha }}
         run: |
           if [[ ${EVENT_NAME} == "pull_request" ]]; then
             # Run selective checks
-            ./scripts/ci/selective_ci_checks.sh "${MERGE_COMMIT_SHA}"
+            ./scripts/ci/selective_ci_checks.sh "${INCOMING_COMMIT_SHA}"
           else
             # Run all checks
             ./scripts/ci/selective_ci_checks.sh
@@ -235,18 +241,8 @@ jobs:
       needs.build-info.outputs.basic-checks-only == 'true' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      # First fetch the sha of merge commit. The basic-checks-only can only be true in pull_request event!
-      - name: >
-          Fetch merge commit ${{ github.ref }} ( ${{ github.sha }}:
-          merge_commit ${{ github.event.pull_request.merge_commit_sha }} )
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
-          fetch-depth: 2
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }} )"
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 2
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -258,12 +254,15 @@ jobs:
         with:
           path: ~/.cache/pre-commit
           key: ${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('.pre-commit-config.yaml') }}
-      - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+      - name: >
+          Fetch incoming commit ${{ github.sha }} with its parent
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
       - name: "Static checks: basic checks only"
         run: |
-          ./scripts/ci/static_checks/run_basic_static_checks.sh \
-              "${{ github.event.pull_request.merge_commit_sha }}"
+          ./scripts/ci/static_checks/run_basic_static_checks.sh "${{ github.sha }}"
         env:
           VERBOSE: false
 
@@ -288,7 +287,6 @@ jobs:
         with:
           name: airflow-documentation
           path: "./files/documentation"
-
 
   tests-postgres:
     timeout-minutes: 60
