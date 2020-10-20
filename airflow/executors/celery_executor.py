@@ -72,8 +72,7 @@ else:
 
 app = Celery(
     conf.get('celery', 'CELERY_APP_NAME'),
-    config_source=celery_configuration
-)
+    config_source=celery_configuration)
 
 
 @app.task
