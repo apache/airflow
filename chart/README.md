@@ -142,16 +142,16 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `images.flower.repository`                            | Docker repository to pull image from. Update this to deploy a custom image                                   | `~`                                               |
 | `images.flower.tag`                                   | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `~`                                               |
 | `images.flower.pullPolicy`                            | PullPolicy for flower image                                                                                  | `IfNotPresent`                                    |
-| `images.statsd.repository`                            | Docker repository to pull image from. Update this to deploy a custom image                                   | `astronomerinc/ap-statsd-exporter`                |
+| `images.statsd.repository`                            | Docker repository to pull image from. Update this to deploy a custom image                                   | `quay.io/astronomer/ap-statsd-exporter`           |
 | `images.statsd.tag`                                   | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `~`                                               |
 | `images.statsd.pullPolicy`                            | PullPolicy for statsd-exporter image                                                                         | `IfNotPresent`                                    |
 | `images.redis.repository`                             | Docker repository to pull image from. Update this to deploy a custom image                                   | `redis`                                           |
 | `images.redis.tag`                                    | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `6-buster`                                        |
 | `images.redis.pullPolicy`                             | PullPolicy for redis image                                                                                   | `IfNotPresent`                                    |
-| `images.pgbouncer.repository`                         | Docker repository to pull image from. Update this to deploy a custom image                                   | `astronomerinc/ap-pgbouncer`                      |
+| `images.pgbouncer.repository`                         | Docker repository to pull image from. Update this to deploy a custom image                                   | `quay.io/astronomer/ap-pgbouncer`                 |
 | `images.pgbouncer.tag`                                | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `~`                                               |
 | `images.pgbouncer.pullPolicy`                         | PullPolicy for pgbouncer image                                                                               | `IfNotPresent`                                    |
-| `images.pgbouncerExporter.repository`                 | Docker repository to pull image from. Update this to deploy a custom image                                   | `astronomerinc/ap-pgbouncer-exporter`             |
+| `images.pgbouncerExporter.repository`                 | Docker repository to pull image from. Update this to deploy a custom image                                   | `quay.io/astronomer/ap-pgbouncer-exporter`        |
 | `images.pgbouncerExporter.tag`                        | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `~`                                               |
 | `images.pgbouncerExporter.pullPolicy`                 | PullPolicy for pgbouncer-exporter image                                                                      | `IfNotPresent`                                    |
 | `env`                                                 | Environment variables key/values to mount into Airflow pods                                                  | `[]`                                              |
@@ -185,9 +185,9 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `workers.resources.requests.memory`                   | Memory Request of workers                                                                                    | `~`                                               |
 | `workers.terminationGracePeriodSeconds`               | How long Kubernetes should wait for Celery workers to gracefully drain before force killing                  | `600`                                             |
 | `workers.safeToEvict`                                 | Allow Kubernetes to evict worker pods if needed (node downscaling)                                           | `true`                                            |
-| `workers.serviceAccountAnnotations`                   | Annotations to add to worker kubernetes service account                                                      | `{}`                                            |
-| `workers.extraVolumes`                                | Mount additional volumes into worker                                                                         | `[]`                                            |
-| `workers.extraVolumeMounts`                           | Mount additional volumes into worker                                                                         | `[]`                                            |
+| `workers.serviceAccountAnnotations`                   | Annotations to add to worker kubernetes service account                                                      | `{}`                                              |
+| `workers.extraVolumes`                                | Mount additional volumes into worker                                                                         | `[]`                                              |
+| `workers.extraVolumeMounts`                           | Mount additional volumes into worker                                                                         | `[]`                                              |
 | `scheduler.podDisruptionBudget.enabled`               | Enable PDB on Airflow scheduler                                                                              | `false`                                           |
 | `scheduler.podDisruptionBudget.config.maxUnavailable` | MaxUnavailable pods for scheduler                                                                            | `1`                                               |
 | `scheduler.replicas`                                  | # of parallel schedulers (Airflow 2.0 using Mysql 8+ or Postgres only)                                       | `1`                                               |
@@ -197,9 +197,9 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `scheduler.resources.requests.memory`                 | Memory Request of scheduler                                                                                  | `~`                                               |
 | `scheduler.airflowLocalSettings`                      | Custom Airflow local settings python file                                                                    | `~`                                               |
 | `scheduler.safeToEvict`                               | Allow Kubernetes to evict scheduler pods if needed (node downscaling)                                        | `true`                                            |
-| `scheduler.serviceAccountAnnotations`                 | Annotations to add to scheduler kubernetes service account                                                   | `{}`                                            |
-| `scheduler.extraVolumes`                              | Mount additional volumes into scheduler                                                                      | `[]`                                            |
-| `scheduler.extraVolumeMounts`                         | Mount additional volumes into scheduler                                                                      | `[]`                                            |
+| `scheduler.serviceAccountAnnotations`                 | Annotations to add to scheduler kubernetes service account                                                   | `{}`                                              |
+| `scheduler.extraVolumes`                              | Mount additional volumes into scheduler                                                                      | `[]`                                              |
+| `scheduler.extraVolumeMounts`                         | Mount additional volumes into scheduler                                                                      | `[]`                                              |
 | `webserver.livenessProbe.initialDelaySeconds`         | Webserver LivenessProbe initial delay                                                                        | `15`                                              |
 | `webserver.livenessProbe.timeoutSeconds`              | Webserver LivenessProbe timeout seconds                                                                      | `30`                                              |
 | `webserver.livenessProbe.failureThreshold`            | Webserver LivenessProbe failure threshold                                                                    | `20`                                              |
@@ -219,7 +219,6 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `dags.gitSync.*`                                      | Git sync configuration                                                                                       | Please refer to `values.yaml`                     |
 | `multiNamespaceMode`                                  | Whether the KubernetesExecutor can launch pods in multiple namespaces                                        | `False`                                           |
 | `serviceAccountAnnottions.*`                          | Map of annotations for worker, webserver, scheduler kubernetes service accounts                              | {}                                                |
-
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example,
 
