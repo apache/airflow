@@ -33,10 +33,12 @@ environments we use. Most of our CI jobs are written as bash scripts which are e
 the CI jobs. And we have  a number of variables determine build behaviour.
 
 
+
+
 Github Actions runs
 -------------------
 
-Our builds on CI I highly optimized. They utilise some of the latest features provided by GitHub Actions
+Our builds on CI are highly optimized. They utilise some of the latest features provided by GitHub Actions
 environment that make it possible to reuse parts of the build process across different Jobs.
 
 Big part of our CI runs use Container Images. Airflow has a lot of dependencies and in order to make

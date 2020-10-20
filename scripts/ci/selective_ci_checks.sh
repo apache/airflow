@@ -20,10 +20,13 @@
 
 # Parameter:
 #
-# $1 - Merge commit SHA. If this parameter is missing, this script does not check anything, it simply
-#      sets all the version outputs that determine that all tests should be run. This happens in case
-#      the even triggering the workflow is 'schedule' or 'push'. Merge commit is only
-#      available in case of 'pull_request' triggered runs.
+# $1 - COMMIT SHA of the incoming commit. If this parameter is missing, this script does not check anything,
+#      it simply sets all the version outputs that determine that all tests should be run.
+#      This happens in case the even triggering the workflow is 'schedule' or 'push'.
+#
+# The logic of retrieving changes works by comparing the incoming commit with the target branch
+# The commit addresses.
+#
 #
 declare -a pattern_array
 
@@ -67,6 +70,66 @@ function output_all_basic_variables() {
     initialization::ga_output kubernetes-exclude '[]'
 }
 
+function get_changed_files() {
+    INCOMING_COMMIT_SHA="${1}"
+    readonly INCOMING_COMMIT_SHA
+
+    echo
+    echo "Incoming commit SHA: ${INCOMING_COMMIT_SHA}"
+    echo
+    echo "Changed files from ${INCOMING_COMMIT_SHA} vs it's first parent"
+    echo
+    CHANGED_FILES=$(git diff-tree --no-commit-id --name-only \
+        -r "${INCOMING_COMMIT_SHA}^" "${INCOMING_COMMIT_SHA}" || true)
+    if [[ ${CHANGED_FILES} == "" ]]; then
+        >&2 echo
+        >&2 echo Warning! Could not find any changed files
+        >&2 echo Assuming that we should run all tests in this case
+        >&2 echo
+        set_outputs_run_everything_and_exit
+    fi
+    echo
+    echo "Changed files:"
+    echo
+    echo "${CHANGED_FILES}"
+    echo
+    readonly CHANGED_FILES
+}
+
+
+function run_tests() {
+    initialization::ga_output run-tests "${@}"
+}
+
+function run_kubernetes_tests() {
+    initialization::ga_output run-kubernetes-tests "${@}"
+}
+
+function needs_helm_tests() {
+    initialization::ga_output needs-helm-tests "${@}"
+}
+
+function set_test_types() {
+    initialization::ga_output test-types "${@}"
+}
+
+function set_basic_checks_only() {
+    initialization::ga_output basic-checks-only "${@}"
+}
+
+ALL_TESTS="Core Integration Heisentests"
+readonly ALL_TESTS
+
+function set_outputs_run_everything_and_exit() {
+    needs_api_tests "true"
+    needs_helm_tests "true"
+    run_tests "true"
+    run_kubernetes_tests "true"
+    set_test_types "${ALL_TESTS}"
+    set_basic_checks_only "false"
+    exit
+}
+
 function set_outputs_run_all_tests() {
     run_tests "true"
     run_kubernetes_tests "true"
@@ -80,20 +143,6 @@ function set_output_skip_all_tests_and_exit() {
     set_test_types ""
     set_basic_checks_only "true"
     exit
-}
-
-function get_changed_files() {
-    local commit_sha=${1}
-    echo
-    echo "Retrieved changed files from ${commit_sha}"
-    echo
-    CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r "${commit_sha}" "${commit_sha}^" || true)
-    echo
-    echo "Changed files:"
-    echo
-    echo "${CHANGED_FILES}"
-    echo
-    readonly CHANGED_FILES
 }
 
 # Converts array of patterns into single | pattern string
@@ -129,9 +178,7 @@ function show_changed_files() {
 # Output:
 #    Count of changed files matching the patterns
 function count_changed_files() {
-    local count_changed_files
-    count_changed_files=$(echo "${CHANGED_FILES}" | grep -c -E "$(get_regexp_from_patterns)" || true)
-    echo "${count_changed_files}"
+    echo "${CHANGED_FILES}" | grep -c -E "$(get_regexp_from_patterns)" || true
 }
 
 function run_all_tests_when_push_or_schedule() {
@@ -160,7 +207,7 @@ function check_if_helm_tests_should_be_run() {
 function check_if_docs_should_be_generated() {
     local pattern_array=(
         "^docs$"
-        "\.py$"
+        "^airflow/.*\.py$"
         "^CHANGELOG\.txt"
     )
     show_changed_files
@@ -264,23 +311,16 @@ output_all_basic_variables
 
 if (($# < 1)); then
     echo
-    echo "No merge commit SHA - running all tests!"
+    echo "No Commit SHA - running all tests!"
     echo
     set_outputs_run_everything_and_exit
 fi
-
-MERGE_COMMIT_SHA="${1}"
-readonly MERGE_COMMIT_SHA
-
-echo
-echo "Merge commit SHA: ${MERGE_COMMIT_SHA}"
-echo
 
 image_build_needed="false"
 tests_needed="false"
 kubernetes_tests_needed="false"
 
-get_changed_files "${MERGE_COMMIT_SHA}"
+get_changed_files "${1}"
 run_all_tests_if_environment_files_changed
 check_if_docs_should_be_generated
 check_if_helm_tests_should_be_run

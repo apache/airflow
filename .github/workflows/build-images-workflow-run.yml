@@ -217,15 +217,22 @@ jobs:
           Merge commit Sha: ${{ needs.cancel-workflow-runs.outputs.mergeCommitSha }}
           Target commit Sha: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
         run: printenv
+      - name: >
+          Fetch incoming commit ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }} with its parent
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
+          fetch-depth: 2
+        if: needs.cancel-workflow-runs.outputs.sourceEvent  == 'pull_request'
       - name: Selective checks
         id: selective-checks
         env:
           EVENT_NAME: ${{ needs.cancel-workflow-runs.outputs.sourceEvent }}
-          MERGE_COMMIT_SHA: ${{ needs.cancel-workflow-runs.outputs.mergeCommitSha }}
+          INCOMING_COMMIT_SHA: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
         run: |
           if [[ ${EVENT_NAME} == "pull_request" ]]; then
             # Run selective checks
-            ./scripts/ci/selective_ci_checks.sh "${MERGE_COMMIT_SHA}"
+            ./scripts/ci/selective_ci_checks.sh "${INCOMING_COMMIT_SHA}"
           else
             # Run all checks
             ./scripts/ci/selective_ci_checks.sh
