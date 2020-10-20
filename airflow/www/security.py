@@ -50,113 +50,87 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     #                               VIEW MENUS
     ###########################################################################
     # [START security_viewer_vms]
-    VIEWER_VMS = {
-        'Airflow',
-        'Dags',
-        'Browse',
-        permissions.RESOURCE_CONFIG,
-        'DAG Runs',
-        'DagRun',
-        'Task Instances',
-        'TaskInstance',
-        'SLA Misses',
-        # 'SlaMiss',
-        'Jobs',
-        'Job',
-        'Logs',
-        'Log',
-        'Docs',
-        'Documentation',
-        'GitHub',
-        'About',
-        'Version',
-        'VersionView',
-    }
     # [END security_viewer_vms]
 
-    USER_VMS = VIEWER_VMS
-
     # [START security_op_vms]
-    OP_VMS = {
-        'Admin',
-        'Configurations',
-        'ConfigurationView',
-        'Connections',
-        'ConnectionModelView',
-        'Pools',
-        'PoolModelView',
-        'Variables',
-        'VariableModelView',
-        'XComs',
-        'XComModelView',
-    }
     # [END security_op_vms]
 
     ###########################################################################
     #                               PERMISSIONS
     ###########################################################################
     # [START security_viewer_perms]
-    VIEWER_PERMS = {
-        'menu_access',
-        'can_list',
-        'can_show',
-        'can_version',
-        'can_chart',
-    }
 
-    RESOURCE_VIEWER_PERMISSIONS = [
+    VIEWER_PERMISSIONS = [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_JOB),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_SLA_MISS),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AIRFLOW),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_BROWSE_MENU),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_LINK),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_JOB),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_LOG),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_SLA_MISS),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
     ]
     # [END security_viewer_perms]
 
     # [START security_user_perms]
-    USER_PERMS = {
-        # 'can_dagrun_clear',
-        # 'can_run',
-        # 'can_trigger',
-        # 'can_add',
-        permissions.ACTION_CAN_CREATE,
-        permissions.ACTION_CAN_READ,
-        permissions.ACTION_CAN_EDIT,
-        permissions.ACTION_CAN_DELETE,
-        # 'can_failed',
-        # 'can_paused',
-        # 'can_refresh',
-        # 'can_success',
-        # 'muldelete',
-        # 'set_failed',
-        # 'set_running',
-        # 'set_success',
-        # 'clear',
-        # 'can_clear',
-    }
-
-    RESOURCE_USER_PERMS = [
-        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAGS),
+    USER_PERMISSIONS = [
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
-        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAGS),
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_TASK_INSTANCE),
-        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
     ]
+    """
+    TODO:
+    Can Read on DagRunModelView
+    """
+
     # [END security_user_perms]
 
     # [START security_op_perms]
-    OP_PERMS = {
-        'can_conf',
-        'can_varimport',
-    }
+    OP_PERMISSIONS = [
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_ADMIN),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONNECTION),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_POOL),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_VARIABLE),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_XCOM),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_CONNECTION),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_CONNECTION),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_POOL),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_POOL),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_POOL),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_XCOM),
+    ]
     # [END security_op_perms]
+
+    ADMIN_PERMISSIONS = [
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_RESCHEDULE),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_RESCHEDULE),
+    ]
 
     # global view-menu for dag-level access
     DAG_VMS = {permissions.RESOURCE_DAGS}
@@ -169,23 +143,12 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     ###########################################################################
 
     ROLE_CONFIGS = [
+        {'role': 'Viewer', 'perms': VIEWER_PERMISSIONS},
+        {'role': 'User', 'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS,},
+        {'role': 'Op', 'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS + OP_PERMISSIONS,},
         {
-            'role': 'Viewer',
-            'perms': VIEWER_PERMS | READ_DAG_PERMS,
-            'vms': VIEWER_VMS | DAG_VMS,
-            'resource_perms': RESOURCE_VIEWER_PERMISSIONS
-        },
-        {
-            'role': 'User',
-            'perms': VIEWER_PERMS | USER_PERMS | DAG_PERMS,
-            'vms': VIEWER_VMS | DAG_VMS | USER_VMS,
-            'resource_perms': RESOURCE_VIEWER_PERMISSIONS + RESOURCE_USER_PERMS,
-        },
-        {
-            'role': 'Op',
-            'perms': VIEWER_PERMS | USER_PERMS | OP_PERMS | DAG_PERMS,
-            'vms': VIEWER_VMS | DAG_VMS | USER_VMS | OP_VMS,
-            'resource_perms': RESOURCE_VIEWER_PERMISSIONS + RESOURCE_USER_PERMS,
+            'role': 'Admin',
+            'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS + OP_PERMISSIONS + ADMIN_PERMISSIONS,
         },
     ]
 
@@ -204,40 +167,19 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             view.datamodel = CustomSQLAInterface(view.datamodel.obj)
         self.perms = None
 
-    def init_role(self, role_name, role_resources, role_actions, resource_perms=None):
+    def init_role(self, role_name, perms):
         """
         Initialize the role with the permissions and related view-menus.
 
         :param role_name:
-        :param role_resources:
-        :param role_actions:
-        :param resource_perms:
+        :param perms:
         :return:
         """
-        pvms = self.get_session.query(sqla_models.PermissionView).all()
-        pvms = [p for p in pvms if p.permission and p.view_menu]
-
         role = self.find_role(role_name)
         if not role:
             role = self.add_role(role_name)
 
-        if len(role.permissions) == 0:
-            self.log.info('Initializing permissions for role:%s in the database.', role_name)
-            role_permissions = set()
-            for pvm in pvms:
-                action = pvm.permission
-                resource = pvm.view_menu
-                if resource.name in role_resources and action.name in role_actions:
-                    role_permissions.add(pvm)
-            role.permissions = list(role_permissions)
-            self.get_session.merge(role)
-            self.get_session.commit()
-        else:
-            self.log.debug(
-                'Existing permissions for the role:%s ' 'within the database will persist.', role_name
-            )
-        if resource_perms:
-            self.add_permissions(role, set(resource_perms))
+        self.add_permissions(role, set(perms))
 
     def add_permissions(self, role, perms):
         """Adds resource permissions to a given role."""
@@ -570,7 +512,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def update_admin_perm_view(self):
         """
-        Admin should has all the permission-views, except the dag views.
+        Admin should have all the permission-views, except the dag views.
         because Admin already has Dags permission.
         Add the missing ones to the table for admin.
 
@@ -615,10 +557,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         # Create default user role.
         for config in self.ROLE_CONFIGS:
             role = config['role']
-            vms = config['vms']
             perms = config['perms']
-            resource_perms = config['resource_perms']
-            self.init_role(role, vms, perms, resource_perms)
+            self.init_role(role, perms)
         self.create_custom_dag_permission_view()
         # init existing roles, the rest role could be created through UI.
         self.update_admin_perm_view()

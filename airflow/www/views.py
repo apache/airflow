@@ -37,7 +37,7 @@ from flask import (
     Markup, Response, current_app, escape, flash, g, jsonify, make_response, redirect, render_template,
     request, session as flask_session, url_for,
 )
-from flask_appbuilder import BaseView, ModelView, expose, has_access, permission_name
+from flask_appbuilder import BaseView, ModelView, expose
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter  # noqa
 from flask_babel import lazy_gettext
@@ -74,7 +74,7 @@ from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
-from airflow.www.decorators import action_logging, gzipped, has_dag_access
+from airflow.www.decorators import action_logging, gzipped
 from airflow.www.forms import (
     ConnectionForm, DagRunForm, DateTimeForm, DateTimeWithNumRunsForm, DateTimeWithNumRunsWithDagRunsForm,
 )
@@ -2699,7 +2699,9 @@ class ConnectionModelView(AirflowModelView):
 
     @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?',
             single=False)
-    @has_dag_access(can_dag_edit=True)
+    @auth.has_access([
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS),
+    ])
     def action_muldelete(self, items):
         """Multiple delete."""
         self.datamodel.delete_all(items)
@@ -2942,7 +2944,6 @@ class VariableModelView(AirflowModelView):
         return response
 
     @expose('/varimport', methods=["POST"])
-    @has_access
     @action_logging
     def varimport(self):
         """Import variables"""
@@ -3328,7 +3329,9 @@ class TaskInstanceModelView(AirflowModelView):
             flash('Failed to set state', 'error')
 
     @action('set_running', "Set state to 'running'", '', single=False)
-    @has_dag_access(can_dag_edit=True)
+    @auth.has_access([
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS),
+    ])
     def action_set_running(self, tis):
         """Set state to 'running'"""
         self.set_task_instance_state(tis, State.RUNNING)
@@ -3336,7 +3339,9 @@ class TaskInstanceModelView(AirflowModelView):
         return redirect(self.get_redirect())
 
     @action('set_failed', "Set state to 'failed'", '', single=False)
-    @has_dag_access(can_dag_edit=True)
+    @auth.has_access([
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS),
+    ])
     def action_set_failed(self, tis):
         """Set state to 'failed'"""
         self.set_task_instance_state(tis, State.FAILED)
@@ -3344,7 +3349,9 @@ class TaskInstanceModelView(AirflowModelView):
         return redirect(self.get_redirect())
 
     @action('set_success', "Set state to 'success'", '', single=False)
-    @has_dag_access(can_dag_edit=True)
+    @auth.has_access([
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS),
+    ])
     def action_set_success(self, tis):
         """Set state to 'success'"""
         self.set_task_instance_state(tis, State.SUCCESS)
@@ -3352,7 +3359,9 @@ class TaskInstanceModelView(AirflowModelView):
         return redirect(self.get_redirect())
 
     @action('set_retry', "Set state to 'up_for_retry'", '', single=False)
-    @has_dag_access(can_dag_edit=True)
+    @auth.has_access([
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS),
+    ])
     def action_set_retry(self, tis):
         """Set state to 'up_for_retry'"""
         self.set_task_instance_state(tis, State.UP_FOR_RETRY)
