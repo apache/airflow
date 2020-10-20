@@ -1901,27 +1901,16 @@ class TestDagDecorator(unittest.TestCase):
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull(), new_value
 
-    @conf_vars({("core", "executor"): "DebugExecutor"})
-    def test_end_to_end(self):
-        """Test end to end execution of DAG"""
+    def test_set_params_for_dag(self):
+        """Test that dag param is correctly set when using dag decorator"""
         @dag_decorator(default_args=self.DEFAULT_ARGS)
-        def pipeline(some_param, other_param=self.VALUE):
+        def xcom_pass_to_op(value=self.VALUE):
             @task_decorator
-            def some_task(param):
-                return param
+            def return_num(num):
+                return num
 
-            @task_decorator
-            def another_task(param):
-                return param
+            xcom_arg = return_num(value)
+            self.operator = xcom_arg.operator  # pylint: disable=maybe-no-member
 
-            ret = some_task(some_param)
-            another_task(other_param)
-            op = DummyOperator(task_id='dummy')
-
-            ret >> op
-
-        dag = pipeline(self.VALUE)
-
-        assert set(dag.task_ids) == {'some_task', 'another_task', 'dummy'}
-
-        dag.run()
+        dag = xcom_pass_to_op()
+        assert dag.params['value'] == self.VALUE

@@ -15,7 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict
+from typing import Any, Dict, Optional
+
+from airflow.exceptions import AirflowException
 
 
 class DagParam:
@@ -25,18 +27,24 @@ class DagParam:
     It can be used to parameterize your dags. You can overwrite its value by setting it on conf
     when you trigger your DagRun.
 
+    This can also be used in templates by accessing {{context.params}} dictionary.
+
     **Example**:
 
         with DAG(...) as dag:
           EmailOperator(subject=dag.param('subject', 'Hi from Airflow!'))
 
+    :param current_dag: Dag being used for parameter.
+    :type current_dag: DAG
     :param name: key value which is used to set the parameter
     :type name: str
     :param default: Default value used if no parameter was set.
     :type default: Any
     """
 
-    def __init__(self, name: str, default: Any):
+    def __init__(self, current_dag, name: str, default: Optional[Any] = None):
+        if default:
+            current_dag.params[name] = default
         self._name = name
         self._default = default
 
@@ -45,4 +53,10 @@ class DagParam:
         Pull DagParam value from DagRun context. This method is run during ``op.execute()``
         in respectable context.
         """
-        return context['dag_run'].conf.get(self._name, self._default)
+        default = self._default
+        if not self._default:
+            default = context['params'].get(self._name, None)
+        resolved = context['dag_run'].conf.get(self._name, default)
+        if not resolved:
+            raise AirflowException(f'No value could be resolved for parameter {self._name}')
+        return resolved

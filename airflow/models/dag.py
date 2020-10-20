@@ -696,7 +696,7 @@ class DAG(BaseDag, LoggingMixin):
     def pickle_id(self, value: int) -> None:
         self._pickle_id = value
 
-    def param(self, name, default):
+    def param(self, name, default = None):
         """
         Return a DagParam object for current dag.
 
@@ -704,7 +704,7 @@ class DAG(BaseDag, LoggingMixin):
         :param default: fallback value for dag parameter.
         :return: DagParam instance for specified name and current dag.
         """
-        return DagParam(name=name, default=default)
+        return DagParam(current_dag=self, name=name, default=default)
 
     @property
     def tasks(self) -> List[BaseOperator]:

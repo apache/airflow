@@ -77,6 +77,7 @@ class TestDagParamRuntime(unittest.TestCase):
 
             xcom_arg = return_num(value)
 
+        assert dag.params['value'] == self.VALUE
         new_value = 2
         dr = dag.create_dagrun(
             run_id=DagRunType.MANUAL.value,
@@ -90,4 +91,28 @@ class TestDagParamRuntime(unittest.TestCase):
         xcom_arg.operator.run(start_date=self.DEFAULT_DATE, end_date=self.DEFAULT_DATE)
 
         ti = dr.get_task_instances()[0]
-        assert ti.xcom_pull(), new_value
+        assert ti.xcom_pull() == new_value
+
+    def test_dag_param_default(self):
+        """Test dag param is overwritten from dagrun config"""
+        with DAG(dag_id="test_xcom_pass_to_op", default_args=self.DEFAULT_ARGS, params={'value': 'test'}) as dag:
+            value = dag.param('value')
+
+            @task
+            def return_num(num):
+                return num
+
+            xcom_arg = return_num(value)
+
+        dr = dag.create_dagrun(
+            run_id=DagRunType.MANUAL.value,
+            start_date=timezone.utcnow(),
+            execution_date=self.DEFAULT_DATE,
+            state=State.RUNNING,
+        )
+
+        # pylint: disable=maybe-no-member
+        xcom_arg.operator.run(start_date=self.DEFAULT_DATE, end_date=self.DEFAULT_DATE)
+
+        ti = dr.get_task_instances()[0]
+        assert ti.xcom_pull() == 'test'

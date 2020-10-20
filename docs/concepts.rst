@@ -174,6 +174,8 @@ DAG decorator also sets up the parameters you have in the function as DAG params
 your DAGs and set the parameters when triggering the DAG manually. See
 :ref:`Passing Parameters when triggering dags <dagrun:parameters>` to learn how to pass parameters when triggering DAGs.
 
+You can also use the parameters on jinja templates by using the ``{{context.params}}`` dictionary.
+
 Example DAG with decorator:
 
 .. exampleinclude:: /../airflow/example_dags/example_dag_decorator.py
