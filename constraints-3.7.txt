@@ -262,6 +262,7 @@ paramiko==2.7.1
 parso==0.7.1
 pathspec==0.8.0
 pbr==5.4.5
+pdpyras==4.1.2
 pendulum==2.1.2
 pexpect==4.8.0
 pickleshare==0.7.5
