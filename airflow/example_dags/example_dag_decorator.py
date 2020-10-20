@@ -23,6 +23,7 @@ from typing import Dict
 from airflow.decorators import dag, task
 from airflow.operators.email import EmailOperator
 from airflow.providers.http.operators.http import SimpleHttpOperator
+from airflow.utils.dates import days_ago
 
 DEFAULT_ARGS = {
     "owner": "airflow",
@@ -30,8 +31,8 @@ DEFAULT_ARGS = {
 
 
 # [START dag_decorator_usage]
-@dag(default_args=DEFAULT_ARGS, schedule_interval=None)
-def send_server_ip(email: str = 'example@example.com'):
+@dag(default_args=DEFAULT_ARGS, schedule_interval=None, start_date=days_ago(2))
+def example_dag_decorator(email: str = 'example@example.com'):
     """
     DAG to send server IP to email.
 
@@ -40,7 +41,7 @@ def send_server_ip(email: str = 'example@example.com'):
     """
     # Using default connection as it's set to httpbin.org by default
     get_ip = SimpleHttpOperator(
-        task_id='get_ip', endpoint='get', method='GET', xcom_push=True
+        task_id='get_ip', endpoint='get', method='GET'
     )
 
     @task(multiple_outputs=True)
@@ -61,5 +62,5 @@ def send_server_ip(email: str = 'example@example.com'):
     )
 
 
-DAG = send_server_ip()
+DAG = example_dag_decorator()
 # [END dag_decorator_usage]
