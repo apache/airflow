@@ -62,5 +62,5 @@ def example_dag_decorator(email: str = 'example@example.com'):
     )
 
 
-DAG = example_dag_decorator()
+dag = example_dag_decorator()
 # [END dag_decorator_usage]
