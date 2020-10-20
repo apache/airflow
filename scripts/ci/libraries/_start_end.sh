@@ -68,15 +68,17 @@ function start_end::script_end {
     #shellcheck disable=2181
     local exit_code=$?
     if [[ ${exit_code} != 0 ]]; then
-        local container
-        for container in $(docker ps --format '{{.Names}}')
-        do
-            start_end::dump_container_logs "${container}"
-        done
         # Cat output log in case we exit with error but only if we do not PRINT_INFO_FROM_SCRIPTS
         # Because it will be printed immediately by "tee"
         if [[ -f "${OUTPUT_LOG}" && ${PRINT_INFO_FROM_SCRIPTS} == "false" ]]; then
             cat "${OUTPUT_LOG}"
+        fi
+        if [[ ${CI} == "true" ]]; then
+            local container
+            for container in $(docker ps --format '{{.Names}}')
+            do
+                start_end::dump_container_logs "${container}"
+            done
         fi
         verbosity::print_info "###########################################################################################"
         verbosity::print_info "                   EXITING WITH STATUS CODE ${exit_code}"
