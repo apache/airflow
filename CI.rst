@@ -691,6 +691,13 @@ delete old artifacts that are > 7 days old. It only runs for the 'apache/airflow
 We also have a script that can help to clean-up the old artifacts:
 `remove_artifacts.sh <dev/remove_artifacts.sh>`_
 
+CodeQL scan
+-----------
+
+The CodeQL security scan uses GitHub security scan framework to scan our code for security violations.
+It is run for javascript and python code.
+
+
 Selective CI Checks
 ===================
 
@@ -774,6 +781,11 @@ The logic implemented for the changes works as follows:
     that require CI image are skipped, and we only run the tests on the files that changed in the incoming
     commit - unlike pylint/flake8/mypy, those static checks are per-file based and they should not miss any
     important change.
+
+Similarly to selective tests we also run selective security scans. In Pull requests,
+the Python scan will only run when there is a python code change and javascript scan will only run if
+there is a javascript or yarn.lock file change. For master builds, all scans are always executed.
+
 
 
 Naming conventions for stored images

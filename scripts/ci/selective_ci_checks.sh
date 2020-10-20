@@ -113,6 +113,15 @@ function needs_api_tests() {
     initialization::ga_output needs-api-tests "${@}"
 }
 
+function needs_javascript_scans() {
+    initialization::ga_output needs-javascript-scans "${@}"
+}
+
+function needs_python_scans() {
+    initialization::ga_output needs-python-scans "${@}"
+}
+
+
 function set_test_types() {
     initialization::ga_output test-types "${@}"
 }
@@ -127,6 +136,8 @@ readonly ALL_TESTS
 function set_outputs_run_everything_and_exit() {
     needs_api_tests "true"
     needs_helm_tests "true"
+    needs_javascript_scans "true"
+    needs_python_scans "true"
     run_tests "true"
     run_kubernetes_tests "true"
     set_test_types "${ALL_TESTS}"
@@ -142,6 +153,10 @@ function set_outputs_run_all_tests() {
 }
 
 function set_output_skip_all_tests_and_exit() {
+    needs_api_tests "false"
+    needs_helm_tests "false"
+    needs_javascript_scans "false"
+    needs_python_scans "false"
     run_tests "false"
     run_kubernetes_tests "false"
     set_test_types ""
@@ -184,6 +199,35 @@ function show_changed_files() {
 function count_changed_files() {
     echo "${CHANGED_FILES}" | grep -c -E "$(get_regexp_from_patterns)" || true
 }
+
+function check_if_python_security_scans_should_be_run() {
+    local pattern_array=(
+        "^airflow/.*\.py"
+        "^setup.py"
+    )
+    show_changed_files
+
+    if [[ $(count_changed_files) == "0" ]]; then
+        needs_python_scans "false"
+    else
+        needs_python_scans "true"
+    fi
+}
+
+function check_if_javascript_security_scans_should_be_run() {
+    local pattern_array=(
+        "^airflow/.*\.js"
+        "^airflow/.*\.lock"
+    )
+    show_changed_files
+
+    if [[ $(count_changed_files) == "0" ]]; then
+        needs_javascript_scans "false"
+    else
+        needs_javascript_scans "true"
+    fi
+}
+
 
 function check_if_api_tests_should_be_run() {
     local pattern_array=(
@@ -416,6 +460,8 @@ check_if_docs_should_be_generated
 check_if_helm_tests_should_be_run
 check_if_api_tests_should_be_run
 check_if_tests_are_needed_at_all
+check_if_javascript_security_scans_should_be_run
+check_if_python_security_scans_should_be_run
 get_count_all_files
 get_count_api_files
 get_count_cli_files
