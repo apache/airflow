@@ -181,7 +181,7 @@ repos:
     hooks:
       - id: yamllint
         name: Check yaml files with yamllint
-        entry: yamllint -c yamllint-config.yml
+        entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
         exclude:
           ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml

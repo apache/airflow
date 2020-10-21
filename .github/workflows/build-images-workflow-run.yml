@@ -17,7 +17,7 @@
 #
 ---
 name: "Build Images"
-on:
+on:  # yamllint disable-line rule:truthy
   workflow_run:
     workflows: ["CI Build"]
     types: ['requested']
@@ -60,13 +60,13 @@ jobs:
     if: github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule'
     steps:
       - name: "Get information about the origin 'CI Build' run"
-        uses: potiuk/get-workflow-origin@c657bb36aef4a7402bbe9b2e09a820320f8ff447 # v1
+        uses: potiuk/get-workflow-origin@c657bb36aef4a7402bbe9b2e09a820320f8ff447  # v1
         id: source-run-info
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           sourceRunId: ${{ github.event.workflow_run.id }}
       - name: "Cancel duplicated 'CI Build' runs"
-        uses: potiuk/cancel-workflow-runs@0acb1c01f6740dfbca6eab6e21a5b5066e8bafb3 # v3_3
+        uses: potiuk/cancel-workflow-runs@0acb1c01f6740dfbca6eab6e21a5b5066e8bafb3  # v3_3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           cancelMode: duplicates
@@ -84,7 +84,7 @@ jobs:
         # in GitHub Actions, we have to use Job names to match Event/Repo/Branch from the
         # build-info step there to find the duplicates ¯\_(ツ)_/¯.
 
-        uses: potiuk/cancel-workflow-runs@0acb1c01f6740dfbca6eab6e21a5b5066e8bafb3 # v3_3
+        uses: potiuk/cancel-workflow-runs@0acb1c01f6740dfbca6eab6e21a5b5066e8bafb3  # v3_3
         with:
           cancelMode: namedJobs
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -105,7 +105,7 @@ jobs:
         # can cancel all the matching "Build Images" workflow runs in the two following steps.
         # Yeah. Adding to the complexity ¯\_(ツ)_/¯.
 
-        uses: potiuk/cancel-workflow-runs@0acb1c01f6740dfbca6eab6e21a5b5066e8bafb3 # v3_3
+        uses: potiuk/cancel-workflow-runs@0acb1c01f6740dfbca6eab6e21a5b5066e8bafb3  # v3_3
         id: cancel-failed
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -140,14 +140,14 @@ jobs:
         # it to cancel any jobs that have matching names containing Source Run Id:
         # followed by one of the run ids. Yes I know it's super complex ¯\_(ツ)_/¯.
         if: env.BUILD_IMAGES == 'true' && steps.source-run-info-failed.outputs.cancelledRuns != '[]'
-        uses: potiuk/cancel-workflow-runs@0acb1c01f6740dfbca6eab6e21a5b5066e8bafb3 # v3_3
+        uses: potiuk/cancel-workflow-runs@0acb1c01f6740dfbca6eab6e21a5b5066e8bafb3  # v3_3
         with:
           cancelMode: namedJobs
           token: ${{ secrets.GITHUB_TOKEN }}
           notifyPRCancel: true
           jobNameRegexps: ${{ steps.extract-cancelled-failed-runs.outputs.matching-regexp }}
       - name: "Cancel duplicated 'CodeQL' runs"
-        uses: potiuk/cancel-workflow-runs@0acb1c01f6740dfbca6eab6e21a5b5066e8bafb3 # v3_3
+        uses: potiuk/cancel-workflow-runs@0acb1c01f6740dfbca6eab6e21a5b5066e8bafb3  # v3_3
         id: cancel
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -243,8 +243,8 @@ jobs:
     needs: [build-info, cancel-workflow-runs]
     strategy:
       matrix:
-      # We need to attempt to build all possible versions here because workflow_run
-      # event is run from master for both master and v1-10-tests
+        # We need to attempt to build all possible versions here because workflow_run
+        # event is run from master for both master and v1-10-tests
         python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
         image-type: [CI, PROD]
       fail-fast: true
@@ -296,7 +296,7 @@ jobs:
               echo "::set-output name=proceed::false"
           fi
       - name: Initiate Github Checks for Building image
-        uses: LouisBrunner/checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798 #v1.1.0
+        uses: LouisBrunner/checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798  # v1.1.0
         id: build-image-check
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -344,7 +344,7 @@ jobs:
         run: ./scripts/ci/images/ci_push_production_images.sh
         if: matrix.image-type == 'PROD' && steps.defaults.outputs.proceed == 'true'
       - name: Update Github Checks for Building image with status
-        uses: LouisBrunner/checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798 #v1.1.0
+        uses: LouisBrunner/checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798  # v1.1.0
         if: always() && steps.defaults.outputs.proceed == 'true'
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -366,7 +366,7 @@ jobs:
     needs: [build-images]
     steps:
       - name: "Canceling the 'CI Build' source workflow in case of failure!"
-        uses: potiuk/cancel-workflow-runs@cancel_message #v3
+        uses: potiuk/cancel-workflow-runs@cancel_message  # v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           cancelMode: self
@@ -381,7 +381,7 @@ jobs:
     needs: [build-images]
     steps:
       - name: "Canceling the 'CI Build' source workflow in case of failure!"
-        uses: potiuk/cancel-workflow-runs@0acb1c01f6740dfbca6eab6e21a5b5066e8bafb3 # v3_3
+        uses: potiuk/cancel-workflow-runs@0acb1c01f6740dfbca6eab6e21a5b5066e8bafb3  # v3_3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           cancelMode: self

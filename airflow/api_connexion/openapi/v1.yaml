@@ -1510,7 +1510,7 @@ components:
           nullable: true
         state:
           $ref: '#/components/schemas/DagState'
-          readOnly: True
+          readOnly: true
         external_trigger:
           type: boolean
           default: true
@@ -1746,7 +1746,7 @@ components:
           type: string
         queued_when:
           type: string
-          nullable: True
+          nullable: true
         pid:
           type: integer
         executor_config:

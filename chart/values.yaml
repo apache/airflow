@@ -450,13 +450,21 @@ pgbouncer:
     config:
       maxUnavailable: 1
 
+  # Limit the resources to pgbouncerExported.
+  # When you specify the resource request the scheduler uses this information to decide which node to place
+  # the Pod on. When you specify a resource limit for a Container, the kubelet enforces those limits so
+  # that the running container is not allowed to use more of that resource than the limit you set.
+  # See: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+  # Example:
+  #
+  # resource:
+  #   limits:
+  #     cpu: 100m
+  #     memory: 128Mi
+  #   requests:
+  #     cpu: 100m
+  #     memory: 128Mi
   resources: {}
-    # limits:
-    #   cpu: 100m
-    #   memory: 128Mi
-    # requests:
-    #   cpu: 100m
-    #   memory: 128Mi
 
   service:
     extraAnnotations: {}
@@ -510,11 +518,13 @@ redis:
 registry:
   secretName: ~
 
+  # Example:
+  # connection:
+  #   user: ~
+  #   pass: ~
+  #   host: ~
+  #   email: ~
   connection: {}
-    # user: ~
-    # pass: ~
-    # host: ~
-    # email: ~
 
 # Elasticsearch logging configuration
 elasticsearch:
@@ -523,11 +533,14 @@ elasticsearch:
   # A secret containing the connection
   secretName: ~
   # Or an object representing the connection
+  # Example:
+  # connection:
+  #   user: ~
+  #   pass: ~
+  #   host: ~
+  #   port: ~
   connection: {}
-    # user: ~
-    # pass: ~
-    # host: ~
-    # port: ~
+
 
 # All ports used by chart
 ports:
@@ -689,7 +702,8 @@ dags:
     #     GIT_SYNC_USERNAME: <base64_encoded_git_username>
     #     GIT_SYNC_PASSWORD: <base64_encoded_git_password>
     # and specify the name of the secret below
-    #credentialsSecret: git-credentials
+    #
+    # credentialsSecret: git-credentials
     #
     #
     # If you are using an ssh clone url, you can load
@@ -703,10 +717,12 @@ dags:
     #     # key needs to be gitSshKey
     #     gitSshKey: <base64_encoded_data>
     # and specify the name of the secret below
-    #sshKeySecret: airflow-ssh-secret
+    # sshKeySecret: airflow-ssh-secret
+    #
     # If you are using an ssh private key, you can additionally
     # specify the content of your known_hosts file, example:
-    #knownHosts: |
+    #
+    # knownHosts: |
     #    <host1>,<ip1> <key1>
     #    <host2>,<ip2> <key2>
     # interval between git sync attempts in seconds
