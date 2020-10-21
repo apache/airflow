@@ -41,9 +41,7 @@ from airflow.www.widgets import AirflowDateTimePickerWidget
 
 
 class DateTimeWithTimezoneField(Field):
-    """
-    A text field which stores a `datetime.datetime` matching a format.
-    """
+    """A text field which stores a `datetime.datetime` matching a format."""
 
     widget = widgets.TextInput()
 
@@ -86,9 +84,7 @@ class DateTimeWithTimezoneField(Field):
 
 
 class DateTimeForm(FlaskForm):
-    """
-    Date filter form needed for task views
-    """
+    """Date filter form needed for task views"""
 
     execution_date = DateTimeWithTimezoneField(
         "Execution date", widget=AirflowDateTimePickerWidget())
@@ -112,9 +108,7 @@ class DateTimeWithNumRunsForm(FlaskForm):
 
 
 class DateTimeWithNumRunsWithDagRunsForm(DateTimeWithNumRunsForm):
-    """
-    Date time and number of runs and dag runs form for graph and gantt view
-    """
+    """Date time and number of runs and dag runs form for graph and gantt view"""
 
     execution_date = SelectField("DAG run")
 

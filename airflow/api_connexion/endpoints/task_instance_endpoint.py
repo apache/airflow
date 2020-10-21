@@ -126,9 +126,7 @@ def get_task_instances(
     offset: Optional[int] = None,
     session=None,
 ):  # pylint: disable=too-many-arguments
-    """
-    Get list of task instances.
-    """
+    """Get list of task instances."""
     base_query = session.query(TI)
 
     if dag_id != "~":
@@ -179,9 +177,7 @@ def get_task_instances(
 )
 @provide_session
 def get_task_instances_batch(session=None):
-    """
-    Get list of task instances.
-    """
+    """Get list of task instances."""
     body = request.get_json()
     try:
         data = task_instance_batch_form.load(body)
@@ -239,9 +235,7 @@ def get_task_instances_batch(session=None):
 )
 @provide_session
 def post_clear_task_instances(dag_id: str, session=None):
-    """
-    Clear task instances.
-    """
+    """Clear task instances."""
     body = request.get_json()
     try:
         data = clear_task_instance_form.load(body)

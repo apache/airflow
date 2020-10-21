@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-Utilities module for cli
-"""
+"""Utilities module for cli"""
 
 import functools
 import getpass
@@ -251,9 +249,7 @@ def sigquit_handler(sig, frame):  # pylint: disable=unused-argument
 
 
 class ColorMode:
-    """
-    Coloring modes. If `auto` is then automatically detected.
-    """
+    """Coloring modes. If `auto` is then automatically detected."""
 
     ON = "on"
     OFF = "off"
@@ -261,9 +257,7 @@ class ColorMode:
 
 
 def should_use_colors(args) -> bool:
-    """
-    Processes arguments and decides whether to enable color in output
-    """
+    """Processes arguments and decides whether to enable color in output"""
     if args.color == ColorMode.ON:
         return True
     if args.color == ColorMode.OFF:

@@ -184,9 +184,7 @@ def epoch(dttm):
 
 
 def json_response(obj):
-    """
-    Returns a json response from a json serializable python object
-    """
+    """Returns a json response from a json serializable python object"""
     return Response(
         response=json.dumps(
             obj, indent=4, cls=AirflowJsonEncoder),
@@ -195,9 +193,7 @@ def json_response(obj):
 
 
 def make_cache_key(*args, **kwargs):
-    """
-    Used by cache to get a unique key per URL
-    """
+    """Used by cache to get a unique key per URL"""
     path = request.path
     args = str(hash(frozenset(request.args.items())))
     return (path + args).encode('ascii', 'ignore')
@@ -372,9 +368,7 @@ def get_chart_height(dag):
 
 
 class UtcAwareFilterMixin:  # noqa: D101
-    """
-    Mixin for filter for UTC time.
-    """
+    """Mixin for filter for UTC time."""
 
     def apply(self, query, value):
         """Apply the filter."""
@@ -384,33 +378,23 @@ class UtcAwareFilterMixin:  # noqa: D101
 
 
 class UtcAwareFilterEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterEqual):  # noqa: D101
-    """
-    Equality filter for UTC time.
-    """
+    """Equality filter for UTC time."""
 
 
 class UtcAwareFilterGreater(UtcAwareFilterMixin, fab_sqlafilters.FilterGreater):  # noqa: D101
-    """
-    Greater Than filter for UTC time.
-    """
+    """Greater Than filter for UTC time."""
 
 
 class UtcAwareFilterSmaller(UtcAwareFilterMixin, fab_sqlafilters.FilterSmaller):  # noqa: D101
-    """
-    Smaller Than filter for UTC time.
-    """
+    """Smaller Than filter for UTC time."""
 
 
 class UtcAwareFilterNotEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterNotEqual):  # noqa: D101
-    """
-    Not Equal To filter for UTC time.
-    """
+    """Not Equal To filter for UTC time."""
 
 
 class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):  # noqa: D101
-    """
-    Retrieve conversion tables for UTC-Aware filters.
-    """
+    """Retrieve conversion tables for UTC-Aware filters."""
 
     conversion_table = (
         (('is_utcdatetime', [UtcAwareFilterEqual,

@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google BigQuery to BigQuery operator.
-"""
+"""This module contains Google BigQuery to BigQuery operator."""
 import warnings
 from typing import Dict, List, Optional, Sequence, Union
 

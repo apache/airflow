@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Objects relating to sourcing secrets from AWS Secrets Manager
-"""
+"""Objects relating to sourcing secrets from AWS Secrets Manager"""
 
 from typing import Optional
 
@@ -82,9 +80,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     @cached_property
     def client(self):
-        """
-        Create a Secrets Manager client
-        """
+        """Create a Secrets Manager client"""
         session = boto3.session.Session(
             profile_name=self.profile_name,
         )

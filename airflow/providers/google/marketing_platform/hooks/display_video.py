@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google DisplayVideo hook.
-"""
+"""This module contains Google DisplayVideo hook."""
 
 from typing import Any, Dict, List, Optional, Sequence, Union
 
@@ -27,9 +25,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 class GoogleDisplayVideo360Hook(GoogleBaseHook):
-    """
-    Hook for Google Display & Video 360.
-    """
+    """Hook for Google Display & Video 360."""
 
     _conn = None  # type: Optional[Any]
 
@@ -48,9 +44,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         self.api_version = api_version
 
     def get_conn(self) -> Resource:
-        """
-        Retrieves connection to DisplayVideo.
-        """
+        """Retrieves connection to DisplayVideo."""
         if not self._conn:
             http_authorized = self._authorize()
             self._conn = build(
@@ -62,9 +56,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         return self._conn
 
     def get_conn_to_display_video(self) -> Resource:
-        """
-        Retrieves connection to DisplayVideo.
-        """
+        """Retrieves connection to DisplayVideo."""
         if not self._conn:
             http_authorized = self._authorize()
             self._conn = build(
@@ -143,10 +135,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
     def list_queries(
         self,
     ) -> List[Dict]:
-        """
-        Retrieves stored queries.
-
-        """
+        """Retrieves stored queries."""
         response = (
             self.get_conn()  # pylint: disable=no-member
             .queries()

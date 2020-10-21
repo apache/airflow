@@ -113,9 +113,7 @@ class SensorWork:
         return handler
 
     def _get_sensor_logger(self, si):
-        """
-        Return logger for a sensor instance object.
-        """
+        """Return logger for a sensor instance object."""
         # The created log_id is used inside of smart sensor as the key to fetch
         # the corresponding in memory log handler.
         si.raw = False  # Otherwise set_context will fail
@@ -138,9 +136,7 @@ class SensorWork:
         return logger
 
     def close_sensor_logger(self):
-        """
-        Close log handler for a sensor work.
-        """
+        """Close log handler for a sensor work."""
         for handler in self.log.handlers:
             try:
                 handler.close()
@@ -149,16 +145,12 @@ class SensorWork:
 
     @property
     def ti_key(self):
-        """
-        Key for the task instance that maps to the sensor work.
-        """
+        """Key for the task instance that maps to the sensor work."""
         return self.dag_id, self.task_id, self.execution_date
 
     @property
     def cache_key(self):
-        """
-        Key used to query in smart sensor for cached sensor work.
-        """
+        """Key used to query in smart sensor for cached sensor work."""
         return self.operator, self.encoded_poke_context
 
 
@@ -187,15 +179,11 @@ class CachedPokeWork:
         self.last_poke_time = timezone.utcnow()
 
     def clear_state(self):
-        """
-        Clear state for cached poke work.
-        """
+        """Clear state for cached poke work."""
         self.state = None
 
     def set_to_flush(self):
-        """
-        Mark this poke work to be popped from cached dict after current loop.
-        """
+        """Mark this poke work to be popped from cached dict after current loop."""
         self.to_flush = True
 
     def is_expired(self):
@@ -263,9 +251,7 @@ class SensorExceptionInfo:
 
     @property
     def exception_info(self):
-        """
-        :return: exception msg.
-        """
+        """:return: exception msg."""
         return self._exception_info
 
     @property
@@ -671,10 +657,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
             self._handle_poke_exception(sensor_work)
 
     def flush_cached_sensor_poke_results(self):
-        """
-        Flush outdated cached sensor states saved in previous loop.
-
-        """
+        """Flush outdated cached sensor states saved in previous loop."""
         for key, cached_work in self.cached_dedup_works.items():
             if cached_work.is_expired():
                 self.cached_dedup_works.pop(key, None)

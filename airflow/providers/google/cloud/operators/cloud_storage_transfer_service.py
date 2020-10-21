@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains Google Cloud Transfer operators.
-"""
+"""This module contains Google Cloud Transfer operators."""
 from copy import deepcopy
 from datetime import date, time
 from typing import Dict, Optional, Sequence, Union, List
@@ -58,9 +56,7 @@ from airflow.utils.decorators import apply_defaults
 
 
 class TransferJobPreprocessor:
-    """
-    Helper class for preprocess of transfer job body.
-    """
+    """Helper class for preprocess of transfer job body."""
 
     def __init__(self, body: dict, aws_conn_id: str = 'aws_default', default_schedule: bool = False) -> None:
         self.body = body
@@ -116,23 +112,17 @@ class TransferJobPreprocessor:
 
     @staticmethod
     def _convert_date_to_dict(field_date: date) -> dict:
-        """
-        Convert native python ``datetime.date`` object  to a format supported by the API
-        """
+        """Convert native python ``datetime.date`` object  to a format supported by the API"""
         return {DAY: field_date.day, MONTH: field_date.month, YEAR: field_date.year}
 
     @staticmethod
     def _convert_time_to_dict(time_object: time) -> dict:
-        """
-        Convert native python ``datetime.time`` object  to a format supported by the API
-        """
+        """Convert native python ``datetime.time`` object  to a format supported by the API"""
         return {HOURS: time_object.hour, MINUTES: time_object.minute, SECONDS: time_object.second}
 
 
 class TransferJobValidator:
-    """
-    Helper class for validating transfer job body.
-    """
+    """Helper class for validating transfer job body."""
 
     def __init__(self, body: dict) -> None:
         if not body:

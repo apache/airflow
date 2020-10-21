@@ -274,9 +274,7 @@ class DagRun(Base, LoggingMixin):
 
     @provide_session
     def get_task_instances(self, state=None, session=None):
-        """
-        Returns the task instances for this dag run
-        """
+        """Returns the task instances for this dag run"""
         tis = session.query(TI).filter(
             TI.dag_id == self.dag_id,
             TI.execution_date == self.execution_date,

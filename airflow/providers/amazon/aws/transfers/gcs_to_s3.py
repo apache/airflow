@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Cloud Storage to S3 operator.
-"""
+"""This module contains Google Cloud Storage to S3 operator."""
 import warnings
 from typing import Iterable, Optional, Sequence, Union, Dict, List, cast
 

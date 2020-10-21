@@ -23,9 +23,7 @@ from airflow.utils.decorators import apply_defaults
 
 
 class TableauJobFailedException(AirflowException):
-    """
-    An exception that indicates that a Job failed to complete.
-    """
+    """An exception that indicates that a Job failed to complete."""
 
 
 class TableauJobStatusSensor(BaseSensorOperator):

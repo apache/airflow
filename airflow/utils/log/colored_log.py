@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Class responsible for colouring logs based on log level.
-"""
+"""Class responsible for colouring logs based on log level."""
 import re
 import sys
 from logging import LogRecord

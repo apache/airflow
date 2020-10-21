@@ -242,9 +242,7 @@ def dag_edges(dag):
     task_group_map = dag.task_group.get_task_group_dict()
 
     def collect_edges(task_group):
-        """
-        Update edges_to_add and edges_to_skip according to TaskGroups.
-        """
+        """Update edges_to_add and edges_to_skip according to TaskGroups."""
         if isinstance(task_group, BaseOperator):
             return
 
@@ -361,9 +359,7 @@ class AirflowBaseView(BaseView):  # noqa: D101
 
 
 class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-methods
-    """
-    Main Airflow application.
-    """
+    """Main Airflow application."""
 
     @expose('/health')
     def health(self):
@@ -3161,9 +3157,7 @@ class DagModelView(AirflowModelView):
     base_filters = [['dag_id', DagFilter, lambda: []]]
 
     def get_query(self):
-        """
-        Default filters for model
-        """
+        """Default filters for model"""
         return (
             super().get_query()  # noqa pylint: disable=no-member
             .filter(or_(models.DagModel.is_active,
@@ -3172,9 +3166,7 @@ class DagModelView(AirflowModelView):
         )
 
     def get_count_query(self):
-        """
-        Default filters for model
-        """
+        """Default filters for model"""
         return (
             super().get_count_query()  # noqa pylint: disable=no-member
             .filter(models.DagModel.is_active)

@@ -145,9 +145,7 @@ class BaseJob(Base, LoggingMixin):
 
     @provide_session
     def kill(self, session=None):
-        """
-        Handles on_kill callback and updates state in database.
-        """
+        """Handles on_kill callback and updates state in database."""
         job = session.query(BaseJob).filter(BaseJob.id == self.id).first()
         job.end_date = timezone.utcnow()
         try:
@@ -159,14 +157,10 @@ class BaseJob(Base, LoggingMixin):
         raise AirflowException("Job shut down externally.")
 
     def on_kill(self):
-        """
-        Will be called when an external kill command is received
-        """
+        """Will be called when an external kill command is received"""
 
     def heartbeat_callback(self, session=None):
-        """
-        Callback that is called during heartbeat. This method should be overwritten.
-        """
+        """Callback that is called during heartbeat. This method should be overwritten."""
 
     def heartbeat(self, only_if_necessary: bool = False):
         """
@@ -238,9 +232,7 @@ class BaseJob(Base, LoggingMixin):
             self.latest_heartbeat = previous_heartbeat
 
     def run(self):
-        """
-        Starts the job.
-        """
+        """Starts the job."""
         Stats.incr(self.__class__.__name__.lower() + '_start', 1, 1)
         # Adding an entry in the DB
         with create_session() as session:

@@ -625,9 +625,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         return connection_cmd
 
     def on_kill(self) -> None:
-        """
-        Kill Spark submit command
-        """
+        """Kill Spark submit command"""
         self.log.debug("Kill Command is being called")
 
         if self._should_track_driver_status:

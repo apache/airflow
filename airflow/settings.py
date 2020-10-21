@@ -288,9 +288,7 @@ def configure_action_logging():
 
 
 def prepare_syspath():
-    """
-    Ensures that certain subfolders of AIRFLOW_HOME are on the classpath
-    """
+    """Ensures that certain subfolders of AIRFLOW_HOME are on the classpath"""
     if DAGS_FOLDER not in sys.path:
         sys.path.append(DAGS_FOLDER)
 

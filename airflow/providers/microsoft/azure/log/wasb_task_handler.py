@@ -53,9 +53,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
 
     @cached_property
     def hook(self):
-        """
-        Returns WasbHook.
-        """
+        """Returns WasbHook."""
         remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
@@ -77,9 +75,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         self.upload_on_close = not ti.raw
 
     def close(self) -> None:
-        """
-        Close and upload local log file to remote storage Wasb.
-        """
+        """Close and upload local log file to remote storage Wasb."""
         # When application exit, system shuts down all handlers by
         # calling close method. Here we check if logger is already
         # closed to prevent uploading the log to remote storage multiple

@@ -16,9 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains Google Datastore hook.
-"""
+"""This module contains Google Datastore hook."""
+
 
 import time
 import warnings

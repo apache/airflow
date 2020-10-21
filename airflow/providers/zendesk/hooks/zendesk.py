@@ -25,9 +25,7 @@ from airflow.hooks.base_hook import BaseHook
 
 
 class ZendeskHook(BaseHook):
-    """
-    A hook to talk to Zendesk
-    """
+    """A hook to talk to Zendesk"""
 
     def __init__(self, zendesk_conn_id: str) -> None:
         super().__init__()

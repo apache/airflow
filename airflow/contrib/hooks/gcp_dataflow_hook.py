@@ -28,9 +28,7 @@ warnings.warn(
 
 
 class DataFlowHook(DataflowHook):
-    """
-    This class is deprecated. Please use `airflow.providers.google.cloud.hooks.dataflow.DataflowHook`.
-    """
+    """This class is deprecated. Please use `airflow.providers.google.cloud.hooks.dataflow.DataflowHook`."""
 
     def __init__(self, *args, **kwargs):
         warnings.warn(

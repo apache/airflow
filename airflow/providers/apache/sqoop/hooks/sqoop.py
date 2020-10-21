@@ -17,9 +17,7 @@
 # under the License.
 #
 
-"""
-This module contains a sqoop 1.x hook
-"""
+"""This module contains a sqoop 1.x hook"""
 import subprocess
 from copy import deepcopy
 from typing import Any, Dict, List, Optional
@@ -85,9 +83,7 @@ class SqoopHook(BaseHook):
         return self.conn
 
     def cmd_mask_password(self, cmd_orig: List[str]) -> List[str]:
-        """
-        Mask command password for safety
-        """
+        """Mask command password for safety"""
         cmd = deepcopy(cmd_orig)
         try:
             password_index = cmd.index('--password')

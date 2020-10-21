@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module allows you to transfer data from any Google API endpoint into a S3 Bucket.
-"""
+"""This module allows you to transfer data from any Google API endpoint into a S3 Bucket."""
 import json
 import sys
 from typing import Optional, Sequence, Union

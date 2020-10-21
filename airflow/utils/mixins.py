@@ -22,9 +22,7 @@ from airflow.configuration import conf
 
 
 class MultiprocessingStartMethodMixin:
-    """
-    Convenience class to add support for different types of multiprocessing.
-    """
+    """Convenience class to add support for different types of multiprocessing."""
 
     def _get_multiprocessing_start_method(self) -> str:
         """

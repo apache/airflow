@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains AWS CloudFormation Hook
-"""
+"""This module contains AWS CloudFormation Hook"""
 from typing import Optional, Union
 
 from botocore.exceptions import ClientError
@@ -42,9 +40,7 @@ class AWSCloudFormationHook(AwsBaseHook):
         super().__init__(client_type='cloudformation', *args, **kwargs)
 
     def get_stack_status(self, stack_name: Union[client, resource]) -> Optional[dict]:
-        """
-        Get stack status from CloudFormation.
-        """
+        """Get stack status from CloudFormation."""
         self.log.info('Poking for stack %s', stack_name)
 
         try:

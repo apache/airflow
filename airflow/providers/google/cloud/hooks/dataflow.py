@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Dataflow Hook.
-"""
+"""This module contains a Google Dataflow Hook."""
 import functools
 import json
 import re
@@ -125,9 +123,7 @@ class DataflowJobStatus:
 
 
 class DataflowJobType:
-    """
-    Helper class with Dataflow job types.
-    """
+    """Helper class with Dataflow job types."""
 
     JOB_TYPE_UNKNOWN = "JOB_TYPE_UNKNOWN"
     JOB_TYPE_BATCH = "JOB_TYPE_BATCH"
@@ -285,9 +281,7 @@ class _DataflowJobsController(LoggingMixin):
         )
 
     def wait_for_done(self) -> None:
-        """
-        Helper method to wait for result of submitted job.
-        """
+        """Helper method to wait for result of submitted job."""
         self.log.info("Start waiting for done.")
         self._refresh_jobs()
         while self._jobs and not all(self._check_dataflow_job_state(job) for job in self._jobs):
@@ -310,9 +304,7 @@ class _DataflowJobsController(LoggingMixin):
         return self._jobs
 
     def cancel(self) -> None:
-        """
-        Cancels current job
-        """
+        """Cancels current job"""
         jobs = self.get_jobs()
         job_ids = [job['id'] for job in jobs if job['currentState'] not in DataflowJobStatus.TERMINAL_STATES]
         if job_ids:
@@ -444,9 +436,7 @@ class DataflowHook(GoogleBaseHook):
         )
 
     def get_conn(self) -> build:
-        """
-        Returns a Google Cloud Dataflow service object.
-        """
+        """Returns a Google Cloud Dataflow service object."""
         http_authorized = self._authorize()
         return build('dataflow', 'v1b3', http=http_authorized, cache_discovery=False)
 

@@ -40,9 +40,7 @@ class PoolStats(TypedDict):
 
 
 class Pool(Base):
-    """
-    the class to get Pool info.
-    """
+    """the class to get Pool info."""
 
     __tablename__ = "slot_pool"
 

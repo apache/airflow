@@ -469,9 +469,7 @@ class SQLThresholdCheckOperator(BaseOperator):
         self.log.info("Log from %s:\n%s", self.dag_id, info)
 
     def get_db_hook(self):
-        """
-        Returns DB hook
-        """
+        """Returns DB hook"""
         return BaseHook.get_hook(conn_id=self.conn_id)
 
 

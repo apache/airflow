@@ -72,9 +72,7 @@ class MongoToS3Operator(BaseOperator):
         self.replace = replace
 
     def execute(self, context) -> bool:
-        """
-        Executed by task_instance at runtime
-        """
+        """Executed by task_instance at runtime"""
         s3_conn = S3Hook(self.s3_conn_id)
 
         # Grab collection and execute query according to whether or not it is a pipeline

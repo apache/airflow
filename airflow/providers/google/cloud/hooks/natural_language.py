@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Natural Language Hook.
-"""
+"""This module contains a Google Cloud Natural Language Hook."""
 from typing import Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry

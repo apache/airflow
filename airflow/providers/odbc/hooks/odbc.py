@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains ODBC hook.
-"""
+"""This module contains ODBC hook."""
 from typing import Optional, Any
 from urllib.parse import quote_plus
 
@@ -70,25 +68,19 @@ class OdbcHook(DbApiHook):
 
     @property
     def connection(self):
-        """
-        ``airflow.Connection`` object with connection id ``odbc_conn_id``
-        """
+        """``airflow.Connection`` object with connection id ``odbc_conn_id``"""
         if not self._connection:
             self._connection = self.get_connection(getattr(self, self.conn_name_attr))
         return self._connection
 
     @property
     def database(self) -> Optional[str]:
-        """
-        Database provided in init if exists; otherwise, ``schema`` from ``Connection`` object.
-        """
+        """Database provided in init if exists; otherwise, ``schema`` from ``Connection`` object."""
         return self._database or self.connection.schema
 
     @property
     def sqlalchemy_scheme(self) -> Optional[str]:
-        """
-        Database provided in init if exists; otherwise, ``schema`` from ``Connection`` object.
-        """
+        """Database provided in init if exists; otherwise, ``schema`` from ``Connection`` object."""
         return (
             self._sqlalchemy_scheme
             or self.connection_extra_lower.get('sqlalchemy_scheme')
@@ -106,9 +98,7 @@ class OdbcHook(DbApiHook):
 
     @property
     def driver(self) -> Optional[str]:
-        """
-        Driver from init param if given; else try to find one in connection extra.
-        """
+        """Driver from init param if given; else try to find one in connection extra."""
         if not self._driver:
             driver = self.connection_extra_lower.get('driver')
             if driver:
@@ -117,9 +107,7 @@ class OdbcHook(DbApiHook):
 
     @property
     def dsn(self) -> Optional[str]:
-        """
-        DSN from init param if given; else try to find one in connection extra.
-        """
+        """DSN from init param if given; else try to find one in connection extra."""
         if not self._dsn:
             dsn = self.connection_extra_lower.get('dsn')
             if dsn:
@@ -196,16 +184,12 @@ class OdbcHook(DbApiHook):
         return {k: clean_bool(v) for k, v in merged_connect_kwargs.items()}
 
     def get_conn(self) -> pyodbc.Connection:
-        """
-        Returns a pyodbc connection object.
-        """
+        """Returns a pyodbc connection object."""
         conn = pyodbc.connect(self.odbc_connection_string, **self.connect_kwargs)
         return conn
 
     def get_uri(self) -> str:
-        """
-        URI invoked in :py:meth:`~airflow.hooks.dbapi_hook.DbApiHook.get_sqlalchemy_engine` method
-        """
+        """URI invoked in :py:meth:`~airflow.hooks.dbapi_hook.DbApiHook.get_sqlalchemy_engine` method"""
         quoted_conn_str = quote_plus(self.odbc_connection_string)
         uri = f"{self.sqlalchemy_scheme}:///?odbc_connect={quoted_conn_str}"
         return uri
@@ -213,9 +197,7 @@ class OdbcHook(DbApiHook):
     def get_sqlalchemy_connection(
         self, connect_kwargs: Optional[dict] = None, engine_kwargs: Optional[dict] = None
     ) -> Any:
-        """
-        Sqlalchemy connection object
-        """
+        """Sqlalchemy connection object"""
         engine = self.get_sqlalchemy_engine(engine_kwargs=engine_kwargs)
         cnx = engine.connect(**(connect_kwargs or {}))
         return cnx

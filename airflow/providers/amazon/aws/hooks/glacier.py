@@ -22,9 +22,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
 class GlacierHook(AwsBaseHook):
-    """
-    Hook for connection with Amazon Glacier
-    """
+    """Hook for connection with Amazon Glacier"""
 
     def __init__(self, aws_conn_id: str = "aws_default") -> None:
         super().__init__(client_type="glacier")

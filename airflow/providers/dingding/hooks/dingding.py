@@ -65,9 +65,7 @@ class DingdingHook(HttpHook):
         self.at_all = at_all
 
     def _get_endpoint(self) -> str:
-        """
-        Get Dingding endpoint for sending message.
-        """
+        """Get Dingding endpoint for sending message."""
         conn = self.get_connection(self.http_conn_id)
         token = conn.password
         if not token:
@@ -108,9 +106,7 @@ class DingdingHook(HttpHook):
         return session
 
     def send(self) -> None:
-        """
-        Send Dingding message
-        """
+        """Send Dingding message"""
         support_type = ['text', 'link', 'markdown', 'actionCard', 'feedCard']
         if self.message_type not in support_type:
             raise ValueError(

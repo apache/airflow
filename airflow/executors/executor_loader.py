@@ -27,9 +27,7 @@ log = logging.getLogger(__name__)
 
 
 class ExecutorLoader:
-    """
-    Keeps constants for all the currently available executors.
-    """
+    """Keeps constants for all the currently available executors."""
 
     LOCAL_EXECUTOR = "LocalExecutor"
     SEQUENTIAL_EXECUTOR = "SequentialExecutor"
@@ -109,9 +107,7 @@ class ExecutorLoader:
 
     @classmethod
     def __load_celery_kubernetes_executor(cls) -> BaseExecutor:
-        """
-        :return: an instance of CeleryKubernetesExecutor
-        """
+        """:return: an instance of CeleryKubernetesExecutor"""
         celery_executor = import_string(cls.executors[cls.CELERY_EXECUTOR])()
         kubernetes_executor = import_string(cls.executors[cls.KUBERNETES_EXECUTOR])()
 

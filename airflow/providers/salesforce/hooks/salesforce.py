@@ -61,9 +61,7 @@ class SalesforceHook(BaseHook):
         self.conn = None
 
     def get_conn(self) -> api.Salesforce:
-        """
-        Sign into Salesforce, only if we are not already signed in.
-        """
+        """Sign into Salesforce, only if we are not already signed in."""
         if not self.conn:
             connection = self.get_connection(self.conn_id)
             extras = connection.extra_dejson

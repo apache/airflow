@@ -31,9 +31,7 @@ log = logging.getLogger(__name__)
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE)])
 def get_dag_source(file_token: str):
-    """
-    Get source code using file token
-    """
+    """Get source code using file token"""
     secret_key = current_app.config["SECRET_KEY"]
     auth_s = URLSafeSerializer(secret_key)
     try:

@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google BigQuery Data Transfer Service operators.
-"""
+"""This module contains Google BigQuery Data Transfer Service operators."""
 from typing import Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry

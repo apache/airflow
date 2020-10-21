@@ -84,16 +84,12 @@ class State:
 
     @classmethod
     def color(cls, state):
-        """
-        Returns color for a state.
-        """
+        """Returns color for a state."""
         return cls.state_color.get(state, 'white')
 
     @classmethod
     def color_fg(cls, state):
-        """
-        Black&white colors for a state.
-        """
+        """Black&white colors for a state."""
         color = cls.color(state)
         if color in ['green', 'red']:
             return 'white'
@@ -135,9 +131,7 @@ class State:
 
 
 class PokeState:
-    """
-    Static class with poke states constants used in smart operator.
-    """
+    """Static class with poke states constants used in smart operator."""
 
     LANDED = 'landed'
     NOT_LANDED = 'not_landed'
