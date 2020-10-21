@@ -18,7 +18,7 @@
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-setup_backport_packages
+container_utils::setup_backport_packages
 
 LIST_OF_DIRS_FILE=$(mktemp)
 

@@ -16,6 +16,23 @@
 # specific language governing permissions and limitations
 # under the License.
 
+export CI=${CI:="false"}
+export GITHUB_ACTIONS=${GITHUB_ACTIONS:="false"}
+# TODO(webolis) this is used only in one place, probably it could be a local constant.
+export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access,do-not-use-asserts"
+
+
+#######################################################################################################
+#
+# Prints an error message and exits.
+#
+#######################################################################################################
+function _die() {
+    local message
+    message="${1:-"Error"}"
+    echo >&2 "${message}"; exit 1;
+}
+
 #######################################################################################################
 #
 # Adds trap to the traps already set.
@@ -25,9 +42,9 @@
 #      .... list of signals to handle
 #######################################################################################################
 function container_utils::add_trap() {
-    trap="${1}"
+    local trap="$1"
     shift
-    for signal in "${@}"
+    for signal in "$@"
     do
         # adding trap to exiting trap
         local handlers
@@ -89,18 +106,18 @@ function container_utils::in_container_script_end() {
     #shellcheck disable=2181
     local exit_code
     exit_code=$?
-    if [[ ${exit_code} != 0 ]]; then
-        if [[ "${PRINT_INFO_FROM_SCRIPTS=="true"}" == "true" ]] ;then
+    if (( exit_code != 0 )); then
+        if [[ "${PRINT_INFO_FROM_SCRIPTS=="true"}" == "true" ]]; then
             if [[ -n ${OUT_FILE_PRINTED_ON_ERROR=} ]]; then
-                echo "  ERROR ENCOUNTERED!"
-                echo
-                echo "  Output:"
-                echo
-                cat "${OUT_FILE_PRINTED_ON_ERROR}"
-                echo "###########################################################################################"
+                echo >&2 "  ERROR ENCOUNTERED!"
+                echo >&2
+                echo >&2 "  Output:"
+                echo >&2
+                cat >&2 "${OUT_FILE_PRINTED_ON_ERROR}"
+                echo >&2 "###########################################################################################"
             fi
             echo "###########################################################################################"
-            echo "  [IN CONTAINER]   EXITING ${0} WITH STATUS CODE ${exit_code}"
+            echo "  [IN CONTAINER]   EXITING $0 WITH STATUS CODE ${exit_code}"
             echo "###########################################################################################"
         fi
     fi
@@ -147,8 +164,8 @@ function container_utils::in_container_cleanup_pycache() {
 #######################################################################################################
 #
 # Fixes ownership of files generated in container - if they are owned by root, they will be owned by
-# The host user. Only needed if the host is Linux - on Mac, ownership of files is automatically
-# changed to the Host user via osxfs filesystem
+# the host user. Only needed if the host is Linux - on Mac, ownership of files is automatically
+# changed to the host user via osxfs filesystem
 #
 # Used globals:
 #   AIRFLOW_SOURCES
@@ -175,13 +192,14 @@ function container_utils::in_container_fix_ownership() {
             echo "Fixing ownership of mounted files"
         fi
         sudo find "${directories_to_fix[@]}" -print0 -user root 2>/dev/null \
-            | sudo xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference ||
-                true >/dev/null 2>&1
+            | sudo xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference \
+            || true >/dev/null 2>&1
         if [[ ${VERBOSE} == "true" ]]; then
             echo "Fixed ownership of mounted files"
         fi
     fi
 }
+
 #######################################################################################################
 #
 # Cleans up the temp dir in container.
@@ -203,19 +221,19 @@ function container_utils::in_container_clear_tmp() {
 
 #######################################################################################################
 #
-# Pushes the airflow sources to the stack for easy access thoroughout the script.
+# Pushes the airflow sources to the stack for easy access throughout the script.
 #
 # Used globals:
 #   AIRFLOW_SOURCES
 #######################################################################################################
 function container_utils::in_container_go_to_airflow_sources() {
-    pushd "${AIRFLOW_SOURCES}"  &>/dev/null || exit 1
+    pushd "${AIRFLOW_SOURCES}" &>/dev/null || _die "Could not change dir to '${AIRFLOW_SOURCES}'"
 }
 
 #######################################################################################################
 #
-# Basic sanity which checks if its in the container followed by pushing the AIRFLOW SOURCE onto the
-# stack and then cleaning up pyc and pycache files from the container.
+# Basic sanity: ensure we're running in the container, jump to AIRFLOW_SOURCE dir and clean up
+# pyc and pycache files that might have been left in the container.
 #
 #######################################################################################################
 function container_utils::in_container_basic_sanity_check() {
@@ -227,7 +245,7 @@ function container_utils::in_container_basic_sanity_check() {
 
 #######################################################################################################
 #
-# Sets up the pylint
+# Sets up pylint.
 #
 # Used globals:
 #   VERBOSE
@@ -246,9 +264,9 @@ function container_utils::in_container_refresh_pylint_todo() {
         echo
     fi
     # Using path -prune is much better in the local environment on OSX because we have host
-    # Files mounted and node_modules is a huge directory which takes many seconds to even scan
+    # files mounted and node_modules is a huge directory which takes many seconds to even scan.
     # -prune works better than -not path because it skips traversing the whole directory. -not path traverses
-    # the directory and only excludes it after all of it is scanned
+    # the directory and only excludes it after all of it is scanned.
     find . \
         -path "./airflow/www/node_modules" -prune -o \
         -path "./airflow/www_rbac/node_modules" -prune -o \
@@ -292,11 +310,13 @@ function container_utils::in_container_refresh_pylint_todo() {
     fi
 }
 
-export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access,do-not-use-asserts"
-
 #######################################################################################################
 #
-# Starts up the scheduler heartbeat and binds the PID to env variable
+# Starts up the scheduler heartbeat and binds the PID to env variable.
+#
+# Arguments:
+#   message to print in the heartbeat process
+#   heartbeat interval (in seconds)
 #
 # Modified globals:
 #   HEARTBEAT_PID
@@ -308,7 +328,7 @@ function container_utils::start_output_heartbeat() {
     message=${1:-"Still working!"}
     interval=${2:=10}
     echo
-    echo "Starting output heartbeat"
+    echo "Starting output heartbeat with interval = ${interval} seconds"
     echo
 
     bash 2> /dev/null <<EOF &
@@ -345,24 +365,24 @@ function container_utils::stop_output_heartbeat() {
 #######################################################################################################
 function container_utils::dump_airflow_logs() {
     local dump_file
-    dump_file=/files/airflow_logs_$(date "+%Y-%m-%d")_${CI_BUILD_ID}_${CI_JOB_ID}.log.tar.gz
+    dump_file="/files/airflow_logs_$(date "+%Y-%m-%d")_${CI_BUILD_ID}_${CI_JOB_ID}.log.tar.gz"
     echo "###########################################################################################"
     echo "                   Dumping logs from all the airflow tasks"
     echo "###########################################################################################"
-    pushd "${AIRFLOW_HOME}" || exit 1
+    pushd "${AIRFLOW_HOME}" || _die "Could not change dir to ${AIRFLOW_HOME}"
     tar -czf "${dump_file}" logs
     echo "                   Logs dumped to ${dump_file}"
-    popd || exit 1
+    popd || _die "Could not restore previous directory"
     echo "###########################################################################################"
 }
 
 
 #######################################################################################################
 #
-# Installs released version of airflow via pip
+# Installs released version of airflow via pip.
 #
 # Arguments:
-#   AIRFLOW
+#   airflow version
 # Used globals:
 #   AIRFLOW_SOURCES
 #
@@ -370,14 +390,16 @@ function container_utils::dump_airflow_logs() {
 #   SLUGIFY_USES_TEXT_UNIDECODE
 #######################################################################################################
 function container_utils::install_released_airflow_version() {
+    local airflow_version
+    airflow_version="$1"
     local installs
     pip uninstall -y apache-airflow || true
     find /root/airflow/ -type f -print0 | xargs -0 rm -f --
-    if [[ ${1} == "1.10.2" || ${1} == "1.10.1" ]]; then
-        export SLUGIFY_USES_TEXT_UNIDECODE=yes
+    if [[ "${airflow_version}" == "1.10.2" || "${airflow_version}" == "1.10.1" ]]; then
+        export SLUGIFY_USES_TEXT_UNIDECODE="yes"
     fi
     rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
-    installs=("apache-airflow==${1}" "werkzeug<1.0.0")
+    installs=("apache-airflow==${airflow_version}" "werkzeug<1.0.0")
     pip install --upgrade "${installs[@]}"
 }
 
@@ -401,6 +423,3 @@ function setup_backport_packages() {
     readonly BACKPORT_PACKAGES
     export BACKPORT_PACKAGES
 }
-
-export CI=${CI:="false"}
-export GITHUB_ACTIONS=${GITHUB_ACTIONS:="false"}

@@ -19,7 +19,7 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 OUT_FILE_PRINTED_ON_ERROR=$(mktemp)
 
-setup_backport_packages
+container_utils::setup_backport_packages
 
 echo
 echo "Testing if all provider packages can be installed separately on Airflow and cause no side effects"
