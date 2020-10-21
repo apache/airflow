@@ -559,27 +559,6 @@ quotas: {}
 # Define default/max/min values for pods and containers in namespace
 limits: []
 
-# Config Settings for pod_mutation_hook
-podMutation:
-  # Tolerations provided here would be applied using pod_mutation_hook
-  # So any pods spun up using KubernetesExecutor or KubernetesPodOperator will contain these tolerations.
-  tolerations: []
-  #  - key: "dynamic-pods"
-  #    operator: "Equal"
-  #    value: "true"
-  #    effect: "NoSchedule"
-
-  # Pods spun up would land in the node that matches the affinity
-  affinity: {}
-  #   nodeAffinity:
-  #     requiredDuringSchedulingIgnoredDuringExecution:
-  #       nodeSelectorTerms:
-  #       - matchExpressions:
-  #         - key: "company.io/dynamic-pods"
-  #           operator: In
-  #           values:
-  #           - "true"
-
 # This runs as a CronJob to cleanup old pods.
 cleanup:
   enabled: false

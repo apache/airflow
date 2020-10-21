@@ -985,20 +985,6 @@
             "description": "Define default/max/min values for pods and containers in namespace.",
             "type": "array"
         },
-        "podMutation": {
-            "description": "Settings for pod_mutation_hook",
-            "type": "object",
-            "properties": {
-                "tolerations": {
-                    "description": "Tolerations provided here would be applied using pod_mutation_hook. So any pods spun up using KubernetesExecutor or KubernetesPodOperator will contain these tolerations.",
-                    "type": "array"
-                },
-                "affinity": {
-                    "description": "Pods spun up would land in the node that matches the affinity.",
-                    "type": "object"
-                }
-            }
-        },
         "cleanup": {
             "description": "This runs as a CronJob to cleanup old pods.",
             "type": "object",
