@@ -145,7 +145,7 @@ class TestSFTPHook(unittest.TestCase):
         get_connection.return_value = connection
         hook = SFTPHook()
         self.assertEqual(hook.no_host_key_check, False)
-        
+
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
     def test_ciphers(self, get_connection):
         connection = Connection(login='login', host='host', extra='{"ciphers": ["A", "B", "C"]}')
