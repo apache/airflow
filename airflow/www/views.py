@@ -900,7 +900,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @auth.has_access([
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
     ])
     @action_logging
@@ -990,7 +990,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         [
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ]
     )
@@ -1030,7 +1030,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         [
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ]
     )
@@ -1718,7 +1718,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
     ])
     @gzipped
@@ -1889,7 +1889,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
     ])
     @gzipped
@@ -3206,7 +3206,7 @@ class LogModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(Log)  # noqa # type:ignore
 
-    class_permission_name = permissions.RESOURCE_LOG
+    class_permission_name = permissions.RESOURCE_AUDIT_LOG
     method_permission_name = {
         'list': 'read',
     }
