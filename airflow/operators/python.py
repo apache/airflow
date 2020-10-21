@@ -392,7 +392,7 @@ class PythonVirtualenvOperator(PythonOperator):
         See virtualenv documentation for more information.
     :type system_site_packages: bool
     :param op_args: A list of positional arguments to pass to python_callable.
-    :type op_kwargs: list
+    :type op_args: list
     :param op_kwargs: A dict of keyword arguments to pass to python_callable.
     :type op_kwargs: dict
     :param string_args: Strings that are present in the global var virtualenv_string_args,
