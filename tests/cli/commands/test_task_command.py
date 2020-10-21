@@ -257,6 +257,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
     def setUp(self) -> None:
         self.dag_id = "test_logging_dag"
         self.task_id = "test_task"
+        self.dag_path = os.path.join(ROOT_FOLDER, "dags", "test_logging_in_dag.py")
         reset(self.dag_id)
         self.execution_date = timezone.make_aware(datetime(2017, 1, 1))
         self.execution_date_str = self.execution_date.isoformat()
@@ -297,7 +298,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         #  We are not using self.assertLogs as we want to verify what actually is stored in the Log file
         # as that is what gets displayed
 
-        with conf_vars({('core', 'dags_folder'): os.path.join(ROOT_FOLDER, f"tests/dags/{self.dag_id}")}):
+        with conf_vars({('core', 'dags_folder'): self.dag_path}):
             task_command.task_run(self.parser.parse_args([
                 'tasks', 'run', self.dag_id, self.task_id, '--local', self.execution_date_str]))
 
@@ -324,7 +325,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
     def test_logging_with_run_task_subprocess(self):
         # We are not using self.assertLogs as we want to verify what actually is stored in the Log file
         # as that is what gets displayed
-        with conf_vars({('core', 'dags_folder'): os.path.join(ROOT_FOLDER, f"tests/dags/{self.dag_id}")}):
+        with conf_vars({('core', 'dags_folder'): self.dag_path}):
             task_command.task_run(self.parser.parse_args([
                 'tasks', 'run', self.dag_id, self.task_id, '--local', self.execution_date_str]))
 
@@ -349,7 +350,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         """Verify that the taskinstance has the right context for log_filename_template"""
 
         with mock.patch.object(task_command, "_run_task_by_selected_method"):
-            with conf_vars({('core', 'dags_folder'): os.path.join(ROOT_FOLDER, f"tests/dags/{self.dag_id}")}):
+            with conf_vars({('core', 'dags_folder'): self.dag_path}):
                 # increment the try_number of the task to be run
                 dag = DagBag().get_dag(self.dag_id)
                 task = dag.get_task(self.task_id)
