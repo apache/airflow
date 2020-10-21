@@ -140,7 +140,10 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     ):
         super().__init__()
         self.connections_path = connections_path.rstrip('/')
-        self.variables_path = variables_path.rstrip('/')
+        if variables_path != None:
+            self.variables_path = variables_path.rstrip('/')
+        else:
+            self.variables_path = variables_path
         self.config_path = config_path.rstrip('/')
         self.mount_point = mount_point
         self.kv_engine_version = kv_engine_version
@@ -192,9 +195,12 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         :rtype: str
         :return: Variable Value retrieved from the vault
         """
-        secret_path = self.build_path(self.variables_path, key)
-        response = self.vault_client.get_secret(secret_path=secret_path)
-        return response.get("value") if response else None
+        if self.variables_path == None:
+            return None
+        else:
+            secret_path = self.build_path(self.variables_path, key)
+            response = self.vault_client.get_secret(secret_path=secret_path)
+            return response.get("value") if response else None
 
     def get_config(self, key: str) -> Optional[str]:
         """
