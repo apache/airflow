@@ -92,19 +92,19 @@ class SnowflakeToS3Operator(BaseOperator):
 
     def execute(self, context):
         snowflake_hook = SnowflakeHook(snowflake_conn_id=self.snowflake_conn_id)
-        unload_options = '\n\t\t\t'.join(self.unload_options)
+        unload_options = '\n\t'.join(self.unload_options)
 
         if not self.sql:
             self.sql = self.schema + '.' + self.table
 
         unload_query = f"""
-                    COPY INTO 's3://{self.s3_bucket}/{self.s3_key}'
-                    FROM ({self.sql})
-                    STORAGE_INTEGRATION = S3
-                    FILE_FORMAT = ({self.file_format})
-                    {unload_options}
-                    HEADER = {self.include_header};
-                    """
+        COPY INTO 's3://{self.s3_bucket}/{self.s3_key}'
+        FROM ({self.sql})
+        STORAGE_INTEGRATION = S3
+        FILE_FORMAT = ({self.file_format})
+        {unload_options}
+        HEADER = {self.include_header};
+        """
 
         self.log.info('Executing UNLOAD command...')
         snowflake_hook.run(unload_query, self.autocommit)
