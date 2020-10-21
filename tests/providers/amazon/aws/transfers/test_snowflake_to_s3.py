@@ -54,15 +54,15 @@ class TestSnowflakeToS3Transfer(unittest.TestCase):
         if not sql:
             sql = schema + '.' + table
 
-        unload_options = '\n\t\t\t'.join(unload_options)
+        unload_options = '\n\t'.join(unload_options)
         unload_query = f"""
-                        COPY INTO 's3://{s3_bucket}/{s3_key}'
-                        FROM ({sql})
-                        STORAGE_INTEGRATION = S3
-                        FILE_FORMAT = {file_format}
-                        {unload_options}
-                        HEADER = True;
-                        """
+        COPY INTO 's3://{s3_bucket}/{s3_key}'
+        FROM ({sql})
+        STORAGE_INTEGRATION = S3
+        FILE_FORMAT = {file_format}
+        {unload_options}
+        HEADER = True;
+        """
 
         assert mock_run.call_count == 1
         assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], unload_query)
