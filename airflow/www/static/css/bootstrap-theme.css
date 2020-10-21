@@ -1576,12 +1576,12 @@ th {
   line-height: 1.428571429;
   vertical-align: middle;
   border-top: 1px solid #ddd;
-  white-space: nowrap;
 }
 .table > thead > tr > th {
   vertical-align: bottom;
   background-color: #f0f0f0;
   border-bottom: 1px solid #fff;
+  white-space: nowrap;
 }
 .table > caption + thead > tr:first-child > th,
 .table > colgroup + thead > tr:first-child > th,
