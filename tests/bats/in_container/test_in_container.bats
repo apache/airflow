@@ -26,6 +26,6 @@ setup() {
 }
 
 @test "test in_container" {
-    run assert_in_container
+    run container_utils::assert_in_container
     assert [ $status -eq 0 ]
 }
