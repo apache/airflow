@@ -62,24 +62,25 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     VIEWER_PERMISSIONS = [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_JOB),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_SLA_MISS),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
-        # (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AIRFLOW),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_BROWSE_MENU),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_LINK),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_JOB),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_LOG),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_SLA_MISS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
     ]
@@ -87,8 +88,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     # [START security_user_perms]
     USER_PERMISSIONS = [
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS),
-        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
@@ -128,7 +129,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     ]
 
     # global view-menu for dag-level access
-    DAG_VMS = {permissions.RESOURCE_DAGS}
+    DAG_VMS = {permissions.RESOURCE_DAG}
 
     READ_DAG_PERMS = {permissions.ACTION_CAN_READ}
     DAG_PERMS = {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}
@@ -273,7 +274,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 else:
                     resources.add(resource)
 
-        if permissions.RESOURCE_DAGS in resources:
+        if permissions.RESOURCE_DAG in resources:
             return session.query(DagModel)
 
         return session.query(DagModel).filter(DagModel.dag_id.in_(resources))
@@ -284,7 +285,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             user = g.user
         prefixed_dag_id = self.prefixed_dag_id(dag_id)
         return self._has_view_access(
-            user, permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS
+            user, permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG
         ) or self._has_view_access(user, permissions.ACTION_CAN_READ, prefixed_dag_id)
 
     def can_edit_dag(self, dag_id, user=None) -> bool:
@@ -294,12 +295,12 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         prefixed_dag_id = self.prefixed_dag_id(dag_id)
 
         return self._has_view_access(
-            user, permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS
+            user, permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG
         ) or self._has_view_access(user, permissions.ACTION_CAN_EDIT, prefixed_dag_id)
 
     def prefixed_dag_id(self, dag_id):
         """Returns the permission name for a DAG id."""
-        if dag_id == permissions.RESOURCE_DAGS:
+        if dag_id == permissions.RESOURCE_DAG:
             return dag_id
 
         if dag_id.startswith(permissions.RESOURCE_DAG_PREFIX):
@@ -308,7 +309,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def is_dag_resource(self, resource_name):
         """Determines if a permission belongs to a DAG or all DAGs."""
-        if resource_name == permissions.RESOURCE_DAGS:
+        if resource_name == permissions.RESOURCE_DAG:
             return True
         return resource_name.startswith(permissions.RESOURCE_DAG_PREFIX)
 
@@ -371,8 +372,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         return (
             self._has_role(['Admin', 'Viewer', 'Op', 'User'])
-            or self._has_perm(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS)
-            or self._has_perm(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS)
+            or self._has_perm(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)
+            or self._has_perm(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)
         )
 
     def clean_perms(self):
@@ -468,7 +469,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         update_perm_views = []
 
         # need to remove all_dag vm from all the existing view-menus
-        dag_vm = self.find_view_menu(permissions.RESOURCE_DAGS)
+        dag_vm = self.find_view_menu(permissions.RESOURCE_DAG)
         ab_perm_view_role = sqla_models.assoc_permissionview_role
         perm_view = self.permissionview_model
         view_menu = self.viewmenu_model
@@ -513,7 +514,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         :return: None.
         """
-        all_dag_view = self.find_view_menu(permissions.RESOURCE_DAGS)
+        all_dag_view = self.find_view_menu(permissions.RESOURCE_DAG)
         dag_pvs = (
             self.get_session.query(sqla_models.ViewMenu)
             .filter(sqla_models.ViewMenu.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))

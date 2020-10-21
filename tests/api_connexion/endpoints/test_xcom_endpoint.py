@@ -41,7 +41,7 @@ class TestXComEndpoint(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),

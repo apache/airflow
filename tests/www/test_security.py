@@ -207,8 +207,8 @@ class TestSecurity(unittest.TestCase):
             username,
             role_name,
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             ],
         )
 
@@ -272,12 +272,12 @@ class TestSecurity(unittest.TestCase):
                 username,
                 role_name,
                 permissions=[
-                    (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
-                    (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                    (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+                    (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 ],
             )
             self.assertTrue(
-                self.security_manager.has_access(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS, user)
+                self.security_manager.has_access(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG, user)
             )
             self.assertFalse(
                 self.security_manager.has_access(permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK, user)

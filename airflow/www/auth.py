@@ -18,28 +18,18 @@
 from functools import wraps
 from typing import Callable, Optional, Sequence, Tuple, TypeVar, cast
 
-from flask import Response, current_app, g
+from flask import current_app, flash, g, redirect, request, url_for
 
 import airflow.security.permissions as perms
-from airflow.api_connexion.exceptions import PermissionDenied, Unauthenticated
 
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
-
-
-def check_authentication() -> None:
-    """Checks that the request has valid authorization information."""
-    response = current_app.api_auth.requires_authentication(Response)()
-    if response.status_code != 200:
-        # since this handler only checks authentication, not authorization,
-        # we should always return 401
-        raise Unauthenticated(headers=response.headers)
 
 
 def can_access_any_dags(action: str, dag_id: Optional[int] = None) -> bool:
     """Checks if user has read or write access to some dags."""
     appbuilder = current_app.appbuilder
     if dag_id and dag_id != '~':
-        return appbuilder.sm.has_access(action, appbuilder.sm.prefixed_dag_id(dag_id))
+        return appbuilder.sm.has_access(action, dag_id)
 
     user = g.user
     if action == perms.ACTION_CAN_READ:
@@ -49,10 +39,10 @@ def can_access_any_dags(action: str, dag_id: Optional[int] = None) -> bool:
 
 def check_authorization(
     permissions: Optional[Sequence[Tuple[str, str]]] = None, dag_id: Optional[int] = None
-) -> None:
-    """Checks that the logged in user has the specified permissions."""
+) -> bool:
+    """Checks that the logged in user has the specified perms."""
     if not permissions:
-        return
+        return True
     appbuilder = current_app.appbuilder
     for permission in permissions:
         if permission in (
@@ -66,25 +56,30 @@ def check_authorization(
             action = permission[0]
             if can_access_any_dags(action, dag_id):
                 continue
-
-            raise PermissionDenied()
+            return False
 
         elif not appbuilder.sm.has_access(*permission):
-            raise PermissionDenied()
+            return False
+
+    return True
 
 
-def requires_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Callable[[T], T]:
-    """Factory for decorator that checks current user's permissions against required permissions."""
+def has_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Callable[[T], T]:
+    """
+    Factory for decorator that checks current user's permissions against required perms.
+    """
     appbuilder = current_app.appbuilder
     appbuilder.sm.sync_resource_permissions(permissions)
 
     def requires_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
-            check_authentication()
-            check_authorization(permissions, kwargs.get('dag_id'))
-
-            return func(*args, **kwargs)
+            if check_authorization(permissions, request.args.get('dag_id', None)):
+                return func(*args, **kwargs)
+            else:
+                access_denied = "Access is Denied"
+                flash(access_denied, "danger")
+            return redirect(url_for(appbuilder.sm.auth_view.__class__.__name__ + ".login", next=request.url,))
 
         return cast(T, decorated)
 

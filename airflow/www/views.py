@@ -462,7 +462,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             if arg_tags_filter:
                 dags_query = dags_query.filter(DagModel.tags.any(DagTag.name.in_(arg_tags_filter)))
 
-            if permissions.RESOURCE_DAGS not in filter_dag_ids:
+            if permissions.RESOURCE_DAG not in filter_dag_ids:
                 dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
                 # pylint: enable=no-member
 
@@ -542,7 +542,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/dag_stats', methods=['POST'])
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ]
@@ -553,7 +553,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         dr = models.DagRun
 
         allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
-        if permissions.RESOURCE_DAGS in allowed_dag_ids:
+        if permissions.RESOURCE_DAG in allowed_dag_ids:
             allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
         dag_state_stats = session.query(dr.dag_id, dr.state, sqla.func.count(dr.state))\
@@ -595,7 +595,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/task_stats', methods=['POST'])
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -609,7 +609,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         if not allowed_dag_ids:
             return wwwutils.json_response({})
 
-        if permissions.RESOURCE_DAGS in allowed_dag_ids:
+        if permissions.RESOURCE_DAG in allowed_dag_ids:
             allowed_dag_ids = {dag_id for dag_id, in session.query(models.DagModel.dag_id)}
 
         # Filter by post parameters
@@ -716,7 +716,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/last_dagruns', methods=['POST'])
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ]
@@ -726,7 +726,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Last DAG runs"""
         allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
 
-        if permissions.RESOURCE_DAGS in allowed_dag_ids:
+        if permissions.RESOURCE_DAG in allowed_dag_ids:
             allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
         # Filter by post parameters
@@ -763,7 +763,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/code')
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ]
@@ -799,7 +799,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/dag_details')
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ]
@@ -842,7 +842,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/rendered')
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ]
@@ -898,7 +898,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
     @expose('/get_logs_with_metadata')
     @auth.has_access([
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -988,7 +988,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/log')
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -1028,7 +1028,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/redirect_to_external_log')
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -1065,7 +1065,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/task')
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -1152,7 +1152,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/xcom')
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -1204,7 +1204,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/run', methods=['POST'])
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
             (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -1278,7 +1278,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/delete', methods=['POST'])
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAGS),
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ]
     )
@@ -1311,7 +1311,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/trigger', methods=['POST', 'GET'])
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ]
@@ -1426,7 +1426,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/clear', methods=['POST'])
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
             (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -1463,7 +1463,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
     @expose('/dagrun_clear', methods=['POST'])
     @auth.has_access([
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -1486,7 +1486,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
     @expose('/blocked', methods=['POST'])
     @auth.has_access([
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
     ])
@@ -1495,7 +1495,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Mark Dag Blocked."""
         allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
 
-        if permissions.RESOURCE_DAGS in allowed_dag_ids:
+        if permissions.RESOURCE_DAG in allowed_dag_ids:
             allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
         # Filter by post parameters
@@ -1593,7 +1593,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
     @expose('/dagrun_failed', methods=['POST'])
     @auth.has_access([
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
     ])
@@ -1609,7 +1609,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
     @expose('/dagrun_success', methods=['POST'])
     @auth.has_access([
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
     ])
@@ -1665,7 +1665,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
     @expose('/failed', methods=['POST'])
     @auth.has_access([
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -1690,7 +1690,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
     @expose('/success', methods=['POST'])
     @auth.has_access([
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -1715,7 +1715,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
     @expose('/tree')
     @auth.has_access([
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
@@ -1886,7 +1886,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
     @expose('/graph')
     @auth.has_access([
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
@@ -1977,7 +1977,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
     @expose('/duration')
     @auth.has_access([
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -2099,7 +2099,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
     @expose('/tries')
     @auth.has_access([
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -2171,7 +2171,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
     @expose('/landing_times')
     @auth.has_access([
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -2255,7 +2255,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
     @expose('/paused', methods=['POST'])
     @auth.has_access([
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
     ])
     @action_logging
@@ -2269,7 +2269,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
     @expose('/refresh', methods=['POST'])
     @auth.has_access([
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
     ])
     @action_logging
@@ -2294,7 +2294,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
     @expose('/refresh_all', methods=['POST'])
     @auth.has_access([
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
     ])
     @action_logging
@@ -2310,7 +2310,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
     @expose('/gantt')
     @auth.has_access([
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -2407,7 +2407,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
     @expose('/extra_links')
     @auth.has_access([
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
     ])
@@ -2468,7 +2468,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
     @expose('/object/task_instances')
     @auth.has_access([
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -2498,7 +2498,7 @@ class ConfigurationView(AirflowBaseView):
     default_view = 'conf'
 
     class_permission_name = permissions.RESOURCE_CONFIG
-    base_permissions = ['can_read', 'menu_access']
+    base_permissions = [permissions.ACTION_CAN_READ, permissions.ACTION_CAN_ACCESS_MENU,]
 
     @expose('/configuration')
     @auth.has_access([
@@ -2713,7 +2713,7 @@ class ConnectionModelView(AirflowModelView):
     @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?',
             single=False)
     @auth.has_access([
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
     ])
     def action_muldelete(self, items):
         """Multiple delete."""
@@ -2754,7 +2754,13 @@ class PluginView(AirflowBaseView):
     default_view = 'list'
 
     class_permission_name = permissions.RESOURCE_PLUGIN
+
+    method_permission_name = {
+        'list': 'read',
+    }
+
     base_permissions = [
+        permissions.ACTION_CAN_READ,
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
@@ -2775,7 +2781,6 @@ class PluginView(AirflowBaseView):
     ]
 
     @expose('/plugin')
-    # @has_access
     def list(self):
         """List loaded plugins."""
         plugins_manager.ensure_plugins_loaded()
@@ -2911,7 +2916,13 @@ class VariableModelView(AirflowModelView):
         'action_varexport': 'read',
         'varimport': 'create',
     }
-    base_permissions = ['can_create', 'can_read', 'can_edit', 'can_delete', 'menu_access']
+    base_permissions = [
+        permissions.ACTION_CAN_CREATE,
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_EDIT,
+        permissions.ACTION_CAN_DELETE,
+        permissions.ACTION_CAN_ACCESS_MENU,
+    ]
 
     list_columns = ['key', 'val', 'is_encrypted']
     add_columns = ['key', 'val']
@@ -3010,7 +3021,7 @@ class JobModelView(AirflowModelView):
     method_permission_name = {
         'list': 'read',
     }
-    base_permissions = ['can_read', 'menu_access']
+    base_permissions = [permissions.ACTION_CAN_READ, permissions.ACTION_CAN_ACCESS_MENU,]
 
     list_columns = ['id', 'dag_id', 'state', 'job_type', 'start_date',
                     'end_date', 'latest_heartbeat',
@@ -3048,7 +3059,13 @@ class DagRunModelView(AirflowModelView):
         'action_set_failed': 'edit',
         'action_set_success': 'edit',
     }
-    base_permissions = ['can_create', 'can_read', 'can_edit', 'can_delete', 'menu_access']
+    base_permissions = [
+        permissions.ACTION_CAN_CREATE,
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_EDIT,
+        permissions.ACTION_CAN_DELETE,
+        permissions.ACTION_CAN_ACCESS_MENU,
+    ]
 
     add_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'external_trigger', 'conf']
     list_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'run_type', 'external_trigger', 'conf']
@@ -3193,7 +3210,7 @@ class LogModelView(AirflowModelView):
     method_permission_name = {
         'list': 'read',
     }
-    base_permissions = ['can_read', 'menu_access']
+    base_permissions = [permissions.ACTION_CAN_READ, permissions.ACTION_CAN_ACCESS_MENU,]
 
     list_columns = ['id', 'dttm', 'dag_id', 'task_id', 'event', 'execution_date',
                     'owner', 'extra']
@@ -3222,7 +3239,7 @@ class TaskRescheduleModelView(AirflowModelView):
         'list': 'read',
     }
 
-    base_permissions = ['can_read', 'menu_access']
+    base_permissions = [permissions.ACTION_CAN_READ, permissions.ACTION_CAN_ACCESS_MENU,]
 
     list_columns = ['id', 'dag_id', 'task_id', 'execution_date', 'try_number',
                     'start_date', 'end_date', 'duration', 'reschedule_date']
@@ -3269,7 +3286,13 @@ class TaskInstanceModelView(AirflowModelView):
         'action_set_success': 'edit',
         'action_set_retry': 'edit',
     }
-    base_permissions = ['can_create', 'can_read', 'can_edit', 'can_delete', 'menu_access']
+    base_permissions = [
+        permissions.ACTION_CAN_CREATE,
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_EDIT,
+        permissions.ACTION_CAN_DELETE,
+        permissions.ACTION_CAN_ACCESS_MENU,
+    ]
 
     page_size = PAGE_SIZE
 
@@ -3355,7 +3378,7 @@ class TaskInstanceModelView(AirflowModelView):
 
     @action('set_running', "Set state to 'running'", '', single=False)
     @auth.has_access([
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
     ])
     def action_set_running(self, tis):
         """Set state to 'running'"""
@@ -3365,7 +3388,7 @@ class TaskInstanceModelView(AirflowModelView):
 
     @action('set_failed', "Set state to 'failed'", '', single=False)
     @auth.has_access([
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
     ])
     def action_set_failed(self, tis):
         """Set state to 'failed'"""
@@ -3375,7 +3398,7 @@ class TaskInstanceModelView(AirflowModelView):
 
     @action('set_success', "Set state to 'success'", '', single=False)
     @auth.has_access([
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
     ])
     def action_set_success(self, tis):
         """Set state to 'success'"""
@@ -3385,7 +3408,7 @@ class TaskInstanceModelView(AirflowModelView):
 
     @action('set_retry', "Set state to 'up_for_retry'", '', single=False)
     @auth.has_access([
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
     ])
     def action_set_retry(self, tis):
         """Set state to 'up_for_retry'"""
@@ -3401,12 +3424,16 @@ class DagModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(DagModel)  # noqa # type: ignore
 
-    class_permission_name = permissions.RESOURCE_DAGS
+    class_permission_name = permissions.RESOURCE_DAG
     method_permission_name = {
         'list': 'read',
         'show': 'read',
     }
-    base_permissions = ['can_read', 'can_edit', 'can_delete']
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_EDIT,
+        permissions.ACTION_CAN_DELETE
+    ]
 
     list_columns = ['dag_id', 'is_paused', 'last_scheduler_run',
                     'last_expired', 'scheduler_lock', 'fileloc', 'owners']
@@ -3435,7 +3462,7 @@ class DagModelView(AirflowModelView):
         )
 
     @auth.has_access([
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
     ])
     @provide_session
     @expose('/autocomplete')
@@ -3466,7 +3493,7 @@ class DagModelView(AirflowModelView):
 
         filter_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
         # pylint: disable=no-member
-        if permissions.RESOURCE_DAGS not in filter_dag_ids:
+        if permissions.RESOURCE_DAG not in filter_dag_ids:
             dag_ids_query = dag_ids_query.filter(DagModel.dag_id.in_(filter_dag_ids))
             owners_query = owners_query.filter(DagModel.dag_id.in_(filter_dag_ids))
         # pylint: enable=no-member

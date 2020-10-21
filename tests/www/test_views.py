@@ -1799,10 +1799,10 @@ class TestDagACLView(TestBase):
 
         all_dag_role = self.appbuilder.sm.find_role('all_dag_role')
         edit_perm_on_all_dag = self.appbuilder.sm.\
-            find_permission_view_menu(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS)
+            find_permission_view_menu(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)
         self.appbuilder.sm.add_permission_role(all_dag_role, edit_perm_on_all_dag)
         read_perm_on_all_dag = self.appbuilder.sm.\
-            find_permission_view_menu(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS)
+            find_permission_view_menu(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)
         self.appbuilder.sm.add_permission_role(all_dag_role, read_perm_on_all_dag)
         self.appbuilder.sm.add_permission_role(all_dag_role, website_permission)
 
@@ -1872,7 +1872,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='index_success_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE)
             ],
         )
@@ -1897,7 +1897,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='index_for_all_dag_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE)
             ],
         )
@@ -1926,7 +1926,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='dag_stats_success_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             ],
@@ -1953,7 +1953,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='dag_stats_success_for_all_dag_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             ],
@@ -1992,7 +1992,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='task_stats_success_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -2018,7 +2018,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='task_stats_success_for_all_dag_user_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -2039,7 +2039,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='task_stats_success_when_selecting_dags_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -2074,7 +2074,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='code_success_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             ],
@@ -2113,7 +2113,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='code_success_for_all_dag_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             ],
@@ -2137,7 +2137,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='dag_details_success_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             ],
@@ -2165,7 +2165,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='dag_details_success_for_all_dag_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             ],
@@ -2189,7 +2189,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='rendered_success_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             ],
@@ -2219,7 +2219,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='rendered_success_for_all_dag_user_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE)
             ],
@@ -2240,7 +2240,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='task_success_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -2271,7 +2271,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='task_success_for_all_dag_user_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -2293,7 +2293,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='xcom_success_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -2324,7 +2324,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='xcom_success_for_all_dag_user_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -2373,7 +2373,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='blocked_success_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             ]
@@ -2394,7 +2394,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='block_success_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             ],
@@ -2433,7 +2433,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='failed_success_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
                 (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -2462,7 +2462,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='duration_success_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -2491,7 +2491,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='tries_success_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -2519,7 +2519,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='landing_times_success_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -2562,7 +2562,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='gantt_success_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -2590,7 +2590,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='task_instance_read_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             ],
@@ -2619,7 +2619,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='tree_success_for_read_only_role_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
@@ -2641,7 +2641,7 @@ class TestDagACLView(TestBase):
             username=username,
             role_name='log_success_role',
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
