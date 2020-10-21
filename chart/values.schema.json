@@ -288,6 +288,24 @@
                             "type": "string"
                         }
                     }
+                },
+                "gitSync": {
+                    "description": "Configuration of the gitSync image.",
+                    "type": "object",
+                    "properties": {
+                        "repository": {
+                            "description": "The gitSync image repository.",
+                            "type": "string"
+                        },
+                        "tag": {
+                            "description": "The gitSync image tag.",
+                            "type": "string"
+                        },
+                        "pullPolicy": {
+                            "description": "The gitSync image pull policy.",
+                            "type": "string"
+                        }
+                    }
                 }
             }
         },
@@ -1107,14 +1125,6 @@
                         "wait": {
                             "description": "Interval between git sync attempts in seconds.",
                             "type": "integer"
-                        },
-                        "containerRepository": {
-                            "description": "Git sync image repository.",
-                            "type": "string"
-                        },
-                        "containerTag": {
-                            "description": "Git sync image tag.",
-                            "type": "string"
                         },
                         "containerName": {
                             "description": "Git sync container name.",

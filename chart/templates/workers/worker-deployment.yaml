@@ -152,6 +152,7 @@ spec:
 {{- if $persistence }}
         - name: worker-gc
           image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           args: ["bash", "/clean-logs"]
           volumeMounts:
             - name: logs
