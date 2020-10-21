@@ -24,6 +24,7 @@ import subprocess
 import sys
 import textwrap
 import time
+from contextlib import suppress
 from time import sleep
 from typing import Dict, List, NoReturn
 
@@ -389,7 +390,10 @@ def webserver(args):
         def kill_proc(signum, _):  # pylint: disable=unused-argument
             log.info("Received signal: %s. Closing gunicorn.", signum)
             gunicorn_master_proc.terminate()
-            gunicorn_master_proc.wait()
+            with suppress(TimeoutError):
+                gunicorn_master_proc.wait(timeout=30)
+            if gunicorn_master_proc.poll() is not None:
+                gunicorn_master_proc.kill()
             sys.exit(0)
 
         def monitor_gunicorn(gunicorn_master_pid: int):
