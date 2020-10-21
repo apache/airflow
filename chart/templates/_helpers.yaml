@@ -104,7 +104,8 @@
 {{/*  Git sync container */}}
 {{- define "git_sync_container"}}
 - name: {{ .Values.dags.gitSync.containerName }}
-  image: "{{ .Values.dags.gitSync.containerRepository }}:{{ .Values.dags.gitSync.containerTag }}"
+  image: {{ template "git_sync_image" . }}
+  imagePullPolicy: {{ .Values.images.gitSync.pullPolicy }}
   securityContext:
     runAsUser: {{ .Values.dags.gitSync.uid }}
   env:
@@ -205,6 +206,10 @@
 
 {{ define "pgbouncer_exporter_image" -}}
 {{ printf "%s:%s" .Values.images.pgbouncerExporter.repository .Values.images.pgbouncerExporter.tag }}
+{{- end }}
+
+{{ define "git_sync_image" -}}
+{{ printf "%s:%s" .Values.images.gitSync.repository .Values.images.gitSync.tag }}
 {{- end }}
 
 {{ define "fernet_key_secret" -}}

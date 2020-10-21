@@ -56,9 +56,13 @@ spec:
       tolerations:
 {{ toYaml .Values.tolerations | indent 8 }}
       restartPolicy: Always
+      {{- if or .Values.registry.secretName .Values.registry.connection }}
+      imagePullSecrets:
+        - name: {{ template "registry_secret" . }}
+      {{- end }}
       containers:
         - name: statsd
-          image: {{- include "statsd_image" . | indent 1 }}
+          image: {{ template "statsd_image" . }}
           imagePullPolicy: {{ .Values.images.statsd.pullPolicy }}
           args:
             - "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
