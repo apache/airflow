@@ -188,7 +188,9 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
 
     drs = (
         session.query(DagRun)
-        .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date)
+        .filter(
+            DagRun.dag_id == dag.dag_id,
+            DagRun.execution_date <= base_date)
         .order_by(desc(DagRun.execution_date))
         .limit(num_runs)
         .all()
@@ -716,6 +718,8 @@ class Airflow(AirflowBaseView):
                 search=escape(arg_search_query) if arg_search_query else None,
                 status=arg_status_filter if arg_status_filter else None,
                 tags=arg_tags_filter if arg_tags_filter else None,
+                sorting_key=arg_sorting_key,
+                sorting_order=arg_orderby_key
             ),
             num_runs=num_runs,
             tags=tags,
