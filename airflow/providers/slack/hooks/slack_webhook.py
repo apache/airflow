@@ -149,5 +149,5 @@ class SlackWebhookHook(HttpHook):
             endpoint=self.webhook_token,
             data=slack_message,
             headers={'Content-type': 'application/json'},
-            extra_options={'proxies': proxies},
+            extra_options={'proxies': proxies, 'check_response': True},
         )
