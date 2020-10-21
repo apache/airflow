@@ -20,7 +20,7 @@ echo "Running helm tests"
 
 chart_directory="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/../../../chart/"
 
-cat chart/files/pod-template-file.yaml > chart/templates/pod-template-file.yaml
+cat chart/files/pod-template-file.kubernetes-helm-yaml > chart/templates/pod-template-file.yaml
 
 docker run -w /airflow-chart -v "$chart_directory":/airflow-chart \
   --entrypoint /bin/sh \
