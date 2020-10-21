@@ -51,6 +51,7 @@ class SFTPHook(SSHHook):
 
         self.conn = None
         self.private_key_pass = None
+        self.ciphers = None
 
         # Fail for unverified hosts, unless this is explicitly allowed
         self.no_host_key_check = False
@@ -80,6 +81,9 @@ class SFTPHook(SSHHook):
 
                 if 'no_host_key_check' in extra_options:
                     self.no_host_key_check = str(extra_options['no_host_key_check']).lower() == 'true'
+                    
+                if 'ciphers' in extra_options:
+                    self.ciphers = extra_options['ciphers']
 
                 if 'private_key' in extra_options:
                     warnings.warn(
@@ -98,6 +102,7 @@ class SFTPHook(SSHHook):
             if self.no_host_key_check:
                 cnopts.hostkeys = None
             cnopts.compression = self.compress
+            cnopts.ciphers = self.ciphers
             conn_params = {
                 'host': self.remote_host,
                 'port': self.port,
