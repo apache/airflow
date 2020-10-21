@@ -1,6 +1,6 @@
 ---
 name: "Cancel duplicate CodeQL workflows"
-on:
+on:  # yamllint disable-line rule:truthy
   workflow_run:
     workflows: ["CodeQL"]
     types: ['requested']
@@ -12,7 +12,7 @@ jobs:
     if: github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule'
     steps:
       - name: "Cancel duplicated 'CodeQL' runs"
-        uses: potiuk/cancel-workflow-runs@f696c622a83e4a63fff74848d3b149074658607d # v3_2
+        uses: potiuk/cancel-workflow-runs@f696c622a83e4a63fff74848d3b149074658607d  # v3_2
         id: cancel
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

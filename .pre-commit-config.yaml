@@ -161,34 +161,34 @@ repos:
     hooks:
       - id: yamllint
         name: Check yaml files with yamllint
-        entry: yamllint -c yamllint-config.yml
+        entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
         exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/templates/.*\.yaml$
-    ##
-    ## Dear committer.
-    ##
-    ## If you ever come here to add the missing isort step here - hear a little warning.
-    ##
-    ## Initially isort will cause surprising duplicates of urlparse and other urllib related methods.
-    ## The urllib imports seem broken for python 2 but they are actually fine due to future
-    ## backport aliases installed elsewhere in the code (implicitly) - in 6 places.
-    ##
-    ## When you decide how to fix it (likely talking to other people in community) and you push
-    ## build to CI you will find terrible truth that in Airflow 1.10 modules are so much
-    ## cross-dependent, that imports in a number of places have to be done in specific order and
-    ## if this is not followed properly, circular imports kick-in and you are doomed.
-    ##
-    ## Running isort breaks the import House of Cards and there is no easy way to fix it short of
-    ## splitting a number of files and probably breaking compatibility.
-    ##
-    ## Luckily this has been fixed in Airflow 2.0 by proper untangling of the cross-dependencies and
-    ## 1.10.* branch is really in maintenance mode, so do not really waste your time here.
-    ##
-    ## Unless you really want of course. But then either delete this comment or increase the counter
-    ## below after you give up.
-    ##
-    ## Total hours wasted here = 3
-    ##
+  ##
+  ## Dear committer.
+  ##
+  ## If you ever come here to add the missing isort step here - hear a little warning.
+  ##
+  ## Initially isort will cause surprising duplicates of urlparse and other urllib related methods.
+  ## The urllib imports seem broken for python 2 but they are actually fine due to future
+  ## backport aliases installed elsewhere in the code (implicitly) - in 6 places.
+  ##
+  ## When you decide how to fix it (likely talking to other people in community) and you push
+  ## build to CI you will find terrible truth that in Airflow 1.10 modules are so much
+  ## cross-dependent, that imports in a number of places have to be done in specific order and
+  ## if this is not followed properly, circular imports kick-in and you are doomed.
+  ##
+  ## Running isort breaks the import House of Cards and there is no easy way to fix it short of
+  ## splitting a number of files and probably breaking compatibility.
+  ##
+  ## Luckily this has been fixed in Airflow 2.0 by proper untangling of the cross-dependencies and
+  ## 1.10.* branch is really in maintenance mode, so do not really waste your time here.
+  ##
+  ## Unless you really want of course. But then either delete this comment or increase the counter
+  ## below after you give up.
+  ##
+  ## Total hours wasted here = 3
+  ##
   - repo: local
     hooks:
       - id: shellcheck
