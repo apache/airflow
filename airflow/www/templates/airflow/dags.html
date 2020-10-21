@@ -18,6 +18,7 @@
 #}
 
 {% extends base_template %}
+{% from 'appbuilder/loading_dots.html' import loading_dots %}
 
 {% block page_title %}
   {% if search_query %}
@@ -80,19 +81,14 @@
             <th>DAG</th>
             <th>Schedule</th>
             <th>Owner</th>
-            <th>
-              Recent Tasks
+            <th>Recent Tasks
               <span class="material-icons text-muted js-tooltip" aria-hidden="true" title="Status of tasks from all active DAG runs or, if not currently active, from most recent run.">info</span>
-              <img class="loading-task-stats" width="15" src="{{ url_for('static', filename='loading.gif') }}">
             </th>
-            <th>
-              Last Run
+            <th style="width:180px;">Last Run
               <span class="material-icons text-muted js-tooltip" aria-hidden="true" title="Execution Date/Time of Highest Dag Run.">info</span>
             </th>
-            <th>
-              DAG Runs
+            <th>DAG Runs
               <span class="material-icons text-muted js-tooltip" aria-hidden="true" title="Status of all previous DAG runs.">info</span>
-              <img class="loading-dag-stats"  width="15" src="{{ url_for('static', filename='loading.gif') }}">
             </th>
             <th class="text-center" style="width:205px;">Links</th>
             <th class="text-center" style="width:140px;">Actions</th>
@@ -141,18 +137,18 @@
               </td>
               {# Column 5: Recent Tasks #}
               <td style="padding:0; width:323px; height:10px;">
+                {{ loading_dots(classes='js-loading-task-stats text-muted') }}
                 <svg height="10" width="10" id='task-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
               </td>
               {# Column 6: Last Run #}
-              <td class="text-nowrap latest_dag_run">
-                <div height="10" width="10" id='last-run-{{ dag.safe_dag_id }}' style="display: block;">
-                  <a></a>
-                  <img class="loading-last-run" width="15" src="{{ url_for('static', filename='loading.gif') }}">
-                  <span aria-hidden="true" title=" " class="material-icons text-muted js-tooltip" style="display:none">info</span>
-                </div>
+              <td id="last-run-{{ dag.safe_dag_id }}" class="text-nowrap latest_dag_run">
+                {{ loading_dots(classes='js-loading-last-run text-muted') }}
+                <a></a>
+                <span aria-hidden="true" title=" " class="material-icons text-muted js-tooltip" style="display:none">info</span>
               </td>
               {# Column 7: Dag Runs #}
               <td style="padding:0; width:120px;">
+                {{ loading_dots(classes='js-loading-dag-stats text-muted') }}
                 <svg height="10" width="10" id='dag-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
               </td>
               {# Column 8: Links #}
@@ -372,7 +368,7 @@
         dag_id = json[safe_dag_id].dag_id;
         execution_date = json[safe_dag_id].execution_date;
         start_date = json[safe_dag_id].start_date;
-        g = d3.select('div#last-run-' + safe_dag_id)
+        g = d3.select('#last-run-' + safe_dag_id)
         g.selectAll('a')
           .attr('href', '{{ url_for('Airflow.graph') }}?dag_id=' + encodeURIComponent(dag_id) + '&execution_date=' + encodeURIComponent(execution_date))
           .insert(isoDateToTimeEl.bind(null, execution_date, {title: false}));
@@ -380,9 +376,9 @@
           // We don't translate the timezone in the tooltip, that stays in UTC.
           .attr('data-original-title', 'Start Date: ' + start_date)
           .style('display', null);
-        g.selectAll('.loading-last-run').remove();
+        g.selectAll('.js-loading-last-run').remove();
       }
-      d3.selectAll('.loading-last-run').remove();
+      $('.js-loading-last-run').remove();
     }
 
     function drawDagStatsForDag(dag_id, stats) {
@@ -444,7 +440,7 @@
         .style('opacity', 0)
         .transition().duration(300).delay(function(d, i){return i*50;})
         .style('opacity', 1);
-      d3.select('.loading-dag-stats').remove();
+      d3.select('.js-loading-dag-stats').remove();
 
       g.append('text')
         .attr('fill', '#51504f')
@@ -521,7 +517,7 @@
         .style('opacity', 0)
         .transition().duration(300).delay(function(d, i){return i*50;})
         .style('opacity', 1);
-      d3.select('.loading-task-stats').remove();
+      d3.select('.js-loading-task-stats').remove();
 
       g.append('text')
         .attr('fill', '#51504f')
@@ -555,9 +551,9 @@
         .post(encoded_dag_ids, taskStatsHandler);
     }
     else {
-      // no dags, hide the loading gifs
-      $('.loading-task-stats').remove();
-      $('.loading-dag-stats').remove();
+      // no dags, hide the loading dots
+      $('.js-loading-task-stats').remove();
+      $('.js-loading-dag-stats').remove();
     }
 
     function showSvgTooltip(text, circ) {
