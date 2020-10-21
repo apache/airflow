@@ -177,7 +177,7 @@ class TestUtils(unittest.TestCase):
         self.assertNotEqual(schedule_query, owner_query)
 
         asc_transform = utils.query_ordering_transform_for_key(sorting_order='asc')
-        asc_transform_casetest = utils.query_ordering_transform_for_key(sorting_order='aSc')
+        asc_transform_casetest = utils.query_ordering_transform_for_key(sorting_order='aSC')
 
         self.assertIsNotNone(asc_transform)
         self.assertEqual(asc_transform, asc_transform_casetest)
