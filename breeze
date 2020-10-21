@@ -1062,7 +1062,7 @@ function breeze::parse_arguments() {
             ;;
         -c | --github-registry)
             echo
-            echo "Use github registry"
+            echo "Use GitHub registry"
             echo
             export USE_GITHUB_REGISTRY="true"
             shift
@@ -1071,7 +1071,7 @@ function breeze::parse_arguments() {
             echo
             echo "GitHub repository: ${2}"
             echo
-            echo "Using github registry."
+            echo "Using GitHub registry."
             echo
             export GITHUB_REPOSITORY="${2}"
             export USE_GITHUB_REGISTRY="true"
@@ -1081,7 +1081,7 @@ function breeze::parse_arguments() {
             echo
             echo "GitHub image id: ${2}"
             echo
-            echo "Force pulling the image, using github registry and skip mounting local sources."
+            echo "Force pulling the image, using GitHub registry and skip mounting local sources."
             echo "This is in order to get the exact same version as used in CI environment for SHA/RUN_ID!."
             echo
             export FORCE_PULL_IMAGES="true"
@@ -2398,7 +2398,7 @@ Build options:
         in the form of '/docker-context-files/<NAME_OF_THE_FILE>'
 
 --disable-pip-cache
-        Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
+        Disables GitHub PIP cache during the build. Useful if GitHub is not reachable during build.
 
 --add-local-pip-wheels
         This flag is used during image building. If it is used additionally to installing

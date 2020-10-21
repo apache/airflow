@@ -35,7 +35,7 @@ the CI jobs. And we have  a number of variables determine build behaviour.
 
 
 
-Github Actions runs
+GitHub Actions runs
 -------------------
 
 Our builds on CI are highly optimized. They utilise some of the latest features provided by GitHub Actions
@@ -65,7 +65,7 @@ utilise the WRITE access to Apache Airflow repository via an external Pull Reque
 
 Thanks to the WRITE access and fact that the 'workflow_run' by default uses the 'master' version of the
 sources, we can safely run some logic there will checkout the incoming Pull Request, build the container
-image from the sources from the incoming PR and push such image to an Github Docker Registry - so that
+image from the sources from the incoming PR and push such image to an GitHub Docker Registry - so that
 this image can be built only once and used by all the jobs running tests. The image is tagged with unique
 ``RUN_ID`` of the incoming Pull Request and the tests run in the Pull Request can simply pull such image
 rather than build it from the scratch. Pulling such image takes ~ 1 minute, thanks to that we are saving
@@ -92,7 +92,7 @@ connected with the run.
 You can read more about it in `BREEZE.rst <BREEZE.rst>`_ and `TESTING.rst <TESTING.rst>`_
 
 
-Difference between local runs and Github Action workflows
+Difference between local runs and GitHub Action workflows
 ---------------------------------------------------------
 
 Depending whether the scripts are run locally (most often via `Breeze <BREEZE.rst>`_) or whether they
@@ -685,7 +685,7 @@ way to sync your fork master to the Apache Airflow's one.
 Delete old artifacts
 --------------------
 
-This workflow is introduced, to delete old artifacts from the Github Actions build. We set it to
+This workflow is introduced, to delete old artifacts from the GitHub Actions build. We set it to
 delete old artifacts that are > 7 days old. It only runs for the 'apache/airflow' repository.
 
 We also have a script that can help to clean-up the old artifacts:

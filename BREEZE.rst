@@ -395,7 +395,7 @@ run ``airflow webserver``, ``airflow scheduler``, ``airflow worker`` in separate
 This can be achieved either via ``tmux`` or via exec-ing into the running container from the host. Tmux
 is installed inside the container and you can launch it with ``tmux`` command. Tmux provides you with the
 capability of creating multiple virtual terminals and multiplex between them. More about ``tmux`` can be
-found at `tmux github wiki page <https://github.com/tmux/tmux/wiki>`_ . Tmux has several useful shortcuts
+found at `tmux GitHub wiki page <https://github.com/tmux/tmux/wiki>`_ . Tmux has several useful shortcuts
 that allow you to split the terminals, open new tabs etc - it's pretty useful to learn it.
 
 .. raw:: html
@@ -1310,7 +1310,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           in the form of '/docker-context-files/<NAME_OF_THE_FILE>'
 
   --disable-pip-cache
-          Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
+          Disables GitHub PIP cache during the build. Useful if GitHub is not reachable during build.
 
   --add-local-pip-wheels
           This flag is used during image building. If it is used additionally to installing
@@ -1848,7 +1848,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           in the form of '/docker-context-files/<NAME_OF_THE_FILE>'
 
   --disable-pip-cache
-          Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
+          Disables GitHub PIP cache during the build. Useful if GitHub is not reachable during build.
 
   --add-local-pip-wheels
           This flag is used during image building. If it is used additionally to installing
@@ -2340,7 +2340,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           in the form of '/docker-context-files/<NAME_OF_THE_FILE>'
 
   --disable-pip-cache
-          Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
+          Disables GitHub PIP cache during the build. Useful if GitHub is not reachable during build.
 
   --add-local-pip-wheels
           This flag is used during image building. If it is used additionally to installing

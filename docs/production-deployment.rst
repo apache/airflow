@@ -116,7 +116,7 @@ suited to prepare optimized production images.
 The advantage of this method is that it produces optimized image even if you need some compile-time
 dependencies that are not needed in the final image. You need to use Airflow Sources to build such images
 from the `official distribution folder of Apache Airflow <https://downloads.apache.org/airflow/>`_ for the
-released versions, or checked out from the Github project if you happen to do it from git sources.
+released versions, or checked out from the GitHub project if you happen to do it from git sources.
 
 The easiest way to build the image image is to use ``breeze`` script, but you can also build such customized
 image by running appropriately crafted docker build in which you specify all the ``build-args``

@@ -53,7 +53,7 @@ The easiest way to build those images is to use `<BREEZE.rst>`_.
 
 Note! Breeze by default builds production image from local sources. You can change it's behaviour by
 providing ``--install-airflow-version`` parameter, where you can specify the
-tag/branch used to download Airflow package from in github repository. You can
+tag/branch used to download Airflow package from in GitHub repository. You can
 also change the repository itself by adding ``--dockerhub-user`` and ``--dockerhub-repo`` flag values.
 
 You can build the CI image using this command:
@@ -257,8 +257,8 @@ production image from the local sources.
 
 The image is primarily optimised for size of the final image, but also for speed of rebuilds - the
 'airflow-build-image' segment uses the same technique as the CI builds for pre-installing PIP dependencies.
-It first pre-installs them from the right github branch and only after that final airflow installation is
-done from either local sources or remote location (PIP or github repository).
+It first pre-installs them from the right GitHub branch and only after that final airflow installation is
+done from either local sources or remote location (PIP or GitHub repository).
 
 Customizing the image
 .....................

@@ -252,7 +252,7 @@ Step 4: Prepare PR
 
    * Read about `email configuration in Airflow <https://airflow.readthedocs.io/en/latest/howto/email-config.html>`__.
 
-   * Find the class you should modify. For the example github issue,
+   * Find the class you should modify. For the example GitHub issue,
      this is `email.py <https://github.com/apache/airflow/blob/master/airflow/utils/email.py>`__.
 
    * Find the test class where you should add tests. For the example ticket,
@@ -666,7 +666,7 @@ This works also with extras - for example:
     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
 
 
-As of apache-airflow 1.10.12 it is also possible to use constraints directly from github using specific
+As of apache-airflow 1.10.12 it is also possible to use constraints directly from GitHub using specific
 tag/hash name. We tag commits working for particular release with constraints-<version> tag. So for example
 fixed valid constraints 1.10.12 can be used by using ``constraints-1.10.12`` tag:
 
@@ -1199,7 +1199,7 @@ This means that committers should:
 
 * Review PRs in a timely and reliable fashion
 * They should also help to actively whittle down the PR backlog
-* Answer questions (i.e. on the dev list, in PRs, in Github Issues, slack, etc...)
+* Answer questions (i.e. on the dev list, in PRs, in GitHub Issues, slack, etc...)
 * Take on core changes/bugs/feature requests
 * Some changes are important enough that a committer needs to ensure it gets done. This is especially
   the case if no one from the community is taking it on.
