@@ -39,16 +39,16 @@ class SnowflakeToS3Operator(BaseOperator):
     :param file_format: can be either a previous file format created in Snowflake console
     or hardcoded one like
         ``type = csv
-         field_delimiter = ','
-         skip_header = 1
-         compression=None``
+        field_delimiter = ','
+        skip_header = 1
+        compression=None``
     :type file_format: str
     :param sql: optional parameter to unload a customized query instead an entire table
     :type sql: str
     :param snowflake_conn_id: reference to a specific snowflake database
     :type snowflake_conn_id: str
     :param unload_options: reference to a list of UNLOAD options (SINGLE, MAX_FILE_SIZE,
-    OVERWRITE etc). Each element of the list has to be a string
+        OVERWRITE etc). Each element of the list has to be a string
     :type unload_options: list
     """
 
