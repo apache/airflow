@@ -100,7 +100,7 @@ class DepContext:
             self.finished_tasks = dag.get_task_instances(
                 start_date=execution_date,
                 end_date=execution_date,
-                state=State.finished | {State.UPSTREAM_FAILED},
+                state=State.finished,
                 session=session,
             )
         return self.finished_tasks
