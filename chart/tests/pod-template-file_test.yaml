@@ -16,7 +16,7 @@
 # under the License.
 ---
 templates:
-  - pod-template-file.yaml
+  - pod-template-file.kubernetes-helm-yaml
 tests:
   - it: should work
     asserts:
