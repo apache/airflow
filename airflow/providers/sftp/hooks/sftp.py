@@ -81,7 +81,7 @@ class SFTPHook(SSHHook):
 
                 if 'no_host_key_check' in extra_options:
                     self.no_host_key_check = str(extra_options['no_host_key_check']).lower() == 'true'
-                    
+
                 if 'ciphers' in extra_options:
                     self.ciphers = extra_options['ciphers']
 
