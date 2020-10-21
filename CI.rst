@@ -695,7 +695,7 @@ CodeQL scan
 -----------
 
 The CodeQL security scan uses GitHub security scan framework to scan our code for security violations.
-It is run for javascript and python code.
+It is run for JavaScript and python code.
 
 
 Selective CI Checks
@@ -783,8 +783,8 @@ The logic implemented for the changes works as follows:
     important change.
 
 Similarly to selective tests we also run selective security scans. In Pull requests,
-the Python scan will only run when there is a python code change and javascript scan will only run if
-there is a javascript or yarn.lock file change. For master builds, all scans are always executed.
+the Python scan will only run when there is a python code change and JavaScript scan will only run if
+there is a JavaScript or yarn.lock file change. For master builds, all scans are always executed.
 
 
 
