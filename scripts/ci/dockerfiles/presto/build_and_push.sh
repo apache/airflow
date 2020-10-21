@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,30 +15,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+set -euo pipefail
+DOCKERHUB_USER=${DOCKERHUB_USER:="apache"}
+DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
+readonly DOCKERHUB_USER
+readonly DOCKERHUB_REPO
 
-set -exuo pipefail
+PRESTO_VERSION="330"
+readonly PRESTO_VERSION
 
-FQDN=$(hostname)
-readonly FQDN
-ADMIN="admin"
-readonly ADMIN
-PASS="airflow"
-readonly PASS
+AIRFLOW_PRESTO_VERSION="2020.10.08"
+readonly AIRFLOW_PRESTO_VERSION
 
-KRB5_KTNAME=/etc/airflow.keytab
-readonly KRB5_KTNAME
+COMMIT_SHA=$(git rev-parse HEAD)
+readonly COMMIT_SHA
 
-cat /etc/hosts
-echo "hostname: ${FQDN}"
-# create kerberos database
-echo -e "${PASS}\n${PASS}" | kdb5_util create -s
-# create admin
-echo -e "${PASS}\n${PASS}" | kadmin.local -q "addprinc ${ADMIN}/admin"
-# create airflow
-echo -e "${PASS}\n${PASS}" | kadmin.local -q "addprinc -randkey airflow"
-echo -e "${PASS}\n${PASS}" | kadmin.local -q "addprinc -randkey airflow/${FQDN}"
-kadmin.local -q "ktadd -k ${KRB5_KTNAME} airflow"
-kadmin.local -q "ktadd -k ${KRB5_KTNAME} airflow/${FQDN}"
+cd "$( dirname "${BASH_SOURCE[0]}" )" || exit 1
 
-# Start services
-/usr/local/bin/supervisord -n -c /etc/supervisord.conf
+TAG="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:presto-${AIRFLOW_PRESTO_VERSION}"
+readonly TAG
+
+docker build . \
+    --pull \
+    --build-arg "PRESTO_VERSION=${PRESTO_VERSION}" \
+    --build-arg "AIRFLOW_PRESTO_VERSION=${AIRFLOW_PRESTO_VERSION}" \
+    --build-arg "COMMIT_SHA=${COMMIT_SHA}" \
+    --tag "${TAG}"
+
+docker push "${TAG}"

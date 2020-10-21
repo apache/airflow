@@ -46,14 +46,6 @@ def copy_provider_sources() -> None:
         if os.path.isdir(build_dir):
             rmtree(build_dir)
 
-    def ignore_kubernetes_files(src: str, names: List[str]) -> List[str]:
-        ignored_names = []
-        if src.endswith(os.path.sep + "example_dags"):
-            for file_name in names:
-                if "example_kubernetes" in file_name:
-                    ignored_names.append(file_name)
-        return ignored_names
-
     def ignore_google_auth_backend(src: str, names: List[str]) -> List[str]:
         del names
         if src.endswith("google" + os.path.sep + "common"):
@@ -62,7 +54,6 @@ def copy_provider_sources() -> None:
 
     def ignore_some_files(src: str, names: List[str]) -> List[str]:
         ignored_list = []
-        ignored_list.extend(ignore_kubernetes_files(src=src, names=names))
         ignored_list.extend(ignore_google_auth_backend(src=src, names=names))
         return ignored_list
 
@@ -106,7 +97,6 @@ class RefactorBackportPackages:
         """
         Removes class altogether. Example diff generated:
 
-
         .. code-block:: diff
 
             --- ./airflow/providers/google/cloud/operators/kubernetes_engine.py
@@ -146,10 +136,6 @@ class RefactorBackportPackages:
             ("airflow.operators.bash", "airflow.operators.bash_operator"),
             ("airflow.operators.python", "airflow.operators.python_operator"),
             ("airflow.utils.session", "airflow.utils.db"),
-            (
-                "airflow.providers.cncf.kubernetes.operators.kubernetes_pod",
-                "airflow.contrib.operators.kubernetes_pod_operator"
-            ),
         ]
         for new, old in changes:
             self.qry.select_module(new).rename(old)
@@ -498,10 +484,6 @@ class RefactorBackportPackages:
              from airflow.providers.google.cloud.hooks.mlengine import MLEngineHook
              from airflow.utils.decorators import apply_defaults
 
-
-        We remove GKEStartPodOperator (example in remove_class method)
-
-
         We also copy (google.common.utils) and rename imports to the helpers.
 
         .. code-block:: diff
@@ -598,14 +580,6 @@ class RefactorBackportPackages:
             filter(callback=google_package_filter).
             filter(pure_airflow_models_filter).
             rename("airflow.models.baseoperator")
-        )
-        self.remove_class("GKEStartPodOperator")
-        (
-            self.qry.
-            select_class("GKEStartPodOperator").
-            filter(callback=google_package_filter).
-            is_filename(include=r"example_kubernetes_engine\.py").
-            rename("GKEPodOperator")
         )
 
     def refactor_odbc_package(self):

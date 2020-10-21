@@ -2519,6 +2519,34 @@ class TestTriggerDag(TestBase):
                 expected_origin),
             resp)
 
+    @parameterized.expand([
+        (None, {"example_key": "example_value"}),
+        ({"other": "test_data", "key": 12}, {"other": "test_data", "key": 12}),
+    ])
+    def test_trigger_dag_params_conf(self, request_conf, expected_conf):
+        """
+        Test that textarea in Trigger DAG UI is pre-populated
+        with json config when the conf URL parameter is passed,
+        or if a params dict is passed in the DAG
+
+            1. Conf is not included in URL parameters -> DAG.conf is in textarea
+            2. Conf is passed as a URL parameter -> passed conf json is in textarea
+        """
+        test_dag_id = "example_bash_operator"
+
+        if not request_conf:
+            resp = self.client.get('trigger?dag_id={}'.format(test_dag_id))
+        else:
+            test_request_conf = json.dumps(request_conf, indent=4)
+            resp = self.client.get('trigger?dag_id={}&conf={}'.format(test_dag_id, test_request_conf))
+
+        expected_dag_conf = json.dumps(expected_conf, indent=4) \
+            .replace("\"", "&#34;")
+
+        self.check_content_in_response(
+            '<textarea class="form-control" name="conf">{}</textarea>'.format(expected_dag_conf),
+            resp)
+
     def test_trigger_endpoint_uses_existing_dagbag(self):
         """
         Test that Trigger Endpoint uses the DagBag already created in views.py

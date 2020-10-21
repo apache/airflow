@@ -1,4 +1,5 @@
-#
+#!/usr/bin/env bash
+
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,16 +16,39 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-[kdcdefaults]
-kdc_ports = 88
-kdc_tcp_ports = 88
 
-[realms]
-TEST.LOCAL = {
-  #master_key_type = aes256-cts
-  acl_file = /etc/krb5kdc/kadm5.acl
-  dict_file = /usr/share/dict/words
-  admin_keytab = /var/krb5kdc/kadm5.keytab
-  max_renewable_life = 7d 0h 0m 0s
-  supported_enctypes = aes256-cts:normal aes128-cts:normal des3-hmac-sha1:normal arcfour-hmac:normal des-hmac-sha1:normal des-cbc-md5:normal des-cbc-crc:normal
+set -euo pipefail
+
+function usage() {
+    CMDNAME="$(basename -- "$0")"
+
+      echo """
+Usage: ${CMDNAME} <username> <password> <keytab_file>
+
+Creates an account for the unprivileged client. The authorization data is saved in <keytab_file>.
+"""
 }
+
+if [[ ! "$#" -eq 3 ]]; then
+    echo "You must provide exactly three arguments."
+    usage
+    exit 1
+fi
+
+
+USERNAME=$1
+PASSWORD=$2
+KEYTAB_FILE=$3
+
+REALM_NAME=EXAMPLE.COM
+
+cat << EOF | kadmin.local &>/dev/null
+add_principal -pw $PASSWORD "${USERNAME}@${REALM_NAME}"
+ktadd -k ${KEYTAB_FILE} -norandkey "${USERNAME}@${REALM_NAME}"
+listprincs
+quit
+EOF
+
+chmod 777 "${KEYTAB_FILE}" &>/dev/null
+
+echo "Created client: ${USERNAME}"

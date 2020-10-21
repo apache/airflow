@@ -239,40 +239,6 @@ function stop_output_heartbeat() {
     wait "${HEARTBEAT_PID}" || true 2> /dev/null
 }
 
-function setup_kerberos() {
-    FQDN=$(hostname)
-    ADMIN="admin"
-    PASS="airflow"
-    KRB5_KTNAME=/etc/airflow.keytab
-
-    sudo cp "${AIRFLOW_SOURCES}/scripts/in_container/krb5/krb5.conf" /etc/krb5.conf
-
-    echo -e "${PASS}\n${PASS}" | \
-        sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "addprinc -randkey airflow/${FQDN}" 2>&1 \
-          | sudo tee "${AIRFLOW_HOME}/logs/kadmin_1.log" >/dev/null
-    RES_1=$?
-
-    sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "ktadd -k ${KRB5_KTNAME} airflow" 2>&1 \
-          | sudo tee "${AIRFLOW_HOME}/logs/kadmin_2.log" >/dev/null
-    RES_2=$?
-
-    sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "ktadd -k ${KRB5_KTNAME} airflow/${FQDN}" 2>&1 \
-          | sudo tee "${AIRFLOW_HOME}/logs``/kadmin_3.log" >/dev/null
-    RES_3=$?
-
-    if [[ ${RES_1} != 0 || ${RES_2} != 0 || ${RES_3} != 0 ]]; then
-        echo
-        echo "Error when setting up Kerberos: ${RES_1} ${RES_2} ${RES_3}}!"
-        echo
-        exit 1
-    else
-        echo
-        echo "Kerberos enabled and working."
-        echo
-        sudo chmod 0644 "${KRB5_KTNAME}"
-    fi
-}
-
 function dump_airflow_logs() {
     local dump_file
     dump_file=/files/airflow_logs_$(date "+%Y-%m-%d")_${CI_BUILD_ID}_${CI_JOB_ID}.log.tar.gz

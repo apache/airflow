@@ -36,7 +36,7 @@ with DAG(
     default_args=default_args,
     schedule_interval=None,
     start_date=days_ago(2),
-    tags=['example'],
+    tags=['example3'],
 ) as dag:
 
     def test_sharedvolume_mount():

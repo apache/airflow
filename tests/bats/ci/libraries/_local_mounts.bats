@@ -1,5 +1,6 @@
 #!/usr/bin/env bats
 
+
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,10 +18,21 @@
 # specific language governing permissions and limitations
 # under the License.
 
+@test "convert volume list to docker params" {
+  load ../../bats_utils
 
-@test "empty test" {
-  load bats_utils
+  read -r -a RES <<< "$(local_mounts::convert_local_mounts_to_docker_params)"
 
-  run pwd
-  assert_success
+  assert [ "${#RES[@]}" -gt 0 ] # Array should be non-zero length
+  assert [ "$((${#RES[@]} % 2))" == 0 ] # Array should be even length
+
+  for i in "${!RES[@]}"; do
+    if [[ $((i % 2)) == 0 ]]; then
+      # Every other value should be `-v`
+      assert [ "${RES[$i]}" == "-v" ]
+    else
+      # And the options should be of form <src>:<dest>:cached
+      assert bash -c "[[ ${RES[$i]} == *:*:cached ]]"
+    fi
+  done
 }

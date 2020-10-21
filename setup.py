@@ -340,7 +340,7 @@ oracle = [
     'cx_Oracle>=5.1.2',
 ]
 pagerduty = [
-    'pypd>=1.1.0',
+    'pdpyras>=4.1.2,<5',
 ]
 papermill = [
     'papermill[all]>=1.2.1',

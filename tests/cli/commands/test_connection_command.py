@@ -216,9 +216,10 @@ class TestCliExportConnections(unittest.TestCase):
                                                                                       mock_splittext):
         output_filepath = '/tmp/connections.json'
 
-        def my_side_effect():
+        def my_side_effect(_):
             raise Exception("dummy exception")
-        mock_session.return_value.__enter__.return_value.query.return_value.all.side_effect = my_side_effect
+        mock_session.return_value.__enter__.return_value.query.return_value.order_by.side_effect = \
+            my_side_effect
         mock_splittext.return_value = (None, '.json')
 
         args = self.parser.parse_args([

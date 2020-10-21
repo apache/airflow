@@ -685,7 +685,7 @@ class TestDagBag(unittest.TestCase):
         # from DB
         with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 4)):
             with assert_queries_count(0):
-                self.assertEqual(dag_bag.get_dag("example_bash_operator").tags, ["example"])
+                self.assertEqual(dag_bag.get_dag("example_bash_operator").tags, ["example", "example2"])
 
         # Make a change in the DAG and write Serialized DAG to the DB
         with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 6)):
@@ -699,7 +699,7 @@ class TestDagBag(unittest.TestCase):
                 updated_ser_dag_1 = dag_bag.get_dag("example_bash_operator")
                 updated_ser_dag_1_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
 
-        self.assertCountEqual(updated_ser_dag_1.tags, ["example", "new_tag"])
+        self.assertCountEqual(updated_ser_dag_1.tags, ["example", "example2", "new_tag"])
         self.assertGreater(updated_ser_dag_1_update_time, ser_dag_1_update_time)
 
     def test_collect_dags_from_db(self):

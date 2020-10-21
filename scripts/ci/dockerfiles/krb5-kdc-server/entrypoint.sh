@@ -1,5 +1,5 @@
+#!/bin/bash
 
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,21 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-[logging]
-default = FILE:/var/log/krb5libs.log
-kdc = FILE:/var/log/krb5kdc.log
-admin_server = FILE:/var/log/kadmind.log
+set -xeuo pipefail
 
-[libdefaults]
-default_realm = TEST.LOCAL
-dns_lookup_realm = false
-dns_lookup_kdc = false
-ticket_lifetime = 24h
-renew_lifetime = 7d
-forwardable = true
-
-[realms]
-TEST.LOCAL = {
-  kdc = krb5-kdc-server:88
-  admin_server = krb5-kdc-server
-}
+(
+  export
+  sleep 2;
+  if [[ -v POST_BOOTSTRAP_COMMAND ]]; then
+      bash -c "$POST_BOOTSTRAP_COMMAND"
+  fi
+) &
+exec "$@"

@@ -18,14 +18,34 @@
 version: "2.2"
 services:
   presto:
-    image: prestosql/presto:330
+    image: apache/airflow:presto-2020.10.08
+    container_name: presto
+    hostname: presto
+    domainname: example.com
+
+    networks:
+      example.com:
+        ipv4_address: 10.5.0.3
+
+    ports:
+      - "38080:8080"
+      - "37778:7778"
+
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
+      - ../dockerfiles/krb5-kdc-server/krb5.conf:/etc/krb5.conf:ro
       - presto-db-volume:/data/presto
+      - kerberos-keytabs:/home/presto/kerberos-keytabs
+
+    environment:
+      - KRB5_CONFIG=/etc/krb5.conf
+      - KRB5_TRACE=/dev/stderr
+      - KRB5_KTNAME=/home/presto/kerberos-keytabs/presto.keytab
   airflow:
     environment:
       - INTEGRATION_PRESTO=true
     depends_on:
       - presto
+
 volumes:
   presto-db-volume:

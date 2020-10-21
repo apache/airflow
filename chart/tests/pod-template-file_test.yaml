@@ -22,9 +22,8 @@ tests:
     asserts:
       - isKind:
           of: Pod
-      - equal:
+      - isNotNull:
           path: spec.containers[0].image
-          value: dummy_image
       - equal:
           path: spec.containers[0].name
           value: base
@@ -77,6 +76,8 @@ tests:
                 value: "66"
               - name: GIT_SYNC_MAX_SYNC_FAILURES
                 value: "70"
+              - name: GIT_SYNC_ONE_TIME
+                value: "true"
             volumeMounts:
               - mountPath: /git-root
                 name: dags
@@ -149,3 +150,18 @@ tests:
             name: dags
             persistentVolumeClaim:
               claimName: test-claim
+  - it: should set a custom image in pod_template
+    set:
+      images:
+        pod_template:
+          repository: dummy_image
+          tag: latest
+    asserts:
+      - isKind:
+          of: Pod
+      - equal:
+          path: spec.containers[0].image
+          value: dummy_image:latest
+      - equal:
+          path: spec.containers[0].name
+          value: base

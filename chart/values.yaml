@@ -123,6 +123,10 @@ images:
     repository: ~
     tag: ~
     pullPolicy: IfNotPresent
+  pod_template:
+    repository: ~
+    tag: ~
+    pullPolicy: IfNotPresent
   flower:
     repository: ~
     tag: ~

@@ -49,7 +49,7 @@ You can install this package on top of an existing airflow 2.* installation via
 
 | PIP package   | Version required   |
 |:--------------|:-------------------|
-| pypd          | &gt;=1.1.0            |
+| pdpyras       | &gt;=4.1.2,&lt;5         |
 
 # Provider classes summary
 

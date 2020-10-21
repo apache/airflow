@@ -1,5 +1,4 @@
-#!/usr/bin/env bats
-
+#!/usr/bin/env bash
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,21 +17,33 @@
 # specific language governing permissions and limitations
 # under the License.
 
-@test "convert volume list to docker params" {
-  load bats_utils
+set -euo pipefail
 
-  read -r -a RES <<< "$(local_mounts::convert_local_mounts_to_docker_params)"
+function usage() {
+    CMDNAME="$(basename -- "$0")"
 
-  assert [ "${#RES[@]}" -gt 0 ] # Array should be non-zero length
-  assert [ "$((${#RES[@]} % 2))" == 0 ] # Array should be even length
+      echo """
+Usage: ${CMDNAME} <username> <password>
 
-  for i in "${!RES[@]}"; do
-    if [[ $((i % 2)) == 0 ]]; then
-      # Every other value should be `-v`
-      assert [ "${RES[$i]}" == "-v" ]
-    else
-      # And the options should be of form <src>:<dest>:cached
-      assert bash -c "[[ ${RES[$i]} == *:*:cached ]]"
-    fi
-  done
+Creates an account for the administrator.
+"""
 }
+
+if [[ ! "$#" -eq 2 ]]; then
+    echo "You must provide exactly two arguments."
+    usage
+    exit 1
+fi
+
+USERNAME=$1
+PASSWORD=$2
+
+REALM_NAME=EXAMPLE.COM
+
+cat << EOF | kadmin.local &>/dev/null
+add_principal -pw $PASSWORD "${USERNAME}/admmin@${REALM_NAME}"
+listprincs
+quit
+EOF
+
+echo "Created admin: ${USERNAME}"
