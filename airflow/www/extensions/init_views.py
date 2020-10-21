@@ -58,7 +58,7 @@ def init_appbuilder_views(app):
         views.JobModelView, permissions.RESOURCE_JOB, category=permissions.RESOURCE_BROWSE_MENU
     )
     appbuilder.add_view(
-        views.LogModelView, permissions.RESOURCE_AUDIT_LOG, category=permissions.RESOURCE_BROWSE_MENU
+        views.LogModelView, permissions.RESOURCE_LOG, category=permissions.RESOURCE_BROWSE_MENU
     )
     appbuilder.add_view(
         views.VariableModelView, permissions.RESOURCE_VARIABLE, category=permissions.RESOURCE_ADMIN_MENU

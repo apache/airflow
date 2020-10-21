@@ -2505,7 +2505,7 @@ class TestDagACLView(TestBase):
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             ],
         )
@@ -2521,7 +2521,7 @@ class TestDagACLView(TestBase):
             perms=[
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             ],
         )
