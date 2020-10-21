@@ -16,7 +16,7 @@
 # under the License.
 
 # Resource Constants
-RESOURCE_ADMIN = 'Admin'
+RESOURCE_ADMIN_MENU = 'Admin'
 RESOURCE_AIRFLOW = 'Airflow'
 RESOURCE_BROWSE_MENU = 'Browse'
 RESOURCE_DAGS = 'DAGs'
@@ -31,6 +31,7 @@ RESOURCE_IMPORT_ERROR = 'ImportError'
 RESOURCE_JOB = "Jobs"
 RESOURCE_LOG = 'Logs'
 RESOURCE_POOL = 'Pools'
+RESOURCE_PLUGIN = 'Plugins'
 RESOURCE_SLA_MISS = 'SLA Misses'
 RESOURCE_TASK = 'Tasks'
 RESOURCE_TASK_INSTANCE = 'Task Instances'

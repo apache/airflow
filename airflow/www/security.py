@@ -73,7 +73,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
-        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AIRFLOW),
+        # (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AIRFLOW),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_BROWSE_MENU),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_LINK),
@@ -100,7 +100,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     # [START security_op_perms]
     OP_PERMISSIONS = [
-        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_ADMIN),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_ADMIN_MENU),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONNECTION),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_VARIABLE),

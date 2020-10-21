@@ -2497,6 +2497,9 @@ class ConfigurationView(AirflowBaseView):
 
     default_view = 'conf'
 
+    class_permission_name = permissions.RESOURCE_CONFIG
+    base_permissions = ['can_read', 'menu_access']
+
     @expose('/configuration')
     @auth.has_access([
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG),
@@ -2579,11 +2582,15 @@ class SlaMissModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(SlaMiss)  # noqa # type: ignore
 
-    class_permission_name = 'SLA Misses'
+    class_permission_name = permissions.RESOURCE_SLA_MISS
     method_permission_name = {
         'list': 'read',
     }
-    base_permissions = ['can_read']
+
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_ACCESS_MENU,
+    ]
 
     list_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'timestamp']
     add_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'timestamp']
@@ -2607,13 +2614,18 @@ class XComModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(XCom)
 
-    class_permission_name = 'XCom'
+    class_permission_name = permissions.RESOURCE_XCOM
     method_permission_name = {
         'list': 'read',
         'delete': 'delete',
         'action_muldelete': 'delete',
     }
-    base_permissions = ['can_read', 'can_delete']
+    base_permissions = [
+        permissions.ACTION_CAN_CREATE,
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_DELETE,
+        permissions.ACTION_CAN_ACCESS_MENU,
+    ]
 
     search_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
     list_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
@@ -2654,7 +2666,7 @@ class ConnectionModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(Connection)  # noqa # type: ignore
 
-    class_permission_name = 'Connection'
+    class_permission_name = permissions.RESOURCE_CONNECTION
     method_permission_name = {
         'add': 'create',
         'list': 'read',
@@ -2667,7 +2679,8 @@ class ConnectionModelView(AirflowModelView):
         permissions.ACTION_CAN_CREATE,
         permissions.ACTION_CAN_READ,
         permissions.ACTION_CAN_EDIT,
-        permissions.ACTION_CAN_DELETE
+        permissions.ACTION_CAN_DELETE,
+        permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
     extra_fields = ['extra__jdbc__drv_path', 'extra__jdbc__drv_clsname',
@@ -2740,6 +2753,11 @@ class PluginView(AirflowBaseView):
 
     default_view = 'list'
 
+    class_permission_name = permissions.RESOURCE_PLUGIN
+    base_permissions = [
+        permissions.ACTION_CAN_ACCESS_MENU,
+    ]
+
     plugins_attributes_to_dump = [
         "operators",
         "sensors",
@@ -2757,7 +2775,7 @@ class PluginView(AirflowBaseView):
     ]
 
     @expose('/plugin')
-    @has_access
+    # @has_access
     def list(self):
         """List loaded plugins."""
         plugins_manager.ensure_plugins_loaded()
@@ -2794,7 +2812,7 @@ class PoolModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.Pool)  # noqa # type: ignore
 
-    class_permission_name = 'Pool'
+    class_permission_name = permissions.RESOURCE_POOL
     method_permission_name = {
         'add': 'create',
         'list': 'read',
@@ -2802,7 +2820,14 @@ class PoolModelView(AirflowModelView):
         'delete': 'delete',
         'action_muldelete': 'delete',
     }
-    base_permissions = ['can_create', 'can_read', 'can_edit', 'can_delete']
+
+    base_permissions = [
+        permissions.ACTION_CAN_CREATE,
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_EDIT,
+        permissions.ACTION_CAN_DELETE,
+        permissions.ACTION_CAN_ACCESS_MENU,
+    ]
 
     list_columns = ['pool', 'slots', 'running_slots', 'queued_slots']
     add_columns = ['pool', 'slots', 'description']
@@ -2876,7 +2901,7 @@ class VariableModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.Variable)  # noqa # type: ignore
 
-    class_permission_name = 'Variable'
+    class_permission_name = permissions.RESOURCE_VARIABLE
     method_permission_name = {
         'add': 'create',
         'list': 'read',
@@ -2886,7 +2911,7 @@ class VariableModelView(AirflowModelView):
         'action_varexport': 'read',
         'varimport': 'create',
     }
-    base_permissions = ['can_create', 'can_read', 'can_edit', 'can_delete']
+    base_permissions = ['can_create', 'can_read', 'can_edit', 'can_delete', 'menu_access']
 
     list_columns = ['key', 'val', 'is_encrypted']
     add_columns = ['key', 'val']
@@ -2981,11 +3006,11 @@ class JobModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(BaseJob)  # noqa # type: ignore
 
-    class_permission_name = 'Job'
+    class_permission_name = permissions.RESOURCE_JOB
     method_permission_name = {
         'list': 'read',
     }
-    base_permissions = ['can_read']
+    base_permissions = ['can_read', 'menu_access']
 
     list_columns = ['id', 'dag_id', 'state', 'job_type', 'start_date',
                     'end_date', 'latest_heartbeat',
@@ -3014,7 +3039,7 @@ class DagRunModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.DagRun)  # noqa # type: ignore
 
-    class_permission_name = 'DagRun'
+    class_permission_name = permissions.RESOURCE_DAG_RUN
     method_permission_name = {
         'add': 'create',
         'list': 'read',
@@ -3023,7 +3048,7 @@ class DagRunModelView(AirflowModelView):
         'action_set_failed': 'edit',
         'action_set_success': 'edit',
     }
-    base_permissions = ['can_create', 'can_read', 'can_edit', 'can_delete']
+    base_permissions = ['can_create', 'can_read', 'can_edit', 'can_delete', 'menu_access']
 
     add_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'external_trigger', 'conf']
     list_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'run_type', 'external_trigger', 'conf']
@@ -3164,11 +3189,11 @@ class LogModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(Log)  # noqa # type:ignore
 
-    class_permission_name = 'Log'
+    class_permission_name = permissions.RESOURCE_LOG
     method_permission_name = {
         'list': 'read',
     }
-    base_permissions = ['can_read']
+    base_permissions = ['can_read', 'menu_access']
 
     list_columns = ['id', 'dttm', 'dag_id', 'task_id', 'event', 'execution_date',
                     'owner', 'extra']
@@ -3192,12 +3217,12 @@ class TaskRescheduleModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.TaskReschedule)  # noqa # type: ignore
 
-    class_permission_name = 'TaskReschedule'
+    class_permission_name = permissions.RESOURCE_TASK_RESCHEDULE
     method_permission_name = {
         'list': 'read',
     }
 
-    base_permissions = ['can_read']
+    base_permissions = ['can_read', 'menu_access']
 
     list_columns = ['id', 'dag_id', 'task_id', 'execution_date', 'try_number',
                     'start_date', 'end_date', 'duration', 'reschedule_date']
@@ -3235,7 +3260,7 @@ class TaskInstanceModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.TaskInstance)  # noqa # type: ignore
 
-    class_permission_name = 'TaskInstance'
+    class_permission_name = permissions.RESOURCE_TASK_INSTANCE
     method_permission_name = {
         'list': 'read',
         'action_clear': 'edit',
@@ -3244,7 +3269,7 @@ class TaskInstanceModelView(AirflowModelView):
         'action_set_success': 'edit',
         'action_set_retry': 'edit',
     }
-    base_permissions = ['can_read']
+    base_permissions = ['can_create', 'can_read', 'can_edit', 'can_delete', 'menu_access']
 
     page_size = PAGE_SIZE
 
@@ -3376,12 +3401,12 @@ class DagModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(DagModel)  # noqa # type: ignore
 
-    class_permission_name = 'Dags'
+    class_permission_name = permissions.RESOURCE_DAGS
     method_permission_name = {
         'list': 'read',
         'show': 'read',
     }
-    base_permissions = ['can_read']
+    base_permissions = ['can_read', 'can_edit', 'can_delete']
 
     list_columns = ['dag_id', 'is_paused', 'last_scheduler_run',
                     'last_expired', 'scheduler_lock', 'fileloc', 'owners']
