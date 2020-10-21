@@ -59,7 +59,7 @@ subjects:
     name: {{ .Release.Name }}-worker
     namespace: {{ .Release.Namespace }}
 {{- end }}
-- kind: ServiceAccount
-  name: {{ .Release.Name }}-webserver
-  namespace: {{ .Release.Namespace }}
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-webserver
+    namespace: {{ .Release.Namespace }}
 {{- end }}
