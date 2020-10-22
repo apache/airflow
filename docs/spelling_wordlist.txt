@@ -786,6 +786,7 @@ grpc
 gz
 hadoop
 hadoopcmd
+hardcoded
 hashicorp
 hasn
 hcatalog
