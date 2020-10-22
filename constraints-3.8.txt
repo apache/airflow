@@ -300,7 +300,6 @@ pymongo==3.11.0
 pymssql==2.1.5
 pyodbc==4.0.30
 pyparsing==2.4.7
-pypd==1.1.0
 pyrsistent==0.16.0
 pysftp==0.2.9
 pyspark==3.0.0
