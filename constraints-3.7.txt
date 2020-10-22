@@ -162,6 +162,7 @@ google-cloud-dlp==1.0.0
 google-cloud-kms==1.4.0
 google-cloud-language==1.3.0
 google-cloud-logging==1.15.1
+google-cloud-memcache==0.2.0
 google-cloud-monitoring==1.0.0
 google-cloud-pubsub==1.7.0
 google-cloud-redis==1.0.0
@@ -275,6 +276,7 @@ presto-python-client==0.7.0
 prison==0.1.3
 prometheus-client==0.8.0
 prompt-toolkit==3.0.6
+proto-plus==1.11.0
 protobuf==3.13.0
 psutil==5.7.2
 psycopg2-binary==2.8.5
@@ -300,6 +302,7 @@ pymongo==3.11.0
 pymssql==2.1.5
 pyodbc==4.0.30
 pyparsing==2.4.7
+pypd==1.1.0
 pyrsistent==0.16.0
 pysftp==0.2.9
 pyspark==3.0.0
