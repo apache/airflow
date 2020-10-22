@@ -62,9 +62,7 @@ class KubernetesHook(BaseHook):
         self.client_configuration = client_configuration
 
     def get_conn(self) -> Any:
-        """
-        Returns kubernetes api session for use with requests
-        """
+        """Returns kubernetes api session for use with requests"""
         connection = self.get_connection(self.conn_id)
         extras = connection.extra_dejson
         in_cluster = extras.get("extra__kubernetes__in_cluster")
@@ -169,9 +167,7 @@ class KubernetesHook(BaseHook):
             raise AirflowException("Exception when calling -> get_custom_object: %s\n" % e)
 
     def get_namespace(self) -> str:
-        """
-        Returns the namespace that defined in the connection
-        """
+        """Returns the namespace that defined in the connection"""
         connection = self.get_connection(self.conn_id)
         extras = connection.extra_dejson
         namespace = extras.get("extra__kubernetes__namespace", "default")

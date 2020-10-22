@@ -55,6 +55,7 @@ def init_appbuilder_views(app):
     appbuilder.add_view(views.TaskRescheduleModelView, "Task Reschedules", category="Browse")
     appbuilder.add_view(views.ConfigurationView, "Configurations", category="Admin", category_icon="fa-user")
     appbuilder.add_view(views.ConnectionModelView, "Connections", category="Admin")
+    appbuilder.add_view(views.PluginView, "Plugins", category="Admin")
     appbuilder.add_view(views.PoolModelView, "Pools", category="Admin")
     appbuilder.add_view(views.VariableModelView, "Variables", category="Admin")
     appbuilder.add_view(views.XComModelView, "XComs", category="Admin")

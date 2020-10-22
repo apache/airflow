@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Transfer sensor.
-"""
+"""This module contains a Google Cloud Transfer sensor."""
 from typing import Optional, Sequence, Set, Union
 
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import CloudDataTransferServiceHook
@@ -84,7 +82,7 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         self.gcp_cloud_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context):
+    def poke(self, context: dict) -> bool:
         hook = CloudDataTransferServiceHook(
             gcp_conn_id=self.gcp_cloud_conn_id,
             impersonation_chain=self.impersonation_chain,

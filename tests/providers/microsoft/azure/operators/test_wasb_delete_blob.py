@@ -20,7 +20,7 @@
 import datetime
 import unittest
 
-import mock
+from unittest import mock
 
 from airflow.models.dag import DAG
 from airflow.providers.microsoft.azure.operators.wasb_delete_blob import WasbDeleteBlobOperator

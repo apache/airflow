@@ -28,6 +28,7 @@
   {% endif %}
   <link rel="stylesheet" type="text/css" href="{{ url_for_asset('materialIcons.css') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for_asset('main.css') }}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('loadingDots.css') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for_asset('bootstrap-datetimepicker.min.css') }}">
   <style type="text/css">
     {% for state, state_color in state_color_mapping.items() %}
@@ -62,7 +63,7 @@
   {% if not current_user.is_anonymous %}
     {% set version_label = 'Version' %}
     <footer class="footer">
-      <div class="container text-muted">
+      <div class="container">
         <div>
           {{ version_label }}: {% if airflow_version %}<a href="https://pypi.python.org/pypi/apache-airflow/{{ airflow_version }}" target="_blank">v{{ airflow_version }}</a>{% else %} N/A{% endif %}
           {% if git_version %}<br>Git Version:<strong>{{ git_version }}</strong>{% endif %}

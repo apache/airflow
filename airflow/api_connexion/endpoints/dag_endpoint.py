@@ -28,15 +28,14 @@ from airflow.api_connexion.schemas.dag_schema import (
     dags_collection_schema,
 )
 from airflow.models.dag import DagModel
+from airflow.security import permissions
 from airflow.utils.session import provide_session
 
 
-@security.requires_access([("can_read", "Dag")])
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS)])
 @provide_session
 def get_dag(dag_id, session):
-    """
-    Get basic information about a DAG.
-    """
+    """Get basic information about a DAG."""
     dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
 
     if dag is None:
@@ -45,23 +44,19 @@ def get_dag(dag_id, session):
     return dag_schema.dump(dag)
 
 
-@security.requires_access([("can_read", "Dag")])
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS)])
 def get_dag_details(dag_id):
-    """
-    Get details of DAG.
-    """
+    """Get details of DAG."""
     dag: DAG = current_app.dag_bag.get_dag(dag_id)
     if not dag:
         raise NotFound("DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found")
     return dag_detail_schema.dump(dag)
 
 
-@security.requires_access([("can_read", "Dag")])
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS)])
 @format_parameters({'limit': check_limit})
 def get_dags(limit, offset=0):
-    """
-    Get all DAGs.
-    """
+    """Get all DAGs."""
     readable_dags = current_app.appbuilder.sm.get_readable_dags(g.user)
     dags = readable_dags.order_by(DagModel.dag_id).offset(offset).limit(limit).all()
     total_entries = readable_dags.count()
@@ -69,12 +64,10 @@ def get_dags(limit, offset=0):
     return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
 
 
-@security.requires_access([("can_edit", "Dag")])
+@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS)])
 @provide_session
 def patch_dag(session, dag_id, update_mask=None):
-    """
-    Update the specific DAG
-    """
+    """Update the specific DAG"""
     dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
     if not dag:
         raise NotFound(f"Dag with id: '{dag_id}' not found")

@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-Utilities for running or stopping processes
-"""
+"""Utilities for running or stopping processes"""
 import errno
 import logging
 import os

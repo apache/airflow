@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Transfers data from AWS Redshift into a S3 Bucket.
-"""
+"""Transfers data from AWS Redshift into a S3 Bucket."""
 from typing import List, Optional, Union
 
 from airflow.models import BaseOperator
@@ -104,7 +102,7 @@ class RedshiftToS3Operator(BaseOperator):
                 'HEADER',
             ]
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 

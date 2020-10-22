@@ -421,7 +421,7 @@ class GcpBodyFieldValidator(LoggingMixin):
             )
         return True
 
-    def validate(self, body_to_validate):
+    def validate(self, body_to_validate: dict) -> None:
         """
         Validates if the body (dictionary) follows specification that the validator was
         instantiated with. Raises ValidationSpecificationException or

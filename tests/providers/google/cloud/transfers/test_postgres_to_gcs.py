@@ -17,9 +17,9 @@
 # under the License.
 
 import unittest
+from unittest.mock import patch
 
 import pytest
-from mock import patch
 
 from airflow.providers.google.cloud.transfers.postgres_to_gcs import PostgresToGCSOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook

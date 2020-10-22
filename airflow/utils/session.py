@@ -24,9 +24,7 @@ from airflow import settings
 
 @contextlib.contextmanager
 def create_session():
-    """
-    Contextmanager that will create and teardown a session.
-    """
+    """Contextmanager that will create and teardown a session."""
     session = settings.Session()
     try:
         yield session

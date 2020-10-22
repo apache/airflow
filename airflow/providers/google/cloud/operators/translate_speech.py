@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Translate Speech operator.
-"""
+"""This module contains a Google Cloud Translate Speech operator."""
 from typing import Optional, Sequence, Union
 
 from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
@@ -146,7 +144,7 @@ class CloudTranslateSpeechOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> dict:
         speech_to_text_hook = CloudSpeechToTextHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

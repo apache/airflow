@@ -56,6 +56,7 @@ How to use cluster ConfigMaps, Secrets, and Volumes with Pod?
 
 To add ConfigMaps, Volumes, and other Kubernetes native objects, we recommend that you import the Kubernetes model API
 like this:
+
 .. code-block:: python
 
   from kubernetes.client import models as k8s

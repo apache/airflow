@@ -18,7 +18,7 @@
 #
 import unittest
 
-import mock
+from unittest import mock
 
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 from tests.providers.google.cloud.utils.base_gcp_mock import GCP_CONNECTION_WITH_PROJECT_ID

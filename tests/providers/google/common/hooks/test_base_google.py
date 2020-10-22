@@ -21,9 +21,9 @@ import os
 import re
 import unittest
 from io import StringIO
+from unittest import mock
 
 import google.auth
-import mock
 import tenacity
 from google.auth.environment_vars import CREDENTIALS
 from google.auth.exceptions import GoogleAuthError

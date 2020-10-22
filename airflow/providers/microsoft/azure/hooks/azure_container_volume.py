@@ -35,9 +35,7 @@ class AzureContainerVolumeHook(BaseHook):
         self.conn_id = wasb_conn_id
 
     def get_storagekey(self) -> str:
-        """
-        Get Azure File Volume storage key
-        """
+        """Get Azure File Volume storage key"""
         conn = self.get_connection(self.conn_id)
         service_options = conn.extra_dejson
 
@@ -51,9 +49,7 @@ class AzureContainerVolumeHook(BaseHook):
     def get_file_volume(
         self, mount_name: str, share_name: str, storage_account_name: str, read_only: bool = False
     ) -> Volume:
-        """
-        Get Azure File Volume
-        """
+        """Get Azure File Volume"""
         return Volume(
             name=mount_name,
             azure_file=AzureFileVolume(

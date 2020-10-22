@@ -15,9 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-Platform and system specific function.
-"""
+"""Platform and system specific function."""
 import logging
 import os
 import pkgutil
@@ -28,7 +26,8 @@ log = logging.getLogger(__name__)
 
 def is_tty():
     """
-    Checks if the standard output is s connected (is associated with a terminal device) to a tty(-like) device
+    Checks if the standard output is s connected (is associated with a terminal device) to a tty(-like)
+    device.
     """
     if not hasattr(sys.stdout, "isatty"):
         return False
@@ -36,9 +35,7 @@ def is_tty():
 
 
 def is_terminal_support_colors() -> bool:
-    """
-    Try to determine if the current terminal supports colors.
-    """
+    """Try to determine if the current terminal supports colors."""
     if sys.platform == "win32":
         return False
     if not is_tty():

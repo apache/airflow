@@ -1,4 +1,4 @@
-/**
+/*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 const webpack = require('webpack');
 const path = require('path');
 const ManifestPlugin = require('webpack-manifest-plugin');
@@ -23,6 +24,7 @@ const cwplg = require('clean-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const MomentLocalesPlugin = require('moment-locales-webpack-plugin');
+const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
 
 // Input Directory (airflow/www)
 // noinspection JSUnresolvedVariable
@@ -42,6 +44,7 @@ const config = {
     ganttChartD3v2: `${STATIC_DIR}/js/gantt-chart-d3v2.js`,
     graph: `${STATIC_DIR}/css/graph.css`,
     ie: `${STATIC_DIR}/js/ie.js`,
+    loadingDots: `${STATIC_DIR}/css/loading-dots.css`,
     main: `${STATIC_DIR}/css/main.css`,
     materialIcons: `${STATIC_DIR}/css/material-icons.css`,
     moment: 'moment-timezone',
@@ -187,6 +190,9 @@ const config = {
       ],
     }),
   ],
+  optimization: {
+    minimizer: [new OptimizeCSSAssetsPlugin({})],
+  },
 };
 
 module.exports = config;

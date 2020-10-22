@@ -32,9 +32,7 @@ KEY_REGEX = re.compile(r'^[\w.-]+$')
 
 
 def validate_key(k, max_length=250):
-    """
-    Validates value used as a key.
-    """
+    """Validates value used as a key."""
     if not isinstance(k, str):
         raise TypeError("The key has to be a string")
     elif len(k) > max_length:
@@ -49,9 +47,7 @@ def validate_key(k, max_length=250):
 
 
 def alchemy_to_dict(obj: Any) -> Optional[Dict]:
-    """
-    Transforms a SQLAlchemy model instance into a dictionary
-    """
+    """Transforms a SQLAlchemy model instance into a dictionary"""
     if not obj:
         return None
     output = {}
@@ -64,9 +60,7 @@ def alchemy_to_dict(obj: Any) -> Optional[Dict]:
 
 
 def ask_yesno(question):
-    """
-    Helper to get yes / no answer from user.
-    """
+    """Helper to get yes / no answer from user."""
     yes = {'yes', 'y'}
     no = {'no', 'n'}  # pylint: disable=invalid-name
 
@@ -83,9 +77,7 @@ def ask_yesno(question):
 
 
 def is_container(obj):
-    """
-    Test if an object is a container (iterable) but not a string
-    """
+    """Test if an object is a container (iterable) but not a string"""
     return hasattr(obj, '__iter__') and not isinstance(obj, str)
 
 
@@ -105,9 +97,7 @@ S = TypeVar('S')  # pylint: disable=invalid-name
 
 
 def chunks(items: List[T], chunk_size: int) -> Generator[List[T], None, None]:
-    """
-    Yield successive chunks of a given size from a list of items
-    """
+    """Yield successive chunks of a given size from a list of items"""
     if chunk_size <= 0:
         raise ValueError('Chunk size must be a positive integer')
     for i in range(0, len(items), chunk_size):
@@ -142,9 +132,7 @@ def as_flattened_list(iterable: Iterable[Iterable[T]]) -> List[T]:
 
 
 def parse_template_string(template_string):
-    """
-    Parses Jinja template string.
-    """
+    """Parses Jinja template string."""
     if "{{" in template_string:  # jinja mode
         return None, Template(template_string)
     else:
@@ -174,9 +162,7 @@ def render_log_filename(ti, try_number, filename_template):
 
 
 def convert_camel_to_snake(camel_str):
-    """
-    Converts CamelCase to snake_case.
-    """
+    """Converts CamelCase to snake_case."""
     return re.sub('(?!^)([A-Z]+)', r'_\1', camel_str).lower()
 
 
@@ -196,9 +182,7 @@ def merge_dicts(dict1, dict2):
 
 
 def partition(pred: Callable, iterable: Iterable):
-    """
-    Use a predicate to partition entries into false entries and true entries
-    """
+    """Use a predicate to partition entries into false entries and true entries"""
     iter_1, iter_2 = tee(iterable)
     return filterfalse(pred, iter_1), filter(pred, iter_2)
 

@@ -15,9 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains Google DataFusion hook.
-"""
+"""This module contains Google DataFusion hook."""
 import json
 import os
 from time import monotonic, sleep
@@ -53,9 +51,7 @@ SUCCESS_STATES = [PipelineStates.COMPLETED]
 
 
 class DataFusionHook(GoogleBaseHook):
-    """
-    Hook for Google DataFusion.
-    """
+    """Hook for Google DataFusion."""
 
     _conn = None  # type: Optional[Resource]
 
@@ -74,9 +70,7 @@ class DataFusionHook(GoogleBaseHook):
         self.api_version = api_version
 
     def wait_for_operation(self, operation: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Waits for long-lasting operation to complete.
-        """
+        """Waits for long-lasting operation to complete."""
         for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
             sleep(time_to_wait)
             operation = (
@@ -162,9 +156,7 @@ class DataFusionHook(GoogleBaseHook):
         return response
 
     def get_conn(self) -> Resource:
-        """
-        Retrieves connection to DataFusion.
-        """
+        """Retrieves connection to DataFusion."""
         if not self._conn:
             http_authorized = self._authorize()
             self._conn = build(

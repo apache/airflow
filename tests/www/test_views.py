@@ -52,6 +52,8 @@ from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.plugins_manager import AirflowPlugin, EntryPointSource, PluginsDirectorySource
+from airflow.security import permissions
 from airflow.ti_deps.dependencies_states import QUEUEABLE_STATES, RUNNABLE_STATES
 from airflow.utils import dates, timezone
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
@@ -141,7 +143,6 @@ class TestBase(unittest.TestCase):
                 role=self.appbuilder.sm.find_role('Admin'),
                 password='test',
             )
-
         if username == 'test_user' and not self.appbuilder.sm.find_user(username='test_user'):
             self.appbuilder.sm.add_user(
                 username='test_user',
@@ -318,6 +319,61 @@ class TestVariableModelView(TestBase):
         self.check_content_in_response('4 variable(s) successfully updated.', resp)
 
 
+class PluginOperator(BaseOperator):
+    pass
+
+
+class EntrypointPlugin(AirflowPlugin):
+    name = 'test-entrypoint-testpluginview'
+
+
+class TestPluginView(TestBase):
+    def test_should_list_plugins_on_page_with_details(self):
+        resp = self.client.get('/plugin')
+        self.check_content_in_response("test_plugin", resp)
+        self.check_content_in_response("Airflow Plugins", resp)
+        self.check_content_in_response("source", resp)
+        self.check_content_in_response("<em>$PLUGINS_FOLDER/</em>test_plugin.py", resp)
+
+    @mock.patch('airflow.plugins_manager.pkg_resources.iter_entry_points')
+    def test_should_list_entrypoint_plugins_on_page_with_details(self, mock_ep_plugins):
+        from airflow.plugins_manager import load_entrypoint_plugins
+
+        mock_entrypoint = mock.Mock()
+        mock_entrypoint.name = 'test-entrypoint-testpluginview'
+        mock_entrypoint.module_name = 'module_name_testpluginview'
+        mock_entrypoint.dist = 'test-entrypoint-testpluginview==1.0.0'
+        mock_entrypoint.load.return_value = EntrypointPlugin
+        mock_ep_plugins.return_value = [mock_entrypoint]
+
+        load_entrypoint_plugins()
+        resp = self.client.get('/plugin')
+
+        self.check_content_in_response("test_plugin", resp)
+        self.check_content_in_response("Airflow Plugins", resp)
+        self.check_content_in_response("source", resp)
+        self.check_content_in_response("<em>test-entrypoint-testpluginview==1.0.0:</em> <Mock id=", resp)
+
+
+class TestPluginsDirectorySource(unittest.TestCase):
+    def test_should_provide_correct_attribute_values(self):
+        source = PluginsDirectorySource("./test_views.py")
+        self.assertEqual("$PLUGINS_FOLDER/../../test_views.py", str(source))
+        self.assertEqual("<em>$PLUGINS_FOLDER/</em>../../test_views.py", source.__html__())
+        self.assertEqual("../../test_views.py", source.path)
+
+
+class TestEntryPointSource(unittest.TestCase):
+    def test_should_provide_correct_attribute_values(self):
+        mock_entrypoint = mock.Mock()
+        mock_entrypoint.dist = 'test-entrypoint-dist==1.0.0'
+        source = EntryPointSource(mock_entrypoint)
+        self.assertEqual("test-entrypoint-dist==1.0.0", source.dist)
+        self.assertEqual(str(mock_entrypoint), source.entrypoint)
+        self.assertEqual("test-entrypoint-dist==1.0.0: " + str(mock_entrypoint), str(source))
+        self.assertEqual("<em>test-entrypoint-dist==1.0.0:</em> " + str(mock_entrypoint), source.__html__())
+
+
 class TestPoolModelView(TestBase):
     def setUp(self):
         super().setUp()
@@ -441,7 +497,7 @@ class TestAirflowBaseViews(TestBase):
             state=State.RUNNING)
 
     def test_index(self):
-        with assert_queries_count(41):
+        with assert_queries_count(42):
             resp = self.client.get('/', follow_redirects=True)
         self.check_content_in_response('DAGs', resp)
 
@@ -1649,6 +1705,10 @@ class TestDagACLView(TestBase):
         super().setUpClass()
         dagbag = models.DagBag(include_examples=True)
         DAG.bulk_write_to_db(dagbag.dags.values())
+        for username in ['all_dag_user', 'dag_read_only', 'dag_faker', 'dag_tester']:
+            user = cls.appbuilder.sm.find_user(username=username)
+            if user:
+                cls.appbuilder.sm.del_register_user(user)
 
     def prepare_dagruns(self):
         dagbag = models.DagBag(include_examples=True)
@@ -1729,21 +1789,28 @@ class TestDagACLView(TestBase):
         self.logout()
         self.login(username='test',
                    password='test')
-        perm_on_dag = self.appbuilder.sm.\
-            find_permission_view_menu('can_dag_edit', 'example_bash_operator')
         dag_tester_role = self.appbuilder.sm.find_role('dag_acl_tester')
-        self.appbuilder.sm.add_permission_role(dag_tester_role, perm_on_dag)
+        edit_perm_on_dag = self.appbuilder.sm.\
+            find_permission_view_menu(permissions.ACTION_CAN_EDIT, 'DAG:example_bash_operator')
+        self.appbuilder.sm.add_permission_role(dag_tester_role, edit_perm_on_dag)
+        read_perm_on_dag = self.appbuilder.sm.\
+            find_permission_view_menu(permissions.ACTION_CAN_READ, 'DAG:example_bash_operator')
+        self.appbuilder.sm.add_permission_role(dag_tester_role, read_perm_on_dag)
 
-        perm_on_all_dag = self.appbuilder.sm.\
-            find_permission_view_menu('can_dag_edit', 'all_dags')
         all_dag_role = self.appbuilder.sm.find_role('all_dag_role')
-        self.appbuilder.sm.add_permission_role(all_dag_role, perm_on_all_dag)
+        edit_perm_on_all_dag = self.appbuilder.sm.\
+            find_permission_view_menu(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS)
+        self.appbuilder.sm.add_permission_role(all_dag_role, edit_perm_on_all_dag)
+        read_perm_on_all_dag = self.appbuilder.sm.\
+            find_permission_view_menu(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS)
+        self.appbuilder.sm.add_permission_role(all_dag_role, read_perm_on_all_dag)
 
         role_user = self.appbuilder.sm.find_role('User')
-        self.appbuilder.sm.add_permission_role(role_user, perm_on_all_dag)
+        self.appbuilder.sm.add_permission_role(role_user, read_perm_on_all_dag)
+        self.appbuilder.sm.add_permission_role(role_user, edit_perm_on_all_dag)
 
         read_only_perm_on_dag = self.appbuilder.sm.\
-            find_permission_view_menu('can_dag_read', 'example_bash_operator')
+            find_permission_view_menu(permissions.ACTION_CAN_READ, 'DAG:example_bash_operator')
         dag_read_only_role = self.appbuilder.sm.find_role('dag_acl_read_only')
         self.appbuilder.sm.add_permission_role(dag_read_only_role, read_only_perm_on_dag)
 
@@ -1751,19 +1818,17 @@ class TestDagACLView(TestBase):
         self.logout()
         self.login(username='test',
                    password='test')
-        test_view_menu = self.appbuilder.sm.find_view_menu('example_bash_operator')
+        test_view_menu = self.appbuilder.sm.find_view_menu('DAG:example_bash_operator')
         perms_views = self.appbuilder.sm.find_permissions_view_menu(test_view_menu)
-        self.assertEqual(len(perms_views), 4)
+        self.assertEqual(len(perms_views), 2)
 
-        permissions = [str(perm) for perm in perms_views]
-        expected_permissions = [
-            'can read on example_bash_operator',
-            'can dag edit on example_bash_operator',
-            'can dag read on example_bash_operator',
-            'can edit on example_bash_operator',
+        perms = [str(perm) for perm in perms_views]
+        expected_perms = [
+            'can read on DAG:example_bash_operator',
+            'can edit on DAG:example_bash_operator',
         ]
-        for perm in expected_permissions:
-            self.assertIn(perm, permissions)
+        for perm in expected_perms:
+            self.assertIn(perm, perms)
 
     def test_role_permission_associate(self):
         self.logout()
@@ -1771,8 +1836,8 @@ class TestDagACLView(TestBase):
                    password='test')
         test_role = self.appbuilder.sm.find_role('dag_acl_tester')
         perms = {str(perm) for perm in test_role.permissions}
-        self.assertIn('can dag edit on example_bash_operator', perms)
-        self.assertNotIn('can dag read on example_bash_operator', perms)
+        self.assertIn('can edit on DAG:example_bash_operator', perms)
+        self.assertIn('can read on DAG:example_bash_operator', perms)
 
     def test_index_success(self):
         self.logout()
@@ -2175,7 +2240,7 @@ class TestDagACLView(TestBase):
         self.check_content_not_in_response('example_bash_operator', resp)
 
     def test_success_fail_for_read_only_role(self):
-        # success endpoint need can_dag_edit, which read only role can not access
+        # success endpoint need can_edit, which read only role can not access
         self.logout()
         self.login(username='dag_read_only',
                    password='dag_read_only')
@@ -2193,7 +2258,7 @@ class TestDagACLView(TestBase):
         self.check_content_not_in_response('Wait a minute', resp, resp_code=302)
 
     def test_tree_success_for_read_only_role(self):
-        # tree view only allows can_dag_read, which read only role could access
+        # tree view only allows can_read, which read only role could access
         self.logout()
         self.login(username='dag_read_only',
                    password='dag_read_only')
@@ -2400,8 +2465,8 @@ class TestTriggerDag(TestBase):
 
         run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
         self.assertIsNotNone(run)
-        self.assertIn(DagRunType.MANUAL.value, run.run_id)
-        self.assertEqual(run.run_type, DagRunType.MANUAL.value)
+        self.assertIn(DagRunType.MANUAL, run.run_id)
+        self.assertEqual(run.run_type, DagRunType.MANUAL)
 
     @pytest.mark.quarantined
     def test_trigger_dag_conf(self):
@@ -2417,8 +2482,8 @@ class TestTriggerDag(TestBase):
 
         run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
         self.assertIsNotNone(run)
-        self.assertIn(DagRunType.MANUAL.value, run.run_id)
-        self.assertEqual(run.run_type, DagRunType.MANUAL.value)
+        self.assertIn(DagRunType.MANUAL, run.run_id)
+        self.assertEqual(run.run_type, DagRunType.MANUAL)
         self.assertEqual(run.conf, conf_dict)
 
     def test_trigger_dag_conf_malformed(self):
@@ -2452,6 +2517,34 @@ class TestTriggerDag(TestBase):
         self.check_content_in_response(
             '<button type="button" class="btn" onclick="location.href = \'{}\'; return false">'.format(
                 expected_origin),
+            resp)
+
+    @parameterized.expand([
+        (None, {"example_key": "example_value"}),
+        ({"other": "test_data", "key": 12}, {"other": "test_data", "key": 12}),
+    ])
+    def test_trigger_dag_params_conf(self, request_conf, expected_conf):
+        """
+        Test that textarea in Trigger DAG UI is pre-populated
+        with json config when the conf URL parameter is passed,
+        or if a params dict is passed in the DAG
+
+            1. Conf is not included in URL parameters -> DAG.conf is in textarea
+            2. Conf is passed as a URL parameter -> passed conf json is in textarea
+        """
+        test_dag_id = "example_bash_operator"
+
+        if not request_conf:
+            resp = self.client.get('trigger?dag_id={}'.format(test_dag_id))
+        else:
+            test_request_conf = json.dumps(request_conf, indent=4)
+            resp = self.client.get('trigger?dag_id={}&conf={}'.format(test_dag_id, test_request_conf))
+
+        expected_dag_conf = json.dumps(expected_conf, indent=4) \
+            .replace("\"", "&#34;")
+
+        self.check_content_in_response(
+            '<textarea class="form-control" name="conf">{}</textarea>'.format(expected_dag_conf),
             resp)
 
     def test_trigger_endpoint_uses_existing_dagbag(self):

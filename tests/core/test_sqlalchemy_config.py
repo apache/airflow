@@ -17,8 +17,8 @@
 # under the License.
 
 import unittest
+from unittest.mock import patch
 
-from mock import patch
 from sqlalchemy.pool import NullPool
 
 from airflow import settings

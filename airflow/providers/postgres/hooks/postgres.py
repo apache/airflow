@@ -76,9 +76,7 @@ class PostgresHook(DbApiHook):
         raise ValueError('Invalid cursor passed {}'.format(_cursor))
 
     def get_conn(self) -> connection:
-        """
-        Establishes a connection to a postgres database.
-        """
+        """Establishes a connection to a postgres database."""
         conn_id = getattr(self, self.conn_name_attr)
         conn = self.connection or self.get_connection(conn_id)
 
@@ -96,16 +94,12 @@ class PostgresHook(DbApiHook):
         raw_cursor = conn.extra_dejson.get('cursor', False)
         if raw_cursor:
             conn_args['cursor_factory'] = self._get_cursor(raw_cursor)
-        # check for ssl parameters in conn.extra
+
         for arg_name, arg_val in conn.extra_dejson.items():
-            if arg_name in [
-                'sslmode',
-                'sslcert',
-                'sslkey',
-                'sslrootcert',
-                'sslcrl',
-                'application_name',
-                'keepalives_idle',
+            if arg_name not in [
+                'iam',
+                'redshift',
+                'cursor',
             ]:
                 conn_args[arg_name] = arg_val
 
@@ -135,15 +129,11 @@ class PostgresHook(DbApiHook):
                     conn.commit()
 
     def bulk_load(self, table: str, tmp_file: str) -> None:
-        """
-        Loads a tab-delimited file into a database table
-        """
+        """Loads a tab-delimited file into a database table"""
         self.copy_expert("COPY {table} FROM STDIN".format(table=table), tmp_file)
 
     def bulk_dump(self, table: str, tmp_file: str) -> None:
-        """
-        Dumps a database table into a tab-delimited file
-        """
+        """Dumps a database table into a tab-delimited file"""
         self.copy_expert("COPY {table} TO STDOUT".format(table=table), tmp_file)
 
     # pylint: disable=signature-differs

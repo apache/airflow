@@ -185,9 +185,7 @@ class SparkJDBCOperator(SparkSubmitOperator):
         self._hook: Optional[SparkJDBCHook] = None
 
     def execute(self, context: Dict[str, Any]) -> None:
-        """
-        Call the SparkSubmitHook to run the provided spark job
-        """
+        """Call the SparkSubmitHook to run the provided spark job"""
         if self._hook is None:
             self._hook = self._get_hook()
         self._hook.submit_jdbc_job()

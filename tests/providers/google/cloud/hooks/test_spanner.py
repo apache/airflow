@@ -18,8 +18,8 @@
 
 import unittest
 
-import mock
-from mock import PropertyMock
+from unittest import mock
+from unittest.mock import PropertyMock
 
 from airflow.providers.google.cloud.hooks.spanner import SpannerHook
 from tests.providers.google.cloud.utils.base_gcp_mock import (

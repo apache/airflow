@@ -87,13 +87,11 @@ class S3ToRedshiftOperator(BaseOperator):
         self.verify = verify
         self.copy_options = copy_options or []
         self.autocommit = autocommit
-        self._s3_hook = None
-        self._postgres_hook = None
 
-    def execute(self, context):
-        self._postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
-        self._s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
-        credentials = self._s3_hook.get_credentials()
+    def execute(self, context) -> None:
+        postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
+        s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+        credentials = s3_hook.get_credentials()
         copy_options = '\n\t\t\t'.join(self.copy_options)
 
         copy_query = """
@@ -113,5 +111,5 @@ class S3ToRedshiftOperator(BaseOperator):
         )
 
         self.log.info('Executing COPY command...')
-        self._postgres_hook.run(copy_query, self.autocommit)
+        postgres_hook.run(copy_query, self.autocommit)
         self.log.info("COPY command complete...")

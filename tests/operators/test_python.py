@@ -275,6 +275,31 @@ class TestPythonOperator(TestPythonBase):
             python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
             self.assertTrue('dag' in context.exception, "'dag' not found in the exception")
 
+    def test_provide_context_does_not_fail(self):
+        """
+        ensures that provide_context doesn't break dags in 2.0
+        """
+        self.dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            external_trigger=False,
+        )
+
+        def func(custom, dag):
+            self.assertEqual(1, custom, "custom should be 1")
+            self.assertIsNotNone(dag, "dag should be set")
+
+        python_operator = PythonOperator(
+            task_id='python_operator',
+            op_kwargs={'custom': 1},
+            python_callable=func,
+            provide_context=True,
+            dag=self.dag
+        )
+        python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
     def test_context_with_conflicting_op_args(self):
         self.dag.create_dagrun(
             run_type=DagRunType.MANUAL,
@@ -361,7 +386,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
         with self.dag:
             ret = add_number(2)
         self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL.value,
+            run_id=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             state=State.RUNNING
@@ -379,7 +404,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
         with self.dag:
             ret = add_number(2)
         self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL.value,
+            run_id=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             state=State.RUNNING
@@ -406,7 +431,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
         ret = task(4, date(2019, 1, 1), "dag {{dag.dag_id}} ran on {{ds}}.", named_tuple)
 
         self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL.value,
+            run_id=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             state=State.RUNNING
@@ -435,7 +460,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
         )
         ret = task(an_int=4, a_date=date(2019, 1, 1), a_templated_string="dag {{dag.dag_id}} ran on {{ds}}.")
         self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL.value,
+            run_id=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             state=State.RUNNING
@@ -508,7 +533,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
             ret = return_dict(test_number)
 
         dr = self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL.value,
+            run_id=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING
@@ -550,7 +575,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
             ret = add_num(bigger_number, XComArg(bigger_number.operator))  # pylint: disable=maybe-no-member
 
         dr = self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL.value,
+            run_id=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING
@@ -602,6 +627,22 @@ class TestAirflowTaskDecorator(TestPythonBase):
             add_2(test_number)
 
         assert 'add_2' in self.dag.task_ids
+
+    def test_task_documentation(self):
+        """Tests that task_decorator loads doc_md from function doc"""
+
+        @task_decorator
+        def add_2(number: int):
+            """
+            Adds 2 to number.
+            """
+            return number + 2
+
+        test_number = 10
+        with self.dag:
+            ret = add_2(test_number)
+
+        assert ret.operator.doc_md.strip(), "Adds 2 to number."  # pylint: disable=maybe-no-member
 
 
 class TestBranchOperator(unittest.TestCase):

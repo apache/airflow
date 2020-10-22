@@ -16,19 +16,31 @@
 # specific language governing permissions and limitations
 # under the License.
 from typing import Optional, Any, Iterable
+import os
 
 import prestodb
 from prestodb.exceptions import DatabaseError
 from prestodb.transaction import IsolationLevel
 
+from airflow import AirflowException
+from airflow.configuration import conf
 from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.models import Connection
 
 
 class PrestoException(Exception):
-    """
-    Presto exception
-    """
+    """Presto exception"""
+
+
+def _boolify(value):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        if value.lower() == 'false':
+            return False
+        elif value.lower() == 'true':
+            return True
+    return value
 
 
 class PrestoHook(DbApiHook):
@@ -49,9 +61,28 @@ class PrestoHook(DbApiHook):
         db = self.get_connection(
             self.presto_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
         )
-        auth = prestodb.auth.BasicAuthentication(db.login, db.password) if db.password else None
+        extra = db.extra_dejson
+        auth = None
+        if db.password and extra.get('auth') == 'kerberos':
+            raise AirflowException("Kerberos authorization doesn't support password.")
+        elif db.password:
+            auth = prestodb.auth.BasicAuthentication(db.login, db.password)
+        elif extra.get('auth') == 'kerberos':
+            auth = prestodb.auth.KerberosAuthentication(
+                config=extra.get('kerberos__config', os.environ.get('KRB5_CONFIG')),
+                service_name=extra.get('kerberos__service_name'),
+                mutual_authentication=_boolify(extra.get('kerberos__mutual_authentication', False)),
+                force_preemptive=_boolify(extra.get('kerberos__force_preemptive', False)),
+                hostname_override=extra.get('kerberos__hostname_override'),
+                sanitize_mutual_error_response=_boolify(
+                    extra.get('kerberos__sanitize_mutual_error_response', True)
+                ),
+                principal=extra.get('kerberos__principal', conf.get('kerberos', 'principal')),
+                delegate=_boolify(extra.get('kerberos__delegate', False)),
+                ca_bundle=extra.get('kerberos__ca_bundle'),
+            )
 
-        return prestodb.dbapi.connect(
+        presto_conn = prestodb.dbapi.connect(
             host=db.host,
             port=db.port,
             user=db.login,
@@ -62,6 +93,13 @@ class PrestoHook(DbApiHook):
             auth=auth,
             isolation_level=self.get_isolation_level(),  # type: ignore[func-returns-value]
         )
+        if extra.get('verify') is not None:
+            # Unfortunately verify parameter is available via public API.
+            # The PR is merged in the presto library, but has not been released.
+            # See: https://github.com/prestosql/presto-python-client/pull/31
+            presto_conn._http_session.verify = _boolify(extra['verify'])  # pylint: disable=protected-access
+
+        return presto_conn
 
     def get_isolation_level(self) -> Any:
         """Returns an isolation level"""
@@ -76,28 +114,21 @@ class PrestoHook(DbApiHook):
         return sql.strip().rstrip(';')
 
     def get_records(self, hql, parameters: Optional[dict] = None):
-        """
-        Get a set of records from Presto
-        """
+        """Get a set of records from Presto"""
         try:
             return super().get_records(self._strip_sql(hql), parameters)
         except DatabaseError as e:
             raise PrestoException(e)
 
     def get_first(self, hql: str, parameters: Optional[dict] = None) -> Any:
-        """
-        Returns only the first row, regardless of how many rows the query
-        returns.
-        """
+        """Returns only the first row, regardless of how many rows the query returns."""
         try:
             return super().get_first(self._strip_sql(hql), parameters)
         except DatabaseError as e:
             raise PrestoException(e)
 
     def get_pandas_df(self, hql, parameters=None, **kwargs):
-        """
-        Get a pandas dataframe from a sql query.
-        """
+        """Get a pandas dataframe from a sql query."""
         import pandas
 
         cursor = self.get_cursor()
@@ -120,9 +151,7 @@ class PrestoHook(DbApiHook):
         autocommit: bool = False,
         parameters: Optional[dict] = None,
     ) -> None:
-        """
-        Execute the statement against Presto. Can be used to create views.
-        """
+        """Execute the statement against Presto. Can be used to create views."""
         return super().run(sql=self._strip_sql(hql), parameters=parameters)
 
     def insert_rows(

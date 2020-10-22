@@ -42,9 +42,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
 
     @property
     def queued_tasks(self) -> Dict[TaskInstanceKey, QueuedTaskInstanceType]:
-        """
-        Return queued tasks from celery and kubernetes executor
-        """
+        """Return queued tasks from celery and kubernetes executor"""
         queued_tasks = self.celery_executor.queued_tasks.copy()
         queued_tasks.update(self.kubernetes_executor.queued_tasks)
 
@@ -52,9 +50,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
 
     @property
     def running(self) -> Set[TaskInstanceKey]:
-        """
-        Return running tasks from celery and kubernetes executor
-        """
+        """Return running tasks from celery and kubernetes executor"""
         return self.celery_executor.running.union(self.kubernetes_executor.running)
 
     def start(self) -> None:
@@ -115,9 +111,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
             or self.kubernetes_executor.has_task(task_instance)
 
     def heartbeat(self) -> None:
-        """
-        Heartbeat sent to trigger new jobs in celery and kubernetes executor
-        """
+        """Heartbeat sent to trigger new jobs in celery and kubernetes executor"""
         self.celery_executor.heartbeat()
         self.kubernetes_executor.heartbeat()
 
@@ -156,16 +150,12 @@ class CeleryKubernetesExecutor(LoggingMixin):
         return abandoned_tis
 
     def end(self) -> None:
-        """
-        End celery and kubernetes executor
-        """
+        """End celery and kubernetes executor"""
         self.celery_executor.end()
         self.kubernetes_executor.end()
 
     def terminate(self) -> None:
-        """
-        Terminate celery and kubernetes executor
-        """
+        """Terminate celery and kubernetes executor"""
         self.celery_executor.terminate()
         self.kubernetes_executor.terminate()
 

@@ -26,7 +26,7 @@ An Airflow operator for AWS Batch services
     - http://boto3.readthedocs.io/en/latest/reference/services/batch.html
     - https://docs.aws.amazon.com/batch/latest/APIReference/Welcome.html
 """
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -48,13 +48,13 @@ class AwsBatchOperator(BaseOperator):
     :type job_queue: str
 
     :param overrides: the `containerOverrides` parameter for boto3 (templated)
-    :type overrides: Dict
+    :type overrides: Optional[dict]
 
     :param array_properties: the `arrayProperties` parameter for boto3
-    :type array_properties: Dict
+    :type array_properties: Optional[dict]
 
     :param parameters: the `parameters` for boto3 (templated)
-    :type parameters: Dict
+    :type parameters: Optional[dict]
 
     :param job_id: the job ID, usually unknown (None) until the
         submit_job operation gets the jobId defined by AWS Batch
@@ -101,18 +101,18 @@ class AwsBatchOperator(BaseOperator):
     def __init__(
         self,
         *,
-        job_name,
-        job_definition,
-        job_queue,
-        overrides,
-        array_properties=None,
-        parameters=None,
-        job_id=None,
-        waiters=None,
-        max_retries=None,
-        status_retries=None,
-        aws_conn_id=None,
-        region_name=None,
+        job_name: str,
+        job_definition: str,
+        job_queue: str,
+        overrides: dict,
+        array_properties: Optional[dict] = None,
+        parameters: Optional[dict] = None,
+        job_id: Optional[str] = None,
+        waiters: Optional[Any] = None,
+        max_retries: Optional[int] = None,
+        status_retries: Optional[int] = None,
+        aws_conn_id: Optional[str] = None,
+        region_name: Optional[str] = None,
         **kwargs,
     ):  # pylint: disable=too-many-arguments
 
@@ -121,9 +121,9 @@ class AwsBatchOperator(BaseOperator):
         self.job_name = job_name
         self.job_definition = job_definition
         self.job_queue = job_queue
-        self.overrides = overrides
+        self.overrides = overrides or {}
         self.array_properties = array_properties or {}
-        self.parameters = parameters
+        self.parameters = parameters or {}
         self.waiters = waiters
         self.hook = AwsBatchClientHook(
             max_retries=max_retries,
@@ -181,6 +181,9 @@ class AwsBatchOperator(BaseOperator):
 
         :raises: AirflowException
         """
+        if not self.job_id:
+            raise AirflowException('AWS Batch job - job_id was not found')
+
         try:
             if self.waiters:
                 self.waiters.wait_for_job(self.job_id)

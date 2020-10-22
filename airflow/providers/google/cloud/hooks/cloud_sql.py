@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # pylint: disable=too-many-lines
-"""
-This module contains a Google Cloud SQL Hook.
-"""
+"""This module contains a Google Cloud SQL Hook."""
 
 import errno
 import json
@@ -62,9 +60,7 @@ TIME_TO_SLEEP_IN_SECONDS = 20
 
 
 class CloudSqlOperationStatus:
-    """
-    Helper class with operation statuses.
-    """
+    """Helper class with operation statuses."""
 
     PENDING = "PENDING"
     RUNNING = "RUNNING"
@@ -609,9 +605,7 @@ class CloudSqlProxyRunner(LoggingMixin):
             os.remove(self.credentials_path)
 
     def get_proxy_version(self) -> Optional[str]:
-        """
-        Returns version of the Cloud SQL Proxy.
-        """
+        """Returns version of the Cloud SQL Proxy."""
         self._download_sql_proxy_if_needed()
         command_to_run = [self.sql_proxy_path]
         command_to_run.extend(['--version'])
@@ -958,9 +952,7 @@ class CloudSQLDatabaseHook(BaseHook):  # noqa
         return self.db_hook
 
     def cleanup_database_hook(self) -> None:
-        """
-        Clean up database hook after it was used.
-        """
+        """Clean up database hook after it was used."""
         if self.database_type == 'postgres':
             if not self.db_hook:
                 raise ValueError("The db_hook should be set")
@@ -972,17 +964,13 @@ class CloudSQLDatabaseHook(BaseHook):  # noqa
                     self.log.info(output)
 
     def reserve_free_tcp_port(self) -> None:
-        """
-        Reserve free TCP port to be used by Cloud SQL Proxy
-        """
+        """Reserve free TCP port to be used by Cloud SQL Proxy"""
         self.reserved_tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.reserved_tcp_socket.bind(('127.0.0.1', 0))
         self.sql_proxy_tcp_port = self.reserved_tcp_socket.getsockname()[1]
 
     def free_reserved_port(self) -> None:
-        """
-        Free TCP port. Makes it immediately ready to be used by Cloud SQL Proxy.
-        """
+        """Free TCP port. Makes it immediately ready to be used by Cloud SQL Proxy."""
         if self.reserved_tcp_socket:
             self.reserved_tcp_socket.close()
             self.reserved_tcp_socket = None

@@ -239,52 +239,18 @@ function stop_output_heartbeat() {
     wait "${HEARTBEAT_PID}" || true 2> /dev/null
 }
 
-function setup_kerberos() {
-    FQDN=$(hostname)
-    ADMIN="admin"
-    PASS="airflow"
-    KRB5_KTNAME=/etc/airflow.keytab
-
-    sudo cp "${AIRFLOW_SOURCES}/scripts/in_container/krb5/krb5.conf" /etc/krb5.conf
-
-    echo -e "${PASS}\n${PASS}" | \
-        sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "addprinc -randkey airflow/${FQDN}" 2>&1 \
-          | sudo tee "${AIRFLOW_HOME}/logs/kadmin_1.log" >/dev/null
-    RES_1=$?
-
-    sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "ktadd -k ${KRB5_KTNAME} airflow" 2>&1 \
-          | sudo tee "${AIRFLOW_HOME}/logs/kadmin_2.log" >/dev/null
-    RES_2=$?
-
-    sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "ktadd -k ${KRB5_KTNAME} airflow/${FQDN}" 2>&1 \
-          | sudo tee "${AIRFLOW_HOME}/logs``/kadmin_3.log" >/dev/null
-    RES_3=$?
-
-    if [[ ${RES_1} != 0 || ${RES_2} != 0 || ${RES_3} != 0 ]]; then
-        echo
-        echo "Error when setting up Kerberos: ${RES_1} ${RES_2} ${RES_3}}!"
-        echo
-        exit 1
-    else
-        echo
-        echo "Kerberos enabled and working."
-        echo
-        sudo chmod 0644 "${KRB5_KTNAME}"
-    fi
-}
-
 function dump_airflow_logs() {
-    DUMP_FILE=/files/airflow_logs_$(date "+%Y-%m-%d")_${CI_BUILD_ID}_${CI_JOB_ID}.log.tar.gz
+    local dump_file
+    dump_file=/files/airflow_logs_$(date "+%Y-%m-%d")_${CI_BUILD_ID}_${CI_JOB_ID}.log.tar.gz
     echo "###########################################################################################"
     echo "                   Dumping logs from all the airflow tasks"
     echo "###########################################################################################"
     pushd "${AIRFLOW_HOME}" || exit 1
-    tar -czf "${DUMP_FILE}" logs
-    echo "                   Logs dumped to ${DUMP_FILE}"
+    tar -czf "${dump_file}" logs
+    echo "                   Logs dumped to ${dump_file}"
     popd || exit 1
     echo "###########################################################################################"
 }
-
 
 function install_released_airflow_version() {
     pip uninstall -y apache-airflow || true
@@ -297,6 +263,26 @@ function install_released_airflow_version() {
     pip install --upgrade "${INSTALLS[@]}"
 }
 
+function setup_backport_packages() {
+    if [[ ${BACKPORT_PACKAGES:=} == "true" ]]; then
+        export PACKAGE_TYPE="backport"
+        export PACKAGE_PREFIX_UPPERCASE="BACKPORT_"
+        export PACKAGE_PREFIX_LOWERCASE="backport_"
+        export PACKAGE_PREFIX_HYPHEN="backport-"
+    else
+        export PACKAGE_TYPE="regular"
+        export PACKAGE_PREFIX_UPPERCASE=""
+        export PACKAGE_PREFIX_LOWERCASE=""
+        export PACKAGE_PREFIX_HYPHEN=""
+    fi
+    readonly PACKAGE_TYPE
+    readonly PACKAGE_PREFIX_UPPERCASE
+    readonly PACKAGE_PREFIX_LOWERCASE
+    readonly PACKAGE_PREFIX_HYPHEN
+
+    readonly BACKPORT_PACKAGES
+    export BACKPORT_PACKAGES
+}
 
 export CI=${CI:="false"}
 export GITHUB_ACTIONS=${GITHUB_ACTIONS:="false"}

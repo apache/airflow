@@ -45,9 +45,7 @@ class OpsgenieAlertHook(HttpHook):
         super().__init__(http_conn_id=opsgenie_conn_id, *args, **kwargs)  # type: ignore[misc]
 
     def _get_api_key(self) -> str:
-        """
-        Get Opsgenie api_key for creating alert
-        """
+        """Get Opsgenie api_key for creating alert"""
         conn = self.get_connection(self.http_conn_id)
         api_key = conn.password
         if not api_key:

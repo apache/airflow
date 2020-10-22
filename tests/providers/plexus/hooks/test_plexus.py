@@ -15,10 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from unittest import mock
+from unittest.mock import Mock
+
 import arrow
-import mock
 import pytest
-from mock import Mock
 from requests.exceptions import Timeout
 from airflow.exceptions import AirflowException
 from airflow.providers.plexus.hooks.plexus import PlexusHook

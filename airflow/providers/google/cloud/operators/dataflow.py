@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Dataflow operators.
-"""
+"""This module contains Google Dataflow operators."""
 
 import copy
 import re
@@ -227,14 +225,14 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         dataflow_options.update(self.options)
         is_running = False
         if self.check_if_running != CheckJobRunning.IgnoreJob:
-            is_running = self.hook.is_job_dataflow_running(
+            is_running = self.hook.is_job_dataflow_running(  # type: ignore[attr-defined]
                 name=self.job_name,
                 variables=dataflow_options,
                 project_id=self.project_id,
                 location=self.location,
             )
             while is_running and self.check_if_running == CheckJobRunning.WaitForRun:
-                is_running = self.hook.is_job_dataflow_running(
+                is_running = self.hook.is_job_dataflow_running(  # type: ignore[attr-defined]
                     name=self.job_name,
                     variables=dataflow_options,
                     project_id=self.project_id,
@@ -253,7 +251,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
                 def set_current_job_id(job_id):
                     self.job_id = job_id
 
-                self.hook.start_java_dataflow(
+                self.hook.start_java_dataflow(  # type: ignore[attr-defined]
                     job_name=self.job_name,
                     variables=dataflow_options,
                     jar=self.jar,
@@ -419,7 +417,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.environment = environment
 
-    def execute(self, context):
+    def execute(self, context) -> dict:
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -441,6 +439,72 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             project_id=self.project_id,
             location=self.location,
             environment=self.environment,
+        )
+
+        return job
+
+    def on_kill(self) -> None:
+        self.log.info("On kill.")
+        if self.job_id:
+            self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id)
+
+
+class DataflowStartFlexTemplateOperator(BaseOperator):
+    """
+    Starts flex templates with the Dataflow  pipeline.
+
+    :param body: The request body. See:
+        https://cloud.google.com/dataflow/docs/reference/rest/v1b3/projects.locations.flexTemplates/launch#request-body
+    :param location: The location of the Dataflow job (for example europe-west1)
+    :type location: str
+    :param project_id: The ID of the GCP project that owns the job.
+        If set to ``None`` or missing, the default project_id from the GCP connection is used.
+    :type project_id: Optional[str]
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud
+        Platform.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    """
+
+    template_fields = ["body", 'location', 'project_id', 'gcp_conn_id']
+
+    @apply_defaults
+    def __init__(
+        self,
+        body: Dict,
+        location: str,
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.body = body
+        self.location = location
+        self.project_id = project_id
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+        self.job_id = None
+        self.hook: Optional[DataflowHook] = None
+
+    def execute(self, context):
+        self.hook = DataflowHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+        )
+
+        def set_current_job_id(job_id):
+            self.job_id = job_id
+
+        job = self.hook.start_flex_template(
+            body=self.body,
+            location=self.location,
+            project_id=self.project_id,
+            on_new_job_id_callback=set_current_job_id,
         )
 
         return job
@@ -585,7 +649,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
             def set_current_job_id(job_id):
                 self.job_id = job_id
 
-            self.hook.start_python_dataflow(
+            self.hook.start_python_dataflow(  # type: ignore[attr-defined]
                 job_name=self.job_name,
                 variables=formatted_options,
                 dataflow=self.py_file,

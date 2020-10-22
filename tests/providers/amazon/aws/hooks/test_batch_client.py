@@ -19,9 +19,9 @@
 # pylint: disable=missing-docstring
 
 import unittest
+from unittest import mock
 
 import botocore.exceptions
-import mock
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException

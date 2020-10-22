@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google BigQuery to MySQL operator.
-"""
+"""This module contains Google BigQuery to MySQL operator."""
 from typing import Optional, Sequence, Union
 
 from airflow.models import BaseOperator

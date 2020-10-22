@@ -86,7 +86,7 @@ class TestMLEngineHook(unittest.TestCase):
                 .models()
                 .versions()
                 .create(body=version_with_airflow_version, parent=model_path),
-                mock.call().projects().models().versions().create().execute(),
+                mock.call().projects().models().versions().create().execute(num_retries=5),
                 mock.call().projects().operations().get(name=version_name),
             ],
             any_order=True,
@@ -138,7 +138,7 @@ class TestMLEngineHook(unittest.TestCase):
                 .models()
                 .versions()
                 .create(body=version_with_airflow_version, parent=model_path),
-                mock.call().projects().models().versions().create().execute(),
+                mock.call().projects().models().versions().create().execute(num_retries=5),
                 mock.call().projects().operations().get(name=version_name),
             ],
             any_order=True,
@@ -171,7 +171,7 @@ class TestMLEngineHook(unittest.TestCase):
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().versions().setDefault(body={}, name=version_path),
-                mock.call().projects().models().versions().setDefault().execute(),
+                mock.call().projects().models().versions().setDefault().execute(num_retries=5),
             ],
             any_order=True,
         )
@@ -208,7 +208,7 @@ class TestMLEngineHook(unittest.TestCase):
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().versions().list(pageSize=100, parent=model_path),
-                mock.call().projects().models().versions().list().execute(),
+                mock.call().projects().models().versions().list().execute(num_retries=5),
             ]
             + [
                 mock.call()
@@ -257,9 +257,9 @@ class TestMLEngineHook(unittest.TestCase):
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().versions().delete(name=version_path),
-                mock.call().projects().models().versions().delete().execute(),
+                mock.call().projects().models().versions().delete().execute(num_retries=5),
                 mock.call().projects().operations().get(name=operation_path),
-                mock.call().projects().operations().get().execute(),
+                mock.call().projects().operations().get().execute(num_retries=5),
             ],
             any_order=True,
         )
@@ -291,7 +291,7 @@ class TestMLEngineHook(unittest.TestCase):
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().create(body=model_with_airflow_version, parent=project_path),
-                mock.call().projects().models().create().execute(),
+                mock.call().projects().models().create().execute(num_retries=5),
             ]
         )
 
@@ -354,13 +354,13 @@ class TestMLEngineHook(unittest.TestCase):
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().create(body=model_with_airflow_version, parent=project_path),
-                mock.call().projects().models().create().execute(),
+                mock.call().projects().models().create().execute(num_retries=5),
             ]
         )
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().get(name='projects/test-project/models/test-model'),
-                mock.call().projects().models().get().execute(),
+                mock.call().projects().models().get().execute(num_retries=5),
             ]
         )
 
@@ -391,7 +391,7 @@ class TestMLEngineHook(unittest.TestCase):
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().create(body=model_with_airflow_version, parent=project_path),
-                mock.call().projects().models().create().execute(),
+                mock.call().projects().models().create().execute(num_retries=5),
             ]
         )
 
@@ -416,7 +416,7 @@ class TestMLEngineHook(unittest.TestCase):
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().get(name=model_path),
-                mock.call().projects().models().get().execute(),
+                mock.call().projects().models().get().execute(num_retries=5),
             ]
         )
 
@@ -440,7 +440,7 @@ class TestMLEngineHook(unittest.TestCase):
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().delete(name=model_path),
-                mock.call().projects().models().delete().execute(),
+                mock.call().projects().models().delete().execute(num_retries=5),
             ]
         )
 
@@ -467,7 +467,7 @@ class TestMLEngineHook(unittest.TestCase):
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().delete(name=model_path),
-                mock.call().projects().models().delete().execute(),
+                mock.call().projects().models().delete().execute(num_retries=5),
             ]
         )
         mock_log.error.assert_called_once_with('Model was not found: %s', http_error)
@@ -517,7 +517,7 @@ class TestMLEngineHook(unittest.TestCase):
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().delete(name=model_path),
-                mock.call().projects().models().delete().execute(),
+                mock.call().projects().models().delete().execute(num_retries=5),
             ]
             + [
                 mock.call()
@@ -580,7 +580,7 @@ class TestMLEngineHook(unittest.TestCase):
             [
                 mock.call().projects().jobs().create(body=new_job_with_airflow_version, parent=project_path),
                 mock.call().projects().jobs().get(name=job_path),
-                mock.call().projects().jobs().get().execute(),
+                mock.call().projects().jobs().get().execute(num_retries=5),
             ],
             any_order=True,
         )
@@ -632,7 +632,7 @@ class TestMLEngineHook(unittest.TestCase):
             [
                 mock.call().projects().jobs().create(body=new_job_with_airflow_version, parent=project_path),
                 mock.call().projects().jobs().get(name=job_path),
-                mock.call().projects().jobs().get().execute(),
+                mock.call().projects().jobs().get().execute(num_retries=5),
             ],
             any_order=True,
         )
@@ -671,9 +671,9 @@ class TestMLEngineHook(unittest.TestCase):
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().jobs().create(body=job_succeeded, parent=project_path),
-                mock.call().projects().jobs().create().execute(),
+                mock.call().projects().jobs().create().execute(num_retries=5),
                 mock.call().projects().jobs().get(name=job_path),
-                mock.call().projects().jobs().get().execute(),
+                mock.call().projects().jobs().get().execute(num_retries=5),
             ],
             any_order=True,
         )
@@ -778,6 +778,7 @@ class TestMLEngineHook(unittest.TestCase):
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().jobs().cancel(name=job_path),
+                mock.call().projects().jobs().cancel().execute(num_retries=5),
             ],
             any_order=True,
         )
@@ -840,6 +841,7 @@ class TestMLEngineHook(unittest.TestCase):
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().jobs().cancel(name=job_path),
+                mock.call().projects().jobs().cancel().execute(num_retries=5),
             ],
             any_order=True,
         )
@@ -892,8 +894,9 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().versions().create(body=version, parent=model_path),
-                mock.call().projects().models().versions().create().execute(),
+                mock.call().projects().models().versions().create().execute(num_retries=5),
                 mock.call().projects().operations().get(name=version_name),
+                mock.call().projects().operations().get().execute(num_retries=5),
             ],
             any_order=True,
         )
@@ -932,7 +935,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().versions().setDefault(body={}, name=version_path),
-                mock.call().projects().models().versions().setDefault().execute(),
+                mock.call().projects().models().versions().setDefault().execute(num_retries=5),
             ],
             any_order=True,
         )
@@ -974,7 +977,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().versions().list(pageSize=100, parent=model_path),
-                mock.call().projects().models().versions().list().execute(),
+                mock.call().projects().models().versions().list().execute(num_retries=5),
             ]
             + [
                 mock.call()
@@ -1032,9 +1035,9 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().versions().delete(name=version_path),
-                mock.call().projects().models().versions().delete().execute(),
+                mock.call().projects().models().versions().delete().execute(num_retries=5),
                 mock.call().projects().operations().get(name=operation_path),
-                mock.call().projects().operations().get().execute(),
+                mock.call().projects().operations().get().execute(num_retries=5),
             ],
             any_order=True,
         )
@@ -1066,7 +1069,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().create(body=model, parent=project_path),
-                mock.call().projects().models().create().execute(),
+                mock.call().projects().models().create().execute(num_retries=5),
             ]
         )
 
@@ -1097,7 +1100,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().get(name=model_path),
-                mock.call().projects().models().get().execute(),
+                mock.call().projects().models().get().execute(num_retries=5),
             ]
         )
 
@@ -1125,7 +1128,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().delete(name=model_path),
-                mock.call().projects().models().delete().execute(),
+                mock.call().projects().models().delete().execute(num_retries=5),
             ]
         )
 
@@ -1175,7 +1178,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
             [
                 mock.call().projects().jobs().create(body=new_job, parent=project_path),
                 mock.call().projects().jobs().get(name=job_path),
-                mock.call().projects().jobs().get().execute(),
+                mock.call().projects().jobs().get().execute(num_retries=5),
             ],
             any_order=True,
         )
@@ -1206,6 +1209,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().jobs().cancel(name=job_path),
+                mock.call().projects().jobs().cancel().execute(num_retries=5),
             ],
             any_order=True,
         )

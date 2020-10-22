@@ -26,9 +26,7 @@ from airflow.hooks.dbapi_hook import DbApiHook
 
 
 class OracleHook(DbApiHook):
-    """
-    Interact with Oracle SQL.
-    """
+    """Interact with Oracle SQL."""
 
     conn_name_attr = 'oracle_conn_id'
     default_conn_name = 'oracle_default'

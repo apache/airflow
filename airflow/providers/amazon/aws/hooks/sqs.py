@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains AWS SQS hook
-"""
+"""This module contains AWS SQS hook"""
 from typing import Dict, Optional
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook

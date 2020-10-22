@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional
 
 from time import sleep
 
@@ -40,15 +41,21 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
     TERMINAL_STATES = frozenset({"available", "create-failed", "deleting"})
 
     def __init__(
-        self, max_retries=10, exponential_back_off_factor=1, initial_poke_interval=60, *args, **kwargs
+        self,
+        max_retries: int = 10,
+        exponential_back_off_factor: float = 1,
+        initial_poke_interval: float = 60,
+        *args,
+        **kwargs,
     ):
         self.max_retries = max_retries
         self.exponential_back_off_factor = exponential_back_off_factor
         self.initial_poke_interval = initial_poke_interval
 
-        super().__init__(client_type='elasticache', *args, **kwargs)
+        kwargs["client_type"] = "elasticache"
+        super().__init__(*args, **kwargs)
 
-    def create_replication_group(self, config):
+    def create_replication_group(self, config: dict) -> dict:
         """
         Call ElastiCache API for creating a replication group
 
@@ -59,7 +66,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         """
         return self.conn.create_replication_group(**config)
 
-    def delete_replication_group(self, replication_group_id):
+    def delete_replication_group(self, replication_group_id: str) -> dict:
         """
         Call ElastiCache API for deleting a replication group
 
@@ -70,7 +77,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         """
         return self.conn.delete_replication_group(ReplicationGroupId=replication_group_id)
 
-    def describe_replication_group(self, replication_group_id):
+    def describe_replication_group(self, replication_group_id: str) -> dict:
         """
         Call ElastiCache API for describing a replication group
 
@@ -81,7 +88,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         """
         return self.conn.describe_replication_groups(ReplicationGroupId=replication_group_id)
 
-    def get_replication_group_status(self, replication_group_id):
+    def get_replication_group_status(self, replication_group_id: str) -> str:
         """
         Get current status of replication group
 
@@ -92,7 +99,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         """
         return self.describe_replication_group(replication_group_id)['ReplicationGroups'][0]['Status']
 
-    def is_replication_group_available(self, replication_group_id):
+    def is_replication_group_available(self, replication_group_id: str) -> bool:
         """
         Helper for checking if replication group is available or not
 
@@ -105,10 +112,10 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
 
     def wait_for_availability(
         self,
-        replication_group_id,
-        initial_sleep_time=None,
-        exponential_back_off_factor=None,
-        max_retries=None,
+        replication_group_id: str,
+        initial_sleep_time: Optional[float] = None,
+        exponential_back_off_factor: Optional[float] = None,
+        max_retries: Optional[int] = None,
     ):
         """
         Check if replication group is available or not by performing a describe over it
@@ -164,10 +171,10 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
 
     def wait_for_deletion(
         self,
-        replication_group_id,
-        initial_sleep_time=None,
-        exponential_back_off_factor=None,
-        max_retries=None,
+        replication_group_id: str,
+        initial_sleep_time: Optional[float] = None,
+        exponential_back_off_factor: Optional[float] = None,
+        max_retries: Optional[int] = None,
     ):
         """
         Helper for deleting a replication group ensuring it is either deleted or can't be deleted
@@ -244,10 +251,10 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
 
     def ensure_delete_replication_group(
         self,
-        replication_group_id,
-        initial_sleep_time=None,
-        exponential_back_off_factor=None,
-        max_retries=None,
+        replication_group_id: str,
+        initial_sleep_time: Optional[float] = None,
+        exponential_back_off_factor: Optional[float] = None,
+        max_retries: Optional[int] = None,
     ):
         """
         Delete a replication group ensuring it is either deleted or can't be deleted

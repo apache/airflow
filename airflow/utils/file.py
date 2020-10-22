@@ -29,9 +29,7 @@ log = logging.getLogger(__name__)
 
 
 def TemporaryDirectory(*args, **kwargs):  # pylint: disable=invalid-name
-    """
-    This function is deprecated. Please use `tempfile.TemporaryDirectory`
-    """
+    """This function is deprecated. Please use `tempfile.TemporaryDirectory`"""
     import warnings
     from tempfile import TemporaryDirectory as TmpDir
     warnings.warn(

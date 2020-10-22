@@ -200,9 +200,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
             result_channel.close()
 
     def start(self) -> None:
-        """
-        Launch the process and start processing the DAG.
-        """
+        """Launch the process and start processing the DAG."""
         start_method = self._get_multiprocessing_start_method()
         context = multiprocessing.get_context(start_method)
 
@@ -234,9 +232,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
         self._parent_channel = _parent_channel
 
     def kill(self) -> None:
-        """
-        Kill the process launched to process the file, and ensure consistent state.
-        """
+        """Kill the process launched to process the file, and ensure consistent state."""
         if self._process is None:
             raise AirflowException("Tried to kill before starting!")
         self._kill_process()
@@ -789,16 +785,12 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         self.dagbag = DagBag(read_dags_from_db=True)
 
     def register_exit_signals(self) -> None:
-        """
-        Register signals that stop child processes
-        """
+        """Register signals that stop child processes"""
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
 
     def _exit_gracefully(self, signum, frame) -> None:  # pylint: disable=unused-argument
-        """
-        Helper method to clean up processor_agent to avoid leaving orphan processes.
-        """
+        """Helper method to clean up processor_agent to avoid leaving orphan processes."""
         self.log.info("Exiting gracefully upon receiving signal %s", signum)
         if self.processor_agent:
             self.processor_agent.end()
@@ -857,7 +849,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # We need to do this for mysql as well because it can cause deadlocks
         # as discussed in https://issues.apache.org/jira/browse/AIRFLOW-2516
         if self.using_sqlite or self.using_mysql:
-            tis_to_change: List[TI] = with_row_locks(query).all()
+            tis_to_change: List[TI] = with_row_locks(query, of=TI,
+                                                     **skip_locked(session=session)).all()
             for ti in tis_to_change:
                 ti.set_state(new_state, session=session)
                 tis_changed += 1
@@ -870,7 +863,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             }
 
             # Only add end_date and duration if the new_state is 'success', 'failed' or 'skipped'
-            if new_state in State.finished():
+            if new_state in State.finished:
                 ti_prop_update.update({
                     models.TaskInstance.end_date: current_time,
                     models.TaskInstance.duration: 0,
@@ -955,7 +948,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             .query(TI)
             .outerjoin(TI.dag_run)
             .filter(or_(DR.run_id.is_(None),
-                        DR.run_type != DagRunType.BACKFILL_JOB.value))
+                        DR.run_type != DagRunType.BACKFILL_JOB))
             .join(TI.dag_model)
             .filter(not_(DM.is_paused))
             .filter(TI.state == State.SCHEDULED)
@@ -1218,9 +1211,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
     @provide_session
     def _process_executor_events(self, session: Session = None) -> int:
-        """
-        Respond to executor events.
-        """
+        """Respond to executor events."""
         if not self.processor_agent:
             raise ValueError("Processor agent is not started.")
         ti_primary_key_to_try_number_map: Dict[Tuple[str, str, datetime.datetime], int] = {}
@@ -1344,9 +1335,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         dag_ids: Optional[List[str]],
         pickle_dags: bool
     ) -> DagFileProcessorProcess:
-        """
-        Creates DagFileProcessorProcess instance.
-        """
+        """Creates DagFileProcessorProcess instance."""
         return DagFileProcessorProcess(
             file_path=file_path,
             pickle_dags=pickle_dags,
@@ -1484,7 +1473,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 func.count(TI.execution_date.distinct()),
             ).filter(
                 TI.dag_id.in_(list({dag_run.dag_id for dag_run in dag_runs})),
-                TI.state.notin_(State.finished())
+                TI.state.notin_(list(State.finished))
             ).group_by(TI.dag_id).all())
 
             for dag_run in dag_runs:
@@ -1563,7 +1552,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 state=State.RUNNING,
                 external_trigger=False,
                 session=session,
-                dag_hash=dag_hash
+                dag_hash=dag_hash,
+                creating_job_id=self.id,
             )
 
         self._update_dag_next_dagruns(dag_models, session)
@@ -1789,7 +1779,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             .outerjoin(TI.queued_by_job)
             .filter(or_(TI.queued_by_job_id.is_(None), SchedulerJob.state != State.RUNNING))
             .join(TI.dag_run)
-            .filter(DagRun.run_type != DagRunType.BACKFILL_JOB.value,
+            .filter(DagRun.run_type != DagRunType.BACKFILL_JOB,
                     # pylint: disable=comparison-with-callable
                     DagRun.state == State.RUNNING)
             .options(load_only(TI.dag_id, TI.task_id, TI.execution_date))

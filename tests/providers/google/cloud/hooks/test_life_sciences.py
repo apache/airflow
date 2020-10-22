@@ -21,7 +21,7 @@ Tests for Google Cloud Life Sciences Hook
 import unittest
 from unittest import mock
 
-from mock import PropertyMock
+from unittest.mock import PropertyMock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.life_sciences import LifeSciencesHook

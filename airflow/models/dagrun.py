@@ -58,6 +58,7 @@ class DagRun(Base, LoggingMixin):
     end_date = Column(UtcDateTime)
     _state = Column('state', String(50), default=State.RUNNING)
     run_id = Column(String(ID_LEN))
+    creating_job_id = Column(Integer)
     external_trigger = Column(Boolean, default=True)
     run_type = Column(String(50), nullable=False)
     conf = Column(PickleType)
@@ -98,6 +99,7 @@ class DagRun(Base, LoggingMixin):
         state: Optional[str] = None,
         run_type: Optional[str] = None,
         dag_hash: Optional[str] = None,
+        creating_job_id: Optional[int] = None,
     ):
         self.dag_id = dag_id
         self.run_id = run_id
@@ -108,6 +110,7 @@ class DagRun(Base, LoggingMixin):
         self.state = state
         self.run_type = run_type
         self.dag_hash = dag_hash
+        self.creating_job_id = creating_job_id
         super().__init__()
 
     def __repr__(self):
@@ -126,7 +129,7 @@ class DagRun(Base, LoggingMixin):
     def set_state(self, state):
         if self._state != state:
             self._state = state
-            self.end_date = timezone.utcnow() if self._state in State.finished() else None
+            self.end_date = timezone.utcnow() if self._state in State.finished else None
 
     @declared_attr
     def state(self):
@@ -176,7 +179,7 @@ class DagRun(Base, LoggingMixin):
         # TODO: Bake this query, it is run _A lot_
         query = session.query(cls).filter(
             cls.state == State.RUNNING,
-            cls.run_type != DagRunType.BACKFILL_JOB.value
+            cls.run_type != DagRunType.BACKFILL_JOB
         ).join(
             DagModel,
             DagModel.dag_id == cls.dag_id,
@@ -256,9 +259,9 @@ class DagRun(Base, LoggingMixin):
         if external_trigger is not None:
             qry = qry.filter(DR.external_trigger == external_trigger)
         if run_type:
-            qry = qry.filter(DR.run_type == run_type.value)
+            qry = qry.filter(DR.run_type == run_type)
         if no_backfills:
-            qry = qry.filter(DR.run_type != DagRunType.BACKFILL_JOB.value)
+            qry = qry.filter(DR.run_type != DagRunType.BACKFILL_JOB)
 
         dr = qry.order_by(DR.execution_date).all()
 
@@ -267,13 +270,11 @@ class DagRun(Base, LoggingMixin):
     @staticmethod
     def generate_run_id(run_type: DagRunType, execution_date: datetime) -> str:
         """Generate Run ID based on Run Type and Execution Date"""
-        return f"{run_type.value}__{execution_date.isoformat()}"
+        return f"{run_type}__{execution_date.isoformat()}"
 
     @provide_session
     def get_task_instances(self, state=None, session=None):
-        """
-        Returns the task instances for this dag run
-        """
+        """Returns the task instances for this dag run"""
         tis = session.query(TI).filter(
             TI.dag_id == self.dag_id,
             TI.execution_date == self.execution_date,
@@ -385,8 +386,8 @@ class DagRun(Base, LoggingMixin):
         for ti in tis:
             ti.task = dag.get_task(ti.task_id)
 
-        unfinished_tasks = [t for t in tis if t.state in State.unfinished()]
-        finished_tasks = [t for t in tis if t.state in State.finished() + [State.UPSTREAM_FAILED]]
+        unfinished_tasks = [t for t in tis if t.state in State.unfinished]
+        finished_tasks = [t for t in tis if t.state in State.finished]
         none_depends_on_past = all(not t.task.depends_on_past for t in unfinished_tasks)
         none_task_concurrency = all(t.task.task_concurrency is None for t in unfinished_tasks)
         if unfinished_tasks:
@@ -614,7 +615,7 @@ class DagRun(Base, LoggingMixin):
 
     @property
     def is_backfill(self):
-        return self.run_type == DagRunType.BACKFILL_JOB.value
+        return self.run_type == DagRunType.BACKFILL_JOB
 
     @classmethod
     @provide_session

@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Vision Hook.
-"""
+"""This module contains a Google Cloud Vision Hook."""
 
 from copy import deepcopy
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
@@ -51,9 +49,7 @@ ERR_UNABLE_TO_CREATE = """Unable to determine the {label} name. Please either se
 
 
 class NameDeterminer:
-    """
-    Helper class to determine entity name.
-    """
+    """Helper class to determine entity name."""
 
     def __init__(self, label: str, id_label: str, get_path: Callable[[str, str, str], str]) -> None:
         self.label = label

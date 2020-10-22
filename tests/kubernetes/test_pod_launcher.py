@@ -15,8 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from unittest import mock
 
-import mock
 from requests.exceptions import BaseHTTPError
 
 from airflow.exceptions import AirflowException

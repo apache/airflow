@@ -18,7 +18,7 @@
 
 import unittest
 
-import mock
+from unittest import mock
 
 from airflow import AirflowException
 from airflow.providers.amazon.aws.sensors.glacier import GlacierJobOperationSensor, JobStatus

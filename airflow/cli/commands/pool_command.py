@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Pools sub-commands
-"""
+"""Pools sub-commands"""
 import json
 import os
 from json import JSONDecodeError

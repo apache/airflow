@@ -282,7 +282,7 @@ function push_pull_remove_images::push_prod_images() {
     fi
 }
 
-# waits for an image to be available in the github registry
+# waits for an image to be available in the GitHub registry
 function push_pull_remove_images::wait_for_github_registry_image() {
     github_repository_lowercase="$(echo "${GITHUB_REPOSITORY}" |tr '[:upper:]' '[:lower:]')"
     GITHUB_API_ENDPOINT="https://${GITHUB_REGISTRY}/v2/${github_repository_lowercase}"

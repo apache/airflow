@@ -845,8 +845,14 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.providers.google.cloud.operators.mlengine`
      -
 
-   * - `Cloud Memorystore <https://cloud.google.com/memorystore/>`__
+   * - `Cloud Memorystore Redis <https://cloud.google.com/memorystore/>`__
      - :doc:`How to use <howto/operator/google/cloud/cloud_memorystore>`
+     - :mod:`airflow.providers.google.cloud.hooks.cloud_memorystore`
+     - :mod:`airflow.providers.google.cloud.operators.cloud_memorystore`
+     -
+
+   * - `Cloud Memorystore Memcached <https://cloud.google.com/memorystore/>`__
+     - :doc:`How to use <howto/operator/google/cloud/cloud_memorystore_memcached>`
      - :mod:`airflow.providers.google.cloud.hooks.cloud_memorystore`
      - :mod:`airflow.providers.google.cloud.operators.cloud_memorystore`
      -

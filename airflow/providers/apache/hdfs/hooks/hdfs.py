@@ -62,9 +62,7 @@ class HDFSHook(BaseHook):
         self.autoconfig = autoconfig
 
     def get_conn(self) -> Any:
-        """
-        Returns a snakebite HDFSClient object.
-        """
+        """Returns a snakebite HDFSClient object."""
         # When using HAClient, proxy_user must be the same, so is ok to always
         # take the first.
         effective_user = self.proxy_user

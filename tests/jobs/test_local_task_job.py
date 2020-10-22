@@ -22,9 +22,9 @@ import time
 import unittest
 import uuid
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
-from mock import patch
 
 from airflow import settings
 from airflow.exceptions import AirflowException
@@ -132,12 +132,10 @@ class TestLocalTaskJob(unittest.TestCase):
         mock_pid.return_value = 2
         self.assertRaises(AirflowException, job1.heartbeat_callback)
 
-    @patch('os.getpid')
-    def test_heartbeat_failed_fast(self, mock_getpid):
+    def test_heartbeat_failed_fast(self):
         """
         Test that task heartbeat will sleep when it fails fast
         """
-        mock_getpid.return_value = 1
         self.mock_base_job_sleep.side_effect = time.sleep
 
         with create_session() as session:

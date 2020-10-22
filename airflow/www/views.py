@@ -49,7 +49,7 @@ from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
 
 import airflow
-from airflow import models, settings
+from airflow import models, plugins_manager, settings
 from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_failed, set_dag_run_state_to_success,
 )
@@ -63,6 +63,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.taskinstance import TaskInstance
+from airflow.security import permissions
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
 from airflow.utils import timezone
@@ -241,9 +242,7 @@ def dag_edges(dag):
     task_group_map = dag.task_group.get_task_group_dict()
 
     def collect_edges(task_group):
-        """
-        Update edges_to_add and edges_to_skip according to TaskGroups.
-        """
+        """Update edges_to_add and edges_to_skip according to TaskGroups."""
         if isinstance(task_group, BaseOperator):
             return
 
@@ -360,9 +359,7 @@ class AirflowBaseView(BaseView):  # noqa: D101
 
 
 class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-methods
-    """
-    Main Airflow application.
-    """
+    """Main Airflow application."""
 
     @expose('/health')
     def health(self):
@@ -416,13 +413,15 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         if request.args.get('reset_tags') is not None:
             flask_session[FILTER_TAGS_COOKIE] = None
-            arg_tags_filter = None
-        else:
-            cookie_val = flask_session.get(FILTER_TAGS_COOKIE)
-            if arg_tags_filter:
-                flask_session[FILTER_TAGS_COOKIE] = ','.join(arg_tags_filter)
-            elif cookie_val:
-                arg_tags_filter = cookie_val.split(',')
+            # Remove the reset_tags=reset from the URL
+            return redirect(url_for('Airflow.index'))
+
+        cookie_val = flask_session.get(FILTER_TAGS_COOKIE)
+        if arg_tags_filter:
+            flask_session[FILTER_TAGS_COOKIE] = ','.join(arg_tags_filter)
+        elif cookie_val:
+            # If tags exist in cookie, but not URL, add them to the URL
+            return redirect(url_for('Airflow.index', tags=cookie_val.split(',')))
 
         if arg_status_filter is None:
             cookie_val = flask_session.get(FILTER_STATUS_COOKIE)
@@ -461,7 +460,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             if arg_tags_filter:
                 dags_query = dags_query.filter(DagModel.tags.any(DagTag.name.in_(arg_tags_filter)))
 
-            if 'all_dags' not in filter_dag_ids:
+            if permissions.RESOURCE_DAGS not in filter_dag_ids:
                 dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
                 # pylint: enable=no-member
 
@@ -535,7 +534,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             status_filter=arg_status_filter,
             status_count_all=all_dags_count,
             status_count_active=status_count_active,
-            status_count_paused=status_count_paused)
+            status_count_paused=status_count_paused,
+            tags_filter=arg_tags_filter)
 
     @expose('/dag_stats', methods=['POST'])
     @has_access
@@ -545,7 +545,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         dr = models.DagRun
 
         allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
-        if 'all_dags' in allowed_dag_ids:
+        if permissions.RESOURCE_DAGS in allowed_dag_ids:
             allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
         dag_state_stats = session.query(dr.dag_id, dr.state, sqla.func.count(dr.state))\
@@ -594,7 +594,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         if not allowed_dag_ids:
             return wwwutils.json_response({})
 
-        if 'all_dags' in allowed_dag_ids:
+        if permissions.RESOURCE_DAGS in allowed_dag_ids:
             allowed_dag_ids = {dag_id for dag_id, in session.query(models.DagModel.dag_id)}
 
         # Filter by post parameters
@@ -705,7 +705,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Last DAG runs"""
         allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
 
-        if 'all_dags' in allowed_dag_ids:
+        if permissions.RESOURCE_DAGS in allowed_dag_ids:
             allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
         # Filter by post parameters
@@ -722,7 +722,9 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             return wwwutils.json_response({})
 
         query = session.query(
-            DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('last_run')
+            DagRun.dag_id,
+            sqla.func.max(DagRun.execution_date).label('execution_date'),
+            sqla.func.max(DagRun.start_date).label('start_date'),
         ).group_by(DagRun.dag_id)
 
         # Filter to only ask for accessible and selected dags
@@ -731,7 +733,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         resp = {
             r.dag_id.replace('.', '__dot__'): {
                 'dag_id': r.dag_id,
-                'last_run': r.last_run.isoformat(),
+                'execution_date': r.execution_date.isoformat(),
+                'start_date': r.start_date.isoformat(),
             } for r in query
         }
         return wwwutils.json_response(resp)
@@ -1240,13 +1243,24 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Triggers DAG Run."""
         dag_id = request.values.get('dag_id')
         origin = get_safe_url(request.values.get('origin'))
+        request_conf = request.values.get('conf')
 
         if request.method == 'GET':
+            # Populate conf textarea with conf requests parameter, or dag.params
+            default_conf = ''
+            if request_conf:
+                default_conf = request_conf
+            else:
+                try:
+                    dag = current_app.dag_bag.get_dag(dag_id)
+                    default_conf = json.dumps(dag.params, indent=4)
+                except TypeError:
+                    flash("Could not pre-populate conf field due to non-JSON-serializable data-types")
             return self.render_template(
                 'airflow/trigger.html',
                 dag_id=dag_id,
                 origin=origin,
-                conf=''
+                conf=default_conf
             )
 
         dag_orm = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
@@ -1262,7 +1276,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             return redirect(origin)
 
         run_conf = {}
-        request_conf = request.values.get('conf')
         if request_conf:
             try:
                 run_conf = json.loads(request_conf)
@@ -1389,7 +1402,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Mark Dag Blocked."""
         allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
 
-        if 'all_dags' in allowed_dag_ids:
+        if permissions.RESOURCE_DAGS in allowed_dag_ids:
             allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
         # Filter by post parameters
@@ -1842,7 +1855,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             nodes=nodes,
             edges=edges,
             show_external_log_redirect=task_log_reader.supports_external_link,
-            external_log_name=external_log_name)
+            external_log_name=external_log_name,
+            dag_run_state=dt_nr_dr_data['dr_state'])
 
     @expose('/duration')
     @has_dag_access(can_dag_read=True)
@@ -2438,7 +2452,7 @@ class XComModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(XCom)
 
-    base_permissions = ['can_list', 'can_delete']
+    base_permissions = ['can_list', permissions.ACTION_CAN_DELETE]
 
     search_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
     list_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
@@ -2479,7 +2493,7 @@ class ConnectionModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(Connection)  # noqa # type: ignore
 
-    base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete']
+    base_permissions = ['can_add', 'can_list', permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_DELETE]
 
     extra_fields = ['extra__jdbc__drv_path', 'extra__jdbc__drv_clsname',
                     'extra__google_cloud_platform__project',
@@ -2544,6 +2558,58 @@ class ConnectionModelView(AirflowModelView):
                 field.data = value
 
 
+class PluginView(AirflowBaseView):
+    """View to show Airflow Plugins"""
+
+    default_view = 'list'
+
+    plugins_attributes_to_dump = [
+        "operators",
+        "sensors",
+        "hooks",
+        "executors",
+        "macros",
+        "admin_views",
+        "flask_blueprints",
+        "menu_links",
+        "appbuilder_views",
+        "appbuilder_menu_items",
+        "global_operator_extra_links",
+        "operator_extra_links",
+        "source",
+    ]
+
+    @expose('/plugin')
+    @has_access
+    def list(self):
+        """List loaded plugins."""
+        plugins_manager.ensure_plugins_loaded()
+        plugins_manager.integrate_dag_plugins()
+        plugins_manager.integrate_executor_plugins()
+        plugins_manager.initialize_extra_operators_links_plugins()
+        plugins_manager.initialize_web_ui_plugins()
+
+        plugins = []
+        for plugin_no, plugin in enumerate(plugins_manager.plugins, 1):
+            plugin_data = {
+                'plugin_no': plugin_no,
+                'plugin_name': plugin.name,
+                'attrs': {},
+            }
+            for attr_name in self.plugins_attributes_to_dump:
+                attr_value = getattr(plugin, attr_name)
+                plugin_data['attrs'][attr_name] = attr_value
+
+            plugins.append(plugin_data)
+
+        title = "Airflow Plugins"
+        return self.render_template(
+            'airflow/plugin.html',
+            plugins=plugins,
+            title=title,
+        )
+
+
 class PoolModelView(AirflowModelView):
     """View to show records from Pool table"""
 
@@ -2551,7 +2617,7 @@ class PoolModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.Pool)  # noqa # type: ignore
 
-    base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete']
+    base_permissions = ['can_add', 'can_list', permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_DELETE]
 
     list_columns = ['pool', 'slots', 'running_slots', 'queued_slots']
     add_columns = ['pool', 'slots', 'description']
@@ -2625,7 +2691,8 @@ class VariableModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.Variable)  # noqa # type: ignore
 
-    base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete', 'can_varimport']
+    base_permissions = ['can_add', 'can_list', permissions.ACTION_CAN_EDIT,
+                        permissions.ACTION_CAN_DELETE, 'can_varimport']
 
     list_columns = ['key', 'val', 'is_encrypted']
     add_columns = ['key', 'val']
@@ -3090,9 +3157,7 @@ class DagModelView(AirflowModelView):
     base_filters = [['dag_id', DagFilter, lambda: []]]
 
     def get_query(self):
-        """
-        Default filters for model
-        """
+        """Default filters for model"""
         return (
             super().get_query()  # noqa pylint: disable=no-member
             .filter(or_(models.DagModel.is_active,
@@ -3101,9 +3166,7 @@ class DagModelView(AirflowModelView):
         )
 
     def get_count_query(self):
-        """
-        Default filters for model
-        """
+        """Default filters for model"""
         return (
             super().get_count_query()  # noqa pylint: disable=no-member
             .filter(models.DagModel.is_active)
@@ -3141,7 +3204,7 @@ class DagModelView(AirflowModelView):
 
         filter_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
         # pylint: disable=no-member
-        if not bool({'all_dags', 'Dag'}.intersection(filter_dag_ids)):
+        if permissions.RESOURCE_DAGS not in filter_dag_ids:
             dag_ids_query = dag_ids_query.filter(DagModel.dag_id.in_(filter_dag_ids))
             owners_query = owners_query.filter(DagModel.dag_id.in_(filter_dag_ids))
         # pylint: enable=no-member

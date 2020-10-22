@@ -60,8 +60,6 @@ _breeze_allowed_install_airflow_versions=$(cat <<-EOF
 1.10.4
 1.10.3
 1.10.2
-master
-v1-10-test
 EOF
 )
 
@@ -150,15 +148,16 @@ force-build-images force-pull-images production-image extras: force-clean-images
 build-cache-local build-cache-pulled build-cache-disabled disable-pip-cache
 dockerhub-user: dockerhub-repo: github-registry github-repository: github-image-id:
 postgres-version: mysql-version:
-version-suffix-for-pypi: version-suffix-for-svn:
+version-suffix-for-pypi: version-suffix-for-svn: backports
 additional-extras: additional-python-deps: additional-dev-deps: additional-runtime-deps: image-tag:
-disable-mysql-client-installation constraints-location: disable-pip-cache install-local-pip-wheels
-additional-extras: additional-python-deps:
+disable-mysql-client-installation constraints-location: disable-pip-cache add-local-pip-wheels
+additional-extras: additional-python-deps: skip-installing-airflow-via-pip skip-installing-airflow-providers
 dev-apt-deps: additional-dev-apt-deps: dev-apt-command: additional-dev-apt-command: additional-dev-apt-env:
 runtime-apt-deps: additional-runtime-apt-deps: runtime-apt-command: additional-runtime-apt-command: additional-runtime-apt-env:
 load-default-connections load-example-dags
 install-wheels no-rbac-ui
 test-type:
+preserve-volumes
 "
 
 _breeze_commands="
@@ -180,8 +179,8 @@ toggle-suppress-asciiart"
 _breeze_extra_arg_commands="
 docker-compose
 kind-cluster
-prepare-backport-readme
-prepare-backport-packages
+prepare-provider-readme
+prepare-provider-packages
 static-check
 tests
 "

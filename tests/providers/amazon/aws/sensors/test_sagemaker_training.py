@@ -19,7 +19,7 @@
 import unittest
 from datetime import datetime
 
-import mock
+from unittest import mock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook

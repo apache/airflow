@@ -29,9 +29,7 @@ warnings.warn(
 
 
 class AwsHook(AwsBaseHook):
-    """
-    This class is deprecated. Please use `airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`.
-    """
+    """This class is deprecated. Please use `airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`."""
 
     def __init__(self, *args, **kwargs):
         warnings.warn(

@@ -18,6 +18,8 @@
 
 """Unit tests for stringified DAGs."""
 
+import importlib
+import importlib.util
 import multiprocessing
 import os
 import unittest
@@ -35,6 +37,7 @@ from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import DAG, Connection, DagBag, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
+from airflow.security import permissions
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink
@@ -132,8 +135,8 @@ serialized_simple_dag_ground_truth = {
                 "test_role": {
                     "__type": "set",
                     "__var": [
-                        "can_dag_read",
-                        "can_dag_edit"
+                        permissions.ACTION_CAN_READ,
+                        permissions.ACTION_CAN_EDIT
                     ]
                 }
             }
@@ -164,7 +167,7 @@ def make_simple_dag():
         start_date=datetime(2019, 8, 1),
         is_paused_upon_creation=False,
         access_control={
-            "test_role": {"can_dag_read", "can_dag_edit"}
+            "test_role": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}
         }
     ) as dag:
         CustomOperator(task_id='custom_task')
@@ -871,3 +874,38 @@ class TestStringifiedDAGs(unittest.TestCase):
                 check_task_group(child)
 
         check_task_group(serialized_dag.task_group)
+
+
+def test_kubernetes_optional():
+    """Serialisation / deserialisation continues to work without kubernetes installed"""
+
+    def mock__import__(name, globals_=None, locals_=None, fromlist=(), level=0):
+        if level == 0 and name.partition('.')[0] == 'kubernetes':
+            raise ImportError("No module named 'kubernetes'")
+        return importlib.__import__(name, globals=globals_, locals=locals_, fromlist=fromlist, level=level)
+
+    with mock.patch('builtins.__import__', side_effect=mock__import__) as import_mock:
+        # load module from scratch, this does not replace any already imported
+        # airflow.serialization.serialized_objects module in sys.modules
+        spec = importlib.util.find_spec("airflow.serialization.serialized_objects")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        # if we got this far, the module did not try to load kubernetes, but
+        # did it try to access airflow.kubernetes.*?
+        imported_airflow = {
+            c.args[0].split('.', 2)[1] for c in import_mock.call_args_list if c.args[0].startswith("airflow.")
+        }
+        assert "kubernetes" not in imported_airflow
+
+        # pod loading is not supported when kubernetes is not available
+        pod_override = {
+            '__type': 'k8s.V1Pod',
+            '__var': PodGenerator.serialize_pod(executor_config_pod),
+        }
+
+        with pytest.raises(RuntimeError):
+            module.BaseSerialization.from_dict(pod_override)
+
+        # basic serialization should succeed
+        module.SerializedDAG.to_dict(make_simple_dag()["simple_dag"])

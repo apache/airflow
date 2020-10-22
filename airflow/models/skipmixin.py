@@ -38,9 +38,7 @@ class SkipMixin(LoggingMixin):
     """A Mixin to skip Tasks Instances"""
 
     def _set_state_to_skipped(self, dag_run, execution_date, tasks, session):
-        """
-        Used internally to set state of task instances to skipped from the same dag run.
-        """
+        """Used internally to set state of task instances to skipped from the same dag run."""
         task_ids = [d.task_id for d in tasks]
         now = timezone.utcnow()
 

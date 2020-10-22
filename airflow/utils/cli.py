@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-Utilities module for cli
-"""
+"""Utilities module for cli"""
 
 import functools
 import getpass
@@ -105,8 +103,20 @@ def _build_metrics(func_name, namespace):
     :param namespace: Namespace instance from argparse
     :return: dict with metrics
     """
+    sensitive_fields = {'-p', '--password', '--conn-password'}
+    full_command = list(sys.argv)
+    for idx, command in enumerate(full_command):  # pylint: disable=too-many-nested-blocks
+        if command in sensitive_fields:
+            # For cases when password is passed as "--password xyz" (with space between key and value)
+            full_command[idx + 1] = "*" * 8
+        else:
+            # For cases when password is passed as "--password=xyz" (with '=' between key and value)
+            for sensitive_field in sensitive_fields:
+                if command.startswith(f'{sensitive_field}='):
+                    full_command[idx] = f'{sensitive_field}={"*" * 8}'
+
     metrics = {'sub_command': func_name, 'start_datetime': datetime.utcnow(),
-               'full_command': '{}'.format(list(sys.argv)), 'user': getpass.getuser()}
+               'full_command': '{}'.format(full_command), 'user': getpass.getuser()}
 
     if not isinstance(namespace, Namespace):
         raise ValueError("namespace argument should be argparse.Namespace instance,"
@@ -239,9 +249,7 @@ def sigquit_handler(sig, frame):  # pylint: disable=unused-argument
 
 
 class ColorMode:
-    """
-    Coloring modes. If `auto` is then automatically detected.
-    """
+    """Coloring modes. If `auto` is then automatically detected."""
 
     ON = "on"
     OFF = "off"
@@ -249,9 +257,7 @@ class ColorMode:
 
 
 def should_use_colors(args) -> bool:
-    """
-    Processes arguments and decides whether to enable color in output
-    """
+    """Processes arguments and decides whether to enable color in output"""
     if args.color == ColorMode.ON:
         return True
     if args.color == ColorMode.OFF:

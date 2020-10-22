@@ -14,9 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Classes for interacting with Kubernetes API
-"""
+"""Classes for interacting with Kubernetes API"""
 import copy
 
 from kubernetes.client import models as k8s
@@ -41,9 +39,7 @@ class PodRuntimeInfoEnv(K8SModel):
         self.field_path = field_path
 
     def to_k8s_client_obj(self) -> k8s.V1EnvVar:
-        """
-        :return: kubernetes.client.models.V1EnvVar
-        """
+        """:return: kubernetes.client.models.V1EnvVar"""
         return k8s.V1EnvVar(
             name=self.name,
             value_from=k8s.V1EnvVarSource(

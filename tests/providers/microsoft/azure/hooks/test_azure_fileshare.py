@@ -28,7 +28,7 @@ and password (=Storage account key), or login and SAS token in the extra field
 import json
 import unittest
 
-import mock
+from unittest import mock
 from azure.storage.file import File, Directory
 
 from airflow.models import Connection

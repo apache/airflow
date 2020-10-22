@@ -29,6 +29,7 @@ import logging
 from typing import Any, Dict, Optional, Tuple, Union
 
 import boto3
+from botocore.credentials import ReadOnlyCredentials
 from botocore.config import Config
 from cached_property import cached_property
 
@@ -393,7 +394,7 @@ class AwsBaseHook(BaseHook):
         session, _ = self._get_credentials(region_name)
         return session
 
-    def get_credentials(self, region_name: Optional[str] = None) -> Tuple[Optional[str], Optional[str]]:
+    def get_credentials(self, region_name: Optional[str] = None) -> ReadOnlyCredentials:
         """
         Get the underlying `botocore.Credentials` object.
 

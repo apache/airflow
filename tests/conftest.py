@@ -228,7 +228,7 @@ def breeze_test_helper(request):
         # Initialize kerberos
         kerberos = os.environ.get("KRB5_KTNAME")
         if kerberos:
-            subprocess.check_call(["kinit", "-kt", kerberos, "airflow"])
+            subprocess.check_call(["kinit", "-kt", kerberos, 'bob@EXAMPLE.COM'])
         else:
             print("Kerberos enabled! Please setup KRB5_KTNAME environment variable")
             sys.exit(1)

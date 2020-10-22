@@ -92,9 +92,7 @@ class UtcDateTime(TypeDecorator):
 
 
 class Interval(TypeDecorator):
-    """
-    Base class representing a time interval.
-    """
+    """Base class representing a time interval."""
 
     impl = Text
 
@@ -195,9 +193,7 @@ def with_row_locks(query, **kwargs):
 
 
 class CommitProhibitorGuard:
-    """
-    Context manager class that powers prohibit_commit
-    """
+    """Context manager class that powers prohibit_commit"""
 
     expected_commit = False
 
@@ -240,7 +236,7 @@ def prohibit_commit(session):
     .. code:: python
 
         with prohibit_commit(session) as guard:
-            # ... do something with sesison
+            # ... do something with session
             guard.commit()
 
             # This would throw an error

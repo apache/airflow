@@ -28,6 +28,8 @@ readonly SCRIPTS_CI_DIR
 . "${LIBRARIES_DIR}"/_traps.sh
 # shellcheck source=scripts/ci/libraries/_initialization.sh
 . "${LIBRARIES_DIR}"/_initialization.sh
+# shellcheck source=scripts/ci/libraries/_repeats.sh
+. "${LIBRARIES_DIR}"/_repeats.sh
 # shellcheck source=scripts/ci/libraries/_sanity_checks.sh
 . "${LIBRARIES_DIR}"/_sanity_checks.sh
 # shellcheck source=scripts/ci/libraries/_build_images.sh
@@ -54,3 +56,5 @@ readonly SCRIPTS_CI_DIR
 . "${LIBRARIES_DIR}"/_start_end.sh
 # shellcheck source=scripts/ci/libraries/_verbosity.sh
 . "${LIBRARIES_DIR}"/_verbosity.sh
+# shellcheck source=scripts/ci/libraries/_kerberos.sh
+. "${LIBRARIES_DIR}"/_kerberos.sh

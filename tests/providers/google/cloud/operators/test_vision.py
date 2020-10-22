@@ -18,7 +18,7 @@
 
 import unittest
 
-import mock
+from unittest import mock
 from google.api_core.exceptions import AlreadyExists
 from google.cloud.vision_v1.types import Product, ProductSet, ReferenceImage
 

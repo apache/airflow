@@ -252,7 +252,7 @@ Step 4: Prepare PR
 
    * Read about `email configuration in Airflow <https://airflow.readthedocs.io/en/latest/howto/email-config.html>`__.
 
-   * Find the class you should modify. For the example github issue,
+   * Find the class you should modify. For the example GitHub issue,
      this is `email.py <https://github.com/apache/airflow/blob/master/airflow/utils/email.py>`__.
 
    * Find the test class where you should add tests. For the example ticket,
@@ -371,6 +371,13 @@ usually these are developers with the release manager permissions.
 Once the branch is stable, the ``v1-10-stable`` branch is synchronized with ``v1-10-test``.
 The ``v1-10-stable`` branch is used to release ``1.10.x`` releases.
 
+The general approach is that cherry-picking a commit that has already had a PR and unit tests run
+against main is done to ``v1-10-test`` branch, but PRs from contributors towards 1.10 should target
+``v1-10-stable`` branch.
+
+The ``v1-10-test`` branch and ``v1-10-stable`` ones are merged just before the release and that's the
+time when they converge.
+
 Development Environments
 ========================
 
@@ -488,6 +495,10 @@ Limitations:
 They are optimized for repeatability of tests, maintainability and speed of building rather
 than production performance. The production images are not yet officially published.
 
+
+Airflow dependencies
+====================
+
 Extras
 ------
 
@@ -513,90 +524,27 @@ yandexcloud, all, devel_ci
 
   .. END EXTRAS HERE
 
+Provider packages
+-----------------
 
-Airflow dependencies
---------------------
+Airflow 2.0 is split into core and providers. They are delivered as separate packages:
 
-Airflow is not a standard python project. Most of the python projects fall into one of two types -
-application or library. As described in
-[StackOverflow Question](https://stackoverflow.com/questions/28509481/should-i-pin-my-python-dependencies-versions)
-decision whether to pin (freeze) dependency versions for a python project depends on the type. For
-applications, dependencies should be pinned, but for libraries, they should be open.
+* ``apache-airflow`` - core of Apache Airflow
+* ``apache-airflow-providers-*`` - More than 50 provider packages to communicate with external services
 
-For application, pinning the dependencies makes it more stable to install in the future - because new
-(even transitive) dependencies might cause installation to fail. For libraries - the dependencies should
-be open to allow several different libraries with the same requirements to be installed at the same time.
+In Airflow 1.10 all those providers were installed together within one single package and when you installed
+airflow locally, from sources, they were also installed. In Airflow 2.0, providers are separated out,
+and not installed together with the core, unless you set ``INSTALL_PROVIDERS_FROM_SOURCES`` environment
+variable to ``true``.
 
-The problem is that Apache Airflow is a bit of both - application to install and library to be used when
-you are developing your own operators and DAGs.
+In Breeze - which is a development environment, ``INSTALL_PROVIDERS_FROM_SOURCES`` variable is set to true,
+but you can add ``--skip-installing-airflow-providers`` flag to Breeze to skip installing providers when
+building the images.
 
-This - seemingly unsolvable - puzzle is solved by having pinned constraints files. Those are available
-as of airflow 1.10.10 and further improved with 1.10.12 (moved to separate orphan branches)
-
-Pinned constraint files
------------------------
-
-By default when you install ``apache-airflow`` package - the dependencies are as open as possible while
-still allowing the apache-airflow package to install. This means that ``apache-airflow`` package might fail to
-install in case a direct or transitive dependency is released that breaks the installation. In such case
-when installing ``apache-airflow``, you might need to provide additional constraints (for
-example ``pip install apache-airflow==1.10.2 Werkzeug<1.0.0``)
-
-However we now have ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` files generated
-automatically and committed to orphan ``constraints-master`` and ``constraint-1-10`` branches based on
-the set of all latest working and tested dependency versions. Those
-``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` files can be used as
-constraints file when installing Apache Airflow - either from the sources:
-
-.. code-block:: bash
-
-  pip install -e . \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
-
-
-or from the pypi package:
-
-.. code-block:: bash
-
-  pip install apache-airflow \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
-
-
-This works also with extras - for example:
-
-.. code-block:: bash
-
-  pip install .[ssh] \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
-
-
-As of apache-airflow 1.10.12 it is also possible to use constraints directly from github using specific
-tag/hash name. We tag commits working for particular release with constraints-<version> tag. So for example
-fixed valid constraints 1.10.12 can be used by using ``constraints-1.10.12`` tag:
-
-.. code-block:: bash
-
-  pip install apache-airflow[ssh]==1.10.12 \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.6.txt"
-
-There are different set of fixed constraint files for different python major/minor versions and you should
-use the right file for the right python version.
-
-The ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` will be automatically regenerated by CI cron job
-every time after the ``setup.py`` is updated and pushed if the tests are successful. There are separate
-jobs for each python version.
-
-Backport providers packages
----------------------------
-
-**NOTE:** In case of problems with installation / development of backport packages
-check `troubleshooting installing backport packages <https://github
-.com/apache/airflow#troubleshooting-installing-backport-packages>`_.
-
-Since we are developing new operators in the master branch, we prepared backport packages ready to be
-installed for Airflow 1.10.* series. Those backport operators (the tested ones) are going to be released
-in PyPi and we are going to maintain the list at
-`Backported providers package page <https://cwiki.apache.org/confluence/display/AIRFLOW/Backported+providers+packages+for+Airflow+1.10.*+series>`_
+One watch-out - providers are still always installed (or rather available) if you install airflow from
+sources using ``-e`` (or ``--editable``) flag. In such case airflow is read directly from the sources
+without copying airflow packages to the usual installation location, and since 'providers' folder is
+in this airflow folder - the providers package is importable.
 
 Some of the packages have cross-dependencies with other providers packages. This typically happens for
 transfer operators where operators use hooks from the other providers in case they are transferring
@@ -606,8 +554,8 @@ The dependency list is automatically used during pypi packages generation.
 
 Cross-dependencies between provider packages are converted into extras - if you need functionality from
 the other provider package you can install it adding [extra] after the
-apache-airflow-backport-providers-PROVIDER for example ``pip install
-apache-airflow-backport-providers-google[amazon]`` in case you want to use GCP
+``apache-airflow-backport-providers-PROVIDER`` for example:
+``pip install apache-airflow-backport-providers-google[amazon]`` in case you want to use GCP
 transfer operators from Amazon ECS.
 
 If you add a new dependency between different providers packages, it will be detected automatically during
@@ -649,6 +597,90 @@ snowflake                  slack
 ========================== ===========================
 
   .. END PACKAGE DEPENDENCIES HERE
+
+Backport providers
+------------------
+
+You can also build backport provider packages for Airflow 1.10. They aim to provide a bridge when users
+of Airflow 1.10 want to migrate to Airflow 2.0. The backport packages are named similarly to the
+provider packages, but with "backport" added:
+
+* ``apache-airflow-backport-provider-*``
+
+Those backport providers are automatically refactored to work with Airflow 1.10.* and have a few
+limitations described in those packages.
+
+Dependency management
+=====================
+
+Airflow is not a standard python project. Most of the python projects fall into one of two types -
+application or library. As described in
+[StackOverflow Question](https://stackoverflow.com/questions/28509481/should-i-pin-my-python-dependencies-versions)
+decision whether to pin (freeze) dependency versions for a python project depends on the type. For
+applications, dependencies should be pinned, but for libraries, they should be open.
+
+For application, pinning the dependencies makes it more stable to install in the future - because new
+(even transitive) dependencies might cause installation to fail. For libraries - the dependencies should
+be open to allow several different libraries with the same requirements to be installed at the same time.
+
+The problem is that Apache Airflow is a bit of both - application to install and library to be used when
+you are developing your own operators and DAGs.
+
+This - seemingly unsolvable - puzzle is solved by having pinned constraints files. Those are available
+as of airflow 1.10.10 and further improved with 1.10.12 (moved to separate orphan branches)
+
+Pinned constraint files
+=======================
+
+By default when you install ``apache-airflow`` package - the dependencies are as open as possible while
+still allowing the apache-airflow package to install. This means that ``apache-airflow`` package might fail to
+install in case a direct or transitive dependency is released that breaks the installation. In such case
+when installing ``apache-airflow``, you might need to provide additional constraints (for
+example ``pip install apache-airflow==1.10.2 Werkzeug<1.0.0``)
+
+However we now have ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` files generated
+automatically and committed to orphan ``constraints-master`` and ``constraint-1-10`` branches based on
+the set of all latest working and tested dependency versions. Those
+``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` files can be used as
+constraints file when installing Apache Airflow - either from the sources:
+
+.. code-block:: bash
+
+  pip install -e . \
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+
+
+or from the pypi package:
+
+.. code-block:: bash
+
+  pip install apache-airflow \
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+
+
+This works also with extras - for example:
+
+.. code-block:: bash
+
+  pip install .[ssh] \
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+
+
+As of apache-airflow 1.10.12 it is also possible to use constraints directly from GitHub using specific
+tag/hash name. We tag commits working for particular release with constraints-<version> tag. So for example
+fixed valid constraints 1.10.12 can be used by using ``constraints-1.10.12`` tag:
+
+.. code-block:: bash
+
+  pip install apache-airflow[ssh]==1.10.12 \
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.6.txt"
+
+There are different set of fixed constraint files for different python major/minor versions and you should
+use the right file for the right python version.
+
+The ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` will be automatically regenerated by CI cron job
+every time after the ``setup.py`` is updated and pushed if the tests are successful. There are separate
+jobs for each python version.
 
 Documentation
 =============
@@ -1167,7 +1199,7 @@ This means that committers should:
 
 * Review PRs in a timely and reliable fashion
 * They should also help to actively whittle down the PR backlog
-* Answer questions (i.e. on the dev list, in PRs, in Github Issues, slack, etc...)
+* Answer questions (i.e. on the dev list, in PRs, in GitHub Issues, slack, etc...)
 * Take on core changes/bugs/feature requests
 * Some changes are important enough that a committer needs to ensure it gets done. This is especially
   the case if no one from the community is taking it on.

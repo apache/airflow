@@ -18,7 +18,9 @@
 import re
 import sys
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Optional, Dict
+
+from botocore.waiter import Waiter
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -45,7 +47,7 @@ class ECSProtocol(Protocol):
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task"""  # noqa: E501
         ...
 
-    def get_waiter(self, x: str):
+    def get_waiter(self, x: str) -> Waiter:
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.get_waiter"""  # noqa: E501
         ...
 
@@ -57,14 +59,14 @@ class ECSProtocol(Protocol):
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.stop_task"""  # noqa: E501
         ...
 
-    def describe_task_definition(self, taskDefinition: str) -> Dict:  # pylint: disable=C0103, line-too-long
+    def describe_task_definition(self, taskDefinition: str) -> Dict:
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_task_definition"""  # noqa: E501
         ...
 
     def list_tasks(self, cluster: str, launchType: str, desiredStatus: str, family: str) -> Dict:
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.list_tasks"""  # noqa: E501
         ...
-        # pylint: enable=C0103, line-too-long
+    # pylint: enable=C0103, line-too-long
 
 
 class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
@@ -124,30 +126,28 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     """
 
     ui_color = '#f0ede4'
-    client = None  # type: Optional[ECSProtocol]
-    arn = None  # type: Optional[str]
     template_fields = ('overrides',)
 
     @apply_defaults
     def __init__(
         self,
         *,
-        task_definition,
-        cluster,
-        overrides,  # pylint: disable=too-many-arguments
-        aws_conn_id=None,
-        region_name=None,
-        launch_type='EC2',
-        group=None,
-        placement_constraints=None,
-        placement_strategy=None,
-        platform_version='LATEST',
-        network_configuration=None,
-        tags=None,
-        awslogs_group=None,
-        awslogs_region=None,
-        awslogs_stream_prefix=None,
-        propagate_tags=None,
+        task_definition: str,
+        cluster: str,
+        overrides: dict,  # pylint: disable=too-many-arguments
+        aws_conn_id: Optional[str] = None,
+        region_name: Optional[str] = None,
+        launch_type: str = 'EC2',
+        group: Optional[str] = None,
+        placement_constraints: Optional[list] = None,
+        placement_strategy: Optional[list] = None,
+        platform_version: str = 'LATEST',
+        network_configuration: Optional[dict] = None,
+        tags: Optional[dict] = None,
+        awslogs_group: Optional[str] = None,
+        awslogs_region: Optional[str] = None,
+        awslogs_stream_prefix: Optional[str] = None,
+        propagate_tags: Optional[str] = None,
         reattach: bool = False,
         **kwargs,
     ):
@@ -175,7 +175,9 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         if self.awslogs_region is None:
             self.awslogs_region = region_name
 
-        self.hook = None
+        self.hook: Optional[AwsBaseHook] = None
+        self.client: Optional[ECSProtocol] = None
+        self.arn: Optional[str] = None
 
     def execute(self, context):
         self.log.info(
@@ -249,12 +251,18 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         else:
             self.log.info('No active tasks found to reattach')
 
-    def _wait_for_task_ended(self):
+    def _wait_for_task_ended(self) -> None:
+        if not self.client or not self.arn:
+            return
+
         waiter = self.client.get_waiter('tasks_stopped')
         waiter.config.max_attempts = sys.maxsize  # timeout is managed by airflow
         waiter.wait(cluster=self.cluster, tasks=[self.arn])
 
-    def _check_success_task(self):
+    def _check_success_task(self) -> None:
+        if not self.client or not self.arn:
+            return
+
         response = self.client.describe_tasks(cluster=self.cluster, tasks=[self.arn])
         self.log.info('ECS Task stopped, check status: %s', response)
 
@@ -294,19 +302,22 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
                         )
                     )
 
-    def get_hook(self):
+    def get_hook(self) -> AwsBaseHook:
         """Create and return an AwsHook."""
-        if not self.hook:
-            self.hook = AwsBaseHook(
-                aws_conn_id=self.aws_conn_id, client_type='ecs', region_name=self.region_name
-            )
+        if self.hook:
+            return self.hook
+
+        self.hook = AwsBaseHook(aws_conn_id=self.aws_conn_id, client_type='ecs', region_name=self.region_name)
         return self.hook
 
-    def get_logs_hook(self):
+    def get_logs_hook(self) -> AwsLogsHook:
         """Create and return an AwsLogsHook."""
         return AwsLogsHook(aws_conn_id=self.aws_conn_id, region_name=self.awslogs_region)
 
-    def on_kill(self):
+    def on_kill(self) -> None:
+        if not self.client or not self.arn:
+            return
+
         response = self.client.stop_task(
             cluster=self.cluster, task=self.arn, reason='Task killed by the user'
         )

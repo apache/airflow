@@ -17,7 +17,7 @@
 # under the License.
 from unittest import TestCase
 
-import mock
+from unittest import mock
 
 from airflow.providers.amazon.aws.transfers.glacier_to_gcs import GlacierToGCSOperator
 

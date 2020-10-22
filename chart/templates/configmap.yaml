@@ -60,7 +60,7 @@ data:
 {{- if .Values.podTemplate }}
     {{ .Values.podTemplate | nindent 4 }}
 {{- else }}
-{{ tpl (.Files.Get "files/pod-template-file.yaml") . | nindent 4 }}
+{{ tpl (.Files.Get "files/pod-template-file.kubernetes-helm-yaml") . | nindent 4 }}
 {{- end }}
 {{- if .Values.kerberos.enabled }}
   krb5.conf: |

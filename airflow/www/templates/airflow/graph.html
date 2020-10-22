@@ -18,6 +18,7 @@
 #}
 
 {% extends "airflow/dag.html" %}
+{% from 'appbuilder/loading_dots.html' import loading_dots %}
 
 {% block page_title %}{{ dag.dag_id }} - Graph - Airflow{% endblock %}
 
@@ -79,37 +80,42 @@
       <input type="search" class="form-control" id="searchbox" placeholder="Find Task…">
     </div>
   </div>
-  <div>
-    {% for op in operators %}
-      <div class="legend_item" style="border-width:1px;float:left;background:{{ op.ui_color }};color:{{ op.ui_fgcolor }};">
-        {{ op.task_type }}
-      </div>
-    {% endfor %}
 
+  <div class="legend-row">
     <div>
-      <div class="legend_item state" style="border-color:white;">no_status</div>
-      {% for state, state_color in state_color_mapping.items() %}
-        <div class="legend_item state" style="border-color:{{state_color}};">{{state}}</div>
-      {% endfor %}
+      {% for op in operators %}<span class="legend-item" style="color: {{ op.ui_fgcolor }};background: {{ op.ui_color }};">
+        {{ op.task_type }}</span>{% endfor %}
     </div>
-    <div style="clear:both;"></div>
+    <div>
+      {% for state, state_color in state_color_mapping.items() %}<span class="legend-item js-state-legend-item" data-state="{{state}}" style="border-color: {{state_color}};">
+        {{state}}</span>{% endfor %}<span class="legend-item legend-item--no-border js-state-legend-item" data-state="no_status" style="border-color:white;">no_status</span>
+    </div>
   </div>
   <div id="error" style="display: none; margin-top: 10px;" class="alert alert-danger" role="alert">
     <span class="material-icons" aria-hidden="true">error</span>
     <span id="error_msg">Oops.</span>
   </div>
   <br>
-  <button class="btn btn-default pull-right" id="refresh_button">
-    <span class="material-icons" aria-hidden="true">refresh</span>
-  </button>
-  <div id="svg_container">
-    <svg id="graph-svg" width="{{ width }}" height="{{ height }}">
-      <g id='dig' transform="translate(20,20)"></g>
-      <filter id="blur-effect-1">
-        <feGaussianBlur stdDeviation="3"></feGaussianBlur>
-      </filter>
-    </svg>
-    <img id="loading" alt="spinner" src="{{ url_for('static', filename='loading.gif') }}">
+  <div class="refresh-actions">
+    {{ loading_dots(id='loading-dots', classes='refresh-loading') }}
+    <label class="switch-label">
+      <input class="switch-input" id="auto_refresh" type="checkbox" {% if dag_run_state == 'running' %}checked{% endif %}>
+      <span class="switch" aria-hidden="true"></span>
+      Auto-refresh
+    </label>
+    <button class="btn btn-default btn-sm" id="refresh_button">
+      <span class="material-icons" aria-hidden="true">refresh</span>
+    </button>
+  </div>
+  <div class="svg-wrapper">
+    <div class="graph-svg-wrap">
+      <svg id="graph-svg" width="{{ width }}" height="{{ height }}">
+        <g id="dig" transform="translate(20,20)"></g>
+        <filter id="blur-effect-1">
+          <feGaussianBlur stdDeviation="3"></feGaussianBlur>
+        </filter>
+      </svg>
+    </div>
   </div>
 {% endblock %}
 
@@ -292,11 +298,11 @@
       d3.selectAll("text").attr("class", "blur");
       {% endif %}
 
-      d3.selectAll("div.legend_item.state")
+      d3.selectAll('.js-state-legend-item')
           .style("cursor", "pointer")
           .on("mouseover", function(){
               if(!stateIsSet()){
-                  state = d3.select(this).text();
+                  state = $(this).data('state');
                   focusState(state);
               }
           })
@@ -306,16 +312,15 @@
               }
           });
 
-      d3.selectAll("div.legend_item.state")
+      d3.selectAll('.js-state-legend-item')
           .on("click", function(){
-              state = d3.select(this).text();
+              state = $(this).data('state');
               color = d3.select(this).style("border-color");
 
               if (!stateFocusMap[state]){
                   clearFocus();
                   focusState(state, this, color);
                   setFocusMap(state);
-
               } else {
                   clearFocus();
                   setFocusMap();
@@ -413,7 +418,7 @@
           d3.select("g.edgePaths")
               .transition().duration(duration)
               .style("opacity", 1);
-          d3.selectAll("div.legend_item.state")
+          d3.selectAll('.js-state-legend-item')
               .style("background-color", null);
       }
 
@@ -453,27 +458,54 @@
           return false
       }
 
-      function initRefreshButton() {
-        d3.select("#refresh_button").on("click", () => {
-          $("#loading").css("display", "block");
-          $("div#svg_container").css("opacity", "0.2");
-          $.get(getTaskInstanceURL)
-            .done(
-              (tis) => {
-                task_instances = JSON.parse(tis)
-                updateNodesStates(task_instances);
-                $("#loading").hide();
-                $("div#svg_container").css("opacity", "1");
-                $('#error').hide();
-              }
-            ).fail((_, textStatus, err) => {
-              $('#error_msg').html(`${textStatus}: ${err}`);
-              $('#error').show();
-              $('#loading').hide();
-              $('#chart_section').hide(1000);
-              $('#datatable_section').hide(1000);
-            });
-        });
+      function handleRefresh() {
+        $('#loading-dots').css('display', 'inline-block');
+        $.get(getTaskInstanceURL)
+          .done(
+            (tis) => {
+              task_instances = JSON.parse(tis)
+              updateNodesStates(task_instances);
+              setTimeout(function() { $('#loading-dots').hide(); }, 500);
+              $('#error').hide();
+            }
+          ).fail((_, textStatus, err) => {
+            $('#error_msg').text(`${textStatus}: ${err}`);
+            $('#error').show();
+            setTimeout(function() { $('#loading-dots').hide(); }, 500);
+            $('#chart_section').hide(1000);
+            $('#datatable_section').hide(1000);
+          });
+      }
+
+      var refreshInterval;
+
+      function startOrStopRefresh() {
+        if ($('#auto_refresh').is(':checked')) {
+          refreshInterval = setInterval(function() {
+            handleRefresh();
+          }, 3000); // run refresh every 3 seconds
+        } else {
+          clearInterval(refreshInterval);
+        }
+      }
+
+      $('#auto_refresh').change(function() {
+        if ($('#auto_refresh').is(':checked')) {
+          // Run an initial refesh before starting interval if manually turned on
+          handleRefresh();
+          localStorage.removeItem('disableAutoRefresh');
+        } else {
+          localStorage.setItem('disableAutoRefresh', 'true');
+        }
+        startOrStopRefresh();
+      });
+
+      function initRefresh() {
+        if (!!localStorage.getItem('disableAutoRefresh')) {
+          $('#auto_refresh').removeAttr('checked');
+        }
+        startOrStopRefresh();
+        d3.select('#refresh_button').on('click', () => handleRefresh());
       }
 
       // Generate tooltip for a group node
@@ -584,7 +616,9 @@
         // In this order, if any of these states appeared in children_states, return it as
         // the group state.
         var priority = ["failed", "upstream_failed", "up_for_retry","up_for_reschedule",
-                        "queued", "no_status", "success", "skipped"]
+                        "queued", "scheduled", "sensing", "running", "shutdown", "removed",
+                        "no_status", "success", "skipped"]
+
         for(const state of priority) {
           if (children_states.has(state))
             return state
@@ -715,7 +749,6 @@
 
       expand_group(null, nodes)
 
-      initRefreshButton();
-
+      initRefresh();
   </script>
 {% endblock %}

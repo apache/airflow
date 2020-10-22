@@ -19,7 +19,7 @@
 import unittest
 from copy import deepcopy
 
-import mock
+from unittest import mock
 from googleapiclient.errors import HttpError
 from parameterized import parameterized
 

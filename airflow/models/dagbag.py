@@ -48,9 +48,7 @@ from airflow.utils.timeout import timeout
 
 
 class FileLoadStat(NamedTuple):
-    """
-    Information about single file
-    """
+    """Information about single file"""
 
     file: str
     duration: timedelta
@@ -130,9 +128,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             safe_mode=safe_mode)
 
     def size(self) -> int:
-        """
-        :return: the amount of dags contained in this dagbag
-        """
+        """:return: the amount of dags contained in this dagbag"""
         return len(self.dags)
 
     @property
@@ -525,9 +521,7 @@ class DagBag(BaseDagBag, LoggingMixin):
 
     @provide_session
     def sync_to_db(self, session: Optional[Session] = None):
-        """
-        Save attributes about list of DAG to the DB.
-        """
+        """Save attributes about list of DAG to the DB."""
         # To avoid circular import - airflow.models.dagbag -> airflow.models.dag -> airflow.models.dagbag
         from airflow.models.dag import DAG
         from airflow.models.serialized_dag import SerializedDagModel

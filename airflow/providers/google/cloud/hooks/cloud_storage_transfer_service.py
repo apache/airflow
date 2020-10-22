@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Storage Transfer Service Hook.
-"""
+"""This module contains a Google Storage Transfer Service Hook."""
 
 import json
 import logging
@@ -40,9 +38,7 @@ TIME_TO_SLEEP_IN_SECONDS = 10
 
 
 class GcpTransferJobsStatus:
-    """
-    Class with Google Cloud Transfer jobs statuses.
-    """
+    """Class with Google Cloud Transfer jobs statuses."""
 
     ENABLED = "ENABLED"
     DISABLED = "DISABLED"
@@ -50,9 +46,7 @@ class GcpTransferJobsStatus:
 
 
 class GcpTransferOperationStatus:
-    """
-    Class with Google Cloud Transfer operations statuses.
-    """
+    """Class with Google Cloud Transfer operations statuses."""
 
     IN_PROGRESS = "IN_PROGRESS"
     PAUSED = "PAUSED"

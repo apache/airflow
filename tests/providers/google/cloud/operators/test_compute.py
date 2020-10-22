@@ -21,9 +21,9 @@
 import ast
 import unittest
 from copy import deepcopy
+from unittest import mock
 
 import httplib2
-import mock
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException

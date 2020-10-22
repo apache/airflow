@@ -24,9 +24,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 
 class Log(Base):
-    """
-    Used to actively log events to the database
-    """
+    """Used to actively log events to the database"""
 
     __tablename__ = "log"
 

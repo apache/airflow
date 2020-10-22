@@ -45,7 +45,7 @@ to extend this list by using the following configurations option:
 .. code-block:: ini
 
     [admin]
-    hide_sensitive_variable_fields = comma_seperated_sensitive_variable_fields_list
+    hide_sensitive_variable_fields = comma_separated_sensitive_variable_fields_list
 
 Web Authentication
 ------------------

@@ -18,6 +18,7 @@
 #}
 
 {% extends base_template %}
+{% from 'appbuilder/loading_dots.html' import loading_dots %}
 
 {% block page_title %}
   {% if search_query %}
@@ -46,23 +47,27 @@
           </div>
         </div>
         <div class="col-sm-4">
-          <form id="filter_form" class="form-inline" style="width: 100%; text-align: left;">
-            <div class="form-group" style="width: 100%;">
-              <select multiple name="tags" id="tags_filter" class="select2-drop-mask" style="width: 60%;">
+          <form id="tags_form" class="form-inline" style="width: 100%; text-align: left;">
+            <div class="form-group search-input" style="width: 80%;">
+              <select multiple name="tags" id="tags_filter" class="select2-drop-mask" style="width: 100%;">
                 {% for tag in tags %}
                   <option value="{{ tag.name }}" {% if tag.selected %}selected{% endif %}>{{ tag.name }}</option>
                 {% endfor %}
               </select>
-              <input type="submit" value="Filter tags" class="btn btn-default">
-              <input type="submit" value="Reset" class="btn btn-default" name="reset_tags">
+              {% if tags_filter|length > 0 %}
+                <button type="reset" aria-label="Clear all tags" class="btn btn-default btn-sm material-icons search-input__clear-btn">cancel</button>
+              {% endif %}
             </div>
           </form>
         </div>
         <div class="col-sm-4">
           <form id="search_form" class="form-inline">
-            <div class="form-group" style="width: 100%;">
+            <div class="form-group search-input" style="width: 100%;">
               <label for="dag_query" class="sr-only">Search DAGs</label>
-              <input type="search" id="dag_query" class="typeahead form-control" data-provide="typeahead" style="width:100%;" value="{{search_query}}" autocomplete="off" placeholder="Search DAGs">
+              <input type="search" id="dag_query" class="typeahead form-control search-input__input" data-provide="typeahead" style="width:100%;" value="{{search_query}}" autocomplete="off" placeholder="Search DAGs">
+              {% if search_query %}
+                <button type="reset" aria-label="Clear DAG Search Term" class="btn btn-default btn-sm material-icons search-input__clear-btn">cancel</button>
+              {% endif %}
             </div>
           </form>
         </div>
@@ -76,19 +81,14 @@
             <th>DAG</th>
             <th>Schedule</th>
             <th>Owner</th>
-            <th>
-              Recent Tasks
+            <th>Recent Tasks
               <span class="material-icons text-muted js-tooltip" aria-hidden="true" title="Status of tasks from all active DAG runs or, if not currently active, from most recent run.">info</span>
-              <img class="loading-task-stats" width="15" src="{{ url_for('static', filename='loading.gif') }}">
             </th>
-            <th>
-              Last Run
+            <th style="width:180px;">Last Run
               <span class="material-icons text-muted js-tooltip" aria-hidden="true" title="Execution Date/Time of Highest Dag Run.">info</span>
             </th>
-            <th>
-              DAG Runs
+            <th>DAG Runs
               <span class="material-icons text-muted js-tooltip" aria-hidden="true" title="Status of all previous DAG runs.">info</span>
-              <img class="loading-dag-stats"  width="15" src="{{ url_for('static', filename='loading.gif') }}">
             </th>
             <th class="text-center" style="width:205px;">Links</th>
             <th class="text-center" style="width:140px;">Actions</th>
@@ -137,18 +137,18 @@
               </td>
               {# Column 5: Recent Tasks #}
               <td style="padding:0; width:323px; height:10px;">
+                {{ loading_dots(classes='js-loading-task-stats text-muted') }}
                 <svg height="10" width="10" id='task-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
               </td>
               {# Column 6: Last Run #}
-              <td class="text-nowrap latest_dag_run">
-                <div height="10" width="10" id='last-run-{{ dag.safe_dag_id }}' style="display: block;">
-                  <a></a>
-                  <img class="loading-last-run" width="15" src="{{ url_for('static', filename='loading.gif') }}">
-                  <span aria-hidden="true" title=" " class="material-icons text-muted js-tooltip" style="display:none">info</span>
-                </div>
+              <td id="last-run-{{ dag.safe_dag_id }}" class="text-nowrap latest_dag_run">
+                {{ loading_dots(classes='js-loading-last-run text-muted') }}
+                <a></a>
+                <span aria-hidden="true" title=" " class="material-icons text-muted js-tooltip" style="display:none">info</span>
               </td>
               {# Column 7: Dag Runs #}
               <td style="padding:0; width:120px;">
+                {{ loading_dots(classes='js-loading-dag-stats text-muted') }}
                 <svg height="10" width="10" id='dag-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
               </td>
               {# Column 8: Links #}
@@ -172,7 +172,7 @@
                   <a href="{{ url_for('Airflow.gantt', dag_id=dag.dag_id) }}" class="js-tooltip" title="Gantt View" aria-label="Gantt">
                     <span class="material-icons" aria-hidden="true" data-original-title="Gantt">vertical_distribute</span>
                   </a>
-                  <a href="{{ url_for('Airflow.dag_details', dag_id=dag.dag_id) }}" class="js-tooltip" title="DAG Dtails" aria-label="DAG Details">
+                  <a href="{{ url_for('Airflow.dag_details', dag_id=dag.dag_id) }}" class="js-tooltip" title="DAG Details" aria-label="DAG Details">
                     <span class="material-icons" aria-hidden="true">details</span>
                   </a>
                   <a href="{{ url_for('Airflow.code', dag_id=dag.dag_id) }}" class="js-tooltip" title="Code View" aria-label="Code">
@@ -206,7 +206,7 @@
       <div class="col-sm-6">
         {{paging}}
       </div>
-      <div class="col-sm-6 text-right text-muted">
+      <div class="col-sm-6 text-right">
         Showing <strong>{{num_dag_from}}-{{num_dag_to}}</strong> of <strong>{{num_of_all_dags}}</strong> DAGs
       </div>
     </div>
@@ -228,6 +228,31 @@
     $('#tags_filter').select2({
       placeholder: 'Filter DAGs by tag',
       allowClear: true
+    });
+
+    $('#tags_filter').on('change', function (e) {
+      e.preventDefault();
+      var query = new URLSearchParams(window.location.search);
+      if (!!e.val.length) {
+        if (query.has('tags')) query.delete('tags');
+        e.val.map(function(value) {
+          query.append('tags', value);
+        })
+      } else {
+        query.delete('tags');
+        query.set('reset_tags', 'reset')
+      }
+      if (query.has('page')) query.delete('page');
+      window.location = `${DAGS_INDEX}?${query.toString()}`;
+    });
+
+    $('#tags_form').on('reset', function(e) {
+      e.preventDefault();
+      var query = new URLSearchParams(window.location.search);
+      query.delete('tags');
+      if (query.has('page')) query.delete('page');
+      query.set('reset_tags', 'reset')
+      window.location = `${DAGS_INDEX}?${query.toString()}`;
     });
 
     $('#dag_query').on('keypress', function (e) {
@@ -313,6 +338,13 @@
       }
     });
 
+    $('#search_form').on('reset', function() {
+      var query = new URLSearchParams(window.location.search);
+      query.delete('search');
+      query.delete('page');
+      window.location = DAGS_INDEX + "?" + query;
+    });
+
     $('#main_content').show(250);
     diameter = 25;
     circle_margin = 4;
@@ -334,18 +366,19 @@
     function lastDagRunsHandler(error, json) {
       for(var safe_dag_id in json) {
         dag_id = json[safe_dag_id].dag_id;
-        last_run = json[safe_dag_id].last_run;
-        g = d3.select('div#last-run-' + safe_dag_id)
+        execution_date = json[safe_dag_id].execution_date;
+        start_date = json[safe_dag_id].start_date;
+        g = d3.select('#last-run-' + safe_dag_id)
         g.selectAll('a')
-          .attr('href', '{{ url_for('Airflow.graph') }}?dag_id=' + encodeURIComponent(dag_id) + '&execution_date=' + encodeURIComponent(last_run))
-          .insert(isoDateToTimeEl.bind(null, last_run, {title: false}));
+          .attr('href', '{{ url_for('Airflow.graph') }}?dag_id=' + encodeURIComponent(dag_id) + '&execution_date=' + encodeURIComponent(execution_date))
+          .insert(isoDateToTimeEl.bind(null, execution_date, {title: false}));
         g.selectAll('span')
           // We don't translate the timezone in the tooltip, that stays in UTC.
-          .attr('data-original-title', 'Start Date: ' + last_run)
+          .attr('data-original-title', 'Start Date: ' + start_date)
           .style('display', null);
-        g.selectAll('.loading-last-run').remove();
+        g.selectAll('.js-loading-last-run').remove();
       }
-      d3.selectAll('.loading-last-run').remove();
+      $('.js-loading-last-run').remove();
     }
 
     function drawDagStatsForDag(dag_id, stats) {
@@ -407,7 +440,7 @@
         .style('opacity', 0)
         .transition().duration(300).delay(function(d, i){return i*50;})
         .style('opacity', 1);
-      d3.select('.loading-dag-stats').remove();
+      d3.select('.js-loading-dag-stats').remove();
 
       g.append('text')
         .attr('fill', '#51504f')
@@ -484,7 +517,7 @@
         .style('opacity', 0)
         .transition().duration(300).delay(function(d, i){return i*50;})
         .style('opacity', 1);
-      d3.select('.loading-task-stats').remove();
+      d3.select('.js-loading-task-stats').remove();
 
       g.append('text')
         .attr('fill', '#51504f')
@@ -518,9 +551,9 @@
         .post(encoded_dag_ids, taskStatsHandler);
     }
     else {
-      // no dags, hide the loading gifs
-      $('.loading-task-stats').remove();
-      $('.loading-dag-stats').remove();
+      // no dags, hide the loading dots
+      $('.js-loading-task-stats').remove();
+      $('.js-loading-dag-stats').remove();
     }
 
     function showSvgTooltip(text, circ) {

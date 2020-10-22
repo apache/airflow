@@ -60,19 +60,19 @@
       </form>
     </div>
   </div>
-  <div>
-    <div class="legend_item" style="border: 0;">no_status</div>
-    <div class="square" style="background: #fff;"></div>
-    {% for state, state_color in state_color_mapping.items() %}
-      <div class="legend_item" style="border: 0;">{{state}}</div>
-      <div class="square" style="background: {{state_color}};"></div>
-    {% endfor %}
-
-    {% for op in operators %}
-      <div class="legend_circle" style="background:{{ op.ui_color }};"></div>
-      <div class="legend_item" style="float:left;border-color:#fff;">{{ op.task_type }}</div>
-    {% endfor %}
-    <div style="clear:both;"></div>
+  <div class="legend-row">
+    <div>
+      {% for op in operators %}<span class="legend-item legend-item--no-border">
+        <span class="legend-item__swatch legend-item__swatch--circle" style="background: {{ op.ui_color }};"></span>
+        {{ op.task_type }}
+      </span>{% endfor %}
+    </div>
+    <div>
+      {% for state, state_color in state_color_mapping.items() %}<span class="legend-item legend-item--no-border">
+        <span class="legend-item__swatch legend-item__swatch--no-border" style="background: {{ state_color }};"></span>
+        {{state}}</span>{% endfor %}<span class="legend-item legend-item--no-border">
+        <span class="legend-item__swatch"></span>no_status</span>
+    </div>
   </div>
   <hr>
   <div id="svg_container">
@@ -341,8 +341,8 @@
           })
           .attr("class", function(d) {return "state " + d.state})
           .attr("data-toggle", "tooltip")
-          .attr("rx", function(d) {return is_dag_run(d)? "5": "0"})
-          .attr("ry", function(d) {return is_dag_run(d)? "5": "0"})
+          .attr("rx", function(d) {return is_dag_run(d)? "5": "1"})
+          .attr("ry", function(d) {return is_dag_run(d)? "5": "1"})
           .style("shape-rendering", function(d) {return is_dag_run(d)? "auto": "crispEdges"})
           .style("stroke-width", function(d) {return is_dag_run(d)? "2": "1"})
           .style("stroke-opacity", function(d) {return d.external_trigger ? "0": "1"})

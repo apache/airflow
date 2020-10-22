@@ -51,6 +51,7 @@ from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
+from airflow.security import permissions
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
@@ -176,7 +177,7 @@ class DAG(BaseDag, LoggingMixin):
         that it is executed when the dag succeeds.
     :type on_success_callback: callable
     :param access_control: Specify optional DAG-level permissions, e.g.,
-        "{'role1': {'can_dag_read'}, 'role2': {'can_dag_read', 'can_dag_edit'}}"
+        "{'role1': {'can_read'}, 'role2': {'can_read', 'can_edit'}}"
     :type access_control: dict
     :param is_paused_upon_creation: Specifies if the dag is paused when created for the first time.
         If the dag exists already, this flag will be ignored. If this optional parameter
@@ -332,7 +333,7 @@ class DAG(BaseDag, LoggingMixin):
         self.on_failure_callback = on_failure_callback
         self.doc_md = doc_md
 
-        self._access_control = access_control
+        self._access_control = DAG._upgrade_outdated_dag_access_control(access_control)
         self.is_paused_upon_creation = is_paused_upon_creation
 
         self.jinja_environment_kwargs = jinja_environment_kwargs
@@ -381,6 +382,32 @@ class DAG(BaseDag, LoggingMixin):
         DagContext.pop_context_managed_dag()
 
     # /Context Manager ----------------------------------------------
+
+    @staticmethod
+    def _upgrade_outdated_dag_access_control(access_control=None):
+        """
+        Looks for outdated dag level permissions (can_dag_read and can_dag_edit) in DAG
+        access_controls (for example, {'role1': {'can_dag_read'}, 'role2': {'can_dag_read', 'can_dag_edit'}})
+        and replaces them with updated permissions (can_read and can_edit).
+        """
+        if not access_control:
+            return None
+        new_perm_mapping = {
+            permissions.DEPRECATED_ACTION_CAN_DAG_READ: permissions.ACTION_CAN_READ,
+            permissions.DEPRECATED_ACTION_CAN_DAG_EDIT: permissions.ACTION_CAN_EDIT,
+        }
+        updated_access_control = {}
+        for role, perms in access_control.items():
+            updated_access_control[role] = {new_perm_mapping.get(perm, perm) for perm in perms}
+
+        if access_control != updated_access_control:
+            warnings.warn(
+                "The 'can_dag_read' and 'can_dag_edit' permissions are deprecated. "
+                "Please use 'can_read' and 'can_edit', respectively.",
+                DeprecationWarning, stacklevel=3
+            )
+
+        return updated_access_control
 
     def date_range(
         self,
@@ -603,9 +630,7 @@ class DAG(BaseDag, LoggingMixin):
         return run_dates
 
     def normalize_schedule(self, dttm):
-        """
-        Returns dttm + interval unless dttm is first interval then it returns dttm
-        """
+        """Returns dttm + interval unless dttm is first interval then it returns dttm"""
         following = self.following_schedule(dttm)
 
         # in case of @once
@@ -651,7 +676,7 @@ class DAG(BaseDag, LoggingMixin):
 
     @access_control.setter
     def access_control(self, value):
-        self._access_control = value
+        self._access_control = DAG._upgrade_outdated_dag_access_control(value)
 
     @property
     def description(self) -> Optional[str]:
@@ -688,9 +713,7 @@ class DAG(BaseDag, LoggingMixin):
 
     @property
     def filepath(self) -> str:
-        """
-        File location of where the dag object is instantiated
-        """
+        """File location of where the dag object is instantiated"""
         fn = self.full_filepath.replace(settings.DAGS_FOLDER + '/', '')
         fn = fn.replace(os.path.dirname(__file__) + '/', '')
         return fn
@@ -729,9 +752,7 @@ class DAG(BaseDag, LoggingMixin):
 
     @property
     def concurrency_reached(self):
-        """
-        This attribute is deprecated. Please use `airflow.models.DAG.get_concurrency_reached` method.
-        """
+        """This attribute is deprecated. Please use `airflow.models.DAG.get_concurrency_reached` method."""
         warnings.warn(
             "This attribute is deprecated. Please use `airflow.models.DAG.get_concurrency_reached` method.",
             DeprecationWarning,
@@ -741,18 +762,14 @@ class DAG(BaseDag, LoggingMixin):
 
     @provide_session
     def get_is_paused(self, session=None):
-        """
-        Returns a boolean indicating whether this DAG is paused
-        """
+        """Returns a boolean indicating whether this DAG is paused"""
         qry = session.query(DagModel).filter(
             DagModel.dag_id == self.dag_id)
         return qry.value(DagModel.is_paused)
 
     @property
     def is_paused(self):
-        """
-        This attribute is deprecated. Please use `airflow.models.DAG.get_is_paused` method.
-        """
+        """This attribute is deprecated. Please use `airflow.models.DAG.get_is_paused` method."""
         warnings.warn(
             "This attribute is deprecated. Please use `airflow.models.DAG.get_is_paused` method.",
             DeprecationWarning,
@@ -884,18 +901,14 @@ class DAG(BaseDag, LoggingMixin):
 
     @provide_session
     def get_latest_execution_date(self, session=None):
-        """
-        Returns the latest date for which at least one dag run exists
-        """
+        """Returns the latest date for which at least one dag run exists"""
         return session.query(func.max(DagRun.execution_date)).filter(
             DagRun.dag_id == self.dag_id
         ).scalar()
 
     @property
     def latest_execution_date(self):
-        """
-        This attribute is deprecated. Please use `airflow.models.DAG.get_latest_execution_date` method.
-        """
+        """This attribute is deprecated. Please use `airflow.models.DAG.get_latest_execution_date` method."""
         warnings.warn(
             "This attribute is deprecated. Please use `airflow.models.DAG.get_latest_execution_date` method.",
             DeprecationWarning,
@@ -905,9 +918,7 @@ class DAG(BaseDag, LoggingMixin):
 
     @property
     def subdags(self):
-        """
-        Returns a list of the subdag objects associated to this DAG
-        """
+        """Returns a list of the subdag objects associated to this DAG"""
         # Check SubDag for class but don't check class directly
         from airflow.operators.subdag_operator import SubDagOperator
         subdag_lst = []
@@ -1092,6 +1103,7 @@ class DAG(BaseDag, LoggingMixin):
             recursion_depth=0,
             max_recursion_depth=None,
             dag_bag=None,
+            visited_external_tis=None,
     ):
         """
         Clears a set of task instances associated with the current dag for
@@ -1127,6 +1139,9 @@ class DAG(BaseDag, LoggingMixin):
         :type max_recursion_depth: int
         :param dag_bag: The DagBag used to find the dags
         :type dag_bag: airflow.models.dagbag.DagBag
+        :param visited_external_tis: A set used internally to keep track of the visited TaskInstance when
+            clearing tasks across multiple DAGs linked by ExternalTaskMarker to avoid redundant work.
+        :type visited_external_tis: set
         """
         TI = TaskInstance
         tis = session.query(TI)
@@ -1161,7 +1176,8 @@ class DAG(BaseDag, LoggingMixin):
                 session=session,
                 recursion_depth=recursion_depth,
                 max_recursion_depth=max_recursion_depth,
-                dag_bag=dag_bag
+                dag_bag=dag_bag,
+                visited_external_tis=visited_external_tis
             ))
 
         if start_date:
@@ -1182,51 +1198,60 @@ class DAG(BaseDag, LoggingMixin):
             instances = tis.all()
             for ti in instances:
                 if ti.operator == ExternalTaskMarker.__name__:
-                    task: ExternalTaskMarker = cast(ExternalTaskMarker, copy.copy(self.get_task(ti.task_id)))
-                    ti.task = task
+                    if visited_external_tis is None:
+                        visited_external_tis = set()
+                    ti_key = ti.key.primary
+                    if ti_key not in visited_external_tis:
+                        # Only clear this ExternalTaskMarker if it's not already visited by the
+                        # recursive calls to dag.clear().
+                        task: ExternalTaskMarker = cast(ExternalTaskMarker,
+                                                        copy.copy(self.get_task(ti.task_id)))
+                        ti.task = task
 
-                    if recursion_depth == 0:
-                        # Maximum recursion depth allowed is the recursion_depth of the first
-                        # ExternalTaskMarker in the tasks to be cleared.
-                        max_recursion_depth = task.recursion_depth
+                        if recursion_depth == 0:
+                            # Maximum recursion depth allowed is the recursion_depth of the first
+                            # ExternalTaskMarker in the tasks to be cleared.
+                            max_recursion_depth = task.recursion_depth
 
-                    if recursion_depth + 1 > max_recursion_depth:
-                        # Prevent cycles or accidents.
-                        raise AirflowException("Maximum recursion depth {} reached for {} {}. "
-                                               "Attempted to clear too many tasks "
-                                               "or there may be a cyclic dependency."
-                                               .format(max_recursion_depth,
-                                                       ExternalTaskMarker.__name__, ti.task_id))
-                    ti.render_templates()
-                    external_tis = session.query(TI).filter(TI.dag_id == task.external_dag_id,
-                                                            TI.task_id == task.external_task_id,
-                                                            TI.execution_date ==
-                                                            pendulum.parse(task.execution_date))
+                        if recursion_depth + 1 > max_recursion_depth:
+                            # Prevent cycles or accidents.
+                            raise AirflowException("Maximum recursion depth {} reached for {} {}. "
+                                                   "Attempted to clear too many tasks "
+                                                   "or there may be a cyclic dependency."
+                                                   .format(max_recursion_depth,
+                                                           ExternalTaskMarker.__name__, ti.task_id))
+                        ti.render_templates()
+                        external_tis = session.query(TI).filter(TI.dag_id == task.external_dag_id,
+                                                                TI.task_id == task.external_task_id,
+                                                                TI.execution_date ==
+                                                                pendulum.parse(task.execution_date))
 
-                    for tii in external_tis:
-                        if not dag_bag:
-                            dag_bag = DagBag()
-                        external_dag = dag_bag.get_dag(tii.dag_id)
-                        if not external_dag:
-                            raise AirflowException("Could not find dag {}".format(tii.dag_id))
-                        downstream = external_dag.sub_dag(
-                            task_regex=r"^{}$".format(tii.task_id),
-                            include_upstream=False,
-                            include_downstream=True
-                        )
-                        tis = tis.union(downstream.clear(start_date=tii.execution_date,
-                                                         end_date=tii.execution_date,
-                                                         only_failed=only_failed,
-                                                         only_running=only_running,
-                                                         confirm_prompt=confirm_prompt,
-                                                         include_subdags=include_subdags,
-                                                         include_parentdag=False,
-                                                         dag_run_state=dag_run_state,
-                                                         get_tis=True,
-                                                         session=session,
-                                                         recursion_depth=recursion_depth + 1,
-                                                         max_recursion_depth=max_recursion_depth,
-                                                         dag_bag=dag_bag))
+                        for tii in external_tis:
+                            if not dag_bag:
+                                dag_bag = DagBag(read_dags_from_db=True)
+                            external_dag = dag_bag.get_dag(tii.dag_id)
+                            if not external_dag:
+                                raise AirflowException("Could not find dag {}".format(tii.dag_id))
+                            downstream = external_dag.sub_dag(
+                                task_regex=r"^{}$".format(tii.task_id),
+                                include_upstream=False,
+                                include_downstream=True
+                            )
+                            tis = tis.union(downstream.clear(start_date=tii.execution_date,
+                                                             end_date=tii.execution_date,
+                                                             only_failed=only_failed,
+                                                             only_running=only_running,
+                                                             confirm_prompt=confirm_prompt,
+                                                             include_subdags=include_subdags,
+                                                             include_parentdag=False,
+                                                             dag_run_state=dag_run_state,
+                                                             get_tis=True,
+                                                             session=session,
+                                                             recursion_depth=recursion_depth + 1,
+                                                             max_recursion_depth=max_recursion_depth,
+                                                             dag_bag=dag_bag,
+                                                             visited_external_tis=visited_external_tis))
+                        visited_external_tis.add(ti_key)
 
         if get_tis:
             return tis
@@ -1347,19 +1372,32 @@ class DAG(BaseDag, LoggingMixin):
             result._log = self._log
         return result
 
-    def sub_dag(self, task_regex, include_downstream=False,
-                include_upstream=True):
+    def sub_dag(self, *args, **kwargs):
+        """This method is deprecated in favor of partial_subset"""
+        warnings.warn(
+            "This method is deprecated and will be removed in a future version. Please use partial_subset",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.partial_subset(*args, **kwargs)
+
+    def partial_subset(
+        self, task_regex, include_downstream=False, include_upstream=True
+    ):
         """
         Returns a subset of the current dag as a deep copy of the current dag
         based on a regex that should match one or many tasks, and includes
         upstream and downstream neighbours based on the flag passed.
         """
-        # deep-copying self.task_dict takes a long time, and we don't want all
+        # deep-copying self.task_dict and self._task_group takes a long time, and we don't want all
         # the tasks anyway, so we copy the tasks manually later
         task_dict = self.task_dict
+        task_group = self._task_group
         self.task_dict = {}
+        self._task_group = None
         dag = copy.deepcopy(self)
         self.task_dict = task_dict
+        self._task_group = task_group
 
         regex_match = [
             t for t in self.tasks if re.findall(task_regex, t.task_id)]
@@ -1375,24 +1413,28 @@ class DAG(BaseDag, LoggingMixin):
         dag.task_dict = {t.task_id: copy.deepcopy(t, {id(t.dag): dag})
                          for t in regex_match + also_include}
 
-        # Remove tasks not included in the subdag from task_group
-        def remove_excluded(group):
-            for child in list(group.children.values()):
+        def filter_task_group(group, parent_group):
+            """Exclude tasks not included in the subdag from the given TaskGroup."""
+            copied = copy.copy(group)
+            copied.used_group_ids = set(copied.used_group_ids)
+            copied._parent_group = parent_group
+
+            copied.children = {}
+
+            for child in group.children.values():
                 if isinstance(child, BaseOperator):
-                    if child.task_id not in dag.task_dict:
-                        group.children.pop(child.task_id)
-                    else:
-                        # The tasks in the subdag are a copy of tasks in the original dag
-                        # so update the reference in the TaskGroups too.
-                        group.children[child.task_id] = dag.task_dict[child.task_id]
+                    if child.task_id in dag.task_dict:
+                        copied.children[child.task_id] = dag.task_dict[child.task_id]
                 else:
-                    remove_excluded(child)
+                    filtered_child = filter_task_group(child, copied)
 
-                    # Remove this TaskGroup if it doesn't contain any tasks in this subdag
-                    if not child.children:
-                        group.children.pop(child.group_id)
+                    # Only include this child TaskGroup if it is non-empty.
+                    if filtered_child.children:
+                        copied.children[child.group_id] = filtered_child
 
-        remove_excluded(dag.task_group)
+            return copied
+
+        dag._task_group = filter_task_group(self._task_group, None)
 
         # Removing upstream/downstream references to tasks and TaskGroups that did not make
         # the cut.
@@ -1599,9 +1641,7 @@ class DAG(BaseDag, LoggingMixin):
         job.run()
 
     def cli(self):
-        """
-        Exposes a CLI specific to this DAG
-        """
+        """Exposes a CLI specific to this DAG"""
         from airflow.cli import cli_parser
         parser = cli_parser.get_parser(dag_parser=True)
         args = parser.parse_args()
@@ -1618,7 +1658,8 @@ class DAG(BaseDag, LoggingMixin):
         conf=None,
         run_type=None,
         session=None,
-        dag_hash=None
+        dag_hash=None,
+        creating_job_id=None,
     ):
         """
         Creates a dag run from this dag including the tasks associated with this dag.
@@ -1638,6 +1679,8 @@ class DAG(BaseDag, LoggingMixin):
         :type external_trigger: bool
         :param conf: Dict containing configuration/parameters to pass to the DAG
         :type conf: dict
+        :param creating_job_id: id of the job creating this DagRun
+        :type creating_job_id: int
         :param session: database session
         :type session: sqlalchemy.orm.session.Session
         :param dag_hash: Hash of Serialized DAG
@@ -1664,8 +1707,9 @@ class DAG(BaseDag, LoggingMixin):
             external_trigger=external_trigger,
             conf=conf,
             state=state,
-            run_type=run_type.value,
-            dag_hash=dag_hash
+            run_type=run_type,
+            dag_hash=dag_hash,
+            creating_job_id=creating_job_id
         )
         session.add(run)
         session.flush()
@@ -1732,8 +1776,8 @@ class DAG(BaseDag, LoggingMixin):
         most_recent_dag_runs = dict(session.query(DagRun.dag_id, func.max_(DagRun.execution_date)).filter(
             DagRun.dag_id.in_(existing_dag_ids),
             or_(
-                DagRun.run_type == DagRunType.BACKFILL_JOB.value,
-                DagRun.run_type == DagRunType.SCHEDULED.value,
+                DagRun.run_type == DagRunType.BACKFILL_JOB,
+                DagRun.run_type == DagRunType.SCHEDULED,
                 DagRun.external_trigger.is_(True),
             ),
         ).group_by(DagRun.dag_id).all())
@@ -1906,9 +1950,7 @@ class DAG(BaseDag, LoggingMixin):
 
 
 class DagTag(Base):
-    """
-    A tag name per dag, to allow quick filtering in the DAG view.
-    """
+    """A tag name per dag, to allow quick filtering in the DAG view."""
 
     __tablename__ = "dag_tag"
     name = Column(String(100), primary_key=True)

@@ -46,10 +46,10 @@ class BuildProcessor:
     :type body: dict
     """
 
-    def __init__(self, body: Dict) -> None:
+    def __init__(self, body: dict) -> None:
         self.body = deepcopy(body)
 
-    def _verify_source(self):
+    def _verify_source(self) -> None:
         is_storage = "storageSource" in self.body["source"]
         is_repo = "repoSource" in self.body["source"]
 
@@ -61,11 +61,11 @@ class BuildProcessor:
                 "storageSource and repoSource."
             )
 
-    def _reformat_source(self):
+    def _reformat_source(self) -> None:
         self._reformat_repo_source()
         self._reformat_storage_source()
 
-    def _reformat_repo_source(self):
+    def _reformat_repo_source(self) -> None:
         if "repoSource" not in self.body["source"]:
             return
 
@@ -76,7 +76,7 @@ class BuildProcessor:
 
         self.body["source"]["repoSource"] = self._convert_repo_url_to_dict(source)
 
-    def _reformat_storage_source(self):
+    def _reformat_storage_source(self) -> None:
         if "storageSource" not in self.body["source"]:
             return
 
@@ -87,7 +87,7 @@ class BuildProcessor:
 
         self.body["source"]["storageSource"] = self._convert_storage_url_to_dict(source)
 
-    def process_body(self):
+    def process_body(self) -> dict:
         """
         Processes the body passed in the constructor
 
@@ -228,7 +228,7 @@ class CloudBuildCreateBuildOperator(BaseOperator):
             if self.body_raw.endswith('.json'):
                 self.body = json.loads(file.read())
 
-    def _validate_inputs(self):
+    def _validate_inputs(self) -> None:
         if not self.body:
             raise AirflowException("The required parameter 'body' is missing")
 

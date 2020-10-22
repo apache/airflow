@@ -17,7 +17,7 @@
 #
 ---
 name: Quarantined Build
-on:
+on:  # yamllint disable-line rule:truthy
   schedule:
     # Run quarantined builds 4 times a day to gather better quarantine stats
     - cron: '12 */6 * * *'

@@ -19,7 +19,7 @@
 import unittest
 from unittest import mock
 
-from mock import MagicMock
+from unittest.mock import MagicMock
 
 from airflow.providers.oracle.transfers.oracle_to_oracle import OracleToOracleOperator
 

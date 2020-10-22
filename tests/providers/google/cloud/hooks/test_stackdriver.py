@@ -19,7 +19,7 @@
 import json
 import unittest
 
-import mock
+from unittest import mock
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud import monitoring_v3
 from google.protobuf.json_format import ParseDict

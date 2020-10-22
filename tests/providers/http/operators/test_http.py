@@ -18,7 +18,7 @@
 
 import unittest
 
-import mock
+from unittest import mock
 import requests_mock
 
 from airflow.exceptions import AirflowException

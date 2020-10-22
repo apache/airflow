@@ -31,6 +31,7 @@ from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.types import DagRunType
@@ -56,7 +57,11 @@ class TestGetLog(unittest.TestCase):
             cls.app,
             username="test",
             role_name="Test",
-            permissions=[('can_read', 'Dag'), ('can_read', 'DagRun'), ('can_read', 'Task')],
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+            ],
         )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")
 
@@ -79,7 +84,7 @@ class TestGetLog(unittest.TestCase):
         dagrun_model = DagRun(
             dag_id=self.DAG_ID,
             run_id='TEST_DAG_RUN_ID',
-            run_type=DagRunType.MANUAL.value,
+            run_type=DagRunType.MANUAL,
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
             external_trigger=True,
