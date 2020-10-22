@@ -19,10 +19,10 @@
 set -euo pipefail
 
 # This should only be sourced from in_container directory!
-IN_CONTAINER_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+in_container_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # shellcheck source=scripts/in_container/_in_container_utils.sh
-. "${IN_CONTAINER_DIR}/_in_container_utils.sh"
+. "${in_container_dir}/_in_container_utils.sh"
 
 in_container_basic_sanity_check
 
