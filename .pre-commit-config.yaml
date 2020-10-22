@@ -441,8 +441,12 @@ repos:
         name: ESLint
         entry: "eslint"
         args:
+          - --config
+          - airflow/www/.eslintrc
           - --ignore-path
           - airflow/www/.eslintignore
+          - --resolve-plugins-relative-to
+          - airflow/www/node_modules/
         language: node
         files: ^airflow/www/.*\.(js|jsx)$
         # Keep dependency versions in sync w/ airflow/www/package.json
