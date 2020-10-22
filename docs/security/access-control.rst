@@ -134,6 +134,8 @@ Permissions (each consistent of a resource + action pair) are then added to role
 
 **To access an endpoint, the user needs all permissions assigned to that endpoint**
 
+There are five default roles: Public, Viewer, User, Op, and Admin. Each one has the permissions of the preceeding role, as well as additional permissions.
+
 ================================================================================== ====== ================================================================= ============
 Stable API Permissions
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -183,7 +185,6 @@ Endpoint                                                                        
 /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key} GET    DAGs.can_read, DAG Runs.can_read, Tasks.can_read, XComs.can_read  Viewer
 ================================================================================== ====== ================================================================= ============
 
-**To access an endpoint, the user needs all permissions assigned to that endpoint**
 
 ====================================== ======================================================================= ============
 Website Permissions
@@ -192,15 +193,15 @@ Action                                 Permissions                              
 ====================================== ======================================================================= ============
 Access homepage                        Website.can_read                                                        Viewer
 Get DAG stats                          Dags.can_read, DAG Runs.can_read                                        Viewer
-Get task stats                         Dags.can_read, DAG Runs.can_read, Task Instances.can_read               Viewer
+Get Task stats                         Dags.can_read, DAG Runs.can_read, Task Instances.can_read               Viewer
 Get last DAG runs                      Dags.can_read, DAG Runs.can_read                                        Viewer
 Get DAG code                           Dags.can_read, DAG Code.can_read                                        Viewer
 Get DAG details                        Dags.can_read, DAG Runs.can_read                                        Viewer
 Get rendered DAG                       DAGs.can_read, Task Instances.can_read                                  Viewer
-Get logs with metadata                 DAGs.can_read, Task Instances.can_read, Logs.can_read                   Viewer
-Get log                                DAGs.can_read, Task Instances.can_read, Logs.can_read                   Viewer
-Redirect to external log               DAGs.can_read, Task Instances.can_read, Logs.can_read                   Viewer
-Get task                               DAGs.can_read, Tasks.can_read, Task Instances.can_read                  Viewer
+Get Logs with metadata                 DAGs.can_read, Task Instances.can_read, Logs.can_read                   Viewer
+Get Log                                DAGs.can_read, Task Instances.can_read, Logs.can_read                   Viewer
+Redirect to external Log               DAGs.can_read, Task Instances.can_read, Logs.can_read                   Viewer
+Get Task                               DAGs.can_read, Tasks.can_read, Task Instances.can_read                  Viewer
 Get XCom                               DAGs.can_read, Task Instances.can_read, XComs.can_read                  Viewer
 Get DAG runs                           DAGs.can_read, Tasks.can_read, Task Instances.can_create                User
 Delete DAG                             DAGs.can_delete                                                         User
@@ -223,7 +224,7 @@ Refresh all DAGs                       DAGs.can_edit                            
 Show Gantt Chart                       DAGs.can_read, Tasks.can_read, Task Instances.can_read                  Viewer
 Get external links                     DAGs.can_read, Tasks.can_read, Task Instances.can_read                  Viewer
 Show Task Instances                    DAGs.can_read, Tasks.can_read, Task Instances.can_read                  Viewer
-Show configs                           Configurations.can_read                                                 Viewer
+Show Configs                           Configurations.can_read                                                 Viewer
 Delete multiple records                DAGs.can_edit                                                           User
 Set Task Instance as running           DAGs.can_edit                                                           User
 Set Task Instance as failed            DAGs.can_edit                                                           User
