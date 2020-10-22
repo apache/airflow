@@ -599,19 +599,3 @@ class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
         )
-
-    def test_proto_functions(self):
-        instance_dict = {
-            'name': 'test_name',
-            'node_count': 1,
-            'node_config': {'cpu_count': 1, 'memory_size_mb': 1024},
-        }
-        instance = cloud_memcache.Instance(instance_dict)
-        instance_dict_result = self.hook.proto_message_to_dict(instance)
-        self.assertEqual(instance_dict_result["name"], instance_dict["name"])
-        self.assertEqual(
-            instance_dict_result["nodeConfig"]["cpuCount"], instance_dict["node_config"]["cpu_count"]
-        )
-        self.assertEqual(
-            instance_dict_result["nodeConfig"]["memorySizeMb"], instance_dict["node_config"]["memory_size_mb"]
-        )
