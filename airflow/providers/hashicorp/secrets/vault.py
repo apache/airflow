@@ -48,7 +48,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         (default: 'connections').
     :type connections_path: str
     :param variables_path: Specifies the path of the secret to read to get Variables
-        (default: 'variables').
+        (default: None).
     :type variables_path: str
     :param config_path: Specifies the path of the secret to read Airflow Configurations
         (default: 'configs').
