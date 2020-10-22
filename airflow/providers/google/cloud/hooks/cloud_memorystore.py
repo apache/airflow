@@ -543,9 +543,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
     def get_conn(
         self,
     ):
-        """
-        Retrieves client library object that allow access to Cloud Memorystore Memcached service.
-        """
+        """Retrieves client library object that allow access to Cloud Memorystore Memcached service."""
         if not self._client:
             self._client = CloudMemcacheClient(credentials=self._get_credentials())
         return self._client
