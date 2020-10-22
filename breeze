@@ -173,6 +173,9 @@ function breeze::setup_default_breeze_constants() {
     export SCREEN_WIDTH
     readonly SCREEN_WIDTH
 
+    # for Breeze default tests executed are "All"
+    export TEST_TYPE=${TEST_TYPE:="All"}
+
     # Update short and long options in the breeze-complete script
     # This way autocomplete will work automatically with all options available
     # shellcheck source=breeze-complete
