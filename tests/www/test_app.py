@@ -234,8 +234,8 @@ class TestApp(unittest.TestCase):
     def test_should_emit_deprecation_warnings(self):
         with pytest.warns(DeprecationWarning) as warns:
             application.cached_app(testing=True)
-        msg1 = 'SESSION_LIFETIME_DAYS option is deprecated. Please use `SESSION_LIFETIME_MINUTES`'
-        msg2 = 'FORCE_LOG_OUT_AFTER option is deprecated. Please use `SESSION_LIFETIME_MINUTES`'
+        msg1 = 'SESSION_LIFETIME_DAYS option is removed. Please use `SESSION_LIFETIME_MINUTES`'
+        msg2 = 'FORCE_LOG_OUT_AFTER option is removed. Please use `SESSION_LIFETIME_MINUTES`'
 
         warns = [w.message.args[0] for w in warns]
         self.assertEqual({msg1, msg2}.issubset(warns), True)

@@ -67,11 +67,11 @@ def create_app(config=None, testing=False, app_name="Airflow"):
     flask_app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
     if conf.has_option('webserver', 'SESSION_LIFETIME_DAYS'):
-        warnings.warn('SESSION_LIFETIME_DAYS option is deprecated. Please use `SESSION_LIFETIME_MINUTES`',
+        warnings.warn('SESSION_LIFETIME_DAYS option is removed. Please use `SESSION_LIFETIME_MINUTES`',
                       DeprecationWarning)
 
     if conf.has_option('webserver', 'FORCE_LOG_OUT_AFTER'):
-        warnings.warn('FORCE_LOG_OUT_AFTER option is deprecated. Please use `SESSION_LIFETIME_MINUTES`',
+        warnings.warn('FORCE_LOG_OUT_AFTER option is removed. Please use `SESSION_LIFETIME_MINUTES`',
                       DeprecationWarning)
 
     session_lifetime_minutes = conf.getint('webserver', 'SESSION_LIFETIME_MINUTES', fallback=43200)
