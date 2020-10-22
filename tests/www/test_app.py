@@ -18,7 +18,6 @@
 
 import unittest
 from datetime import timedelta
-from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -26,6 +25,7 @@ from werkzeug.routing import Rule
 from werkzeug.test import create_environ
 from werkzeug.wrappers import Response
 
+from airflow.configuration import conf
 from airflow.www import app as application
 from tests.test_utils.config import conf_vars
 
@@ -233,9 +233,13 @@ class TestApp(unittest.TestCase):
     @mock.patch("airflow.www.app.app", None)
     def test_should_emit_deprecation_warnings(self):
         with pytest.warns(DeprecationWarning) as warns:
+            conf.remove_option('webserver', 'session_lifetime_minutes')
             application.cached_app(testing=True)
-        msg1 = 'SESSION_LIFETIME_DAYS option is removed. Please use `SESSION_LIFETIME_MINUTES`'
-        msg2 = 'FORCE_LOG_OUT_AFTER option is removed. Please use `SESSION_LIFETIME_MINUTES`'
+
+        warn_msg = '`SESSION_LIFETIME_DAYS` option has been renamed to `SESSION_LIFETIME_MINUTES`. '\
+                   'New option allows to configure session lifetime in minutes. '\
+                   'FORCE_LOG_OUT_AFTER option has been removed.\nUsing default value '\
+                   'for `SESSION_LIFETIME_MINUTES`: 43200'
 
         warns = [w.message.args[0] for w in warns]
-        self.assertEqual({msg1, msg2}.issubset(warns), True)
+        self.assertEqual(warn_msg in warns, True)
