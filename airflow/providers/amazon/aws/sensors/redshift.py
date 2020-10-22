@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional
 
 from airflow.providers.amazon.aws.hooks.redshift import RedshiftHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -34,19 +35,28 @@ class AwsRedshiftClusterSensor(BaseSensorOperator):
     template_fields = ('cluster_identifier', 'target_status')
 
     @apply_defaults
-    def __init__(self, *, cluster_identifier, target_status='available', aws_conn_id='aws_default', **kwargs):
+    def __init__(
+        self,
+        *,
+        cluster_identifier: str,
+        target_status: str = 'available',
+        aws_conn_id: str = 'aws_default',
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.cluster_identifier = cluster_identifier
         self.target_status = target_status
         self.aws_conn_id = aws_conn_id
-        self.hook = None
+        self.hook: Optional[RedshiftHook] = None
 
     def poke(self, context):
         self.log.info('Poking for status : %s\nfor cluster %s', self.target_status, self.cluster_identifier)
         return self.get_hook().cluster_status(self.cluster_identifier) == self.target_status
 
-    def get_hook(self):
+    def get_hook(self) -> RedshiftHook:
         """Create and return a RedshiftHook"""
-        if not self.hook:
-            self.hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
+        if self.hook:
+            return self.hook
+
+        self.hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
         return self.hook

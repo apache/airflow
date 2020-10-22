@@ -16,6 +16,7 @@
 # under the License.
 
 """Publish message to SQS queue"""
+from typing import Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sqs import SQSHook
@@ -46,11 +47,11 @@ class SQSPublishOperator(BaseOperator):
     def __init__(
         self,
         *,
-        sqs_queue,
-        message_content,
-        message_attributes=None,
-        delay_seconds=0,
-        aws_conn_id='aws_default',
+        sqs_queue: str,
+        message_content: str,
+        message_attributes: Optional[dict] = None,
+        delay_seconds: int = 0,
+        aws_conn_id: str = 'aws_default',
         **kwargs,
     ):
         super().__init__(**kwargs)

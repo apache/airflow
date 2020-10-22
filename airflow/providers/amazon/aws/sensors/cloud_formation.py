@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains sensors for AWS CloudFormation."""
+from typing import Optional
+
 from airflow.providers.amazon.aws.hooks.cloud_formation import AWSCloudFormationHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
@@ -69,12 +71,19 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
     ui_color = '#C5CAE9'
 
     @apply_defaults
-    def __init__(self, *, stack_name, aws_conn_id='aws_default', region_name=None, **kwargs):
+    def __init__(
+        self,
+        *,
+        stack_name: str,
+        aws_conn_id: str = 'aws_default',
+        region_name: Optional[str] = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
         self.stack_name = stack_name
-        self.hook = None
+        self.hook: Optional[AWSCloudFormationHook] = None
 
     def poke(self, context):
         stack_status = self.get_hook().get_stack_status(self.stack_name)
@@ -84,8 +93,10 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
             return False
         raise ValueError(f'Stack {self.stack_name} in bad state: {stack_status}')
 
-    def get_hook(self):
+    def get_hook(self) -> AWSCloudFormationHook:
         """Create and return an AWSCloudFormationHook"""
-        if not self.hook:
-            self.hook = AWSCloudFormationHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+        if self.hook:
+            return self.hook
+
+        self.hook = AWSCloudFormationHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         return self.hook
