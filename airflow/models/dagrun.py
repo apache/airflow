@@ -387,7 +387,7 @@ class DagRun(Base, LoggingMixin):
             ti.task = dag.get_task(ti.task_id)
 
         unfinished_tasks = [t for t in tis if t.state in State.unfinished]
-        finished_tasks = [t for t in tis if t.state in State.finished | {State.UPSTREAM_FAILED}]
+        finished_tasks = [t for t in tis if t.state in State.finished]
         none_depends_on_past = all(not t.task.depends_on_past for t in unfinished_tasks)
         none_task_concurrency = all(t.task.task_concurrency is None for t in unfinished_tasks)
         if unfinished_tasks:

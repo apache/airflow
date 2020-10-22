@@ -50,6 +50,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
 from airflow.utils.callback_requests import DagCallbackRequest, TaskCallbackRequest
+from airflow.utils.dag_processing import DagFileProcessorAgent
 from airflow.utils.dates import days_ago
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
@@ -3513,6 +3514,64 @@ class TestSchedulerJob(unittest.TestCase):
             scheduler._create_dag_runs([dag_model], session)
 
         assert dag.get_last_dagrun().creating_job_id == scheduler.id
+
+    def test_do_schedule_max_active_runs_upstream_failed(self):
+        """
+        Test that tasks in upstream failed don't count as actively running.
+
+        This test can be removed when adding a queued state to DagRuns.
+        """
+
+        with DAG(
+            dag_id='test_max_active_run_plus_manual_trigger',
+            start_date=DEFAULT_DATE,
+            schedule_interval='@once',
+            max_active_runs=1,
+        ) as dag:
+            # Cant use DummyOperator as that goes straight to success
+            task1 = BashOperator(task_id='dummy1', bash_command='true')
+
+        session = settings.Session()
+        dagbag = DagBag(
+            dag_folder=os.devnull,
+            include_examples=False,
+            read_dags_from_db=True,
+        )
+
+        dagbag.bag_dag(dag=dag, root_dag=dag)
+        dagbag.sync_to_db(session=session)
+
+        run1 = dag.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            session=session,
+        )
+
+        ti = run1.get_task_instance(task1.task_id, session)
+        ti.state = State.UPSTREAM_FAILED
+
+        run2 = dag.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE + timedelta(hours=1),
+            state=State.RUNNING,
+            session=session,
+        )
+
+        dag.sync_to_db(session=session)  # Update the date fields
+
+        job = SchedulerJob()
+        job.executor = MockExecutor(do_update=False)
+        job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
+
+        num_queued = job._do_scheduling(session)
+        session.flush()
+
+        assert num_queued == 1
+        ti = run2.get_task_instance(task1.task_id, session)
+        assert ti.state == State.QUEUED
+
+        session.rollback()
 
 
 @pytest.mark.xfail(reason="Work out where this goes")
