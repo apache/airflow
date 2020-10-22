@@ -1,6 +1,7 @@
 {
   "amazon": [
     "apache.hive",
+    "ftp",
     "google",
     "imap",
     "mongo",
