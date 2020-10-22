@@ -60,13 +60,7 @@ Viewer
     :start-after: [START security_viewer_perms]
     :end-before: [END security_viewer_perms]
 
-on limited web views
-
-.. exampleinclude:: /../airflow/www/security.py
-    :language: python
-    :start-after: [START security_viewer_vms]
-    :end-before: [END security_viewer_vms]
-
+on limited web views.
 
 User
 ^^^^
@@ -88,12 +82,7 @@ Op
     :start-after: [START security_op_perms]
     :end-before: [END security_op_perms]
 
-on ``User`` web views plus these additional op web views
-
-.. exampleinclude:: /../airflow/www/security.py
-    :language: python
-    :start-after: [START security_op_vms]
-    :end-before: [END security_op_vms]
+on ``User`` web views.
 
 
 Custom Roles

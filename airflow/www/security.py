@@ -47,19 +47,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     """Custom security manager, which introduces an permission model adapted to Airflow"""
 
     ###########################################################################
-    #                               VIEW MENUS
-    ###########################################################################
-    # [START security_viewer_vms]
-    # [END security_viewer_vms]
-
-    # [START security_op_vms]
-    # [END security_op_vms]
-
-    ###########################################################################
     #                               PERMISSIONS
     ###########################################################################
-    # [START security_viewer_perms]
 
+    # [START security_viewer_perms]
     VIEWER_PERMISSIONS = [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
