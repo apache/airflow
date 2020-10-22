@@ -17,6 +17,8 @@
 # under the License.
 
 import unittest
+from datetime import timedelta
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -215,3 +217,27 @@ class TestApp(unittest.TestCase):
             'max_overflow': 5
         }
         self.assertEqual(app.config['SQLALCHEMY_ENGINE_OPTIONS'], engine_params)
+
+    @conf_vars({
+        ('webserver', 'session_lifetime_minutes'): '3600',
+    })
+    @mock.patch("airflow.www.app.app", None)
+    def test_should_set_permanent_session_timeout(self):
+        app = application.cached_app(testing=True)
+        self.assertEqual(app.config['PERMANENT_SESSION_LIFETIME'], timedelta(minutes=3600))
+
+    @conf_vars({
+        ('webserver', 'session_lifetime_days'): '30',
+        ('webserver', 'force_log_out_after'): '30',
+    })
+    @mock.patch("airflow.www.app.app", None)
+    def test_should_emit_deprecation_warnings(self):
+        with pytest.warns(DeprecationWarning) as warns:
+            application.cached_app(testing=True)
+        app_path = str(Path(__file__).parents[2].joinpath('airflow', 'www', 'app.py'))
+        warns = [w for w in warns if w.filename == app_path]
+        self.assertEqual(len(warns), 2)
+        self.assertEqual(warns[0].message.args[0],
+                         'SESSION_LIFETIME_DAYS option is deprecated. Please use `SESSION_LIFETIME_MINUTES`')
+        self.assertEqual(warns[1].message.args[0],
+                         'FORCE_LOG_OUT_AFTER option is deprecated. Please use `SESSION_LIFETIME_MINUTES`')
