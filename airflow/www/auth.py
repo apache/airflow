@@ -65,15 +65,11 @@ def check_authorization(
 
 
 def has_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Callable[[T], T]:
-    """
-    Factory for decorator that checks current user's permissions against required perms.
-    """
-    appbuilder = current_app.appbuilder
-    appbuilder.sm.sync_resource_permissions(permissions)
-
+    """Factory for decorator that checks current user's permissions against required perms."""
     def requires_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
+            appbuilder = current_app.appbuilder
             if check_authorization(permissions, request.args.get('dag_id', None)):
                 return func(*args, **kwargs)
             else:
