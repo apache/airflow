@@ -23,6 +23,7 @@ from unittest import mock
 from airflow.providers.amazon.aws.transfers.snowflake_to_s3 import SnowflakeToS3Operator
 from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
+
 class TestSnowflakeToS3Transfer(unittest.TestCase):
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run")
     def test_execute(
