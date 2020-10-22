@@ -66,15 +66,18 @@ def create_app(config=None, testing=False, app_name="Airflow"):
     flask_app = Flask(__name__)
     flask_app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
-    if conf.has_option('webserver', 'SESSION_LIFETIME_DAYS'):
-        warnings.warn('SESSION_LIFETIME_DAYS option is removed. Please use `SESSION_LIFETIME_MINUTES`',
+    default_session_lifetime_minutes = 43200
+    if conf.has_option('webserver', 'SESSION_LIFETIME_MINUTES'):
+        session_lifetime_minutes = conf.getint('webserver', 'SESSION_LIFETIME_MINUTES',
+                                               fallback=default_session_lifetime_minutes)
+    else:
+        warnings.warn('`SESSION_LIFETIME_DAYS` option has been renamed to `SESSION_LIFETIME_MINUTES`. '
+                      'New option allows to configure session lifetime in minutes. '
+                      'FORCE_LOG_OUT_AFTER option has been removed.\nUsing default value '
+                      'for `SESSION_LIFETIME_MINUTES`: {}'.format(default_session_lifetime_minutes),
                       DeprecationWarning)
+        session_lifetime_minutes = default_session_lifetime_minutes
 
-    if conf.has_option('webserver', 'FORCE_LOG_OUT_AFTER'):
-        warnings.warn('FORCE_LOG_OUT_AFTER option is removed. Please use `SESSION_LIFETIME_MINUTES`',
-                      DeprecationWarning)
-
-    session_lifetime_minutes = conf.getint('webserver', 'SESSION_LIFETIME_MINUTES', fallback=43200)
     flask_app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=session_lifetime_minutes)
 
     flask_app.config.from_pyfile(settings.WEBSERVER_CONFIG, silent=True)
