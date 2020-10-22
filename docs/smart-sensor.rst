@@ -69,12 +69,12 @@ Add the following settings in the ``airflow.cfg``:
 
     # Users can change the following config based on their requirements
     shards = 5
-    sensor_enabled = NamedHivePartitionSensor, MetastorePartitionSensor
+    sensors_enabled = NamedHivePartitionSensor, MetastorePartitionSensor
 
 *   ``use_smart_sensor``: This config indicates if the smart sensor is enabled.
 *   ``shards``: This config indicates the number of concurrently running smart sensor jobs for
     the airflow cluster.
-*   ``sensor_enabled``: This config is a list of sensor class names that will use the smart sensor.
+*   ``sensors_enabled``: This config is a list of sensor class names that will use the smart sensor.
     The users use the same class names (e.g. HivePartitionSensor) in their DAGs and they don’t have
     the control to use smart sensors or not, unless they exclude their tasks explicitly.
 
