@@ -123,7 +123,7 @@ Permissions (each consistent of a resource + action pair) are then added to role
 
 **To access an endpoint, the user needs all permissions assigned to that endpoint**
 
-There are five default roles: Public, Viewer, User, Op, and Admin. Each one has the permissions of the preceeding role, as well as additional permissions.
+There are five default roles: Public, Viewer, User, Op, and Admin. Each one has the permissions of the preceding role, as well as additional permissions.
 
 ================================================================================== ====== ================================================================= ============
 Stable API Permissions
