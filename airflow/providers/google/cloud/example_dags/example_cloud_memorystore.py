@@ -246,9 +246,8 @@ with models.DAG(
     get_instance >> set_acl_permission >> export_instance
     export_instance >> import_instance
     export_instance >> delete_instance
-    import_instance >> delete_instance_2
-    create_instance_2 >> failover_instance
     failover_instance >> delete_instance_2
+    import_instance >> failover_instance
 
     export_instance >> create_instance_and_import >> scale_instance >> export_and_delete_instance
 
