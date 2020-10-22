@@ -461,7 +461,7 @@ function initialization::initialize_github_variables() {
 }
 
 function initialization::initialize_test_variables() {
-    export TEST_TYPE=${TEST_TYPE:="All"}
+    export TEST_TYPE=${TEST_TYPE:=""}
 }
 
 # Common environment that is initialized by both Breeze and CI scripts
