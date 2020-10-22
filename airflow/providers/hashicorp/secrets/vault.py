@@ -112,7 +112,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     def __init__(  # pylint: disable=too-many-arguments
         self,
         connections_path: str = 'connections',
-        variables_path: str = 'variables',
+        variables_path: Optional[str] = None,
         config_path: str = 'config',
         url: Optional[str] = None,
         auth_type: str = 'token',
@@ -140,7 +140,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     ):
         super().__init__()
         self.connections_path = connections_path.rstrip('/')
-        if variables_path != None:
+        if variables_path is not None:
             self.variables_path = variables_path.rstrip('/')
         else:
             self.variables_path = variables_path
@@ -195,7 +195,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         :rtype: str
         :return: Variable Value retrieved from the vault
         """
-        if self.variables_path == None:
+        if self.variables_path is None:
             return None
         else:
             secret_path = self.build_path(self.variables_path, key)
