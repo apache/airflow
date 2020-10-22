@@ -257,7 +257,7 @@ with models.DAG(
     schedule_interval=None,  # Override to match your needs
     start_date=dates.days_ago(1),
     tags=['example'],
-) as dag:
+) as dag_memcache:
     # [START howto_operator_create_instance_memcached]
     create_memcached_instance = CloudMemorystoreMemcachedCreateInstanceOperator(
         task_id="create-instance",
