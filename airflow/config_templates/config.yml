@@ -1112,7 +1112,7 @@
       description: |
         The UI cookie lifetime in minutes
       version_added: 2.0.0
-      type: string
+      type: int
       example: ~
       default: "43200"
 
