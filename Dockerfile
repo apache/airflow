@@ -169,7 +169,7 @@ RUN if [[ -f /docker-context-files/.pypirc ]]; then \
     fi
 
 # In case of Production build image segment we want to pre-install master version of airflow
-# dependencies from github so that we do not have to always reinstall it from the scratch.
+# dependencies from GitHub so that we do not have to always reinstall it from the scratch.
 RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
        if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then \
           AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}; \
@@ -210,6 +210,9 @@ ENV INSTALL_AIRFLOW_VIA_PIP=${INSTALL_AIRFLOW_VIA_PIP}
 
 ARG SLUGIFY_USES_TEXT_UNIDECODE=""
 ENV SLUGIFY_USES_TEXT_UNIDECODE=${SLUGIFY_USES_TEXT_UNIDECODE}
+
+ARG INSTALL_PROVIDERS_FROM_SOURCES="true"
+ENV INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES}
 
 WORKDIR /opt/airflow
 
