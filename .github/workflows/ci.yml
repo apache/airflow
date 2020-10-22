@@ -305,6 +305,7 @@ jobs:
       POSTGRES_VERSION: ${{ matrix.postgres-version }}
       RUN_TESTS: true
       TEST_TYPES: ${{needs.build-info.outputs.testTypes}}
+      TEST_TYPE: ""
     if: >
         needs.build-info.outputs.run-tests == 'true' &&
         (github.repository == 'apache/airflow' || github.event_name != 'schedule')
@@ -357,6 +358,7 @@ jobs:
       MYSQL_VERSION: ${{ matrix.mysql-version }}
       RUN_TESTS: true
       TEST_TYPES: ${{needs.build-info.outputs.testTypes}}
+      TEST_TYPE: ""
     if: >
         needs.build-info.outputs.run-tests == 'true' &&
         (github.repository == 'apache/airflow' || github.event_name != 'schedule')
@@ -406,6 +408,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       RUN_TESTS: true
       TEST_TYPES: ${{needs.build-info.outputs.testTypes}}
+      TEST_TYPE: ""
     if: >
         needs.build-info.outputs.run-tests == 'true' &&
         (github.repository == 'apache/airflow' || github.event_name != 'schedule')
@@ -459,6 +462,7 @@ jobs:
       POSTGRES_VERSION: ${{needs.build-info.outputs.defaultPostgresVersion}}
       RUN_TESTS: true
       TEST_TYPES: "Quarantined"
+      TEST_TYPE: ""
       NUM_RUNS: 10
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     if: >
