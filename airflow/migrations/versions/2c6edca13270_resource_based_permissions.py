@@ -123,11 +123,6 @@ mapping = {
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
     ],
-    ("Airflow", "can_]agruns"): [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
-    ],
     ("Airflow", "can_log"): [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
