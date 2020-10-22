@@ -271,4 +271,5 @@ class TestGCSToS3Operator(unittest.TestCase):
         operator.execute(None)
 
         # Make sure the acl_policy parameter is passed to the upload method
-        self.assertEqual(mock_load_bytes.call_args.kwargs['acl_policy'], S3_ACL_POLICY)
+        _, kwargs = mock_load_bytes.call_args
+        self.assertEqual(kwargs['acl_policy'], S3_ACL_POLICY)
