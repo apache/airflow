@@ -60,7 +60,7 @@ class TestSnowflakeToS3Transfer(unittest.TestCase):
         COPY INTO 's3://{s3_bucket}/{s3_key}'
         FROM ({sql})
         STORAGE_INTEGRATION = S3
-        FILE_FORMAT = {file_format}
+        FILE_FORMAT = ({file_format})
         {unload_options}
         HEADER = True;
         """
