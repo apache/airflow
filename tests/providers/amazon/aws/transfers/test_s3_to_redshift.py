@@ -99,7 +99,7 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
                     {copy_options};
                 """
 
-        truncate_statement = f'TRUNCATE TABLE {schema}.{table}'
+        truncate_statement = f'TRUNCATE TABLE {schema}.{table};'
         transaction = f"""
                     BEGIN;
                     {truncate_statement}
