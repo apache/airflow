@@ -22,10 +22,10 @@ import json
 import logging
 import threading
 import unittest
+from unittest.mock import patch
 
 import pytest
 import sqlalchemy
-from mock import patch
 from parameterized import parameterized
 
 from airflow import settings

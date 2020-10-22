@@ -23,7 +23,7 @@ import logging
 import unittest
 import uuid
 
-import mock
+from unittest import mock
 from azure.cosmos.cosmos_client import CosmosClient
 
 from airflow.exceptions import AirflowException

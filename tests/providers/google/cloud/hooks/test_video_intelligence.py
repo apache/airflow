@@ -18,7 +18,7 @@
 #
 import unittest
 
-import mock
+from unittest import mock
 from google.cloud.videointelligence_v1 import enums
 
 from airflow.providers.google.cloud.hooks.video_intelligence import CloudVideoIntelligenceHook

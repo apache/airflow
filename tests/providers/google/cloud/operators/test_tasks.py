@@ -18,7 +18,7 @@
 
 import unittest
 
-import mock
+from unittest import mock
 from google.cloud.tasks_v2.types import Queue, Task
 
 from airflow.providers.google.cloud.operators.tasks import (

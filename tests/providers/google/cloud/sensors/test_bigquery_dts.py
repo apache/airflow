@@ -18,7 +18,7 @@
 
 import unittest
 
-import mock
+from unittest import mock
 
 from airflow.providers.google.cloud.sensors.bigquery_dts import BigQueryDataTransferServiceTransferRunSensor
 

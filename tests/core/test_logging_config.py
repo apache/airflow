@@ -23,8 +23,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
-
-from mock import patch
+from unittest.mock import patch
 
 from airflow.configuration import conf
 from tests.test_utils.config import conf_vars

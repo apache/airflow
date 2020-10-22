@@ -20,8 +20,8 @@
 
 import unittest
 
-import mock
-from mock import PropertyMock
+from unittest import mock
+from unittest.mock import PropertyMock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook, GceOperationStatus

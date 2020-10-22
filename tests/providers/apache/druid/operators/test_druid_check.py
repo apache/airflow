@@ -20,7 +20,7 @@
 import unittest
 from datetime import datetime
 
-import mock
+from unittest import mock
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG

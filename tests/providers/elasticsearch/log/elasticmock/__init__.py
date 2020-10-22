@@ -40,9 +40,9 @@
 """Elastic mock module used for testing"""
 from functools import wraps
 from typing import Dict
+from unittest.mock import patch
 
 from elasticsearch.client import _normalize_hosts
-from mock import patch
 
 from .fake_elasticsearch import FakeElasticsearch
 

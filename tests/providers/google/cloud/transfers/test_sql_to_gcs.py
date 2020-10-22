@@ -19,7 +19,7 @@ import json
 import unittest
 from unittest.mock import Mock
 
-import mock
+from unittest import mock
 import unicodecsv as csv
 
 from airflow.providers.google.cloud.hooks.gcs import GCSHook

@@ -18,8 +18,8 @@
 
 import datetime
 import unittest
+from unittest import mock
 
-import mock
 import pytest
 
 from airflow.exceptions import AirflowException

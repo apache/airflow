@@ -17,12 +17,12 @@
 # under the License.
 from typing import Dict, Sequence, Tuple
 from unittest import TestCase, mock
+from unittest.mock import PropertyMock
 
 from google.api_core.retry import Retry
 from google.cloud.exceptions import NotFound
 from google.cloud.memcache_v1beta2.types import cloud_memcache
 from google.cloud.redis_v1.types import Instance
-from mock import PropertyMock
 
 from airflow import version
 from airflow.exceptions import AirflowException

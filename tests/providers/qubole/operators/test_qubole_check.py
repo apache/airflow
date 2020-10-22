@@ -19,7 +19,7 @@
 import unittest
 from datetime import datetime
 
-import mock
+from unittest import mock
 from qds_sdk.commands import HiveCommand
 
 from airflow.exceptions import AirflowException
