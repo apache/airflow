@@ -234,7 +234,7 @@ class TestApp(unittest.TestCase):
     def test_should_emit_deprecation_warnings(self):
         with pytest.warns(DeprecationWarning) as warns:
             conf.remove_option('webserver', 'session_lifetime_minutes')
-            application.cached_app(testing=True)
+            app = application.cached_app(testing=True)
 
         warn_msg = '`SESSION_LIFETIME_DAYS` option has been renamed to `SESSION_LIFETIME_MINUTES`. '\
                    'New option allows to configure session lifetime in minutes. '\
@@ -243,3 +243,4 @@ class TestApp(unittest.TestCase):
 
         warns = [w.message.args[0] for w in warns]
         self.assertEqual(warn_msg in warns, True)
+        self.assertEqual(app.config['PERMANENT_SESSION_LIFETIME'], timedelta(minutes=43200))
