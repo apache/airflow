@@ -26,7 +26,7 @@ setup() {
     assert_success
 }
 
-@test "test hearbeat start and stop" {
+@test "test heartbeat start and stop" {
     container_utils::start_output_heartbeat "Creating kubernetes cluster" 1
     container_utils::stop_output_heartbeat
     assert [ -z "$(ps -p $HEARTBEAT_PID -o pid=)" ] && [ -n "$HEARTBEAT_PID" ]

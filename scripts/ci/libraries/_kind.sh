@@ -97,7 +97,7 @@ function kind::create_cluster() {
     if [[ "${TRAVIS:="false"}" == "true" ]]; then
         # Travis CI does not handle the nice output of Kind well, so we need to capture it
         # And display only if kind fails to start
-        start_output_heartbeat "Creating kubernetes cluster" 10
+        container_utils::start_output_heartbeat "Creating kubernetes cluster" 10
         set +e
         if ! OUTPUT=$(kind create cluster \
                         --name "${KIND_CLUSTER_NAME}" \
@@ -105,7 +105,7 @@ function kind::create_cluster() {
                         --image "kindest/node:${KUBERNETES_VERSION}" 2>&1); then
             echo "${OUTPUT}"
         fi
-        stop_output_heartbeat
+        container_utils::stop_output_heartbeat
     else
         kind create cluster \
             --name "${KIND_CLUSTER_NAME}" \

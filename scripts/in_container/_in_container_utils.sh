@@ -18,9 +18,6 @@
 
 export CI=${CI:="false"}
 export GITHUB_ACTIONS=${GITHUB_ACTIONS:="false"}
-# TODO(webolis) this is used only in one place, probably it could be a local constant.
-export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access,do-not-use-asserts"
-
 
 #######################################################################################################
 #
@@ -116,9 +113,9 @@ function container_utils::in_container_script_end() {
                 cat >&2 "${OUT_FILE_PRINTED_ON_ERROR}"
                 echo >&2 "###########################################################################################"
             fi
-            echo "###########################################################################################"
-            echo "  [IN CONTAINER]   EXITING $0 WITH STATUS CODE ${exit_code}"
-            echo "###########################################################################################"
+            echo >&2 "###########################################################################################"
+            echo >&2 "  [IN CONTAINER]   EXITING $0 WITH STATUS CODE ${exit_code}"
+            echo >&2 "###########################################################################################"
         fi
     fi
 
@@ -140,7 +137,9 @@ function container_utils::in_container_cleanup_pyc() {
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \
-        -name "*.pyc" | grep ".pyc$" | sudo xargs rm -f
+        -name "*.pyc" \
+        | grep ".pyc$" \
+        | sudo xargs rm -f
     set -o pipefail
 }
 
@@ -157,7 +156,9 @@ function container_utils::in_container_cleanup_pycache() {
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \
-        -name "__pycache__" | grep "__pycache__" | sudo xargs rm -rf
+        -name "__pycache__" \
+        | grep "__pycache__" \
+        | sudo xargs rm -rf
     set -o pipefail
 }
 
@@ -180,13 +181,13 @@ function container_utils::in_container_fix_ownership() {
     if [[ ${HOST_OS:=} == "Linux" ]]; then
         local directories_to_fix
         directories_to_fix=(
-                "/tmp"
-                "/files"
-                "/root/.aws"
-                "/root/.azure"
-                "/root/.config/gcloud"
-                "/root/.docker"
-                "${AIRFLOW_SOURCES}"
+            "/tmp"
+            "/files"
+            "/root/.aws"
+            "/root/.azure"
+            "/root/.config/gcloud"
+            "/root/.docker"
+            "${AIRFLOW_SOURCES}"
         )
         if [[ ${VERBOSE} == "true" ]]; then
             echo "Fixing ownership of mounted files"
@@ -250,10 +251,11 @@ function container_utils::in_container_basic_sanity_check() {
 # Used globals:
 #   VERBOSE
 #   AIRFLOW_SOURCES
-#   DISABLE_CHECKS_FOR_TESTS
 #
 #######################################################################################################
-function container_utils::in_container_refresh_pylint_todo() {
+    function container_utils::in_container_refresh_pylint_todo() {
+    local disable_checks_for_tests="missing-docstring,no-self-use,too-many-public-methods,protected-access,do-not-use-asserts"
+
     if [[ ${VERBOSE} == "true" ]]; then
         echo
         echo "Refreshing list of all non-pylint compliant files. This can take some time."
@@ -276,13 +278,18 @@ function container_utils::in_container_refresh_pylint_todo() {
         -path "./build" -prune -o \
         -path "./tests" -prune -o \
         -name "*.py" \
-        -not -name 'webserver_config.py' | \
-        grep  ".*.py$" | \
-        xargs pylint | tee "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt"
+        -not -name 'webserver_config.py' \
+        | grep  ".*.py$" \
+        | xargs pylint \
+        | tee "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt"
 
-    grep -v "\*\*" < "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt" | \
-       grep -v "^$" | grep -v "\-\-\-" | grep -v "^Your code has been" | \
-       awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq > "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt"
+    grep -v "\*\*" < "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt" \
+        | grep -v "^$" \
+        | grep -v "\-\-\-" \
+        | grep -v "^Your code has been" \
+        | awk 'BEGIN{FS=":"}{print "./"$1}' \
+        | sort --unique \
+        > "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt"
 
     if [[ ${VERBOSE} == "true" ]]; then
         echo
@@ -293,12 +300,17 @@ function container_utils::in_container_refresh_pylint_todo() {
         echo "Finding list of all non-pylint compliant files in 'tests' folder"
         echo
     fi
-    find "./tests" -name "*.py" -print0 | \
-        xargs -0 pylint --disable="${DISABLE_CHECKS_FOR_TESTS}" | tee "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt"
+    find "./tests" -name "*.py" -print0 \
+        | xargs -0 pylint --disable="${disable_checks_for_tests}" \
+        | tee "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt"
 
-    grep -v "\*\*" < "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt" | \
-        grep -v "^$" | grep -v "\-\-\-" | grep -v "^Your code has been" | \
-        awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq >> "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt"
+    grep -v "\*\*" < "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt" \
+        | grep -v "^$" \
+        | grep -v "\-\-\-" \
+        | grep -v "^Your code has been" \
+        | awk 'BEGIN{FS=":"}{print "./"$1}' \
+        | sort --unique \
+        >> "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt"
 
     rm -fv "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt" "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt"
     mv -v "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt" "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo.txt"
@@ -403,7 +415,21 @@ function container_utils::install_released_airflow_version() {
     pip install --upgrade "${installs[@]}"
 }
 
-function setup_backport_packages() {
+
+#######################################################################################################
+#
+#  Sets up proper package name prefixes depending on installation type (backport, regular)
+#
+# Uses following globals:
+#   BACKPORT_PACKAGES
+# Sets following globals:
+#   PACKAGE_TYPE
+#   PACKAGE_PREFIX_UPPERCASE
+#   PACKAGE_PREFIX_LOWERCASE
+#   PACKAGE_PREFIX_HYPHEN
+#
+#######################################################################################################
+function container_utils::setup_backport_packages() {
     if [[ ${BACKPORT_PACKAGES:=} == "true" ]]; then
         export PACKAGE_TYPE="backport"
         export PACKAGE_PREFIX_UPPERCASE="BACKPORT_"
