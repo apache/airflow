@@ -21,6 +21,7 @@ from typing import Dict, Optional, Union
 from urllib.parse import quote
 
 from airflow.api.common.experimental.trigger_dag import trigger_dag
+from airflow.configuration import conf
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
 from airflow.models import BaseOperator, BaseOperatorLink, DagBag, DagModel, DagRun
 from airflow.utils import timezone
@@ -37,7 +38,8 @@ class TriggerDagRunLink(BaseOperatorLink):
     name = 'Triggered DAG'
 
     def get_link(self, operator, dttm):
-        return f"/graph?dag_id={operator.trigger_dag_id}&root=&execution_date={quote(dttm.isoformat())}"
+        view = conf.get('webserver', 'dag_default_view').lower()
+        return f"/{view}?dag_id={operator.trigger_dag_id}&root=&execution_date={quote(dttm.isoformat())}"
 
 
 class TriggerDagRunOperator(BaseOperator):
