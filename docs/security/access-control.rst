@@ -156,8 +156,8 @@ Endpoint                                                                        
 /dags/{dag_id}/dagRuns/{dag_run_id}                                                DELETE DAGs.can_read, DAG Runs.can_delete                                User
 /dags/{dag_id}/dagRuns/{dag_run_id}                                                GET    DAGs.can_read, DAG Runs.can_read                                  Viewer
 /dags/~/dagRuns/list                                                               POST   DAGs.can_read, DAG Runs.can_read                                  Viewer
-/eventLogs                                                                         GET    Logs.can_read                                                     Viewer
-/eventLogs/{event_log_id}                                                          GET    Logs.can_read                                                     Viewer
+/eventLogs                                                                         GET    Audit Logs.can_read                                               Viewer
+/eventLogs/{event_log_id}                                                          GET    Audit Logs.can_read                                               Viewer
 /importErrors                                                                      GET    ImportError.can_read                                              Viewer
 /importErrors/{import_error_id}                                                    GET    ImportError.can_read                                              Viewer
 /health                                                                            GET    None                                                              Public
@@ -194,9 +194,9 @@ Get last DAG runs                      Dags.can_read, DAG Runs.can_read         
 Get DAG code                           Dags.can_read, DAG Code.can_read                                        Viewer
 Get DAG details                        Dags.can_read, DAG Runs.can_read                                        Viewer
 Get rendered DAG                       DAGs.can_read, Task Instances.can_read                                  Viewer
-Get Logs with metadata                 DAGs.can_read, Task Instances.can_read, Logs.can_read                   Viewer
-Get Log                                DAGs.can_read, Task Instances.can_read, Logs.can_read                   Viewer
-Redirect to external Log               DAGs.can_read, Task Instances.can_read, Logs.can_read                   Viewer
+Get Logs with metadata                 DAGs.can_read, Task Instances.can_read, Task Logs.can_read              Viewer
+Get Log                                DAGs.can_read, Task Instances.can_read, Task Logs.can_read              Viewer
+Redirect to external Log               DAGs.can_read, Task Instances.can_read, Task Logs.can_read              Viewer
 Get Task                               DAGs.can_read, Tasks.can_read, Task Instances.can_read                  Viewer
 Get XCom                               DAGs.can_read, Task Instances.can_read, XComs.can_read                  Viewer
 Get DAG runs                           DAGs.can_read, Tasks.can_read, Task Instances.can_create                User
@@ -209,8 +209,10 @@ Mark DAG Run as failed                 Dags.can_read, DAG Runs.can_edit         
 Mark DAG Run as success                Dags.can_read, DAG Runs.can_edit                                        User
 Mark Task as failed                    DAGs.can_read, Tasks.can_read, Task Instances.can_edit                  User
 Mark Task as success                   DAGs.can_read, Tasks.can_read, Task Instances.can_edit                  User
-Get DAG as tree                        DAGs.can_read, Tasks.can_read, Task Instances.can_read, Logs.can_read   Viewer
-Get DAG as graph                       DAGs.can_read, Tasks.can_read, Task Instances.can_read, Logs.can_read   Viewer
+Get DAG as tree                        DAGs.can_read, Tasks.can_read, Task Instances.can_read                  Viewer
+                                       Task Logs.can_read
+Get DAG as graph                       DAGs.can_read, Tasks.can_read, Task Instances.can_read                  Viewer
+                                       Task Logs.can_read
 Get DAG as duration graph              DAGs.can_read, Tasks.can_read, Task Instances.can_read                  Viewer
 Show all tries                         DAGs.can_read, Tasks.can_read, Task Instances.can_read                  Viewer
 Show landing times                     DAGs.can_read, Tasks.can_read, Task Instances.can_read                  Viewer
@@ -227,7 +229,7 @@ Set Task Instance as failed            DAGs.can_edit                            
 Set Task Instance as success           DAGs.can_edit                                                           User
 Set Task Instance as up_for_retry      DAGs.can_edit                                                           User
 Autocomplete                           DAGs.can_read                                                           Viewer
-List Logs                              Logs.can_read                                                           Viewer
+List Logs                              Audit Logs.can_read                                                     Viewer
 List Jobs                              Jobs.can_read                                                           Viewer
 List SLA Misses                        SLA Misses.can_read                                                     Viewer
 List Plugins                           Plugins.can_read                                                        Viewer

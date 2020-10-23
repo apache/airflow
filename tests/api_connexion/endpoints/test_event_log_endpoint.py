@@ -41,7 +41,7 @@ class TestEventLogEndpoint(unittest.TestCase):
             cls.app,  # type:ignore
             username="test",
             role_name="Test",
-            permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG)],  # type: ignore
+            permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG)],  # type: ignore
         )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 

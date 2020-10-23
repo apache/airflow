@@ -264,7 +264,7 @@ class TestVariableModelView(TestBase):
         self.client.post('/variable/add', data=self.variable, follow_redirects=True)
 
         # update the variable with a wrong value, given that is encrypted
-        Var = models.Variable
+        Var = models.Variable  # pylint: disable=invalid-name
         (self.session.query(Var)
             .filter(Var.key == self.variable['key'])
             .update({
@@ -1062,7 +1062,7 @@ class TestAirflowBaseViews(TestBase):
         dag_id = 'example_bash_operator'
         test_dag_id = "non_existent_dag"
 
-        DM = models.DagModel
+        DM = models.DagModel  # pylint: disable=invalid-name
         dag_query = self.session.query(DM).filter(DM.dag_id == dag_id)
         dag_query.first().tags = []  # To avoid "FOREIGN KEY constraint" error
         self.session.commit()
@@ -2505,7 +2505,7 @@ class TestDagACLView(TestBase):
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             ],
         )
@@ -2521,7 +2521,7 @@ class TestDagACLView(TestBase):
             perms=[
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             ],
         )
@@ -2712,7 +2712,7 @@ class TestTriggerDag(TestBase):
 
         test_dag_id = "example_bash_operator"
 
-        DR = models.DagRun
+        DR = models.DagRun  # pylint: disable=invalid-name
         self.session.query(DR).delete()
         self.session.commit()
 
@@ -2729,7 +2729,7 @@ class TestTriggerDag(TestBase):
         test_dag_id = "example_bash_operator"
         conf_dict = {'string': 'Hello, World!'}
 
-        DR = models.DagRun
+        DR = models.DagRun  # pylint: disable=invalid-name
         self.session.query(DR).delete()
         self.session.commit()
 
@@ -2744,7 +2744,7 @@ class TestTriggerDag(TestBase):
     def test_trigger_dag_conf_malformed(self):
         test_dag_id = "example_bash_operator"
 
-        DR = models.DagRun
+        DR = models.DagRun  # pylint: disable=invalid-name
         self.session.query(DR).delete()
         self.session.commit()
 
@@ -2828,7 +2828,7 @@ class TestExtraLinks(TestBase):
         class NoResponseLink(BaseOperatorLink):
             name = 'no_response'
 
-            def get_link(self, operator, dttm):
+            def get_link(self, operator, dttm):  # pylint: disable=unused-argument
                 return None
 
         class FooBarLink(BaseOperatorLink):
@@ -2841,7 +2841,7 @@ class TestExtraLinks(TestBase):
         class AirflowLink(BaseOperatorLink):
             name = 'airflow'
 
-            def get_link(self, operator, dttm):
+            def get_link(self, operator, dttm):  # pylint: disable=unused-argument
                 return 'https://airflow.apache.org'
 
         class DummyTestOperator(BaseOperator):

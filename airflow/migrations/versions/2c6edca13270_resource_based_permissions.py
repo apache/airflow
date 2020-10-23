@@ -106,14 +106,14 @@ mapping = {
     ("Airflow", "can_get_logs_with_metadata"): [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
     ],
     ("Airflow", "can_graph"): [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
     ],
     ("Airflow", "can_index"): [(permissions.ACTION_CAN_READ, "Website")],
@@ -126,7 +126,7 @@ mapping = {
     ("Airflow", "can_log"): [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
     ],
     ("Airflow", "can_paused"): [
@@ -136,7 +136,7 @@ mapping = {
     ("Airflow", "can_redirect_to_external_log"): [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
     ],
     ("Airflow", "can_refresh"): [
@@ -191,7 +191,7 @@ mapping = {
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
     ],
     ("Airflow", "can_tries"): [
@@ -235,8 +235,11 @@ mapping = {
     ("DagRun", "can_read"): [(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN)],
     ("DagRun", "can_delete"): [(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN)],
     ("JobModelView", "can_list"): [(permissions.ACTION_CAN_READ, permissions.RESOURCE_JOB)],
-    ("LogModelView", "can_list"): [(permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG)],
-    ("Log", "can_read"): [(permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG)],
+    ("LogModelView", "can_list"): [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG),
+    ],
+    ("Log", "can_read"): [(permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG)],
     ("SlaMissModelView", "can_list"): [(permissions.ACTION_CAN_READ, permissions.RESOURCE_SLA_MISS)],
     ("TaskInstanceModelView", "can_list"): [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE)
