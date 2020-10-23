@@ -901,7 +901,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
-
     ])
     @action_logging
     @provide_session
@@ -1466,7 +1465,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
-
     ])
     @action_logging
     def dagrun_clear(self):
@@ -1488,7 +1486,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @auth.has_access([
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-
     ])
     @provide_session
     def blocked(self, session=None):
@@ -1595,7 +1592,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @auth.has_access([
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
-
     ])
     @action_logging
     def dagrun_failed(self):
@@ -1611,7 +1607,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @auth.has_access([
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
-
     ])
     @action_logging
     def dagrun_success(self):
@@ -1668,7 +1663,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
-
     ])
     @action_logging
     def failed(self):
@@ -1693,7 +1687,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
-
     ])
     @action_logging
     def success(self):
@@ -1719,7 +1712,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
-
     ])
     @gzipped  # pylint: disable=too-many-locals
     @action_logging  # pylint: disable=too-many-locals
@@ -1890,7 +1882,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG),
-
     ])
     @gzipped
     @action_logging
@@ -1980,10 +1971,9 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
-
     ])
     @action_logging  # pylint: disable=too-many-locals
-    @provide_session
+    @provide_session  # pylint: disable=too-many-locals
     def duration(self, session=None):
         """Get Dag as duration graph."""
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
@@ -2102,7 +2092,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-
     ])
     @action_logging
     @provide_session
@@ -2174,7 +2163,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
-
     ])
     @action_logging
     @provide_session
@@ -2256,7 +2244,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/paused', methods=['POST'])
     @auth.has_access([
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-
     ])
     @action_logging
     def paused(self):
@@ -2270,7 +2257,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/refresh', methods=['POST'])
     @auth.has_access([
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-
     ])
     @action_logging
     @provide_session
@@ -2295,7 +2281,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/refresh_all', methods=['POST'])
     @auth.has_access([
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-
     ])
     @action_logging
     def refresh_all(self):
@@ -2313,7 +2298,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-
     ])
     @action_logging
     @provide_session
@@ -2410,7 +2394,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-
     ])
     @action_logging
     def extra_links(self):
@@ -2472,7 +2455,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-
     ])
     @action_logging
     def task_instances(self):

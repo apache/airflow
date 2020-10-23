@@ -125,6 +125,13 @@ Permissions (each consistent of a resource + action pair) are then added to role
 
 There are five default roles: Public, Viewer, User, Op, and Admin. Each one has the permissions of the preceding role, as well as additional permissions.
 
+DAG-level permissions
+^^^^^^^^^^^^^^^^^^^^^
+
+For DAG-level permissions exclusively, access can be controlled at the level of all DAGs or individual DAG objects. This includes ``DAGs.can_create``, ``DAGs.can_read``, ``DAGs.can_edit``, and ``DAGs.can_delete``. When these permissions are listed, access is granted to users who either have the listed permission or the same permission for the specific DAG being acted upon. For individual DAGs, the resource name is ``DAG:`` + the DAG ID.
+
+For example, if a user is trying to view DAG information for the ``example_dag_id``, and the endpoint requires ``DAGs.can_read`` access, access will be granted if the user has either ``DAGs.can_read`` or ``DAG:example_dag_id.can_read`` access.
+
 ================================================================================== ====== ================================================================= ============
 Stable API Permissions
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
