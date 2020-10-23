@@ -201,6 +201,10 @@ ARG_COLOR = Arg(
     default=ColorMode.AUTO)
 
 # list_dag_runs
+ARG_DAG_ID_OPT = Arg(
+    ("-d", "--dag-id"),
+    help="The id of the dag"
+)
 ARG_NO_BACKFILL = Arg(
     ("--no-backfill",),
     help="filter all the backfill dagruns given the dag id",
@@ -810,13 +814,13 @@ DAGS_COMMANDS = (
             "all the dagruns that were executed after this date. "
         ),
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_list_dag_runs'),
-        args=(ARG_DAG_ID, ARG_NO_BACKFILL, ARG_STATE, ARG_OUTPUT, ARG_START_DATE, ARG_END_DATE),
+        args=(ARG_DAG_ID_OPT, ARG_NO_BACKFILL, ARG_STATE, ARG_OUTPUT, ARG_START_DATE, ARG_END_DATE),
     ),
     ActionCommand(
         name='list-jobs',
         help="List the jobs",
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_list_jobs'),
-        args=(ARG_DAG_ID, ARG_STATE, ARG_LIMIT, ARG_OUTPUT),
+        args=(ARG_DAG_ID_OPT, ARG_STATE, ARG_LIMIT, ARG_OUTPUT),
     ),
     ActionCommand(
         name='state',
