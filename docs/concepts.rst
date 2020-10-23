@@ -58,7 +58,7 @@ arbitrary number of tasks. In general, each one should correspond to a single
 logical workflow.
 
 .. note:: When searching for DAGs, Airflow only considers Python files
-   that contain the strings "airflow" and "DAG" by default. To consider
+   that contain the strings "airflow" and "dag" by default. To consider
    all Python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE``
    configuration flag.
 
@@ -184,9 +184,7 @@ Example DAG with decorator:
     :end-before: [END dag_decorator_usage]
 
 .. note:: Note that Airflow will only load DAGs that appear in ``globals()``. Which means you need to make sure to have
-  a variable for your returned DAG in the module scope. Otherwise Airflow won't detect your decorated DAG. In addition,
-  you may want to make your dag variable named ``DAG`` such that Airflow doesn't skip this module when the
-  ``DAG_DISCOVERY_SAFE_MODE`` is activated.
+  a variable for your returned DAG in the module scope. Otherwise Airflow won't detect your decorated DAG.
 
 .. _concepts:executor_config:
 
