@@ -62,6 +62,8 @@ logical workflow.
    all Python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE``
    configuration flag.
 
+.. _concepts:scope:
+
 Scope
 -----
 
@@ -101,6 +103,8 @@ any of its operators. This makes it easy to apply a common parameter to many ope
     dag = DAG('my_dag', default_args=default_args)
     op = DummyOperator(task_id='dummy', dag=dag)
     print(op.owner) # Airflow
+
+.. _concepts:context_manager:
 
 Context Manager
 ---------------
@@ -167,8 +171,9 @@ DAG decorator
 
 .. versionadded:: 2.0.0
 
-In addition to creating DAGs using context managed, in Airflow 2.0 you can also create DAGs from a function.
-DAG decorator creates a DAG generator function. This function when called returns a DAG.
+In addition to creating DAGs using :ref:`context manager <concepts:context_manager>`, in Airflow 2.0 you can also
+create DAGs from a function. DAG decorator creates a DAG generator function. Any function decorated with ``@dag``
+returns a DAG object.
 
 DAG decorator also sets up the parameters you have in the function as DAG params. This allows you to parameterize
 your DAGs and set the parameters when triggering the DAG manually. See
@@ -183,8 +188,9 @@ Example DAG with decorator:
     :start-after: [START dag_decorator_usage]
     :end-before: [END dag_decorator_usage]
 
-.. note:: Note that Airflow will only load DAGs that appear in ``globals()``. Which means you need to make sure to have
-  a variable for your returned DAG in the module scope. Otherwise Airflow won't detect your decorated DAG.
+.. note:: Note that Airflow will only load DAGs that appear in ``globals()`` as noted in :ref:`scope section <concepts:scope>`.
+  This means you need to make sure to have a variable for your returned DAG is in the module scope.
+  Otherwise Airflow won't detect your decorated DAG.
 
 .. _concepts:executor_config:
 
