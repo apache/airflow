@@ -44,11 +44,11 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     would be accessible if you provide ``{"connections_path": "connections"}`` and request
     conn_id ``smtp_default``.
 
-    :param connections_path: Specifies the path of the secret to read to get Connections
-        (default: 'connections').
+    :param connections_path: Specifies the path of the secret to read to get Connections.
+        (default: 'connections'). Note that if set to None (null), requests for connections will not be sent to Vault.
     :type connections_path: str
-    :param variables_path: Specifies the path of the secret to read to get Variables
-        (default: None).
+    :param variables_path: Specifies the path of the secret to read to get Variable.
+        (default: 'variables'). Note that if set to None (null), requests for variables will not be sent to Vault.
     :type variables_path: str
     :param config_path: Specifies the path of the secret to read Airflow Configurations
         (default: 'configs').
@@ -112,7 +112,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     def __init__(  # pylint: disable=too-many-arguments
         self,
         connections_path: str = 'connections',
-        variables_path: Optional[str] = None,
+        variables_path: str = 'variables',
         config_path: str = 'config',
         url: Optional[str] = None,
         auth_type: str = 'token',
@@ -139,7 +139,10 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         **kwargs,
     ):
         super().__init__()
-        self.connections_path = connections_path.rstrip('/')
+        if connections_path is not None:
+            self.connections_path = connections_path.rstrip('/')
+        else:
+            self.connections_path = connections_path
         if variables_path is not None:
             self.variables_path = variables_path.rstrip('/')
         else:
@@ -182,9 +185,12 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         :rtype: str
         :return: The connection uri retrieved from the secret
         """
-        secret_path = self.build_path(self.connections_path, conn_id)
-        response = self.vault_client.get_secret(secret_path=secret_path)
-        return response.get("conn_uri") if response else None
+        if self.connections_path is None:
+            return None
+        else:
+            secret_path = self.build_path(self.connections_path, conn_id)
+            response = self.vault_client.get_secret(secret_path=secret_path)
+            return response.get("conn_uri") if response else None
 
     def get_variable(self, key: str) -> Optional[str]:
         """
