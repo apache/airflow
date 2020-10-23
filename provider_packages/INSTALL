@@ -4,13 +4,12 @@ NOTE! Those sources are only intended to be used to build Apache Airflow Provide
 not the Apache Airflow. They have been generated using the unreleased version of Apache Airflow.
 (from master)
 
-This ia a generic installation method that requires docker and docker-compose to be installed.
+The .tar.gz sdist package contains setup.py file that can be use to build the provider package using:
 
-# [required] fetch the tarball and untar the sources. Move into the directory that was un-tarred.
+`setup.py bdist_wheel sdist`
+
+Providing that you have all prerequisites described in 'setup_requires'.
 
 # [optional] run Apache RAT (release audit tool) to validate license headers
 # RAT docs here: https://creadur.apache.org/rat/. Requires Java and Apache Rat
-java -jar apache-rat.jar -E ./.rat-excludes -d .
-
-The only prerequisites to build the packages is docker and docker-compose.
-The instructions on how to build the packages are described in dev/PROVIDER_PACKAGES.md
+java -jar apache-rat.jar -d .

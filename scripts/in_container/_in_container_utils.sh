@@ -284,5 +284,78 @@ function setup_backport_packages() {
     export BACKPORT_PACKAGES
 }
 
+function verify_suffix_versions_for_package_preparation {
+    TARGET_VERSION_SUFFIX=""
+
+    VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI:=""}
+    readonly VERSION_SUFFIX_FOR_PYPI
+
+    VERSION_SUFFIX_FOR_SVN=${VERSION_SUFFIX_FOR_SVN:=""}
+    readonly VERSION_SUFFIX_FOR_SVN
+
+    if [[ ${VERSION_SUFFIX_FOR_PYPI} != "" ]]; then
+        echo
+        echo "Version suffix for PyPI = ${VERSION_SUFFIX_FOR_PYPI}"
+        echo
+    fi
+    if [[ ${VERSION_SUFFIX_FOR_SVN} != "" ]]; then
+        echo
+        echo "Version suffix for SVN  = ${VERSION_SUFFIX_FOR_SVN}"
+        echo
+    fi
+
+    if [[ ${VERSION_SUFFIX_FOR_SVN} =~ ^rc ]]; then
+        >&2 echo
+        >&2 echo "There should never be an rc suffix for SVN version. The 'rc' is only used for PYPI"
+        >&2 echo "You specified '${VERSION_SUFFIX_FOR_SVN}'"
+        >&2 echo
+        exit 2
+    fi
+
+    if [[ ${VERSION_SUFFIX_FOR_PYPI} != '' && ${VERSION_SUFFIX_FOR_SVN} != '' ]]; then
+        if [[ ${VERSION_SUFFIX_FOR_PYPI} != "${VERSION_SUFFIX_FOR_SVN}" ]]; then
+            >&2 echo
+            >&2 echo "If you specify both version suffixes they must match"
+            >&2 echo "However they are different: '${VERSION_SUFFIX_FOR_PYPI}' vs. '${VERSION_SUFFIX_FOR_SVN}'"
+            >&2 echo
+            exit 1
+        else
+            if [[ ${VERSION_SUFFIX_FOR_PYPI} =~ ^rc ]]; then
+                >&2 echo
+                >&2 echo "If you prepare an RC candidate, you need to specify only PyPI suffix"
+                >&2 echo "However you specified both: '${VERSION_SUFFIX_FOR_PYPI}' vs. '${VERSION_SUFFIX_FOR_SVN}'"
+                >&2 echo
+                exit 2
+            fi
+            # Just use one of them - they are both the same:
+            TARGET_VERSION_SUFFIX=${VERSION_SUFFIX_FOR_PYPI}
+        fi
+    else
+        if [[ ${VERSION_SUFFIX_FOR_PYPI} == '' && ${VERSION_SUFFIX_FOR_SVN} == '' ]]; then
+            # Preparing "official version"
+            TARGET_VERSION_SUFFIX=""
+        else
+
+            if [[ ${VERSION_SUFFIX_FOR_PYPI} == '' ]]; then
+                >&2 echo
+                >&2 echo "You should never specify version for PYPI only. Version for SVN can't be empty if the SVN is not."
+                >&2 echo "You specified: '${VERSION_SUFFIX_FOR_PYPI}'"
+                >&2 echo
+                exit 3
+            fi
+            TARGET_VERSION_SUFFIX=${VERSION_SUFFIX_FOR_PYPI}${VERSION_SUFFIX_FOR_SVN}
+            if [[ ! ${TARGET_VERSION_SUFFIX} =~ rc.* ]]; then
+                >&2 echo
+                >&2 echo "If you prepare an alpha/beta release, you need to specify both PyPI/SVN suffixes"
+                >&2 echo "And they have to match. You specified only one."
+                >&2 echo
+                exit 4
+            fi
+        fi
+    fi
+    readonly TARGET_VERSION_SUFFIX
+}
+
+
 export CI=${CI:="false"}
 export GITHUB_ACTIONS=${GITHUB_ACTIONS:="false"}
