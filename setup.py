@@ -672,6 +672,11 @@ def do_setup():
         },
         test_suite='setup.airflow_test_suite',
         python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*',
+        project_urls={
+            'Documentation': 'https://airflow.apache.org/docs/',
+            'Bug Tracker': 'https://github.com/apache/airflow/issues',
+            'Source Code': 'https://github.com/apache/airflow',
+        },
     )
 
 
