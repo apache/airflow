@@ -1290,7 +1290,7 @@ airflow_commands: List[CLICommand] = [
     ),
     GroupCommand(
         name="kubernetes",
-        help='tools to help run the KubernetesExecutor',
+        help='Tools to help run the KubernetesExecutor',
         subcommands=KUBERNETES_COMMANDS
     ),
     GroupCommand(
