@@ -21,6 +21,7 @@ if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
 
     export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
     export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
+    export AIRFLOW__CORE__EXECUTOR=${AIRFLOW__CORE__EXECUTOR:-LocalExecutor}
 
     #this is because I run docker in WSL - Hi Bill!
     export TMUX_TMPDIR=~/.tmux/tmp
