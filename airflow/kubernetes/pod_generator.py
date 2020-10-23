@@ -221,19 +221,22 @@ class PodGenerator:
 
         if resources is None:
             requests = {
-                'cpu': namespaced.get('request_cpu'),
-                'memory': namespaced.get('request_memory'),
-                'ephemeral-storage': namespaced.get('ephemeral-storage')
+                'cpu': namespaced.pop('request_cpu', None),
+                'memory': namespaced.pop('request_memory', None),
+                'ephemeral-storage': namespaced.get('ephemeral-storage')    # We pop this one in limits
             }
             limits = {
-                'cpu': namespaced.get('limit_cpu'),
-                'memory': namespaced.get('limit_memory'),
-                'ephemeral-storage': namespaced.get('ephemeral-storage')
+                'cpu': namespaced.pop('limit_cpu', None),
+                'memory': namespaced.pop('limit_memory', None),
+                'ephemeral-storage': namespaced.pop('ephemeral-storage', None)
             }
             all_resources = list(requests.values()) + list(limits.values())
             if all(r is None for r in all_resources):
                 resources = None
             else:
+                # remove None's so they don't become 0's
+                requests = {k: v for k, v in requests.items() if v is not None}
+                limits = {k: v for k, v in limits.items() if v is not None}
                 resources = k8s.V1ResourceRequirements(
                     requests=requests,
                     limits=limits
