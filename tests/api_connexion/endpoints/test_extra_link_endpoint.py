@@ -54,7 +54,6 @@ class TestGetExtraLinks(unittest.TestCase):
             permissions=[
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             ],
         )

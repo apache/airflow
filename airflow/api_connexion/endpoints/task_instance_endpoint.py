@@ -47,7 +47,7 @@ from airflow.utils.session import provide_session
     [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
     ]
 )
 @provide_session
@@ -105,7 +105,7 @@ def _apply_range_filter(query, key, value_range: Tuple[Any, Any]):
     [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
     ]
 )
 @provide_session
@@ -173,7 +173,7 @@ def get_task_instances(
     [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
     ]
 )
 @provide_session
@@ -231,7 +231,7 @@ def get_task_instances_batch(session=None):
     [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
     ]
 )
 @provide_session
@@ -275,7 +275,7 @@ def post_clear_task_instances(dag_id: str, session=None):
     [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
     ]
 )
 @provide_session

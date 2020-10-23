@@ -280,7 +280,11 @@ class TestSecurity(unittest.TestCase):
                 self.security_manager.has_access(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG, user)
             )
             self.assertFalse(
-                self.security_manager.has_access(permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK, user)
+                self.security_manager.has_access(
+                    permissions.ACTION_CAN_READ,
+                    permissions.RESOURCE_TASK_INSTANCE,
+                    user
+                )
             )
 
     def test_access_control_with_invalid_permission(self):

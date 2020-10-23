@@ -61,7 +61,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_JOB),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_SLA_MISS),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
@@ -82,7 +81,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     USER_PERMISSIONS = [
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK),
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
