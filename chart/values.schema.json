@@ -154,9 +154,15 @@
             "description": "Extra annotations to apply to all Airflow pods.",
             "type": "object"
         },
-        "rbacEnabled": {
+        "rbac": {
             "description": "Enable RBAC (default on most clusters these days).",
-            "type": "boolean"
+            "type": "object",
+            "properties": {
+                "create": {
+                    "description": "Specifies whether RBAC resources should be created.",
+                    "type": "boolean"
+                }
+            }
         },
         "executor": {
             "description": "Airflow executor.",
