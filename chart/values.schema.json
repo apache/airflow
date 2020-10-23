@@ -499,6 +499,20 @@
                     "description": "Number of airflow celery workers in StatefulSet.",
                     "type": "integer"
                 },
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "properties": {
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean"
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": "string"
+                        }
+                    }
+                },
                 "keda": {
                     "description": "KEDA configuration.",
                     "type": "object",
@@ -594,6 +608,20 @@
                 "replicas": {
                   "description": "Airflow 2.0 allows users to run multiple schedulers. This feature is only recommended for Mysql 8+ and postgres",
                   "type": "integer"
+                },
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "properties": {
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean"
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": "string"
+                        }
+                    }
                 },
                 "podDisruptionBudget": {
                     "description": "Scheduler pod disruption budget.",
@@ -699,6 +727,20 @@
                 "replicas": {
                     "description": "How many Airflow webserver replicas should run.",
                     "type": "integer"
+                },
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "properties": {
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean"
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": "string"
+                        }
+                    }
                 },
                 "extraNetworkPolicies": {
                     "description": "Additional network policies as needed.",
@@ -1115,6 +1157,20 @@
                 "schedule": {
                     "description": "Cleanup schedule.",
                     "type": "string"
+                },
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "properties": {
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean"
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": "string"
+                        }
+                    }
                 }
             }
         },

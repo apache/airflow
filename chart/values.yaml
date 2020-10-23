@@ -248,6 +248,14 @@ workers:
   # Number of airflow celery workers in StatefulSet
   replicas: 1
 
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
   # Allow KEDA autoscaling.
   # Persistence.enabled must be set to false to use KEDA.
   keda:
@@ -305,6 +313,15 @@ scheduler:
   # Airflow 2.0 allows users to run multiple schedulers,
   # However this feature is only recommended for MySQL 8+ and Postgres
   replicas: 1
+
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
   # Scheduler pod disruption budget
   podDisruptionBudget:
     enabled: false
@@ -352,6 +369,15 @@ webserver:
 
   # Number of webservers
   replicas: 1
+
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
 
   # Additional network policies as needed
   extraNetworkPolicies: []
@@ -573,6 +599,14 @@ cleanup:
   enabled: false
   # Run every 15 minutes
   schedule: "*/15 * * * *"
+
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
 
 # Configuration for postgresql subchart
 # Not recommended for production
