@@ -18,22 +18,17 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
+function run_test_package_install() {
+    docker run "${EXTRA_DOCKER_FLAGS[@]}" \
+        --entrypoint "/usr/local/bin/dumb-init"  \
+        -v "${AIRFLOW_SOURCES}/dist:/dist:cached" \
+        "${AIRFLOW_CI_IMAGE}" \
+        "--" "/opt/airflow/scripts/in_container/run_test_package_install.sh" "${1}"
+}
 
-"${SCRIPTS_CI_DIR}/provider_packages/ci_prepare_provider_readme.sh"
-"${SCRIPTS_CI_DIR}/provider_packages/ci_prepare_provider_packages.sh"
+build_images::prepare_ci_build
 
-if [[ ${BACKPORT_PACKAGES} != "true" ]]; then
-    # Prepare airflow's wheel
-    python setup.py compile_assets sdist bdist_wheel
-    rm -rf -- *egg-info*
-fi
+build_images::rebuild_ci_image_if_needed
 
-"${SCRIPTS_CI_DIR}/provider_packages/ci_test_provider_packages_install.sh"
-"${SCRIPTS_CI_DIR}/provider_packages/ci_test_provider_packages_import_all_classes.sh"
-
-dump_file="/tmp/airflow_provider_packages_$(date +"%Y%m%d-%H%M%S").tar.gz"
-
-cd "${AIRFLOW_SOURCES}/dist" || exit 1
-tar -cvzf "${dump_file}" .
-
-echo "Packages are in dist and also tar-gzipped in ${dump_file}"
+run_test_package_install whl
+run_test_package_install tar.gz

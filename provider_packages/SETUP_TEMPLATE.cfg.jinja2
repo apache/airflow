@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,19 +14,38 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-function run_test_package_installation_separately() {
-    docker run "${EXTRA_DOCKER_FLAGS[@]}" \
-        --entrypoint "/usr/local/bin/dumb-init"  \
-        -v "${AIRFLOW_SOURCES}/dist:/dist:cached" \
-        "${AIRFLOW_CI_IMAGE}" \
-        "--" "/opt/airflow/scripts/in_container/run_test_package_installation_separately.sh"
-}
+[metadata]
+name = Airflow {{ PROVIDER_TYPE }}: {{ PACKAGE_PIP_NAME }}
+summary = {{ PROVIDER_TYPE }} for Apache Airflow. Implements {{ PACKAGE_PIP_NAME }} package
+description-file = README.md
+author = Apache Airflow PMC
+author-email = dev@airflow.apache.org
+license = Apache License, Version 2.0
+license_files =
+   LICENSE
+   NOTICE
 
-build_images::prepare_ci_build
+[bdist_wheel]
+python-tag=py3
 
-build_images::rebuild_ci_image_if_needed
+[files]
+packages = airflow.providers.{{ PROVIDER_PACKAGE_ID }}
 
-run_test_package_installation_separately
+[easy_install]
+
+[mypy]
+ignore_missing_imports = True
+no_implicit_optional = True
+warn_redundant_casts = True
+warn_unused_ignores = False
+pretty = True
+
+[isort]
+line_length=110
+combine_as_imports = true
+default_section = THIRDPARTY
+include_trailing_comma = true
+known_first_party=airflow,tests
+multi_line_output=5
+profile = "black"
