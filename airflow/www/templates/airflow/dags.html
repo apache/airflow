@@ -211,7 +211,7 @@
       </div>
     </div>
   </div>
-  <div id="svg-tooltip" class="tooltip top" style="position: fixed; display: none; opacity: 1">
+  <div id="svg-tooltip" class="tooltip top" style="position: fixed; display: none; opacity: 1; pointer-events: none;">
     <div class="tooltip-arrow"></div>
     <div class="tooltip-inner"></div>
   </div>
@@ -448,6 +448,7 @@
         .attr('vertical-align', 'middle')
         .attr('font-size', 8)
         .attr('y', 3)
+        .style('pointer-events', 'none')
         .text(function(d){ return d.count > 0 ? d.count : ''; });
     }
 
@@ -525,6 +526,7 @@
         .attr('vertical-align', 'middle')
         .attr('font-size', 8)
         .attr('y', 3)
+        .style('pointer-events', 'none')
         .text(function(d){ return d.count > 0 ? d.count : ''; });
     }
 
