@@ -814,6 +814,7 @@ class HiveServer2Hook(DbApiHook):
     def get_conn(self, schema: Optional[str] = None) -> Any:
         """Returns a Hive connection object."""
         username: Optional[str] = None
+        password: Optional[str] = None
         # pylint: disable=no-member
         db = self.get_connection(self.hiveserver2_conn_id)  # type: ignore
 
@@ -834,6 +835,10 @@ class HiveServer2Hook(DbApiHook):
             )
             auth_mechanism = 'KERBEROS'
 
+        # Password should be set if and only if in LDAP or CUSTOM mode
+        if auth_mechanism in ('LDAP', 'CUSTOM'):
+            password = db.password
+
         from pyhive.hive import connect
 
         return connect(
@@ -842,7 +847,7 @@ class HiveServer2Hook(DbApiHook):
             auth=auth_mechanism,
             kerberos_service_name=kerberos_service_name,
             username=db.login or username,
-            password=db.password,
+            password=password,
             database=schema or db.schema or 'default',
         )
 
