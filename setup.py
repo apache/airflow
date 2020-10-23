@@ -807,6 +807,11 @@ def do_setup():
         },
         test_suite='setup.airflow_test_suite',
         python_requires='~=3.6',
+        project_urls={
+            'Documentation': 'https://airflow.apache.org/docs/',
+            'Bug Tracker': 'https://github.com/apache/airflow/issues',
+            'Source Code': 'https://github.com/apache/airflow',
+        },
     )
 
 
