@@ -1542,6 +1542,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                     return 0
                 raise
 
+            guard.commit()
             return num_queued_tis
 
     def _create_dag_runs(self, dag_models: Iterable[DagModel], session: Session) -> None:
