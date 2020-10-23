@@ -799,7 +799,7 @@ def do_setup():
         author_email='dev@airflow.apache.org',
         url='http://airflow.apache.org/',
         download_url=(
-            'https://dist.apache.org/repos/dist/release/airflow/' + version),
+            'https://archive.apache.org/dist/airflow/' + version),
         cmdclass={
             'extra_clean': CleanCommand,
             'compile_assets': CompileAssets,
