@@ -17,7 +17,7 @@
 # under the License.
 #
 
-from typing import Set
+from typing import Optional, Sequence, Set, Tuple
 
 from flask import current_app, g
 from flask_appbuilder.security.sqla import models as sqla_models
@@ -269,6 +269,16 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             return session.query(DagModel)
 
         return session.query(DagModel).filter(DagModel.dag_id.in_(resources))
+
+    def can_access_some_dags(self, action: str, dag_id: Optional[int] = None) -> bool:
+        """Checks if user has read or write access to some dags."""
+        if dag_id and dag_id != '~':
+            return self.has_access(action, self.prefixed_dag_id(dag_id))
+
+        user = g.user
+        if action == permissions.ACTION_CAN_READ:
+            return any(self.get_readable_dags(user))
+        return any(self.get_editable_dags(user))
 
     def can_read_dag(self, dag_id, user=None) -> bool:
         """Determines whether a user has DAG read access."""
@@ -648,3 +658,29 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         for dag_vm in self.DAG_VMS:
             for perm in self.DAG_PERMS:
                 self._merge_perm(permission_name=perm, view_menu_name=dag_vm)
+
+    def check_authorization(
+        self, perms: Optional[Sequence[Tuple[str, str]]] = None, dag_id: Optional[int] = None
+    ) -> bool:
+        """Checks that the logged in user has the specified permissions."""
+        if not perms:
+            return True
+
+        for perm in perms:
+            if perm in (
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            ):
+                can_access_all_dags = self.has_access(*perm)
+                if can_access_all_dags:
+                    continue
+
+                action = perm[0]
+                if self.can_access_some_dags(action, dag_id):
+                    continue
+                return False
+
+            elif not self.has_access(*perm):
+                return False
+
+        return True

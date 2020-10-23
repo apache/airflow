@@ -18,59 +18,18 @@
 from functools import wraps
 from typing import Callable, Optional, Sequence, Tuple, TypeVar, cast
 
-from flask import current_app, flash, g, redirect, request, url_for
-
-import airflow.security.permissions as perms
+from flask import current_app, flash, redirect, request, url_for
 
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 
-def can_access_any_dags(action: str, dag_id: Optional[int] = None) -> bool:
-    """Checks if user has read or write access to some dags."""
-    appbuilder = current_app.appbuilder
-    if dag_id and dag_id != '~':
-        return appbuilder.sm.has_access(action, dag_id)
-
-    user = g.user
-    if action == perms.ACTION_CAN_READ:
-        return any(appbuilder.sm.get_readable_dags(user))
-    return any(appbuilder.sm.get_editable_dags(user))
-
-
-def check_authorization(
-    permissions: Optional[Sequence[Tuple[str, str]]] = None, dag_id: Optional[int] = None
-) -> bool:
-    """Checks that the logged in user has the specified perms."""
-    if not permissions:
-        return True
-    appbuilder = current_app.appbuilder
-    for permission in permissions:
-        if permission in (
-            (perms.ACTION_CAN_READ, perms.RESOURCE_DAG),
-            (perms.ACTION_CAN_EDIT, perms.RESOURCE_DAG),
-        ):
-            can_access_all_dags = appbuilder.sm.has_access(*permission)
-            if can_access_all_dags:
-                continue
-
-            action = permission[0]
-            if can_access_any_dags(action, dag_id):
-                continue
-            return False
-
-        elif not appbuilder.sm.has_access(*permission):
-            return False
-
-    return True
-
-
 def has_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Callable[[T], T]:
-    """Factory for decorator that checks current user's permissions against required perms."""
+    """Factory for decorator that checks current user's permissions against required permissions."""
     def requires_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
             appbuilder = current_app.appbuilder
-            if check_authorization(permissions, request.args.get('dag_id', None)):
+            if appbuilder.sm.check_authorization(permissions, request.args.get('dag_id', None)):
                 return func(*args, **kwargs)
             else:
                 access_denied = "Access is Denied"
