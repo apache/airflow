@@ -265,10 +265,9 @@ the resulting image using ``FROM`` any dependencies you want.
 Customizing PYPI installation
 .............................
 
-You can customize PYPI sources used during image build by modifying .pypirc file that should be
-placed in the root of Airflow Directory. This .pypirc will never be committed to the repository
-and will not be present in the final production image. It is added and used only in the build
-segment of the image so it is never copied to the final image.
+You can customize PYPI sources used during image build by adding a docker-context-files/.pypirc file
+This .pypirc will never be committed to the repository and will not be present in the final production image.
+It is added and used only in the build segment of the image so it is never copied to the final image.
 
 External sources for dependencies
 ---------------------------------
