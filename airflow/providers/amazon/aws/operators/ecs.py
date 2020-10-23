@@ -18,7 +18,7 @@
 import re
 import sys
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict
 
 from botocore.waiter import Waiter
 
@@ -42,21 +42,32 @@ class ECSProtocol(Protocol):
         - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html
     """
 
-    def run_task(self, **kwargs) -> dict:
-        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task"""  # noqa: E501  # pylint: disable=line-too-long
+    # pylint: disable=C0103, line-too-long
+    def run_task(self, **kwargs) -> Dict:
+        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task"""  # noqa: E501
         ...
 
     def get_waiter(self, x: str) -> Waiter:
-        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.get_waiter"""  # noqa: E501  # pylint: disable=line-too-long
+        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.get_waiter"""  # noqa: E501
         ...
 
-    def describe_tasks(self, cluster: str, tasks) -> dict:
-        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_tasks"""  # noqa: E501  # pylint: disable=line-too-long
+    def describe_tasks(self, cluster: str, tasks) -> Dict:
+        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_tasks"""  # noqa: E501
         ...
 
-    def stop_task(self, cluster, task, reason: str) -> dict:
-        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.stop_task"""  # noqa: E501  # pylint: disable=line-too-long
+    def stop_task(self, cluster, task, reason: str) -> Dict:
+        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.stop_task"""  # noqa: E501
         ...
+
+    def describe_task_definition(self, taskDefinition: str) -> Dict:
+        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_task_definition"""  # noqa: E501
+        ...
+
+    def list_tasks(self, cluster: str, launchType: str, desiredStatus: str, family: str) -> Dict:
+        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.list_tasks"""  # noqa: E501
+        ...
+
+    # pylint: enable=C0103, line-too-long
 
 
 class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
@@ -110,6 +121,9 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         Only required if you want logs to be shown in the Airflow UI after your job has
         finished.
     :type awslogs_stream_prefix: str
+    :param reattach: If set to True, will check if a task from the same family is already running.
+        If so, the operator will attach to it instead of starting a new task.
+    :type reattach: bool
     """
 
     ui_color = '#f0ede4'
@@ -135,6 +149,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         awslogs_region: Optional[str] = None,
         awslogs_stream_prefix: Optional[str] = None,
         propagate_tags: Optional[str] = None,
+        reattach: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -156,6 +171,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.awslogs_stream_prefix = awslogs_stream_prefix
         self.awslogs_region = awslogs_region
         self.propagate_tags = propagate_tags
+        self.reattach = reattach
 
         if self.awslogs_region is None:
             self.awslogs_region = region_name
@@ -172,6 +188,18 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
 
         self.client = self.get_hook().get_conn()
 
+        if self.reattach:
+            self._try_reattach_task()
+
+        if not self.arn:
+            self._start_task()
+
+        self._wait_for_task_ended()
+
+        self._check_success_task()
+        self.log.info('ECS Task has been successfully executed')
+
+    def _start_task(self):
         run_opts = {
             'cluster': self.cluster,
             'taskDefinition': self.task_definition,
@@ -204,10 +232,25 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.log.info('ECS Task started: %s', response)
 
         self.arn = response['tasks'][0]['taskArn']
-        self._wait_for_task_ended()
 
-        self._check_success_task()
-        self.log.info('ECS Task has been successfully executed: %s', response)
+    def _try_reattach_task(self):
+        task_def_resp = self.client.describe_task_definition(self.task_definition)
+        ecs_task_family = task_def_resp['taskDefinition']['family']
+
+        list_tasks_resp = self.client.list_tasks(
+            cluster=self.cluster, launchType=self.launch_type, desiredStatus='RUNNING', family=ecs_task_family
+        )
+        running_tasks = list_tasks_resp['taskArns']
+
+        running_tasks_count = len(running_tasks)
+        if running_tasks_count > 1:
+            self.arn = running_tasks[0]
+            self.log.warning('More than 1 ECS Task found. Reattaching to %s', self.arn)
+        elif running_tasks_count == 1:
+            self.arn = running_tasks[0]
+            self.log.info('Reattaching task: %s', self.arn)
+        else:
+            self.log.info('No active tasks found to reattach')
 
     def _wait_for_task_ended(self) -> None:
         if not self.client or not self.arn:
