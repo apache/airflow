@@ -470,7 +470,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
         domain-wide delegation enabled.
     :type delegate_to: str
     :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
-        instead of cancelling during during killing task instance. See:
+        instead of canceling during during killing task instance. See:
         https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
     :type drain_pipeline: bool
     """
@@ -591,7 +591,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         JOB_STATE_RUNNING state.
     :type poll_sleep: int
     :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
-        instead of cancelling during during killing task instance. See:
+        instead of canceling during during killing task instance. See:
         https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
     :type drain_pipeline: bool
     """

@@ -146,7 +146,7 @@ class _DataflowJobsController(LoggingMixin):
     :param multiple_jobs: If set to true this task will be searched by name prefix (``name`` parameter),
         not by specific job ID, then actions will be performed on all matching jobs.
     :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
-        instead of cancelling.
+        instead of canceling.
     """
 
     def __init__(
@@ -308,7 +308,7 @@ class _DataflowJobsController(LoggingMixin):
         return self._jobs
 
     def cancel(self) -> None:
-        """Cancels or draings current job"""
+        """Cancels or drains current job"""
         jobs = self.get_jobs()
         job_ids = [job['id'] for job in jobs if job['currentState'] not in DataflowJobStatus.TERMINAL_STATES]
         if job_ids:
