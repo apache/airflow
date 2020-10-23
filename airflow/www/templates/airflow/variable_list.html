@@ -20,13 +20,20 @@
 {% extends 'appbuilder/general/model/list.html' %}
 
 {% block content %}
-  <form class="form-inline" action="{{ url_for('VariableModelView.varimport') }}" method=post enctype=multipart/form-data style="margin-top: 50px;">
-    {% if csrf_token %}
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-    {% endif %}
-    <input class="form-control-file" type="file" name="file">
-    <input class="btn btn-default" type="submit" value="Import Variables"/>
-  </form>
-  <hr>
+  <div class="well well-sm pull-left">
+    <form class="form-inline" action="{{ url_for('VariableModelView.varimport') }}" method="post" enctype="multipart/form-data">
+      {% if csrf_token %}
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      {% endif %}
+      <div class="form-group">
+        <input class="form-control-file" type="file" name="file">
+      </div>
+      <button type="submit" class="btn">
+        <span class="material-icons">cloud_upload</span>
+        Import Variables
+      </button>
+    </form>
+  </div>
+  <div class="clearfix"></div>
   {{ super() }}
 {% endblock %}
