@@ -58,8 +58,8 @@ arbitrary number of tasks. In general, each one should correspond to a single
 logical workflow.
 
 .. note:: When searching for DAGs, Airflow only considers Python files
-   that contain the strings "airflow" and "dag" by default. To consider
-   all Python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE``
+   that contain the strings "airflow" and "dag" by default (case-insensitive).
+   To consider all Python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE``
    configuration flag.
 
 .. _concepts:scope:
