@@ -1717,7 +1717,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --postgres-version POSTGRES_VERSION
           Postgres version used. One of:
 
-                 9.6 10
+                 9.6 10 11 12 13
 
   --mysql-version MYSQL_VERSION
           Mysql version used. One of:
@@ -2112,7 +2112,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --postgres-version POSTGRES_VERSION
           Postgres version used. One of:
 
-                 9.6 10
+                 9.6 10 11 12 13
 
   --mysql-version MYSQL_VERSION
           Mysql version used. One of:
