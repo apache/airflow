@@ -280,7 +280,7 @@ class BackfillJob(BaseJob):
                     "killed externally? Info: {}".format(ti, state, ti.state, info)
                 )
                 self.log.error(msg)
-                ti.handle_failure(msg)
+                ti.handle_failure_with_callback(error=msg)
 
     @provide_session
     def _get_dag_run(self, run_date: datetime, dag: DAG, session: Session = None):

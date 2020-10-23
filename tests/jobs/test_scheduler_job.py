@@ -642,7 +642,7 @@ class TestDagFileProcessor(unittest.TestCase):
             num_scheduled = scheduler._schedule_dag_run(dr3, {dr1.execution_date}, session)
             assert num_scheduled == 0
 
-    @patch.object(TaskInstance, 'handle_failure')
+    @patch.object(TaskInstance, 'handle_failure_with_callback')
     def test_execute_on_failure_callbacks(self, mock_ti_handle_failure):
         dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -663,7 +663,8 @@ class TestDagFileProcessor(unittest.TestCase):
             ]
             dag_file_processor.execute_callbacks(dagbag, requests)
             mock_ti_handle_failure.assert_called_once_with(
-                "Message", conf.getboolean('core', 'unit_test_mode'), mock.ANY
+                error="Message",
+                test_mode=conf.getboolean('core', 'unit_test_mode'),
             )
 
     def test_process_file_should_failure_callback(self):

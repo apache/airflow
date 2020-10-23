@@ -98,7 +98,7 @@ class LocalTaskJob(BaseJob):
 
             heartbeat_time_limit = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
-            while True:
+            while not self.terminating:
                 # Monitor the task to see if it's done. Wait in a syscall
                 # (`os.wait`) for as long as possible so we notice the
                 # subprocess finishing as quick as we can
@@ -116,6 +116,11 @@ class LocalTaskJob(BaseJob):
                 return_code = self.task_runner.return_code(timeout=max_wait_time)
                 if return_code is not None:
                     self.log.info("Task exited with return code %s", return_code)
+                    # task callback invocation happens either here or in
+                    # self.heartbeat() instead of taskinstance._run_raw_task to
+                    # avoid race conditions
+                    self.task_instance.refresh_from_db()
+                    self.task_instance.run_finished_callback()
                     return
 
                 self.heartbeat()
@@ -169,7 +174,6 @@ class LocalTaskJob(BaseJob):
             self.log.warning(
                 "State of this instance has been externally set to %s. " "Terminating instance.", ti.state
             )
-            # send sigterm to task process so it can catch the exception and
-            # execute the success/failure callback
             self.task_runner.terminate()
+            ti.run_finished_callback()
             self.terminating = True

@@ -584,7 +584,7 @@ class DAG(LoggingMixin):
         next_run_date = None
         if not date_last_automated_dagrun:
             # First run
-            task_start_dates = [t.start_date for t in self.tasks]
+            task_start_dates = [t.start_date for t in self.tasks if t.start_date]
             if task_start_dates:
                 next_run_date = self.normalize_schedule(min(task_start_dates))
                 self.log.debug("Next run date based on tasks %s", next_run_date)

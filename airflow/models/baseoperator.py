@@ -1104,11 +1104,15 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         end_date = end_date or self.end_date or timezone.utcnow()
 
         for execution_date in self.dag.date_range(start_date, end_date=end_date):
-            TaskInstance(self, execution_date).run(
-                mark_success=mark_success,
-                ignore_depends_on_past=(execution_date == start_date and ignore_first_depends_on_past),
-                ignore_ti_state=ignore_ti_state,
-            )
+            ti = TaskInstance(self, execution_date)
+            try:
+                ti.run(
+                    mark_success=mark_success,
+                    ignore_depends_on_past=(execution_date == start_date and ignore_first_depends_on_past),
+                    ignore_ti_state=ignore_ti_state,
+                )
+            finally:
+                ti.run_finished_callback()
 
     def dry_run(self) -> None:
         """Performs dry run for the operator - just render template fields."""

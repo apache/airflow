@@ -1070,32 +1070,17 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         :param session: SQLAlchemy ORM Session
         :type session: Session
         """
-        # This try catch block needs to capture as much scope as possible to
-        # reduce chance of running into the following race condition:
-        #
-        # * Task state got updated to running from caller of _run_raw_task
-        # * Task state got updated to fail/success externally, e.g. web ui
-        # * Right before we enter the try block, local_task_job detected the
-        #   external state change and sends out sigterm
-        # * Because we haven't entered the try block yet, AirflowException will
-        #   crash the task run immediately, preventing us from handling the
-        #   signal properly
-        #
-        # To competely get rid this race condition, we need to start catching
-        # AirflowException before local_task_job started checking for external
-        # task state change in heartbeat, which requires a bit of refactoring.
+        task = self.task
+        self.test_mode = test_mode
+        self.refresh_from_task(task, pool_override=pool)
+        self.refresh_from_db(session=session)
+        self.job_id = job_id
+        self.hostname = get_hostname()
+
+        context = {}  # type: Dict
+        actual_start_date = timezone.utcnow()
+        Stats.incr(f'ti.start.{task.dag_id}.{task.task_id}')
         try:
-            task = self.task
-            self.test_mode = test_mode
-            self.refresh_from_task(task, pool_override=pool)
-            self.refresh_from_db(session=session)
-            self.job_id = job_id
-            self.hostname = get_hostname()
-
-            context = {}  # type: Dict
-            actual_start_date = timezone.utcnow()
-            Stats.incr('ti.start.{}.{}'.format(task.dag_id, task.task_id))
-
             if not mark_success:
                 context = self.get_template_context()
                 self._prepare_and_execute_task_with_callbacks(context, task)
@@ -1126,28 +1111,22 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             return
         except AirflowFailException as e:
             self.refresh_from_db()
-            self.handle_failure(e, test_mode, context, force_fail=True)
+            self.handle_failure(e, test_mode, force_fail=True)
             raise
         except AirflowException as e:
             self.refresh_from_db()
-            # for case when task is marked as success/failed externally,
-            # AirflowException will be raised through registered signal
-            # handler.  we need to invoke callback from within task process to
-            # avoid race conditions
-            if self.state == State.SUCCESS:
-                self.log.info('Task marked as SUCCESS externally.')
+            # for case when task is marked as success/failed externally
+            # current behavior doesn't hit the success callback
+            if self.state in {State.SUCCESS, State.FAILED}:
+                return
             else:
-                if self.state == State.FAILED:
-                    self.log.info('Task marked as FAILED externally.')
-                self.handle_failure(e, test_mode, context)
+                self.handle_failure(e, test_mode)
                 raise
         except (Exception, KeyboardInterrupt) as e:
-            self.handle_failure(e, test_mode, context)
+            self.handle_failure(e, test_mode)
             raise
         finally:
             Stats.incr(f'ti.finish.{task.dag_id}.{task.task_id}.{self.state}')
-
-        self._run_success_callback(context, task)
 
         # Recording SUCCESS
         self.end_date = timezone.utcnow()
@@ -1294,16 +1273,6 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         # Raise exception for sensing state
         raise AirflowSmartSensorException("Task successfully registered in smart sensor.")
 
-    def _run_success_callback(self, context, task):
-        """Functions that need to be run if Task is successful"""
-        # Success callback
-        try:
-            if task.on_success_callback:
-                task.on_success_callback(context)
-        except Exception as exc:  # pylint: disable=broad-except
-            self.log.error("Failed when executing success callback")
-            self.log.exception(exc)
-
     def _execute_task(self, context, task_copy):
         """Executes Task (optionally with a Timeout) and pushes Xcom results"""
         # If a timeout is specified for the task, make it fail
@@ -1322,7 +1291,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             self.xcom_push(key=XCOM_RETURN_KEY, value=result)
         return result
 
-    def _run_execute_callback(self, context, task):
+    def _run_execute_callback(self, context: Context, task):
         """Functions that need to be run before a Task is executed"""
         try:
             if task.on_execute_callback:
@@ -1330,6 +1299,29 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         except Exception as exc:  # pylint: disable=broad-except
             self.log.error("Failed when executing execute callback")
             self.log.exception(exc)
+
+    def run_finished_callback(self) -> None:
+        """
+        Call callback defined for finished state change.
+
+        NOTE: Only invoke this function from caller of self._run_raw_task or
+        self.run
+        """
+        if self.state == State.FAILED:
+            task = self.task
+            if task.on_failure_callback is not None:
+                context = self.get_template_context()
+                task.on_failure_callback(context)
+        elif self.state == State.SUCCESS:
+            task = self.task
+            if task.on_success_callback is not None:
+                context = self.get_template_context()
+                task.on_success_callback(context)
+        elif self.state == State.UP_FOR_RETRY:
+            task = self.task
+            if task.on_retry_callback is not None:
+                context = self.get_template_context()
+                task.on_retry_callback(context)
 
     @provide_session
     def run(  # pylint: disable=too-many-arguments
@@ -1405,12 +1397,10 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         self.log.info('Rescheduling task, marking task as UP_FOR_RESCHEDULE')
 
     @provide_session
-    def handle_failure(self, error, test_mode=None, context=None, force_fail=False, session=None):
+    def handle_failure(self, error, test_mode=None, force_fail: bool = False, session=None) -> None:
         """Handle Failure for the TaskInstance"""
         if test_mode is None:
             test_mode = self.test_mode
-        if context is None:
-            context = self.get_template_context()
 
         self.log.exception(error)
         task = self.task
@@ -1424,11 +1414,12 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         # Log failure duration
         session.add(TaskFail(task, self.execution_date, self.start_date, self.end_date))
 
-        if context is not None:
-            context['exception'] = error
+        # Set state correctly and figure out how to log it and decide whether
+        # to email
 
-        # Set state correctly and figure out how to log it,
-        # what callback to call if any, and how to decide whether to email
+        # Note, callback invocation needs to be handled by caller of
+        # _run_raw_task to avoid race conditions which could lead to duplicate
+        # invocations or miss invocation.
 
         # Since this function is called only when the TaskInstance state is running,
         # try_number contains the current try_number (not the next). We
@@ -1442,12 +1433,10 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             else:
                 log_message = "Marking task as FAILED."
             email_for_state = task.email_on_failure
-            callback = task.on_failure_callback
         else:
             self.state = State.UP_FOR_RETRY
             log_message = "Marking task as UP_FOR_RETRY."
             email_for_state = task.email_on_retry
-            callback = task.on_retry_callback
 
         self.log.info(
             '%s dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
@@ -1465,17 +1454,20 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                 self.log.error('Failed to send email to: %s', task.email)
                 self.log.exception(exec2)
 
-        # Handling callbacks pessimistically
-        if callback:
-            try:
-                callback(context)
-            except Exception as exec3:  # pylint: disable=broad-except
-                self.log.error("Failed at executing callback")
-                self.log.exception(exec3)
-
         if not test_mode:
             session.merge(self)
         session.commit()
+
+    @provide_session
+    def handle_failure_with_callback(
+        self,
+        error,
+        test_mode=None,
+        force_fail: bool = False,
+        session=None,
+    ) -> None:
+        self.handle_failure(error=error, test_mode=test_mode, force_fail=force_fail, session=session)
+        self.run_finished_callback()
 
     def is_eligible_to_retry(self):
         """Is task instance is eligible for retry"""

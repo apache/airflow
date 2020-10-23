@@ -327,7 +327,7 @@ class TestLocalTaskJob(unittest.TestCase):
                 session.merge(ti)
                 session.commit()
 
-            time.sleep(60)
+            time.sleep(10)
             # This should not happen -- the state change should be noticed and the task should get killed
             with task_terminated_externally.get_lock():
                 task_terminated_externally.value = 0
@@ -339,16 +339,15 @@ class TestLocalTaskJob(unittest.TestCase):
                 on_failure_callback=check_failure,
             )
 
-        session = settings.Session()
-
         dag.clear()
-        dag.create_dagrun(
-            run_id="test",
-            state=State.RUNNING,
-            execution_date=DEFAULT_DATE,
-            start_date=DEFAULT_DATE,
-            session=session,
-        )
+        with create_session() as session:
+            dag.create_dagrun(
+                run_id="test",
+                state=State.RUNNING,
+                execution_date=DEFAULT_DATE,
+                start_date=DEFAULT_DATE,
+                session=session,
+            )
         ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
 
@@ -391,20 +390,19 @@ class TestLocalTaskJob(unittest.TestCase):
             dag=dag,
         )
 
-        session = settings.Session()
-
         dag.clear()
-        dag.create_dagrun(run_id="test",
-                          state=State.RUNNING,
-                          execution_date=DEFAULT_DATE,
-                          start_date=DEFAULT_DATE,
-                          session=session)
+        with create_session() as session:
+            dag.create_dagrun(
+                run_id="test",
+                state=State.RUNNING,
+                execution_date=DEFAULT_DATE,
+                start_date=DEFAULT_DATE,
+                session=session,
+            )
         ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
 
-        job1 = LocalTaskJob(task_instance=ti,
-                            ignore_ti_state=True,
-                            executor=SequentialExecutor())
+        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
 
         # Simulate race condition where job1 heartbeat ran right after task
         # state got set to failed by ti.handle_failure but before task process
@@ -415,9 +413,12 @@ class TestLocalTaskJob(unittest.TestCase):
         #
         # We also need to set return_code to a valid int after job1.terminating
         # is set to True so _execute loop won't loop forever.
-        mock_return_code.side_effect = lambda: None if not job1.terminating else -9
+        def dummy_return_code(*args, **kwargs):
+            return None if not job1.terminating else -9
 
-        with timeout(30):
+        mock_return_code.side_effect = dummy_return_code
+
+        with timeout(10):
             # This should be _much_ shorter to run.
             # If you change this limit, make the timeout in the callbable above bigger
             job1.run()
@@ -426,7 +427,6 @@ class TestLocalTaskJob(unittest.TestCase):
         assert ti.state == State.FAILED  # task exits with failure state
         assert failure_callback_called.value == 1
 
-    @pytest.mark.quarantined
     def test_mark_success_on_success_callback(self):
         """
         Test that ensures that where a task is marked suceess in the UI
@@ -473,15 +473,17 @@ class TestLocalTaskJob(unittest.TestCase):
         ti.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
         job1.task_runner = StandardTaskRunner(job1)
+
+        settings.engine.dispose()
         process = multiprocessing.Process(target=job1.run)
         process.start()
-        ti.refresh_from_db()
-        for _ in range(0, 50):
-            time.sleep(0.2)
+
+        for _ in range(0, 25):
+            ti.refresh_from_db()
             if ti.state == State.RUNNING:
                 break
-            ti.refresh_from_db()
-        assert State.RUNNING == ti.state
+            time.sleep(0.2)
+        assert ti.state == State.RUNNING
         ti.state = State.SUCCESS
         session.merge(ti)
         session.commit()
@@ -516,5 +518,5 @@ class TestLocalTaskJobPerformance:
         mock_get_task_runner.return_value.return_code.side_effects = return_codes
 
         job = LocalTaskJob(task_instance=ti, executor=MockExecutor())
-        with assert_queries_count(12):
+        with assert_queries_count(13):
             job.run()
