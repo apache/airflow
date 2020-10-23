@@ -18,7 +18,7 @@
 ################################
 ## Airflow Pod Launcher Role Binding
 #################################
-{{- if and .Values.rbacEnabled .Values.allowPodLaunching }}
+{{- if and .Values.rbac.create .Values.allowPodLaunching }}
 {{- $grantScheduler := or (eq .Values.executor "LocalExecutor") (eq .Values.executor "SequentialExecutor") (eq .Values.executor "KubernetesExecutor") (eq .Values.executor "CeleryKubernetesExecutor")}}
 {{- $grantWorker := or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "KubernetesExecutor") (eq .Values.executor "CeleryKubernetesExecutor")  }}
 {{- if .Values.multiNamespaceMode }}

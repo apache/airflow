@@ -106,7 +106,9 @@ networkPolicies:
 airflowPodAnnotations: {}
 
 # Enable RBAC (default on most clusters these days)
-rbacEnabled: true
+rbac:
+  # Specifies whether RBAC resources should be created
+  create: true
 
 # Airflow executor
 # Options: SequentialExecutor, LocalExecutor, CeleryExecutor, KubernetesExecutor
