@@ -24,13 +24,18 @@ import calendar
 import logging
 import os
 import time
-from datetime import datetime
-from typing import Optional
+from typing import Optional, cast
 
+import pendulum
 import yaml
 from kubernetes.client import Configuration
 from kubernetes.config.exec_provider import ExecProvider
 from kubernetes.config.kube_config import KUBE_CONFIG_DEFAULT_LOCATION, KubeConfigLoader
+
+
+def _parse_timestamp(ts_str: str) -> int:
+    parsed_dt = cast(pendulum.DateTime, pendulum.parse(ts_str))
+    return calendar.timegm(parsed_dt.timetuple())
 
 
 class RefreshKubeConfigLoader(KubeConfigLoader):
@@ -59,9 +64,7 @@ class RefreshKubeConfigLoader(KubeConfigLoader):
             self.token = "Bearer %s" % status['token']  # pylint: disable=W0201
             ts_str = status.get('expirationTimestamp')
             if ts_str:
-                self.api_key_expire_ts = calendar.timegm(
-                    datetime.strptime(ts_str, "%Y-%m-%dT%H:%M:%S%z").timetuple(),
-                )
+                self.api_key_expire_ts = _parse_timestamp(ts_str)
             return True
         except Exception as e:  # pylint: disable=W0703
             logging.error(str(e))
