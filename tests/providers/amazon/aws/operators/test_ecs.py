@@ -269,3 +269,48 @@ class TestECSOperator(unittest.TestCase):
         }
         self.ecs._check_success_task()
         client_mock.describe_tasks.assert_called_once_with(cluster='c', tasks=['arn'])
+
+    @parameterized.expand(
+        [
+            ['EC2', None],
+            ['FARGATE', None],
+            ['EC2', {'testTagKey': 'testTagValue'}],
+            ['', {'testTagKey': 'testTagValue'}],
+        ]
+    )
+    @mock.patch.object(ECSOperator, '_wait_for_task_ended')
+    @mock.patch.object(ECSOperator, '_check_success_task')
+    @mock.patch.object(ECSOperator, '_start_task')
+    def test_reattach_successful(self, launch_type, tags, start_mock, check_mock, wait_mock):
+
+        self.set_up_operator(launch_type=launch_type, tags=tags)  # pylint: disable=no-value-for-parameter
+        client_mock = self.aws_hook_mock.return_value.get_conn.return_value
+        client_mock.describe_task_definition.return_value = {'taskDefinition': {'family': 'f'}}
+        client_mock.list_tasks.return_value = {
+            'taskArns': ['arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55']
+        }
+
+        self.ecs.reattach = True
+        self.ecs.execute(None)
+
+        self.aws_hook_mock.return_value.get_conn.assert_called_once()
+        extend_args = {}
+        if launch_type:
+            extend_args['launchType'] = launch_type
+        if launch_type == 'FARGATE':
+            extend_args['platformVersion'] = 'LATEST'
+        if tags:
+            extend_args['tags'] = [{'key': k, 'value': v} for (k, v) in tags.items()]
+
+        client_mock.describe_task_definition.assert_called_once_with('t')
+
+        client_mock.list_tasks.assert_called_once_with(
+            cluster='c', launchType=launch_type, desiredStatus='RUNNING', family='f'
+        )
+
+        start_mock.assert_not_called()
+        wait_mock.assert_called_once_with()
+        check_mock.assert_called_once_with()
+        self.assertEqual(
+            self.ecs.arn, 'arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55'
+        )
