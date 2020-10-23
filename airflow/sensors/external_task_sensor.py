@@ -65,9 +65,11 @@ class ExternalTaskSensor(BaseSensorOperator):
         execution_delta or execution_date_fn can be passed to
         ExternalTaskSensor, but not both.
     :type execution_delta: Optional[datetime.timedelta]
-    :param execution_date_fn: function that receives the current execution date
-        and returns the desired execution dates to query. Either execution_delta
-        or execution_date_fn can be passed to ExternalTaskSensor, but not both.
+    :param execution_date_fn: function that receives the current execution date as the first
+        positional argument and optionally any number of keyword arguments available in the
+        context dictionary, and returns the desired execution dates to query.
+        Either execution_delta or execution_date_fn can be passed to ExternalTaskSensor,
+        but not both.
     :type execution_date_fn: Optional[Callable]
     :param check_existence: Set to `True` to check if the external task exists (when
         external_task_id is not None) or check if the DAG to wait for exists (when
@@ -232,19 +234,19 @@ class ExternalTaskSensor(BaseSensorOperator):
         """
         This function is to handle backwards compatibility with how this operator was
         previously where it only passes the execution date, but also allow for the newer
-        implementation to pass all context through as well, to allow for more sophisticated
-        returns of dates to return.
-        Namely, this function check the number of arguments in the execution_date_fn
-        signature and if its 1, treat the legacy way, if it's 2, pass the context as
-        the 2nd argument, and if its more, throw an exception.
+        implementation to pass all context variables as keyword arguments, to allow
+        for more sophisticated returns of dates to return.
         """
-        num_fxn_params = self.execution_date_fn.__code__.co_argcount
-        if num_fxn_params == 1:
-            return self.execution_date_fn(context['execution_date'])
-        if num_fxn_params == 2:
-            return self.execution_date_fn(context['execution_date'], context)
+        from airflow.utils.helpers import make_kwargs_callable
 
-        raise AirflowException(f'execution_date_fn passed {num_fxn_params} args but only allowed up to 2')
+        # Remove "execution_date" because it is already a mandatory positional argument
+        execution_date = context["execution_date"]
+        kwargs = {k: v for k, v in context.items() if k != "execution_date"}
+        # Add "context" in the kwargs for backward compatibility (because context used to be
+        # an acceptable argument of execution_date_fn)
+        kwargs["context"] = context
+        kwargs_callable = make_kwargs_callable(self.execution_date_fn)
+        return kwargs_callable(execution_date, **kwargs)
 
 
 class ExternalTaskMarker(DummyOperator):

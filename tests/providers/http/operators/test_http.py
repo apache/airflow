@@ -69,7 +69,7 @@ class TestSimpleHttpOp(unittest.TestCase):
         )
 
         with mock.patch.object(operator.log, 'info') as mock_info:
-            self.assertRaises(AirflowException, operator.execute, None)
+            self.assertRaises(AirflowException, operator.execute, {})
             calls = [mock.call('Calling HTTP method'), mock.call('invalid response')]
             mock_info.assert_has_calls(calls, any_order=True)
 
@@ -83,5 +83,5 @@ class TestSimpleHttpOp(unittest.TestCase):
             http_conn_id='HTTP_EXAMPLE',
             response_filter=lambda response: response.json(),
         )
-        result = operator.execute(None)
+        result = operator.execute({})
         assert result == {'value': 5}

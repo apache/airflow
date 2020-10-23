@@ -24,7 +24,6 @@ import sys
 import types
 import warnings
 from inspect import signature
-from itertools import islice
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, TypeVar, Union, cast
@@ -38,6 +37,7 @@ from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
 from airflow.models.xcom_arg import XComArg
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.helpers import determine_kwargs
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
 
@@ -106,45 +106,11 @@ class PythonOperator(BaseOperator):
         if templates_exts:
             self.template_ext = templates_exts
 
-    @staticmethod
-    def determine_op_kwargs(python_callable: Callable, context: Dict, num_op_args: int = 0) -> Dict:
-        """
-        Function that will inspect the signature of a python_callable to determine which
-        values need to be passed to the function.
-
-        :param python_callable: The function that you want to invoke
-        :param context: The context provided by the execute method of the Operator/Sensor
-        :param num_op_args: The number of op_args provided, so we know how many to skip
-        :return: The op_args dictionary which contains the values that are compatible with the Callable
-        """
-        context_keys = context.keys()
-        sig = signature(python_callable).parameters.items()
-        op_args_names = islice(sig, num_op_args)
-        for name, _ in op_args_names:
-            # Check if it is part of the context
-            if name in context_keys:
-                # Raise an exception to let the user know that the keyword is reserved
-                raise ValueError(
-                    f"The key {name} in the op_args is part of the context, and therefore reserved"
-                )
-
-        if any(str(param).startswith("**") for _, param in sig):
-            # If there is a ** argument then just dump everything.
-            op_kwargs = context
-        else:
-            # If there is only for example, an execution_date, then pass only these in :-)
-            op_kwargs = {
-                name: context[name]
-                for name, _ in sig
-                if name in context  # If it isn't available on the context, then ignore
-            }
-        return op_kwargs
-
     def execute(self, context: Dict):
         context.update(self.op_kwargs)
         context['templates_dict'] = self.templates_dict
 
-        self.op_kwargs = PythonOperator.determine_op_kwargs(self.python_callable, context, len(self.op_args))
+        self.op_kwargs = determine_kwargs(self.python_callable, self.op_args, context)
 
         return_value = self.execute_callable()
         self.log.info("Done. Returned value was: %s", return_value)

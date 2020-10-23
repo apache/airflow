@@ -117,6 +117,28 @@ to 'excluded/'.
 
 ### The default value for `[webserver] cookie_samesite` has been changed to `Lax`
 
+### `ExternalTaskSensor` provides all task context variables to `execution_date_fn` as keyword arguments
+
+The old syntax of passing `context` as a dictionary will continue to work with the caveat that the argument must be named `context`. The following will break. To fix it, change `ctx` to `context`.
+
+```python
+def execution_date_fn(execution_date, ctx):
+```
+
+`execution_date_fn` can take in any number of keyword arguments available in the task context dictionary. The following forms of `execution_date_fn` are all supported:
+
+```python
+def execution_date_fn(dt):
+
+def execution_date_fn(execution_date):
+
+def execution_date_fn(execution_date, ds_nodash):
+
+def execution_date_fn(execution_date, ds_nodash, dag):
+```
+
+### The default `[webserver] cookie_samesite` has been changed to `Lax`
+
 As [recommended](https://flask.palletsprojects.com/en/1.1.x/config/#SESSION_COOKIE_SAMESITE) by Flask, the
 `[webserver] cookie_samesite` has bee changed to `Lax` from `None`.
 
