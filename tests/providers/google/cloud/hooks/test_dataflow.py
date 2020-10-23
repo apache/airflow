@@ -1202,61 +1202,6 @@ class TestDataflowJob(unittest.TestCase):
         )
         mock_batch.add.assert_called_once_with(mock_update.return_value)
 
-    def test_dataflow_job_cancel_job(self):
-        mock_jobs = self.mock_dataflow.projects.return_value.locations.return_value.jobs
-        get_method = mock_jobs.return_value.get
-        get_method.return_value.execute.side_effect = [
-            {"id": TEST_JOB_ID, "name": JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_RUNNING},
-            {"id": TEST_JOB_ID, "name": JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_PENDING},
-            {"id": TEST_JOB_ID, "name": JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_QUEUED},
-            {"id": TEST_JOB_ID, "name": JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_CANCELLING},
-            {"id": TEST_JOB_ID, "name": JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DRAINING},
-            {"id": TEST_JOB_ID, "name": JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_STOPPED},
-            {"id": TEST_JOB_ID, "name": JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_CANCELLED},
-        ]
-
-        (
-            self.mock_dataflow.projects.return_value.
-            locations.return_value.
-            jobs.return_value.
-            list_next.return_value
-        ) = None
-        # fmt: on
-        dataflow_job = _DataflowJobsController(
-            dataflow=self.mock_dataflow,
-            project_number=TEST_PROJECT,
-            name=UNIQUE_JOB_NAME,
-            location=TEST_LOCATION,
-            poll_sleep=10,
-            job_id=TEST_JOB_ID,
-            num_retries=20,
-            multiple_jobs=False,
-        )
-        dataflow_job.cancel()
-
-        get_method.assert_called_once_with(jobId=TEST_JOB_ID, location=TEST_LOCATION, projectId=TEST_PROJECT)
-
-        get_method.return_value.execute.assert_called_once_with(num_retries=20)
-
-        self.mock_dataflow.new_batch_http_request.assert_called_once_with()
-
-        mock_batch = self.mock_dataflow.new_batch_http_request.return_value
-        # fmt: off
-        mock_update = (
-            self.mock_dataflow.projects.return_value.
-            locations.return_value.
-            jobs.return_value.
-            update
-        )
-        # fmt: on
-        mock_update.assert_called_once_with(
-            body={'requestedState': 'JOB_STATE_CANCELLED'},
-            jobId='test-job-id',
-            location=TEST_LOCATION,
-            projectId='test-project',
-        )
-        mock_batch.add.assert_called_once_with(mock_update.return_value)
-
     @parameterized.expand(
         [
             (False, "JOB_TYPE_BATCH", "JOB_STATE_CANCELLED"),
@@ -1272,21 +1217,14 @@ class TestDataflowJob(unittest.TestCase):
             "currentState": DataflowJobStatus.JOB_STATE_RUNNING,
             "type": job_type,
         }
-        # fmt: off
-        get_method = (
-            self.mock_dataflow.projects.return_value.
-                locations.return_value.
-                jobs.return_value.
-                get
-        )
+        get_method = self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.get
         get_method.return_value.execute.return_value = job
-
-        (
-            self.mock_dataflow.projects.return_value.
-                locations.return_value.
-                jobs.return_value.
-                list_next.return_value
-        ) = None
+        # fmt: off
+        job_list_nest_method = (self.mock_dataflow
+                                .projects.return_value.
+                                locations.return_value.
+                                jobs.return_value.list_next)
+        job_list_nest_method.return_value = None
         # fmt: on
         dataflow_job = _DataflowJobsController(
             dataflow=self.mock_dataflow,
@@ -1308,14 +1246,7 @@ class TestDataflowJob(unittest.TestCase):
         self.mock_dataflow.new_batch_http_request.assert_called_once_with()
 
         mock_batch = self.mock_dataflow.new_batch_http_request.return_value
-        # fmt: off
-        mock_update = (
-            self.mock_dataflow.projects.return_value.
-                locations.return_value.
-                jobs.return_value.
-                update
-        )
-        # fmt: on
+        mock_update = self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.update
         mock_update.assert_called_once_with(
             body={'requestedState': requested_state},
             jobId='test-job-id',
