@@ -193,6 +193,9 @@ mapping = {
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG),
     ],
+    ("Logs", permissions.ACTION_CAN_ACCESS_MENU): [
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG)
+    ],
     ("Log", "can_read"): [(permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG)],
     ("SlaMissModelView", "can_list"): [(permissions.ACTION_CAN_READ, permissions.RESOURCE_SLA_MISS)],
     ("TaskInstanceModelView", "can_list"): [
