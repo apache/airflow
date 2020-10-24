@@ -2073,7 +2073,7 @@ class DagModel(Base):
             .all()
         )
 
-        paused_dag_ids = set(paused_dag_id for paused_dag_id, in paused_dag_ids)
+        paused_dag_ids = {paused_dag_id for paused_dag_id, in paused_dag_ids}
         return paused_dag_ids
 
     def get_default_view(self) -> str:
