@@ -763,7 +763,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         self.num_runs = num_runs
         # In specific tests, we want to stop the parse loop after the _files_ have been parsed a certain
-        # number of times. This is only to support testing, and is n't something a user is likely to want to
+        # number of times. This is only to support testing, and isn't something a user is likely to want to
         # conifugre -- they'll want num_runs
         self.num_times_parse_dags = num_times_parse_dags
         self._processor_poll_interval = processor_poll_interval
