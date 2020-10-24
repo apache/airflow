@@ -93,12 +93,12 @@ class TestProjectStructure(unittest.TestCase):
         missing_tests_files = expected_test_files - expected_test_files.intersection(current_test_files)
 
         with self.subTest("Detect missing tests in providers module"):
-            expected_missing_test_modules = set(pair[1] for pair in expected_missing_providers_modules)
+            expected_missing_test_modules = {pair[1] for pair in expected_missing_providers_modules}
             missing_tests_files = missing_tests_files - set(expected_missing_test_modules)
             self.assertEqual(set(), missing_tests_files)
 
         with self.subTest("Verify removed deprecated module also removed from deprecated list"):
-            expected_missing_modules = set(pair[0] for pair in expected_missing_providers_modules)
+            expected_missing_modules = {pair[0] for pair in expected_missing_providers_modules}
             removed_deprecated_module = expected_missing_modules - modules_files
             if removed_deprecated_module:
                 self.fail(
@@ -144,7 +144,7 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
             return False
 
         with self.subTest("Detect missing example dags"):
-            missing_example = set(s for s in operator_sets if not has_example_dag(s))
+            missing_example = {s for s in operator_sets if not has_example_dag(s)}
             missing_example -= self.MISSING_EXAMPLE_DAGS
             self.assertEqual(set(), missing_example)
 
