@@ -21,7 +21,7 @@
 # Runs tests for bash scripts in a docker container. This argument is the entrypoint for the bats-tests
 # pre-commit hook where it runs all the bats tests (excluding in container tests).
 # It runs All tests if no arguments specified
-# If some arguments specifed it runs:
+# If some arguments specified it runs:
 #  * The .bats tests directly if specified as parameters
 #  * The .bats tests corresponding (using the argument location) to the .sh files passed as parameters
 #  * All .bats files found in the directory if directory specified
