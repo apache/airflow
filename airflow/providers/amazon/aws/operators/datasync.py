@@ -199,7 +199,7 @@ class AWSDataSyncOperator(BaseOperator):
         if self.candidate_task_arns:
             self.task_arn = self.choose_task(self.candidate_task_arns)
 
-        # If we couldnt find one then try create one
+        # If we could not find one then try to create one
         if not self.task_arn and self.create_task_kwargs:
             self._create_datasync_task()
 

@@ -697,7 +697,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type table_id: str
         :param table_resource: Table resource as described in documentation:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table
-            The table has to contain ``tableReference`` or ``project_id``, ``datset_id`` and ``table_id``
+            The table has to contain ``tableReference`` or ``project_id``, ``dataset_id`` and ``table_id``
             have to be provided.
         :type table_resource: Dict[str, Any]
         :param fields: The fields of ``table`` to change, spelled as the Table
