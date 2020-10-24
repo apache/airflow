@@ -17,61 +17,75 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Checks for an order of dependencies in setup.py
+Checks if all the libraries in setup.py are listed in installation.rst file
 """
 
 import os
 import re
 import sys
-from os.path import abspath, dirname
-from typing import List
+from os.path import dirname
 
+AIRFLOW_SOURCES_DIR = os.path.join(dirname(__file__), os.pardir, os.pardir, os.pardir)
 SETUP_PY_FILE = 'setup.py'
-INSTALLATION_RST_FILE = 'installation.rst'
+DOCS_FILE = 'installation.rst'
+PY_IDENTIFIER = '[a-zA-Z_][a-zA-Z0-9_\.]*'
 
-def get_setup_py_content() -> str:
-    setup_py_file_path = abspath(os.path.join(dirname(__file__), os.pardir,
-        os.pardir, os.pardir, SETUP_PY_FILE))
-    with open(setup_py_file_path) as setup_file:
-        setup_content = setup_file.read()
-    return setup_content
+def get_file_content(*file_path: str) -> str:
+    file_path = os.path.join(AIRFLOW_SOURCES_DIR, *file_path)
+    with open(file_path) as file_to_read:
+        return file_to_read.read()
 
-def get_installation_rst_content() -> str:
-    installation_rst_file_path = abspath(os.path.join(dirname(__file__), os.pardir,
-        os.pardir, os.pardir, 'docs', INSTALLATION_RST_FILE))
-    with open(installation_rst_file_path) as installation_file:
-        installation_rst_content = installation_file.read()
-    return installation_rst_content
-
-def get_main_dependent_group(setup_content: str) -> []:
+def get_extras_from_setup() -> {str: bool}:
     """
-    Test for an order of dependencies groups between mark
-    '# Start dependencies group' and '# End dependencies group' in setup.py
+    Returns an array of extras from setup.py file in format:
+    {'package name': is_deprecated, ...]
     """
-    pattern_main_dependent_group = re.compile(
-        '# Start dependencies group\n(.*)# End dependencies group', re.DOTALL)
-    main_dependent_group = pattern_main_dependent_group.findall(setup_content)[0]
+    setup_content = get_file_content(SETUP_PY_FILE)
+    
+    extras_section_regex = re.compile(
+        '^EXTRAS_REQUIREMENTS: Dict[^{]+{([^}]+)}', re.MULTILINE)
+    extras_section = extras_section_regex.findall(setup_content)[0]
 
-    pattern_sub_dependent = re.compile('^([a-zA-Z_][a-zA-Z0-9_]*)\s+=',
-            re.MULTILINE)
+    extras_regex = re.compile(
+        f'^\s+[\"\']([a-zA-Z_][a-zA-Z0-9_\.]*)[\"\']:\s*([a-zA-Z_][a-zA-Z0-9_\.]*)[^#\n]*(#\s*TODO.*)?$', re.MULTILINE)
+    extras = extras_regex.findall(extras_section)
 
-    return pattern_sub_dependent.findall(main_dependent_group)
+    extras = list(filter(lambda entry: entry[0] == entry[1], extras))
 
-def get_extra_packages(installation_rst_content: str) -> []:
-    pattern_sub_dependent = re.compile('^\|\s([a-zA-Z_][a-zA-Z0-9_]*)', re.MULTILINE)
-    doc_entries = pattern_sub_dependent.findall(installation_rst_content)
-    return list(filter(lambda entry: entry != 'subpackage', doc_entries))
+    return {x[0]: ' remove ' in x[2] for x in extras}
+
+def get_extras_from_docs() -> {str: bool}:
+    """
+    Returns an array of extras from installation.rst file in format:
+    {'package name': is_deprecated, ...]
+    """
+    docs_content = get_file_content('docs', DOCS_FILE)
+
+    extras_section_regex = re.compile(f'^\|([^|]+)\|.*pip install .apache-airflow\[({PY_IDENTIFIER})\].', re.MULTILINE)
+    extras = extras_section_regex.findall(docs_content)
+
+    return {x[1]: 'deprecated' in x[0] for x in extras}
 
 if __name__ == '__main__':
-    setup_context_main = get_setup_py_content()
-    libraries = get_main_dependent_group(setup_context_main)
+    setup_packages = get_extras_from_setup()
+    docs_packages = get_extras_from_docs()
+    all_packages = {**setup_packages, **docs_packages}
 
-    installation_rst_context = get_installation_rst_content()
-    doc_entries = get_extra_packages(installation_rst_context)
+    def format_extras(extras):
+        return 
 
-    print(f"These libraries are not present in {SETUP_PY_FILE} but missing "
-            "in {INSTALLATION_RST_FILE}:")
-    print([x for x in libraries if x not in set(doc_entries)])
-    print([x for x in doc_entries if x not in set(libraries)])
+    differences = {item: (setup_packages.get(item, ''), docs_packages.get(item, '')) for item in all_packages}
 
+    if len(differences) == 0:
+        exit(0)
+    
+    print(".{:_^22}.{:_^12}.{:_^12}.".format("EXTRAS", "SETUP", "INSTALLATION"))
+    for extras in sorted(differences.keys()):
+        if(differences[extras][0] != differences[extras][1]):
+            setup_label = differences[extras][0]
+            setup_label  = "remove" if setup_label else ("V" if setup_label == False else "!")
+            docs_label = differences[extras][1]
+            docs_label  = "deprecated" if docs_label else ("V" if docs_label == False else "!")
+            print(f"| {extras:20} | {setup_label:^10} | {docs_label:^10} |")
 
+    exit(1)
