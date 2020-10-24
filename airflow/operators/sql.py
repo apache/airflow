@@ -549,7 +549,7 @@ class BranchSQLOperator(BaseOperator, SkipMixin):
 
         if self.follow_task_ids_if_true is None:
             raise AirflowException(
-                "Expected 'follow_task_ids_if_true' paramter is missing."
+                "Expected 'follow_task_ids_if_true' parameter is missing."
             )
 
         if self.follow_task_ids_if_false is None:
