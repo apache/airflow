@@ -1,0 +1,127 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Label when reviewed workflow run
+on:  # yamllint disable-line rule:truthy
+  workflow_run:
+    workflows: ["Label when reviewed"]
+    types: ['requested']
+jobs:
+
+  label-when-reviewed:
+    name: "Label PRs when reviewed workflow run"
+    runs-on: ubuntu-latest
+    outputs:
+      labelSet: ${{ steps.label-when-reviewed.outputs.labelSet }}
+    steps:
+      - name: "Get information about the original trigger of the run"
+        uses: potiuk/get-workflow-origin@2ef0b065db6b688a2231f8a7f464df1aac254328  # v1_2
+        id: source-run-info
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          sourceRunId: ${{ github.event.workflow_run.id }}
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+      - name: >
+          Event: ${{ steps.source-run-info.outputs.sourceEvent }}
+          Repo: ${{ steps.source-run-info.outputs.sourceHeadRepo }}
+          Branch: ${{ steps.source-run-info.outputs.sourceHeadBranch }}
+          Run id: ${{ github.run_id }}
+          Source Run id: ${{ github.event.workflow_run.id }}
+          Sha: ${{ github.sha }}
+          Source Sha: ${{ steps.source-run-info.outputs.sourceHeadSha }}
+          Merge commit Sha: ${{ steps.source-run-info.outputs.mergeCommitSha }}
+          Target commit Sha: ${{ steps.source-run-info.outputs.targetCommitSha }}
+        run: printenv
+      - name: >
+          Fetch incoming commit ${{ steps.source-run-info.outputs.targetCommitSha }} with its parent
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ steps.source-run-info.outputs.targetCommitSha }}
+          fetch-depth: 2
+      # checkout the master version again, to use the right script in master workflow
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+      - name: Selective checks
+        id: selective-checks
+        env:
+          EVENT_NAME: ${{ steps.source-run-info.outputs.sourceEvent }}
+          INCOMING_COMMIT_SHA: ${{ steps.source-run-info.outputs.targetCommitSha }}
+          PR_LABELS: ${{ steps.source-run-info.outputs.pullRequestLabels }}
+        run: |
+          if [[ ${EVENT_NAME} == "pull_request_review" ]]; then
+            # Run selective checks
+            ./scripts/ci/selective_ci_checks.sh "${INCOMING_COMMIT_SHA}"
+          else
+            # Run all checks
+            ./scripts/ci/selective_ci_checks.sh
+          fi
+      - name: "Label when approved by committers for PRs that require full tests"
+        uses: TobKed/label-when-approved-action@7872312da76508d29f98d4fa68843ea91754cc59  # v1.2
+        id: label-full-test-prs-when-approved-by-commiters
+        if: >
+          steps.selective-checks.outputs.run-tests == 'true' &&
+          contains(steps.selective-checks.outputs.test-types, 'Core')
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          label: 'full tests needed'
+          require_committers_approval: 'true'
+          pullRequestNumber: ${{ steps.source-run-info.outputs.pullRequestNumber }}
+          comment: >
+            The PR needs to run all tests because it modifies core of Airflow! Please rebase it to latest
+            master or ask committer to re-run it!
+      - name: "Initiate GitHub Check forcing rerun of SH ${{ github.event.pull_request.head.sha }}"
+        uses: LouisBrunner/checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798  # v1.1.0
+        id: full-test-check
+        if: steps.label-full-test-prs-when-approved-by-commiters.outputs.labelSet == 'true'
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: "Please rebase or re-run to run full tests"
+          status: "in_progress"
+          sha: ${{ github.event.pull_request.head.sha }}
+          details_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          output: >
+            {"summary":
+            "The PR needs to run all tests! This was determined via
+            [the run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            "}
+      - name: "Label when approved by committers for PRs that do not require full tests"
+        uses: TobKed/label-when-approved-action@7872312da76508d29f98d4fa68843ea91754cc59  # v1.2
+        id: label-simple-test-prs-when-approved-by-commiters
+        if: >
+          steps.selective-checks.outputs.run-tests == 'true' &&
+          ! contains(steps.selective-checks.outputs.test-types, 'Core')
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          label: 'okay to merge'
+          require_committers_approval: 'true'
+          pullRequestNumber: ${{ steps.source-run-info.outputs.pullRequestNumber }}
+          comment: >
+            The PR should be OK to be merged with just subset of tests as it does not modify Core of
+            Airflow. The committers might merge it or can add a label 'full tests needed' and re-run it
+            to run all tests if they see it is needed!
+      - name: "Label when approved by committers for PRs that do not require tests at all"
+        uses: TobKed/label-when-approved-action@7872312da76508d29f98d4fa68843ea91754cc59  # v1.2
+        id: label-no-test-prs-when-approved-by-commiters
+        if: steps.selective-checks.outputs.run-tests != 'true'
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          label: 'okay to merge'
+          pullRequestNumber: ${{ steps.source-run-info.outputs.pullRequestNumber }}
+          require_committers_approval: 'true'
+          comment: "The PR is ready to be merged. No tests are needed!"
