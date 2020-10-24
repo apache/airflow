@@ -65,7 +65,7 @@ class LivyHook(HttpHook, LoggingMixin):
     _def_headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
 
     def __init__(self, livy_conn_id: str = 'livy_default') -> None:
-        super(LivyHook, self).__init__(http_conn_id=livy_conn_id)
+        super().__init__(http_conn_id=livy_conn_id)
 
     def get_conn(self, headers: Optional[Dict[str, Any]] = None) -> Any:
         """

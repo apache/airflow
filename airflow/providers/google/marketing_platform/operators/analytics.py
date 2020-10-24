@@ -460,7 +460,7 @@ class GoogleAnalyticsModifyFileHeadersDataImportOperator(BaseOperator):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
-        super(GoogleAnalyticsModifyFileHeadersDataImportOperator, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.storage_bucket = storage_bucket
         self.storage_name_object = storage_name_object
         self.gcp_conn_id = gcp_conn_id
