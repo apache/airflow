@@ -81,6 +81,11 @@ def do_setup(version_suffix_for_pypi=''):
         download_url=(
             'https://dist.apache.org/repos/dist/release/airflow/{{ PROVIDERS_FOLDER }}' + version),
         python_requires='~=3.6',
+        project_urls={
+            'Documentation': 'https://airflow.apache.org/docs/',
+            'Bug Tracker': 'https://github.com/apache/airflow/issues',
+            'Source Code': 'https://github.com/apache/airflow',
+        },
     )
 
 #
