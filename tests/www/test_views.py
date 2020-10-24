@@ -1170,15 +1170,16 @@ class TestLogView(TestBase):
 
             dagbag = self.app.dag_bag
             dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
-            with mock.patch.object(settings, "STORE_DAG_CODE", False):
-                dag.sync_to_db()
             dag_removed = DAG(self.DAG_ID_REMOVED, start_date=self.DEFAULT_DATE)
-            with mock.patch.object(settings, "STORE_DAG_CODE", False):
-                dag_removed.sync_to_db()
             dagbag.bag_dag(dag=dag, root_dag=dag)
             dagbag.bag_dag(dag=dag_removed, root_dag=dag_removed)
+
+            # Since we don't want to store the code for the DAG defined in this file
             with mock.patch.object(settings, "STORE_DAG_CODE", False):
+                dag.sync_to_db()
+                dag_removed.sync_to_db()
                 dagbag.sync_to_db()
+
             with create_session() as session:
                 self.ti = TaskInstance(
                     task=DummyOperator(task_id=self.TASK_ID, dag=dag),
