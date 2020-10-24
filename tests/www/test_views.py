@@ -2961,6 +2961,9 @@ class TestDecorators(TestBase):
         super().setUpClass()
         dagbag = models.DagBag(include_examples=True)
         DAG.bulk_write_to_db(dagbag.dags.values())
+        cls.bash_dag = dagbag.dags['example_bash_operator']
+        cls.sub_dag = dagbag.dags['example_subdag_operator']
+        cls.xcom_dag = dagbag.dags['example_xcom']
 
     def setUp(self):
         super().setUp()
@@ -2970,11 +2973,6 @@ class TestDecorators(TestBase):
         self.prepare_dagruns()
 
     def prepare_dagruns(self):
-        dagbag = models.DagBag(include_examples=True)
-        self.bash_dag = dagbag.dags['example_bash_operator']
-        self.sub_dag = dagbag.dags['example_subdag_operator']
-        self.xcom_dag = dagbag.dags['example_xcom']
-
         self.bash_dagrun = self.bash_dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
