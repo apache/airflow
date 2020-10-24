@@ -157,7 +157,7 @@ repos:
         exclude: .*kubernetes_pod\.py|.*google/common/hooks/base_google\.py$
         args: [--config=./pyproject.toml]
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.2.0
+    rev: v3.3.0
     hooks:
       - id: check-merge-conflict
       - id: debug-statements
@@ -186,7 +186,7 @@ repos:
         exclude:
           ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml
   - repo: https://github.com/timothycrosley/isort
-    rev: 5.5.4
+    rev: 5.6.4
     hooks:
       - id: isort
         name: Run isort to sort imports
