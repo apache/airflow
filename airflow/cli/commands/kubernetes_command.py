@@ -16,9 +16,12 @@
 # under the License.
 """Kubernetes sub-commands"""
 import os
+import sys
 
 import yaml
+from kubernetes import client, config
 from kubernetes.client.api_client import ApiClient
+from kubernetes.client.rest import ApiException
 
 from airflow.executors.kubernetes_executor import KubeConfig, create_pod_id
 from airflow.kubernetes import pod_generator
@@ -41,8 +44,7 @@ def generate_pod_yaml(args):
         pod = PodGenerator.construct_pod(
             dag_id=args.dag_id,
             task_id=ti.task_id,
-            pod_id=create_pod_id(
-                args.dag_id, ti.task_id),
+            pod_id=create_pod_id(args.dag_id, ti.task_id),
             try_number=ti.try_number,
             kube_image=kube_config.kube_image,
             date=ti.execution_date,
@@ -50,7 +52,7 @@ def generate_pod_yaml(args):
             pod_override_object=PodGenerator.from_obj(ti.executor_config),
             scheduler_job_id="worker-config",
             namespace=kube_config.executor_namespace,
-            base_worker_pod=PodGenerator.deserialize_model_file(kube_config.pod_template_file)
+            base_worker_pod=PodGenerator.deserialize_model_file(kube_config.pod_template_file),
         )
         pod_mutation_hook(pod)
         api_client = ApiClient()
@@ -61,3 +63,64 @@ def generate_pod_yaml(args):
             sanitized_pod = api_client.sanitize_for_serialization(pod)
             output.write(yaml.dump(sanitized_pod))
     print(f"YAML output can be found at {yaml_output_path}/airflow_yaml_output/")
+
+
+@cli_utils.action_logging
+def cleanup_pods(args):
+    """Clean up k8s pods in evicted/failed/succeeded states"""
+    namespace = args.namespace
+
+    # https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/
+    # All Containers in the Pod have terminated in success, and will not be restarted.
+    pod_succeeded = 'succeeded'
+
+    # All Containers in the Pod have terminated, and at least one Container has terminated in failure.
+    # That is, the Container either exited with non-zero status or was terminated by the system.
+    pod_failed = 'failed'
+
+    # https://kubernetes.io/docs/tasks/administer-cluster/out-of-resource/
+    pod_reason_evicted = 'evicted'
+    # If pod is failed and restartPolicy is:
+    # * Always: Restart Container; Pod phase stays Running.
+    # * OnFailure: Restart Container; Pod phase stays Running.
+    # * Never: Pod phase becomes Failed.
+    pod_restart_policy_never = 'never'
+
+    print('Loading Kubernetes configuration')
+    config.load_incluster_config()
+    core_v1 = client.CoreV1Api()
+    print(f'Listing pods in namespace {namespace}')
+    pod_list = core_v1.list_namespaced_pod(namespace)
+
+    for pod in pod_list.items:
+        pod_name = pod.metadata.name
+        print(f'Inspecting pod {pod_name}')
+        pod_phase = pod.status.phase.lower()
+        pod_reason = pod.status.reason.lower() if pod.status.reason else ''
+        pod_restart_policy = pod.spec.restart_policy.lower()
+
+        if (
+            pod_phase == pod_succeeded
+            or (pod_phase == pod_failed and pod_restart_policy == pod_restart_policy_never)
+            or (pod_reason == pod_reason_evicted)
+        ):
+
+            print(
+                f'Deleting pod "{pod_name}" phase "{pod_phase}" and reason "{pod_reason}", '
+                f'restart policy "{pod_restart_policy}"'
+            )
+            try:
+                _delete_pod(pod.metadata.name, namespace)
+            except ApiException as e:
+                print(f"can't remove POD: {e}", file=sys.stderr)
+            continue
+        print(f'No action taken on pod {pod_name}')
+
+
+def _delete_pod(name, namespace):
+    """Helper Function for cleanup_pods"""
+    core_v1 = client.CoreV1Api()
+    delete_options = client.V1DeleteOptions()
+    print(f'Deleting POD "{name}" from "{namespace}" namespace')
+    api_response = core_v1.delete_namespaced_pod(name=name, namespace=namespace, body=delete_options)
+    print(api_response)

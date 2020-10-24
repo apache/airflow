@@ -759,6 +759,12 @@ ARG_OPTION = Arg(
     help="The option name",
 )
 
+# kubernetes cleanup-pods
+ARG_NAMESPACE = Arg(
+    ("--namespace",),
+    default='default',
+    help="Kubernetes Namespace",
+)
 
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE, ARG_CONN_HOST, ARG_CONN_LOGIN, ARG_CONN_PASSWORD, ARG_CONN_SCHEMA, ARG_CONN_PORT
@@ -1273,6 +1279,12 @@ CONFIG_COMMANDS = (
 )
 
 KUBERNETES_COMMANDS = (
+    ActionCommand(
+        name='cleanup-pods',
+        help="Clean up Kubernetes pods in evicted/failed/succeeded states",
+        func=lazy_load_command('airflow.cli.commands.kubernetes_command.cleanup_pods'),
+        args=(ARG_NAMESPACE, ),
+    ),
     ActionCommand(
         name='generate-dag-yaml',
         help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
