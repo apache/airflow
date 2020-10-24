@@ -836,7 +836,8 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 'task_id': 'sleep_for_3',
             },
         ]
-        self.assertEqual(expected_response, response.json["task_instances"])
+        for task_instance in expected_response:
+            self.assertIn(task_instance, response.json["task_instances"])
         self.assertEqual(5, len(response.json["task_instances"]))
         self.assertEqual(0, failed_dag_runs, 0)
 
