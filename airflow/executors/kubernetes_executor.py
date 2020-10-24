@@ -27,7 +27,7 @@ import json
 import multiprocessing
 import time
 from queue import Empty, Queue  # pylint: disable=unused-import
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 import kubernetes
 from dateutil import parser
@@ -36,12 +36,12 @@ from kubernetes.client import Configuration, models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3.exceptions import ReadTimeoutError
 
-from airflow import settings
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, BaseExecutor, CommandType
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.kube_client import get_kube_client
+from airflow.kubernetes.kube_config import KubeConfig
+from airflow.kubernetes.kubernetes_helper_functions import create_pod_id
 from airflow.kubernetes.pod_generator import MAX_POD_ID_LEN, PodGenerator
 from airflow.kubernetes.pod_launcher import PodLauncher
 from airflow.models import TaskInstance
@@ -70,72 +70,6 @@ class ResourceVersion:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
-
-
-class KubeConfig:  # pylint: disable=too-many-instance-attributes
-    """Configuration for Kubernetes"""
-
-    core_section = 'core'
-    kubernetes_section = 'kubernetes'
-    logging_section = 'logging'
-
-    def __init__(self):  # pylint: disable=too-many-statements
-        configuration_dict = conf.as_dict(display_sensitive=True)
-        self.core_configuration = configuration_dict['core']
-        self.airflow_home = settings.AIRFLOW_HOME
-        self.dags_folder = conf.get(self.core_section, 'dags_folder')
-        self.parallelism = conf.getint(self.core_section, 'parallelism')
-        self.pod_template_file = conf.get(self.kubernetes_section, 'pod_template_file', fallback=None)
-
-        self.delete_worker_pods = conf.getboolean(self.kubernetes_section, 'delete_worker_pods')
-        self.delete_worker_pods_on_failure = conf.getboolean(
-            self.kubernetes_section, 'delete_worker_pods_on_failure'
-        )
-        self.worker_pods_creation_batch_size = conf.getint(
-            self.kubernetes_section, 'worker_pods_creation_batch_size'
-        )
-
-        self.worker_container_repository = conf.get(self.kubernetes_section, 'worker_container_repository')
-        self.worker_container_tag = conf.get(self.kubernetes_section, 'worker_container_tag')
-        self.kube_image = f'{self.worker_container_repository}:{self.worker_container_tag}'
-
-        # The Kubernetes Namespace in which the Scheduler and Webserver reside. Note
-        # that if your
-        # cluster has RBAC enabled, your scheduler may need service account permissions to
-        # create, watch, get, and delete pods in this namespace.
-        self.kube_namespace = conf.get(self.kubernetes_section, 'namespace')
-        self.multi_namespace_mode = conf.getboolean(self.kubernetes_section, 'multi_namespace_mode')
-        # The Kubernetes Namespace in which pods will be created by the executor. Note
-        # that if your
-        # cluster has RBAC enabled, your workers may need service account permissions to
-        # interact with cluster components.
-        self.executor_namespace = conf.get(self.kubernetes_section, 'namespace')
-
-        kube_client_request_args = conf.get(self.kubernetes_section, 'kube_client_request_args')
-        if kube_client_request_args:
-            self.kube_client_request_args = json.loads(kube_client_request_args)
-            if self.kube_client_request_args['_request_timeout'] and isinstance(
-                self.kube_client_request_args['_request_timeout'], list
-            ):
-                self.kube_client_request_args['_request_timeout'] = tuple(
-                    self.kube_client_request_args['_request_timeout']
-                )
-        else:
-            self.kube_client_request_args = {}
-        delete_option_kwargs = conf.get(self.kubernetes_section, 'delete_option_kwargs')
-        if delete_option_kwargs:
-            self.delete_option_kwargs = json.loads(delete_option_kwargs)
-        else:
-            self.delete_option_kwargs = {}
-
-    # pod security context items should return integers
-    # and only return a blank string if contexts are not set.
-    def _get_security_context_val(self, scontext: str) -> Union[str, int]:
-        val = conf.get(self.kubernetes_section, scontext)
-        if not val:
-            return ""
-        else:
-            return int(val)
 
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
@@ -474,36 +408,6 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.watcher_queue.join()
         self.log.debug("Shutting down manager...")
         self._manager.shutdown()
-
-
-def _strip_unsafe_kubernetes_special_chars(string: str) -> str:
-    """
-    Kubernetes only supports lowercase alphanumeric characters, "-" and "." in
-    the pod name.
-    However, there are special rules about how "-" and "." can be used so let's
-    only keep
-    alphanumeric chars  see here for detail:
-    https://kubernetes.io/docs/concepts/overview/working-with-objects/names/
-
-    :param string: The requested Pod name
-    :return: ``str`` Pod name stripped of any unsafe characters
-    """
-    return ''.join(ch.lower() for ind, ch in enumerate(string) if ch.isalnum())
-
-
-def create_pod_id(dag_id: str, task_id: str) -> str:
-    """
-    Generates the kubernetes safe pod_id. Note that this is
-    NOT the full ID that will be launched to k8s. We will add a uuid
-    to ensure uniqueness.
-
-    :param dag_id: DAG ID
-    :param task_id: Task ID
-    :@return: The non-unique pod_id for this task/DAG pairing1
-    """
-    safe_dag_id = _strip_unsafe_kubernetes_special_chars(dag_id)
-    safe_task_id = _strip_unsafe_kubernetes_special_chars(task_id)
-    return safe_dag_id + safe_task_id
 
 
 def get_base_pod_from_template(pod_template_file: Optional[str], kube_config: Any) -> k8s.V1Pod:

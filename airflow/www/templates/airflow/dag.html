@@ -132,16 +132,21 @@
             <hr>
           </div>
           <a id="btn_task" class="btn btn-sm" data-base-url="{{ url_for('Airflow.task') }}">
-            Task Instance Details
+            Instance Details
           </a>
-          <a id="btn_rendered" class="btn btn-sm" data-base-url="{{ url_for('Airflow.rendered') }}">
+          <a id="btn_rendered" class="btn btn-sm" data-base-url="{{ url_for('Airflow.rendered_templates') }}">
             Rendered
           </a>
-          <a id="btn_ti" class="btn btn-sm" data-base-url="{{ url_for('TaskInstanceModelView.list') }}">
-            Task Instances
-          </a>
+          {% if k8s_or_k8scelery_executor %}
+            <a id="btn_rendered_k8s" class="btn btn-sm" data-base-url="{{ url_for('Airflow.rendered_k8s') }}">
+              K8s Pod Spec
+            </a>
+          {% endif %}
           <a id="btn_log" class="btn btn-sm" data-base-url="{{ url_for('Airflow.log') }}">
-            View Log
+            Log
+          </a>
+          <a id="btn_ti" class="btn btn-sm" data-base-url="{{ url_for('TaskInstanceModelView.list') }}">
+            All Instances
           </a>
           <button id="btn_filter" type="button" class="btn btn-sm" title="Filter on this task and upstream ">
             Filter Upstream
@@ -415,6 +420,12 @@
       });
 
       updateButtonUrl(buttons.rendered, {
+        dag_id: dag_id,
+        task_id: task_id,
+        execution_date: execution_date,
+      });
+
+      updateButtonUrl(buttons.rendered_k8s, {
         dag_id: dag_id,
         task_id: task_id,
         execution_date: execution_date,
