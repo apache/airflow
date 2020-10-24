@@ -2906,7 +2906,7 @@ def _validate_src_fmt_configs(
 ) -> Dict:
     """
     Validates the given src_fmt_configs against a valid configuration for the source format.
-    Adds the backward compatiblity config to the src_fmt_configs.
+    Adds the backward compatibility config to the src_fmt_configs.
 
     :param source_format: File format to export.
     :type source_format: str
