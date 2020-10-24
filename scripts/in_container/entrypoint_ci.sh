@@ -190,7 +190,7 @@ if [[ "${GITHUB_ACTIONS}" == "true" ]]; then
         # Only display summary for non-expected case
         # f - failed
         # E - error
-        # X - xpessed (passed even if expected to fail)
+        # X - xpassed (passed even if expected to fail)
         # The following cases are not displayed:
         # s - skipped
         # x - xfailed (expected to fail and failed)
