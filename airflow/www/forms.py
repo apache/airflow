@@ -46,7 +46,7 @@ class DateTimeWithTimezoneField(Field):
     widget = widgets.TextInput()
 
     def __init__(self, label=None, validators=None, datetime_format='%Y-%m-%d %H:%M:%S%Z', **kwargs):
-        super(DateTimeWithTimezoneField, self).__init__(label, validators, **kwargs)
+        super().__init__(label, validators, **kwargs)
         self.format = datetime_format
         self.data = None
 

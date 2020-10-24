@@ -84,7 +84,7 @@ class SnowflakeToSlackOperator(BaseOperator):
         slack_token: Optional[str] = None,
         **kwargs,
     ) -> None:
-        super(SnowflakeToSlackOperator, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         self.snowflake_conn_id = snowflake_conn_id
         self.sql = sql
