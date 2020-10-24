@@ -53,14 +53,16 @@ jobs:
       sourceHeadSha: ${{ steps.source-run-info.outputs.sourceHeadSha }}
       mergeCommitSha: ${{ steps.source-run-info.outputs.mergeCommitSha }}
       targetCommitSha: ${{ steps.source-run-info.outputs.targetCommitSha }}
+      pullRequestNumber: ${{ steps.workflow-run-info.outputs.pullRequestNumber }}
+      pullRequestLabels: ${{ steps.workflow-run-info.outputs.pullRequestLabels }}
       sourceEvent: ${{ steps.source-run-info.outputs.sourceEvent }}
       cacheDirective: ${{ steps.cache-directive.outputs.docker-cache }}
       buildImages: ${{ steps.build-images.outputs.buildImages }}
       upgradeToLatestConstraints: ${{ steps.upgrade-constraints.outputs.upgradeToLatestConstraints }}
     if: github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule'
     steps:
-      - name: "Get information about the origin 'CI Build' run"
-        uses: potiuk/get-workflow-origin@c657bb36aef4a7402bbe9b2e09a820320f8ff447  # v1
+      - name: "Get information about the original trigger of the run"
+        uses: potiuk/get-workflow-origin@e3ba776faee1134e17551924b852bfb374e1703d  # v1_1
         id: source-run-info
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
