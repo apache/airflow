@@ -75,7 +75,7 @@ class AwsGlueJobOperator(BaseOperator):
         iam_role_name: Optional[str] = None,
         **kwargs,
     ):  # pylint: disable=too-many-arguments
-        super(AwsGlueJobOperator, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.job_name = job_name
         self.job_desc = job_desc
         self.script_location = script_location
