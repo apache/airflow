@@ -17,7 +17,7 @@
 
 import unittest
 
-from .helm_template_generator import render_chart
+from tests.helm_template_generator import render_chart
 
 OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 22
 

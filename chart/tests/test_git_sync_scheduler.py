@@ -20,7 +20,7 @@ import unittest
 import yaml
 from kubernetes.client import models as k8s
 
-from .helm_template_generator import render_chart, render_k8s_object
+from tests.helm_template_generator import render_chart, render_k8s_object
 
 OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 22
 
