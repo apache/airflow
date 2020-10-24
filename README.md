@@ -64,7 +64,7 @@ Apache Airflow is tested with:
 |              | Master version (2.0.0dev) | Stable version (1.10.12) |
 | ------------ | ------------------------- | ------------------------ |
 | Python       | 3.6, 3.7, 3.8             | 2.7, 3.5, 3.6, 3.7, 3.8  |
-| PostgreSQL   | 9.6, 10                   | 9.6, 10                  |
+| PostgreSQL   | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      |
 | MySQL        | 5.7, 8                    | 5.6, 5.7                 |
 | SQLite       | latest stable             | latest stable            |
 | Kubernetes   | 1.16.2, 1.17.0            | 1.16.2, 1.17.0           |

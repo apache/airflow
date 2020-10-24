@@ -31,7 +31,7 @@ _breeze_allowed_kubernetes_versions="v1.18.6 v1.17.5 v1.16.9"
 _breeze_allowed_helm_versions="v3.2.4"
 _breeze_allowed_kind_versions="v0.8.0"
 _breeze_allowed_mysql_versions="5.7 8"
-_breeze_allowed_postgres_versions="9.6 10"
+_breeze_allowed_postgres_versions="9.6 10 11 12 13"
 _breeze_allowed_kind_operations="start stop restart status deploy test shell"
 _breeze_allowed_test_types="All Core Providers API CLI Integration Other WWW Heisentests Postgres MySQL"
 
