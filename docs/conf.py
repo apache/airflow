@@ -207,6 +207,9 @@ exclude_patterns: List[str] = [
     "_api/airflow/providers/cncf/index.rst",
     # Packages without operators
     "_api/airflow/providers/sendgrid",
+    # Setup.py files of the providers
+    "_api/airflow/providers/*/*setup/index.rst",
+    "_api/airflow/providers/*/*/*setup/index.rst",
     # Templates or partials
     'autoapi_templates',
     'howto/operator/google/_partials',

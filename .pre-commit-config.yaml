@@ -121,7 +121,7 @@ repos:
       - id: insert-license
         name: Add license for all md files
         files: \.md$
-        exclude: ^\.github/.*$|BACKPORT_PROVIDERS_CHANGES.*\.md|PROVIDERS_CHANGES.*
+        exclude: ^\.github/.*$|PROVIDER_CHANGES.*\.md
         args:
           - --comment-style
           - "<!--|| -->"
@@ -288,7 +288,7 @@ repos:
           (?x)
           ^airflow/providers/apache/cassandra/hooks/cassandra.py$|
           ^airflow/providers/apache/hive/operators/hive_stats.py$|
-          ^airflow/providers/apache/hive/.*PROVIDERS_CHANGES_*|
+          ^airflow/providers/apache/hive/.*PROVIDER_CHANGES_*|
           ^airflow/providers/apache/hive/.*README.md$|
           ^tests/providers/apache/cassandra/hooks/test_cassandra.py$|
           ^docs/howto/connection/cassandra.rst$|
