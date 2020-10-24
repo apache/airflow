@@ -214,7 +214,7 @@ class BaseJob(Base, LoggingMixin):
 
             # Update last heartbeat time
             with create_session() as session:
-                # Make the sesion aware of this object
+                # Make the session aware of this object
                 session.merge(self)
                 self.latest_heartbeat = timezone.utcnow()
                 session.commit()

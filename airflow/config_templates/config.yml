@@ -1225,7 +1225,7 @@
   options:
     - name: kubernetes_queue
       description: |
-        Define when to send a task to KubernetesExecutor when using CeleryKuebernetesExecutor.
+        Define when to send a task to KubernetesExecutor when using CeleryKubernetesExecutor.
         When the queue of a task is kubernetes_queue, the task is executed via KubernetesExecutor,
         otherwise via CeleryExecutor
       version_added: ~

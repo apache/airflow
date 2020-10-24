@@ -19,7 +19,7 @@
 ## Airflow Scheduler Deployment/StatefulSet
 #################################
 
-# Are we using a local/sequenial executor?
+# Are we using a local/sequential executor?
 {{- $local := or (eq .Values.executor "LocalExecutor") (eq .Values.executor "SequentialExecutor") }}
 # Is persistence enabled on the _workers_?
 # This is important because in $local mode, the scheduler assumes the role of the worker

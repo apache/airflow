@@ -740,7 +740,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
             if duration < self.poke_interval:
                 sleep(self.poke_interval - duration)
             if (timezone.utcnow() - started_at).total_seconds() > self.timeout:
-                self.log.info("Time is out for smart senosr.")
+                self.log.info("Time is out for smart sensor.")
                 return
 
     def on_kill(self):
