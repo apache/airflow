@@ -575,7 +575,7 @@ EXTRAS_REQUIREMENTS = {
 INSTALL_REQUIREMENTS = [
     'alembic>=1.0, <2.0',
     'argcomplete~=1.10',
-    'attrs~=19.3',
+    'attrs~=20.0',
     'cached_property~=1.5',
     'cattrs~=1.0',
     'colorlog==4.0.2',
