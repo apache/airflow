@@ -54,7 +54,7 @@ def get_sensitive_variables_fields():
     sensitive_fields = set(DEFAULT_SENSITIVE_VARIABLE_FIELDS)
     sensitive_variable_fields = conf.get('admin', 'sensitive_variable_fields')
     if sensitive_variable_fields:
-        sensitive_fields.update(set(field.strip() for field in sensitive_variable_fields.split(',')))
+        sensitive_fields.update({field.strip() for field in sensitive_variable_fields.split(',')})
     return sensitive_fields
 
 

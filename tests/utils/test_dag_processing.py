@@ -297,8 +297,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
             assert fake_processors[-1]._file_path == test_dag_path
             callback_requests = fake_processors[-1]._callback_requests
             assert (
-                set(zombie.simple_task_instance.key for zombie in expected_failure_callback_requests) ==
-                set(result.simple_task_instance.key for result in callback_requests)
+                {zombie.simple_task_instance.key for zombie in expected_failure_callback_requests} ==
+                {result.simple_task_instance.key for result in callback_requests}
             )
 
             child_pipe.close()
