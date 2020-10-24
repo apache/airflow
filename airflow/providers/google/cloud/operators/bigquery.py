@@ -1662,7 +1662,7 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
     This operator is used to update dataset for your Project in BigQuery.
     Use ``fields`` to specify which fields of dataset to update. If a field
     is listed in ``fields`` and is ``None`` in dataset, it will be deleted.
-    If no ``fields`` are provided then all fields of provided ``dataset_reources``
+    If no ``fields`` are provided then all fields of provided ``dataset_resource``
     will be used.
 
     .. seealso::
