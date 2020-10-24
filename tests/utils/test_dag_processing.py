@@ -542,17 +542,13 @@ class TestCorrectMaybeZipped(unittest.TestCase):
 
 class TestOpenMaybeZipped(unittest.TestCase):
     def test_open_maybe_zipped_normal_file(self):
-        with mock.patch(
-            'io.open', mock.mock_open(read_data="data")
-        ) as mock_file:
+        with mock.patch('builtins.open', mock.mock_open(read_data="data")) as mock_file:
             open_maybe_zipped('/path/to/some/file.txt')
             mock_file.assert_called_once_with('/path/to/some/file.txt', mode='r')
 
     def test_open_maybe_zipped_normal_file_with_zip_in_name(self):
         path = '/path/to/fakearchive.zip.other/file.txt'
-        with mock.patch(
-            'io.open', mock.mock_open(read_data="data")
-        ) as mock_file:
+        with mock.patch('builtins.open', mock.mock_open(read_data="data")) as mock_file:
             open_maybe_zipped(path)
             mock_file.assert_called_once_with(path, mode='r')
 

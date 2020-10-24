@@ -26,7 +26,6 @@
 
 """Setup.py for the {{ PACKAGE_PIP_NAME }} package."""
 
-import io
 import logging
 import os
 import sys
@@ -41,9 +40,7 @@ version = '{{ RELEASE_NO_LEADING_ZEROS }}{{VERSION_SUFFIX }}'
 my_dir = dirname(__file__)
 
 try:
-    with io.open(os.path.join(my_dir,
-                              '{{ PROVIDER_PATH }}/{{ README_FILE }}'),
-                 encoding='utf-8') as f:
+    with open(os.path.join(my_dir, '{{ PROVIDER_PATH }}/{{ README_FILE }}'), encoding='utf-8') as f:
         long_description = f.read()
 except FileNotFoundError:
     long_description = ''
