@@ -181,7 +181,7 @@ def get_subdag_runs(dag, session, state, task_ids, commit, confirmed_dates):
                 continue
 
             current_task = current_dag.get_task(task_id)
-            if isinstance(current_task, SubDagOperator):
+            if isinstance(current_task, SubDagOperator) or current_task.task_type == "SubDagOperator":
                 # this works as a kind of integrity check
                 # it creates missing dag runs for subdag operators,
                 # maybe this should be moved to dagrun.verify_integrity
