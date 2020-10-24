@@ -254,7 +254,7 @@ class AWSDataSyncOperator(BaseOperator):
         if len(task_arn_list) == 1:
             return task_arn_list[0]
         if self.allow_random_task_choice:
-            # Items are unordered so we dont want to just take
+            # Items are unordered so we don't want to just take
             # the [0] one as it implies ordered items were received
             # from AWS and might lead to confusion. Rather explicitly
             # choose a random one
@@ -268,7 +268,7 @@ class AWSDataSyncOperator(BaseOperator):
         if len(location_arn_list) == 1:
             return location_arn_list[0]
         if self.allow_random_location_choice:
-            # Items are unordered so we dont want to just take
+            # Items are unordered so we don't want to just take
             # the [0] one as it implies ordered items were received
             # from AWS and might lead to confusion. Rather explicitly
             # choose a random one

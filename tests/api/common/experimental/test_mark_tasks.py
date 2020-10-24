@@ -149,7 +149,7 @@ class TestMarkTasks(unittest.TestCase):
         self.verify_state(self.dag1, [task.task_id], [self.execution_dates[0]],
                           State.FAILED, snapshot)
 
-        # dont alter other tasks
+        # don't alter other tasks
         snapshot = TestMarkTasks.snapshot_state(self.dag1, self.execution_dates)
         task = self.dag1.get_task("runme_0")
         altered = set_state(tasks=[task], execution_date=self.execution_dates[0],
