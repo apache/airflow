@@ -23,7 +23,7 @@ from typing import Any, Optional
 
 from avmesos.client import MesosClient
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor, CommandType
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
@@ -36,9 +36,9 @@ FRAMEWORK_CONNID_PREFIX = 'mesos_framework_'
 
 def get_framework_name():
     """Get the mesos framework name if its set in airflow.cfg"""
-    if not configuration.conf.get('mesos', 'FRAMEWORK_NAME'):
+    if not conf.get('mesos', 'FRAMEWORK_NAME'):
         return DEFAULT_FRAMEWORK_NAME
-    return configuration.conf.get('mesos', 'FRAMEWORK_NAME')
+    return conf.get('mesos', 'FRAMEWORK_NAME')
 
 
 # pylint: disable=too-many-nested-blocks
@@ -70,41 +70,41 @@ class AirflowMesosScheduler(MesosClient):
         self.executor = executor
         self.driver = None
 
-        if not configuration.conf.get('mesos', 'DOCKER_IMAGE_SLAVE'):
+        if not conf.get('mesos', 'DOCKER_IMAGE_SLAVE'):
             self.log.error("Expecting docker image for  mesos executor")
             raise AirflowException("mesos.slave_docker_image not provided for mesos executor")
 
-        if not configuration.conf.get('mesos', 'DOCKER_VOLUME_DAG_DRIVER'):
+        if not conf.get('mesos', 'DOCKER_VOLUME_DAG_DRIVER'):
             self.log.error("Expecting docker volume dag driver for mesos executor")
             raise AirflowException("mesos.docker_volume_dag_driver not provided for mesos executor")
 
-        if not configuration.conf.get('mesos', 'DOCKER_VOLUME_DAG_NAME'):
+        if not conf.get('mesos', 'DOCKER_VOLUME_DAG_NAME'):
             self.log.error("Expecting docker volume dag name for mesos executor")
             raise AirflowException("mesos.docker_volume_dag_name not provided for mesos executor")
 
-        if not configuration.conf.get('mesos', 'DOCKER_VOLUME_DAG_CONTAINER_PATH'):
+        if not conf.get('mesos', 'DOCKER_VOLUME_DAG_CONTAINER_PATH'):
             self.log.error("Expecting docker volume dag container path for mesos executor")
             raise AirflowException("mesos.docker_volume_dag_container_path not provided for mesos executor")
 
-        if not configuration.conf.get('mesos', 'DOCKER_SOCK'):
+        if not conf.get('mesos', 'DOCKER_SOCK'):
             self.log.error("Expecting docker sock path for mesos executor")
             raise AirflowException("mesos.docker_sock not provided for mesos executor")
 
-        self.mesos_slave_docker_image = configuration.conf.get(
+        self.mesos_slave_docker_image = conf.get(
             'mesos', 'DOCKER_IMAGE_SLAVE'
         ).replace('"', '')
-        self.mesos_docker_volume_dag_driver = configuration.conf.get(
+        self.mesos_docker_volume_dag_driver = conf.get(
             'mesos', 'DOCKER_VOLUME_DAG_DRIVER'
         ).replace('"', '')
-        self.mesos_docker_volume_dag_name = configuration.conf.get(
+        self.mesos_docker_volume_dag_name = conf.get(
             'mesos', 'DOCKER_VOLUME_DAG_NAME'
         ).replace('"', '')
-        self.mesos_docker_volume_dag_container_path = configuration.conf.get(
+        self.mesos_docker_volume_dag_container_path = conf.get(
             'mesos', 'DOCKER_VOLUME_DAG_CONTAINER_PATH'
         ).replace('"', '')
-        self.mesos_docker_sock = configuration.conf.get('mesos', 'DOCKER_SOCK')
-        self.core_sql_alchemy_conn = configuration.conf.get('core', 'SQL_ALCHEMY_CONN')
-        self.core_fernet_key = configuration.conf.get('core', 'FERNET_KEY')
+        self.mesos_docker_sock = conf.get('mesos', 'DOCKER_SOCK')
+        self.core_sql_alchemy_conn = conf.get('core', 'SQL_ALCHEMY_CONN')
+        self.core_fernet_key = conf.get('core', 'FERNET_KEY')
 
     def resource_offers(self, offers):
         """If we got a offer, run a queued task"""
@@ -337,29 +337,29 @@ class MesosExecutor(BaseExecutor):
 
     def start(self):
         """Setup and start routine to connect with the mesos master"""
-        if not configuration.conf.get('mesos', 'MASTER'):
+        if not conf.get('mesos', 'MASTER'):
             self.log.error("Expecting mesos master URL for mesos executor")
             raise AirflowException("mesos.master not provided for mesos executor")
 
-        master = configuration.conf.get('mesos', 'MASTER')
+        master = conf.get('mesos', 'MASTER')
 
         framework_name = get_framework_name()
         framework_id = None
 
-        if not configuration.conf.get('mesos', 'TASK_CPU'):
+        if not conf.get('mesos', 'TASK_CPU'):
             task_cpu = 1
         else:
-            task_cpu = configuration.conf.getint('mesos', 'TASK_CPU')
+            task_cpu = conf.getint('mesos', 'TASK_CPU')
 
-        if not configuration.conf.get('mesos', 'TASK_MEMORY'):
+        if not conf.get('mesos', 'TASK_MEMORY'):
             task_memory = 256
         else:
-            task_memory = configuration.conf.getint('mesos', 'TASK_MEMORY')
+            task_memory = conf.getint('mesos', 'TASK_MEMORY')
 
-        if configuration.conf.getboolean('mesos', 'CHECKPOINT'):
+        if conf.getboolean('mesos', 'CHECKPOINT'):
             framework_checkpoint = True
 
-            if configuration.conf.get('mesos', 'FAILOVER_TIMEOUT'):
+            if conf.get('mesos', 'FAILOVER_TIMEOUT'):
                 # Import here to work around a circular import error
                 from airflow.models import Connection
 
@@ -373,7 +373,7 @@ class MesosExecutor(BaseExecutor):
                     framework_id = connection.extra
 
                 # Set Timeout in the case of a mesos master leader change
-                framework_failover_timeout = configuration.conf.getint(
+                framework_failover_timeout = conf.getint(
                     'mesos', 'FAILOVER_TIMEOUT'
                 )
 
@@ -399,17 +399,17 @@ class MesosExecutor(BaseExecutor):
         if framework_checkpoint:
             self.client.set_checkpoint(framework_checkpoint)
 
-        if configuration.conf.getboolean('mesos', 'AUTHENTICATE'):
-            if not configuration.conf.get('mesos', 'DEFAULT_PRINCIPAL'):
+        if conf.getboolean('mesos', 'AUTHENTICATE'):
+            if not conf.get('mesos', 'DEFAULT_PRINCIPAL'):
                 self.log.error("Expecting authentication principal in the environment")
                 raise AirflowException(
                     "mesos.default_principal not provided in authenticated mode")
-            if not configuration.conf.get('mesos', 'DEFAULT_SECRET'):
+            if not conf.get('mesos', 'DEFAULT_SECRET'):
                 self.log.error("Expecting authentication secret in the environment")
                 raise AirflowException(
                     "mesos.default_secret not provided in authenticated mode")
-            self.client.principal = configuration.conf.get('mesos', 'DEFAULT_PRINCIPAL')
-            self.client.secret = configuration.conf.get('mesos', 'DEFAULT_SECRET')
+            self.client.principal = conf.get('mesos', 'DEFAULT_PRINCIPAL')
+            self.client.secret = conf.get('mesos', 'DEFAULT_SECRET')
 
         driver = AirflowMesosScheduler(self, self.task_queue, self.result_queue, task_cpu, task_memory)
         self.driver = driver
