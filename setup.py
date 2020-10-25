@@ -564,6 +564,8 @@ EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "apache.hive": hive,
     "apache.kylin": kylin,
     "apache.pinot": pinot,
+    "apache.presto": presto,
+    "apache.spark": spark,
     "apache.webhdfs": webhdfs,
     'async': async_packages,
     'atlas': atlas,  # TODO: remove this in Airflow 2.1
