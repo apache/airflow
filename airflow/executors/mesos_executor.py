@@ -27,7 +27,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor, CommandType
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
-from airflow.settings import Session
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 DEFAULT_FRAMEWORK_NAME = 'Airflow'
@@ -109,8 +109,7 @@ class AirflowMesosScheduler(MesosClient):
     def resource_offers(self, offers):
         """If we got a offer, run a queued task"""
         self.log.debug('MESOS OFFER')
-        i = 0
-        for offer in offers:
+        for i, offer in enumerate(offers):
             if i == 0:
                 self.run_job(offer)
             else:
@@ -245,7 +244,8 @@ class AirflowMesosScheduler(MesosClient):
             remaining_mem -= self.task_mem
         mesos_offer.accept(tasks, option)
 
-    def subscribed(self, driver):
+    @provide_session
+    def subscribed(self, driver, session=None):
         """
         Subscribe to Mesos Master
 
@@ -254,9 +254,8 @@ class AirflowMesosScheduler(MesosClient):
         from airflow.models import Connection
 
         # Update the Framework ID in the database.
-        session = Session()
         conn_id = FRAMEWORK_CONNID_PREFIX + get_framework_name()
-        connection = Session.query(Connection).filter_by(conn_id=conn_id).first()
+        connection = session.query(Connection).filter_by(conn_id=conn_id).first()
         if connection is None:
             connection = Connection(
                 conn_id=conn_id,
@@ -268,34 +267,36 @@ class AirflowMesosScheduler(MesosClient):
 
         session.commit()
         self.driver = driver
-        Session.remove()
 
     def status_update(self, update):
         """Update the Status of the Tasks. Based by Mesos Events."""
+        task_id = update["status"]["task_id"]["value"]
+        task_state = update["status"]["state"]
+
         self.log.info(
-            "Task %s is in state %s", update['status']['task_id']['value'], update['status']['state'])
+            "Task %s is in state %s", task_id, task_state)
 
         try:
-            key = self.task_key_map[update['status']['task_id']['value']]
+            key = self.task_key_map[task_id]
 
         except KeyError:
             # The map may not contain an item if the framework re-registered
             # after a failover.
             # Discard these tasks.
-            self.log.info("Unrecognised task key %s", update['status']['task_id']['value'])
+            self.log.info("Unrecognised task key %s", task_id)
             return
 
-        if update['status']['state'] == "TASK_RUNNING":
+        if task_state == "TASK_RUNNING":
             self.result_queue.put((key, State.RUNNING))
             return
 
-        if update['status']['state'] == "TASK_FINISHED":
+        if task_state == "TASK_FINISHED":
             self.result_queue.put((key, State.SUCCESS))
             return
 
-        if update['status']['state'] == "TASK_LOST" or \
-           update['status']['state'] == "TASK_KILLED" or \
-           update['status']['state'] == "TASK_FAILED":
+        if task_state == "TASK_LOST" or \
+           task_state == "TASK_KILLED" or \
+           task_state == "TASK_FAILED":
             self.result_queue.put((key, State.FAILED))
             return
 
@@ -324,7 +325,7 @@ class MesosExecutor(BaseExecutor):
             try:
                 self.client.register()
             except KeyboardInterrupt:
-                print('Stop requested by user, stopping framework....')
+                self.log.info("Stop requested by user, stopping framework....")
 
     def __init__(self):
         super().__init__()
@@ -335,7 +336,8 @@ class MesosExecutor(BaseExecutor):
         self.client = None
         self.th = None  # pylint: disable=invalid-name
 
-    def start(self):
+    @provide_session
+    def start(self, session=None):
         """Setup and start routine to connect with the mesos master"""
         if not conf.get('mesos', 'MASTER'):
             self.log.error("Expecting mesos master URL for mesos executor")
@@ -346,10 +348,7 @@ class MesosExecutor(BaseExecutor):
         framework_name = get_framework_name()
         framework_id = None
 
-        if not conf.get('mesos', 'TASK_CPU'):
-            task_cpu = 1
-        else:
-            task_cpu = conf.getint('mesos', 'TASK_CPU')
+        task_cpu  = conf.get('mesos', 'TASK_CPU', fallback=1)
 
         if not conf.get('mesos', 'TASK_MEMORY'):
             task_memory = 256
@@ -365,7 +364,6 @@ class MesosExecutor(BaseExecutor):
 
                 # Query the database to get the ID of the Mesos Framework, if available.
                 conn_id = FRAMEWORK_CONNID_PREFIX + framework_name
-                session = Session()
                 connection = session.query(Connection).filter_by(conn_id=conn_id).first()
                 if connection is not None:
                     # Set the Framework ID to let the scheduler reconnect
@@ -437,11 +435,11 @@ class MesosExecutor(BaseExecutor):
             self.change_state(*results)
             self._change_state(*results)
 
-    def _change_state(self, key: TaskInstanceKey, state: str, info=None) -> None:
+    @provide_session
+    def _change_state(self, key: TaskInstanceKey, state: str, info=None, session=None) -> None:
         """Local function to change the state directly in the database"""
         self.log.debug(info)
-        if Session is not None:
-            session = Session()
+        if session is not None:
             session.query(TaskInstance).filter(
                 TaskInstance.dag_id == key.dag_id,
                 TaskInstance.task_id == key.task_id,
