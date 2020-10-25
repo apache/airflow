@@ -22,34 +22,36 @@ Checks if all the libraries in setup.py are listed in installation.rst file
 
 import os
 import re
-import sys
 from os.path import dirname
+from typing import Dict, List
 
 AIRFLOW_SOURCES_DIR = os.path.join(dirname(__file__), os.pardir, os.pardir, os.pardir)
 SETUP_PY_FILE = 'setup.py'
 DOCS_FILE = 'installation.rst'
-PY_IDENTIFIER = '[a-zA-Z_][a-zA-Z0-9_\.]*'
+PY_IDENTIFIER = r'[a-zA-Z_][a-zA-Z0-9_\.]*'
 
-def get_file_content(*file_path: str) -> str:
-    file_path = os.path.join(AIRFLOW_SOURCES_DIR, *file_path)
+
+def get_file_content(*path_elements: str) -> str:
+    file_path = os.path.join(AIRFLOW_SOURCES_DIR, *path_elements)
     with open(file_path) as file_to_read:
         return file_to_read.read()
 
-def get_extras_from_setup() -> {str: bool}:
+
+def get_extras_from_setup() -> Dict[str, List[str]]:
     """
     Returns an array EXTRAS_REQUIREMENTS with aliases from setup.py file in format:
     {'package name': ['alias1', 'alias2], ...}
     """
     setup_content = get_file_content(SETUP_PY_FILE)
-    
+
     extras_section_regex = re.compile(
-        '^EXTRAS_REQUIREMENTS: Dict[^{]+{([^}]+)}', re.MULTILINE)
+        r'^EXTRAS_REQUIREMENTS: Dict[^{]+{([^}]+)}', re.MULTILINE)
     extras_section = extras_section_regex.findall(setup_content)[0]
 
     extras_regex = re.compile(
-        f'^\s+[\"\']([a-zA-Z_][a-zA-Z0-9_\.]*)[\"\']:\s*([a-zA-Z_][a-zA-Z0-9_\.]*)[^#\n]*(#\s*TODO.*)?$', re.MULTILINE)
+        rf'^\s+[\"\']({PY_IDENTIFIER})[\"\']:\s*({PY_IDENTIFIER})[^#\n]*(#\s*TODO.*)?$', re.MULTILINE)
 
-    extras_dict = {}
+    extras_dict: Dict[str, List[str]] = {}
     for extras in extras_regex.findall(extras_section):
         package = extras[1]
         alias = extras[0]
@@ -58,15 +60,17 @@ def get_extras_from_setup() -> {str: bool}:
         extras_dict[package].append(alias)
     return extras_dict
 
-def get_extras_from_docs() -> {str: bool}:
+
+def get_extras_from_docs() -> List[str]:
     """
-    Returns an array of install packages names from installation.rst
-    file in format.
+    Returns an array of install packages names from installation.rst.
     """
     docs_content = get_file_content('docs', DOCS_FILE)
 
-    extras_section_regex = re.compile(f'^\|[^|]+\|.*pip install .apache-airflow\[({PY_IDENTIFIER})\].', re.MULTILINE)
+    extras_section_regex = re.compile(rf'^\|[^|]+\|.*pip install .apache-airflow\[({PY_IDENTIFIER})\].',
+                                      re.MULTILINE)
     return extras_section_regex.findall(docs_content)
+
 
 if __name__ == '__main__':
     setup_packages = get_extras_from_setup()
@@ -77,10 +81,10 @@ if __name__ == '__main__':
     for extras in sorted(setup_packages.keys()):
         if not set(setup_packages[extras]).intersection(docs_packages):
             output_table += "| {:20} | {:^10} | {:^10} |\n".format(extras, "V", "")
-    
+
     setup_packages_str = str(setup_packages)
     for extras in sorted(docs_packages):
-        if not f"'{extras}'" in setup_packages_str:
+        if f"'{extras}'" not in setup_packages_str:
             output_table += "| {:20} | {:^10} | {:^10} |\n".format(extras, "", "V")
 
     if(output_table == ""):
