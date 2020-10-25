@@ -695,6 +695,20 @@
                 "resources": {
                     "type": "object"
                 },
+                "secretName": {
+                    "description": "A secret containing the user and password pair.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "basicAuth": {
+                    "description": "Authorization contains user1:password1,user2:password2 pairs",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
                 "service": {
                     "description": "Flower service configuration.",
                     "type": "object",

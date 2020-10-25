@@ -81,16 +81,26 @@ spec:
               containerPort: {{ .Values.ports.flowerUI }}
           livenessProbe:
             failureThreshold: 10
-            httpGet:
-              path: /
-              port: {{ .Values.ports.flowerUI }}
+            exec:
+              command:
+                - curl
+                {{- if or .Values.flower.secretName .Values.flower.basicAuth }}
+                - "-H"
+                - "Authorization: Basic $AIRFLOW__CELERY__FLOWER_BASIC_AUTH"
+                {{- end }}
+                - "localhost:5555"
             initialDelaySeconds: 10
             periodSeconds: 5
           readinessProbe:
             failureThreshold: 10
-            httpGet:
-              path: /
-              port: {{ .Values.ports.flowerUI }}
+            exec:
+              command:
+                - curl
+                {{- if or .Values.flower.secretName .Values.flower.basicAuth }}
+                - "-H"
+                - "Authorization: Basic $AIRFLOW__CELERY__FLOWER_BASIC_AUTH"
+                {{- end }}
+                - "localhost:5555"
             initialDelaySeconds: 10
             periodSeconds: 5
           env:
