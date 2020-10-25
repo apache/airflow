@@ -36,6 +36,11 @@ from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, 
 
 import semver
 
+PROVIDER_TEMPLATE_PREFIX = "PROVIDER_"
+BACKPORT_PROVIDER_TEMPLATE_PREFIX = "BACKPORT_PROVIDER_"
+
+BACKPORT_PROVIDER_PREFIX = "backport_provider_"
+
 MY_DIR_PATH = os.path.dirname(__file__)
 SOURCE_DIR_PATH = os.path.abspath(os.path.join(MY_DIR_PATH, os.pardir))
 AIRFLOW_PATH = os.path.join(SOURCE_DIR_PATH, "airflow")
@@ -189,14 +194,14 @@ def get_long_description(provider_package_id: str, backport_packages: bool) -> s
 
     :param provider_package_id: package id
     :param backport_packages: whether to prepare regular (False) or backport (True) packages
-    :return: content of the description (BACKPORT_README/README file)
+    :return: content of the description (BACKPORT_PROVIDER_README/README file)
     """
     package_folder = get_target_providers_package_folder(provider_package_id)
-    readme_file = os.path.join(package_folder, "BACKPORT_README.md" if backport_packages else "README.md")
+    readme_file = os.path.join(package_folder,
+                               "BACKPORT_PROVIDER_README.md" if backport_packages else "README.md")
     if not os.path.exists(readme_file):
         return ""
-    with open(os.path.join(package_folder, "BACKPORT_README.md" if backport_packages else "README.md"),
-              encoding='utf-8', mode="r") as file:
+    with open(readme_file, encoding='utf-8', mode="r") as file:
         readme_contents = file.read()
     copying = True
     long_description = ""
@@ -642,13 +647,15 @@ def render_template(
         template_name: str,
         context: Dict[str, Any],
         extension: str,
-        autoescape: bool = True) -> str:
+        autoescape: bool = True,
+        keep_trailing_newline: bool = False) -> str:
     """
     Renders template based on it's name. Reads the template from <name>_TEMPLATE.md.jinja2 in current dir.
     :param template_name: name of the template to use
     :param context: Jinja2 context
     :param extension: Target file extension
     :param autoescape: Whether to autoescape HTML
+    :param keep_trailing_newline: Whether to keep the newline in rendered output
     :return: rendered template
     """
     import jinja2
@@ -656,7 +663,8 @@ def render_template(
     template_env = jinja2.Environment(
         loader=template_loader,
         undefined=jinja2.StrictUndefined,
-        autoescape=autoescape
+        autoescape=autoescape,
+        keep_trailing_newline=keep_trailing_newline
     )
     template = template_env.get_template(f"{template_name}_TEMPLATE{extension}.jinja2")
     content: str = template.render(context)
@@ -772,14 +780,14 @@ def get_provider_changes_prefix(backport_packages: bool) -> str:
     Returns prefix for provider CHANGES files.
     """
     if backport_packages:
-        return "BACKPORT_PROVIDERS_CHANGES_"
+        return "BACKPORT_PROVIDER_CHANGES_"
     else:
-        return "PROVIDERS_CHANGES_"
+        return "PROVIDER_CHANGES_"
 
 
 def get_all_releases(provider_package_path: str, backport_packages: bool) -> List[ReleaseInfo]:
     """
-    Returns information about past releases (retrieved from BACKPORT_PROVIDERS_CHANGES_ files stored in the
+    Returns information about past releases (retrieved from *changes_*md files stored in the
     package folder.
     :param provider_package_path: path of the package
     :param backport_packages: whether to prepare regular (False) or backport (True) packages
@@ -938,7 +946,7 @@ def store_current_changes(provider_package_path: str,
                           current_changes: str,
                           backport_packages: bool) -> None:
     """
-    Stores current changes in the BACKPORT_PROVIDERS_CHANGES_YYYY.MM.DD.md file.
+    Stores current changes in the *_changes_YYYY.MM.DD.md file.
 
     :param provider_package_path: path for the package
     :param current_release_version: release version to build
@@ -1039,8 +1047,8 @@ def update_release_notes_for_package(provider_package_id: str,
                                      imported_classes: List[str],
                                      backport_packages: bool) -> Tuple[int, int]:
     """
-    Updates release notes (BACKPORT_README.md/README.md) for the package. returns Tuple of total number
-    of entities and badly named entities.
+    Updates release notes (BACKPORT_PROVIDER_README.md/README.md) for the package.
+    Returns Tuple of total number of entities and badly named entities.
 
     :param provider_package_id: id of the package
     :param current_release_version: release version:
@@ -1077,7 +1085,7 @@ def update_release_notes_for_package(provider_package_id: str,
         if backport_packages else current_release_version
     context: Dict[str, Any] = {
         "ENTITY_TYPES": list(EntityType),
-        "README_FILE": "BACKPORT_README.md" if backport_packages else "README.md",
+        "README_FILE": "BACKPORT_PROVIDER_README.md" if backport_packages else "README.md",
         "PROVIDER_PACKAGE_ID": provider_package_id,
         "PACKAGE_PIP_NAME": get_pip_package_name(provider_package_id, backport_packages),
         "FULL_PACKAGE_NAME": full_package_name,
@@ -1116,9 +1124,21 @@ def update_release_notes_for_package(provider_package_id: str,
     return total, bad
 
 
+def get_template_name(backport_packages: bool, template_suffix: str) -> str:
+    """
+    Returns name of the template
+
+    :param backport_packages: whether to generate backport packages
+    :param template_suffix: suffix to add
+    :return template name
+    """
+    return (BACKPORT_PROVIDER_TEMPLATE_PREFIX if backport_packages else PROVIDER_TEMPLATE_PREFIX) \
+        + template_suffix
+
+
 def prepare_readme_and_changes_files(backport_packages, context, current_release_version, entity_summaries,
                                      provider_package_id, provider_package_path):
-    changes_template_name = "BACKPORT_PROVIDERS_CHANGES" if backport_packages else "PROVIDERS_CHANGES"
+    changes_template_name = get_template_name(backport_packages, "CHANGES")
     current_changes = render_template(template_name=changes_template_name, context=context, extension='.md')
     store_current_changes(provider_package_path=provider_package_path,
                           current_release_version=current_release_version,
@@ -1128,14 +1148,14 @@ def prepare_readme_and_changes_files(backport_packages, context, current_release
     all_releases = get_all_releases(provider_package_path, backport_packages=backport_packages)
     context["RELEASES"] = all_releases
     readme = LICENCE
-    setup_template_name = "BACKPORT_PROVIDERS_README" if backport_packages else "PROVIDERS_README"
-    readme += render_template(template_name=setup_template_name, context=context, extension='.md')
-    classes_template_name = "BACKPORT_PROVIDERS_CLASSES" if backport_packages else "PROVIDERS_CLASSES"
+    readme_template_name = get_template_name(backport_packages, "README")
+    readme += render_template(template_name=readme_template_name, context=context, extension='.md')
+    classes_template_name = get_template_name(backport_packages, "CLASSES")
     readme += render_template(template_name=classes_template_name, context=context, extension='.md')
     for a_release in all_releases:
         readme += a_release.content
     readme_file_path = os.path.join(provider_package_path,
-                                    "BACKPORT_README.md" if backport_packages else "README.md")
+                                    "BACKPORT_PROVIDER_README.md" if backport_packages else "README.md")
     old_text = ""
     if os.path.isfile(readme_file_path):
         with open(readme_file_path, "rt") as readme_file_read:
@@ -1158,7 +1178,7 @@ def prepare_readme_and_changes_files(backport_packages, context, current_release
 
 def prepare_setup_py_file(context, provider_package_path):
     setup_template_name = "SETUP"
-    setup_target_prefix = "BACKPORT_PROVIDERS_" if BACKPORT_PACKAGES else ""
+    setup_target_prefix = BACKPORT_PROVIDER_PREFIX if BACKPORT_PACKAGES else ""
     setup_file_path = os.path.abspath(os.path.join(provider_package_path, setup_target_prefix + "setup.py"))
     setup_content = render_template(
         template_name=setup_template_name,
@@ -1174,13 +1194,14 @@ def prepare_setup_py_file(context, provider_package_path):
 
 def prepare_setup_cfg_file(context, provider_package_path):
     setup_template_name = "SETUP"
-    setup_target_prefix = "BACKPORT_PROVIDERS_" if BACKPORT_PACKAGES else ""
+    setup_target_prefix = BACKPORT_PROVIDER_PREFIX if BACKPORT_PACKAGES else ""
     setup_file_path = os.path.abspath(os.path.join(provider_package_path, setup_target_prefix + "setup.cfg"))
     setup_content = render_template(
         template_name=setup_template_name,
         context=context,
         extension='.cfg',
-        autoescape=False
+        autoescape=False,
+        keep_trailing_newline=True
     )
     with open(setup_file_path, "wt") as setup_file:
         setup_file.write(setup_content)
@@ -1285,7 +1306,7 @@ def copy_setup_py(provider_package_id: str,
     :param backport_packages: whether to prepare regular (False) or backport (True) packages
     :return:
     """
-    setup_source_prefix = "BACKPORT_PROVIDERS_" if backport_packages else ""
+    setup_source_prefix = BACKPORT_PROVIDER_PREFIX if backport_packages else ""
     provider_package_path = get_package_path(provider_package_id)
     copyfile(os.path.join(provider_package_path, setup_source_prefix + "setup.py"),
              os.path.join(MY_DIR_PATH, "setup.py"))
@@ -1299,7 +1320,7 @@ def copy_setup_cfg(provider_package_id: str,
     :param backport_packages: whether to prepare regular (False) or backport (True) packages
     :return:
     """
-    setup_source_prefix = "BACKPORT_PROVIDERS_" if backport_packages else ""
+    setup_source_prefix = BACKPORT_PROVIDER_PREFIX if backport_packages else ""
     provider_package_path = get_package_path(provider_package_id)
     copyfile(os.path.join(provider_package_path, setup_source_prefix + "setup.cfg"),
              os.path.join(MY_DIR_PATH, "setup.cfg"))
@@ -1313,7 +1334,7 @@ def copy_readme_and_changelog(provider_package_id: str,
     :param backport_packages: whether to prepare regular (False) or backport (True) packages
     :return:
     """
-    readme_source = "BACKPORT_README.md" if backport_packages else "README.md"
+    readme_source = "BACKPORT_PROVIDER_README.md" if backport_packages else "README.md"
     provider_package_path = get_package_path(provider_package_id)
     readme_source = os.path.join(provider_package_path, readme_source)
     readme_target = os.path.join(MY_DIR_PATH, "README.md")
