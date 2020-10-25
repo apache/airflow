@@ -29,6 +29,7 @@ from sqlalchemy.orm.session import make_transient
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.models import DagRun
 from airflow.models.base import ID_LEN, Base
 from airflow.models.taskinstance import TaskInstance
 from airflow.stats import Stats
@@ -78,6 +79,14 @@ class BaseJob(Base, LoggingMixin):
         foreign_keys=id,
         backref=backref('queued_by_job', uselist=False),
     )
+
+    dag_runs = relationship(
+        DagRun,
+        primaryjoin=id == DagRun.creating_job_id,
+        foreign_keys=id,
+        backref=backref('creating_job'),
+    )
+
     """
     TaskInstances which have been enqueued by this Job.
 
@@ -136,9 +145,7 @@ class BaseJob(Base, LoggingMixin):
 
     @provide_session
     def kill(self, session=None):
-        """
-        Handles on_kill callback and updates state in database.
-        """
+        """Handles on_kill callback and updates state in database."""
         job = session.query(BaseJob).filter(BaseJob.id == self.id).first()
         job.end_date = timezone.utcnow()
         try:
@@ -150,14 +157,10 @@ class BaseJob(Base, LoggingMixin):
         raise AirflowException("Job shut down externally.")
 
     def on_kill(self):
-        """
-        Will be called when an external kill command is received
-        """
+        """Will be called when an external kill command is received"""
 
     def heartbeat_callback(self, session=None):
-        """
-        Callback that is called during heartbeat. This method should be overwritten.
-        """
+        """Callback that is called during heartbeat. This method should be overwritten."""
 
     def heartbeat(self, only_if_necessary: bool = False):
         """
@@ -211,7 +214,7 @@ class BaseJob(Base, LoggingMixin):
 
             # Update last heartbeat time
             with create_session() as session:
-                # Make the sesion aware of this object
+                # Make the session aware of this object
                 session.merge(self)
                 self.latest_heartbeat = timezone.utcnow()
                 session.commit()
@@ -229,9 +232,7 @@ class BaseJob(Base, LoggingMixin):
             self.latest_heartbeat = previous_heartbeat
 
     def run(self):
-        """
-        Starts the job.
-        """
+        """Starts the job."""
         Stats.incr(self.__class__.__name__.lower() + '_start', 1, 1)
         # Adding an entry in the DB
         with create_session() as session:

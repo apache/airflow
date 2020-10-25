@@ -71,7 +71,7 @@ class GoogleSheetsCreateSpreadsheetOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Any):
+    def execute(self, context: Any) -> Dict[str, Any]:
         hook = GSheetsHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

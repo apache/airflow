@@ -24,9 +24,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class timeout(LoggingMixin):  # pylint: disable=invalid-name
-    """
-    To be used in a ``with`` block and timeout its content.
-    """
+    """To be used in a ``with`` block and timeout its content."""
 
     def __init__(self, seconds=1, error_message='Timeout'):
         super().__init__()
@@ -34,9 +32,7 @@ class timeout(LoggingMixin):  # pylint: disable=invalid-name
         self.error_message = error_message + ', PID: ' + str(os.getpid())
 
     def handle_timeout(self, signum, frame):    # pylint: disable=unused-argument
-        """
-        Logs information and raises AirflowTaskTimeout.
-        """
+        """Logs information and raises AirflowTaskTimeout."""
         self.log.error("Process timed out, PID: %s", str(os.getpid()))
         raise AirflowTaskTimeout(self.error_message)
 

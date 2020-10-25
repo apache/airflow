@@ -17,7 +17,6 @@
 # under the License.
 """Setup.py for the Airflow project."""
 
-import io
 import logging
 import os
 import subprocess
@@ -39,12 +38,11 @@ spec.loader.exec_module(mod)  # type: ignore
 version = mod.version  # type: ignore
 
 PY3 = sys.version_info[0] == 3
-PY38 = PY3 and sys.version_info[1] >= 8
 
 my_dir = dirname(__file__)
 
 try:
-    with io.open(os.path.join(my_dir, 'README.md'), encoding='utf-8') as f:
+    with open(os.path.join(my_dir, 'README.md'), encoding='utf-8') as f:
         long_description = f.read()
 except FileNotFoundError:
     long_description = ''
@@ -269,6 +267,7 @@ google = [
     'google-cloud-kms>=1.2.1,<2.0.0',
     'google-cloud-language>=1.1.1,<2.0.0',
     'google-cloud-logging>=1.14.0,<2.0.0',
+    'google-cloud-memcache>=0.2.0',
     'google-cloud-monitoring>=0.34.0,<2.0.0',
     'google-cloud-pubsub>=1.0.0,<2.0.0',
     'google-cloud-redis>=0.3.0,<2.0.0',
@@ -331,7 +330,7 @@ mongo = [
     'pymongo>=3.6.0',
 ]
 mssql = [
-    'pymssql~=2.1.1',
+    'pymssql~=2.1,>=2.1.5',
 ]
 mysql = [
     'mysql-connector-python>=8.0.11, <=8.0.18',
@@ -344,7 +343,7 @@ oracle = [
     'cx_Oracle>=5.1.2',
 ]
 pagerduty = [
-    'pypd>=1.1.0',
+    'pdpyras>=4.1.2,<5',
 ]
 papermill = [
     'papermill[all]>=1.2.1',
@@ -443,6 +442,7 @@ all_dbs = (cassandra + cloudant + druid + exasol + hdfs + hive + mongo + mssql +
 ############################################################################################################
 devel = [
     'beautifulsoup4~=4.7.1',
+    'black',
     'blinker',
     'bowler',
     'click==6.7',
@@ -475,7 +475,9 @@ devel = [
     'pywinrm',
     'qds-sdk>=1.9.6',
     'requests_mock',
+    'semver',
     'setuptools',
+    'testfixtures',
     'wheel',
     'yamllint',
 ]
@@ -651,11 +653,6 @@ if PY3:
         'snakebite',
     ])
 
-if PY38:
-    PACKAGES_EXCLUDED_FOR_ALL.extend([
-        'pymssql',
-    ])
-
 # Those packages are excluded because they break tests (downgrading mock) and they are
 # not needed to run our test suite.
 PACKAGES_EXCLUDED_FOR_CI = [
@@ -698,7 +695,7 @@ EXTRAS_REQUIREMENTS.update(
 INSTALL_REQUIREMENTS = [
     'alembic>=1.2, <2.0',
     'argcomplete~=1.10',
-    'attrs~=19.3',
+    'attrs~=20.0',
     'cached_property~=1.5',
     'cattrs~=1.0',
     'colorlog==4.0.2',
@@ -707,7 +704,7 @@ INSTALL_REQUIREMENTS = [
     'cryptography>=0.9.3',
     'dill>=0.2.2, <0.4',
     'flask>=1.1.0, <2.0',
-    'flask-appbuilder>2.3.4,~=3.0',
+    'flask-appbuilder~=3.1.0',
     'flask-caching>=1.3.3, <2.0.0',
     'flask-login>=0.3, <0.5',
     'flask-swagger==0.2.13',
@@ -738,19 +735,23 @@ INSTALL_REQUIREMENTS = [
     'sqlalchemy>=1.3.18, <2',
     'sqlalchemy_jsonfield~=0.9',
     'tabulate>=0.7.5, <0.9',
-    'tenacity>=4.12.0, <5.2',
+    'tenacity~=6.2.0',
     'termcolor>=1.1.0',
     'thrift>=0.9.2',
     'typing;python_version<"3.6"',
     'typing-extensions>=3.7.4;python_version<"3.8"',
     'tzlocal>=1.4,<2.0.0',
     'unicodecsv>=0.14.1',
-    'werkzeug<1.0.0',
+    'werkzeug<1.1.0',
 ]
 
 
 def do_setup():
     """Perform the Airflow package setup."""
+    install_providers_from_sources = os.getenv('INSTALL_PROVIDERS_FROM_SOURCES')
+    exclude_patterns = \
+        [] if install_providers_from_sources and install_providers_from_sources == 'true' \
+        else ['airflow.providers', 'airflow.providers.*']
     write_version()
     setup(
         name='apache-airflow',
@@ -759,7 +760,9 @@ def do_setup():
         long_description_content_type='text/markdown',
         license='Apache License 2.0',
         version=version,
-        packages=find_packages(include=['airflow', 'airflow.*']),
+        packages=find_packages(
+            include=['airflow*'],
+            exclude=exclude_patterns),
         package_data={
             'airflow': ['py.typed'],
             '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb",
@@ -799,7 +802,7 @@ def do_setup():
         author_email='dev@airflow.apache.org',
         url='http://airflow.apache.org/',
         download_url=(
-            'https://dist.apache.org/repos/dist/release/airflow/' + version),
+            'https://archive.apache.org/dist/airflow/' + version),
         cmdclass={
             'extra_clean': CleanCommand,
             'compile_assets': CompileAssets,
@@ -807,6 +810,11 @@ def do_setup():
         },
         test_suite='setup.airflow_test_suite',
         python_requires='~=3.6',
+        project_urls={
+            'Documentation': 'https://airflow.apache.org/docs/',
+            'Bug Tracker': 'https://github.com/apache/airflow/issues',
+            'Source Code': 'https://github.com/apache/airflow',
+        },
     )
 
 

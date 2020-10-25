@@ -98,7 +98,7 @@ class TestCheatSheetCommand(unittest.TestCase):
         cls.parser = cli_parser.get_parser()
 
     @mock.patch('airflow.cli.cli_parser.airflow_commands', MOCK_COMMANDS)
-    def test_should_displaay_index(self):
+    def test_should_display_index(self):
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             args = self.parser.parse_args(['cheat-sheet'])
             args.func(args)

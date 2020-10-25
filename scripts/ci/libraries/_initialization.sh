@@ -72,6 +72,8 @@ function initialization::initialize_base_variables() {
     export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="28080"}
     export POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:="25433"}
     export MYSQL_HOST_PORT=${MYSQL_HOST_PORT:="23306"}
+    export FLOWER_HOST_PORT=${FLOWER_HOST_PORT:="25555"}
+    export REDIS_HOST_PORT=${REDIS_HOST_PORT:="26379"}
 
     # The SQLite URL used for sqlite runs
     export SQLITE_URL="sqlite:////root/airflow/airflow.db"
@@ -92,11 +94,11 @@ function initialization::initialize_base_variables() {
     export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported versions of Postgres
-    CURRENT_POSTGRES_VERSIONS+=("9.6" "10")
+    CURRENT_POSTGRES_VERSIONS+=("9.6" "13")
     export CURRENT_POSTGRES_VERSIONS
 
-   # Currently supported versions of MySQL
-    CURRENT_MYSQL_VERSIONS+=("5.7")
+    # Currently supported versions of MySQL
+    CURRENT_MYSQL_VERSIONS+=("5.7" "8")
     export CURRENT_MYSQL_VERSIONS
 
     # Default Postgres versions
@@ -111,10 +113,24 @@ function initialization::initialize_base_variables() {
     # If set to true, the database will be initialized, a user created and webserver and scheduler started
     export START_AIRFLOW=${START_AIRFLOW:="false"}
 
+    # If set to true, the sample dags will be used
     export LOAD_EXAMPLES=${LOAD_EXAMPLES:="false"}
 
+    # If set to true, the test connections will be created
     export LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS:="false"}
-    # If set the specified file will be used to initialized Airflow after the environment is created,
+
+    # If set to true, Breeze db volumes will be persisted when breeze is stopped and reused next time
+    # Which means that you do not have to start from scratch
+    export PRESERVE_VOLUMES="false"
+
+    # If set to true, RBAC UI will not be used for 1.10 version
+    export DISABLE_RBAC=${DISABLE_RBAC:="false"}
+
+    # if set to true, the ci image will look for wheel packages in dist folder and will install them
+    # during entering the container
+    export INSTALL_WHEELS=${INSTALL_WHEELS:="false"}
+
+    # If set the specified file will be used to initialize Airflow after the environment is created,
     # otherwise it will use files/airflow-breeze-config/init.sh
     export INIT_SCRIPT_FILE=${INIT_SCRIPT_FILE:=""}
 
@@ -128,6 +144,9 @@ function initialization::initialize_base_variables() {
     # If no Airflow Home defined - fallback to ${HOME}/airflow
     AIRFLOW_HOME_DIR=${AIRFLOW_HOME:=${HOME}/airflow}
     export AIRFLOW_HOME_DIR
+
+    INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES:="true"}
+    export INSTALL_PROVIDERS_FROM_SOURCES
 }
 
 # Determine current branch
@@ -159,7 +178,6 @@ function initialization::initialize_available_integrations() {
     export AVAILABLE_INTEGRATIONS="cassandra kerberos mongo openldap presto rabbitmq redis"
 }
 
-
 # Needs to be declared outside of function for MacOS
 FILES_FOR_REBUILD_CHECK=()
 
@@ -176,7 +194,6 @@ function initialization::initialize_files_for_rebuild_check() {
         "airflow/www/webpack.config.js"
     )
 }
-
 
 # Needs to be declared outside of function for MacOS
 
@@ -246,6 +263,8 @@ function initialization::initialize_force_variables() {
     # Can be set to true to skip if the image is newer in registry
     export SKIP_CHECK_REMOTE_IMAGE=${SKIP_CHECK_REMOTE_IMAGE:="false"}
 
+    # Should be set to true if you expect image frm GitHub to be present and downloaded
+    export FAIL_ON_GITHUB_DOCKER_PULL_ERROR=${FAIL_ON_GITHUB_DOCKER_PULL_ERROR:="false"}
 }
 
 # Determine information about the host
@@ -314,24 +333,56 @@ function initialization::initialize_image_build_variables() {
     export ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS:=""}"
     # Additional python dependencies on top of the default ones
     export ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS:=""}"
+    # Use default DEV_APT_COMMAND
+    export DEV_APT_COMMAND=""
+    # Use default DEV_APT_DEPS
+    export DEV_APT_DEPS=""
+    # Use empty ADDITIONAL_DEV_APT_COMMAND
+    export ADDITIONAL_DEV_APT_COMMAND=""
     # additional development apt dependencies on top of the default ones
-    export ADDITIONAL_DEV_DEPS="${ADDITIONAL_DEV_DEPS:=""}"
+    export ADDITIONAL_DEV_APT_DEPS="${ADDITIONAL_DEV_APT_DEPS:=""}"
+    # Use empty ADDITIONAL_DEV_APT_ENV
+    export ADDITIONAL_DEV_APT_ENV="${ADDITIONAL_DEV_APT_ENV:=""}"
+    # Use default RUNTIME_APT_COMMAND
+    export RUNTIME_APT_COMMAND=""
+    # Use default RUNTIME_APT_DEVS
+    export RUNTIME_APT_DEVS=""
+    # Use empty ADDITIONAL_RUNTIME_APT_COMMAND
+    export ADDITIONAL_RUNTIME_APT_COMMAND=""
     # additional runtime apt dependencies on top of the default ones
     export ADDITIONAL_RUNTIME_DEPS="${ADDITIONAL_RUNTIME_DEPS:=""}"
+    export ADDITIONAL_RUNTIME_APT_DEPS="${ADDITIONAL_RUNTIME_APT_DEPS:=""}"
+    # Use empty ADDITIONAL_RUNTIME_APT_ENV
+    export ADDITIONAL_RUNTIME_APT_ENV="${ADDITIONAL_RUNTIME_APT_ENV:=""}"
     # whether pre cached pip packages are used during build
     export AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES:="true"}"
     # by default install mysql client
     export INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT:="true"}
     # additional tag for the image
     export IMAGE_TAG=${IMAGE_TAG:=""}
+
+    # whether installation of Airflow should be done via PIP. You can set it to false if you have
+    # all the binary packages (including airflow) in the docker-context-files folder and use
+    # AIRFLOW_LOCAL_PIP_WHEELS="true" to install it from there.
+    export INSTALL_AIRFLOW_VIA_PIP="${INSTALL_AIRFLOW_VIA_PIP:="true"}"
+    # whether installation should be performed from the local wheel packages in "docker-context-files" folder
+    export AIRFLOW_LOCAL_PIP_WHEELS="${AIRFLOW_LOCAL_PIP_WHEELS:="false"}"
+    # reference to CONSTRAINTS. they can be overwritten manually or replaced with AIRFLOW_CONSTRAINTS_LOCATION
+    export AIRFLOW_CONSTRAINTS_REFERENCE="${AIRFLOW_CONSTRAINTS_REFERENCE:=""}"
+    # direct constraints Location - can be URL or path to local file. If empty, it will be calculated
+    # based on which Airflow version is installed and from where
+    export AIRFLOW_CONSTRAINTS_LOCATION="${AIRFLOW_CONSTRAINTS_LOCATION:=""}"
 }
 
-# Determine version suffixes used to build backport packages
-function initialization::initialize_version_suffixes_for_package_building() {
+# Determine version suffixes used to build provider packages
+function initialization::initialize_provider_package_building() {
     # Version suffix for PyPI packaging
     export VERSION_SUFFIX_FOR_PYPI=""
     # Artifact name suffix for SVN packaging
     export VERSION_SUFFIX_FOR_SVN=""
+    # If set to true, the backport provider packages will be built (false will build regular provider packages)
+    export BACKPORT_PACKAGES=${BACKPORT_PACKAGES:="false"}
+
 }
 
 # Determine versions of kubernetes cluster and tools used
@@ -401,8 +452,10 @@ function initialization::initialize_github_variables() {
     # Used only in CI environment
     export GITHUB_TOKEN="${GITHUB_TOKEN=""}"
     export GITHUB_USERNAME="${GITHUB_USERNAME=""}"
+}
 
-
+function initialization::initialize_test_variables() {
+    export TEST_TYPE=${TEST_TYPE:=""}
 }
 
 # Common environment that is initialized by both Breeze and CI scripts
@@ -417,10 +470,11 @@ function initialization::initialize_common_environment() {
     initialization::initialize_force_variables
     initialization::initialize_host_variables
     initialization::initialize_image_build_variables
-    initialization::initialize_version_suffixes_for_package_building
+    initialization::initialize_provider_package_building
     initialization::initialize_kubernetes_variables
     initialization::initialize_git_variables
     initialization::initialize_github_variables
+    initialization::initialize_test_variables
 }
 
 function initialization::set_default_python_version_if_empty() {
@@ -459,6 +513,7 @@ Force variables:
     FORCE_BUILD_IMAGES: ${FORCE_BUILD_IMAGES}
     FORCE_ANSWER_TO_QUESTIONS: ${FORCE_ANSWER_TO_QUESTIONS}
     SKIP_CHECK_REMOTE_IMAGE: ${SKIP_CHECK_REMOTE_IMAGE}
+    FAIL_ON_GITHUB_DOCKER_PULL_ERROR: ${FAIL_ON_GITHUB_DOCKER_PULL_ERROR}
 
 Host variables:
 
@@ -503,7 +558,7 @@ Detected GitHub environment:
     GITHUB_REGISTRY_WAIT_FOR_IMAGE=${GITHUB_REGISTRY_WAIT_FOR_IMAGE}
     GITHUB_REGISTRY_PULL_IMAGE_TAG=${GITHUB_REGISTRY_PULL_IMAGE_TAG}
     GITHUB_REGISTRY_PUSH_IMAGE_TAG=${GITHUB_REGISTRY_PUSH_IMAGE_TAG}
-    GITHUB_ACTIONS=${GITHUB_ACTIONS}
+    GITHUB_ACTIONS=${GITHUB_ACTIONS=}
 
 Detected CI build environment:
 
@@ -520,6 +575,12 @@ Initialization variables:
     INIT_SCRIPT_FILE: ${INIT_SCRIPT_FILE}
     LOAD_DEFAULT_CONNECTIONS: ${LOAD_DEFAULT_CONNECTIONS}
     LOAD_EXAMPLES: ${LOAD_EXAMPLES}
+    INSTALL_WHEELS: ${INSTALL_WHEELS}
+    DISABLE_RBAC: ${DISABLE_RBAC}
+
+Test variables:
+
+    TEST_TYPE: ${TEST_TYPE}
 
 EOF
 
@@ -592,7 +653,6 @@ function initialization::make_constants_read_only() {
     readonly POSTGRES_HOST_PORT
     readonly MYSQL_HOST_PORT
 
-
     readonly HOST_USER_ID
     readonly HOST_GROUP_ID
     readonly HOST_AIRFLOW_SOURCES
@@ -633,13 +693,33 @@ function initialization::make_constants_read_only() {
     readonly CI_BUILD_ID
     readonly CI_JOB_ID
 
+    readonly IMAGE_TAG
+
+    readonly AIRFLOW_PRE_CACHED_PIP_PACKAGES
+    readonly INSTALL_AIRFLOW_VIA_PIP
+    readonly AIRFLOW_LOCAL_PIP_WHEELS
+    readonly AIRFLOW_CONSTRAINTS_REFERENCE
+    readonly AIRFLOW_CONSTRAINTS_LOCATION
+
     # AIRFLOW_EXTRAS are made readonly by the time the image is built (either PROD or CI)
     readonly ADDITIONAL_AIRFLOW_EXTRAS
     readonly ADDITIONAL_PYTHON_DEPS
-    readonly ADDITIONAL_DEV_DEPS
-    readonly ADDITIONAL_RUNTIME_DEPS
+
     readonly AIRFLOW_PRE_CACHED_PIP_PACKAGES
-    readonly IMAGE_TAG
+
+    readonly DEV_APT_COMMAND
+    readonly DEV_APT_DEPS
+
+    readonly ADDITIONAL_DEV_APT_COMMAND
+    readonly ADDITIONAL_DEV_APT_DEPS
+    readonly ADDITIONAL_DEV_APT_ENV
+
+    readonly RUNTIME_APT_COMMAND
+    readonly RUNTIME_APT_DEPS
+
+    readonly ADDITIONAL_RUNTIME_APT_COMMAND
+    readonly ADDITIONAL_RUNTIME_APT_DEPS
+    readonly ADDITIONAL_RUNTIME_APT_ENV
 
     readonly DOCKERHUB_USER
     readonly DOCKERHUB_REPO
@@ -654,7 +734,6 @@ function initialization::make_constants_read_only() {
     readonly GITHUB_REPOSITORY
     readonly GITHUB_TOKEN
     readonly GITHUB_USERNAME
-
 
     readonly FORWARD_CREDENTIALS
     readonly USE_GITHUB_REGISTRY
@@ -679,23 +758,24 @@ function initialization::make_constants_read_only() {
 
 }
 
-
 # converts parameters to json array
 function initialization::parameters_to_json() {
     echo -n "["
     local separator=""
     local var
-    for var in "${@}"
-    do
+    for var in "${@}"; do
         echo -n "${separator}\"${var}\""
         separator=","
     done
     echo "]"
 }
 
-
 # output parameter name and value - both to stdout and to be set by GitHub Actions
 function initialization::ga_output() {
     echo "::set-output name=${1}::${2}"
     echo "${1}=${2}"
+}
+
+function initialization::ga_env() {
+    echo "${1}=${2}" >> "${GITHUB_ENV}"
 }

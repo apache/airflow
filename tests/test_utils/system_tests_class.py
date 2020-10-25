@@ -28,7 +28,7 @@ from airflow.models.dagbag import DagBag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
-from tests.utils.logging_command_executor import get_executor
+from tests.test_utils.logging_command_executor import get_executor
 
 DEFAULT_DAG_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "example_dags")
 

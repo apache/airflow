@@ -26,6 +26,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Airflow Master](#airflow-master)
+- [Airflow 2.0.0a1](#airflow-200a1)
 - [Airflow 1.10.13](#airflow-11013)
 - [Airflow 1.10.12](#airflow-11012)
 - [Airflow 1.10.11](#airflow-11011)
@@ -48,6 +49,82 @@ assists users migrating to a new version.
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Airflow Master
+
+### Change to Permissions
+
+The DAG-level permission actions, `can_dag_read` and `can_dag_edit` are going away. They are being replaced with `can_read` and `can_edit`. When a role is given DAG-level access, the resource name (or "view menu", in Flask App-Builder parlance) will now be prefixed with `DAG:`. So the action `can_dag_read` on `example_dag_id`, is now represented as `can_read` on `DAG:example_dag_id`.
+
+*As part of running `db upgrade`, existing permissions will be migrated for you.*
+
+When DAGs are initialized with the `access_control` variable set, any usage of the old permission names will automatically be updated in the database, so this won't be a breaking change. A DeprecationWarning will be raised.
+
+### Changes to Airflow Plugins
+
+If you are using Airflow Plugins and were passing `admin_views` & `menu_links` which were used in the
+non-RBAC UI (`flask-admin` based UI), upto it to use `flask_appbuilder_views` and `flask_appbuilder_menu_links`.
+
+
+**Old**:
+
+```python
+from airflow.plugins_manager import AirflowPlugin
+
+from flask_admin import BaseView, expose
+from flask_admin.base import MenuLink
+
+
+class TestView(BaseView):
+    @expose('/')
+    def test(self):
+        # in this example, put your test_plugin/test.html template at airflow/plugins/templates/test_plugin/test.html
+        return self.render("test_plugin/test.html", content="Hello galaxy!")
+v = TestView(category="Test Plugin", name="Test View")
+
+ml = MenuLink(
+    category='Test Plugin',
+    name='Test Menu Link',
+    url='https://airflow.apache.org/')
+
+
+class AirflowTestPlugin(AirflowPlugin):
+    admin_views = [v]
+    menu_links = [ml]
+```
+
+**Change it to**:
+
+```python
+from airflow.plugins_manager import AirflowPlugin
+from flask_appbuilder import expose, BaseView as AppBuilderBaseView
+
+
+class TestAppBuilderBaseView(AppBuilderBaseView):
+    default_view = "test"
+
+    @expose("/")
+    def test(self):
+        return self.render("test_plugin/test.html", content="Hello galaxy!")
+
+v_appbuilder_view = TestAppBuilderBaseView()
+v_appbuilder_package = {"name": "Test View",
+                        "category": "Test Plugin",
+                        "view": v_appbuilder_view}
+
+# Creating a flask appbuilder Menu Item
+appbuilder_mitem = {"name": "Google",
+                    "category": "Search",
+                    "category_icon": "fa-th",
+                    "href": "https://www.google.com"}
+
+
+# Defining the plugin class
+class AirflowTestPlugin(AirflowPlugin):
+    name = "test_plugin"
+    appbuilder_views = [v_appbuilder_package]
+    appbuilder_menu_items = [appbuilder_mitem]
+```
+
+## Airflow 2.0.0a1
 
 The 2.0 release of the Airflow is a significant upgrade, and includes substantial major changes,
 and some of them may be breaking. Existing code written for earlier versions of this project will may require updates
@@ -1002,7 +1079,7 @@ called `my_plugin` then your configuration looks like this
 
 ```ini
 [core]
-executor = my_plguin.MyCustomExecutor
+executor = my_plugin.MyCustomExecutor
 ```
 And now it should look like this:
 ```ini

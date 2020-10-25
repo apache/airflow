@@ -177,9 +177,7 @@ class SparkSubmitOperator(BaseOperator):
         self._conn_id = conn_id
 
     def execute(self, context: Dict[str, Any]) -> None:
-        """
-        Call the SparkSubmitHook to run the provided spark job
-        """
+        """Call the SparkSubmitHook to run the provided spark job"""
         if self._hook is None:
             self._hook = self._get_hook()
         self._hook.submit(self._application)

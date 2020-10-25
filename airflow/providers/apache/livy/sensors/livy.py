@@ -15,9 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains the Apache Livy sensor.
-"""
+"""This module contains the Apache Livy sensor."""
 from typing import Any, Dict, Optional, Union
 
 from airflow.providers.apache.livy.hooks.livy import LivyHook

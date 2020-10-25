@@ -25,9 +25,7 @@ from pygments.formatters.terminal256 import Terminal256Formatter
 
 
 def get_python_source(x: Any) -> Optional[str]:
-    """
-    Helper function to get Python source (or not), preventing exceptions
-    """
+    """Helper function to get Python source (or not), preventing exceptions"""
     if isinstance(x, str):
         return x
 

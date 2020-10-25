@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import mock
+from unittest import mock
 
 from airflow import DAG
 from airflow.providers.google.cloud.operators.datafusion import (

@@ -17,15 +17,14 @@
 # under the License.
 
 # pylint: disable=too-many-lines
-"""
-This module contains Google BigQuery operators.
-"""
+"""This module contains Google BigQuery operators."""
 import enum
 import hashlib
 import json
 import re
 import uuid
 import warnings
+from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, SupportsAbs, Union
 
 import attr
@@ -57,9 +56,7 @@ class BigQueryUIColors(enum.Enum):
 
 
 class BigQueryConsoleLink(BaseOperatorLink):
-    """
-    Helper class for constructing BigQuery link.
-    """
+    """Helper class for constructing BigQuery link."""
 
     name = 'BigQuery Console'
 
@@ -71,9 +68,7 @@ class BigQueryConsoleLink(BaseOperatorLink):
 
 @attr.s(auto_attribs=True)
 class BigQueryConsoleIndexableLink(BaseOperatorLink):
-    """
-    Helper class for constructing BigQuery link.
-    """
+    """Helper class for constructing BigQuery link."""
 
     index: int = attr.ib()
 
@@ -81,7 +76,7 @@ class BigQueryConsoleIndexableLink(BaseOperatorLink):
     def name(self) -> str:
         return f'BigQuery Console #{self.index + 1}'
 
-    def get_link(self, operator, dttm):
+    def get_link(self, operator: BaseOperator, dttm: datetime):
         ti = TaskInstance(task=operator, execution_date=dttm)
         job_ids = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
         if not job_ids:
@@ -466,7 +461,7 @@ class BigQueryGetDataOperator(BaseOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> list:
         self.log.info(
             'Fetching Data from %s.%s max results: %s', self.dataset_id, self.table_id, self.max_results
         )
@@ -569,8 +564,8 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         partition by field, type and expiration as per API specifications.
     :type time_partitioning: dict
     :param cluster_fields: Request that the result of this query be stored sorted
-        by one or more columns. This is only available in conjunction with
-        time_partitioning. The order of columns given determines the sort order.
+        by one or more columns. BigQuery supports clustering for both partitioned and
+        non-partitioned tables. The order of columns given determines the sort order.
     :type cluster_fields: list[str]
     :param location: The geographic location of the job. Required except for
         US and EU. See details at
@@ -606,9 +601,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
 
     @property
     def operator_extra_links(self):
-        """
-        Return operator extra links
-        """
+        """Return operator extra links"""
         if isinstance(self.sql, str):
             return (BigQueryConsoleLink(),)
         return (BigQueryConsoleIndexableLink(i) for i, _ in enumerate(self.sql))
@@ -741,7 +734,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
             )
         context['task_instance'].xcom_push(key='job_id', value=job_id)
 
-    def on_kill(self):
+    def on_kill(self) -> None:
         super().on_kill()
         if self.hook is not None:
             self.log.info('Cancelling running query')
@@ -860,8 +853,8 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     :param location: The location used for the operation.
     :type location: str
     :param cluster_fields: [Optional] The fields used for clustering.
-            Must be specified with time_partitioning, data in the table will be first
-            partitioned and subsequently clustered.
+            BigQuery supports clustering for both partitioned and
+            non-partitioned tables.
 
             .. seealso::
                 https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#clustering.fields
@@ -931,7 +924,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.table_resource = table_resource
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         bq_hook = BigQueryHook(
             gcp_conn_id=self.bigquery_conn_id,
             delegate_to=self.delegate_to,
@@ -946,7 +939,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 delegate_to=self.delegate_to,
                 impersonation_chain=self.impersonation_chain,
             )
-            schema_fields = json.loads(gcs_hook.download(gcs_bucket, gcs_object).decode("utf-8"))
+            schema_fields = json.loads(gcs_hook.download(gcs_bucket, gcs_object))
         else:
             schema_fields = self.schema_fields
 
@@ -1172,7 +1165,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         bq_hook = BigQueryHook(
             gcp_conn_id=self.bigquery_conn_id,
             delegate_to=self.delegate_to,
@@ -1186,8 +1179,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                 delegate_to=self.delegate_to,
                 impersonation_chain=self.impersonation_chain,
             )
-            schema_object = gcs_hook.download(self.bucket, self.schema_object)
-            schema_fields = json.loads(schema_object.decode("utf-8"))
+            schema_fields = json.loads(gcs_hook.download(self.bucket, self.schema_object))
         else:
             schema_fields = self.schema_fields
 
@@ -1309,7 +1301,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
 
         super().__init__(**kwargs)
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         self.log.info('Dataset id: %s Project id: %s', self.dataset_id, self.project_id)
 
         bq_hook = BigQueryHook(
@@ -1413,7 +1405,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
 
         super().__init__(**kwargs)
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         bq_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -1670,7 +1662,7 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
     This operator is used to update dataset for your Project in BigQuery.
     Use ``fields`` to specify which fields of dataset to update. If a field
     is listed in ``fields`` and is ``None`` in dataset, it will be deleted.
-    If no ``fields`` are provided then all fields of provided ``dataset_reources``
+    If no ``fields`` are provided then all fields of provided ``dataset_resource``
     will be used.
 
     .. seealso::
@@ -1828,7 +1820,7 @@ class BigQueryDeleteTableOperator(BaseOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         self.log.info('Deleting: %s', self.deletion_dataset_table)
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -1919,7 +1911,7 @@ class BigQueryUpsertTableOperator(BaseOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         self.log.info('Upserting Dataset: %s with table_resource: %s', self.dataset_id, self.table_resource)
         hook = BigQueryHook(
             bigquery_conn_id=self.gcp_conn_id,
@@ -2068,8 +2060,9 @@ class BigQueryInsertJobOperator(BaseOperator):
         if self.job_id:
             return f"{self.job_id}_{uniqueness_suffix}"
 
-        exec_date = re.sub(r"\:|-|\+", "_", context['execution_date'].isoformat())
-        return f"airflow_{self.dag_id}_{self.task_id}_{exec_date}_{uniqueness_suffix}"
+        exec_date = context['execution_date'].isoformat()
+        job_id = f"airflow_{self.dag_id}_{self.task_id}_{exec_date}_{uniqueness_suffix}"
+        return re.sub(r"\:|-|\+\.", "_", job_id)
 
     def execute(self, context: Any):
         hook = BigQueryHook(
@@ -2106,6 +2099,8 @@ class BigQueryInsertJobOperator(BaseOperator):
         self.job_id = job.job_id
         return job.job_id
 
-    def on_kill(self):
+    def on_kill(self) -> None:
         if self.job_id and self.cancel_on_kill:
-            self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=self.location)
+            self.hook.cancel_job(  # type: ignore[union-attr]
+                job_id=self.job_id, project_id=self.project_id, location=self.location
+            )

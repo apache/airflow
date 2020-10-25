@@ -85,7 +85,7 @@ class SparkKubernetesSensor(BaseSensorOperator):
 
     def poke(self, context: Dict) -> bool:
         self.log.info("Poking: %s", self.application_name)
-        response = self.hook.get_custom_resource_definition(
+        response = self.hook.get_custom_object(
             group="sparkoperator.k8s.io",
             version="v1beta2",
             plural="sparkapplications",

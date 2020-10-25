@@ -50,7 +50,7 @@ class PlexusJobOperator(BaseOperator):
         super().__init__(**kwargs)
 
         self.job_params = job_params
-        self.required_params = set(["name", "app", "queue", "num_cores", "num_nodes"])
+        self.required_params = {"name", "app", "queue", "num_cores", "num_nodes"}
         self.lookups = {
             "app": ("apps/", "id", "name"),
             "billing_account_id": ("users/{}/billingaccounts/", "id", None),

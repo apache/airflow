@@ -16,12 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains Google Cloud Stackdriver operators.
-"""
+"""This module contains Google Cloud Stackdriver operators."""
 
 import json
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Optional, Sequence, Union
 
 from google.api_core.exceptions import InvalidArgument
 from google.api_core.gapic_v1.method import DEFAULT
@@ -34,9 +32,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 class StackdriverHook(GoogleBaseHook):
-    """
-    Stackdriver Hook for connecting with Google Cloud Stackdriver
-    """
+    """Stackdriver Hook for connecting with Google Cloud Stackdriver"""
 
     def __init__(
         self,
@@ -535,7 +531,7 @@ class StackdriverHook(GoogleBaseHook):
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
         metadata: Optional[str] = None,
-    ) -> Dict:
+    ) -> dict:
         """
         Creates a new notification or updates an existing notification channel
         identified the name field in the alerts parameter.

@@ -413,6 +413,7 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
         training_input['trainingInput']['runtimeVersion'] = '1.6'
         training_input['trainingInput']['pythonVersion'] = '3.5'
         training_input['trainingInput']['jobDir'] = 'gs://some-bucket/jobs/test_training'
+        training_input['trainingInput']['serviceAccount'] = 'test@serviceaccount.com'
 
         success_response = self.TRAINING_INPUT.copy()
         success_response['state'] = 'SUCCEEDED'
@@ -423,6 +424,7 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
             runtime_version='1.6',
             python_version='3.5',
             job_dir='gs://some-bucket/jobs/test_training',
+            service_account='test@serviceaccount.com',
             **self.TRAINING_DEFAULT_ARGS,
         )
         training_op.execute(MagicMock())

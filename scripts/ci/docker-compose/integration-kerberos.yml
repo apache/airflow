@@ -17,16 +17,52 @@
 ---
 version: "2.2"
 services:
-  kerberos:
-    image: apache/airflow:krb5-kdc-server-2020.08.28
-    hostname: kerberos
+  kdc-server-example-com:
+    image: apache/airflow:krb5-kdc-server-2020.10.08
+    hostname: krb5-kdc-server-example-com
     domainname: example.com
+    networks:
+      example.com:
+        ipv4_address: 10.5.0.2
+
     volumes:
+      - kerberos-keytabs:/root/kerberos-keytabs
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
+
+    environment:
+      - KRB5_TRACE=/dev/stderr
+      - POST_BOOTSTRAP_COMMAND=
+        /opt/kerberos-utils/create_admin.sh alice alice;
+        /opt/kerberos-utils/create_client.sh bob bob /root/kerberos-keytabs/airflow.keytab;
+        /opt/kerberos-utils/create_service.sh krb5-machine-example-com airflow
+        /root/kerberos-keytabs/airflow.keytab;
+        /opt/kerberos-utils/create_service.sh presto HTTP /root/kerberos-keytabs/presto.keytab;
+
+
   airflow:
+    hostname: krb5-machine-example-com
+    domainname: example.com
+    networks:
+      example.com:
+        ipv4_address: 10.5.0.1
+      default: {}
+
     depends_on:
-      - kerberos
+      - kdc-server-example-com
+    volumes:
+      - kerberos-keytabs:/root/kerberos-keytabs
+      - ../dockerfiles/krb5-kdc-server/krb5.conf:/etc/krb5.conf:ro
     environment:
       - INTEGRATION_KERBEROS=true
       - KRB5_CONFIG=/etc/krb5.conf
-      - KRB5_KTNAME=/etc/airflow.keytab
+      - KRB5_KTNAME=/root/kerberos-keytabs/airflow.keytab
+      - KRB5_TRACE=/dev/stderr
+      - AIRFLOW__KERBEROS__KEYTAB=/root/kerberos-keytabs/airflow.keytab
+      - AIRFLOW__KERBEROS__PRINCIPAL=bob@EXAMPLE.COM
+
+volumes:
+  kerberos-keytabs:
+
+networks:
+  example.com:
+    external: true

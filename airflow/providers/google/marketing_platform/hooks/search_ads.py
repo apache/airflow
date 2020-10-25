@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Search Ads 360 hook.
-"""
+"""This module contains Google Search Ads 360 hook."""
 from typing import Any, Dict, Optional, Sequence, Union
 
 from googleapiclient.discovery import build
@@ -26,9 +24,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 class GoogleSearchAdsHook(GoogleBaseHook):
-    """
-    Hook for Google Search Ads 360.
-    """
+    """Hook for Google Search Ads 360."""
 
     _conn = None  # type: Optional[Any]
 
@@ -47,9 +43,7 @@ class GoogleSearchAdsHook(GoogleBaseHook):
         self.api_version = api_version
 
     def get_conn(self):
-        """
-        Retrieves connection to Google SearchAds.
-        """
+        """Retrieves connection to Google SearchAds."""
         if not self._conn:
             http_authorized = self._authorize()
             self._conn = build(

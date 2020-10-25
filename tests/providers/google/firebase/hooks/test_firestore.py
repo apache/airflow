@@ -22,7 +22,7 @@ import unittest
 from typing import Optional
 from unittest import mock
 
-from mock import PropertyMock
+from unittest.mock import PropertyMock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.firebase.hooks.firestore import CloudFirestoreHook
@@ -33,7 +33,7 @@ from tests.providers.google.cloud.utils.base_gcp_mock import (
 )
 
 EXPORT_DOCUMENT_BODY = {
-    "outputUriPrefix": "gs://test-bucket/test-naamespace/",
+    "outputUriPrefix": "gs://test-bucket/test-namespace/",
     "collectionIds": ["test-collection"],
 }
 

@@ -17,12 +17,14 @@
 # under the License.
 import json
 import time
+from typing import Any, List, Optional
 from urllib.parse import urlencode
 
 import markdown
 import sqlalchemy as sqla
 from flask import Markup, Response, request, url_for
 from flask_appbuilder.forms import FieldConverter
+from flask_appbuilder.models.filters import Filters
 from flask_appbuilder.models.sqla import filters as fab_sqlafilters
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from pygments import highlight, lexers
@@ -52,7 +54,7 @@ def get_sensitive_variables_fields():
     sensitive_fields = set(DEFAULT_SENSITIVE_VARIABLE_FIELDS)
     sensitive_variable_fields = conf.get('admin', 'sensitive_variable_fields')
     if sensitive_variable_fields:
-        sensitive_fields.update(set(field.strip() for field in sensitive_variable_fields.split(',')))
+        sensitive_fields.update({field.strip() for field in sensitive_variable_fields.split(',')})
     return sensitive_fields
 
 
@@ -184,9 +186,7 @@ def epoch(dttm):
 
 
 def json_response(obj):
-    """
-    Returns a json response from a json serializable python object
-    """
+    """Returns a json response from a json serializable python object"""
     return Response(
         response=json.dumps(
             obj, indent=4, cls=AirflowJsonEncoder),
@@ -195,9 +195,7 @@ def json_response(obj):
 
 
 def make_cache_key(*args, **kwargs):
-    """
-    Used by cache to get a unique key per URL
-    """
+    """Used by cache to get a unique key per URL"""
     path = request.path
     args = str(hash(frozenset(request.args.items())))
     return (path + args).encode('ascii', 'ignore')
@@ -223,8 +221,8 @@ def task_instance_link(attr):
         <span style="white-space: nowrap;">
         <a href="{url}">{task_id}</a>
         <a href="{url_root}" title="Filter on this task and upstream">
-        <span class="glyphicon glyphicon-filter" style="margin-left:0;"
-            aria-hidden="true"></span>
+        <span class="material-icons" style="margin-left:0;"
+            aria-hidden="true">filter_alt</span>
         </a>
         </span>
         """).format(url=url, task_id=task_id, url_root=url_root)
@@ -233,9 +231,12 @@ def task_instance_link(attr):
 def state_token(state):
     """Returns a formatted string with HTML for a given State"""
     color = State.color(state)
+    fg_color = State.color_fg(state)
     return Markup(  # noqa
-        '<span class="label" style="background-color:{color};">'
-        '{state}</span>').format(color=color, state=state)
+        """
+        <span class="label" style="color:{fg_color}; background-color:{color};"
+            title="Current State: {state}">{state}</span>
+        """).format(color=color, state=state, fg_color=fg_color)
 
 
 def state_f(attr):
@@ -369,9 +370,7 @@ def get_chart_height(dag):
 
 
 class UtcAwareFilterMixin:  # noqa: D101
-    """
-    Mixin for filter for UTC time.
-    """
+    """Mixin for filter for UTC time."""
 
     def apply(self, query, value):
         """Apply the filter."""
@@ -381,33 +380,23 @@ class UtcAwareFilterMixin:  # noqa: D101
 
 
 class UtcAwareFilterEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterEqual):  # noqa: D101
-    """
-    Equality filter for UTC time.
-    """
+    """Equality filter for UTC time."""
 
 
 class UtcAwareFilterGreater(UtcAwareFilterMixin, fab_sqlafilters.FilterGreater):  # noqa: D101
-    """
-    Greater Than filter for UTC time.
-    """
+    """Greater Than filter for UTC time."""
 
 
 class UtcAwareFilterSmaller(UtcAwareFilterMixin, fab_sqlafilters.FilterSmaller):  # noqa: D101
-    """
-    Smaller Than filter for UTC time.
-    """
+    """Smaller Than filter for UTC time."""
 
 
 class UtcAwareFilterNotEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterNotEqual):  # noqa: D101
-    """
-    Not Equal To filter for UTC time.
-    """
+    """Not Equal To filter for UTC time."""
 
 
 class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):  # noqa: D101
-    """
-    Retrieve conversion tables for UTC-Aware filters.
-    """
+    """Retrieve conversion tables for UTC-Aware filters."""
 
     conversion_table = (
         (('is_utcdatetime', [UtcAwareFilterEqual,
@@ -449,6 +438,43 @@ class CustomSQLAInterface(SQLAInterface):
                 isinstance(obj, sqla.types.TypeDecorator) and \
                 isinstance(obj.impl, UtcDateTime)
         return False
+
+    # This is a local fix until https://github.com/dpgaspar/Flask-AppBuilder/pull/1493 is merged and released.
+    def get(
+        self,
+        id,
+        filters: Optional[Filters] = None,
+        select_columns: Optional[List[str]] = None,
+    ) -> Any:
+        """
+        Returns the result for a model get, applies filters and supports dotted
+        notation for joins and granular selecting query columns.
+
+        :param id: The model id (pk).
+        :param filters: A Filter class that contains all filters to apply.
+        :param select_columns: A List of columns to be specifically selected.
+        on the query. Supports dotted notation.
+        :return: Model instance if found, or none
+        """
+        pk = self.get_pk_name()
+        if filters:
+            _filters = filters.copy()
+        else:
+            _filters = Filters(self.filter_converter_class, self)
+
+        if self.is_pk_composite():
+            for _pk, _id in zip(pk, id):
+                _filters.add_filter(_pk, self.FilterEqual, _id)
+        else:
+            _filters.add_filter(pk, self.FilterEqual, id)
+        query = self.session.query(self.obj)
+        item = self.apply_all(
+            query, _filters, select_columns=select_columns
+        ).one_or_none()
+        if item:
+            if hasattr(item, self.obj.__name__):
+                return getattr(item, self.obj.__name__)
+        return item
 
     filter_converter_class = UtcAwareFilterConverter
 

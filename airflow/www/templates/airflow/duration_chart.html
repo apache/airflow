@@ -21,36 +21,47 @@
 {% block page_title %}{{ dag.dag_id }} - Duration chart - Airflow{% endblock %}
 
 {% block head_css %}
-{{ super() }}
-<link rel="stylesheet" type="text/css"
-    href="{{ url_for('static', filename='css/tree.css') }}">
-<link href="{{ url_for_asset('dataTables.bootstrap.min.css') }}" rel="stylesheet" type="text/css" >
-<link rel="stylesheet" type="text/css"
-      href="{{ url_for_asset('nv.d3.min.css') }}">
-<script src="{{ url_for_asset('d3.min.js') }}"></script>
-<script src="{{ url_for_asset('nv.d3.min.js') }}"></script>
+  {{ super() }}
+  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('tree.css') }}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('nv.d3.min.css') }}">
+  <script src="{{ url_for_asset('d3.min.js') }}"></script>
+  <script src="{{ url_for_asset('nv.d3.min.js') }}"></script>
 {% endblock %}
 
 {% block content %}
-{{ super() }}
-<div>
-  <label for="isCumulative">Cumulative Duration</label>
-  <input id="isCumulative" type="checkbox" value="1">
-</div>
-<div style="float: left" class="form-inline">
-    <form method="get" style="float:left;">
-        Base date: {{ form.base_date(class_="form-control") }}
-        Number of runs: {{ form.num_runs(class_="form-control") }}
+  {{ super() }}
+  <div class="row dag-view-tools">
+    <div class="col-md-10">
+      <form method="get" class="form-inline">
         <input type="hidden" name="root" value="{{ root if root else '' }}">
         <input type="hidden" value="{{ dag.dag_id }}" name="dag_id">
-        <input type="submit" value="Go" class="btn btn-default"
-         action="" method="get">
-        <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
-    </form>
-</div>
-<div id="dur_chart" style="clear: both;">{{ chart }}</div>
-<div id="cum_dur_chart" style="clear: both;">{{ cum_chart }}</div>
-<hr/>
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+          <label class="sr-only" for="base_date">Base date</label>
+          <div class="input-group">
+            {{ form.base_date(class_="form-control") }}
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="sr-only" for="num_runs">Number of runs</label>
+          <div class="input-group">
+            <div class="input-group-addon">Runs</div>
+            {{ form.num_runs(class_="form-control") }}
+          </div>
+        </div>
+        <button type="submit" class="btn">Update</button>
+      </form>
+    </div>
+    <div class="col-md-2 text-right">
+      <div class="checkbox">
+        <label for="isCumulative">
+          <input type="checkbox" id="isCumulative" value="1"> Cumulative Duration
+        </label>
+      </div>
+    </div>
+  </div>
+  <div id="dur_chart">{{ chart }}</div>
+  <div id="cum_dur_chart">{{ cum_chart }}</div>
 {% endblock %}
 
 {% block tail %}

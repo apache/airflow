@@ -20,6 +20,7 @@ from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models.errors import ImportError  # pylint: disable=redefined-builtin
+from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.www import app
@@ -38,7 +39,7 @@ class TestBaseImportError(unittest.TestCase):
             cls.app,  # type: ignore
             username="test",
             role_name="Test",
-            permissions=[('can_read', 'ImportError')],
+            permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR)],
         )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 

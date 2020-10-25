@@ -23,22 +23,21 @@ from airflow.api_connexion.exceptions import NotFound
 from airflow.exceptions import TaskNotFound
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun as DR
+from airflow.security import permissions
 from airflow.utils.session import provide_session
 
 
 @security.requires_access(
     [
-        ('can_read', 'Dag'),
-        ('can_read', 'DagRun'),
-        ('can_read', 'Task'),
-        ('can_read', 'TaskInstance'),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
     ]
 )
 @provide_session
 def get_extra_links(dag_id: str, dag_run_id: str, task_id: str, session):
-    """
-    Get extra links for task instance
-    """
+    """Get extra links for task instance"""
     dagbag: DagBag = current_app.dag_bag
     dag: DAG = dagbag.get_dag(dag_id)
     if not dag:

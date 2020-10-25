@@ -18,7 +18,7 @@
 
 import unittest
 
-import mock
+from unittest import mock
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException

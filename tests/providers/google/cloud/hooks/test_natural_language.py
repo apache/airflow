@@ -19,7 +19,7 @@
 import unittest
 from typing import Any, Dict
 
-import mock
+from unittest import mock
 from google.cloud.language_v1.proto.language_service_pb2 import Document
 
 from airflow.providers.google.cloud.hooks.natural_language import CloudNaturalLanguageHook

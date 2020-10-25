@@ -60,3 +60,9 @@ class TestMySqlToS3Operator(unittest.TestCase):
             mock_s3_hook.return_value.load_file.assert_called_once_with(
                 filename=f.name, key=s3_key, bucket_name=s3_bucket
             )
+
+    def test_fix_int_dtypes(self):
+        op = MySQLToS3Operator(query="query", s3_bucket="s3_bucket", s3_key="s3_key", task_id="task_id")
+        dirty_df = pd.DataFrame({"strings": ["a", "b", "c"], "ints": [1, 2, None]})
+        op._fix_int_dtypes(df=dirty_df)
+        assert dirty_df["ints"].dtype.kind == "i"

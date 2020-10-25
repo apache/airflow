@@ -22,9 +22,7 @@ from abc import ABCMeta, abstractmethod
 
 
 class BaseDag(metaclass=ABCMeta):
-    """
-    Base DAG object that both the SimpleDag and DAG inherit.
-    """
+    """Base DAG object that both the SimpleDag and DAG inherit."""
 
     @property
     @abstractmethod
@@ -72,9 +70,7 @@ class BaseDag(metaclass=ABCMeta):
 
 
 class BaseDagBag:
-    """
-    Base object that both the SimpleDagBag and DagBag inherit.
-    """
+    """Base object that both the SimpleDagBag and DagBag inherit."""
 
     @property
     @abstractmethod

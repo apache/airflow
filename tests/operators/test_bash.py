@@ -17,12 +17,10 @@
 # under the License.
 
 import unittest
-import unittest.mock
 from datetime import datetime, timedelta
 from subprocess import PIPE, STDOUT
 from tempfile import NamedTemporaryFile
-
-import mock
+from unittest import mock
 
 from airflow.exceptions import AirflowException
 from airflow.models import DagRun
@@ -76,7 +74,7 @@ class TestBashOperator(unittest.TestCase):
                              'echo $AIRFLOW_CTX_DAG_RUN_ID>> {0};'.format(tmp_file.name)
             )
 
-            with unittest.mock.patch.dict('os.environ', {
+            with mock.patch.dict('os.environ', {
                 'AIRFLOW_HOME': 'MY_PATH_TO_AIRFLOW_HOME',
                 'PYTHONPATH': 'AWESOME_PYTHONPATH'
             }):

@@ -25,6 +25,7 @@ from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DagBag, DagModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.security import permissions
 from airflow.utils.session import provide_session
 from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
@@ -52,10 +53,10 @@ class TestDagEndpoint(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                ("can_create", "Dag"),
-                ("can_read", "Dag"),
-                ("can_edit", "Dag"),
-                ("can_delete", "Dag"),
+                (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAGS),
             ],
         )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
@@ -63,7 +64,8 @@ class TestDagEndpoint(unittest.TestCase):
             cls.app, username="test_granular_permissions", role_name="TestGranularDag"  # type: ignore
         )
         cls.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
-            "TEST_DAG_1", access_control={'TestGranularDag': ['can_edit', 'can_read']}
+            "TEST_DAG_1",
+            access_control={'TestGranularDag': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
         )
 
         with DAG(cls.dag_id, start_date=datetime(2020, 6, 15), doc_md="details") as dag:
@@ -116,6 +118,35 @@ class TestGetDag(TestDagEndpoint):
                 "owners": [],
                 "root_dag_id": None,
                 "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
+                "tags": [],
+            },
+            current_response,
+        )
+
+    @provide_session
+    def test_should_response_200_with_schedule_interval_none(self, session=None):
+        dag_model = DagModel(
+            dag_id="TEST_DAG_1",
+            fileloc="/tmp/dag_1.py",
+            schedule_interval=None,
+        )
+        session.add(dag_model)
+        session.commit()
+        response = self.client.get("/api/v1/dags/TEST_DAG_1", environ_overrides={'REMOTE_USER': "test"})
+        assert response.status_code == 200
+
+        current_response = response.json
+        current_response["fileloc"] = "/tmp/test-dag.py"
+        self.assertEqual(
+            {
+                "dag_id": "TEST_DAG_1",
+                "description": None,
+                "fileloc": "/tmp/test-dag.py",
+                "is_paused": False,
+                "is_subdag": False,
+                "owners": [],
+                "root_dag_id": None,
+                "schedule_interval": None,
                 "tags": [],
             },
             current_response,

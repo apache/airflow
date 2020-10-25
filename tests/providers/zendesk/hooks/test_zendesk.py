@@ -58,7 +58,7 @@ class TestZendeskHook(unittest.TestCase):
         mock_conn.call = mock_call
         zendesk_hook.get_conn = mock.Mock(return_value=mock_conn)
         zendesk_hook.call("path", get_all_pages=False)
-        mock_call.assert_called_once_with("path", None)
+        mock_call.assert_called_once_with("path", {})
 
     @mock.patch("airflow.providers.zendesk.hooks.zendesk.Zendesk")
     def test_returns_multiple_pages_if_get_all_pages_true(self, _):

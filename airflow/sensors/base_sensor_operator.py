@@ -210,9 +210,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self.log.info("Success criteria met. Exiting.")
 
     def _get_next_poke_interval(self, started_at, try_number):
-        """
-        Using the similar logic which is used for exponential backoff retry delay for operators.
-        """
+        """Using the similar logic which is used for exponential backoff retry delay for operators."""
         if self.exponential_backoff:
             min_backoff = int(self.poke_interval * (2 ** (try_number - 2)))
             current_time = timezone.utcnow()

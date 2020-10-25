@@ -18,7 +18,7 @@
 
 import unittest
 
-import mock
+from unittest import mock
 from slack.errors import SlackApiError
 
 from airflow.exceptions import AirflowException

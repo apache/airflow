@@ -22,7 +22,7 @@ from io import StringIO
 from typing import Optional
 import random
 import string
-import mock
+from unittest import mock
 import paramiko
 
 from airflow.models import Connection

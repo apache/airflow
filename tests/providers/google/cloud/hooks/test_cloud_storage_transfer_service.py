@@ -21,9 +21,9 @@ import re
 import unittest
 from copy import deepcopy
 
-import mock
+from unittest import mock
+from unittest.mock import MagicMock, PropertyMock
 from googleapiclient.errors import HttpError
-from mock import MagicMock, PropertyMock
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException

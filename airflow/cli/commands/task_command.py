@@ -100,9 +100,7 @@ def _run_task_by_executor(args, dag, ti):
 
 
 def _run_task_by_local_task_job(args, ti):
-    """
-    Run LocalTaskJob, which monitors the raw task execution process
-    """
+    """Run LocalTaskJob, which monitors the raw task execution process"""
     run_job = LocalTaskJob(
         task_instance=ti,
         mark_success=args.mark_success,
@@ -173,6 +171,7 @@ def task_run(args, dag=None):
 
     task = dag.get_task(task_id=args.task_id)
     ti = TaskInstance(task, args.execution_date)
+    ti.refresh_from_db()
     ti.init_run_context(raw=args.raw)
 
     hostname = get_hostname()
@@ -411,7 +410,7 @@ def task_clear(args):
 
         if args.task_regex:
             for idx, dag in enumerate(dags):
-                dags[idx] = dag.sub_dag(
+                dags[idx] = dag.partial_subset(
                     task_regex=args.task_regex,
                     include_downstream=args.downstream,
                     include_upstream=args.upstream)

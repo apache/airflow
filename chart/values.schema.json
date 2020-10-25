@@ -23,6 +23,10 @@
             "description": "Default airflow tag to deploy.",
             "type": "string"
         },
+        "multi_namespaceMode": {
+          "description": "Whether the KubernetesExecutor can launch workers in multiple namespaces",
+          "type": "boolean"
+        },
         "nodeSelector": {
             "description": "Select certain nodes for airflow pods.",
             "type": "object",
@@ -284,6 +288,24 @@
                             "type": "string"
                         }
                     }
+                },
+                "gitSync": {
+                    "description": "Configuration of the gitSync image.",
+                    "type": "object",
+                    "properties": {
+                        "repository": {
+                            "description": "The gitSync image repository.",
+                            "type": "string"
+                        },
+                        "tag": {
+                            "description": "The gitSync image tag.",
+                            "type": "string"
+                        },
+                        "pullPolicy": {
+                            "description": "The gitSync image pull policy.",
+                            "type": "string"
+                        }
+                    }
                 }
             }
         },
@@ -463,13 +485,29 @@
                 "safeToEvict": {
                     "description": "This setting tells Kubernetes that it's ok to evict when it wants to scale a node down.",
                     "type": "boolean"
+                },
+                "serviceAccountAnnotations": {
+                  "description": "Annotations to add to the worker kubernetes service account.",
+                  "type": "object"
                 }
-            }
+              },
+          "extraVolumes": {
+            "description": "Mount additional volumes into workers.",
+            "type": "array"
+          },
+          "extraVolumeMounts": {
+            "description": "Mount additional volumes into workers.",
+            "type": "array"
+          }
         },
         "scheduler": {
             "description": "Airflow scheduler settings.",
             "type": "object",
             "properties": {
+                "replicas": {
+                  "description": "Airflow 2.0 allows users to run multiple schedulers. This feature is only recommended for Mysql 8+ and postgres",
+                  "type": "integer"
+                },
                 "podDisruptionBudget": {
                     "description": "Scheduler pod disruption budget.",
                     "type": "object",
@@ -503,8 +541,20 @@
                 "safeToEvict": {
                     "description": "This setting tells Kubernetes that its ok to evict when it wants to scale a node down.",
                     "type": "boolean"
+                },
+                "serviceAccountAnnotations": {
+                  "description": "Annotations to add to the scheduler kubernetes service account.",
+                  "type": "object"
                 }
-            }
+            },
+          "extraVolumes": {
+            "description": "Mount additional volumes into scheduler.",
+            "type": "array"
+          },
+          "extraVolumeMounts": {
+            "description": "Mount additional volumes into scheduler.",
+            "type": "array"
+          }
         },
         "webserver": {
             "description": "Airflow webserver settings.",
@@ -627,6 +677,10 @@
                             "type": "object"
                         }
                     }
+                },
+                "serviceAccountAnnotations": {
+                  "description": "Annotations to add to the webserver kubernetes service account.",
+                  "type": "object"
                 }
             }
         },
@@ -748,6 +802,33 @@
                 "logConnections": {
                     "description": "Log successful logins.",
                     "type": "integer"
+                },
+                "sslmode": {
+                    "description": "SSL mode for pgbouncer.",
+                    "type": "string",
+                    "enum": ["disable", "allow", "prefer", "require", "verify-ca", "verify-full"]
+                },
+                "ciphers": {
+                    "description": "The allowed ciphers, might be 'fast', 'normal' or list ciphers separated with ':'.",
+                    "type": "string"
+                },
+                "ssl": {
+                    "description": "SSL certificates for pgbouncer connection.",
+                    "type": "object",
+                    "properties": {
+                        "ca": {
+                            "description": "Certificate Authority for server side",
+                            "type": ["string", "null"]
+                        },
+                        "cert": {
+                            "description": "Server Certificate for server side",
+                            "type": ["string", "null"]
+                        },
+                        "key": {
+                            "description": "Private key used to authenticate with the server",
+                            "type": ["string", "null"]
+                        }
+                    }
                 }
             }
         },
@@ -777,6 +858,16 @@
                                 "string",
                                 "null"
                             ]
+                        }
+                    }
+                },
+                "kerberosSidecar": {
+                    "description": "Run a side car in each worker pod to refresh Kerberos ccache with `airflow kerberos` according to the airflow security configuration",
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable Kerberos side car on worker pods.",
+                            "type": "boolean"
                         }
                     }
                 },
@@ -893,20 +984,6 @@
         "limits": {
             "description": "Define default/max/min values for pods and containers in namespace.",
             "type": "array"
-        },
-        "podMutation": {
-            "description": "Settings for pod_mutation_hook",
-            "type": "object",
-            "properties": {
-                "tolerations": {
-                    "description": "Tolerations provided here would be applied using pod_mutation_hook. So any pods spun up using KubernetesExecutor or KubernetesPodOperator will contain these tolerations.",
-                    "type": "array"
-                },
-                "affinity": {
-                    "description": "Pods spun up would land in the node that matches the affinity.",
-                    "type": "object"
-                }
-            }
         },
         "cleanup": {
             "description": "This runs as a CronJob to cleanup old pods.",
@@ -1035,14 +1112,6 @@
                             "description": "Interval between git sync attempts in seconds.",
                             "type": "integer"
                         },
-                        "containerRepository": {
-                            "description": "Git sync image repository.",
-                            "type": "string"
-                        },
-                        "containerTag": {
-                            "description": "Git sync image tag.",
-                            "type": "string"
-                        },
                         "containerName": {
                             "description": "Git sync container name.",
                             "type": "string"
@@ -1050,6 +1119,44 @@
                     }
                 }
             }
+        },
+        "kerberos": {
+            "description": "Kerberos configurations for airflow",
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "description": "Enable kerberos.",
+                    "type": "boolean"
+                },
+                "ccacheMountPath": {
+                    "description": "Path to mount shared volume for kerberos credentials cache.",
+                    "type": "string"
+                },
+                "ccacheFileName": {
+                    "description": "Name for kerberos credentials cache file.",
+                    "type": "string"
+                },
+                "configPath":{
+                    "description": "Path to mount krb5.conf kerberos configuration file.",
+                    "type": "string"
+                },
+                "keytabPath":{
+                    "description": "Path to mount the keytab for refreshing credentials in the kerberos sidecar.",
+                    "type": "string"
+                },
+                "principal":{
+                    "description": "Principal to use when refreshing kerberos credentials.",
+                    "type": "string"
+                },
+                "reinitFrequency": {
+                    "description": "How often (in seconds) airflow kerberos will reinitialize the credentials cache.",
+                    "type": "integer"
+                },
+                "config": {
+                    "description": "Contents of krb5.conf.",
+                    "type": "string"
+                }
+              }
         }
     }
 }

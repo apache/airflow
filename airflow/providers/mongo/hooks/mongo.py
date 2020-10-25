@@ -76,9 +76,7 @@ class MongoHook(BaseHook):
             self.close_conn()
 
     def get_conn(self) -> MongoClient:
-        """
-        Fetches PyMongo Client
-        """
+        """Fetches PyMongo Client"""
         if self.client is not None:
             return self.client
 

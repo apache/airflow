@@ -17,7 +17,7 @@
 #
 ---
 name: Force sync master from apache/airflow
-on:
+on:  # yamllint disable-line rule:truthy
   workflow_dispatch:
 jobs:
   repo-sync:

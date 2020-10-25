@@ -19,16 +19,16 @@
 
 {% extends "airflow/dag.html" %}
 
-{% block page_title %}{{ dag.dag_id }} - DAG Details - Airflow{% endblock %}
+{% block page_title %}{{ dag.dag_id }} - {{ title }} - Airflow{% endblock %}
 
 {% block content %}
   {{ super() }}
-  <h2>{{ title }}</h2>
+  <h3>{{ title }}</h3>
   <div>
     {% for state, count in states %}
       <a
         class="btn"
-        style="border: none; background-color:{{ State.color(state)}}; color: {{ State.color_fg(state) }};"
+        style="border: 0; background-color:{{ State.color(state)}}; color: {{ State.color_fg(state) }};"
         href="{{ url_for('TaskInstanceModelView.list', _flt_3_dag_id=dag.dag_id, _flt_3_state=state) }}">
         {{ state }} <span class="badge">{{ count }}</span>
       </a>
@@ -91,10 +91,10 @@
           {% for tag in tags | sort(attribute='name') %}
             <a class="label label-success"
                href="/home?tags={{ tag.name }}"
-               style="margin: 3px;"
+               style="margin: 3px 6px 3px 0;"
                title="All DAGs tagged &ldquo;{{ tag.name }}&rdquo;"
             >
-               {{ tag.name }}
+              {{ tag.name }}
             </a>
           {% endfor %}
         {% else %}

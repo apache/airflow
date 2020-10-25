@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-Utilities for creating a virtual environment
-"""
+"""Utilities for creating a virtual environment"""
 import os
 from typing import List, Optional
 

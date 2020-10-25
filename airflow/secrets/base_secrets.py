@@ -23,9 +23,7 @@ if TYPE_CHECKING:
 
 
 class BaseSecretsBackend(ABC):
-    """
-    Abstract base class to retrieve secrets given a conn_id and construct a Connection object
-    """
+    """Abstract base class to retrieve secrets given a conn_id and construct a Connection object"""
 
     def __init__(self, **kwargs):
         pass

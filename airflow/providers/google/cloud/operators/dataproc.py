@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains Google Dataproc operators.
-"""
+"""This module contains Google Dataproc operators."""
 # pylint: disable=C0302
 
 import inspect
@@ -229,7 +227,7 @@ class ClusterGenerator:
         if self.single_node and self.num_preemptible_workers > 0:
             raise ValueError("Single node cannot have preemptible workers.")
 
-    def _get_init_action_timeout(self):
+    def _get_init_action_timeout(self) -> dict:
         match = re.match(r"^(\d+)([sm])$", self.init_action_timeout)
         if match:
             val = float(match.group(1))
@@ -553,7 +551,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.log.info("Deleting the cluster")
         hook.delete_cluster(region=self.region, cluster_name=self.cluster_name, project_id=self.project_id)
 
-    def _get_cluster(self, hook: DataprocHook):
+    def _get_cluster(self, hook: DataprocHook) -> Cluster:
         return hook.get_cluster(
             project_id=self.project_id,
             region=self.region,
@@ -601,7 +599,7 @@ class DataprocCreateClusterOperator(BaseOperator):
             cluster = self._get_cluster(hook)
         return cluster
 
-    def execute(self, context):
+    def execute(self, context) -> dict:
         self.log.info('Creating cluster: %s', self.cluster_name)
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         try:
@@ -711,7 +709,7 @@ class DataprocScaleClusterOperator(BaseOperator):
             stacklevel=1,
         )
 
-    def _build_scale_cluster_data(self):
+    def _build_scale_cluster_data(self) -> dict:
         scale_data = {
             'config': {
                 'worker_config': {'num_instances': self.num_workers},
@@ -749,10 +747,8 @@ class DataprocScaleClusterOperator(BaseOperator):
 
         return {'seconds': timeout}
 
-    def execute(self, context):
-        """
-        Scale, up or down, a cluster on Google Cloud Dataproc.
-        """
+    def execute(self, context) -> None:
+        """Scale, up or down, a cluster on Google Cloud Dataproc."""
         self.log.info("Scaling cluster: %s", self.cluster_name)
 
         scaling_cluster_data = self._build_scale_cluster_data()
@@ -839,7 +835,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Deleting cluster: %s", self.cluster_name)
         operation = hook.delete_cluster(
@@ -960,9 +956,7 @@ class DataprocJobBaseOperator(BaseOperator):
         self.asynchronous = asynchronous
 
     def create_job_template(self):
-        """
-        Initialize `self.job_template` with default values
-        """
+        """Initialize `self.job_template` with default values"""
         self.job_template = DataProcJobBuilder(
             project_id=self.project_id,
             task_id=self.task_id,
@@ -974,7 +968,7 @@ class DataprocJobBaseOperator(BaseOperator):
         self.job_template.add_jar_file_uris(self.dataproc_jars)
         self.job_template.add_labels(self.labels)
 
-    def _generate_job_template(self):
+    def _generate_job_template(self) -> str:
         if self.job_template:
             job = self.job_template.build()
             return job['job']
@@ -999,7 +993,7 @@ class DataprocJobBaseOperator(BaseOperator):
         else:
             raise AirflowException("Create a job template before")
 
-    def on_kill(self):
+    def on_kill(self) -> None:
         """
         Callback called when the operator is killed.
         Cancel any running job.
@@ -1464,9 +1458,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         return "{}_{}_{}".format(date, str(uuid.uuid4())[:8], ntpath.basename(filename))
 
     def _upload_file_temp(self, bucket, local_file):
-        """
-        Upload a local file to a Google Cloud Storage bucket.
-        """
+        """Upload a local file to a Google Cloud Storage bucket."""
         temp_filename = self._generate_temp_filename(local_file)
         if not bucket:
             raise AirflowException(

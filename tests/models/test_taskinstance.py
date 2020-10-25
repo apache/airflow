@@ -1492,7 +1492,7 @@ class TestTaskInstance(unittest.TestCase):
         assert ti.state == State.SUCCESS
 
     def test_handle_failure(self):
-        import mock
+        from unittest import mock
 
         start_date = timezone.datetime(2016, 6, 1)
         dag = models.DAG(dag_id="test_handle_failure", schedule_interval=None, start_date=start_date)

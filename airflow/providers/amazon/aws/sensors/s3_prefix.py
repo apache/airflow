@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional, Union
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -56,7 +57,14 @@ class S3PrefixSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(
-        self, *, bucket_name, prefix, delimiter='/', aws_conn_id='aws_default', verify=None, **kwargs
+        self,
+        *,
+        bucket_name: str,
+        prefix: str,
+        delimiter: str = '/',
+        aws_conn_id: str = 'aws_default',
+        verify: Optional[Union[str, bool]] = None,
+        **kwargs,
     ):
         super().__init__(**kwargs)
         # Parse
@@ -66,7 +74,7 @@ class S3PrefixSensor(BaseSensorOperator):
         self.full_url = "s3://" + bucket_name + '/' + prefix
         self.aws_conn_id = aws_conn_id
         self.verify = verify
-        self.hook = None
+        self.hook: Optional[S3Hook] = None
 
     def poke(self, context):
         self.log.info('Poking for prefix : %s in bucket s3://%s', self.prefix, self.bucket_name)
@@ -74,8 +82,10 @@ class S3PrefixSensor(BaseSensorOperator):
             prefix=self.prefix, delimiter=self.delimiter, bucket_name=self.bucket_name
         )
 
-    def get_hook(self):
+    def get_hook(self) -> S3Hook:
         """Create and return an S3Hook"""
-        if not self.hook:
-            self.hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+        if self.hook:
+            return self.hook
+
+        self.hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         return self.hook

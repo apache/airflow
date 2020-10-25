@@ -469,9 +469,7 @@ class SQLThresholdCheckOperator(BaseOperator):
         self.log.info("Log from %s:\n%s", self.dag_id, info)
 
     def get_db_hook(self):
-        """
-        Returns DB hook
-        """
+        """Returns DB hook"""
         return BaseHook.get_hook(conn_id=self.conn_id)
 
 
@@ -551,7 +549,7 @@ class BranchSQLOperator(BaseOperator, SkipMixin):
 
         if self.follow_task_ids_if_true is None:
             raise AirflowException(
-                "Expected 'follow_task_ids_if_true' paramter is missing."
+                "Expected 'follow_task_ids_if_true' parameter is missing."
             )
 
         if self.follow_task_ids_if_false is None:
