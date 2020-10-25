@@ -206,14 +206,6 @@ class AirflowMesosScheduler(MesosClient):
                             {
                                 'name':'AIRFLOW__CORE__LOGGING_LEVEL',
                                 'value': 'DEBUG'
-                            },
-                            {
-                                'name':'AIRFLOW__CORE__DAGS_FOLDER',
-                                'value': self.mesos_docker_volume_dag_container_path
-                            },
-                            {
-                                'name':'AIRFLOW__CORE__LOAD_EXAMPLES',
-                                'value': 'False'
                             }
                         ]
                     },

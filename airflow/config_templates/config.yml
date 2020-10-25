@@ -2024,7 +2024,7 @@
       version_added: ~
       type: integer
       example: ~
-      default: "20"
+      default: "200"
     - name: checkpoint
       description: |
         Enable framework checkpointing for mesos
