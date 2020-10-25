@@ -35,9 +35,7 @@ FRAMEWORK_CONNID_PREFIX = 'mesos_framework_'
 
 
 def get_framework_name():
-    """
-    Get the mesos framework name if its set in airflow.cfg
-    """
+    """Get the mesos framework name if its set in airflow.cfg"""
     if not configuration.conf.get('mesos', 'FRAMEWORK_NAME'):
         return DEFAULT_FRAMEWORK_NAME
     return configuration.conf.get('mesos', 'FRAMEWORK_NAME')
@@ -109,9 +107,7 @@ class AirflowMesosScheduler(MesosClient):
         self.core_fernet_key = configuration.conf.get('core', 'FERNET_KEY')
 
     def resource_offers(self, offers):
-        """
-        If we got a offer, run a queued task
-        """
+        """If we got a offer, run a queued task"""
         self.log.debug('MESOS OFFER')
         i = 0
         for offer in offers:
@@ -122,9 +118,7 @@ class AirflowMesosScheduler(MesosClient):
             i += 1
 
     def run_job(self, mesos_offer):
-        """
-        Start a queued Airflow task in Mesos
-        """
+        """Start a queued Airflow task in Mesos"""
         offer = mesos_offer.get_offer()
         tasks = []
         option = {}
@@ -277,9 +271,7 @@ class AirflowMesosScheduler(MesosClient):
         Session.remove()
 
     def status_update(self, update):
-        """
-        Update the Status of the Tasks. Based by Mesos Events.
-        """
+        """Update the Status of the Tasks. Based by Mesos Events."""
         self.log.info(
             "Task %s is in state %s", update['status']['task_id']['value'], update['status']['state'])
 
@@ -321,9 +313,7 @@ class MesosExecutor(BaseExecutor):
     """
 
     class MesosFramework(threading.Thread):
-        """
-        MesosFramework class to start the threading
-        """
+        """MesosFramework class to start the threading"""
 
         def __init__(self, client):
             threading.Thread.__init__(self)
@@ -346,9 +336,7 @@ class MesosExecutor(BaseExecutor):
         self.th = None  # pylint: disable=invalid-name
 
     def start(self):
-        """
-        Setup and start routine to connect with the mesos master
-        """
+        """Setup and start routine to connect with the mesos master"""
         if not configuration.conf.get('mesos', 'MASTER'):
             self.log.error("Expecting mesos master URL for mesos executor")
             raise AirflowException("mesos.master not provided for mesos executor")
@@ -450,9 +438,7 @@ class MesosExecutor(BaseExecutor):
             self._change_state(*results)
 
     def _change_state(self, key: TaskInstanceKey, state: str, info=None) -> None:
-        """
-        Local function to change the state directly in the database
-        """
+        """Local function to change the state directly in the database"""
         self.log.debug(info)
         if Session is not None:
             session = Session()
@@ -467,9 +453,7 @@ class MesosExecutor(BaseExecutor):
                       command: CommandType,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None):
-        """
-        Execute Tasks
-        """
+        """Execute Tasks"""
         self.log.info('Add task %s with command %s with TaskInstance %s', key, command, executor_config)
         self.validate_command(command)
         self.task_queue.put((key, command, executor_config))

@@ -167,7 +167,7 @@ class BaseExecutor(LoggingMixin):
 
     def trigger_tasks(self, open_slots: int) -> None:
         """
-        riggers tasks
+        Triggers tasks
 
         :param open_slots: Number of open slots
         """
