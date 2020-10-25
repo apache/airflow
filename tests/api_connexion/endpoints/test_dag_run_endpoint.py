@@ -431,7 +431,7 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
 
         response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
-        assert response.json["total_entries"] == 10
+        assert response.json["total_entries"] == len(expected_dag_run_ids)
         dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"]]
         assert dag_run_ids == expected_dag_run_ids
 
@@ -482,7 +482,7 @@ class TestGetDagRunsEndDateFilters(TestDagRunEndpoint):
         self._create_test_dag_run('success')  # state==success, then end date is today
         response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
-        assert response.json["total_entries"] == 2
+        assert response.json["total_entries"] == len(expected_dag_run_ids)
         dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"] if dag_run]
         assert dag_run_ids == expected_dag_run_ids
 
@@ -706,7 +706,7 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
             "api/v1/dags/~/dagRuns/list", json=payload, environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
-        assert response.json["total_entries"] == 10
+        assert response.json["total_entries"] == len(expected_dag_run_ids)
         dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"]]
         assert dag_run_ids == expected_dag_run_ids
 
@@ -760,7 +760,7 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
             "api/v1/dags/~/dagRuns/list", json=payload, environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
-        assert response.json["total_entries"] == 2
+        assert response.json["total_entries"] == len(expected_dag_run_ids)
         dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"] if dag_run]
         assert dag_run_ids == expected_dag_run_ids
 
