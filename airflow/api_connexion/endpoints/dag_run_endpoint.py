@@ -131,7 +131,6 @@ def _fetch_dag_runs(
     limit,
     offset,
 ):
-    total_entries = query.count()
     query = _apply_date_filters_to_query(
         query,
         end_date_gte,
@@ -141,6 +140,8 @@ def _fetch_dag_runs(
         start_date_gte,
         start_date_lte,
     )
+    # Count items
+    total_entries = query.count()
     # apply offset and limit
     dag_run = query.order_by(DagRun.id).offset(offset).limit(limit).all()
     return dag_run, total_entries
