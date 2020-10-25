@@ -125,7 +125,7 @@ in the `<#production-image-build-arguments>`_ chapter below.
 
 Here just a few examples are presented which should give you general understanding of what you can customize.
 
-This builds the production image in version 3.7 with additional airflow extras from 1.10.10 Pypi package and
+This builds the production image in version 3.7 with additional airflow extras from 1.10.12 Pypi package and
 additional apt dev and runtime dependencies.
 
 .. code-block:: bash
@@ -138,10 +138,10 @@ additional apt dev and runtime dependencies.
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
-    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc"
-    --build-arg ADDITIONAL_PYTHON_DEPS="pandas"
-    --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++"
-    --build-arg ADDITIONAL_RUNTIME_APT_DEPS="default-jre-headless"
+    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \
+    --build-arg ADDITIONAL_PYTHON_DEPS="pandas" \
+    --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++" \
+    --build-arg ADDITIONAL_RUNTIME_APT_DEPS="default-jre-headless" \
     --tag my-image
 
 
@@ -606,7 +606,7 @@ additional python dependencies and pre-installed pip dependencies from 1.10.12 t
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1.10.12" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
-    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="mssql,hdfs"
+    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="mssql,hdfs" \
     --build-arg ADDITIONAL_PYTHON_DEPS="sshtunnel oauth2client"
 
 This builds the production image in version 3.7 with additional airflow extras from 1.10.12 Pypi package and
@@ -622,8 +622,8 @@ additional apt dev and runtime dependencies.
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
-    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc"
-    --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++"
+    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \
+    --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++" \
     --build-arg ADDITIONAL_RUNTIME_APT_DEPS="default-jre-headless"
 
 
