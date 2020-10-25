@@ -15,9 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains the Apache Livy operator.
-"""
+"""This module contains the Apache Livy operator."""
 from time import sleep
 from typing import Any, Dict, Optional, Sequence, Union
 
@@ -165,8 +163,6 @@ class LivyOperator(BaseOperator):
         self.kill()
 
     def kill(self) -> None:
-        """
-        Delete the current batch session.
-        """
+        """Delete the current batch session."""
         if self._batch_id is not None:
             self.get_hook().delete_batch(self._batch_id)

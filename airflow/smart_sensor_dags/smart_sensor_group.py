@@ -17,7 +17,6 @@
 # under the License.
 
 """Smart sensor DAGs managing all smart sensor tasks."""
-from builtins import range
 from datetime import timedelta
 
 from airflow.configuration import conf

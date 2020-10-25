@@ -25,7 +25,7 @@ from tempfile import TemporaryDirectory
 from urllib.parse import urlparse
 
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_CLOUD_BUILD_KEY, GcpAuthenticator
-from tests.utils.logging_command_executor import LoggingCommandExecutor
+from tests.test_utils.logging_command_executor import LoggingCommandExecutor
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 GCP_ARCHIVE_URL = os.environ.get("GCP_CLOUD_BUILD_ARCHIVE_URL", "gs://example-bucket/source-code.tar.gz")

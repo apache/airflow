@@ -43,9 +43,7 @@ class ConfObject(fields.Field):
 
 
 class DAGRunSchema(SQLAlchemySchema):
-    """
-    Schema for DAGRun
-    """
+    """Schema for DAGRun"""
 
     class Meta:
         """Meta"""
@@ -64,9 +62,7 @@ class DAGRunSchema(SQLAlchemySchema):
 
     @pre_load
     def autogenerate(self, data, **kwargs):
-        """
-        Auto generate run_id and execution_date if they are not loaded
-        """
+        """Auto generate run_id and execution_date if they are not loaded"""
         if "execution_date" not in data.keys():
             data["execution_date"] = str(timezone.utcnow())
         if "dag_run_id" not in data.keys():

@@ -21,7 +21,7 @@ import itertools
 import json
 import unittest
 
-import mock
+from unittest import mock
 from requests import exceptions as requests_exceptions
 
 from airflow import __version__

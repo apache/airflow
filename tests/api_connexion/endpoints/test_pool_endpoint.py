@@ -20,6 +20,7 @@ from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models.pool import Pool
+from airflow.security import permissions
 from airflow.utils.session import provide_session
 from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
@@ -39,10 +40,10 @@ class TestBasePoolEndpoints(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                ("can_create", "Pool"),
-                ("can_read", "Pool"),
-                ("can_edit", "Pool"),
-                ("can_delete", "Pool"),
+                (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_POOL),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_POOL),
+                (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_POOL),
             ],
         )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore

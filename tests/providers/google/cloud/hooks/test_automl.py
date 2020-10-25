@@ -18,7 +18,7 @@
 #
 import unittest
 
-import mock
+from unittest import mock
 from google.cloud.automl_v1beta1 import AutoMlClient, PredictionServiceClient
 
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook

@@ -165,7 +165,7 @@ def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
     # which is as close as possible to dt. Since delta could be a relative
     # delta we don't know its exact length in seconds so we cannot rely on
     # division to find i. Instead we employ a binary search algorithm, first
-    # finding an upper and lower limit and then disecting the interval until
+    # finding an upper and lower limit and then dissecting the interval until
     # we have found the closest match.
 
     # We first search an upper limit for i for which start_date + upper * delta
@@ -229,9 +229,7 @@ def infer_time_unit(time_seconds_arr):
 
 
 def scale_time_units(time_seconds_arr, unit):
-    """
-    Convert an array of time durations in seconds to the specified time unit.
-    """
+    """Convert an array of time durations in seconds to the specified time unit."""
     if unit == 'minutes':
         return list(map(lambda x: x / 60, time_seconds_arr))
     elif unit == 'hours':
@@ -255,7 +253,5 @@ def days_ago(n, hour=0, minute=0, second=0, microsecond=0):
 
 
 def parse_execution_date(execution_date_str):
-    """
-    Parse execution date string to datetime object.
-    """
+    """Parse execution date string to datetime object."""
     return timezone.parse(execution_date_str)

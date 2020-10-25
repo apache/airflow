@@ -97,9 +97,7 @@ class HiveStatsCollectionOperator(BaseOperator):
         self.dttm = '{{ execution_date.isoformat() }}'
 
     def get_default_exprs(self, col: str, col_type: str) -> Dict[Any, Any]:
-        """
-        Get default expressions
-        """
+        """Get default expressions"""
         if col in self.excluded_columns:
             return {}
         exp = {(col, 'non_null'): f"COUNT({col})"}

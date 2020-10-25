@@ -44,7 +44,7 @@ class _SecretManagerClient(LoggingMixin):
     def __init__(
         self,
         credentials: google.auth.credentials.Credentials,
-    ):
+    ) -> None:
         super().__init__()
         self.credentials = credentials
 
@@ -60,9 +60,7 @@ class _SecretManagerClient(LoggingMixin):
 
     @cached_property
     def client(self) -> SecretManagerServiceClient:
-        """
-        Create an authenticated KMS client
-        """
+        """Create an authenticated KMS client"""
         _client = SecretManagerServiceClient(
             credentials=self.credentials, client_info=ClientInfo(client_library_version='airflow_v' + version)
         )

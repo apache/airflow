@@ -132,9 +132,7 @@ def trigger_dag(dag_id):
 @api_experimental.route('/dags/<string:dag_id>', methods=['DELETE'])
 @requires_authentication
 def delete_dag(dag_id):
-    """
-    Delete all DB records related to the specified Dag.
-    """
+    """Delete all DB records related to the specified Dag."""
     try:
         count = delete.delete_dag(dag_id)
     except AirflowException as err:
@@ -330,7 +328,7 @@ def latest_dag_runs():
                 'dag_run_url': url_for('Airflow.graph', dag_id=dagrun.dag_id,
                                        execution_date=dagrun.execution_date)
             })
-    return jsonify(items=payload)  # old flask versions dont support jsonifying arrays
+    return jsonify(items=payload)  # old flask versions don't support jsonifying arrays
 
 
 @api_experimental.route('/pools/<string:name>', methods=['GET'])

@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains AWS S3 operators.
-"""
+"""This module contains AWS S3 operators."""
 from typing import Optional
 
 from airflow.models import BaseOperator
@@ -45,7 +43,7 @@ class S3CreateBucketOperator(BaseOperator):
     def __init__(
         self,
         *,
-        bucket_name,
+        bucket_name: str,
         aws_conn_id: Optional[str] = "aws_default",
         region_name: Optional[str] = None,
         **kwargs,
@@ -83,7 +81,7 @@ class S3DeleteBucketOperator(BaseOperator):
 
     def __init__(
         self,
-        bucket_name,
+        bucket_name: str,
         force_delete: bool = False,
         aws_conn_id: Optional[str] = "aws_default",
         **kwargs,

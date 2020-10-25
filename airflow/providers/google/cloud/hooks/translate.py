@@ -15,10 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Translate Hook.
-"""
-from typing import Dict, List, Optional, Sequence, Union
+"""This module contains a Google Cloud Translate Hook."""
+from typing import List, Optional, Sequence, Union
 
 from google.cloud.translate_v2 import Client
 
@@ -65,7 +63,7 @@ class CloudTranslateHook(GoogleBaseHook):
         format_: Optional[str] = None,
         source_language: Optional[str] = None,
         model: Optional[Union[str, List[str]]] = None,
-    ) -> Dict:
+    ) -> dict:
         """Translate a string or list of strings.
 
         See https://cloud.google.com/translate/docs/translating-text

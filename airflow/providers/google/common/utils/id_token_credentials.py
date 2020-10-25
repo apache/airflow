@@ -62,8 +62,8 @@ def _load_credentials_from_file(
 
     :param filename: The full path to the credentials file.
     :type filename: str
-    :return Loaded credentials
-    :rtype google.auth.credentials.Credentials
+    :return: Loaded credentials
+    :rtype: google.auth.credentials.Credentials
     :raise google.auth.exceptions.DefaultCredentialsError: if the file is in the wrong format or is missing.
     """
     if not os.path.exists(filename):
@@ -108,9 +108,7 @@ def _load_credentials_from_file(
 def _get_explicit_environ_credentials(
     target_audience: Optional[str],
 ) -> Optional[google_auth_credentials.Credentials]:
-    """
-    Gets credentials from the GOOGLE_APPLICATION_CREDENTIALS environment variable.
-    """
+    """Gets credentials from the GOOGLE_APPLICATION_CREDENTIALS environment variable."""
     explicit_file = os.environ.get(environment_vars.CREDENTIALS)
 
     if explicit_file is None:
@@ -186,8 +184,8 @@ def get_default_id_token_credentials(
             is running on Compute Engine. If not specified, then it will use the standard library http client
             to make requests.
     :type request: google.auth.transport.Request
-    :return the current environment's credentials.
-    :rtype google.auth.credentials.Credentials
+    :return: the current environment's credentials.
+    :rtype: google.auth.credentials.Credentials
     :raises ~google.auth.exceptions.DefaultCredentialsError:
         If no credentials were found, or if the credentials found were invalid.
     """

@@ -63,7 +63,7 @@ repos:
         exclude: ^\.github/.*$
         args:
           - --comment-style
-          - "/**| *| */"
+          - "/*!| *| */"
           - --license-filepath
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
@@ -121,7 +121,7 @@ repos:
       - id: insert-license
         name: Add license for all md files
         files: \.md$
-        exclude: ^\.github/.*$|PROVIDERS_CHANGES.*\.md
+        exclude: ^\.github/.*$|BACKPORT_PROVIDERS_CHANGES.*\.md|PROVIDERS_CHANGES.*
         args:
           - --comment-style
           - "<!--|| -->"
@@ -142,7 +142,7 @@ repos:
     hooks:
       - id: doctoc
         name: Add TOC for md files
-        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.md$|^dev/README\.md$|^dev/BACKPORT_PACKAGES.md$
+        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.md$|^dev/README\.md$|^dev/PROVIDER_PACKAGES.md$
         args:
           - "--maxlevel"
           - "2"
@@ -157,7 +157,7 @@ repos:
         exclude: .*kubernetes_pod\.py|.*google/common/hooks/base_google\.py$
         args: [--config=./pyproject.toml]
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.2.0
+    rev: v3.3.0
     hooks:
       - id: check-merge-conflict
       - id: debug-statements
@@ -177,16 +177,16 @@ repos:
       - id: rst-backticks
       - id: python-no-log-warn
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.24.2
+    rev: v1.25.0
     hooks:
       - id: yamllint
         name: Check yaml files with yamllint
-        entry: yamllint -c yamllint-config.yml
+        entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
         exclude:
           ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml
   - repo: https://github.com/timothycrosley/isort
-    rev: 5.5.3
+    rev: 5.6.4
     hooks:
       - id: isort
         name: Run isort to sort imports
@@ -200,15 +200,10 @@ repos:
         name: Run pydocstyle
         args:
           - --convention=pep257
-          - --add-ignore=D100,D102,D104,D105,D107,D200,D205,D400,D401
-        exclude: ^tests/.*\.py$|^scripts/.*\.py$|^dev|^backport_packages|^kubernetes_tests
+          - --add-ignore=D100,D102,D104,D105,D107,D205,D400,D401
+        exclude: ^tests/.*\.py$|^scripts/.*\.py$|^dev|^provider_packages|^kubernetes_tests|.*example_dags/.*
   - repo: local
     hooks:
-      - id: shellcheck
-        name: Check Shell scripts syntax correctness
-        language: docker_image
-        entry: koalaman/shellcheck:stable -x -a
-        files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$|\.bats$
       - id: lint-openapi
         name: Lint OpenAPI using spectral
         language: docker_image
@@ -293,8 +288,8 @@ repos:
           (?x)
           ^airflow/providers/apache/cassandra/hooks/cassandra.py$|
           ^airflow/providers/apache/hive/operators/hive_stats.py$|
-          ^airflow/providers/apache/hive/PROVIDERS_CHANGES_*|
-          ^airflow/providers/apache/hive/README.md$|
+          ^airflow/providers/apache/hive/.*PROVIDERS_CHANGES_*|
+          ^airflow/providers/apache/hive/.*README.md$|
           ^tests/providers/apache/cassandra/hooks/test_cassandra.py$|
           ^docs/howto/connection/cassandra.rst$|
           ^CHANGELOG.txt$
@@ -317,7 +312,7 @@ repos:
           ^airflow/operators/.*$|
           ^airflow/sensors/.*$|
           ^airflow/providers/.*$|
-          ^backport_packages/.*$
+          ^provider_packages/.*$
       - id: base-operator
         language: pygrep
         name: Make sure BaseOperator[Link] is imported from airflow.models outside of core
@@ -361,12 +356,6 @@ repos:
         language: system
         pass_filenames: false
         files: ^common/_common_values.sh$|^breeze-complete$
-      - id: build
-        name: Check if image build is needed
-        entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.6 false
-        language: system
-        always_run: true
-        pass_filenames: false
       - id: check-apache-license
         name: Check if licenses are OK for Apache
         entry: "./scripts/ci/pre_commit/pre_commit_check_license.sh"
@@ -381,40 +370,44 @@ repos:
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['pyyaml']
-      - id: bats-in-container-tests
-        name: Run in container bats tests
+      - id: pre-commit-descriptions
+        name: Check if pre-commits are described
+        entry: ./scripts/ci/pre_commit/pre_commit_check_pre_commits.sh
         language: system
-        entry: "./scripts/ci/pre_commit/pre_commit_in_container_bats_test.sh"
-        files: ^tests/bats/in_container/.*.bats$|^scripts/in_container/.*sh
+        files: ^.pre-commit-config.yaml$|^STATIC_CODE_CHECKS.rst|^breeze-complete$
+        require_serial: true
+      - id: sort-in-the-wild
+        name: Sort INTHEWILD.md alphabetically
+        entry: ./scripts/ci/pre_commit/pre_commit_sort_in_the_wild.sh
+        language: system
+        files: ^.pre-commit-config.yaml$|^INTHEWILD.md$
+        require_serial: true
+      - id: helm-lint
+        name: Lint Helm Chart
+        entry: ./scripts/ci/pre_commit/pre_commit_helm_lint.sh
+        language: system
         pass_filenames: false
-      - id: mypy
-        name: Run mypy
-        language: system
-        entry: "./scripts/ci/pre_commit/pre_commit_mypy.sh"
-        files: \.py$
-        exclude: ^dev|^backport_packages
+        files: ^chart
         require_serial: true
-      - id: pylint
-        name: Run pylint
+      - id: shellcheck
+        name: Check Shell scripts syntax correctness
+        language: docker_image
+        entry: koalaman/shellcheck:stable -x -a
+        files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$|\.bats$
+      - id: bats-tests
+        name: Run BATS bash tests for changed Breeze bash files
         language: system
-        entry: "./scripts/ci/pre_commit/pre_commit_pylint.sh"
-        files: \.py$
-        exclude: ^scripts/.*\.py$|^dev|^backport_packages
-        pass_filenames: true
-        require_serial: true
-      - id: flake8
-        name: Run flake8
-        language: system
-        entry: "./scripts/ci/pre_commit/pre_commit_flake8.sh"
-        files: \.py$
-        pass_filenames: true
+        entry: "./scripts/ci/pre_commit/pre_commit_bat_tests.sh tests/bats/breeze/"
+        files: ^breeze$|^breeze-complete$|^tests/bats/breeze
+        pass_filenames: false
       - id: bats-tests
         name: Run BATS bash tests for changed bash files
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_bat_tests.sh"
-        files: ^breeze$|^breeze-complete$|\.sh$|\.bash$|\.bats$
-        exclude: ^tests/bats/in_container/.*bats$|^scripts/in_container/.*sh$
-        pass_filenames: false
+        files: \.sh$|\.bash$|\.bats$
+        exclude: ^tests/bats/in_container|^scripts/in_container|^tests/bats/breeze
+        pass_filenames: true
+        require_serial: true
       - id: stylelint
         name: stylelint
         entry: "stylelint"
@@ -447,3 +440,36 @@ repos:
         pass_filenames: false
         files: ^chart
         require_serial: true
+      - id: build
+        name: Check if image build is needed
+        entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.6 false
+        language: system
+        always_run: true
+        pass_filenames: false
+      - id: mypy
+        name: Run mypy
+        language: system
+        entry: "./scripts/ci/pre_commit/pre_commit_mypy.sh"
+        files: \.py$
+        exclude: ^dev|^provider_packages
+        require_serial: true
+      - id: pylint
+        name: Run pylint
+        language: system
+        entry: "./scripts/ci/pre_commit/pre_commit_pylint.sh"
+        files: \.py$
+        exclude: ^scripts/.*\.py$|^dev|^provider_packages
+        pass_filenames: true
+        require_serial: true
+      - id: flake8
+        name: Run flake8
+        language: system
+        entry: "./scripts/ci/pre_commit/pre_commit_flake8.sh"
+        files: \.py$
+        pass_filenames: true
+      - id: bats-in-container-tests
+        name: Run in container bats tests
+        language: system
+        entry: "./scripts/ci/pre_commit/pre_commit_in_container_bats_test.sh"
+        files: ^tests/bats/in_container/.*.bats$|^scripts/in_container/.*sh
+        pass_filenames: false

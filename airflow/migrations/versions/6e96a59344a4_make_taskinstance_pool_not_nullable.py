@@ -82,9 +82,7 @@ class TaskInstance(Base):  # type: ignore
 
 
 def upgrade():
-    """
-    Make TaskInstance.pool field not nullable.
-    """
+    """Make TaskInstance.pool field not nullable."""
     with create_session() as session:
         session.query(TaskInstance) \
             .filter(TaskInstance.pool.is_(None)) \
@@ -109,9 +107,7 @@ def upgrade():
 
 
 def downgrade():
-    """
-    Make TaskInstance.pool field nullable.
-    """
+    """Make TaskInstance.pool field nullable."""
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
         op.drop_index('ti_pool', table_name='task_instance')

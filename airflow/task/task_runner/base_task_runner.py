@@ -141,9 +141,7 @@ class BaseTaskRunner(LoggingMixin):
         return proc
 
     def start(self):
-        """
-        Start running the task instance in a subprocess.
-        """
+        """Start running the task instance in a subprocess."""
         raise NotImplementedError()
 
     def return_code(self):
@@ -155,15 +153,11 @@ class BaseTaskRunner(LoggingMixin):
         raise NotImplementedError()
 
     def terminate(self):
-        """
-        Kill the running task instance.
-        """
+        """Kill the running task instance."""
         raise NotImplementedError()
 
     def on_finish(self):
-        """
-        A callback that should be called when this is done running.
-        """
+        """A callback that should be called when this is done running."""
         if self._cfg_path and os.path.isfile(self._cfg_path):
             if self.run_as_user:
                 subprocess.call(['sudo', 'rm', self._cfg_path], close_fds=True)

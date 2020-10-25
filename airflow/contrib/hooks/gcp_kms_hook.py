@@ -28,9 +28,7 @@ warnings.warn(
 
 
 class GoogleCloudKMSHook(CloudKMSHook):
-    """
-    This class is deprecated. Please use `airflow.providers.google.cloud.hooks.kms.CloudKMSHook`.
-    """
+    """This class is deprecated. Please use `airflow.providers.google.cloud.hooks.kms.CloudKMSHook`."""
 
     def __init__(self, *args, **kwargs):
         warnings.warn(

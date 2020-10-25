@@ -14,14 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Base executor - this is the base class for all the implemented executors.
-"""
+"""Base executor - this is the base class for all the implemented executors."""
+import sys
 from collections import OrderedDict
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from airflow.configuration import conf
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
+from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
@@ -39,8 +38,8 @@ CommandType = List[str]
 # Task that is queued. It contains all the information that is
 # needed to run the task.
 #
-# Tuple of: command, priority, queue name, SimpleTaskInstance
-QueuedTaskInstanceType = Tuple[CommandType, int, Optional[str], Union[SimpleTaskInstance, TaskInstance]]
+# Tuple of: command, priority, queue name, TaskInstance
+QueuedTaskInstanceType = Tuple[CommandType, int, Optional[str], TaskInstance]
 
 # Event_buffer dict value type
 # Tuple of: state, info
@@ -56,6 +55,8 @@ class BaseExecutor(LoggingMixin):
         ``0`` for infinity
     """
 
+    job_id: Optional[str] = None
+
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()
         self.parallelism: int = parallelism
@@ -65,21 +66,19 @@ class BaseExecutor(LoggingMixin):
         self.event_buffer: Dict[TaskInstanceKey, EventBufferValueType] = {}
 
     def start(self):  # pragma: no cover
-        """
-        Executors may need to get things started.
-        """
+        """Executors may need to get things started."""
 
     def queue_command(self,
-                      simple_task_instance: SimpleTaskInstance,
+                      task_instance: TaskInstance,
                       command: CommandType,
                       priority: int = 1,
                       queue: Optional[str] = None):
         """Queues command to task"""
-        if simple_task_instance.key not in self.queued_tasks and simple_task_instance.key not in self.running:
+        if task_instance.key not in self.queued_tasks and task_instance.key not in self.running:
             self.log.info("Adding to queue: %s", command)
-            self.queued_tasks[simple_task_instance.key] = (command, priority, queue, simple_task_instance)
+            self.queued_tasks[task_instance.key] = (command, priority, queue, task_instance)
         else:
-            self.log.error("could not queue task %s", simple_task_instance.key)
+            self.log.error("could not queue task %s", task_instance.key)
 
     def queue_task_instance(
             self,
@@ -109,8 +108,9 @@ class BaseExecutor(LoggingMixin):
             pool=pool,
             pickle_id=pickle_id,
             cfg_path=cfg_path)
+        self.log.debug("created command %s", command_list_to_run)
         self.queue_command(
-            SimpleTaskInstance(task_instance),
+            task_instance,
             command_list_to_run,
             priority=task_instance.task.priority_weight_total,
             queue=task_instance.task.queue)
@@ -131,9 +131,7 @@ class BaseExecutor(LoggingMixin):
         """
 
     def heartbeat(self) -> None:
-        """
-        Heartbeat sent to trigger new jobs.
-        """
+        """Heartbeat sent to trigger new jobs."""
         if not self.parallelism:
             open_slots = len(self.queued_tasks)
         else:
@@ -176,13 +174,13 @@ class BaseExecutor(LoggingMixin):
         sorted_queue = self.order_queued_tasks_by_priority()
 
         for _ in range(min((open_slots, len(self.queued_tasks)))):
-            key, (command, _, _, simple_ti) = sorted_queue.pop(0)
+            key, (command, _, _, ti) = sorted_queue.pop(0)
             self.queued_tasks.pop(key)
             self.running.add(key)
             self.execute_async(key=key,
                                command=command,
                                queue=None,
-                               executor_config=simple_ti.executor_config)
+                               executor_config=ti.executor_config)
 
     def change_state(self, key: TaskInstanceKey, state: str, info=None) -> None:
         """
@@ -261,9 +259,7 @@ class BaseExecutor(LoggingMixin):
         raise NotImplementedError()
 
     def terminate(self):
-        """
-        This method is called when the daemon receives a SIGTERM
-        """
+        """This method is called when the daemon receives a SIGTERM"""
         raise NotImplementedError()
 
     def try_adopt_task_instances(self, tis: List[TaskInstance]) -> List[TaskInstance]:
@@ -279,6 +275,14 @@ class BaseExecutor(LoggingMixin):
         # By default, assume Executors cannot adopt tasks, so just say we failed to adopt anything.
         # Subclasses can do better!
         return tis
+
+    @property
+    def slots_available(self):
+        """Number of new tasks this executor instance can accept"""
+        if self.parallelism:
+            return self.parallelism - len(self.running) - len(self.queued_tasks)
+        else:
+            return sys.maxsize
 
     @staticmethod
     def validate_command(command: List[str]) -> None:

@@ -30,9 +30,7 @@ except ImportError:
 
 
 class AirflowJsonEncoder(json.JSONEncoder):
-    """
-    Custom Airflow json encoder implementation.
-    """
+    """Custom Airflow json encoder implementation."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -40,9 +38,7 @@ class AirflowJsonEncoder(json.JSONEncoder):
 
     @staticmethod
     def _default(obj):
-        """
-        Convert dates and numpy objects in a json serializable format.
-        """
+        """Convert dates and numpy objects in a json serializable format."""
         if isinstance(obj, datetime):
             return obj.strftime('%Y-%m-%dT%H:%M:%SZ')
         elif isinstance(obj, date):

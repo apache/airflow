@@ -18,9 +18,9 @@
 
 
 import unittest
+from unittest.mock import MagicMock
 
 import pytest
-from mock import MagicMock
 
 from airflow.models.dag import DAG
 from airflow.providers.redis.hooks.redis import RedisHook

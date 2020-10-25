@@ -17,9 +17,9 @@
 # under the License.
 #
 import unittest
+from unittest import mock
 
 import boto3
-import mock
 
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook

@@ -47,9 +47,7 @@ class FTPHook(BaseHook):
             self.close_conn()
 
     def get_conn(self) -> ftplib.FTP:
-        """
-        Returns a FTP connection object
-        """
+        """Returns a FTP connection object"""
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
             pasv = params.extra_dejson.get("passive", True)
@@ -261,14 +259,10 @@ class FTPHook(BaseHook):
 
 
 class FTPSHook(FTPHook):
-    """
-    Interact with FTPS.
-    """
+    """Interact with FTPS."""
 
     def get_conn(self) -> ftplib.FTP:
-        """
-        Returns a FTPS connection object.
-        """
+        """Returns a FTPS connection object."""
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
             pasv = params.extra_dejson.get("passive", True)

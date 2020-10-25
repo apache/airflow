@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Cloud Bigtable sensor.
-"""
+"""This module contains Google Cloud Bigtable sensor."""
 from typing import Optional, Sequence, Union
 
 import google.api_core.exceptions
@@ -86,7 +84,7 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def poke(self, context):
+    def poke(self, context: dict) -> bool:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

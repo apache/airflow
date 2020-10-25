@@ -20,7 +20,6 @@ from contextlib import closing
 from typing import Union, Optional, List, Tuple, Any
 
 import pyexasol
-from past.builtins import basestring
 from pyexasol import ExaConnection
 
 from airflow.hooks.dbapi_hook import DbApiHook
@@ -42,7 +41,7 @@ class ExasolHook(DbApiHook):
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs) -> None:
-        super(ExasolHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
 
     def get_conn(self) -> ExaConnection:
@@ -122,7 +121,7 @@ class ExasolHook(DbApiHook):
         :param parameters: The parameters to render the SQL query with.
         :type parameters: dict or iterable
         """
-        if isinstance(sql, basestring):
+        if isinstance(sql, str):
             sql = [sql]
 
         with closing(self.get_conn()) as conn:
@@ -149,7 +148,7 @@ class ExasolHook(DbApiHook):
         """
         if not self.supports_autocommit and autocommit:
             self.log.warning(
-                "%s connection doesn't support " "autocommit but autocommit activated.",
+                "%s connection doesn't support autocommit but autocommit activated.",
                 getattr(self, self.conn_name_attr),
             )
         conn.set_autocommit(autocommit)
@@ -168,7 +167,7 @@ class ExasolHook(DbApiHook):
         """
         autocommit = conn.attr.get('autocommit')
         if autocommit is None:
-            autocommit = super(ExasolHook, self).get_autocommit(conn)
+            autocommit = super().get_autocommit(conn)
         return autocommit
 
     @staticmethod

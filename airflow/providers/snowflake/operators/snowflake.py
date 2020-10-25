@@ -105,9 +105,7 @@ class SnowflakeOperator(BaseOperator):
         )
 
     def execute(self, context: Any) -> None:
-        """
-        Run query on snowflake
-        """
+        """Run query on snowflake"""
         self.log.info('Executing: %s', self.sql)
         hook = self.get_hook()
         hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)

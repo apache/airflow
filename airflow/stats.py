@@ -30,6 +30,24 @@ from airflow.typing_compat import Protocol
 log = logging.getLogger(__name__)
 
 
+class TimerProtocol(Protocol):
+    """Type protocol for StatsLogger.timer"""
+
+    def __enter__(self):
+        ...
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        ...
+
+    def start(self):
+        """Start the timer"""
+        ...
+
+    def stop(self, send=True):
+        """Stop, and (by default) submit the timer to statsd"""
+        ...
+
+
 class StatsLogger(Protocol):
     """This class is only used for TypeChecking (for IDEs, mypy, pylint, etc)"""
 
@@ -48,6 +66,26 @@ class StatsLogger(Protocol):
     @classmethod
     def timing(cls, stat: str, dt) -> None:
         """Stats timing"""
+
+    @classmethod
+    def timer(cls, *args, **kwargs) -> TimerProtocol:
+        """Timer metric that can be cancelled"""
+
+
+class DummyTimer:
+    """No-op timer"""
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        return self
+
+    def start(self):
+        """Start the timer"""
+
+    def stop(self, send=True):  # pylint: disable=unused-argument
+        """Stop, and (by default) submit the timer to statsd"""
 
 
 class DummyStatsLogger:
@@ -68,6 +106,11 @@ class DummyStatsLogger:
     @classmethod
     def timing(cls, stat, dt):
         """Stats timing"""
+
+    @classmethod
+    def timer(cls, *args, **kwargs):
+        """Timer metric that can be cancelled"""
+        return DummyTimer()
 
 
 # Only characters in the character set are considered valid
@@ -171,6 +214,13 @@ class SafeStatsdLogger:
             return self.statsd.timing(stat, dt)
         return None
 
+    @validate_stat
+    def timer(self, stat, *args, **kwargs):
+        """Timer metric that can be cancelled"""
+        if self.allow_list_validator.test(stat):
+            return self.statsd.timer(stat, *args, **kwargs)
+        return DummyTimer()
+
 
 class SafeDogStatsdLogger:
     """DogStatsd Logger"""
@@ -210,6 +260,14 @@ class SafeDogStatsdLogger:
             tags = tags or []
             return self.dogstatsd.timing(metric=stat, value=dt, tags=tags)
         return None
+
+    @validate_stat
+    def timer(self, stat, *args, tags=None, **kwargs):
+        """Timer metric that can be cancelled"""
+        if self.allow_list_validator.test(stat):
+            tags = tags or []
+            return self.dogstatsd.timer(stat, *args, tags=tags, **kwargs)
+        return DummyTimer()
 
 
 class _Stats(type):

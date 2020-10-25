@@ -30,7 +30,7 @@ with models.DAG(
     dag_id="example_complex",
     schedule_interval=None,
     start_date=days_ago(1),
-    tags=['example'],
+    tags=['example', 'example2', 'example3'],
 ) as dag:
 
     # Create

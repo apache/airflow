@@ -18,7 +18,7 @@
 
 import unittest
 
-import mock
+from unittest import mock
 
 from airflow.providers.amazon.aws.hooks.glue_catalog import AwsGlueCatalogHook
 from airflow.providers.amazon.aws.sensors.glue_catalog_partition import AwsGlueCatalogPartitionSensor

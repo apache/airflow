@@ -18,7 +18,7 @@
 
 import unittest
 
-from mock import ANY, Mock, PropertyMock, patch
+from unittest.mock import ANY, Mock, PropertyMock, patch
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException

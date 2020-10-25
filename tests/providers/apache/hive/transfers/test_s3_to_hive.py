@@ -27,7 +27,7 @@ from gzip import GzipFile
 from itertools import product
 from tempfile import NamedTemporaryFile, mkdtemp
 
-import mock
+from unittest import mock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.hive.transfers.s3_to_hive import S3ToHiveOperator

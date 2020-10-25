@@ -51,7 +51,7 @@ class NotPreviouslySkippedDep(BaseTIDep):
                     continue
 
                 prev_result = ti.xcom_pull(
-                    task_ids=parent.task_id, key=XCOM_SKIPMIXIN_KEY
+                    task_ids=parent.task_id, key=XCOM_SKIPMIXIN_KEY, session=session
                 )
 
                 if prev_result is None:

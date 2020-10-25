@@ -31,11 +31,11 @@ class AzureContainerRegistryHook(BaseHook):
     :type conn_id: str
     """
 
-    def __init__(self, conn_id='azure_registry'):
+    def __init__(self, conn_id: str = 'azure_registry') -> None:
         super().__init__()
         self.conn_id = conn_id
         self.connection = self.get_conn()
 
-    def get_conn(self):
+    def get_conn(self) -> ImageRegistryCredential:
         conn = self.get_connection(self.conn_id)
         return ImageRegistryCredential(server=conn.host, username=conn.login, password=conn.password)

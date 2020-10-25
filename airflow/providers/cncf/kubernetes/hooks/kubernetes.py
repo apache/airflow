@@ -62,9 +62,7 @@ class KubernetesHook(BaseHook):
         self.client_configuration = client_configuration
 
     def get_conn(self) -> Any:
-        """
-        Returns kubernetes api session for use with requests
-        """
+        """Returns kubernetes api session for use with requests"""
         connection = self.get_connection(self.conn_id)
         extras = connection.extra_dejson
         in_cluster = extras.get("extra__kubernetes__in_cluster")
@@ -109,7 +107,7 @@ class KubernetesHook(BaseHook):
         """Cached Kubernetes API client"""
         return self.get_conn()
 
-    def create_custom_resource_definition(
+    def create_custom_object(
         self, group: str, version: str, plural: str, body: Union[str, dict], namespace: Optional[str] = None
     ):
         """
@@ -138,9 +136,9 @@ class KubernetesHook(BaseHook):
             self.log.debug("Response: %s", response)
             return response
         except client.rest.ApiException as e:
-            raise AirflowException("Exception when calling -> create_custom_resource_definition: %s\n" % e)
+            raise AirflowException("Exception when calling -> create_custom_object: %s\n" % e)
 
-    def get_custom_resource_definition(
+    def get_custom_object(
         self, group: str, version: str, plural: str, name: str, namespace: Optional[str] = None
     ):
         """
@@ -157,21 +155,19 @@ class KubernetesHook(BaseHook):
         :param namespace: kubernetes namespace
         :type namespace: str
         """
-        custom_resource_definition_api = client.CustomObjectsApi(self.api_client)
+        api = client.CustomObjectsApi(self.api_client)
         if namespace is None:
             namespace = self.get_namespace()
         try:
-            response = custom_resource_definition_api.get_namespaced_custom_object(
+            response = api.get_namespaced_custom_object(
                 group=group, version=version, namespace=namespace, plural=plural, name=name
             )
             return response
         except client.rest.ApiException as e:
-            raise AirflowException("Exception when calling -> get_custom_resource_definition: %s\n" % e)
+            raise AirflowException("Exception when calling -> get_custom_object: %s\n" % e)
 
     def get_namespace(self) -> str:
-        """
-        Returns the namespace that defined in the connection
-        """
+        """Returns the namespace that defined in the connection"""
         connection = self.get_connection(self.conn_id)
         extras = connection.extra_dejson
         namespace = extras.get("extra__kubernetes__namespace", "default")

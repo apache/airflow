@@ -35,9 +35,7 @@ def _gethash(string: str):
 
 
 def _user_cache_dir(appname=None):
-    """
-    Return full path to the user-specific cache dir for this application
-    """
+    """Return full path to the user-specific cache dir for this application"""
     if sys.platform == "win32":
         # Windows has a complex procedure to download the App Dir directory because this directory can be
         # changed in window registry, so i use temporary directory for cache

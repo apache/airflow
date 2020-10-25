@@ -472,6 +472,7 @@ backreference
 backtick
 backticks
 balancer
+balancers
 baseOperator
 basedn
 basestring
@@ -538,6 +539,7 @@ cmdline
 cmds
 cname
 cnf
+cnt
 codebase
 codecov
 colour
@@ -829,6 +831,7 @@ integrations
 interdependencies
 internalIpOnly
 ints
+intvl
 io
 ip
 isfile
@@ -1102,6 +1105,8 @@ reqs
 resetdb
 resourceVersion
 resumable
+resultset
+retransmits
 rfc
 ricard
 rideable
@@ -1219,6 +1224,7 @@ subtask
 subtasks
 sudo
 sudoers
+summarization
 superclass
 svg
 swp
@@ -1235,6 +1241,7 @@ tagValue
 tao
 taskinstance
 tblproperties
+tcp
 templatable
 templateable
 templated
@@ -1262,6 +1269,8 @@ tokopedia
 tolerations
 tooltip
 tooltips
+traceback
+tracebacks
 travis
 trojan
 tsv

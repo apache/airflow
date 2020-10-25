@@ -19,9 +19,9 @@ import base64
 import json
 import unittest
 from datetime import datetime
+from unittest import mock
 
 import dill
-import mock
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG

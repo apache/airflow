@@ -148,9 +148,7 @@ class TimezoneField(fields.String):
 
 
 class ClassReferenceSchema(Schema):
-    """
-    Class reference schema.
-    """
+    """Class reference schema."""
 
     module_path = fields.Method("_get_module", required=True)
     class_name = fields.Method("_get_class_name", required=True)

@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains Google Kubernetes Engine operators.
-"""
+"""This module contains Google Kubernetes Engine operators."""
 
 import os
 import tempfile
@@ -111,12 +109,12 @@ class GKEDeleteClusterOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self._check_input()
 
-    def _check_input(self):
+    def _check_input(self) -> None:
         if not all([self.project_id, self.name, self.location]):
             self.log.error('One of (project_id, name, location) is missing or incorrect')
             raise AirflowException('Operator has incorrect or missing input.')
 
-    def execute(self, context):
+    def execute(self, context) -> Optional[str]:
         hook = GKEHook(
             gcp_conn_id=self.gcp_conn_id,
             location=self.location,
@@ -214,7 +212,7 @@ class GKECreateClusterOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self._check_input()
 
-    def _check_input(self):
+    def _check_input(self) -> None:
         if not all([self.project_id, self.location, self.body]) or not (
             (isinstance(self.body, dict) and "name" in self.body and "initial_node_count" in self.body)
             or (getattr(self.body, "name", None) and getattr(self.body, "initial_node_count", None))
@@ -225,7 +223,7 @@ class GKECreateClusterOperator(BaseOperator):
             )
             raise AirflowException("Operator has incorrect or missing input.")
 
-    def execute(self, context):
+    def execute(self, context) -> str:
         hook = GKEHook(
             gcp_conn_id=self.gcp_conn_id,
             location=self.location,
@@ -299,7 +297,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 "called `google_cloud_default`.",
             )
 
-    def execute(self, context):
+    def execute(self, context) -> Optional[str]:
         hook = GoogleBaseHook(gcp_conn_id=self.gcp_conn_id)
         self.project_id = self.project_id or hook.project_id
 

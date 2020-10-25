@@ -42,6 +42,24 @@ python setup.py install
 pip install . \
   --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
 
+
+By default `pip install` in Airflow 2.0 installs only the provider packages that are needed by the extras,
+however if you want to install all providers (which was default behaviour in 1.10.*)
+you can do it by setting environment variable INSTALL_PROVIDERS_FROM_SOURCES to `true`.
+
+
+INSTALL_PROVIDERS_FROM_SOURCES="true" pip install . \
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+
+
+You can also install airflow in "editable mode" (with -e) flag and then provider packages will be
+available, because they are used directly from the airflow sources:
+
+
+pip install -e . \
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+
+
 # You can also install Airflow with extras specified. The list of available extras:
 # START EXTRAS HERE
 

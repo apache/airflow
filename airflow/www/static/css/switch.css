@@ -1,4 +1,4 @@
-/**
+/*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@
   display: inline-block;
   margin: 0;
   cursor: pointer;
+  font-weight: normal;
 }
 
 .switch-input {
@@ -40,6 +41,7 @@
   box-sizing: content-box;
   display: inline-flex;
   align-items: center;
+  vertical-align: middle;
   border-radius: 999px;
   width: 2.5rem;
   padding: 2px;
@@ -59,7 +61,7 @@
 }
 
 .switch-input:checked + .switch {
-  background-color: #005c66;
+  background-color: #017cee;
 }
 
 .switch-input:checked + .switch::before {
@@ -68,7 +70,7 @@
 }
 
 .switch-input:focus + .switch {
-  box-shadow: 0 0 0 3px rgba(0, 92, 102, 0.4);
+  box-shadow: 0 0 0 3px rgba(1, 124, 238, 0.4);
 }
 
 .switch-input:focus + .switch::before {

@@ -18,8 +18,7 @@
 
 import unittest
 
-import mock
-import six
+from unittest import mock
 from parameterized import parameterized
 from spython.instance import Instance
 
@@ -62,7 +61,7 @@ class SingularityOperatorTestCase(unittest.TestCase):
     )
     def test_command_is_required(self, command):
         task = SingularityOperator(task_id='task-id', image="docker://busybox", command=command)
-        with six.assertRaisesRegex(self, AirflowException, "You must define a command."):
+        with self.assertRaisesRegex(AirflowException, "You must define a command."):
             task.execute({})
 
     @mock.patch('airflow.providers.singularity.operators.singularity.Client')

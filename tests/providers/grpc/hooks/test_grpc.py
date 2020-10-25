@@ -18,7 +18,7 @@
 import unittest
 from io import StringIO
 
-import mock
+from unittest import mock
 
 from airflow.exceptions import AirflowConfigException
 from airflow.models import Connection

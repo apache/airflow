@@ -20,6 +20,7 @@ from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import Connection
+from airflow.security import permissions
 from airflow.utils.session import provide_session
 from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
@@ -38,10 +39,10 @@ class TestConnectionEndpoint(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                ("can_create", "Connection"),
-                ("can_read", "Connection"),
-                ("can_edit", "Connection"),
-                ("can_delete", "Connection"),
+                (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_CONNECTION),
+                (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_CONNECTION),
             ],
         )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore

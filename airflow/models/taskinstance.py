@@ -34,7 +34,7 @@ import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import Column, Float, Index, Integer, PickleType, String, and_, func, or_
-from sqlalchemy.orm import reconstructor
+from sqlalchemy.orm import reconstructor, relationship
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
 
@@ -152,9 +152,7 @@ def clear_task_instances(tis,
 
 
 class TaskInstanceKey(NamedTuple):
-    """
-    Key used to identify task instance.
-    """
+    """Key used to identify task instance."""
 
     dag_id: str
     task_id: str
@@ -163,24 +161,18 @@ class TaskInstanceKey(NamedTuple):
 
     @property
     def primary(self) -> Tuple[str, str, datetime]:
-        """
-        Return task instance primary key part of the key
-        """
+        """Return task instance primary key part of the key"""
         return self.dag_id, self.task_id, self.execution_date
 
     @property
     def reduced(self) -> 'TaskInstanceKey':
-        """
-        Remake the key by subtracting 1 from try number to match in memory information
-        """
+        """Remake the key by subtracting 1 from try number to match in memory information"""
         return TaskInstanceKey(
             self.dag_id, self.task_id, self.execution_date, max(1, self.try_number - 1)
         )
 
     def with_try_number(self, try_number: int) -> 'TaskInstanceKey':
-        """
-        Returns TaskInstanceKey with provided ``try_number``
-        """
+        """Returns TaskInstanceKey with provided ``try_number``"""
         return TaskInstanceKey(
             self.dag_id, self.task_id, self.execution_date, try_number
         )
@@ -237,6 +229,14 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         Index('ti_job_id', job_id),
     )
 
+    dag_model = relationship(
+        "DagModel",
+        primaryjoin="TaskInstance.dag_id == DagModel.dag_id",
+        foreign_keys=dag_id,
+        uselist=False,
+        innerjoin=True,
+    )
+
     def __init__(self, task, execution_date: datetime, state: Optional[str] = None):
         super().__init__()
         self.dag_id = task.dag_id
@@ -287,7 +287,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         """
         # This is designed so that task logs end up in the right file.
         # TODO: whether we need sensing here or not (in sensor and task_instance state machine)
-        if self.state in State.running():
+        if self.state in State.running:
             return self._try_number
         return self._try_number + 1
 
@@ -596,9 +596,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
 
     @property
     def key(self) -> TaskInstanceKey:
-        """
-        Returns a tuple that identifies the task instance uniquely
-        """
+        """Returns a tuple that identifies the task instance uniquely"""
         return TaskInstanceKey(self.dag_id, self.task_id, self.execution_date, self.try_number)
 
     @provide_session
@@ -611,10 +609,13 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         :param session: SQLAlchemy ORM Session
         :type session: Session
         """
+        current_time = timezone.utcnow()
         self.log.debug("Setting task state for %s to %s", self, state)
         self.state = state
-        self.start_date = timezone.utcnow()
-        self.end_date = timezone.utcnow()
+        self.start_date = current_time
+        if self.state in State.finished:
+            self.end_date = current_time
+            self.duration = 0
         session.merge(self)
 
     @property
@@ -1141,9 +1142,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             self,
             context,
             task):
-        """
-        Prepare Task for Execution
-        """
+        """Prepare Task for Execution"""
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
         task_copy = task.prepare_for_execution()
@@ -1201,11 +1200,11 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         task_copy.post_execute(context=context, result=result)
 
         end_time = time.time()
-        duration = end_time - start_time
+        duration = timedelta(seconds=end_time - start_time)
         Stats.timing('dag.{dag_id}.{task_id}.duration'.format(dag_id=task_copy.dag_id,
                                                               task_id=task_copy.task_id),
                      duration)
-        Stats.incr('operator_successes_{}'.format(self.task.__class__.__name__), 1, 1)
+        Stats.incr('operator_successes_{}'.format(self.task.task_type), 1, 1)
         Stats.incr('ti_successes')
 
     @provide_session
@@ -1338,7 +1337,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         task = self.task
         self.end_date = timezone.utcnow()
         self.set_duration()
-        Stats.incr('operator_failures_{}'.format(task.__class__.__name__), 1, 1)
+        Stats.incr('operator_failures_{}'.format(task.task_type), 1, 1)
         Stats.incr('ti_failures')
         if not test_mode:
             session.add(Log(State.FAILED, self))
@@ -1699,11 +1698,14 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             self.duration = None
         self.log.debug("Task Duration set to %s", self.duration)
 
+    @provide_session
     def xcom_push(
-            self,
-            key: str,
-            value: Any,
-            execution_date: Optional[datetime] = None) -> None:
+        self,
+        key: str,
+        value: Any,
+        execution_date: Optional[datetime] = None,
+        session: Session = None,
+    ) -> None:
         """
         Make an XCom available for tasks to pull.
 
@@ -1716,6 +1718,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             this date. This can be used, for example, to send a message to a
             task on a future date without it being immediately visible.
         :type execution_date: datetime
+        :param session: Sqlalchemy ORM Session
+        :type session: Session
         """
         if execution_date and execution_date < self.execution_date:
             raise ValueError(
@@ -1728,14 +1732,19 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             value=value,
             task_id=self.task_id,
             dag_id=self.dag_id,
-            execution_date=execution_date or self.execution_date)
+            execution_date=execution_date or self.execution_date,
+            session=session,
+        )
 
+    @provide_session
     def xcom_pull(      # pylint: disable=inconsistent-return-statements
-            self,
-            task_ids: Optional[Union[str, Iterable[str]]] = None,
-            dag_id: Optional[str] = None,
-            key: str = XCOM_RETURN_KEY,
-            include_prior_dates: bool = False) -> Any:
+        self,
+        task_ids: Optional[Union[str, Iterable[str]]] = None,
+        dag_id: Optional[str] = None,
+        key: str = XCOM_RETURN_KEY,
+        include_prior_dates: bool = False,
+        session: Session = None
+    ) -> Any:
         """
         Pull XComs that optionally meet certain criteria.
 
@@ -1764,6 +1773,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             execution_date are returned. If True, XComs from previous dates
             are returned as well.
         :type include_prior_dates: bool
+        :param session: Sqlalchemy ORM Session
+        :type session: Session
         """
         if dag_id is None:
             dag_id = self.dag_id
@@ -1773,7 +1784,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             key=key,
             dag_ids=dag_id,
             task_ids=task_ids,
-            include_prior_dates=include_prior_dates
+            include_prior_dates=include_prior_dates,
+            session=session
         ).with_entities(XCom.value)
 
         # Since we're only fetching the values field, and not the
@@ -1798,9 +1810,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         ).scalar()
 
     def init_run_context(self, raw=False):
-        """
-        Sets the log context.
-        """
+        """Sets the log context."""
         self.raw = raw
         self._set_context(self)
 

@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Storage to BigQuery operator.
-"""
+"""This module contains a Google Cloud Storage to BigQuery operator."""
 
 import json
 from typing import Optional, Sequence, Union
@@ -131,8 +129,8 @@ class GCSToBigQueryOperator(BaseOperator):
         dataset.table$partition.
     :type time_partitioning: dict
     :param cluster_fields: Request that the result of this load be stored sorted
-        by one or more columns. This is only available in conjunction with
-        time_partitioning. The order of columns given determines the sort order.
+        by one or more columns. BigQuery supports clustering for both partitioned and
+        non-partitioned tables. The order of columns given determines the sort order.
         Not applicable for external tables.
     :type cluster_fields: list[str]
     :param autodetect: [Optional] Indicates if we should automatically infer the

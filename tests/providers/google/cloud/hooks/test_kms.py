@@ -20,7 +20,7 @@ import unittest
 from base64 import b64decode, b64encode
 from collections import namedtuple
 
-import mock
+from unittest import mock
 
 from airflow.providers.google.cloud.hooks.kms import CloudKMSHook
 

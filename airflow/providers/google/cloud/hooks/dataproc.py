@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains a Google Cloud Dataproc hook.
-"""
+"""This module contains a Google Cloud Dataproc hook."""
 
 import time
 import uuid
@@ -47,9 +45,7 @@ from airflow.version import version as airflow_version
 
 
 class DataProcJobBuilder:
-    """
-    A helper class for building Dataproc job.
-    """
+    """A helper class for building Dataproc job."""
 
     def __init__(
         self,
@@ -72,7 +68,7 @@ class DataProcJobBuilder:
         if properties is not None:
             self.job["job"][job_type]["properties"] = properties
 
-    def add_labels(self, labels):
+    def add_labels(self, labels: dict) -> None:
         """
         Set labels for Dataproc job.
 
@@ -214,9 +210,7 @@ class DataprocHook(GoogleBaseHook):
     """
 
     def get_cluster_client(self, location: Optional[str] = None) -> ClusterControllerClient:
-        """
-        Returns ClusterControllerClient.
-        """
+        """Returns ClusterControllerClient."""
         client_options = (
             {'api_endpoint': '{}-dataproc.googleapis.com:443'.format(location)} if location else None
         )
@@ -227,17 +221,13 @@ class DataprocHook(GoogleBaseHook):
 
     @cached_property
     def get_template_client(self) -> WorkflowTemplateServiceClient:
-        """
-        Returns WorkflowTemplateServiceClient.
-        """
+        """Returns WorkflowTemplateServiceClient."""
         return WorkflowTemplateServiceClient(
             credentials=self._get_credentials(), client_info=self.client_info
         )
 
     def get_job_client(self, location: Optional[str] = None) -> JobControllerClient:
-        """
-        Returns JobControllerClient.
-        """
+        """Returns JobControllerClient."""
         client_options = (
             {'api_endpoint': '{}-dataproc.googleapis.com:443'.format(location)} if location else None
         )
@@ -714,7 +704,7 @@ class DataprocHook(GoogleBaseHook):
         return operation
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def wait_for_job(self, job_id: str, location: str, project_id: str, wait_time: int = 10):
+    def wait_for_job(self, job_id: str, location: str, project_id: str, wait_time: int = 10) -> None:
         """
         Helper method which polls a job to check if it finishes.
 
@@ -780,7 +770,7 @@ class DataprocHook(GoogleBaseHook):
     def submit_job(
         self,
         location: str,
-        job: Union[Dict, Job],
+        job: Union[dict, Job],
         project_id: str,
         request_id: Optional[str] = None,
         retry: Optional[Retry] = None,
@@ -824,7 +814,7 @@ class DataprocHook(GoogleBaseHook):
     def submit(
         self,
         project_id: str,
-        job: Dict,
+        job: dict,
         region: str = 'global',
         job_error_states: Optional[Iterable[str]] = None,  # pylint: disable=unused-argument
     ) -> None:

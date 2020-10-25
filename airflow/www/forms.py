@@ -41,14 +41,12 @@ from airflow.www.widgets import AirflowDateTimePickerWidget
 
 
 class DateTimeWithTimezoneField(Field):
-    """
-    A text field which stores a `datetime.datetime` matching a format.
-    """
+    """A text field which stores a `datetime.datetime` matching a format."""
 
     widget = widgets.TextInput()
 
     def __init__(self, label=None, validators=None, datetime_format='%Y-%m-%d %H:%M:%S%Z', **kwargs):
-        super(DateTimeWithTimezoneField, self).__init__(label, validators, **kwargs)
+        super().__init__(label, validators, **kwargs)
         self.format = datetime_format
         self.data = None
 
@@ -86,9 +84,7 @@ class DateTimeWithTimezoneField(Field):
 
 
 class DateTimeForm(FlaskForm):
-    """
-    Date filter form needed for task views
-    """
+    """Date filter form needed for task views"""
 
     execution_date = DateTimeWithTimezoneField(
         "Execution date", widget=AirflowDateTimePickerWidget())
@@ -112,9 +108,7 @@ class DateTimeWithNumRunsForm(FlaskForm):
 
 
 class DateTimeWithNumRunsWithDagRunsForm(DateTimeWithNumRunsForm):
-    """
-    Date time and number of runs and dag runs form for graph and gantt view
-    """
+    """Date time and number of runs and dag runs form for graph and gantt view"""
 
     execution_date = SelectField("DAG run")
 
@@ -153,7 +147,7 @@ class DagRunForm(DynamicForm):
     def populate_obj(self, item):
         """Populates the attributes of the passed obj with data from the form’s fields."""
         super().populate_obj(item)  # pylint: disable=no-member
-        item.run_type = DagRunType.from_run_id(item.run_id).value
+        item.run_type = DagRunType.from_run_id(item.run_id)
         if item.conf:
             item.conf = json.loads(item.conf)
 

@@ -69,7 +69,7 @@ class CloudTasksHook(GoogleBaseHook):
         )
         self._client = None
 
-    def get_conn(self):
+    def get_conn(self) -> CloudTasksClient:
         """
         Provides a client for interacting with the Google Cloud Tasks API.
 
@@ -84,7 +84,7 @@ class CloudTasksHook(GoogleBaseHook):
     def create_queue(
         self,
         location: str,
-        task_queue: Union[Dict, Queue],
+        task_queue: Union[dict, Queue],
         project_id: str,
         queue_name: Optional[str] = None,
         retry: Optional[Retry] = None,

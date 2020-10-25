@@ -45,9 +45,7 @@ USER_AGENT_HEADER = {'user-agent': 'airflow-{v}'.format(v=__version__)}
 
 
 class RunState:
-    """
-    Utility class for the run state concept of Databricks runs.
-    """
+    """Utility class for the run state concept of Databricks runs."""
 
     def __init__(self, life_cycle_state: str, result_state: str, state_message: str) -> None:
         self.life_cycle_state = life_cycle_state
