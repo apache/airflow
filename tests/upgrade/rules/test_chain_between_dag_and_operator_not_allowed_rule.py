@@ -35,83 +35,52 @@ def create_temp_file(mock_list_files, lines):
 
 @mock.patch("airflow.upgrade.rules.chain_between_dag_and_operator_not_allowed_rule.list_py_file_paths")
 class TestChainBetweenDAGAndOperatorNotAllowedRule(TestCase):
+    msg_template = "{} Affected file: {} (line {})"
+
+    def test_rule_metadata(self, _):
+        rule = ChainBetweenDAGAndOperatorNotAllowedRule()
+        assert isinstance(rule.description, str)
+        assert isinstance(rule.title, str)
+
     def test_valid_check(self, mock_list_files):
         lines = ["with DAG('my_dag') as dag:",
                  "    dummy1 = DummyOperator(task_id='dummy1')",
                  "    dummy2 = DummyOperator(task_id='dummy2')",
                  "    dummy1 >> dummy2"]
+
         with create_temp_file(mock_list_files, lines):
             rule = ChainBetweenDAGAndOperatorNotAllowedRule()
-            assert isinstance(rule.description, str)
-            assert isinstance(rule.title, str)
-
             msgs = rule.check()
             assert 0 == len(msgs)
 
     def test_invalid_check(self, mock_list_files):
-        lines = ["dag = DAG('my_dag')",
+        lines = ["my_dag1 = DAG('my_dag')",
                  "dummy = DummyOperator(task_id='dummy')",
-                 "dag >> dummy"]
+                 "my_dag1 >> dummy"]
+
         with create_temp_file(mock_list_files, lines) as temp_file:
-
             rule = ChainBetweenDAGAndOperatorNotAllowedRule()
-
-            assert isinstance(rule.description, str)
-            assert isinstance(rule.title, str)
-
             msgs = rule.check()
-            assert 1 == len(msgs)
-
-            base_message = "{} Affected file: {}".format(
-                rule.title,
-                temp_file.name
-            )
-            expected_messages = [
-                base_message + " (line 3)"
-            ]
+            expected_messages = [self.msg_template.format(rule.title, temp_file.name, 3)]
             assert expected_messages == msgs
 
     def test_invalid_check_no_var_rshift(self, mock_list_files):
         lines = ["DAG('my_dag') >> DummyOperator(task_id='dummy')"]
+
         with create_temp_file(mock_list_files, lines) as temp_file:
-
             rule = ChainBetweenDAGAndOperatorNotAllowedRule()
-
-            assert isinstance(rule.description, str)
-            assert isinstance(rule.title, str)
-
             msgs = rule.check()
-            assert 1 == len(msgs)
-
-            base_message = "{} Affected file: {}".format(
-                rule.title,
-                temp_file.name
-            )
-            expected_messages = [
-                base_message + " (line 1)"
-            ]
+            expected_messages = [self.msg_template.format(rule.title, temp_file.name, 1)]
             assert expected_messages == msgs
 
     def test_invalid_check_no_var_lshift(self, mock_list_files):
         lines = ["DummyOperator(",
                  "task_id='dummy') << DAG('my_dag')"]
+
         with create_temp_file(mock_list_files, lines) as temp_file:
-
             rule = ChainBetweenDAGAndOperatorNotAllowedRule()
-
-            assert isinstance(rule.description, str)
-            assert isinstance(rule.title, str)
-
             msgs = rule.check()
-            assert 1 == len(msgs)
-
-            base_message = "{} Affected file: {}".format(
-                rule.title,
-                temp_file.name
-            )
-            expected_messages = [
-                base_message + " (line 2)"
-            ]
+            expected_messages = [self.msg_template.format(rule.title, temp_file.name, 2)]
             assert expected_messages == msgs
 
     def test_invalid_check_multiline(self, mock_list_files):
@@ -121,23 +90,11 @@ class TestChainBetweenDAGAndOperatorNotAllowedRule(TestCase):
                  "",
                  "dag >> \\",
                  "dummy"]
+
         with create_temp_file(mock_list_files, lines) as temp_file:
-
             rule = ChainBetweenDAGAndOperatorNotAllowedRule()
-
-            assert isinstance(rule.description, str)
-            assert isinstance(rule.title, str)
-
             msgs = rule.check()
-            assert 1 == len(msgs)
-
-            base_message = "{} Affected file: {}".format(
-                rule.title,
-                temp_file.name
-            )
-            expected_messages = [
-                base_message + " (line 5)"
-            ]
+            expected_messages = [self.msg_template.format(rule.title, temp_file.name, 5)]
             assert expected_messages == msgs
 
     def test_invalid_check_multiline_lshift(self, mock_list_files):
@@ -147,21 +104,9 @@ class TestChainBetweenDAGAndOperatorNotAllowedRule(TestCase):
                  "",
                  "dummy << \\",
                  "dag"]
+
         with create_temp_file(mock_list_files, lines) as temp_file:
-
             rule = ChainBetweenDAGAndOperatorNotAllowedRule()
-
-            assert isinstance(rule.description, str)
-            assert isinstance(rule.title, str)
-
             msgs = rule.check()
-            assert 1 == len(msgs)
-
-            base_message = "{} Affected file: {}".format(
-                rule.title,
-                temp_file.name
-            )
-            expected_messages = [
-                base_message + " (line 6)"
-            ]
+            expected_messages = [self.msg_template.format(rule.title, temp_file.name, 6)]
             assert expected_messages == msgs
