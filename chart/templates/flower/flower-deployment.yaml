@@ -104,6 +104,13 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 5
           env:
+            {{- if .Values.flower.basicAuth }}
+            - name: AIRFLOW__CELERY__FLOWER_BASIC_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: {{ template "flower_secret" . }}
+                  key: basicAuth
+            {{- end }}
           {{- include "standard_airflow_environment" . | indent 10 }}
       volumes:
         - name: config

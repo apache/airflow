@@ -49,13 +49,6 @@
       secretKeyRef:
         name: {{ .Release.Name }}-broker-url
         key: connection
-  {{- if .Values.flower.basicAuth}}
-  - name: AIRFLOW__CELERY__FLOWER_BASIC_AUTH
-    valueFrom:
-      secretKeyRef:
-        name: {{ template "flower_secret" . }}
-        key: basicAuth
-  {{- end }}
   {{- end }}
   {{- if .Values.elasticsearch.enabled }}
   # The elasticsearch variables were updated to the shorter names in v1.10.4
