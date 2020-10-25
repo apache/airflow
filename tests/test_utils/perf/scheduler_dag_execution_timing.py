@@ -22,6 +22,7 @@ import sys
 import textwrap
 import time
 from argparse import Namespace
+from datetime import datetime, timedelta
 from operator import attrgetter
 
 import click
@@ -236,6 +237,7 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
 
     # Set this so that dags can dynamically configure their end_date
     os.environ['AIRFLOW_BENCHMARK_MAX_DAG_RUNS'] = str(num_runs)
+    os.environ['PERF_START_DATE'] = str(datetime.utcnow() - timedelta(hours=1))
     os.environ['PERF_MAX_RUNS'] = str(num_runs)
 
     if pre_create_dag_runs:

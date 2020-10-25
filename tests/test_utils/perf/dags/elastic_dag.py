@@ -51,6 +51,29 @@ def parse_time_delta(time_str: str):
     return timedelta(**time_params)  # type: ignore
 
 
+def parse_start_date():
+    """
+    Returns the start date for the elastic DAGs and string to be used as part of their ids.
+
+    :return Tuple[datetime.datetime, str]: A tuple of datetime.datetime object to be used
+        as a start_date and a string that should be used as part of the dag_id.
+    """
+
+    if "PERF_START_DATE" in os.environ:
+        if "PERF_START_AGO" in os.environ:
+            raise ValueError(
+                "'PERF_START_DATE' and 'PERF_START_AGO' environment variables are mutually "
+                "exclusive. Please provide only one variable to specify DAGs' start date."
+            )
+        start_date = datetime.strptime(os.environ["PERF_START_DATE"], "%Y-%m-%d %H:%M:%S.%f")
+        dag_id_component = int(start_date.timestamp())
+    else:
+        start_ago = os.environ.get("PERF_START_AGO", "1h")
+        start_date = datetime.now() - parse_time_delta(start_ago)
+        dag_id_component = start_ago
+    return start_date, dag_id_component
+
+
 def parse_schedule_interval(time_str: str):
     """
     Parse a schedule interval string e.g. (2h13m) or "@once".
@@ -152,8 +175,7 @@ class DagShape(Enum):
 DAG_PREFIX = os.environ.get("PERF_DAG_PREFIX", "perf_scheduler")
 DAG_COUNT = int(os.environ["PERF_DAGS_COUNT"])
 TASKS_COUNT = int(os.environ["PERF_TASKS_COUNT"])
-START_DATE_ENV = os.environ.get("PERF_START_AGO", "1h")
-START_DATE = datetime.now() - parse_time_delta(START_DATE_ENV)
+START_DATE, DAG_ID_START_DATE = parse_start_date()
 SCHEDULE_INTERVAL_ENV = os.environ.get("PERF_SCHEDULE_INTERVAL", "@once")
 SCHEDULE_INTERVAL = parse_schedule_interval(SCHEDULE_INTERVAL_ENV)
 
@@ -164,6 +186,11 @@ args = {"owner": "airflow", "start_date": START_DATE}
 if "PERF_MAX_RUNS" in os.environ:
     if isinstance(SCHEDULE_INTERVAL, str):
         raise ValueError("Can't set max runs with string-based schedule_interval")
+    if "PERF_START_DATE" not in os.environ:
+        raise ValueError(
+            "When using 'PERF_MAX_RUNS', please provide the start date as a date string in "
+            "'%Y-%m-%d %H:%M:%S.%f' format via 'PERF_START_DATE' environment variable."
+        )
     num_runs = int(os.environ["PERF_MAX_RUNS"])
     args['end_date'] = START_DATE + (SCHEDULE_INTERVAL * (num_runs - 1))
 
@@ -176,7 +203,7 @@ for dag_no in range(1, DAG_COUNT + 1):
                     f"SHAPE={SHAPE.name.lower()}",
                     f"DAGS_COUNT={dag_no}_of_{DAG_COUNT}",
                     f"TASKS_COUNT=${TASKS_COUNT}",
-                    f"START_DATE=${START_DATE_ENV}",
+                    f"START_DATE=${DAG_ID_START_DATE}",
                     f"SCHEDULE_INTERVAL=${SCHEDULE_INTERVAL_ENV}",
                 ]
             )
