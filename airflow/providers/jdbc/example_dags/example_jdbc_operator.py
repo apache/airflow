@@ -35,7 +35,7 @@ with DAG(
     schedule_interval='0 0 * * *',
     start_date=days_ago(2),
     dagrun_timeout=timedelta(minutes=60),
-    tags=['example']
+    tags=['example'],
 ) as dag:
 
     run_this_last = DummyOperator(
@@ -45,7 +45,7 @@ with DAG(
 
     # [START howto_operator_jdbc_template]
     delete_data = JdbcOperator(
-        task_id='insert_data',
+        task_id='delete_data',
         sql='delete from my_schema.my_table where dt = {{ ds }}',
         jdbc_conn_id='my_jdbc_connection',
         autocommit=True,

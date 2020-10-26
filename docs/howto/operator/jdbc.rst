@@ -53,7 +53,7 @@ database is listening for new connections.
 
   .. code-block:: python
 
-    import jaydebeapi
+    import apache-airflow[jdbc]
 
     driver_class = "com.exasol.jdbc.EXADriver"
     driver_path = "/opt/airflow/drivers/exasol/EXASolution_JDBC-7.0.2/exajdbc.jar"
@@ -73,7 +73,7 @@ commands against a database (or data storage) accessible via a JDBC driver.
 The :doc:`JDBC Connection </howto/connection/jdbc>` must be passed as
 ``jdbc_conn_id``.
 
-.. exampleinclude:: /../airflow/example_dags/example_jdbc_operator.py
+.. exampleinclude:: /../airflow/providers/jdbc/example_dags/example_jdbc_operator.py
     :language: python
     :start-after: [START howto_operator_jdbc]
     :end-before: [END howto_operator_jdbc]
@@ -91,7 +91,7 @@ Templating
 You can use :ref:`Jinja templates <jinja-templating>` to parameterize
 ``sql``.
 
-.. exampleinclude:: /../airflow/example_dags/example_jdbc_operator.py
+.. exampleinclude:: /../airflow/providers/jdbc/example_dags/example_jdbc_operator.py
     :language: python
     :start-after: [START howto_operator_jdbc_template]
     :end-before: [END howto_operator_jdbc_template]
