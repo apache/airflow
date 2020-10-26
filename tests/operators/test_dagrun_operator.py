@@ -22,7 +22,8 @@ from datetime import datetime
 from unittest import TestCase
 
 from airflow.exceptions import DagRunAlreadyExists
-from airflow.models import DAG, DagModel, DagRun, Log, TaskInstance
+from airflow.models import DAG, DagBag, DagModel, DagRun, Log, TaskInstance
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -57,13 +58,16 @@ class TestDagRunOperator(TestCase):
             session.commit()
 
         self.dag = DAG(TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        dagbag = DagBag(f.name, read_dags_from_db=False, include_examples=False)
+        dagbag.bag_dag(self.dag, root_dag=self.dag)
+        dagbag.sync_to_db()
 
     def tearDown(self):
         """Cleanup state after testing in DB."""
         with create_session() as session:
             session.query(Log).filter(Log.dag_id == TEST_DAG_ID).delete(synchronize_session=False)
-            for dbmodel in [DagModel, DagRun, TaskInstance]:
-                session.query(dbmodel).filter(dbmodel.dag_id == TRIGGERED_DAG_ID).delete(
+            for dbmodel in [DagModel, DagRun, TaskInstance, SerializedDagModel]:
+                session.query(dbmodel).filter(dbmodel.dag_id.in_([TRIGGERED_DAG_ID, TEST_DAG_ID])).delete(
                     synchronize_session=False
                 )
 

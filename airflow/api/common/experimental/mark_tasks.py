@@ -61,15 +61,16 @@ def _create_dagruns(dag, execution_dates, state, run_type):
 
 @provide_session
 def set_state(
-        tasks: Iterable[BaseOperator],
-        execution_date: datetime.datetime,
-        upstream: bool = False,
-        downstream: bool = False,
-        future: bool = False,
-        past: bool = False,
-        state: str = State.SUCCESS,
-        commit: bool = False,
-        session=None):  # pylint: disable=too-many-arguments,too-many-locals
+    tasks: Iterable[BaseOperator],
+    execution_date: datetime.datetime,
+    upstream: bool = False,
+    downstream: bool = False,
+    future: bool = False,
+    past: bool = False,
+    state: str = State.SUCCESS,
+    commit: bool = False,
+    session=None
+):  # pylint: disable=too-many-arguments,too-many-locals
     """
     Set the state of a task instance and if needed its relatives. Can set state
     for future tasks (calculated from execution_date) and retroactively

@@ -1867,7 +1867,12 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Get Dag as duration graph."""
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
-        dag = current_app.dag_bag.get_dag(dag_id)
+
+        try:
+            dag = current_app.dag_bag.get_dag(dag_id)
+        except airflow.exceptions.SerializedDagNotFound:
+            dag = None
+
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs')
         num_runs = int(num_runs) if num_runs else default_dag_run
@@ -2159,10 +2164,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @action_logging
     def refresh_all(self):
         """Refresh everything"""
-        if settings.STORE_SERIALIZED_DAGS:
-            current_app.dag_bag.collect_dags_from_db()
-        else:
-            current_app.dag_bag.collect_dags(only_if_updated=False)
+        current_app.dag_bag.collect_dags_from_db()
 
         # sync permissions for all dags
         for dag_id, dag in current_app.dag_bag.dags.items():

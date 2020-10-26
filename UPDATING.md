@@ -256,6 +256,14 @@ The Old and New provider configuration keys that have changed are as follows
 
 For more information, visit https://flask-appbuilder.readthedocs.io/en/latest/security.html#authentication-oauth
 
+### DAG Serialization will be strictly required
+
+Until Airflow 2.0, DAG Serialization was disabled by default. However from Airflow 2.0, DAG Serialization
+will be enabled by default. From Airflow 2.0, Scheduler will use Serialized DAGs to make scheduling decisions
+and so DAG Serialization can not be turned off.
+
+The previous setting `[core] store_serialized_dags` will be ignored.
+
 ### Changes to the KubernetesExecutor
 
 #### The KubernetesExecutor Will No Longer Read from the airflow.cfg for Base Pod Configurations

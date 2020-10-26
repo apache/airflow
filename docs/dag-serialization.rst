@@ -55,15 +55,18 @@ The data is stored in the :class:`airflow.models.renderedtifields.RenderedTaskIn
 To limit the excessive growth of the database, only the most recent entries are kept and older entries
 are purged.
 
-Enable Dag Serialization
-------------------------
+.. note::
+  From Airflow 2.0 DAG Serialization is a strictly required and can not be turned off.
+
+
+Dag Serialization Settings
+---------------------------
 
 Add the following settings in ``airflow.cfg``:
 
 .. code-block:: ini
 
     [core]
-    store_serialized_dags = True
     store_dag_code = True
 
     # You can also update the following default configurations based on your needs
@@ -71,8 +74,6 @@ Add the following settings in ``airflow.cfg``:
     min_serialized_dag_fetch_interval = 10
     max_num_rendered_ti_fields_per_task = 30
 
-*   ``store_serialized_dags``: This option decides whether to serialise DAGs and persist them in DB.
-    If set to True, Webserver reads from DB instead of parsing DAG files
 *   ``store_dag_code``: This option decides whether to persist DAG files code in DB.
     If set to True, Webserver reads file contents from DB instead of trying to access files in a DAG folder.
 *   ``min_serialized_dag_update_interval``: This flag sets the minimum interval (in seconds) after which

@@ -67,8 +67,7 @@ class TestCore(unittest.TestCase):
     default_scheduler_args = {"num_runs": 1}
 
     def setUp(self):
-        self.dagbag = DagBag(
-            dag_folder=DEV_NULL, include_examples=True)
+        self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=True, read_dags_from_db=False)
         self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG(TEST_DAG_ID, default_args=self.args)
         self.dag_bash = self.dagbag.dags['example_bash_operator']

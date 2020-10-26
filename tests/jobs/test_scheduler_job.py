@@ -134,7 +134,6 @@ class TestDagFileProcessor(unittest.TestCase):
         return dag
 
     @classmethod
-    @patch("airflow.models.dagbag.settings.STORE_SERIALIZED_DAGS", True)
     def setUpClass(cls):
         # Ensure the DAGs we are looking at from the DB are up-to-date
         non_serialized_dagbag = DagBag(read_dags_from_db=False, include_examples=False)
@@ -548,7 +547,10 @@ class TestDagFileProcessor(unittest.TestCase):
 
         scheduler = SchedulerJob()
         scheduler.dagbag.bag_dag(dag, root_dag=dag)
-        scheduler.dagbag.sync_to_db()
+
+        # Since we don't want to store the code for the DAG defined in this file
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            scheduler.dagbag.sync_to_db()
 
         session = settings.Session()
         orm_dag = session.query(DagModel).get(dag.dag_id)
@@ -649,7 +651,7 @@ class TestDagFileProcessor(unittest.TestCase):
 
     @patch.object(TaskInstance, 'handle_failure')
     def test_execute_on_failure_callbacks(self, mock_ti_handle_failure):
-        dagbag = DagBag(dag_folder="/dev/null", include_examples=True)
+        dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         with create_session() as session:
             session.query(TaskInstance).delete()
@@ -730,9 +732,8 @@ class TestDagFileProcessor(unittest.TestCase):
         )
 
         # Write DAGs to dag and serialized_dag table
-        with mock.patch("airflow.models.dagbag.settings.STORE_SERIALIZED_DAGS", return_value=True):
-            dagbag = DagBag(dag_folder=dag_file, include_examples=False)
-            dagbag.sync_to_db()
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False, read_dags_from_db=False)
+        dagbag.sync_to_db()
 
         scheduler_job = SchedulerJob()
         scheduler_job.processor_agent = mock.MagicMock()
@@ -811,8 +812,17 @@ class TestSchedulerJob(unittest.TestCase):
         # enqueue!
         self.null_exec = MockExecutor()
 
+        self.patcher = patch('airflow.utils.dag_processing.SerializedDagModel.remove_deleted_dags')
+        # Since we don't want to store the code for the DAG defined in this file
+        self.patcher_dag_code = patch.object(settings, "STORE_DAG_CODE", False)
+        self.patcher.start()
+        self.patcher_dag_code.start()
+
+    def tearDown(self):
+        self.patcher.stop()
+        self.patcher_dag_code.stop()
+
     @classmethod
-    @patch("airflow.models.dagbag.settings.STORE_SERIALIZED_DAGS", True)
     def setUpClass(cls):
         # Ensure the DAGs we are looking at from the DB are up-to-date
         non_serialized_dagbag = DagBag(read_dags_from_db=False, include_examples=False)
@@ -1919,10 +1929,9 @@ class TestSchedulerJob(unittest.TestCase):
             op1 = DummyOperator(task_id='op1')
 
         # Write Dag to DB
-        with mock.patch.object(settings, "STORE_SERIALIZED_DAGS", True):
-            dagbag = DagBag(dag_folder="/dev/null", include_examples=False)
-            dagbag.bag_dag(dag, root_dag=dag)
-            dagbag.sync_to_db()
+        dagbag = DagBag(dag_folder="/dev/null", include_examples=False, read_dags_from_db=False)
+        dagbag.bag_dag(dag, root_dag=dag)
+        dagbag.sync_to_db()
 
         dag = DagBag(read_dags_from_db=True, include_examples=False).get_dag(dag_id)
         # Create DAG run with FAILED state
@@ -1978,6 +1987,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         scheduler = SchedulerJob()
         scheduler.dagbag.bag_dag(dag, root_dag=dag)
+
         scheduler.dagbag.sync_to_db()
 
         session = settings.Session()
@@ -2112,8 +2122,9 @@ class TestSchedulerJob(unittest.TestCase):
         scheduler._send_sla_callbacks_to_processor = mock.Mock()
 
         # Sync DAG into DB
-        scheduler.dagbag.bag_dag(dag, root_dag=dag)
-        scheduler.dagbag.sync_to_db()
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            scheduler.dagbag.bag_dag(dag, root_dag=dag)
+            scheduler.dagbag.sync_to_db()
 
         session = settings.Session()
         orm_dag = session.query(DagModel).get(dag.dag_id)
@@ -3748,7 +3759,7 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
             ('core', 'store_serialized_dags'): 'True',
         }), mock.patch.object(settings, 'STORE_SERIALIZED_DAGS', True):
             dagruns = []
-            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
+            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False, read_dags_from_db=False)
             dagbag.sync_to_db()
 
             dag_ids = dagbag.dag_ids

@@ -192,7 +192,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             pickle_dags=False,
             async_mode=True)
 
-        dagbag = DagBag(TEST_DAG_FOLDER)
+        dagbag = DagBag(TEST_DAG_FOLDER, read_dags_from_db=False)
         with create_session() as session:
             session.query(LJ).delete()
             dag = dagbag.get_dag('example_branch_operator')
@@ -234,7 +234,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_example_bash_operator.py')
         with conf_vars({('scheduler', 'max_threads'): '1',
                         ('core', 'load_examples'): 'False'}):
-            dagbag = DagBag(test_dag_path)
+            dagbag = DagBag(test_dag_path, read_dags_from_db=False)
             with create_session() as session:
                 session.query(LJ).delete()
                 dag = dagbag.get_dag('test_example_bash_operator')
