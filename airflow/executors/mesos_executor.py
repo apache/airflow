@@ -376,8 +376,7 @@ class MesosExecutor(BaseExecutor):
 
         self.log.info(
             'MesosFramework master : %s, name : %s, cpu : %s, mem : %s, checkpoint : %s, id : %s',
-            master, framework_name,
-            str(task_cpu), str(task_memory), str(framework_checkpoint), str(framework_id)
+            master, framework_name, task_cpu, task_memory, framework_checkpoint, framework_id
         )
 
         master_urls = "https://" + master
