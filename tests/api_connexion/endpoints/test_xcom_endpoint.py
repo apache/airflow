@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from datetime import timedelta
 import unittest
 
 from parameterized import parameterized
@@ -125,7 +126,6 @@ class TestGetXComEntry(TestXComEndpoint):
         execution_date_parsed = parse_execution_date(execution_date)
         dag_run_id = DR.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
         self._create_xcom_entry(dag_id, dag_run_id, execution_date_parsed, task_id, xcom_key)
-
         response = self.client.get(
             f"/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}"
         )
@@ -219,6 +219,7 @@ class TestGetXComEntries(TestXComEndpoint):
         task_id_2 = 'test-task-id-2'
         dag_run_id_2 = DR.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
         self._create_xcom_entries(dag_id_2, dag_run_id_2, execution_date_parsed, task_id_2)
+        self._create_invalid_xcom_entries(execution_date_parsed)
 
         response = self.client.get(
             "/api/v1/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
@@ -278,7 +279,7 @@ class TestGetXComEntries(TestXComEndpoint):
         task_id_2 = 'test-task-id-2'
         dag_run_id_2 = DR.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
         self._create_xcom_entries(dag_id_2, dag_run_id_2, execution_date_parsed, task_id_2)
-
+        self._create_invalid_xcom_entries(execution_date_parsed)
         response = self.client.get(
             "/api/v1/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
             environ_overrides={'REMOTE_USER': "test_granular_permissions"},
@@ -347,6 +348,39 @@ class TestGetXComEntries(TestXComEndpoint):
             run_type=DagRunType.MANUAL,
         )
         session.add(dagrun)
+
+    @provide_session
+    def _create_invalid_xcom_entries(self, execution_date, session=None):
+        """
+        Invalid XCom entries to test join query
+        """
+        for i in [1, 2]:
+            XCom.set(
+                key=f'invalid-xcom-key-{i}',
+                value="TEST",
+                execution_date=execution_date,
+                task_id="invalid_task",
+                dag_id="invalid_dag",
+            )
+
+        dag = DagModel(dag_id="invalid_dag")
+        session.add(dag)
+        dagrun = DR(
+            dag_id="invalid_dag",
+            run_id="invalid_run_id",
+            execution_date=execution_date + timedelta(days=1),
+            start_date=execution_date,
+            run_type=DagRunType.MANUAL,
+        )
+        session.add(dagrun)
+        dagrun = DR(
+            dag_id="invalid_dag_1",
+            run_id="invalid_run_id",
+            execution_date=execution_date,
+            start_date=execution_date,
+            run_type=DagRunType.MANUAL,
+        )
+        session.commit()
 
 
 class TestPaginationGetXComEntries(TestXComEndpoint):
