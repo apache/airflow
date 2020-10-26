@@ -50,6 +50,18 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Change default value for dag_run_conf_overrides_params
+
+DagRun configuration dictionary will now by default overwrite params dictionary. If you pass some key-value pairs
+through ``airflow dags backfill -c`` or ``airflow dags trigger -c``, the key-value pairs will
+override the existing ones in params. You can revert this behaviour by setting `dag_run_conf_overrides_params` to `False`
+in your `airflow.cfg`.
+
+### DAG discovery safe mode is now case insensitive
+
+When `DAG_DISCOVERY_SAFE_MODE` is active, Airflow will now filter all files that contain the string `airflow` and `dag`
+in a case insensitive mode. This is being changed to better support the new `@dag` decorator.
+
 ### Change to Permissions
 
 The DAG-level permission actions, `can_dag_read` and `can_dag_edit` are going away. They are being replaced with `can_read` and `can_edit`. When a role is given DAG-level access, the resource name (or "view menu", in Flask App-Builder parlance) will now be prefixed with `DAG:`. So the action `can_dag_read` on `example_dag_id`, is now represented as `can_read` on `DAG:example_dag_id`.
