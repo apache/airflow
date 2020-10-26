@@ -702,8 +702,15 @@
                         "null"
                     ]
                 },
-                "basicAuth": {
-                    "description": "Authorization contains user1:password1,user2:password2 pairs",
+                "username": {
+                    "description": "Username use to access flower.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "password": {
+                    "description": "Password use to access flower.",
                     "type": [
                         "string",
                         "null"

@@ -412,8 +412,9 @@ flower:
   # A secret containing the connection
   secretName: ~
 
-  # Else, if basicAuth is set, create secret with basicAuth,
-  basicAuth: ~
+  # Else, if username and password are set, create secret from username and password
+  username: ~
+  password: ~
 
   service:
     type: ClusterIP
