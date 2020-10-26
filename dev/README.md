@@ -905,13 +905,13 @@ though they should be generated from the same sources.
 this will clean up dist folder before generating the packages, so you will only have the right packages there.
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-pypi rc1
+./breeze --backports prepare-provider-packages --version-suffix-for-pypi rc1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-pypi rc1 PACKAGE PACKAGE ....
+./breeze --backports prepare-provider-packages --version-suffix-for-pypi rc1 PACKAGE PACKAGE ....
 ```
 
 * Verify the artifacts that would be uploaded:
