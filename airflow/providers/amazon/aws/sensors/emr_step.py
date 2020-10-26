@@ -21,10 +21,16 @@ from typing import Any, Dict, Iterable, Optional
 from airflow.providers.amazon.aws.sensors.emr_base import EmrBaseSensor
 from airflow.utils.decorators import apply_defaults
 
+from airflow.exceptions import AirflowException
+from airflow.models.xcom import XCOM_RETURN_KEY
+
 
 class EmrStepSensor(EmrBaseSensor):
     """
     Asks for the state of the step until it reaches any of the target states.
+    If no step Id has been provided the sensor retrieves all steps and current states
+    and will continue to ask until all steps reaches any of the target states.
+
     If it fails the sensor errors, failing the task.
 
     With the default target states, sensor waits step to be completed.
@@ -32,13 +38,17 @@ class EmrStepSensor(EmrBaseSensor):
     :param job_flow_id: job_flow_id which contains the step check the state of
     :type job_flow_id: str
     :param step_id: step to check the state of
-    :type step_id: str
+    :type step_id: str or list
+    :param deferred_failure: continue waiting for all steps to complete even if any have failed.
+    :type deferred_failure: bool
     :param target_states: the target states, sensor waits until
         step reaches any of these states
     :type target_states: list[str]
     :param failed_states: the failure states, sensor fails when
         step reaches any of these states
     :type failed_states: list[str]
+    :raises AirflowException: if any step is in failed_states. If ``deferred_failure`` is True
+        then the exception is only raised after all steps have run.
     """
 
     template_fields = ['job_flow_id', 'step_id', 'target_states', 'failed_states']
@@ -50,6 +60,7 @@ class EmrStepSensor(EmrBaseSensor):
         *,
         job_flow_id: str,
         step_id: str,
+        deferred_failure: bool = True,
         target_states: Optional[Iterable[str]] = None,
         failed_states: Optional[Iterable[str]] = None,
         **kwargs,
@@ -57,8 +68,63 @@ class EmrStepSensor(EmrBaseSensor):
         super().__init__(**kwargs)
         self.job_flow_id = job_flow_id
         self.step_id = step_id
+        self.deferred_failure = deferred_failure
         self.target_states = target_states or ['COMPLETED']
         self.failed_states = failed_states or ['CANCELLED', 'FAILED', 'INTERRUPTED']
+
+    def poke(self, context):
+        """
+        If only one step_id is provided we want to run the base poke.
+
+        If no step_id is provided we want to run list_steps() and return a single response with
+        all the steps on specified cluster.
+        """
+        if self.step_id:
+            return super().poke(context)
+
+        emr_client = self.get_hook().get_conn()
+        self.log.info('Poking steps on cluster %s', self.job_flow_id)
+        response = emr_client.list_steps(ClusterId=self.job_flow_id)
+
+        if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
+            self.log.info('Bad HTTP response: %s', response)
+            return False
+
+        step_states = [step['Status']['State'] for step in response['Steps']]
+        state_dict = {}
+        for steps in response['Steps']:
+            state_dict[steps['Id']] = steps['Status']['State']
+        self.log.info('Step state = %s', state_dict)
+
+        if self.do_xcom_push:
+            context['ti'].xcom_push(key=XCOM_RETURN_KEY, value=state_dict)
+
+        if all(step_state in self.target_states for step_state in step_states):
+            return True
+
+        all_steps_done = all(
+            step_state in (self.failed_states + self.target_states) for step_state in step_states
+        )
+
+        # Check failure conditions
+        if not self.deferred_failure or all_steps_done:
+            failure_messages = list()
+            for step in response['Steps']:
+                step_status = step['Status']
+                step_id = step['Id']
+                if step_status['State'] in self.failed_states:
+                    details = step_status.get('FailureDetails')
+                    failure_messages.append(
+                        'Step {} failed for reason {} with message {} and log file {}'.format(
+                            step_id, details.get('Reason'), details.get('Message'), details.get('LogFile')
+                        )
+                    )
+            if failure_messages:
+                final_message = 'EMR job failed \n' + '\n'.join(failure_messages)
+                self.log.error(final_message)
+                raise AirflowException(final_message)
+
+        return False
 
     def get_emr_response(self) -> Dict[str, Any]:
         """
