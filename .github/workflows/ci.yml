@@ -151,6 +151,7 @@ jobs:
   test-openapi-client-generation:
     name: "Test OpenAPI client generation"
     runs-on: ubuntu-latest
+    needs: [build-info]
     if: >
       needs.build-info.outputs.needs-api-tests == 'true' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
