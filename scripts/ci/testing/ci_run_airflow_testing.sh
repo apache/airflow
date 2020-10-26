@@ -31,17 +31,17 @@ function run_airflow_testing_in_docker() {
     set +u
     set +e
     local exit_code
-    for try_num in {1..3}
+    for try_num in {1..5}
     do
         echo
-        echo "Making sure docker-compose is down"
+        echo "Making sure docker-compose is down and remnants removed"
         echo
         docker-compose --log-level INFO -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
             down --remove-orphans --volumes --timeout 10
         echo
         echo "System-prune docker"
         echo
-        docker system prune --force
+        docker system prune --force --volumes
         echo
         echo "Check available space"
         echo
@@ -70,15 +70,9 @@ function run_airflow_testing_in_docker() {
             echo "Delete kerberos network"
             kerberos::delete_kerberos_network
         fi
-        if [[ ${exit_code} == 254 ]]; then
+        if [[ ${exit_code} == "254" && ${try_num} != "5" ]]; then
             echo
-            echo "Failed starting integration on ${try_num} try. Wiping-out docker-compose remnants"
-            echo
-            docker-compose --log-level INFO \
-                -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
-                down --remove-orphans -v --timeout 5
-            echo
-            echo "Sleeping 5 seconds"
+            echo "Failed try num ${try_num}. Sleeping 5 seconds for retry"
             echo
             sleep 5
             continue
