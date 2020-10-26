@@ -20,7 +20,6 @@ import datetime
 from typing import Dict, Optional, Union
 from urllib.parse import quote
 
-from airflow import settings
 from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
 from airflow.models import BaseOperator, BaseOperatorLink, DagBag, DagModel, DagRun
@@ -122,7 +121,7 @@ class TriggerDagRunOperator(BaseOperator):
 
                 dag_bag = DagBag(
                     dag_folder=dag_model.fileloc,
-                    store_serialized_dags=settings.STORE_SERIALIZED_DAGS
+                    read_dags_from_db=True
                 )
 
                 dag = dag_bag.get_dag(self.trigger_dag_id)

@@ -694,7 +694,7 @@ class TestDag(unittest.TestCase):
             DAG(f'dag-bulk-sync-{i}', start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(0, 4)
         ]
 
-        with assert_queries_count(5):
+        with assert_queries_count(7):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             self.assertEqual(
@@ -711,14 +711,14 @@ class TestDag(unittest.TestCase):
                 set(session.query(DagTag.dag_id, DagTag.name).all())
             )
         # Re-sync should do fewer queries
-        with assert_queries_count(3):
+        with assert_queries_count(4):
             DAG.bulk_write_to_db(dags)
-        with assert_queries_count(3):
+        with assert_queries_count(4):
             DAG.bulk_write_to_db(dags)
         # Adding tags
         for dag in dags:
             dag.tags.append("test-dag2")
-        with assert_queries_count(4):
+        with assert_queries_count(5):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             self.assertEqual(
@@ -741,7 +741,7 @@ class TestDag(unittest.TestCase):
         # Removing tags
         for dag in dags:
             dag.tags.remove("test-dag")
-        with assert_queries_count(4):
+        with assert_queries_count(5):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             self.assertEqual(
@@ -972,7 +972,8 @@ class TestDag(unittest.TestCase):
         )
         dag.fileloc = dag_fileloc
         session = settings.Session()
-        dag.sync_to_db(session=session)
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            dag.sync_to_db(session=session)
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
 

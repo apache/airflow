@@ -478,64 +478,61 @@ class TestTaskInstance(unittest.TestCase):
         run_with_error(ti)
         self.assertEqual(ti.state, State.FAILED)
 
-    @parameterized.expand([
-        (False, None,),
-        (True, {'env': None, 'bash_command': 'echo test_retry_handling; exit 1'},),
-    ])
-    def test_retry_handling(self, dag_serialization, expected_rendered_ti_fields):
+    def test_retry_handling(self):
         """
         Test that task retries are handled properly
         """
-        with patch("airflow.models.taskinstance.STORE_SERIALIZED_DAGS", dag_serialization):
-            dag = models.DAG(dag_id='test_retry_handling')
-            task = BashOperator(
-                task_id='test_retry_handling_op',
-                bash_command='echo {{dag.dag_id}}; exit 1',
-                retries=1,
-                retry_delay=datetime.timedelta(seconds=0),
-                dag=dag,
-                owner='test_pool',
-                start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+        expected_rendered_ti_fields = {'env': None, 'bash_command': 'echo test_retry_handling; exit 1'}
 
-            def run_with_error(ti):
-                try:
-                    ti.run()
-                except AirflowException:
-                    pass
+        dag = models.DAG(dag_id='test_retry_handling')
+        task = BashOperator(
+            task_id='test_retry_handling_op',
+            bash_command='echo {{dag.dag_id}}; exit 1',
+            retries=1,
+            retry_delay=datetime.timedelta(seconds=0),
+            dag=dag,
+            owner='test_pool',
+            start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
 
-            ti = TI(
-                task=task, execution_date=timezone.utcnow())
-            self.assertEqual(ti.try_number, 1)
+        def run_with_error(ti):
+            try:
+                ti.run()
+            except AirflowException:
+                pass
 
-            # first run -- up for retry
-            run_with_error(ti)
-            self.assertEqual(ti.state, State.UP_FOR_RETRY)
-            self.assertEqual(ti._try_number, 1)
-            self.assertEqual(ti.try_number, 2)
+        ti = TI(
+            task=task, execution_date=timezone.utcnow())
+        self.assertEqual(ti.try_number, 1)
 
-            # second run -- fail
-            run_with_error(ti)
-            self.assertEqual(ti.state, State.FAILED)
-            self.assertEqual(ti._try_number, 2)
-            self.assertEqual(ti.try_number, 3)
+        # first run -- up for retry
+        run_with_error(ti)
+        self.assertEqual(ti.state, State.UP_FOR_RETRY)
+        self.assertEqual(ti._try_number, 1)
+        self.assertEqual(ti.try_number, 2)
 
-            # Clear the TI state since you can't run a task with a FAILED state without
-            # clearing it first
-            dag.clear()
+        # second run -- fail
+        run_with_error(ti)
+        self.assertEqual(ti.state, State.FAILED)
+        self.assertEqual(ti._try_number, 2)
+        self.assertEqual(ti.try_number, 3)
 
-            # third run -- up for retry
-            run_with_error(ti)
-            self.assertEqual(ti.state, State.UP_FOR_RETRY)
-            self.assertEqual(ti._try_number, 3)
-            self.assertEqual(ti.try_number, 4)
+        # Clear the TI state since you can't run a task with a FAILED state without
+        # clearing it first
+        dag.clear()
 
-            # fourth run -- fail
-            run_with_error(ti)
-            ti.refresh_from_db()
-            self.assertEqual(ti.state, State.FAILED)
-            self.assertEqual(ti._try_number, 4)
-            self.assertEqual(ti.try_number, 5)
-            self.assertEqual(RenderedTaskInstanceFields.get_templated_fields(ti), expected_rendered_ti_fields)
+        # third run -- up for retry
+        run_with_error(ti)
+        self.assertEqual(ti.state, State.UP_FOR_RETRY)
+        self.assertEqual(ti._try_number, 3)
+        self.assertEqual(ti.try_number, 4)
+
+        # fourth run -- fail
+        run_with_error(ti)
+        ti.refresh_from_db()
+        self.assertEqual(ti.state, State.FAILED)
+        self.assertEqual(ti._try_number, 4)
+        self.assertEqual(ti.try_number, 5)
+        self.assertEqual(RenderedTaskInstanceFields.get_templated_fields(ti), expected_rendered_ti_fields)
 
     def test_next_retry_datetime(self):
         delay = datetime.timedelta(seconds=30)
@@ -1650,13 +1647,7 @@ class TestTaskInstance(unittest.TestCase):
                                                execution_date=DEFAULT_DATE, mark_success=True)
         assert assert_command == generate_command
 
-    @parameterized.expand([
-        (True, ),
-        (False, )
-    ])
-    def test_get_rendered_template_fields(self, store_serialized_dag):
-        # SetUp
-        settings.STORE_SERIALIZED_DAGS = store_serialized_dag
+    def test_get_rendered_template_fields(self):
 
         with DAG('test-dag', start_date=DEFAULT_DATE):
             task = BashOperator(task_id='op1', bash_command="{{ task.task_id }}")
@@ -1673,7 +1664,6 @@ class TestTaskInstance(unittest.TestCase):
         new_ti = TI(task=new_task, execution_date=DEFAULT_DATE)
         new_ti.get_rendered_template_fields()
 
-        self.assertEqual(settings.STORE_SERIALIZED_DAGS, store_serialized_dag)
         self.assertEqual("op1", ti.task.bash_command)
 
         # CleanUp
@@ -1726,7 +1716,7 @@ class TestRunRawTaskQueriesCount(unittest.TestCase):
 
     @parameterized.expand([
         # Expected queries, mark_success
-        (7, False),
+        (10, False),
         (5, True),
     ])
     def test_execute_queries_count(self, expected_query_count, mark_success):
@@ -1748,9 +1738,7 @@ class TestRunRawTaskQueriesCount(unittest.TestCase):
             ti.state = State.RUNNING
             session.merge(ti)
 
-        with assert_queries_count(10), patch(
-            "airflow.models.taskinstance.STORE_SERIALIZED_DAGS", True
-        ):
+        with assert_queries_count(10):
             ti._run_raw_task()
 
     def test_operator_field_with_serialization(self):

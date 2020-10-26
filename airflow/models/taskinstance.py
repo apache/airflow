@@ -51,7 +51,6 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
 from airflow.sentry import Sentry
-from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
@@ -1160,9 +1159,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         start_time = time.time()
 
         self.render_templates(context=context)
-        if STORE_SERIALIZED_DAGS:
-            RenderedTaskInstanceFields.write(RenderedTaskInstanceFields(ti=self, render_templates=False))
-            RenderedTaskInstanceFields.delete_old_records(self.task_id, self.dag_id)
+        RenderedTaskInstanceFields.write(RenderedTaskInstanceFields(ti=self, render_templates=False))
+        RenderedTaskInstanceFields.delete_old_records(self.task_id, self.dag_id)
 
         # Export context to make it available for operators to use.
         airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
@@ -1576,28 +1574,22 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         }
 
     def get_rendered_template_fields(self):
-        """
-        Fetch rendered template fields from DB if Serialization is enabled.
-        Else just render the templates
-        """
+        """Fetch rendered template fields from DB"""
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
-        if STORE_SERIALIZED_DAGS:
-            rendered_task_instance_fields = RenderedTaskInstanceFields.get_templated_fields(self)
-            if rendered_task_instance_fields:
-                for field_name, rendered_value in rendered_task_instance_fields.items():
-                    setattr(self.task, field_name, rendered_value)
-            else:
-                try:
-                    self.render_templates()
-                except (TemplateAssertionError, UndefinedError) as e:
-                    raise AirflowException(
-                        "Webserver does not have access to User-defined Macros or Filters "
-                        "when Dag Serialization is enabled. Hence for the task that have not yet "
-                        "started running, please use 'airflow tasks render' for debugging the "
-                        "rendering of template_fields."
-                    ) from e
+        rendered_task_instance_fields = RenderedTaskInstanceFields.get_templated_fields(self)
+        if rendered_task_instance_fields:
+            for field_name, rendered_value in rendered_task_instance_fields.items():
+                setattr(self.task, field_name, rendered_value)
         else:
-            self.render_templates()
+            try:
+                self.render_templates()
+            except (TemplateAssertionError, UndefinedError) as e:
+                raise AirflowException(
+                    "Webserver does not have access to User-defined Macros or Filters "
+                    "when Dag Serialization is enabled. Hence for the task that have not yet "
+                    "started running, please use 'airflow tasks render' for debugging the "
+                    "rendering of template_fields."
+                ) from e
 
     def overwrite_params_with_dag_run_conf(self, params, dag_run):
         """Overwrite Task Params with DagRun.conf"""
