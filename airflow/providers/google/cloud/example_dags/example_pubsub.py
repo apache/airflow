@@ -126,7 +126,7 @@ with models.DAG(
     # [START howto_operator_gcp_pubsub_pull_message_with_operator]
     subscription = "{{ task_instance.xcom_pull('subscribe_task') }}"
 
-    pull_messages_operaator = PubSubPullOperator(
+    pull_messages_operator = PubSubPullOperator(
         task_id="pull_messages",
         ack_messages=True,
         project_id=GCP_PROJECT_ID,
@@ -165,7 +165,7 @@ with models.DAG(
         create_topic
         >> subscribe_task
         >> publish_task
-        >> pull_messages_operaator
+        >> pull_messages_operator
         >> pull_messages_result
         >> unsubscribe_task
         >> delete_topic

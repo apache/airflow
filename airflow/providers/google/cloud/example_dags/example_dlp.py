@@ -76,7 +76,7 @@ with models.DAG(
 
     # [START howto_operator_dlp_use_inspect_template]
     inspect_content = CloudDLPInspectContentOperator(
-        task_id="inpsect_content",
+        task_id="inspect_content",
         project_id=GCP_PROJECT,
         item=ITEM,
         inspect_template_name="{{ task_instance.xcom_pull('create_template', key='return_value')['name'] }}",
