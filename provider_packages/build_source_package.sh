@@ -141,7 +141,7 @@ check_version
 
 export ARCHIVE_FILE_NAME="apache-airflow-${BACKPORT_PREFIX}providers-${VERSION}-source.tar.gz"
 
-#tag_release
+tag_release
 clean_repo
 prepare_archive
 prepare_combined_changelog
