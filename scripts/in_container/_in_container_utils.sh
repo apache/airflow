@@ -286,12 +286,12 @@ function setup_backport_packages() {
 
 function verify_suffix_versions_for_package_preparation {
     TARGET_VERSION_SUFFIX=""
+    FILE_VERSION_SUFFIX=""
 
     VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI:=""}
     readonly VERSION_SUFFIX_FOR_PYPI
 
     VERSION_SUFFIX_FOR_SVN=${VERSION_SUFFIX_FOR_SVN:=""}
-    readonly VERSION_SUFFIX_FOR_SVN
 
     if [[ ${VERSION_SUFFIX_FOR_PYPI} != "" ]]; then
         echo
@@ -306,11 +306,18 @@ function verify_suffix_versions_for_package_preparation {
 
     if [[ ${VERSION_SUFFIX_FOR_SVN} =~ ^rc ]]; then
         >&2 echo
-        >&2 echo "There should never be an rc suffix for SVN version. The 'rc' is only used for PYPI"
-        >&2 echo "You specified '${VERSION_SUFFIX_FOR_SVN}'"
+        >&2 echo "The version suffix for SVN is used only for file names in RC version"
+        >&2 echo "This suffix is only added to the files '${VERSION_SUFFIX_FOR_SVN}' "
         >&2 echo
-        exit 2
+        FILE_VERSION_SUFFIX=${VERSION_SUFFIX_FOR_SVN}
+        VERSION_SUFFIX_FOR_SVN=""
     fi
+    readonly FILE_VERSION_SUFFIX
+    readonly VERSION_SUFFIX_FOR_SVN
+
+    export FILE_VERSION_SUFFIX
+    export VERSION_SUFFIX_FOR_SVN
+    export VERSION_SUFFIX_FOR_PYPI
 
     if [[ ${VERSION_SUFFIX_FOR_PYPI} != '' && ${VERSION_SUFFIX_FOR_SVN} != '' ]]; then
         if [[ ${VERSION_SUFFIX_FOR_PYPI} != "${VERSION_SUFFIX_FOR_SVN}" ]]; then
@@ -354,6 +361,7 @@ function verify_suffix_versions_for_package_preparation {
         fi
     fi
     readonly TARGET_VERSION_SUFFIX
+    export TARGET_VERSION_SUFFIX
 }
 
 

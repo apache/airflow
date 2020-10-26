@@ -32,10 +32,10 @@ function check_version() {
 
 function tag_release() {
   echo
-  echo "Tagging the sources with backport-providers-${VERSION} tag"
+  echo "Tagging the sources with ${BACKPORT_PREFIX}providers-${VERSION} tag"
   echo
 
-  git tag "backport-providers-${VERSION}"
+  git tag "${BACKPORT_PREFIX}providers-${VERSION}"
 }
 
 function clean_repo() {
@@ -49,10 +49,10 @@ function prepare_combined_changelog() {
   echo
   echo "Preparing the changelog"
   echo
-  CHANGELOG_FILE="provider-packages/CHANGELOG.txt"
-  PATTERN="airflow\/providers\/(.*)\/BACKPORT_PROVIDERS_CHANGES_.*.md"
+  CHANGELOG_FILE="provider_packages/CHANGELOG.txt"
+  PATTERN="airflow\/providers\/(.*)\/${BACKPORT_CAPITAL_PREFIX}PROVIDER_CHANGES_.*.md"
   echo > "${CHANGELOG_FILE}"
-  CHANGES_FILES=$(find "airflow/providers/" -name 'BACKPORT_PROVIDERS_CHANGES_*.md' | sort -r)
+  CHANGES_FILES=$(find "airflow/providers/" -name "${BACKPORT_CAPITAL_PREFIX}PROVIDER_CHANGES_*.md" | sort -r)
   LAST_PROVIDER_ID=""
   for FILE in ${CHANGES_FILES}
   do
@@ -87,7 +87,7 @@ function prepare_archive(){
   git archive \
       --format=tar.gz \
       "backport-providers-${VERSION}" \
-      "--prefix=apache-airflow-backport-providers-${VERSION%rc?}/" \
+      "--prefix=apache-airflow-${BACKPORT_PREFIX}providers-${VERSION%rc?}/" \
       -o "${ARCHIVE_FILE_NAME}"
 
   echo
@@ -103,13 +103,13 @@ function replace_install_changelog(){
   echo
   echo "Replacing INSTALL CHANGELOG.txt in ${ARCHIVE_FILE_NAME} "
   echo
-  tar -f "apache-airflow-backport-providers-${VERSION}-source.tar.gz" -xz -C "${DIR}"
+  tar -f "${ARCHIVE_FILE_NAME}" -xz -C "${DIR}"
 
   cp "provider_packages/INSTALL" "provider_packages/CHANGELOG.txt" \
-      "${DIR}/apache-airflow-backport-providers-${VERSION%rc?}/"
+      "${DIR}/apache-airflow-${BACKPORT_PREFIX}providers-${VERSION%rc?}/"
 
-  tar -f "apache-airflow-backport-providers-${VERSION}-source.tar.gz" -cz -C "${DIR}" \
-      "apache-airflow-backport-providers-${VERSION%rc?}/"
+  tar -f "${ARCHIVE_FILE_NAME}" -cz -C "${DIR}" \
+      "apache-airflow-${BACKPORT_PREFIX}providers-${VERSION%rc?}/"
 
   echo
   echo "Replaced INSTALL CHANGELOG.txt in ${ARCHIVE_FILE_NAME} "
@@ -117,13 +117,31 @@ function replace_install_changelog(){
 
 }
 
+BACKPORTS="false"
+if (( $# > 0 )); then
+    if [[ "$1" == "--backports" ]]; then
+        BACKPORTS="true"
+    else
+        >&2 echo
+        >&2 echo "You can run the script with '--backports' flag only"
+        >&2 echo
+        exit 1
+    fi
+fi
+readonly BACKPORTS
 
+BACKPORT_PREFIX=""
+BACKPORT_CAPITAL_PREFIX=""
+if [[ ${BACKPORTS} == "true" ]]; then
+    BACKPORT_PREFIX='backport-'
+    BACKPORT_CAPITAL_PREFIX="BACKPORT_"
+fi
 
 check_version
 
-export ARCHIVE_FILE_NAME="apache-airflow-backport-providers-${VERSION}-source.tar.gz"
+export ARCHIVE_FILE_NAME="apache-airflow-${BACKPORT_PREFIX}providers-${VERSION}-source.tar.gz"
 
-tag_release
+#tag_release
 clean_repo
 prepare_archive
 prepare_combined_changelog

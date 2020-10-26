@@ -96,9 +96,14 @@ do
     LOG_FILE=$(mktemp)
     echo "==================================================================================="
     echo " Preparing ${PACKAGE_TYPE} package ${PROVIDER_PACKAGE} "
-    if [[ "${VERSION_SUFFIX_FOR_PYPI}" == '' && "${VERSION_SUFFIX_FOR_SVN}" == '' ]]; then
+    if [[ "${VERSION_SUFFIX_FOR_PYPI}" == '' && "${VERSION_SUFFIX_FOR_SVN}" == ''
+            && ${FILE_VERSION_SUFFIX} == '' ]]; then
         echo
-        echo " Official version"
+        echo "Preparing official version"
+        echo
+    elif [[ ${FILE_VERSION_SUFFIX} != '' ]]; then
+        echo
+        echo " Preparing release candidate with file version suffix only: ${FILE_VERSION_SUFFIX}"
         echo
     elif [[ "${VERSION_SUFFIX_FOR_PYPI}" == '' ]]; then
         echo
@@ -137,15 +142,15 @@ cd "${AIRFLOW_SOURCES}" || exit 1
 
 pushd dist
 
-if [[ ${VERSION_SUFFIX_FOR_PYPI} != "${TARGET_VERSION_SUFFIX}" ]]; then
-    # In case we prepare different suffix for SVN and PYPI, rename the generated files
+if [[ ${FILE_VERSION_SUFFIX} != "" ]]; then
+    # In case we have FILE_VERSION_SUFFIX we rename prepared files
     for FILE in *.tar.gz
     do
-        mv "${FILE}" "${FILE//\.tar\.gz/${VERSION_SUFFIX_FOR_SVN}-bin.tar.gz}"
+        mv "${FILE}" "${FILE//\.tar\.gz/${FILE_VERSION_SUFFIX}-bin.tar.gz}"
     done
     for FILE in *.whl
     do
-        mv "${FILE}" "${FILE//\-py3/${VERSION_SUFFIX_FOR_SVN}-py3}"
+        mv "${FILE}" "${FILE//\-py3/${FILE_VERSION_SUFFIX}-py3}"
     done
 fi
 
