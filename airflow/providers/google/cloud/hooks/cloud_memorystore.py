@@ -17,7 +17,6 @@
 # under the License.
 """Hooks for Cloud Memorystore service"""
 from typing import Dict, Optional, Sequence, Tuple, Union
-import json
 
 from google.api_core.exceptions import NotFound
 from google.api_core import path_template
@@ -28,7 +27,6 @@ from google.cloud.redis_v1 import CloudRedisClient
 from google.cloud.redis_v1.gapic.enums import FailoverInstanceRequest
 from google.cloud.redis_v1.types import FieldMask, InputConfig, Instance, OutputConfig
 from google.protobuf.json_format import ParseDict
-import proto
 
 from airflow import version
 from airflow.exceptions import AirflowException
@@ -568,11 +566,6 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         val = val.replace(".", "-").replace("+", "-")
         instance.labels.update({key: val})
         return instance
-
-    @staticmethod
-    def proto_message_to_dict(message: proto.Message) -> dict:
-        """Helper method to parse protobuf message to dictionary."""
-        return json.loads(message.__class__.to_json(message))
 
     @GoogleBaseHook.fallback_to_default_project_id
     def apply_parameters(
