@@ -34,7 +34,8 @@ from os.path import dirname
 from shutil import copyfile
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Type
 
-import semver
+from packaging.version import Version
+
 
 PROVIDER_TEMPLATE_PREFIX = "PROVIDER_"
 BACKPORT_PROVIDER_TEMPLATE_PREFIX = "BACKPORT_PROVIDER_"
@@ -880,16 +881,10 @@ def check_if_release_version_ok(
             else:
                 current_release_version = "0.0.1"  # TODO: replace with maintained version
     if previous_release_version:
-        if backport_packages:
-            if previous_release_version > current_release_version:
-                print(f"The release {current_release_version} must be not less than "
-                      f"{previous_release_version} - last release for the package", file=sys.stderr)
-                sys.exit(2)
-        else:
-            if semver.compare(previous_release_version, current_release_version) > 0:
-                print(f"The release {current_release_version} must be not less than "
-                      f"{previous_release_version} - last release for the package", file=sys.stderr)
-                sys.exit(2)
+        if Version(current_release_version) < Version(previous_release_version):
+            print(f"The release {current_release_version} must be not less than "
+                  f"{previous_release_version} - last release for the package", file=sys.stderr)
+            sys.exit(2)
     return current_release_version, previous_release_version
 
 
@@ -1357,7 +1352,8 @@ if __name__ == "__main__":
     BACKPORT_PACKAGES = (os.getenv('BACKPORT_PACKAGES') == "true")
     suffix = ""
 
-    possible_first_params = get_provider_packages()
+    provider_names = get_provider_packages()
+    possible_first_params = provider_names.copy()
     possible_first_params.append(LIST_PROVIDERS_PACKAGES)
     possible_first_params.append(LIST_BACKPORTABLE_PACKAGES)
     possible_first_params.append(UPDATE_PACKAGE_RELEASE_NOTES)
@@ -1400,7 +1396,7 @@ ERROR! Wrong first param: {sys.argv[1]}
         sys.exit(0)
     elif sys.argv[1] == UPDATE_PACKAGE_RELEASE_NOTES:
         release_ver = ""
-        if len(sys.argv) > 2 and re.match(r'\d{4}\.\d{2}\.\d{2}', sys.argv[2]):
+        if len(sys.argv) > 2 and sys.argv[2] not in provider_names:
             release_ver = sys.argv[2]
             print()
             print()
