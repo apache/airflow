@@ -69,7 +69,10 @@ def get_extras_from_docs() -> List[str]:
 
     extras_section_regex = re.compile(rf'^\|[^|]+\|.*pip install .apache-airflow\[({PY_IDENTIFIER})\].',
                                       re.MULTILINE)
-    return extras_section_regex.findall(docs_content)
+    extras = extras_section_regex.findall(docs_content)
+
+    extras = list(filter(lambda entry: entry != 'all', extras))
+    return extras
 
 
 if __name__ == '__main__':
