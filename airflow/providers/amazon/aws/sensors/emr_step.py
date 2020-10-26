@@ -21,10 +21,17 @@ from typing import Any, Dict, Iterable, Optional
 from airflow.providers.amazon.aws.sensors.emr_base import EmrBaseSensor
 from airflow.utils.decorators import apply_defaults
 
+from airflow.exceptions import AirflowException
+
+from airflow.models.xcom import XCOM_RETURN_KEY
+
 
 class EmrStepSensor(EmrBaseSensor):
     """
     Asks for the state of the step until it reaches any of the target states.
+    If no step Id has been provided the sensor retrieves all steps and current states
+    and will continue to ask untill all steps reaches any of the target states.
+
     If it fails the sensor errors, failing the task.
 
     With the default target states, sensor waits step to be completed.
@@ -32,7 +39,7 @@ class EmrStepSensor(EmrBaseSensor):
     :param job_flow_id: job_flow_id which contains the step check the state of
     :type job_flow_id: str
     :param step_id: step to check the state of
-    :type step_id: str
+    :type step_id: str or list
     :param target_states: the target states, sensor waits until
         step reaches any of these states
     :type target_states: list[str]
@@ -60,6 +67,42 @@ class EmrStepSensor(EmrBaseSensor):
         self.target_states = target_states or ['COMPLETED']
         self.failed_states = failed_states or ['CANCELLED', 'FAILED', 'INTERRUPTED']
 
+    def poke(self, context):
+        """
+        If only one step_id is provided we want to run the base poke().
+        """
+        if self.step_id:
+            return super().poke(context)
+        """
+        If no step_id is provided we want to run list_steps() and return a single response with
+        all the steps on specified cluster.
+        """
+        response = self.get_emr_response()
+
+        if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
+            self.log.info('Bad HTTP response: %s', response)
+            return False
+
+        step_states = self.state_from_response(response)
+        state_dict = {}
+        for steps in response['Steps']:
+            state_dict[steps['Id']] = steps['Status']['State']
+        self.log.info('Step state = %s', state_dict)
+
+        if self.do_xcom_push:
+            context['ti'].xcom_push(key=XCOM_RETURN_KEY, value=state_dict)
+
+        if all(step_state in self.target_states for step_state in step_states):
+            return True
+
+        if any(step_state in self.failed_states for step_state in step_states):
+            failure_messages = self.failure_message_from_response(response)
+            if failure_messages:
+                final_message = 'EMR job failed ' + ' '.join(failure_messages)
+            raise AirflowException(final_message)
+
+        return False
+
     def get_emr_response(self) -> Dict[str, Any]:
         """
         Make an API call with boto3 and get details about the cluster step.
@@ -71,12 +114,14 @@ class EmrStepSensor(EmrBaseSensor):
         :rtype: dict[str, Any]
         """
         emr_client = self.get_hook().get_conn()
+        if self.step_id:
+            self.log.info('Poking step %s on cluster %s', self.step_id, self.job_flow_id)
+            return emr_client.describe_step(ClusterId=self.job_flow_id, StepId=self.step_id)
 
-        self.log.info('Poking step %s on cluster %s', self.step_id, self.job_flow_id)
-        return emr_client.describe_step(ClusterId=self.job_flow_id, StepId=self.step_id)
+        self.log.info('Poking steps on cluster %s', self.job_flow_id)
+        return emr_client.list_steps(ClusterId=self.job_flow_id)
 
-    @staticmethod
-    def state_from_response(response: Dict[str, Any]) -> str:
+    def state_from_response(self, response: Dict[str, Any]) -> str:
         """
         Get state from response dictionary.
 
@@ -85,10 +130,12 @@ class EmrStepSensor(EmrBaseSensor):
         :return: execution state of the cluster step
         :rtype: str
         """
-        return response['Step']['Status']['State']
+        if self.step_id:
+            return response['Step']['Status']['State']
 
-    @staticmethod
-    def failure_message_from_response(response: Dict[str, Any]) -> Optional[str]:
+        return [step['Status']['State'] for step in response['Steps']]
+
+    def failure_message_from_response(self, response: Dict[str, Any]) -> Optional[str]:
         """
         Get failure message from response dictionary.
 
@@ -97,9 +144,18 @@ class EmrStepSensor(EmrBaseSensor):
         :return: failure message
         :rtype: Optional[str]
         """
-        fail_details = response['Step']['Status'].get('FailureDetails')
-        if fail_details:
-            return 'for reason {} with message {} and log file {}'.format(
-                fail_details.get('Reason'), fail_details.get('Message'), fail_details.get('LogFile')
+        if self.step_id:
+            fail_details = response['Step']['Status'].get('FailureDetails')
+            if fail_details:
+                return 'for reason {} with message {} and log file {}'.format(
+                    fail_details.get('Reason'), fail_details.get('Message'), fail_details.get('LogFile')
+                )
+            return None
+
+        fail_details = [fail_msg['Status'].get('FailureDetails') for fail_msg in response['Steps']]
+        return [
+            'for reason {} with message {} and log file {}'.format(
+                details.get('Reason'), details.get('Message'), details.get('LogFile')
             )
-        return None
+            for details in fail_details
+        ]
