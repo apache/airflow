@@ -277,7 +277,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Push Tags
 
     ```shell script
-    git push ${VERSION}
+    git push origin ${VERSION}
     ```
 
 - Push the artifacts to ASF dev dist repo
