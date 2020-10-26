@@ -1,6 +1,6 @@
 # Get Apache Airflow on IBM Cloud
 
-We will deploy Apache Airflow on an IBM Cloud Kubernetes Cluster
+We will deploy Apache Airflow on an IBM Cloud Kubernetes Cluster with a Helm Bitnami chart
 
 * Prerequisites :
   * You should have an IBM Cloud account, otherwise you can [register here].
