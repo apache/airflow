@@ -348,12 +348,8 @@ class MesosExecutor(BaseExecutor):
         framework_name = get_framework_name()
         framework_id = None
 
-        task_cpu  = conf.get('mesos', 'TASK_CPU', fallback=1)
-
-        if not conf.get('mesos', 'TASK_MEMORY'):
-            task_memory = 256
-        else:
-            task_memory = conf.getint('mesos', 'TASK_MEMORY')
+        task_cpu = conf.get('mesos', 'TASK_CPU', fallback=1)
+        task_memory = conf.get('mesos', 'TASK_MEMORY', fallback=256)
 
         if conf.getboolean('mesos', 'CHECKPOINT'):
             framework_checkpoint = True
