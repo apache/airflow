@@ -318,7 +318,7 @@
       version_added: ~
       type: string
       example: ~
-      default: "False"
+      default: "True"
     - name: worker_precheck
       description: |
         Worker initialisation check to validate Metadata Database connection

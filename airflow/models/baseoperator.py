@@ -853,6 +853,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             jinja_env = self.get_template_env()
 
         # Imported here to avoid circular dependency
+        from airflow.models.dagparam import DagParam
         from airflow.models.xcom_arg import XComArg
 
         if isinstance(content, str):
@@ -861,7 +862,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 return jinja_env.get_template(content).render(**context)
             else:
                 return jinja_env.from_string(content).render(**context)
-        elif isinstance(content, XComArg):
+        elif isinstance(content, (XComArg, DagParam)):
             return content.resolve(context)
 
         if isinstance(content, tuple):

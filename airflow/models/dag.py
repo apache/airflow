@@ -27,6 +27,7 @@ import traceback
 import warnings
 from collections import OrderedDict
 from datetime import datetime, timedelta
+from inspect import signature
 from typing import (
     TYPE_CHECKING, Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple, Type, Union,
     cast,
@@ -48,6 +49,7 @@ from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
+from airflow.models.dagparam import DagParam
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
@@ -693,6 +695,16 @@ class DAG(BaseDag, LoggingMixin):
     @pickle_id.setter
     def pickle_id(self, value: int) -> None:
         self._pickle_id = value
+
+    def param(self, name: str, default=None) -> DagParam:
+        """
+        Return a DagParam object for current dag.
+
+        :param name: dag parameter name.
+        :param default: fallback value for dag parameter.
+        :return: DagParam instance for specified name and current dag.
+        """
+        return DagParam(current_dag=self, name=name, default=default)
 
     @property
     def tasks(self) -> List[BaseOperator]:
@@ -2191,6 +2203,55 @@ class DagModel(Base):
             self.next_dagrun_create_after = None
 
         log.info("Setting next_dagrun for %s to %s", dag.dag_id, self.next_dagrun)
+
+
+def dag(*dag_args, **dag_kwargs):
+    """
+    Python dag decorator. Wraps a function into an Airflow DAG.
+    Accepts kwargs for operator kwarg. Can be used to parametrize DAGs.
+
+    :param dag_args: Arguments for DAG object
+    :type dag_args: list
+    :param dag_kwargs: Kwargs for DAG object.
+    :type dag_kwargs: dict
+    """
+    def wrapper(f: Callable):
+        # Get dag initializer signature and bind it to validate that dag_args, and dag_kwargs are correct
+        dag_sig = signature(DAG.__init__)
+        dag_bound_args = dag_sig.bind_partial(*dag_args, **dag_kwargs)
+
+        @functools.wraps(f)
+        def factory(*args, **kwargs):
+            # Generate signature for decorated function and bind the arguments when called
+            # we do this to extract parameters so we can annotate them on the DAG object.
+            # In addition, this fails if we are missing any args/kwargs with TypeError as expected.
+            f_sig = signature(f).bind(*args, **kwargs)
+            # Apply defaults to capture default values if set.
+            f_sig.apply_defaults()
+
+            # Set function name as dag_id if not set
+            dag_id = dag_bound_args.arguments.get('dag_id', f.__name__)
+            dag_bound_args.arguments['dag_id'] = dag_id
+
+            # Initialize DAG with bound arguments
+            with DAG(*dag_bound_args.args, **dag_bound_args.kwargs) as dag_obj:
+                # Set DAG documentation from function documentation.
+                if f.__doc__:
+                    dag_obj.doc_md = f.__doc__
+
+                # Generate DAGParam for each function arg/kwarg and replace it for calling the function.
+                # All args/kwargs for function will be DAGParam object and replaced on execution time.
+                f_kwargs = {}
+                for name, value in f_sig.arguments.items():
+                    f_kwargs[name] = dag_obj.param(name, value)
+
+                # Invoke function to create operators in the DAG scope.
+                f(**f_kwargs)
+
+            # Return dag object such that it's accessible in Globals.
+            return dag_obj
+        return factory
+    return wrapper
 
 
 STATICA_HACK = True
