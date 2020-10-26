@@ -30,7 +30,8 @@ from setuptools import Command, find_namespace_packages, setup
 
 logger = logging.getLogger(__name__)
 
-version = '2.0.0b3'
+# This is automatically maintained in sync via pre-commit from airflow/version.py
+version = '2.0.0.dev1+astro.2'
 
 PY3 = sys.version_info[0] == 3
 
@@ -938,7 +939,6 @@ def do_setup():
     setup(
         # Most values come from setup.cfg -- see
         # https://setuptools.readthedocs.io/en/latest/userguide/declarative_config.html
-
         # Astronomer note: we use a new "version epoch" here so that when
         # people install our release (which is not published on PyPi) they can
         # keep our version installed, without it pulling in the latest stock
