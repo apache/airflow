@@ -34,7 +34,7 @@ def check_and_get_dag(dag_id: str, task_id: Optional[str] = None) -> DagModel:
         read_dags_from_db=True
     )
     dag = dagbag.get_dag(dag_id)
-    if dag_id not in dagbag.dags:
+    if not dag:
         error_message = "Dag id {} not found".format(dag_id)
         raise DagNotFound(error_message)
     if task_id and not dag.has_task(task_id):
