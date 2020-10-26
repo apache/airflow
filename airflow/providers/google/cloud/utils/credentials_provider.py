@@ -119,7 +119,7 @@ def provide_gcp_connection(
     connection. It build a new connection that includes path to provided service json,
     required scopes and project id.
 
-    :param key_file_path: Path to file with Gooogle Cloud Service Account .json file.
+    :param key_file_path: Path to file with Google Cloud Service Account .json file.
     :type key_file_path: str
     :param scopes: OAuth scopes for the connection
     :type scopes: Sequence
