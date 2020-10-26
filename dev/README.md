@@ -234,7 +234,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Tag your release
 
     ```shell script
-    git tag ${VERSION}
+    git tag -s ${VERSION}
     ```
 
 - Clean the checkout: the sdist step below will
@@ -275,7 +275,10 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     ```
 
 - Push Tags
-`git push --tags`
+
+    ```shell script
+    git push origin ${VERSION}
+    ```
 
 - Push the artifacts to ASF dev dist repo
 ```
