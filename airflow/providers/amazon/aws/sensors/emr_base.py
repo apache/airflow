@@ -65,7 +65,7 @@ class EmrBaseSensor(BaseSensorOperator):
             return False
 
         state = self.state_from_response(response)
-        self.log.info('Job flow currently %s', state)
+        self.log.info('Job flow/step currently %s', state)
 
         if state in self.target_states:
             return True
