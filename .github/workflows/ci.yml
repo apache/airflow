@@ -94,8 +94,15 @@ jobs:
       basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
       needs-helm-tests: ${{ steps.selective-checks.outputs.needs-helm-tests }}
       needs-api-tests: ${{ steps.selective-checks.outputs.needs-api-tests }}
+      pullRequestNumber: ${{ steps.source-run-info.outputs.pullRequestNumber }}
+      pullRequestLabels: ${{ steps.source-run-info.outputs.pullRequestLabels }}
     if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     steps:
+      - name: "Get information about the PR"
+        uses: potiuk/get-workflow-origin@e3ba776faee1134e17551924b852bfb374e1703d  # v1_1
+        id: source-run-info
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
       - name: >
