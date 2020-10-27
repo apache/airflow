@@ -19,7 +19,6 @@
 import datetime
 import os
 from typing import FrozenSet, Optional, Union
-from urllib.parse import quote
 
 from sqlalchemy import func
 
@@ -28,6 +27,7 @@ from airflow.models import BaseOperatorLink, DagBag, DagModel, DagRun, TaskInsta
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
@@ -41,7 +41,8 @@ class ExternalTaskSensorLink(BaseOperatorLink):
     name = 'External DAG'
 
     def get_link(self, operator, dttm):
-        return f"/graph?dag_id={operator.external_dag_id}&root=&execution_date={quote(dttm.isoformat())}"
+        query = {"dag_id": operator.external_dag_id, "root": "", "execution_date": dttm.isoformat()}
+        return build_airflow_url_with_query(query)
 
 
 class ExternalTaskSensor(BaseSensorOperator):
