@@ -257,7 +257,7 @@ function check_if_helm_tests_should_be_run() {
 
 function check_if_docs_should_be_generated() {
     local pattern_array=(
-        "^docs$"
+        "^docs"
         "^airflow/.*\.py$"
         "^CHANGELOG\.txt"
     )
