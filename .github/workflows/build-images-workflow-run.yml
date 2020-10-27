@@ -222,6 +222,9 @@ jobs:
           ref: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
           fetch-depth: 2
         if: needs.cancel-workflow-runs.outputs.sourceEvent  == 'pull_request'
+      # checkout the master version again, to use the right script in master workflow
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
       - name: Selective checks
         id: selective-checks
         env:
