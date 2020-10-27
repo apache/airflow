@@ -45,7 +45,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     conn_id ``smtp_default``.
 
     :param connections_path: Specifies the path of the secret to read to get Connections.
-        (default: 'connections'). Note that if set to None (null), requests for connections will not be sent to Vault.
+        (default: 'connections'). If set to None (null), requests for connections will not be sent to Vault.
     :type connections_path: str
     :param variables_path: Specifies the path of the secret to read to get Variable.
         (default: 'variables'). Note that if set to None (null), requests for variables will not be sent to Vault.
