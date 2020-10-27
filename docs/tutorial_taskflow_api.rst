@@ -18,20 +18,20 @@
 
 
 
-Tutorial on Decorated Flows
-===========================
+Tutorial on the Taskflow API
+============================
 
 This tutorial builds on the regular Airflow Tutorial and focuses specifically
-on writing data pipelines using the Decorated Flow paradigm which is introduced as
+on writing data pipelines using the Taskflow API paradigm which is introduced as
 part of Airflow 2.0 and contrasts this with DAGs written using the traditional paradigm.
 
 The data pipeline chosen here is a simple ETL pattern with
 three separate tasks for Extract, Transform, and Load.
 
-Example "Decorated Flow" ETL Pipeline
--------------------------------------
+Example "Taskflow API" ETL Pipeline
+-----------------------------------
 
-Here is very simple ETL pipeline using the Decorated Flows paradigm. A more detailed
+Here is very simple ETL pipeline using the Taskflow API paradigm. A more detailed
 explanation is given below.
 
 .. exampleinclude:: /../airflow/example_dags/tutorial_decorated_etl_dag.py
@@ -115,7 +115,7 @@ As we see here, the data being processed in the Transform function is passed to 
 variables. In turn, the summarized data from the Transform function is also placed
 into another Xcom variable which will then be used by the Load task.
 
-Contrasting that with Decorated Flows in Airflow 2.0 as shown below.
+Contrasting that with Taskflow API in Airflow 2.0 as shown below.
 
 .. exampleinclude:: /../airflow/example_dags/tutorial_decorated_etl_dag.py
     :language: python
@@ -126,7 +126,7 @@ All of the Xcom usage for data passing between these tasks is abstracted away fr
 in Airflow 2.0. However, Xcom variables are used behind the scenes and can be viewed using
 the Airflow UI as necessary for debugging or DAG monitoring.
 
-Similarly, task dependencies are automatically generated within Decorated Flows based on the
+Similarly, task dependencies are automatically generated within TaskFlows based on the
 functional invocation of tasks. In Airflow 1.x, tasks had to be explicitly created and
 dependencies specified as shown below.
 
@@ -135,7 +135,7 @@ dependencies specified as shown below.
     :start-after: [START main_flow]
     :end-before: [END main_flow]
 
-In contrast, with Decorated Flows in Airflow 2.0, the invocation itself automatically generates
+In contrast, with the Taskflow API in Airflow 2.0, the invocation itself automatically generates
 the dependencies as shown below.
 
 .. exampleinclude:: /../airflow/example_dags/tutorial_decorated_etl_dag.py
@@ -147,10 +147,10 @@ the dependencies as shown below.
 What's Next?
 ------------
 
-You have seen how simple it is to write DAGs using the Decorated Flows paradigm within Airflow 2.0. Please do
+You have seen how simple it is to write DAGs using the Taskflow API paradigm within Airflow 2.0. Please do
 read the :ref:`Concepts page<concepts>` for detailed explanation of Airflow concepts such as DAGs, Tasks,
 Operators, etc, and the :ref:`concepts:task_decorator` in particular.
 
-More details about Decorated Flows, can be found as part of the Airflow Improvement Proposal
-`AIP-31: "Decorated Flows" for clearer/simpler DAG definition <https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=148638736>`__
-and specifically within the Concepts guide at :ref:`Concepts - Decorated Flows<concepts:decorated_flows>`.
+More details about the Taskflow API, can be found as part of the Airflow Improvement Proposal
+`AIP-31: "Taskflow API" for clearer/simpler DAG definition <https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=148638736>`__
+and specifically within the Concepts guide at :ref:`Concepts - Taskflow API<concepts:task_flow_api>`.
