@@ -114,8 +114,8 @@ jobs:
           sourceRunId: ${{ github.event.workflow_run.id }}
           notifyPRCancel: true
           jobNameRegexps: >
-            ["^Pylint$", "^Static checks$", "^Build docs$", "^Spell check docs$", "^Backport packages$",
-             "^Checks: Helm tests$", "^Test OpenAPI*"]
+            ["^Pylint$", "^Static checks", "^Build docs$", "^Spell check docs$", "^Backport packages$",
+             "^Provider packages", "^Checks: Helm tests$", "^Test OpenAPI*"]
       - name: "Extract canceled failed runs"
 
         # We use this step to build regexp that will be used to match the Source Run id in
