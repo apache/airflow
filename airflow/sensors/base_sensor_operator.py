@@ -27,12 +27,13 @@ from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException, AirflowRescheduleException, AirflowSensorTimeout, AirflowSkipException,
 )
-from airflow.models import BaseOperator, SensorInstance
+from airflow.models import BaseOperator, SensorInstance, TaskFail, TaskInstance
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.session import provide_session
 
 
 class BaseSensorOperator(BaseOperator, SkipMixin):
@@ -49,6 +50,10 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     :type poke_interval: float
     :param timeout: Time, in seconds before the task times out and fails.
     :type timeout: float
+    :param timeout_fullspan: Defines time-out behaviour for retried sensors.
+        If False, the sensor times the current try.
+        If True, the sensor times from start date of earliest fail.
+    :type timeout_fullspan: bool
     :param mode: How the sensor operates.
         Options are: ``{ poke | reschedule }``, default is ``poke``.
         When set to ``poke`` the sensor is taking up a worker slot for its
@@ -63,7 +68,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         prevent too much load on the scheduler.
     :type mode: str
     :param exponential_backoff: allow progressive longer waits between
-        pokes by using exponential backoff algorithm
+        pokes by using exponential backoff algorithm.
+        Note: After a retry, the algorithm starts with short waits again.
     :type exponential_backoff: bool
     """
 
@@ -83,6 +89,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     def __init__(self, *,
                  poke_interval: float = 60,
                  timeout: float = 60 * 60 * 24 * 7,
+                 timeout_fullspan: bool = False,
                  soft_fail: bool = False,
                  mode: str = 'poke',
                  exponential_backoff: bool = False,
@@ -91,6 +98,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self.poke_interval = poke_interval
         self.soft_fail = soft_fail
         self.timeout = timeout
+        self.timeout_fullspan = timeout_fullspan
         self.mode = mode
         self.exponential_backoff = exponential_backoff
         self._validate_input_values()
@@ -189,8 +197,12 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             if task_reschedules:
                 started_at = task_reschedules[0].start_date
                 try_number = len(task_reschedules) + 1
+        if self.timeout_fullspan and not context['ti'].try_number == 1:
+            start = self.find_start_date_of_earliest_fail(context['ti'])
+        else:
+            start = started_at
         while not self.poke(context):
-            if (timezone.utcnow() - started_at).total_seconds() > self.timeout:
+            if (timezone.utcnow() - start).total_seconds() > self.timeout:
                 # If sensor is in soft fail mode but will be retried then
                 # give it a chance and fail with timeout.
                 # This gives the ability to set up non-blocking AND soft-fail sensors.
@@ -240,6 +252,16 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             self.log.warning("DebugExecutor changes sensor mode to 'reschedule'.")
             task.mode = 'reschedule'
         return task
+
+    @provide_session
+    def find_start_date_of_earliest_fail(self, task_instance, session=None):
+        """Find start date of earliest fail (assuming there has to be one)."""
+        first_fail = session.query(TaskFail).filter(
+            TaskInstance.dag_id == task_instance.dag_id,
+            TaskInstance.task_id == task_instance.task_id,
+            TaskInstance.execution_date == task_instance.execution_date,
+        ).order_by(TaskInstance.start_date.asc()).first()
+        return first_fail.start_date
 
     @property
     def reschedule(self):

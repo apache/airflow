@@ -21,6 +21,7 @@ from datetime import timedelta
 from time import sleep
 from unittest.mock import Mock, patch
 
+import pytest
 from freezegun import freeze_time
 
 from airflow.exceptions import AirflowException, AirflowRescheduleException, AirflowSensorTimeout
@@ -43,12 +44,17 @@ DEV_NULL = 'dev/null'
 
 
 class DummySensor(BaseSensorOperator):
-    def __init__(self, return_value=False, **kwargs):
+    def __init__(self, return_value=False, side_effects=(), **kwargs):
         super().__init__(**kwargs)
         self.return_value = return_value
+        self.side_effects = side_effects
 
     def poke(self, context):
-        return self.return_value
+        if self.side_effects:
+            next_side_effect = self.side_effects.pop(0)
+            return next_side_effect()
+        else:
+            return self.return_value
 
 
 class TestBaseSensor(unittest.TestCase):
@@ -57,6 +63,7 @@ class TestBaseSensor(unittest.TestCase):
         db.clear_db_runs()
         db.clear_db_task_reschedule()
         db.clear_db_xcom()
+        db.clear_db_task_fail()
 
     def setUp(self):
         args = {
@@ -130,6 +137,39 @@ class TestBaseSensor(unittest.TestCase):
                 self.assertEqual(ti.state, State.FAILED)
             if ti.task_id == DUMMY_OP:
                 self.assertEqual(ti.state, State.NONE)
+
+    def test_timeout_fullspan(self):
+        def raise_connection_exception():
+            raise ConnectionError
+
+        sensor = self._make_sensor(
+            return_value=False,
+            side_effects=[(lambda: False), raise_connection_exception],
+            timeout=0.001,
+            timeout_fullspan=True,
+            retries=1,
+            retry_delay=timedelta(milliseconds=1))
+        dr = self._make_dag_run()
+
+        # second poke fails with exception and task instance is marked up for retry
+        with pytest.raises(ConnectionError):
+            self._run(sensor)
+        tis = dr.get_task_instances()
+        for ti in tis:
+            if ti.task_id == SENSOR_OP:
+                assert ti.state == State.UP_FOR_RETRY
+            if ti.task_id == DUMMY_OP:
+                assert ti.state == State.NONE
+
+        # after first retry, first poke returns False and timeout occurs
+        with pytest.raises(AirflowSensorTimeout):
+            self._run(sensor)
+        tis = dr.get_task_instances()
+        for ti in tis:
+            if ti.task_id == SENSOR_OP:
+                assert ti.state == State.FAILED
+            if ti.task_id == DUMMY_OP:
+                assert ti.state == State.NONE
 
     def test_soft_fail(self):
         sensor = self._make_sensor(False, soft_fail=True)
