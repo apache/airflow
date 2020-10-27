@@ -17,14 +17,12 @@
 # under the License.
 import json
 import time
-from typing import Any, List, Optional
 from urllib.parse import urlencode
 
 import markdown
 import sqlalchemy as sqla
 from flask import Markup, Response, request, url_for
 from flask_appbuilder.forms import FieldConverter
-from flask_appbuilder.models.filters import Filters
 from flask_appbuilder.models.sqla import filters as fab_sqlafilters
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from pygments import highlight, lexers
@@ -438,43 +436,6 @@ class CustomSQLAInterface(SQLAInterface):
                 isinstance(obj, sqla.types.TypeDecorator) and \
                 isinstance(obj.impl, UtcDateTime)
         return False
-
-    # This is a local fix until https://github.com/dpgaspar/Flask-AppBuilder/pull/1493 is merged and released.
-    def get(
-        self,
-        id,
-        filters: Optional[Filters] = None,
-        select_columns: Optional[List[str]] = None,
-    ) -> Any:
-        """
-        Returns the result for a model get, applies filters and supports dotted
-        notation for joins and granular selecting query columns.
-
-        :param id: The model id (pk).
-        :param filters: A Filter class that contains all filters to apply.
-        :param select_columns: A List of columns to be specifically selected.
-        on the query. Supports dotted notation.
-        :return: Model instance if found, or none
-        """
-        pk = self.get_pk_name()
-        if filters:
-            _filters = filters.copy()
-        else:
-            _filters = Filters(self.filter_converter_class, self)
-
-        if self.is_pk_composite():
-            for _pk, _id in zip(pk, id):
-                _filters.add_filter(_pk, self.FilterEqual, _id)
-        else:
-            _filters.add_filter(pk, self.FilterEqual, id)
-        query = self.session.query(self.obj)
-        item = self.apply_all(
-            query, _filters, select_columns=select_columns
-        ).one_or_none()
-        if item:
-            if hasattr(item, self.obj.__name__):
-                return getattr(item, self.obj.__name__)
-        return item
 
     filter_converter_class = UtcAwareFilterConverter
 
