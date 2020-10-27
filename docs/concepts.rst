@@ -123,7 +123,7 @@ DAGs can be used as context managers to automatically assign new operators to th
 .. _concepts:decorated_flows:
 
 TaskFlow API
----------------
+------------
 
 .. versionadded:: 2.0.0
 
