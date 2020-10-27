@@ -94,8 +94,6 @@ class GoogleAuthBackend(object):
             'google',
             consumer_key=get_config_param('client_id'),
             consumer_secret=get_config_param('client_secret'),
-            #options for prompt will be the ones in here: https://developers.google.com/identity/protocols/oauth2/web-server#userconsentprompt
-            # consent,select_account, (none existent)
             request_token_params={'scope': [
                 'https://www.googleapis.com/auth/userinfo.profile',
                 'https://www.googleapis.com/auth/userinfo.email'],
