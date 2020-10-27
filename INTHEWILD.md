@@ -366,6 +366,8 @@ Currently, **officially** using Airflow:
 1. [Whistle Labs](http://www.whistle.com) [[@ananya77041](https://github.com/ananya77041)]
 1. [Wildlifestudios](https://wildlifestudios.com/)
 1. [WiseBanyan](https://wisebanyan.com/)
+1. [WixAnswers](https://www.wixanswers.com/) [[@eladkal](https://github.com/eladkal)]
+1. [Wix](https://www.wix.com/) [[@eladkal](https://github.com/eladkal)]
 1. [Wooga](https://www.wooga.com/)
 1. [WorldRemit](https://www.worldremit.com/) [[@boittega](https://github.com/boittega)]
 1. [Wrike](https://www.wrike.com) [[@eliseealex](https://github.com/eliseealex) & [teoretic6](https://github.com/Teoretic6)]
