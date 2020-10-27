@@ -737,7 +737,7 @@ INSTALL_REQUIREMENTS = [
     'typing-extensions>=3.7.4;python_version<"3.8"',
     'tzlocal>=1.4,<2.0.0',
     'unicodecsv>=0.14.1',
-    'werkzeug<1.0.0',
+    'werkzeug~=1.0, >=1.0.1',
 ]
 
 

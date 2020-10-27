@@ -1063,7 +1063,7 @@
       version_added: 1.10.3
       type: string
       example: ~
-      default: ""
+      default: "Lax"
     - name: default_wrap
       description: |
         Default setting for wrap toggle on DAG code and TI log views.
