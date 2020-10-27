@@ -290,7 +290,7 @@ The decorated function can be called once to set the arguments and key arguments
 Task decorator captures returned values and sends them to the :ref:`XCom backend <concepts:xcom>`. By default,
 the returned value is saved as a single XCom value. You can set ``multiple_outputs`` key argument to ``True``
 to unroll dictionaries, lists or tuples into separate XCom values. This can be used with regular operators to
-create :ref:`decorated DAGs <concepts:decorated_flows>`.
+create :ref:`decorated DAGs <concepts:task_flow_api>`.
 
 Calling a decorated function returns an ``XComArg`` instance. You can use it to set templated fields on downstream
 operators.
