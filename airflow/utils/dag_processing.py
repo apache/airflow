@@ -664,13 +664,15 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
 
             self._kill_timed_out_processors()
 
+            files_paths_to_exclude_in_this_loop = self.get_files_paths_to_exclude_in_this_loop()
+
             # Generate more file paths to process if we processed all the files
             # already.
             if not self._file_path_queue:
                 self.emit_metrics()
-                self.prepare_file_path_queue()
+                self.prepare_file_path_queue(files_paths_to_exclude_in_this_loop)
 
-            self.start_new_processes()
+            self.start_new_processes(files_paths_to_exclude_in_this_loop)
 
             # Update number of loop iteration.
             self._num_run += 1
@@ -711,11 +713,13 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                     poll_time = 0.0
 
     def _add_callback_to_queue(self, request: CallbackRequest):
-        self._callback_to_execute[request.full_filepath].append(request)
+        full_filepath = request.full_filepath
+
+        self._callback_to_execute[full_filepath].append(request)
         # Callback has a higher priority over DAG Run scheduling
-        if request.full_filepath in self._file_path_queue:
-            self._file_path_queue.remove(request.full_filepath)
-        self._file_path_queue.insert(0, request.full_filepath)
+        # ensure we remove all full_filepath in the self._file_path_queue
+        self._file_path_queue = [fp for fp in self._file_path_queue if fp != full_filepath]
+        self._file_path_queue.insert(0, full_filepath)
 
     def _refresh_dag_dir(self):
         """Refresh file paths from dag dir if we haven't done it for too long."""
@@ -999,10 +1003,18 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         self.log.debug("%s file paths queued for processing",
                        len(self._file_path_queue))
 
-    def start_new_processes(self):
+    def start_new_processes(self, files_paths_to_exclude_in_this_loop=None):
         """Start more processors if we have enough slots and files to process"""
+        if files_paths_to_exclude_in_this_loop is None:
+            files_paths_to_exclude_in_this_loop = set()
+
         while self._parallelism - len(self._processors) > 0 and self._file_path_queue:
             file_path = self._file_path_queue.pop(0)
+
+            if file_path in files_paths_to_exclude_in_this_loop:
+                self.log.debug("Skip file: %s since it is in files_paths_to_exclude_in_this_loop", file_path)
+                continue
+
             callback_to_execute_for_file = self._callback_to_execute[file_path]
             processor = self._processor_factory(
                 file_path,
@@ -1021,18 +1033,18 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             self._processors[file_path] = processor
             self.waitables[processor.waitable_handle] = processor
 
-    def prepare_file_path_queue(self):
-        """Generate more file paths to process. Result are saved in _file_path_queue."""
+    def get_files_paths_to_exclude_in_this_loop(self):
+        """Return a set of dag files to exclude parsing in this loop"""
         self._parsing_start_time = timezone.utcnow()
         # If the file path is already being processed, or if a file was
         # processed recently, wait until the next batch
-        file_paths_in_progress = self._processors.keys()
+        file_paths_in_progress = list(self._processors.keys())
         now = timezone.utcnow()
         file_paths_recently_processed = []
         for file_path in self._file_paths:
             last_finish_time = self.get_last_finish_time(file_path)
             if (last_finish_time is not None and
-                (now - last_finish_time).total_seconds() <
+                    (now - last_finish_time).total_seconds() <
                     self._file_process_interval):
                 file_paths_recently_processed.append(file_path)
 
@@ -1040,10 +1052,18 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                                     for file_path, stat in self._file_stats.items()
                                     if stat.run_count == self._max_runs]
 
-        files_paths_to_queue = list(set(self._file_paths) -
-                                    set(file_paths_in_progress) -
-                                    set(file_paths_recently_processed) -
-                                    set(files_paths_at_run_limit))
+        files_paths_to_exclude_in_this_loop = set(
+            file_paths_in_progress + file_paths_recently_processed + files_paths_at_run_limit
+        )
+
+        return files_paths_to_exclude_in_this_loop
+
+    def prepare_file_path_queue(self, files_paths_to_exclude_in_this_loop=None):
+        """Generate more file paths to process. Result are saved in _file_path_queue."""
+        if files_paths_to_exclude_in_this_loop is None:
+            files_paths_to_exclude_in_this_loop = set()
+
+        files_paths_to_queue = list(set(self._file_paths) - files_paths_to_exclude_in_this_loop)
 
         for file_path, processor in self._processors.items():
             self.log.debug(

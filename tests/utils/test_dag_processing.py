@@ -138,6 +138,29 @@ class TestDagFileProcessorManager(unittest.TestCase):
         child_pipe.close()
         parent_pipe.close()
 
+    def test_start_new_processes_with_files_to_exclude(self):
+        processor_factory = MagicMock()
+        manager = DagFileProcessorManager(
+            dag_directory='directory',
+            max_runs=1,
+            processor_factory=processor_factory,
+            processor_timeout=timedelta.max,
+            signal_conn=MagicMock(),
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=True)
+        f1 = '/tmp/f1.py'
+        f2 = '/tmp/f2.py'
+        manager._file_path_queue = [f1, f2]
+        files_paths_to_exclude_in_this_loop = {f1}
+
+        manager.start_new_processes(files_paths_to_exclude_in_this_loop)
+
+        assert f1 not in manager._processors.keys()
+        assert f1 in files_paths_to_exclude_in_this_loop
+        assert f2 in manager._processors.keys()
+        assert f2 not in files_paths_to_exclude_in_this_loop
+
     def test_set_file_paths_when_processor_file_path_not_in_new_file_paths(self):
         manager = DagFileProcessorManager(
             dag_directory='directory',
