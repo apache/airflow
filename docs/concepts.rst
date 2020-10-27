@@ -120,14 +120,14 @@ DAGs can be used as context managers to automatically assign new operators to th
 
     op.dag is dag # True
 
-.. _concepts:decorated_flows:
+.. _concepts:task_flow_api:
 
-Decorated Flows
----------------
+TaskFlow API
+------------
 
 .. versionadded:: 2.0.0
 
-Airflow 2.0 adds a new style of authoring dags called Decorated Flows which removes a lot of the boilerplate
+Airflow 2.0 adds a new style of authoring dags called the TaskFlow API which removes a lot of the boilerplate
 around creating PythonOperators, managing dependencies between task and accessing XCom values. (During
 development this feature was called "Functional DAGs", so if you see or hear any references to that, it's the
 same thing)
@@ -136,7 +136,7 @@ Outputs and inputs are sent between tasks using :ref:`XCom values <concepts:xcom
 functions as tasks using the :ref:`task decorator <concepts:task_decorator>`. Airflow will also automatically
 add dependencies between tasks to ensure that XCom messages are available when operators are executed.
 
-Example DAG with decorated style
+Example DAG built with the TaskFlow API
 
 .. code-block:: python
 
