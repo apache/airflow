@@ -80,7 +80,7 @@ function check_db_backend {
     MAX_CHECK=${1:=1}
 
     if [[ ${BACKEND} == "postgres" ]]; then
-        check_service "PostgresSQL" "nc -zvv postgres 5432" "${MAX_CHECK}"
+        check_service "PostgreSQL" "nc -zvv postgres 5432" "${MAX_CHECK}"
     elif [[ ${BACKEND} == "mysql" ]]; then
         check_service "MySQL" "nc -zvv mysql 3306" "${MAX_CHECK}"
     elif [[ ${BACKEND} == "sqlite" ]]; then
