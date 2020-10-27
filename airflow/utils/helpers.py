@@ -214,4 +214,4 @@ def build_airflow_url_with_query(query: Dict[str, Any]) -> str:
     """
     view = conf.get('webserver', 'dag_default_view').lower()
     base_url = conf.get('webserver', 'base_url')
-    return parse.urljoin(base_url, view) + "?" + parse.urlencode(query)
+    return f"{parse.urljoin(base_url, view)}?{parse.urlencode(query)}"

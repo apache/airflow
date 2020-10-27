@@ -41,7 +41,7 @@ class ExternalTaskSensorLink(BaseOperatorLink):
     name = 'External DAG'
 
     def get_link(self, operator, dttm):
-        query = {"dag_id": operator.external_dag_id, "root": "", "execution_date": dttm.isoformat()}
+        query = {"dag_id": operator.external_dag_id, "execution_date": dttm.isoformat()}
         return build_airflow_url_with_query(query)
 
 
