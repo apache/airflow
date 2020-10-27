@@ -25,6 +25,7 @@ assists users migrating to a new version.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Airflow Master](#airflow-master)
 - [Airflow 2.0.0a1](#airflow-200a1)
 - [Airflow 1.10.13](#airflow-11013)
 - [Airflow 1.10.12](#airflow-11012)
@@ -46,6 +47,13 @@ assists users migrating to a new version.
 - [Airflow 1.7.1.2](#airflow-1712)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+## Airflow Master
+
+### The default `[webserver] cookie_samesite` has been changed to `Lax`
+
+As [recommended](https://flask.palletsprojects.com/en/1.1.x/config/#SESSION_COOKIE_SAMESITE) by Flask, the
+`[webserver] cookie_samesite` has bee changed to `Lax` from `None`.
 
 ## Airflow 2.0.0a1
 
