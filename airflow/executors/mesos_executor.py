@@ -19,7 +19,7 @@
 import threading
 from builtins import str
 from queue import Queue
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from avmesos.client import MesosClient
 
@@ -57,14 +57,14 @@ class AirflowMesosScheduler(MesosClient):
                  executor,
                  task_queue,
                  result_queue,
-                 task_cpu=1,
-                 task_mem=256):
+                 task_cpu: int = 1,
+                 task_mem: int = 256):
         self.task_queue = task_queue
         self.result_queue = result_queue
         self.task_cpu = task_cpu
         self.task_mem = task_mem
         self.task_counter = 0
-        self.task_key_map = {}
+        self.task_key_map: Dict[str, str] = {}
         self.log = executor.log
         self.client = executor.client
         self.executor = executor
@@ -325,7 +325,7 @@ class MesosExecutor(BaseExecutor):
             try:
                 self.client.register()
             except KeyboardInterrupt:
-                self.log.info("Stop requested by user, stopping framework....")
+                print("Stop requested by user, stopping framework....")
 
     def __init__(self):
         super().__init__()
@@ -334,7 +334,7 @@ class MesosExecutor(BaseExecutor):
         self.result_queue = Queue()
         self.driver = None
         self.client = None
-        self.th = None  # pylint: disable=invalid-name
+        self.mesos_framework = None
 
     @provide_session
     def start(self, session=None):
@@ -348,8 +348,8 @@ class MesosExecutor(BaseExecutor):
         framework_name = get_framework_name()
         framework_id = None
 
-        task_cpu = conf.get('mesos', 'TASK_CPU', fallback=1)
-        task_memory = conf.get('mesos', 'TASK_MEMORY', fallback=256)
+        task_cpu = conf.getint('mesos', 'TASK_CPU', fallback=1)
+        task_memory = conf.getint('mesos', 'TASK_MEMORY', fallback=256)
 
         if conf.getboolean('mesos', 'CHECKPOINT'):
             framework_checkpoint = True
@@ -375,7 +375,7 @@ class MesosExecutor(BaseExecutor):
             framework_checkpoint = False
 
         self.log.info(
-            'MesosFramework master : %s, name : %s, cpu : %s, mem : %s, checkpoint : %s, id : %s',
+            'MesosFramework master : %s, name : %s, cpu : %d, mem : %d, checkpoint : %s, id : %s',
             master, framework_name, task_cpu, task_memory, framework_checkpoint, framework_id
         )
 
@@ -409,8 +409,8 @@ class MesosExecutor(BaseExecutor):
         self.client.on(MesosClient.SUBSCRIBED, driver.subscribed)
         self.client.on(MesosClient.UPDATE, driver.status_update)
         self.client.on(MesosClient.OFFERS, driver.resource_offers)
-        self.th = MesosExecutor.MesosFramework(self.client)
-        self.th.start()
+        self.mesos_framework = MesosExecutor.MesosFramework(self.client)
+        self.mesos_framework.start()
 
     def sync(self) -> None:
         """Updates states of the tasks."""
@@ -461,7 +461,7 @@ class MesosExecutor(BaseExecutor):
         self.result_queue.join()
         self.client.stop = True
         self.driver.tearDown()
-        self.th.stop = True
+        self.mesos_framework.stop = True
 
     def terminate(self):
         """Terminate the executor is not doing anything."""
