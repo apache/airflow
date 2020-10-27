@@ -893,18 +893,11 @@ jobs:
       fail-fast: false
     needs:
       - build-info
-      - static-checks
-      - static-checks-pylint
-      - tests-sqlite
-      - tests-mysql
-      - tests-postgres
-      - tests-kubernetes
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
     if: >
       needs.build-info.outputs.basic-checks-only == 'false' &&
       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ) &&
-      github.event_name != 'pull' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -929,11 +922,18 @@ jobs:
     timeout-minutes: 10
     name: "Constraints push"
     runs-on: ubuntu-latest
-    needs: [build-info, constraints]
+    needs:
+      - build-info
+      - constraints
+      - static-checks
+      - static-checks-pylint
+      - tests-sqlite
+      - tests-mysql
+      - tests-postgres
+      - tests-kubernetes
     if: >
       needs.build-info.outputs.basic-checks-only == 'false' &&
       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ) &&
-      github.event_name != 'pull' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
