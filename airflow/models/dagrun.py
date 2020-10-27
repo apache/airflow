@@ -488,8 +488,8 @@ class DagRun(Base, LoggingMixin):
         for ti in tis:
             ti.task = self.get_dag().get_task(ti.task_id)
 
-        unfinished_tasks = [t for t in tis if t.state in State.unfinished()]
-        finished_tasks = [t for t in tis if t.state in State.finished() + [State.UPSTREAM_FAILED]]
+        unfinished_tasks = [t for t in tis if t.state in State.unfinished]
+        finished_tasks = [t for t in tis if t.state in State.finished | {State.UPSTREAM_FAILED}]
         if unfinished_tasks:
             scheduleable_tasks = [ut for ut in unfinished_tasks if ut.state in SCHEDULEABLE_STATES]
             self.log.debug(

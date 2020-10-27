@@ -1425,7 +1425,7 @@ class DAG(BaseDag, LoggingMixin):
         task_dict = self.task_dict
         task_group = self._task_group
         self.task_dict = {}
-        self._task_group = None
+        self._task_group = None  # type: ignore
         dag = copy.deepcopy(self)
         self.task_dict = task_dict
         self._task_group = task_group
