@@ -120,7 +120,7 @@ DAGs can be used as context managers to automatically assign new operators to th
 
     op.dag is dag # True
 
-.. _concepts:decorated_flows:
+.. _concepts:task_flow_api:
 
 TaskFlow API
 ------------
