@@ -67,10 +67,13 @@ class TestDag(unittest.TestCase):
     def setUp(self) -> None:
         clear_db_runs()
         clear_db_dags()
+        self.patcher_dag_code = patch.object(settings, "STORE_DAG_CODE", False)
+        self.patcher_dag_code.start()
 
     def tearDown(self) -> None:
         clear_db_runs()
         clear_db_dags()
+        self.patcher_dag_code.stop()
 
     @staticmethod
     def _clean_up(dag_id: str):
@@ -694,7 +697,7 @@ class TestDag(unittest.TestCase):
             DAG(f'dag-bulk-sync-{i}', start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(0, 4)
         ]
 
-        with assert_queries_count(7):
+        with assert_queries_count(5):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             self.assertEqual(
@@ -711,14 +714,14 @@ class TestDag(unittest.TestCase):
                 set(session.query(DagTag.dag_id, DagTag.name).all())
             )
         # Re-sync should do fewer queries
-        with assert_queries_count(4):
+        with assert_queries_count(3):
             DAG.bulk_write_to_db(dags)
-        with assert_queries_count(4):
+        with assert_queries_count(3):
             DAG.bulk_write_to_db(dags)
         # Adding tags
         for dag in dags:
             dag.tags.append("test-dag2")
-        with assert_queries_count(5):
+        with assert_queries_count(4):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             self.assertEqual(
@@ -741,7 +744,7 @@ class TestDag(unittest.TestCase):
         # Removing tags
         for dag in dags:
             dag.tags.remove("test-dag")
-        with assert_queries_count(5):
+        with assert_queries_count(4):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             self.assertEqual(
