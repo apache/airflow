@@ -73,15 +73,17 @@ compatible DAGs will work in Airflow 1.10.13. Instead, this backport will give u
 disruption.
 2. We have backported the `pod_template_file` capability for the KubernetesExecutor as well as a script that will generate a `pod_template_file`
 based on your `airflow.cfg` settings. To generate this file simply run the following command:
-
-        airflow generate_pod_template -o <output file path>
+```shell script
+    airflow generate_pod_template -o <output file path>
+```
     Once you have performed this step, simply write out the file path to this file in the `pod_template_file` section of the `kubernetes`
     section of your `airflow.cfg`
 3. Airflow 1.10.13 will contain our "upgrade check" scripts. These scripts will read through your `airflow.cfg` and all of your
 Dags and will give a detailed report of all changes required before upgrading. We are testing this script diligently, and our
 goal is that any Airflow setup that can pass these tests will be able to upgrade to 2.0 without any issues.
-
-        airflow upgrade_check
+```shell script
+    airflow upgrade_check
+```
 
 
 ## Step 3: Set Operators to Backport Providers
