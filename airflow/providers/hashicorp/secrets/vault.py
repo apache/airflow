@@ -48,7 +48,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         (default: 'connections'). If set to None (null), requests for connections will not be sent to Vault.
     :type connections_path: str
     :param variables_path: Specifies the path of the secret to read to get Variable.
-        (default: 'variables'). Note that if set to None (null), requests for variables will not be sent to Vault.
+        (default: 'variables'). If set to None (null), requests for variables will not be sent to Vault.
     :type variables_path: str
     :param config_path: Specifies the path of the secret to read Airflow Configurations
         (default: 'configs').
