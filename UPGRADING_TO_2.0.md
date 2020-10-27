@@ -73,11 +73,11 @@ compatible DAGs will work in Airflow 1.10.13. Instead, this backport will give u
 disruption.
 2. We have backported the `pod_template_file` capability for the KubernetesExecutor as well as a script that will generate a `pod_template_file`
 based on your `airflow.cfg` settings. To generate this file simply run the following command:
-```shell script
-    airflow generate_pod_template -o <output file path>
-```
+    ```shell script
+     airflow generate_pod_template -o <output file path>
+    ```
     Once you have performed this step, simply write out the file path to this file in the `pod_template_file` section of the `kubernetes`
-    section of your `airflow.cfg`
+section of your `airflow.cfg`
 3. Airflow 1.10.13 will contain our "upgrade check" scripts. These scripts will read through your `airflow.cfg` and all of your
 Dags and will give a detailed report of all changes required before upgrading. We are testing this script diligently, and our
 goal is that any Airflow setup that can pass these tests will be able to upgrade to 2.0 without any issues.
@@ -109,12 +109,17 @@ and then import the operator with this path:
 from airflow.providers.docker.operators.docker import DockerOperator
 ```
 
-Note that this backport-provider is *not* the same as the actual provider in 2.0. We have tested these operators for backwards
-compatibility and when you upgrade you will need to import the actual provider using this command:
+Note that the backport provider packages are just backports of the provider packages compatible with Airflow 2.0.
+Those provider packages are installed automatically when you install airflow with extras.
+For example:
 
 ```shell script
-pip install airflow-docker
+pip install airflow[docker]
 ```
+
+automatically installs the `apache-airflow-providers-docker` package.
+But you can manage/upgrade remove provider packages separately from the airflow core.
+
 ## Step 3: Upgrade Airflow DAGs
 
 ### Change to undefined variable handling in templates
