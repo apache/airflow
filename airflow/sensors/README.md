@@ -17,8 +17,8 @@
  under the License.
  -->
 
-# Airflow Hooks
+# Airflow Sensors
 
-Airflow Hooks are interfaces to external platforms and databases. They implement a common interface and act as building blocks for operators.
+Airflow Sensors are a special kind of Airflow Operator. When they run, they check to see if a certain criteria is met before they complete and let their downstream tasks execute. They are primarily used to enable portions of your DAG to wait for some criteria to be fulfilled by an external system.
 
-The Hooks contained within this directory are core Airflow Hooks from which others may inherit, including the modules distributed in provider packages. They are included by default in any Airflow implementation.
+The Sensors contained within this directory are core Airflow Sensors. They are included by default in any Airflow implementation. For other available sensors that have been built by the community, please see the `providers` directory.
