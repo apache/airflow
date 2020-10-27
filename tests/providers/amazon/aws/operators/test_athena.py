@@ -17,7 +17,7 @@
 
 import unittest
 
-import mock
+from unittest import mock
 
 from airflow.models import DAG, TaskInstance
 from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook

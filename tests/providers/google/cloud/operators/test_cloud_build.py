@@ -22,7 +22,7 @@ from copy import deepcopy
 from datetime import datetime
 from unittest import TestCase
 
-import mock
+from unittest import mock
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException

@@ -19,7 +19,7 @@
 import unittest
 from copy import deepcopy
 
-import mock
+from unittest import mock
 from google.cloud.bigquery_datatransfer_v1 import DataTransferServiceClient
 from google.cloud.bigquery_datatransfer_v1.types import TransferConfig
 from google.protobuf.json_format import ParseDict

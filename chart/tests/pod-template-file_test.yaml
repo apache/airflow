@@ -29,12 +29,15 @@ tests:
           value: base
   - it: should add an initContainer if gitSync is true
     set:
+      images:
+        gitSync:
+          repository: test-registry/test-repo
+          tag: test-tag
+          pullPolicy: Allways
       dags:
         gitSync:
           enabled: true
           containerName: git-sync-test
-          containerTag: test-tag
-          containerRepository: test-registry/test-repo
           wait: 66
           maxFailures: 70
           subPath: "path1/path2"
@@ -57,6 +60,7 @@ tests:
             securityContext:
               runAsUser: 65533
             image: test-registry/test-repo:test-tag
+            imagePullPolicy: Allways
             env:
               - name: GIT_SYNC_REV
                 value: HEAD

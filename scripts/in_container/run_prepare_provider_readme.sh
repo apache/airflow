@@ -27,6 +27,8 @@ cd "${AIRFLOW_SOURCES}" || exit 1
 # install extra packages missing in devel_ci
 export PYTHONPATH="${AIRFLOW_SOURCES}"
 
+verify_suffix_versions_for_package_preparation
+
 echo
 echo "Installing remaining packages from 'all' extras"
 echo
@@ -36,13 +38,21 @@ echo > "${OUT_FILE_PRINTED_ON_ERROR}"
 
 cd "${AIRFLOW_SOURCES}/provider_packages" || exit 1
 
-python3 setup_provider_packages.py update-package-release-notes "$@"
+python3 prepare_provider_packages.py --version-suffix "${TARGET_VERSION_SUFFIX}" \
+    update-package-release-notes "$@"
+
 
 AIRFLOW_PROVIDER_README_TGZ_FILE="/files/airflow-readme-$(date +"%Y-%m-%d-%H.%M.%S").tar.gz"
 
 cd "${AIRFLOW_SOURCES}" || exit 1
 
-find airflow/providers \( -name 'README.md' -o -name "${PACKAGE_PREFIX_UPPERCASE}PROVIDERS_CHANGES*" \) -print0 | \
+find airflow/providers \( \
+        -name "${PACKAGE_PREFIX_UPPERCASE}PROVIDERS_CHANGES*" \
+        -o -name "${PACKAGE_PREFIX_UPPERCASE}README.md" \
+        -o -name "${PACKAGE_PREFIX_UPPERCASE}setup.py" \
+        -o -name "${PACKAGE_PREFIX_UPPERCASE}setup.cfg" \
+        \) \
+        -print0 | \
     tar --null --no-recursion -cvzf "${AIRFLOW_PROVIDER_README_TGZ_FILE}" -T -
 echo
 echo "Airflow readme for ${PACKAGE_TYPE} provider packages are tar-gzipped in ${AIRFLOW_PROVIDER_README_TGZ_FILE}"

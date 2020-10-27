@@ -32,11 +32,30 @@ log = logging.getLogger(__name__)
 _AIRFLOW_VERSION = 'v' + airflow_version.replace('.', '-').replace('+', '-')
 
 
-def _poll_with_exponential_delay(request, max_n, is_done_func, is_error_func):
+def _poll_with_exponential_delay(request, execute_num_retries, max_n, is_done_func, is_error_func):
+    """
+    Execute request with exponential delay.
 
+    This method is intended to handle and retry in case of api-specific errors,
+    such as 429 "Too Many Requests", unlike the `request.execute` which handles
+    lower level errors like `ConnectionError`/`socket.timeout`/`ssl.SSLError`.
+
+    :param request: request to be executed.
+    :type request: googleapiclient.http.HttpRequest
+    :param execute_num_retries: num_retries for `request.execute` method.
+    :type execute_num_retries: int
+    :param max_n: number of times to retry request in this method.
+    :type max_n: int
+    :param is_done_func: callable to determine if operation is done.
+    :type is_done_func: callable
+    :param is_error_func: callable to determine if operation is failed.
+    :type is_error_func: callable
+    :return: response
+    :rtype: httplib2.Response
+    """
     for i in range(0, max_n):
         try:
-            response = request.execute()
+            response = request.execute(num_retries=execute_num_retries)
             if is_error_func(response):
                 raise ValueError('The response contained an error: {}'.format(response))
             if is_done_func(response):
@@ -113,7 +132,7 @@ class MLEngineHook(GoogleBaseHook):
         job_id = job['jobId']
 
         try:
-            request.execute()
+            request.execute(num_retries=self.num_retries)
         except HttpError as e:
             # 409 means there is an existing job with the same job ID.
             if e.resp.status == 409:
@@ -158,7 +177,7 @@ class MLEngineHook(GoogleBaseHook):
         request = hook.projects().jobs().cancel(name=f'projects/{project_id}/jobs/{job_id}')
 
         try:
-            return request.execute()
+            return request.execute(num_retries=self.num_retries)
         except HttpError as e:
             if e.resp.status == 404:
                 self.log.error('Job with job_id %s does not exist. ', job_id)
@@ -188,7 +207,7 @@ class MLEngineHook(GoogleBaseHook):
         request = hook.projects().jobs().get(name=job_name)  # pylint: disable=no-member
         while True:
             try:
-                return request.execute()
+                return request.execute(num_retries=self.num_retries)
             except HttpError as e:
                 if e.resp.status == 429:
                     # polling after 30 seconds when quota failure occurs
@@ -253,11 +272,12 @@ class MLEngineHook(GoogleBaseHook):
 
         # pylint: disable=no-member
         create_request = hook.projects().models().versions().create(parent=parent_name, body=version_spec)
-        response = create_request.execute()
+        response = create_request.execute(num_retries=self.num_retries)
         get_request = hook.projects().operations().get(name=response['name'])  # pylint: disable=no-member
 
         return _poll_with_exponential_delay(
             request=get_request,
+            execute_num_retries=self.num_retries,
             max_n=9,
             is_done_func=lambda resp: resp.get('done', False),
             is_error_func=lambda resp: resp.get('error', None) is not None,
@@ -292,7 +312,7 @@ class MLEngineHook(GoogleBaseHook):
         request = hook.projects().models().versions().setDefault(name=full_version_name, body={})
 
         try:
-            response = request.execute()
+            response = request.execute(num_retries=self.num_retries)
             self.log.info('Successfully set version: %s to default', response)
             return response
         except HttpError as e:
@@ -325,7 +345,7 @@ class MLEngineHook(GoogleBaseHook):
         request = hook.projects().models().versions().list(parent=full_parent_name, pageSize=100)
 
         while request is not None:
-            response = request.execute()
+            response = request.execute(num_retries=self.num_retries)
             result.extend(response.get('versions', []))
             # pylint: disable=no-member
             request = (
@@ -362,11 +382,12 @@ class MLEngineHook(GoogleBaseHook):
         delete_request = (
             hook.projects().models().versions().delete(name=full_name)  # pylint: disable=no-member
         )
-        response = delete_request.execute()
+        response = delete_request.execute(num_retries=self.num_retries)
         get_request = hook.projects().operations().get(name=response['name'])  # pylint: disable=no-member
 
         return _poll_with_exponential_delay(
             request=get_request,
+            execute_num_retries=self.num_retries,
             max_n=9,
             is_done_func=lambda resp: resp.get('done', False),
             is_error_func=lambda resp: resp.get('error', None) is not None,
@@ -399,7 +420,7 @@ class MLEngineHook(GoogleBaseHook):
         self._append_label(model)
         try:
             request = hook.projects().models().create(parent=project, body=model)  # pylint: disable=no-member
-            respone = request.execute()
+            respone = request.execute(num_retries=self.num_retries)
         except HttpError as e:
             if e.resp.status != 409:
                 raise e
@@ -449,7 +470,7 @@ class MLEngineHook(GoogleBaseHook):
         full_model_name = 'projects/{}/models/{}'.format(project_id, model_name)
         request = hook.projects().models().get(name=full_model_name)  # pylint: disable=no-member
         try:
-            return request.execute()
+            return request.execute(num_retries=self.num_retries)
         except HttpError as e:
             if e.resp.status == 404:
                 self.log.error('Model was not found: %s', e)
@@ -486,7 +507,7 @@ class MLEngineHook(GoogleBaseHook):
             self._delete_all_versions(model_name, project_id)
         request = hook.projects().models().delete(name=model_path)  # pylint: disable=no-member
         try:
-            request.execute()
+            request.execute(num_retries=self.num_retries)
         except HttpError as e:
             if e.resp.status == 404:
                 self.log.error('Model was not found: %s', e)

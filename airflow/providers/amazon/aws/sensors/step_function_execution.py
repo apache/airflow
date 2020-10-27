@@ -16,6 +16,7 @@
 # under the License.
 
 import json
+from typing import Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
@@ -51,12 +52,19 @@ class StepFunctionExecutionSensor(BaseSensorOperator):
     ui_color = '#66c3ff'
 
     @apply_defaults
-    def __init__(self, *, execution_arn: str, aws_conn_id='aws_default', region_name=None, **kwargs):
+    def __init__(
+        self,
+        *,
+        execution_arn: str,
+        aws_conn_id: str = 'aws_default',
+        region_name: Optional[str] = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.execution_arn = execution_arn
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
-        self.hook = None
+        self.hook: Optional[StepFunctionHook] = None
 
     def poke(self, context):
         execution_status = self.get_hook().describe_execution(self.execution_arn)
@@ -73,8 +81,10 @@ class StepFunctionExecutionSensor(BaseSensorOperator):
         self.xcom_push(context, 'output', output)
         return True
 
-    def get_hook(self):
+    def get_hook(self) -> StepFunctionHook:
         """Create and return a StepFunctionHook"""
-        if not self.hook:
-            self.hook = StepFunctionHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+        if self.hook:
+            return self.hook
+
+        self.hook = StepFunctionHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         return self.hook

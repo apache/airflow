@@ -17,8 +17,7 @@
 # under the License.
 import unittest
 from datetime import timedelta
-
-from mock import patch
+from unittest.mock import patch
 
 from airflow import AirflowException, example_dags as example_dags_module
 from airflow.models import DagBag

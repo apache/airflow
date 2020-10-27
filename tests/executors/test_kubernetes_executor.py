@@ -20,8 +20,8 @@ import re
 import string
 import unittest
 from datetime import datetime
+from unittest import mock
 
-import mock
 from kubernetes.client import models as k8s
 from urllib3 import HTTPResponse
 

@@ -15,8 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
+from typing import Optional, Union
 from urllib.parse import urlparse
 
 from airflow.exceptions import AirflowException
@@ -62,11 +61,11 @@ class S3KeySensor(BaseSensorOperator):
     def __init__(
         self,
         *,
-        bucket_key,
-        bucket_name=None,
-        wildcard_match=False,
-        aws_conn_id='aws_default',
-        verify=None,
+        bucket_key: str,
+        bucket_name: Optional[str] = None,
+        wildcard_match: bool = False,
+        aws_conn_id: str = 'aws_default',
+        verify: Optional[Union[str, bool]] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -91,7 +90,7 @@ class S3KeySensor(BaseSensorOperator):
         self.wildcard_match = wildcard_match
         self.aws_conn_id = aws_conn_id
         self.verify = verify
-        self.hook = None
+        self.hook: Optional[S3Hook] = None
 
     def poke(self, context):
         self.log.info('Poking for key : s3://%s/%s', self.bucket_name, self.bucket_key)
@@ -99,8 +98,10 @@ class S3KeySensor(BaseSensorOperator):
             return self.get_hook().check_for_wildcard_key(self.bucket_key, self.bucket_name)
         return self.get_hook().check_for_key(self.bucket_key, self.bucket_name)
 
-    def get_hook(self):
+    def get_hook(self) -> S3Hook:
         """Create and return an S3Hook"""
-        if not self.hook:
-            self.hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+        if self.hook:
+            return self.hook
+
+        self.hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         return self.hook

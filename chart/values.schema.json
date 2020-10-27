@@ -288,6 +288,24 @@
                             "type": "string"
                         }
                     }
+                },
+                "gitSync": {
+                    "description": "Configuration of the gitSync image.",
+                    "type": "object",
+                    "properties": {
+                        "repository": {
+                            "description": "The gitSync image repository.",
+                            "type": "string"
+                        },
+                        "tag": {
+                            "description": "The gitSync image tag.",
+                            "type": "string"
+                        },
+                        "pullPolicy": {
+                            "description": "The gitSync image pull policy.",
+                            "type": "string"
+                        }
+                    }
                 }
             }
         },
@@ -967,20 +985,6 @@
             "description": "Define default/max/min values for pods and containers in namespace.",
             "type": "array"
         },
-        "podMutation": {
-            "description": "Settings for pod_mutation_hook",
-            "type": "object",
-            "properties": {
-                "tolerations": {
-                    "description": "Tolerations provided here would be applied using pod_mutation_hook. So any pods spun up using KubernetesExecutor or KubernetesPodOperator will contain these tolerations.",
-                    "type": "array"
-                },
-                "affinity": {
-                    "description": "Pods spun up would land in the node that matches the affinity.",
-                    "type": "object"
-                }
-            }
-        },
         "cleanup": {
             "description": "This runs as a CronJob to cleanup old pods.",
             "type": "object",
@@ -1107,14 +1111,6 @@
                         "wait": {
                             "description": "Interval between git sync attempts in seconds.",
                             "type": "integer"
-                        },
-                        "containerRepository": {
-                            "description": "Git sync image repository.",
-                            "type": "string"
-                        },
-                        "containerTag": {
-                            "description": "Git sync image tag.",
-                            "type": "string"
                         },
                         "containerName": {
                             "description": "Git sync container name.",

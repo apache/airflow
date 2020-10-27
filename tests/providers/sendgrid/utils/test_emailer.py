@@ -22,7 +22,7 @@ import os
 import tempfile
 import unittest
 
-import mock
+from unittest import mock
 
 from airflow.providers.sendgrid.utils.emailer import send_email
 

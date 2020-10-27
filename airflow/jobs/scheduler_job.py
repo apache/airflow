@@ -763,8 +763,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         self.num_runs = num_runs
         # In specific tests, we want to stop the parse loop after the _files_ have been parsed a certain
-        # number of times. This is only to support testing, and is n't something a user is likely to want to
-        # conifugre -- they'll want num_runs
+        # number of times. This is only to support testing, and isn't something a user is likely to want to
+        # configure -- they'll want num_runs
         self.num_times_parse_dags = num_times_parse_dags
         self._processor_poll_interval = processor_poll_interval
 
@@ -1467,17 +1467,24 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             # The longer term fix would be to have `clear` do this, and put DagRuns
             # in to the queued state, then take DRs out of queued before creating
             # any new ones
-            # TODO[HA]: Why is this on TI, not on DagRun??
-            currently_active_runs = dict(session.query(
+
+            # Build up a set of execution_dates that are "active" for a given
+            # dag_id -- only tasks from those runs will be scheduled.
+            active_runs_by_dag_id = defaultdict(set)
+
+            query = session.query(
                 TI.dag_id,
-                func.count(TI.execution_date.distinct()),
+                TI.execution_date,
             ).filter(
                 TI.dag_id.in_(list({dag_run.dag_id for dag_run in dag_runs})),
                 TI.state.notin_(list(State.finished))
-            ).group_by(TI.dag_id).all())
+            ).group_by(TI.dag_id, TI.execution_date)
+
+            for dag_id, execution_date in query:
+                active_runs_by_dag_id[dag_id].add(execution_date)
 
             for dag_run in dag_runs:
-                self._schedule_dag_run(dag_run, currently_active_runs.get(dag_run.dag_id, 0), session)
+                self._schedule_dag_run(dag_run, active_runs_by_dag_id.get(dag_run.dag_id, set()), session)
 
             guard.commit()
 
@@ -1535,6 +1542,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                     return 0
                 raise
 
+            guard.commit()
             return num_queued_tis
 
     def _create_dag_runs(self, dag_models: Iterable[DagModel], session: Session) -> None:
@@ -1588,7 +1596,12 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 dag_model.next_dagrun, dag_model.next_dagrun_create_after = \
                     dag.next_dagrun_info(dag_model.next_dagrun)
 
-    def _schedule_dag_run(self, dag_run: DagRun, currently_active_runs: int, session: Session) -> int:
+    def _schedule_dag_run(
+        self,
+        dag_run: DagRun,
+        currently_active_runs: Set[datetime.datetime],
+        session: Session,
+    ) -> int:
         """
         Make scheduling decisions about an individual dag run
 
@@ -1640,11 +1653,13 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             return 0
 
         if dag.max_active_runs:
-            if currently_active_runs >= dag.max_active_runs:
+            if len(currently_active_runs) >= dag.max_active_runs and \
+               dag_run.execution_date not in currently_active_runs:
                 self.log.info(
-                    "DAG %s already has %d active runs, not queuing any more tasks",
+                    "DAG %s already has %d active runs, not queuing any tasks for run %s",
                     dag.dag_id,
-                    currently_active_runs,
+                    len(currently_active_runs),
+                    dag_run.execution_date,
                 )
                 return 0
 

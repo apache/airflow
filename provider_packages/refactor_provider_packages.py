@@ -26,12 +26,10 @@ from bowler import LN, TOKEN, Capture, Filename, Query
 from fissix.fixer_util import Comma, KeywordArg, Name
 from fissix.pytree import Leaf
 
-from provider_packages.setup_provider_packages import (
+from provider_packages.prepare_provider_packages import (
     get_source_airflow_folder, get_source_providers_folder, get_target_providers_folder,
     get_target_providers_package_folder,
 )
-
-CLASS_TYPES = ["hooks", "operators", "sensors", "secrets", "protocols"]
 
 
 def copy_provider_sources() -> None:

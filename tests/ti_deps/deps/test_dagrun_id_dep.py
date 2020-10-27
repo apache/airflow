@@ -17,8 +17,7 @@
 # under the License.
 
 import unittest
-
-from mock import Mock
+from unittest.mock import Mock
 
 from airflow.models.dagrun import DagRun
 from airflow.ti_deps.deps.dagrun_id_dep import DagrunIdDep

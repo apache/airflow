@@ -185,11 +185,12 @@ if [[ "${GITHUB_ACTIONS}" == "true" ]]; then
         # timeouts in seconds for individual tests
         "--setup-timeout=20"
         "--execution-timeout=60"
+        "--with-db-init"
         "--teardown-timeout=20"
         # Only display summary for non-expected case
         # f - failed
         # E - error
-        # X - xpessed (passed even if expected to fail)
+        # X - xpassed (passed even if expected to fail)
         # The following cases are not displayed:
         # s - skipped
         # x - xfailed (expected to fail and failed)

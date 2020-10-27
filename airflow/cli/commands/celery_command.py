@@ -24,6 +24,7 @@ import daemon
 import psutil
 import sqlalchemy.exc
 from celery import maybe_patch_concurrency
+from celery.bin import worker as worker_bin
 from daemon.pidfile import TimeoutPIDLockFile
 from flower.command import FlowerCommand
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
@@ -129,8 +130,10 @@ def worker(args):
             pass
 
     # Setup Celery worker
+    worker_instance = worker_bin.worker(app=celery_app)
     options = {
         'optimization': 'fair',
+        'O': 'fair',
         'queues': args.queues,
         'concurrency': args.concurrency,
         'autoscale': autoscale,
@@ -149,8 +152,6 @@ def worker(args):
         # executed.
         maybe_patch_concurrency(['-P', pool])
 
-    worker_instance = celery_app.Worker(**options)
-
     if args.daemon:
         # Run Celery worker as daemon
         handle = setup_logging(log_file)
@@ -168,14 +169,14 @@ def worker(args):
         )
         with ctx:
             sub_proc = _serve_logs(skip_serve_logs)
-            worker_instance.start()
+            worker_instance.run(**options)
 
         stdout.close()
         stderr.close()
     else:
         # Run Celery worker in the same process
         sub_proc = _serve_logs(skip_serve_logs)
-        worker_instance.start()
+        worker_instance.run(**options)
 
     if sub_proc:
         sub_proc.terminate()

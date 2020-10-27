@@ -25,7 +25,7 @@ assists users migrating to a new version.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
-- [Airflow Master](#airflow-master)
+- [Airflow 2.0.0a2](#airflow-200a2)
 - [Airflow 2.0.0a1](#airflow-200a1)
 - [Airflow 1.10.13](#airflow-11013)
 - [Airflow 1.10.12](#airflow-11012)
@@ -48,7 +48,19 @@ assists users migrating to a new version.
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## Airflow Master
+## Airflow 2.0.0a2
+
+### Change default value for dag_run_conf_overrides_params
+
+DagRun configuration dictionary will now by default overwrite params dictionary. If you pass some key-value pairs
+through ``airflow dags backfill -c`` or ``airflow dags trigger -c``, the key-value pairs will
+override the existing ones in params. You can revert this behaviour by setting `dag_run_conf_overrides_params` to `False`
+in your `airflow.cfg`.
+
+### DAG discovery safe mode is now case insensitive
+
+When `DAG_DISCOVERY_SAFE_MODE` is active, Airflow will now filter all files that contain the string `airflow` and `dag`
+in a case insensitive mode. This is being changed to better support the new `@dag` decorator.
 
 ### Change to Permissions
 
@@ -243,6 +255,14 @@ The Old and New provider configuration keys that have changed are as follows
 | request_token_params| client_kwargs     |
 
 For more information, visit https://flask-appbuilder.readthedocs.io/en/latest/security.html#authentication-oauth
+
+### DAG Serialization will be strictly required
+
+Until Airflow 2.0, DAG Serialization was disabled by default. However from Airflow 2.0, DAG Serialization
+will be enabled by default. From Airflow 2.0, Scheduler will use Serialized DAGs to make scheduling decisions
+and so DAG Serialization can not be turned off.
+
+The previous setting `[core] store_serialized_dags` will be ignored.
 
 ### Changes to the KubernetesExecutor
 

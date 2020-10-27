@@ -171,6 +171,7 @@ def task_run(args, dag=None):
 
     task = dag.get_task(task_id=args.task_id)
     ti = TaskInstance(task, args.execution_date)
+    ti.refresh_from_db()
     ti.init_run_context(raw=args.raw)
 
     hostname = get_hostname()

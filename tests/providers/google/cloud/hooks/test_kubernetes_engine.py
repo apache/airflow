@@ -18,9 +18,9 @@
 #
 import unittest
 
-import mock
+from unittest import mock
+from unittest.mock import PropertyMock
 from google.cloud.container_v1.types import Cluster
-from mock import PropertyMock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook

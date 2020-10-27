@@ -22,8 +22,8 @@ import shlex
 import unittest
 from typing import Any, Dict
 
-import mock
-from mock import MagicMock
+from unittest import mock
+from unittest.mock import MagicMock
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException

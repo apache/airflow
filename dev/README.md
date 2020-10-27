@@ -234,7 +234,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Tag your release
 
     ```shell script
-    git tag ${VERSION}
+    git tag -s ${VERSION}
     ```
 
 - Clean the checkout: the sdist step below will
@@ -275,7 +275,10 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     ```
 
 - Push Tags
-`git push --tags`
+
+    ```shell script
+    git push origin ${VERSION}
+    ```
 
 - Push the artifacts to ASF dev dist repo
 ```
@@ -826,7 +829,7 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 * Build the source package:
 
 ```shell script
-./provider_packages/build_source_package.sh
+./provider_packages/build_source_package.sh --backports
 ```
 
 It will generate `apache-airflow-backport-providers-${VERSION}-source.tar.gz`
@@ -836,13 +839,13 @@ It will generate `apache-airflow-backport-providers-${VERSION}-source.tar.gz`
   you intended to build.
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-svn rc1
+./breeze --backports prepare-provider-packages --version-suffix-for-svn rc1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-svn rc1 PACKAGE PACKAGE ....
+./breeze --backports prepare-provider-packages --version-suffix-for-svn rc1 PACKAGE PACKAGE ....
 ```
 
 * Move the source tarball to dist folder
@@ -905,13 +908,13 @@ though they should be generated from the same sources.
 this will clean up dist folder before generating the packages, so you will only have the right packages there.
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-pypi rc1
+./breeze --backports prepare-provider-packages --version-suffix-for-pypi rc1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-pypi rc1 PACKAGE PACKAGE ....
+./breeze --backports prepare-provider-packages --version-suffix-for-pypi rc1 PACKAGE PACKAGE ....
 ```
 
 * Verify the artifacts that would be uploaded:

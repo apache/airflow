@@ -18,7 +18,7 @@
 
 import unittest
 
-import mock
+from unittest import mock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.transfers.local_to_adls import LocalToAzureDataLakeStorageOperator

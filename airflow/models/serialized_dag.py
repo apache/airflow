@@ -47,7 +47,6 @@ class SerializedDagModel(Base):
     serialized_dag table is a snapshot of DAG files synchronized by scheduler.
     This feature is controlled by:
 
-    * ``[core] store_serialized_dags = True``: enable this feature
     * ``[core] min_serialized_dag_update_interval = 30`` (s):
       serialized DAGs are updated in DB when a file gets processed by scheduler,
       to reduce DB write rate, there is a minimal interval of updating serialized DAGs.
@@ -55,8 +54,8 @@ class SerializedDagModel(Base):
       interval of deleting serialized DAGs in DB when the files are deleted, suggest
       to use a smaller interval such as 60
 
-    It is used by webserver to load dags when ``store_serialized_dags=True``.
-    Because reading from database is lightweight compared to importing from files,
+    It is used by webserver to load dags
+    because reading from database is lightweight compared to importing from files,
     it solves the webserver scalability issue.
     """
 

@@ -526,7 +526,7 @@ class DataprocHook(GoogleBaseHook):
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.cloud.dataproc_v1.types.FieldMask`
         :type update_mask: Union[Dict, google.cloud.dataproc_v1.types.FieldMask]
-        :param graceful_decommission_timeout: Optional. Timeout for graceful YARN decomissioning. Graceful
+        :param graceful_decommission_timeout: Optional. Timeout for graceful YARN decommissioning. Graceful
             decommissioning allows removing nodes from the cluster without interrupting jobs in progress.
             Timeout specifies how long to wait for jobs in progress to finish before forcefully removing nodes
             (and potentially interrupting jobs). Default timeout is 0 (for forceful decommission), and the

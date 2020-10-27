@@ -19,8 +19,8 @@ import json
 import os
 import unittest
 
-import mock
-from mock import PropertyMock
+from unittest import mock
+from unittest.mock import PropertyMock
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException

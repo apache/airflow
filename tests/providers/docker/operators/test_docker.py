@@ -18,7 +18,7 @@
 import logging
 import unittest
 
-import mock
+from unittest import mock
 
 from airflow.exceptions import AirflowException
 
@@ -255,13 +255,13 @@ class TestDockerOperator(unittest.TestCase):
         self.client_mock.create_container.assert_called_once()
         self.assertIn(
             'host_config',
-            self.client_mock.create_container.call_args.kwargs,
+            self.client_mock.create_container.call_args[1],
         )
         self.assertIn(
             'extra_hosts',
-            self.client_mock.create_host_config.call_args.kwargs,
+            self.client_mock.create_host_config.call_args[1],
         )
         self.assertIs(
             hosts_obj,
-            self.client_mock.create_host_config.call_args.kwargs['extra_hosts'],
+            self.client_mock.create_host_config.call_args[1]['extra_hosts'],
         )

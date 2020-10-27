@@ -36,7 +36,7 @@ from tabulate import tabulate
 from airflow import settings
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDagBag
-from airflow.exceptions import AirflowClusterPolicyViolation, AirflowDagCycleException
+from airflow.exceptions import AirflowClusterPolicyViolation, AirflowDagCycleException, SerializedDagNotFound
 from airflow.plugins_manager import integrate_dag_plugins
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -75,10 +75,8 @@ class DagBag(BaseDagBag, LoggingMixin):
     :param include_smart_sensor: whether to include the smart sensor native
         DAGs that create the smart sensor operators for whole cluster
     :type include_smart_sensor: bool
-    :param read_dags_from_db: Read DAGs from DB if store_serialized_dags is ``True``.
-        If ``False`` DAGs are read from python files. This property is not used when
-        determining whether or not to write Serialized DAGs, that is done by checking
-        the config ``store_serialized_dags``.
+    :param read_dags_from_db: Read DAGs from DB if ``True`` is passed.
+        If ``False`` DAGs are read from python files.
     :type read_dags_from_db: bool
     """
 
@@ -214,7 +212,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         from airflow.models.serialized_dag import SerializedDagModel
         row = SerializedDagModel.get(dag_id, session)
         if not row:
-            raise ValueError(f"DAG '{dag_id}' not found in serialized_dag table")
+            raise SerializedDagNotFound(f"DAG '{dag_id}' not found in serialized_dag table")
 
         dag = row.dag
         for subdag in dag.subdags:
@@ -527,8 +525,6 @@ class DagBag(BaseDagBag, LoggingMixin):
         from airflow.models.serialized_dag import SerializedDagModel
         self.log.debug("Calling the DAG.bulk_sync_to_db method")
         DAG.bulk_write_to_db(self.dags.values(), session=session)
-        # Write Serialized DAGs to DB if DAG Serialization is turned on
-        # Even though self.read_dags_from_db is False
-        if settings.STORE_SERIALIZED_DAGS or self.read_dags_from_db:
-            self.log.debug("Calling the SerializedDagModel.bulk_sync_to_db method")
-            SerializedDagModel.bulk_sync_to_db(self.dags.values(), session=session)
+        # Write Serialized DAGs to DB
+        self.log.debug("Calling the SerializedDagModel.bulk_sync_to_db method")
+        SerializedDagModel.bulk_sync_to_db(self.dags.values(), session=session)

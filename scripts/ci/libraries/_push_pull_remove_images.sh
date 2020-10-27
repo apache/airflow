@@ -72,7 +72,7 @@ function push_pull_remove_images::pull_image_if_not_present_or_forced() {
             >&2 echo "docker login ${IMAGE_TO_PULL%%\/*}"
             >&2 echo
             >&2 echo "You need to use generate token as the password, not your personal password."
-            >&2 echo "You can generete one at https://github.com/settings/tokens"
+            >&2 echo "You can generate one at https://github.com/settings/tokens"
             >&2 echo "Make sure to choose 'read:packages' scope".
             >&2 echo
             exit ${EXIT_VALUE}
@@ -282,7 +282,7 @@ function push_pull_remove_images::push_prod_images() {
     fi
 }
 
-# waits for an image to be available in the github registry
+# waits for an image to be available in the GitHub registry
 function push_pull_remove_images::wait_for_github_registry_image() {
     github_repository_lowercase="$(echo "${GITHUB_REPOSITORY}" |tr '[:upper:]' '[:lower:]')"
     GITHUB_API_ENDPOINT="https://${GITHUB_REGISTRY}/v2/${github_repository_lowercase}"

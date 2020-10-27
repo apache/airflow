@@ -436,7 +436,7 @@ class TestAWSDataSyncOperatorGetTasks(AWSDataSyncTestCaseBase):
         mock_get_conn.return_value = self.client
         # ### Begin tests:
 
-        # Make sure we dont cheat
+        # Make sure we don't cheat
         self.set_up_operator()
         self.assertEqual(self.datasync.task_arn, None)
 

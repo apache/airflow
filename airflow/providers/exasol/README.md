@@ -20,7 +20,7 @@
 
 # Package apache-airflow-providers-exasol
 
-Release: 0.0.1
+Release: 0.0.2a1
 
 **Table of contents**
 
@@ -33,6 +33,7 @@ Release: 0.0.1
     - [Hooks](#hooks)
         - [New hooks](#new-hooks)
 - [Releases](#releases)
+    - [Release 0.0.2a1](#release-002a1)
     - [Release 0.0.1](#release-001)
 
 ## Provider package
@@ -84,6 +85,15 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 
 ## Releases
+
+### Release 0.0.2a1
+
+| Commit                                                                                         | Committed   | Subject                                                            |
+|:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------|
+| [872b1566a](https://github.com/apache/airflow/commit/872b1566a11cb73297e657ff325161721b296574) | 2020-10-25  | Generated backport providers readmes/setup for 2020.10.29 (#11826) |
+| [483068745](https://github.com/apache/airflow/commit/48306874538eea7cfd42358d5ebb59705204bfc4) | 2020-10-24  | Use Python 3 style super classes (#11806)                          |
+| [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)       |
+
 
 ### Release 0.0.1
 

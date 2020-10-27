@@ -244,7 +244,17 @@
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
 
-  assert_equal "${_breeze_allowed_postgres_versions}" "${CURRENT_POSTGRES_VERSIONS[*]}"
+  local version
+  for version in  "${CURRENT_POSTGRES_VERSIONS[@]}"
+  do
+      if [[ " ${_breeze_allowed_postgres_versions} " == *" ${version} "* ]]; then
+          continue
+      else
+          echo "${version} missing in ${_breeze_allowed_postgres_versions}"
+          exit 1
+      fi
+  done
+
 }
 
 @test "Test default Postgres version same as POSTGRES_VERSION" {
@@ -255,10 +265,10 @@
   assert_equal "${_breeze_default_postgres_version}" "${POSTGRES_VERSION}"
 }
 
-@test "Test default test type same as TEST_TYPE" {
+@test "Test default test type is empty" {
   load ../bats_utils
   #shellcheck source=breeze-complete
   source "${AIRFLOW_SOURCES}/breeze-complete"
 
-  assert_equal "${_breeze_default_test_type}" "${TEST_TYPE}"
+  assert_equal "" "${TEST_TYPE}"
 }

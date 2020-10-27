@@ -206,7 +206,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         self.filename = filename
         self.filetype = filetype
         self.content = content
-        super(SlackAPIFileOperator, self).__init__(method=self.method, **kwargs)
+        super().__init__(method=self.method, **kwargs)
 
     def construct_api_call_params(self) -> Any:
         self.api_params = {

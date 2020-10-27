@@ -114,13 +114,7 @@ def trigger_dag(
     if dag_model is None:
         raise DagNotFound("Dag id {} not found in DagModel".format(dag_id))
 
-    def read_store_serialized_dags():
-        from airflow.configuration import conf
-        return conf.getboolean('core', 'store_serialized_dags')
-    dagbag = DagBag(
-        dag_folder=dag_model.fileloc,
-        read_dags_from_db=read_store_serialized_dags()
-    )
+    dagbag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
     triggers = _trigger_dag(
         dag_id=dag_id,
         dag_bag=dagbag,

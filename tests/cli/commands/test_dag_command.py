@@ -21,8 +21,7 @@ import os
 import tempfile
 import unittest
 from datetime import datetime, timedelta
-
-import mock
+from unittest import mock
 
 from airflow import settings
 from airflow.cli import cli_parser

@@ -17,7 +17,7 @@
 #
 ---
 name: CI Build
-on:
+on:  # yamllint disable-line rule:truthy
   schedule:
     - cron: '28 0 * * *'
   push:
@@ -151,6 +151,7 @@ jobs:
   test-openapi-client-generation:
     name: "Test OpenAPI client generation"
     runs-on: ubuntu-latest
+    needs: [build-info]
     if: >
       needs.build-info.outputs.needs-api-tests == 'true' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
@@ -427,7 +428,9 @@ jobs:
 
   tests-postgres:
     timeout-minutes: 60
-    name: "Postgres${{matrix.postgres-version}},Py${{matrix.python-version}}"
+    name: >
+      Postgres${{matrix.postgres-version}},Py${{matrix.python-version}}:
+      ${{needs.build-info.outputs.testTypes}}
     runs-on: ubuntu-latest
     needs: [build-info, ci-images]
     strategy:
@@ -441,7 +444,8 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       POSTGRES_VERSION: ${{ matrix.postgres-version }}
       RUN_TESTS: true
-      TEST_TYPES: ${{needs.build-info.outputs.testTypes}}
+      TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
+      TEST_TYPE: ""
     if: >
         needs.build-info.outputs.run-tests == 'true' &&
         (github.repository == 'apache/airflow' || github.event_name != 'schedule')
@@ -456,7 +460,7 @@ jobs:
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Tests"
+      - name: "Tests: ${{needs.build-info.outputs.testTypes}}"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
@@ -479,7 +483,8 @@ jobs:
 
   tests-mysql:
     timeout-minutes: 60
-    name: "MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}"
+    name: >
+      MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}: ${{needs.build-info.outputs.testTypes}}
     runs-on: ubuntu-latest
     needs: [build-info, ci-images]
     strategy:
@@ -493,7 +498,8 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       MYSQL_VERSION: ${{ matrix.mysql-version }}
       RUN_TESTS: true
-      TEST_TYPES: ${{needs.build-info.outputs.testTypes}}
+      TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
+      TEST_TYPE: ""
     if: >
         needs.build-info.outputs.run-tests == 'true' &&
         (github.repository == 'apache/airflow' || github.event_name != 'schedule')
@@ -508,7 +514,7 @@ jobs:
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Tests"
+      - name: "Tests: ${{needs.build-info.outputs.testTypes}}"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
@@ -530,7 +536,8 @@ jobs:
 
   tests-sqlite:
     timeout-minutes: 60
-    name: "Sqlite Py${{matrix.python-version}}"
+    name: >
+      Sqlite Py${{matrix.python-version}}: ${{needs.build-info.outputs.testTypes}}
     runs-on: ubuntu-latest
     needs: [build-info, ci-images]
     strategy:
@@ -542,7 +549,8 @@ jobs:
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       RUN_TESTS: true
-      TEST_TYPES: ${{needs.build-info.outputs.testTypes}}
+      TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
+      TEST_TYPE: ""
     if: >
         needs.build-info.outputs.run-tests == 'true' &&
         (github.repository == 'apache/airflow' || github.event_name != 'schedule')
@@ -557,7 +565,7 @@ jobs:
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Tests"
+      - name: "Tests: ${{needs.build-info.outputs.testTypes}}"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
@@ -596,6 +604,7 @@ jobs:
       POSTGRES_VERSION: ${{needs.build-info.outputs.defaultPostgresVersion}}
       RUN_TESTS: true
       TEST_TYPES: "Quarantined"
+      TEST_TYPE: ""
       NUM_RUNS: 10
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     if: >
@@ -624,7 +633,7 @@ jobs:
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Tests"
+      - name: "Tests: Quarantined"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
       - name: "Upload Quarantine test results"
         uses: actions/upload-artifact@v2
@@ -937,7 +946,7 @@ jobs:
       - name: "Commit changed constraint files for ${{needs.build-info.outputs.pythonVersions}}"
         run: ./scripts/ci/constraints/ci_commit_constraints.sh
       - name: "Push changes"
-        uses: ad-m/github-push-action@40bf560936a8022e68a3c00e7d2abefaf01305a6 # v0.6.0
+        uses: ad-m/github-push-action@40bf560936a8022e68a3c00e7d2abefaf01305a6  # v0.6.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ steps.constraints-branch.outputs.branch }}
@@ -973,7 +982,7 @@ jobs:
           echo "Tagging ${BRANCH_NAME}"
           git tag -f nightly-${BRANCH_NAME} HEAD
       - name: "Push tags"
-        uses: ad-m/github-push-action@40bf560936a8022e68a3c00e7d2abefaf01305a6 # v0.6.0
+        uses: ad-m/github-push-action@40bf560936a8022e68a3c00e7d2abefaf01305a6  # v0.6.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           tags: true

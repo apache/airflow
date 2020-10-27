@@ -63,6 +63,10 @@ spec:
       tolerations:
 {{ toYaml .Values.tolerations | indent 8 }}
       restartPolicy: Always
+      {{- if or .Values.registry.secretName .Values.registry.connection }}
+      imagePullSecrets:
+        - name: {{ template "registry_secret" . }}
+      {{- end }}
       containers:
         - name: pgbouncer
           image: {{ template "pgbouncer_image" . }}
@@ -117,6 +121,7 @@ spec:
                 command: ["/bin/sh", "-c", "killall -INT pgbouncer && sleep 120"]
         - name: metrics-exporter
           image: {{ template "pgbouncer_exporter_image" . }}
+          imagePullPolicy: {{ .Values.images.pgbouncerExporter.pullPolicy }}
           env:
             - name: DATABASE_URL
               valueFrom:

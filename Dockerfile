@@ -164,10 +164,12 @@ RUN mkdir -p /root/.local/bin
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
 ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES}
 
-COPY .pypirc /root/.pypirc
+RUN if [[ -f /docker-context-files/.pypirc ]]; then \
+        cp /docker-context-files/.pypirc /root/.pypirc; \
+    fi
 
 # In case of Production build image segment we want to pre-install master version of airflow
-# dependencies from github so that we do not have to always reinstall it from the scratch.
+# dependencies from GitHub so that we do not have to always reinstall it from the scratch.
 RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
        if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then \
           AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}; \
@@ -209,7 +211,7 @@ ENV INSTALL_AIRFLOW_VIA_PIP=${INSTALL_AIRFLOW_VIA_PIP}
 ARG SLUGIFY_USES_TEXT_UNIDECODE=""
 ENV SLUGIFY_USES_TEXT_UNIDECODE=${SLUGIFY_USES_TEXT_UNIDECODE}
 
-ARG INSTALL_ROVIDERS_FROM_SOURCES="true"
+ARG INSTALL_PROVIDERS_FROM_SOURCES="true"
 ENV INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES}
 
 WORKDIR /opt/airflow
@@ -395,8 +397,6 @@ RUN chmod a+x /entrypoint /clean-logs
 # Make /etc/passwd root-group-writeable so that user can be dynamically added by OpenShift
 # See https://github.com/apache/airflow/issues/9248
 RUN chmod g=u /etc/passwd
-
-COPY .pypirc ${AIRFLOW_USER_HOME_DIR}/.pypirc
 
 ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:${PATH}"
 ENV GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm"

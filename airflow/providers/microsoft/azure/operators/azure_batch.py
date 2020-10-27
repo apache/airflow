@@ -144,7 +144,7 @@ class AzureBatchOperator(BaseOperator):
     :type os_family: Optional[str]
 
     :param os_version: The OS family version
-    :type os_version: Optionale[str]
+    :type os_version: Optional[str]
 
     :param timeout: The amount of time to wait for the job to complete in minutes. Default is 25
     :type timeout: int

@@ -220,8 +220,8 @@ class _SessionFactory(LoggingMixin):
                     '(Exclude this setting will default to HTTPSPNEGOAuth() ).'
                 )
         # Query the IDP
-        idp_reponse = requests.get(idp_url, auth=auth, **idp_request_kwargs)
-        idp_reponse.raise_for_status()
+        idp_response = requests.get(idp_url, auth=auth, **idp_request_kwargs)
+        idp_response.raise_for_status()
         # Assist with debugging. Note: contains sensitive info!
         xpath = saml_config['saml_response_xpath']
         log_idp_response = 'log_idp_response' in saml_config and saml_config['log_idp_response']
@@ -230,10 +230,10 @@ class _SessionFactory(LoggingMixin):
                 'The IDP response contains sensitive information,' ' but log_idp_response is ON (%s).',
                 log_idp_response,
             )
-            self.log.info('idp_reponse.content= %s', idp_reponse.content)
+            self.log.info('idp_response.content= %s', idp_response.content)
             self.log.info('xpath= %s', xpath)
         # Extract SAML Assertion from the returned HTML / XML
-        xml = etree.fromstring(idp_reponse.content)
+        xml = etree.fromstring(idp_response.content)
         saml_assertion = xml.xpath(xpath)
         if isinstance(saml_assertion, list):
             if len(saml_assertion) == 1:

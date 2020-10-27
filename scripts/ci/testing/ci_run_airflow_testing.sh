@@ -31,17 +31,17 @@ function run_airflow_testing_in_docker() {
     set +u
     set +e
     local exit_code
-    for try_num in {1..3}
+    for try_num in {1..5}
     do
         echo
-        echo "Making sure docker-compose is down"
+        echo "Making sure docker-compose is down and remnants removed"
         echo
         docker-compose --log-level INFO -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
-            down --remove-orphans --timeout 10
+            down --remove-orphans --volumes --timeout 10
         echo
         echo "System-prune docker"
         echo
-        docker system prune --force
+        docker system prune --force --volumes
         echo
         echo "Check available space"
         echo
@@ -53,6 +53,12 @@ function run_airflow_testing_in_docker() {
         echo
         echo "Starting try number ${try_num}"
         echo
+        if [[ " ${ENABLED_INTEGRATIONS} " =~ " kerberos " ]]; then
+            echo "Creating Kerberos network"
+            kerberos::create_kerberos_network
+        else
+            echo "Skip creating kerberos network"
+        fi
         docker-compose --log-level INFO \
           -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
           -f "${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml" \
@@ -60,15 +66,13 @@ function run_airflow_testing_in_docker() {
           "${DOCKER_COMPOSE_LOCAL[@]}" \
              run airflow "${@}"
         exit_code=$?
-        if [[ ${exit_code} == 254 ]]; then
+        if [[ " ${INTEGRATIONS[*]} " =~ " kerberos " ]]; then
+            echo "Delete kerberos network"
+            kerberos::delete_kerberos_network
+        fi
+        if [[ ${exit_code} == "254" && ${try_num} != "5" ]]; then
             echo
-            echo "Failed starting integration on ${try_num} try. Wiping-out docker-compose remnants"
-            echo
-            docker-compose --log-level INFO \
-                -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
-                down --remove-orphans -v --timeout 5
-            echo
-            echo "Sleeping 5 seconds"
+            echo "Failed try num ${try_num}. Sleeping 5 seconds for retry"
             echo
             sleep 5
             continue
@@ -149,13 +153,6 @@ if [[ ${TEST_TYPE=} != "" ]]; then
 fi
 readonly TEST_TYPES
 
-export RUN_INTEGRATION_TESTS=${RUN_INTEGRATION_TESTS:=""}
-export ENABLED_INTEGRATIONS=${ENABLED_INTEGRATIONS:=""}
-
-if [[ " ${ENABLED_INTEGRATIONS[*]} " =~ " kerberos " ]]; then
-    kerberos::create_kerberos_network
-fi
-
 echo "Running TEST_TYPES: ${TEST_TYPES}"
 
 for TEST_TYPE in ${TEST_TYPES}
@@ -166,6 +163,9 @@ do
     if [[ ${TEST_TYPE:=} == "Integration" ]]; then
         export ENABLED_INTEGRATIONS="${AVAILABLE_INTEGRATIONS}"
         export RUN_INTEGRATION_TESTS="${AVAILABLE_INTEGRATIONS}"
+    else
+        export ENABLED_INTEGRATIONS=""
+        export RUN_INTEGRATION_TESTS=""
     fi
 
     for _INT in ${ENABLED_INTEGRATIONS}
@@ -174,11 +174,11 @@ do
         INTEGRATIONS+=("${SCRIPTS_CI_DIR}/docker-compose/integration-${_INT}.yml")
     done
 
-
     export TEST_TYPE
+
     echo "**********************************************************************************************"
     echo
-    echo "                            TEST_TYPE: ${TEST_TYPE}"
+    echo "      TEST_TYPE: ${TEST_TYPE}, ENABLED INTEGRATIONS: ${ENABLED_INTEGRATIONS}"
     echo
     echo "**********************************************************************************************"
 

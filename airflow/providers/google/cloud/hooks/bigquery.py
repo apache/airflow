@@ -697,7 +697,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type table_id: str
         :param table_resource: Table resource as described in documentation:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table
-            The table has to contain ``tableReference`` or ``project_id``, ``datset_id`` and ``table_id``
+            The table has to contain ``tableReference`` or ``project_id``, ``dataset_id`` and ``table_id``
             have to be provided.
         :type table_resource: Dict[str, Any]
         :param fields: The fields of ``table`` to change, spelled as the Table
@@ -2906,7 +2906,7 @@ def _validate_src_fmt_configs(
 ) -> Dict:
     """
     Validates the given src_fmt_configs against a valid configuration for the source format.
-    Adds the backward compatiblity config to the src_fmt_configs.
+    Adds the backward compatibility config to the src_fmt_configs.
 
     :param source_format: File format to export.
     :type source_format: str

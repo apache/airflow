@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import io
 import logging
 import os
 import re
@@ -83,7 +82,7 @@ def open_maybe_zipped(fileloc, mode='r'):
     if archive and zipfile.is_zipfile(archive):
         return zipfile.ZipFile(archive, mode=mode).open(filename)
     else:
-        return io.open(fileloc, mode=mode)
+        return open(fileloc, mode=mode)
 
 
 def find_path_from_directory(
@@ -208,4 +207,5 @@ def might_contain_dag(file_path: str, safe_mode: bool, zip_file: Optional[zipfil
             return True
         with open(file_path, 'rb') as dag_file:
             content = dag_file.read()
-    return all(s in content for s in (b'DAG', b'airflow'))
+    content = content.lower()
+    return all(s in content for s in (b'dag', b'airflow'))

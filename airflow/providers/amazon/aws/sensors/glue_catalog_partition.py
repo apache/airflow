@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional
 
 from airflow.providers.amazon.aws.hooks.glue_catalog import AwsGlueCatalogHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -59,12 +60,12 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
     def __init__(
         self,
         *,
-        table_name,
-        expression="ds='{{ ds }}'",
-        aws_conn_id='aws_default',
-        region_name=None,
-        database_name='default',
-        poke_interval=60 * 3,
+        table_name: str,
+        expression: str = "ds='{{ ds }}'",
+        aws_conn_id: str = 'aws_default',
+        region_name: Optional[str] = None,
+        database_name: str = 'default',
+        poke_interval: int = 60 * 3,
         **kwargs,
     ):
         super().__init__(poke_interval=poke_interval, **kwargs)
@@ -73,7 +74,7 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
         self.table_name = table_name
         self.expression = expression
         self.database_name = database_name
-        self.hook = None
+        self.hook: Optional[AwsGlueCatalogHook] = None
 
     def poke(self, context):
         """Checks for existence of the partition in the AWS Glue Catalog table"""
@@ -85,8 +86,10 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
 
         return self.get_hook().check_for_partition(self.database_name, self.table_name, self.expression)
 
-    def get_hook(self):
+    def get_hook(self) -> AwsGlueCatalogHook:
         """Gets the AwsGlueCatalogHook"""
-        if not self.hook:
-            self.hook = AwsGlueCatalogHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+        if self.hook:
+            return self.hook
+
+        self.hook = AwsGlueCatalogHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         return self.hook

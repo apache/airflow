@@ -68,7 +68,9 @@ function check_integration {
 
     ENV_VAR_NAME=INTEGRATION_${INTEGRATION_NAME^^}
     if [[ ${!ENV_VAR_NAME:=} != "true" ]]; then
-        DISABLED_INTEGRATIONS="${DISABLED_INTEGRATIONS} ${INTEGRATION_NAME}"
+        if [[ ! ${DISABLED_INTEGRATIONS} == *" ${INTEGRATION_NAME}"* ]]; then
+            DISABLED_INTEGRATIONS="${DISABLED_INTEGRATIONS} ${INTEGRATION_NAME}"
+        fi
         return
     fi
     check_service "${INTEGRATION_LABEL}" "${CALL}" "${MAX_CHECK}"
@@ -78,7 +80,7 @@ function check_db_backend {
     MAX_CHECK=${1:=1}
 
     if [[ ${BACKEND} == "postgres" ]]; then
-        check_service "PostgresSQL" "nc -zvv postgres 5432" "${MAX_CHECK}"
+        check_service "PostgreSQL" "nc -zvv postgres 5432" "${MAX_CHECK}"
     elif [[ ${BACKEND} == "mysql" ]]; then
         check_service "MySQL" "nc -zvv mysql 3306" "${MAX_CHECK}"
     elif [[ ${BACKEND} == "sqlite" ]]; then

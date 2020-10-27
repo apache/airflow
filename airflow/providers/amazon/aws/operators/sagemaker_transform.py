@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional, List
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -63,7 +64,13 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *, config, wait_for_completion=True, check_interval=30, max_ingestion_time=None, **kwargs
+        self,
+        *,
+        config: dict,
+        wait_for_completion: bool = True,
+        check_interval: int = 30,
+        max_ingestion_time: Optional[int] = None,
+        **kwargs,
     ):
         super().__init__(config=config, **kwargs)
         self.config = config
@@ -72,9 +79,9 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         self.max_ingestion_time = max_ingestion_time
         self.create_integer_fields()
 
-    def create_integer_fields(self):
+    def create_integer_fields(self) -> None:
         """Set fields which should be casted to integers."""
-        self.integer_fields = [
+        self.integer_fields: List[List[str]] = [
             ['Transform', 'TransformResources', 'InstanceCount'],
             ['Transform', 'MaxConcurrentTransforms'],
             ['Transform', 'MaxPayloadInMB'],
@@ -83,7 +90,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             for field in self.integer_fields:
                 field.pop(0)
 
-    def expand_role(self):
+    def expand_role(self) -> None:
         if 'Model' not in self.config:
             return
         config = self.config['Model']
@@ -91,7 +98,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
             config['ExecutionRoleArn'] = hook.expand_role(config['ExecutionRoleArn'])
 
-    def execute(self, context):
+    def execute(self, context) -> dict:
         self.preprocess_config()
 
         model_config = self.config.get('Model')

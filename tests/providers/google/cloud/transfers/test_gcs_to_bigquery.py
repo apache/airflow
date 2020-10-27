@@ -18,7 +18,7 @@
 
 import unittest
 
-import mock
+from unittest import mock
 
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 

@@ -20,7 +20,7 @@
 import unittest
 from unittest.mock import call, patch
 
-import mock
+from unittest import mock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.datastore import DatastoreHook

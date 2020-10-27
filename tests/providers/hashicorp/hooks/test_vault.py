@@ -18,9 +18,9 @@
 
 from unittest import mock
 from unittest.case import TestCase
+from unittest.mock import PropertyMock, mock_open, patch
 
 from hvac.exceptions import VaultError
-from mock import PropertyMock, mock_open, patch
 from parameterized import parameterized
 
 from airflow.providers.hashicorp.hooks.vault import VaultHook

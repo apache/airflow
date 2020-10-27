@@ -18,7 +18,7 @@
 
 import unittest
 
-import mock
+from unittest import mock
 from testfixtures import LogCapture
 
 from airflow.providers.amazon.aws.hooks.glacier import GlacierHook

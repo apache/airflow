@@ -22,6 +22,12 @@ if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
     export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
     export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
 
+    # Use LocalExecutor if not set and if backend is not sqlite as it gives
+    # better performance
+    if [[ ${BACKEND} != "sqlite"  ]]; then
+        export AIRFLOW__CORE__EXECUTOR=${AIRFLOW__CORE__EXECUTOR:-LocalExecutor}
+    fi
+
     #this is because I run docker in WSL - Hi Bill!
     export TMUX_TMPDIR=~/.tmux/tmp
     mkdir -p ~/.tmux/tmp

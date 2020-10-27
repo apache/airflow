@@ -20,7 +20,7 @@
 import json
 import unittest
 
-import mock
+from unittest import mock
 
 from airflow import models
 from airflow.providers.exasol.hooks.exasol import ExasolHook

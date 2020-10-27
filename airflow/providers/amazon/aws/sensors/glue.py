@@ -36,7 +36,7 @@ class AwsGlueJobSensor(BaseSensorOperator):
     template_fields = ('job_name', 'run_id')
 
     @apply_defaults
-    def __init__(self, *, job_name, run_id, aws_conn_id='aws_default', **kwargs):
+    def __init__(self, *, job_name: str, run_id: str, aws_conn_id: str = 'aws_default', **kwargs):
         super().__init__(**kwargs)
         self.job_name = job_name
         self.run_id = run_id

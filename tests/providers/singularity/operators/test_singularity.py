@@ -18,7 +18,7 @@
 
 import unittest
 
-import mock
+from unittest import mock
 from parameterized import parameterized
 from spython.instance import Instance
 

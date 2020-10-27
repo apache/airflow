@@ -128,8 +128,7 @@ class TaskGroup(TaskMixin):
     def __iter__(self):
         for child in self.children.values():
             if isinstance(child, TaskGroup):
-                for inner_task in child:
-                    yield inner_task
+                yield from child
             else:
                 yield child
 

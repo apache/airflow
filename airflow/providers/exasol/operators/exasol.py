@@ -56,7 +56,7 @@ class ExasolOperator(BaseOperator):
         schema: Optional[str] = None,
         **kwargs,
     ) -> None:
-        super(ExasolOperator, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.exasol_conn_id = exasol_conn_id
         self.sql = sql
         self.autocommit = autocommit

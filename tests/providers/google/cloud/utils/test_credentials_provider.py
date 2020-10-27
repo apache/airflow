@@ -22,7 +22,7 @@ import unittest
 from io import StringIO
 from uuid import uuid4
 
-import mock
+from unittest import mock
 from google.auth.environment_vars import CREDENTIALS
 from parameterized import parameterized
 

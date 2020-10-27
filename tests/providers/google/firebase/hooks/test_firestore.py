@@ -22,7 +22,7 @@ import unittest
 from typing import Optional
 from unittest import mock
 
-from mock import PropertyMock
+from unittest.mock import PropertyMock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.firebase.hooks.firestore import CloudFirestoreHook

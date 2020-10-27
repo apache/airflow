@@ -41,7 +41,7 @@ class ExasolHook(DbApiHook):
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs) -> None:
-        super(ExasolHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
 
     def get_conn(self) -> ExaConnection:
@@ -167,7 +167,7 @@ class ExasolHook(DbApiHook):
         """
         autocommit = conn.attr.get('autocommit')
         if autocommit is None:
-            autocommit = super(ExasolHook, self).get_autocommit(conn)
+            autocommit = super().get_autocommit(conn)
         return autocommit
 
     @staticmethod

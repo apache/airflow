@@ -18,7 +18,7 @@
 import os
 import unittest
 
-import mock
+from unittest import mock
 from moto import mock_s3
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook

@@ -28,7 +28,7 @@ if [[ ${BACKPORT_PACKAGES} != "true" ]]; then
     rm -rf -- *egg-info*
 fi
 
-"${SCRIPTS_CI_DIR}/provider_packages/ci_test_provider_packages_install_separately.sh"
+"${SCRIPTS_CI_DIR}/provider_packages/ci_test_provider_packages_install.sh"
 "${SCRIPTS_CI_DIR}/provider_packages/ci_test_provider_packages_import_all_classes.sh"
 
 dump_file="/tmp/airflow_provider_packages_$(date +"%Y%m%d-%H%M%S").tar.gz"

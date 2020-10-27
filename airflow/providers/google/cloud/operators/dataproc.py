@@ -658,7 +658,7 @@ class DataprocScaleClusterOperator(BaseOperator):
     :type num_workers: int
     :param num_preemptible_workers: The new number of preemptible workers
     :type num_preemptible_workers: int
-    :param graceful_decommission_timeout: Timeout for graceful YARN decomissioning.
+    :param graceful_decommission_timeout: Timeout for graceful YARN decommissioning.
         Maximum value is 1d
     :type graceful_decommission_timeout: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
@@ -1870,7 +1870,7 @@ class DataprocUpdateClusterOperator(BaseOperator):
         new value. If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.cloud.dataproc_v1beta2.types.FieldMask`
     :type update_mask: Union[Dict, google.cloud.dataproc_v1beta2.types.FieldMask]
-    :param graceful_decommission_timeout: Optional. Timeout for graceful YARN decomissioning. Graceful
+    :param graceful_decommission_timeout: Optional. Timeout for graceful YARN decommissioning. Graceful
         decommissioning allows removing nodes from the cluster without interrupting jobs in progress. Timeout
         specifies how long to wait for jobs in progress to finish before forcefully removing nodes (and
         potentially interrupting jobs). Default timeout is 0 (for forceful decommission), and the maximum

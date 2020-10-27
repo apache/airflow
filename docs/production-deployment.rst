@@ -116,7 +116,7 @@ suited to prepare optimized production images.
 The advantage of this method is that it produces optimized image even if you need some compile-time
 dependencies that are not needed in the final image. You need to use Airflow Sources to build such images
 from the `official distribution folder of Apache Airflow <https://downloads.apache.org/airflow/>`_ for the
-released versions, or checked out from the Github project if you happen to do it from git sources.
+released versions, or checked out from the GitHub project if you happen to do it from git sources.
 
 The easiest way to build the image image is to use ``breeze`` script, but you can also build such customized
 image by running appropriately crafted docker build in which you specify all the ``build-args``
@@ -125,7 +125,7 @@ in the `<#production-image-build-arguments>`_ chapter below.
 
 Here just a few examples are presented which should give you general understanding of what you can customize.
 
-This builds the production image in version 3.7 with additional airflow extras from 1.10.10 Pypi package and
+This builds the production image in version 3.7 with additional airflow extras from 1.10.12 Pypi package and
 additional apt dev and runtime dependencies.
 
 .. code-block:: bash
@@ -138,10 +138,10 @@ additional apt dev and runtime dependencies.
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
-    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc"
-    --build-arg ADDITIONAL_PYTHON_DEPS="pandas"
-    --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++"
-    --build-arg ADDITIONAL_RUNTIME_APT_DEPS="default-jre-headless"
+    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \
+    --build-arg ADDITIONAL_PYTHON_DEPS="pandas" \
+    --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++" \
+    --build-arg ADDITIONAL_RUNTIME_APT_DEPS="default-jre-headless" \
     --tag my-image
 
 
@@ -265,10 +265,9 @@ the resulting image using ``FROM`` any dependencies you want.
 Customizing PYPI installation
 .............................
 
-You can customize PYPI sources used during image build by modifying .pypirc file that should be
-placed in the root of Airflow Directory. This .pypirc will never be committed to the repository
-and will not be present in the final production image. It is added and used only in the build
-segment of the image so it is never copied to the final image.
+You can customize PYPI sources used during image build by adding a docker-context-files/.pypirc file
+This .pypirc will never be committed to the repository and will not be present in the final production image.
+It is added and used only in the build segment of the image so it is never copied to the final image.
 
 External sources for dependencies
 ---------------------------------
@@ -607,7 +606,7 @@ additional python dependencies and pre-installed pip dependencies from 1.10.12 t
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1.10.12" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
-    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="mssql,hdfs"
+    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="mssql,hdfs" \
     --build-arg ADDITIONAL_PYTHON_DEPS="sshtunnel oauth2client"
 
 This builds the production image in version 3.7 with additional airflow extras from 1.10.12 Pypi package and
@@ -623,8 +622,8 @@ additional apt dev and runtime dependencies.
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
-    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc"
-    --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++"
+    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \
+    --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++" \
     --build-arg ADDITIONAL_RUNTIME_APT_DEPS="default-jre-headless"
 
 

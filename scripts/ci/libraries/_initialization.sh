@@ -34,12 +34,6 @@ function initialization::create_directories() {
     export FILES_DIR="${AIRFLOW_SOURCES}/files"
     readonly FILES_DIR
 
-    # Create an empty .pypirc file that you can customise. It is .gitignored so it will never
-    # land in the repository - it is only added to the "build image" of production image
-    # So you can keep your credentials safe as long as you do not push the build image.
-    # The final image does not contain it.
-    touch "${AIRFLOW_SOURCES}/.pypirc"
-
     # Directory where all the build cache is stored - we keep there status of all the docker images
     # As well as hashes of the important files, but also we generate build scripts there that are
     # Used to execute the commands for breeze
@@ -100,7 +94,7 @@ function initialization::initialize_base_variables() {
     export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported versions of Postgres
-    CURRENT_POSTGRES_VERSIONS+=("9.6" "10")
+    CURRENT_POSTGRES_VERSIONS+=("9.6" "13")
     export CURRENT_POSTGRES_VERSIONS
 
     # Currently supported versions of MySQL
@@ -461,7 +455,7 @@ function initialization::initialize_github_variables() {
 }
 
 function initialization::initialize_test_variables() {
-    export TEST_TYPE=${TEST_TYPE:="All"}
+    export TEST_TYPE=${TEST_TYPE:=""}
 }
 
 # Common environment that is initialized by both Breeze and CI scripts

@@ -19,7 +19,7 @@
 import json
 import unittest
 
-import mock
+from unittest import mock
 from azure.batch import BatchServiceClient, models as batch_models
 
 from airflow.models import Connection

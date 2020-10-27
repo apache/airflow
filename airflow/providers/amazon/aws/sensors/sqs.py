@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Reads and then deletes the message from SQS queue"""
+from typing import Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sqs import SQSHook
@@ -43,14 +44,20 @@ class SQSSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(
-        self, *, sqs_queue, aws_conn_id='aws_default', max_messages=5, wait_time_seconds=1, **kwargs
+        self,
+        *,
+        sqs_queue,
+        aws_conn_id: str = 'aws_default',
+        max_messages: int = 5,
+        wait_time_seconds: int = 1,
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.sqs_queue = sqs_queue
         self.aws_conn_id = aws_conn_id
         self.max_messages = max_messages
         self.wait_time_seconds = wait_time_seconds
-        self.hook = None
+        self.hook: Optional[SQSHook] = None
 
     def poke(self, context):
         """
@@ -90,8 +97,10 @@ class SQSSensor(BaseSensorOperator):
 
         return False
 
-    def get_hook(self):
+    def get_hook(self) -> SQSHook:
         """Create and return an SQSHook"""
-        if not self.hook:
-            self.hook = SQSHook(aws_conn_id=self.aws_conn_id)
+        if self.hook:
+            return self.hook
+
+        self.hook = SQSHook(aws_conn_id=self.aws_conn_id)
         return self.hook

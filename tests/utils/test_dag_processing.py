@@ -192,7 +192,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             pickle_dags=False,
             async_mode=True)
 
-        dagbag = DagBag(TEST_DAG_FOLDER)
+        dagbag = DagBag(TEST_DAG_FOLDER, read_dags_from_db=False)
         with create_session() as session:
             session.query(LJ).delete()
             dag = dagbag.get_dag('example_branch_operator')
@@ -234,7 +234,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_example_bash_operator.py')
         with conf_vars({('scheduler', 'max_threads'): '1',
                         ('core', 'load_examples'): 'False'}):
-            dagbag = DagBag(test_dag_path)
+            dagbag = DagBag(test_dag_path, read_dags_from_db=False)
             with create_session() as session:
                 session.query(LJ).delete()
                 dag = dagbag.get_dag('test_example_bash_operator')
@@ -297,8 +297,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
             assert fake_processors[-1]._file_path == test_dag_path
             callback_requests = fake_processors[-1]._callback_requests
             assert (
-                set(zombie.simple_task_instance.key for zombie in expected_failure_callback_requests) ==
-                set(result.simple_task_instance.key for result in callback_requests)
+                {zombie.simple_task_instance.key for zombie in expected_failure_callback_requests} ==
+                {result.simple_task_instance.key for result in callback_requests}
             )
 
             child_pipe.close()
@@ -542,17 +542,13 @@ class TestCorrectMaybeZipped(unittest.TestCase):
 
 class TestOpenMaybeZipped(unittest.TestCase):
     def test_open_maybe_zipped_normal_file(self):
-        with mock.patch(
-            'io.open', mock.mock_open(read_data="data")
-        ) as mock_file:
+        with mock.patch('builtins.open', mock.mock_open(read_data="data")) as mock_file:
             open_maybe_zipped('/path/to/some/file.txt')
             mock_file.assert_called_once_with('/path/to/some/file.txt', mode='r')
 
     def test_open_maybe_zipped_normal_file_with_zip_in_name(self):
         path = '/path/to/fakearchive.zip.other/file.txt'
-        with mock.patch(
-            'io.open', mock.mock_open(read_data="data")
-        ) as mock_file:
+        with mock.patch('builtins.open', mock.mock_open(read_data="data")) as mock_file:
             open_maybe_zipped(path)
             mock_file.assert_called_once_with(path, mode='r')
 

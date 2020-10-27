@@ -18,13 +18,13 @@
 #}
 
 {% extends "airflow/dag.html" %}
+{% from 'appbuilder/loading_dots.html' import loading_dots %}
 
 {% block page_title %}{{ dag.dag_id }} - Graph - Airflow{% endblock %}
 
 {% block head_css %}
   {{ super() }}
   <link rel="stylesheet" type="text/css" href="{{ url_for_asset('graph.css') }}">
-  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('loadingDots.css') }}">
   <style type="text/css">
     {% for state, state_color in state_color_mapping.items() %}
       g.node.{{state}} rect {
@@ -97,11 +97,7 @@
   </div>
   <br>
   <div class="refresh-actions">
-    <span class="loading-dots refresh-loading" id="loading-dots" >
-      <span class="loading-dot"></span>
-      <span class="loading-dot"></span>
-      <span class="loading-dot"></span>
-    </span>
+    {{ loading_dots(id='loading-dots', classes='refresh-loading') }}
     <label class="switch-label">
       <input class="switch-input" id="auto_refresh" type="checkbox" {% if dag_run_state == 'running' %}checked{% endif %}>
       <span class="switch" aria-hidden="true"></span>

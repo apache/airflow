@@ -21,7 +21,7 @@ import unittest
 from collections import namedtuple
 from unittest.mock import MagicMock
 
-import mock
+from unittest import mock
 from azure.mgmt.containerinstance.models import ContainerState, Event
 
 from airflow.exceptions import AirflowException
