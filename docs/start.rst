@@ -46,7 +46,7 @@ The installation is quick and straightforward.
     airflow webserver --port 8080
 
     # start the scheduler
-    # open a new terminal or else run webserver with `-D` option to run it as a deamon
+    # open a new terminal or else run webserver with ``-D`` option to run it as a deamon
     airflow scheduler
 
     # visit localhost:8080 in the browser and use the admin account you just
