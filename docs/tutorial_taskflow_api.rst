@@ -153,4 +153,4 @@ Operators, etc, and the :ref:`concepts:task_decorator` in particular.
 
 More details about the Taskflow API, can be found as part of the Airflow Improvement Proposal
 `AIP-31: "Taskflow API" for clearer/simpler DAG definition <https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=148638736>`__
-and specifically within the Concepts guide at :ref:`Concepts - Taskflow API<concepts:decorated_flows>`.
+and specifically within the Concepts guide at :ref:`Concepts - Taskflow API<concepts:task_flow_api>`.
