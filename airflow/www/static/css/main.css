@@ -432,9 +432,3 @@ label[for="timezone-other"],
   top: 2px;
   border: 0;
 }
-
-/* Overrides undesireable styling rendered by FAB markup */
-.dropdown-menu .filter.btn {
-  border: 0;
-  border-radius: 0;
-}
