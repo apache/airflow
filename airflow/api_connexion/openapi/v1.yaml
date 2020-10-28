@@ -1724,6 +1724,7 @@ components:
           format: datetime
         duration:
           type: number
+          nullable: true
         state:
           $ref: '#/components/schemas/TaskState'
         try_number:
@@ -1749,6 +1750,7 @@ components:
           nullable: true
         pid:
           type: integer
+          nullable: true
         executor_config:
           type: string
         sla_miss:
