@@ -16,6 +16,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Determine current branch
+function initialization::initialize_branch_variables() {
+    # Default branch used - this will be different in different branches
+    export DEFAULT_BRANCH=${DEFAULT_BRANCH="v1-10-stable"}
+    export DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH="constraints-1-10"}
+    readonly DEFAULT_BRANCH
+    readonly DEFAULT_CONSTRAINTS_BRANCH
+
+    # Default branch name for triggered builds is the one configured in default branch
+    # We need to read it here as it comes from _common_values.sh
+    export BRANCH_NAME=${BRANCH_NAME:=${DEFAULT_BRANCH}}
+}
+
 # Common environment that is initialized by both Breeze and CI scripts
 function initialize_common_environment {
     # default python Major/Minor version
@@ -222,6 +235,7 @@ function initialize_common_environment {
     # Namespace where airflow is installed via helm
     export HELM_AIRFLOW_NAMESPACE="airflow"
 
+    initialization::initialize_branch_variables
 }
 
 function set_mysql_encoding() {
