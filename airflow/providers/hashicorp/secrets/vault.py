@@ -51,7 +51,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         (default: 'variables'). If set to None (null), requests for variables will not be sent to Vault.
     :type variables_path: str
     :param config_path: Specifies the path of the secret to read Airflow Configurations
-        (default: 'configs').
+        (default: 'configs'). If set to None (null), requests for configurations will not be sent to Vault.
     :type config_path: str
     :param url: Base URL for the Vault instance being addressed.
     :type url: str
@@ -147,7 +147,10 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             self.variables_path = variables_path.rstrip('/')
         else:
             self.variables_path = variables_path
-        self.config_path = config_path.rstrip('/')
+        if config_path is not None:
+            self.config_path = config_path.rstrip('/')
+        else:
+            self.config_path = config_path
         self.mount_point = mount_point
         self.kv_engine_version = kv_engine_version
         self.vault_client = _VaultClient(
@@ -217,6 +220,9 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         :rtype: str
         :return: Configuration Option Value retrieved from the vault
         """
-        secret_path = self.build_path(self.config_path, key)
-        response = self.vault_client.get_secret(secret_path=secret_path)
-        return response.get("value") if response else None
+        if self.config_path is None:
+            return None
+        else:
+            secret_path = self.build_path(self.config_path, key)
+            response = self.vault_client.get_secret(secret_path=secret_path)
+            return response.get("value") if response else None
