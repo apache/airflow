@@ -1601,30 +1601,25 @@
       default: "True"
     - name: max_dagruns_to_create_per_loop
       description: |
-        This changes the number of dags that are locked by each scheduler when
-        creating dag runs. One possible reason for setting this lower is if you
-        have huge dags and are running multiple schedules, you won't want one
-        scheduler to do all the work.
+        Max number of DAGs to create DagRuns for per scheduler loop
 
         Default: 10
       example: ~
       version_added: 2.0.0
       type: string
       default: ~
+      see_also: ":ref:`scheduler:ha:tunables`"
     - name: max_dagruns_per_loop_to_schedule
       description: |
         How many DagRuns should a scheduler examine (and lock) when scheduling
-        and queuing tasks. Increasing this limit will allow more throughput for
-        smaller DAGs but will likely slow down throughput for larger (>500
-        tasks for example) DAGs. Setting this too high when using multiple
-        schedulers could also lead to one scheduler taking all the dag runs
-        leaving no work for the others.
+        and queuing tasks.
 
         Default: 20
       example: ~
       version_added: 2.0.0
       type: string
       default: ~
+      see_also: ":ref:`scheduler:ha:tunables`"
     - name: statsd_on
       description: |
         Statsd (https://github.com/etsy/statsd) integration settings
