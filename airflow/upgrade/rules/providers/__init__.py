@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,14 +16,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from airflow.upgrade.rules import get_rules
-from airflow.upgrade.rules.conn_id.conn_type_is_not_nullable import ConnTypeIsNotNullableRule
-from airflow.upgrade.rules.base_rule import BaseRule
-
-
-class TestBaseRule:
-    def test_rules_are_registered(self):
-        rule_classes = get_rules()
-        assert BaseRule not in rule_classes
-        assert ConnTypeIsNotNullableRule in rule_classes
