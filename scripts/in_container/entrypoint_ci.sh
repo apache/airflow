@@ -201,7 +201,6 @@ if [[ "${GITHUB_ACTIONS}" == "true" ]]; then
         # timeouts in seconds for individual tests
         "--setup-timeout=20"
         "--execution-timeout=60"
-        "--with-db-init"
         "--teardown-timeout=20"
         # Only display summary for non-expected case
         # f - failed
@@ -213,7 +212,12 @@ if [[ "${GITHUB_ACTIONS}" == "true" ]]; then
         # p - passed
         # P - passed with output
         "-rfEX"
+    )
+    if [[ "${TEST_TYPE}" != "Helm" ]]; then
+        EXTRA_PYTEST_ARGS+=(
+        "--with-db-init"
         )
+    fi
 else
     EXTRA_PYTEST_ARGS=(
         "-rfEX"
@@ -229,9 +233,12 @@ else
         "tests"
     )
     ALL_TESTS=("${CORE_TESTS[@]}")
+    HELM_CHART_TESTS=("chart/tests")
 
     if [[ ${TEST_TYPE:=""} == "Core" ]]; then
         SELECTED_TESTS=("${CORE_TESTS[@]}")
+    elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
+        SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "All" || ${TEST_TYPE} == "Quarantined" || \
             ${TEST_TYPE} == "Postgres" || ${TEST_TYPE} == "MySQL" || \
             ${TEST_TYPE} == "Heisentests" || ${TEST_TYPE} == "Long" || \
