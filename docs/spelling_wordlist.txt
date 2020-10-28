@@ -1239,6 +1239,7 @@ tablefmt
 tagKey
 tagValue
 tao
+taskflow
 taskinstance
 tblproperties
 tcp
