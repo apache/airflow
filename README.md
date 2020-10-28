@@ -69,7 +69,11 @@ Apache Airflow is tested with:
 | SQLite       | latest stable             | latest stable            |
 | Kubernetes   | 1.16.2, 1.17.0            | 1.16.2, 1.17.0           |
 
-> Note: SQLite is used primarily for development purpose.
+**Note:** MariaDB and MySQL 5.x will work fine for a single scheduler, but don't work or have limitations
+running than a single scheduler -- please see the "Scheduler" docs.
+
+**Note:** SQLite is used primarily for development purpose.
+
 
 ### Additional notes on Python version requirements
 
