@@ -47,7 +47,7 @@ All hooks and operators related to Google Cloud use ``google_cloud_default`` by 
 
 
 Note On Application Default Credentials
----------------------------------------  
+---------------------------------------
 Application Default Credentials are inferred by the GCE metadata server when running
 Airflow on Google Compute Engine or the GKE metadata server
 when running on GKE which allows mapping Kubernetes Service Accounts to GCP service accounts
@@ -60,7 +60,7 @@ From a security perspective it has the benefit of not storing Google Service Acc
 keys  on disk nor in the Airflow database, making it impossible
 to leak the sensitive long lived credential key material.
 
-From an Airflow perspective Application Default Credentials can be used for 
+From an Airflow perspective Application Default Credentials can be used for
 a connection by specifying an empty URI.
     For example:
 
