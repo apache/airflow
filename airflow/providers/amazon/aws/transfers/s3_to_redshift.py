@@ -56,11 +56,16 @@ class S3ToRedshiftOperator(BaseOperator):
     :type verify: bool or str
     :param copy_options: reference to a list of COPY options
     :type copy_options: list
+    :param truncate_table: whether or not to truncate the destination table before the copy
+    :type truncate_table: bool
     """
 
-    template_fields = ('s3_key',)
+    template_fields = (
+        's3_key',
+        'table',
+    )
     template_ext = ()
-    ui_color = '#ededed'
+    ui_color = '#99e699'
 
     @apply_defaults
     def __init__(
@@ -75,6 +80,7 @@ class S3ToRedshiftOperator(BaseOperator):
         verify: Optional[Union[bool, str]] = None,
         copy_options: Optional[List] = None,
         autocommit: bool = False,
+        truncate_table: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -87,6 +93,7 @@ class S3ToRedshiftOperator(BaseOperator):
         self.verify = verify
         self.copy_options = copy_options or []
         self.autocommit = autocommit
+        self.truncate_table = truncate_table
 
     def execute(self, context) -> None:
         postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
@@ -94,22 +101,25 @@ class S3ToRedshiftOperator(BaseOperator):
         credentials = s3_hook.get_credentials()
         copy_options = '\n\t\t\t'.join(self.copy_options)
 
-        copy_query = """
-            COPY {schema}.{table}
-            FROM 's3://{s3_bucket}/{s3_key}'
+        copy_statement = f"""
+            COPY {self.schema}.{self.table}
+            FROM 's3://{self.s3_bucket}/{self.s3_key}'
             with credentials
-            'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
+            'aws_access_key_id={credentials.access_key};aws_secret_access_key={credentials.secret_key}'
             {copy_options};
-        """.format(
-            schema=self.schema,
-            table=self.table,
-            s3_bucket=self.s3_bucket,
-            s3_key=self.s3_key,
-            access_key=credentials.access_key,
-            secret_key=credentials.secret_key,
-            copy_options=copy_options,
-        )
+        """
+
+        if self.truncate_table:
+            truncate_statement = f'TRUNCATE TABLE {self.schema}.{self.table};'
+            sql = f"""
+            BEGIN;
+            {truncate_statement}
+            {copy_statement}
+            COMMIT
+            """
+        else:
+            sql = copy_statement
 
         self.log.info('Executing COPY command...')
-        postgres_hook.run(copy_query, self.autocommit)
+        postgres_hook.run(sql, self.autocommit)
         self.log.info("COPY command complete...")
