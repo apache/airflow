@@ -327,6 +327,12 @@ repos:
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_mypy.sh"
         files: \.py$
+        exclude: ^dev|^provider_packages|^chart
+      - id: mypy
+        name: Run mypy for helm chart tests
+        language: system
+        entry: "./scripts/ci/pre_commit/pre_commit_mypy.sh"
+        files: ^chart/.*\.py$
         exclude: ^dev
         require_serial: true
       - id: flake8
