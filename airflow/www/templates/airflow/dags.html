@@ -20,6 +20,51 @@
 {% extends base_template %}
 {% from 'appbuilder/loading_dots.html' import loading_dots %}
 
+{%- macro verbose_ordering_name(ordering) -%}
+    {{ 'descending' if ordering == 'desc' else ('ascending' if ordering == 'asc' else ordering) }}
+{%- endmacro -%}
+
+{%- macro sorted_th_link(name, attr_name) -%}
+   {% set request_ordering = (request.args.get('orderBy', 'unsorted')) %}
+   {% set curr_ordering = ('unsorted' if request.args.get('sortBy') != attr_name else request_ordering ) %}
+   {% set new_ordering = ('asc' if request.args.get('sortBy') != attr_name or curr_ordering != 'asc' else 'desc' ) %}
+   <a href="{{ url_for('Airflow.index',
+                       status=request.args.get('status', 'all'),
+                       search=request.args.get('search', None),
+                       tags=request.args.get('tags', None),
+                       sortBy=attr_name,
+                       orderBy=new_ordering
+                       ) }}">
+    {{ name }}
+    <span id="sorting-tip-{{ name }}" class="tooltip" role="tooltip" >
+      {% if curr_ordering == 'unsorted' %}
+        Column not currently sorted.
+      {% else %}
+        Column sorted by {{ attr_name }}, {{ verbose_ordering_name(curr_ordering) }}.
+      {% endif %}
+      Press to sort by {{ verbose_ordering_name(new_ordering) }} {{ attr_name }}.
+    </span>
+  </a>
+  <a href="{{ url_for('Airflow.index',
+                         status=request.args.get('status', 'all'),
+                         search=request.args.get('search', None),
+                         tags=request.args.get('tags', None),
+                         sortBy=attr_name,
+                         orderBy=new_ordering
+                         ) }}">
+      <!-- We need a separate <a> here because otherwise some screen readers STILL pick it up for some reason >_< -->
+      <span class="material-icons" aria-hidden="true" aria-describedby="sorting-tip-{{ name }}">
+        {% if request.args.get('orderBy', 'none') == 'desc' and request.args.get('sortBy') == attr_name %}
+          expand_less
+        {% elif request.args.get('orderBy', 'none') == 'asc' and request.args.get('sortBy') == attr_name %}
+          expand_more
+        {% else %}
+          unfold_more
+        {% endif %}
+      </span>
+    </a>
+{%- endmacro -%}
+
 {% block page_title %}
   {% if search_query %}"{{ search_query }}" - {% endif %}DAGs - {{ appbuilder.app_name }}
 {% endblock %}

@@ -79,7 +79,7 @@ from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import Date, and_, desc, func, or_, union_all
+from sqlalchemy import Date, and_, asc, desc, func, or_, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
@@ -126,7 +126,6 @@ from airflow.www.forms import (
     DateTimeWithNumRunsWithDagRunsForm,
     TaskInstanceEditForm,
 )
-from airflow.www.utils import build_dag_sorting_query
 from airflow.www.widgets import AirflowModelListWidget
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
@@ -405,6 +404,47 @@ def dag_edges(dag):
             record["label"] = label
         result.append(record)
     return result
+
+
+def dag_query_for_key(sorting_key):
+    """Maps sorting key param in the URL params to DB queries on appropriate attributes."""
+    dag_query_key_map = {
+        'dag_id': DagModel.dag_id,
+        'owner': DagModel.owners,
+        'schedule': DagModel.next_dagrun,
+        # <- add any extra (URL param)->(DagModel attr) mappings here
+    }
+
+    query_key = dag_query_key_map.get(
+        (sorting_key or '').lower(),
+        DagModel.dag_id)  # default to original default behavior
+
+    return query_key
+
+
+def query_ordering_transform_for_key(sorting_order):
+    """Maps sort order param in the URL params to an appropriate transform of an attribute query."""
+    sorting_map = {
+        # not the biggest map in the world, but it's extensible and gives us nice default-handling
+        'asc': asc,
+        'desc': desc,
+    }
+
+    # the mapping should be lazily evaluated, so we get back a nullary callable
+    sorting_transform = sorting_map.get(
+        (sorting_order or '').lower(),
+        asc)  # default to original default behavior
+
+    return sorting_transform
+
+
+def build_dag_sorting_query(sorting_key, sorting_order):
+    """Builds a DAG sorting query based on the variables passed to the view (presumably as URL params)."""
+    query_key = dag_query_for_key(sorting_key=sorting_key)
+    ordering_transform = query_ordering_transform_for_key(sorting_order=sorting_order)
+    # ordering_transform is a callable, we need to run it to extract the value:
+    query_with_sorting = ordering_transform(query_key)
+    return query_with_sorting
 
 
 ######################################################################################
