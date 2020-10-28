@@ -26,9 +26,9 @@ class CeleryKubernetesPodLauncherRole(unittest.TestCase):
         docs = render_chart(
             values={"executor": "CeleryKubernetesExecutor"},
             show_only=[
-                "templates/workers/worker-deployment.yaml",
                 "templates/rbac/pod-launcher-rolebinding.yaml",
             ],
         )
 
-        self.assertRegex(jmespath.search("subjects[0].name", docs[0]), "^.*-worker$")
+        self.assertEqual(jmespath.search("subjects[0].name", docs[0]), "RELEASE-NAME-scheduler")
+        self.assertEqual(jmespath.search("subjects[1].name", docs[0]), "RELEASE-NAME-worker")
