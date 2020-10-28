@@ -143,7 +143,7 @@ jobs:
 
   helm-tests:
     timeout-minutes: 5
-    name: "Checks: Helm tests"
+    name: "Checks: Helm tests. Will soon be replaced with python tests"
     runs-on: ubuntu-latest
     needs: [build-info]
     if: >
@@ -432,6 +432,52 @@ jobs:
           name: airflow-provider-readmes
           path: "./files/airflow-readme-*"
 
+  helm-python-tests:
+    timeout-minutes: 5
+    name: "Python unit tests for helm chart"
+    runs-on: ubuntu-latest
+    needs: [build-info, ci-images]
+    env:
+      MOUNT_LOCAL_SOURCES: "true"
+      RUN_TESTS: true
+      TEST_TYPES: "Helm"
+      BACKEND: "sqlite"
+      PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
+    if: >
+      needs.build-info.outputs.needs-helm-tests == 'true' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+      - name: "Free space"
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Tests: ${{needs.build-info.outputs.testTypes}}"
+        run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+      - name: "Upload airflow logs"
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: airflow-logs-helm
+          path: "./files/airflow_logs*"
+      - name: "Upload container logs"
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: container-logs-helm
+          path: "./files/container_logs*"
+      - name: "Upload artifact for coverage"
+        uses: actions/upload-artifact@v2
+        with:
+          name: >
+            coverage-helm
+          path: "./files/coverage.xml"
+
 
   tests-postgres:
     timeout-minutes: 60
@@ -467,7 +513,7 @@ jobs:
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Tests: ${{needs.build-info.outputs.testTypes}}"
+      - name: "Tests: Helm"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
