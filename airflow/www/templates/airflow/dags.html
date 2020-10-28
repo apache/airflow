@@ -169,37 +169,37 @@
                 {% if dag %}
                   <div class="dags-table-more__menu">
                     <div class="dags-table-more__links">
-                      <a href="{{ url_for('Airflow.tree', dag_id=dag.dag_id, num_runs=num_runs) }}" class="dags-table-more__link">
-                        <span class="material-icons" aria-hidden="true">nature</span>
-                        Tree
-                      </a>
-                      <a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id) }}" class="dags-table-more__link">
-                        <span class="material-icons" aria-hidden="true">account_tree</span>
-                        Graph
-                      </a>
-                      <a href="{{ url_for('Airflow.duration', dag_id=dag.dag_id) }}" class="dags-table-more__link">
-                        <span class="material-icons" aria-hidden="true">hourglass_bottom</span>
-                        Duration
-                      </a>
-                      <a href="{{ url_for('Airflow.tries', dag_id=dag.dag_id) }}" class="dags-table-more__link">
-                        <span class="material-icons" aria-hidden="true">repeat</span>
-                        Tries
-                      </a>
-                      <a href="{{ url_for('Airflow.landing_times', dag_id=dag.dag_id) }}" class="dags-table-more__link">
-                        <span class="material-icons" aria-hidden="true">flight_land</span>
-                        Landing
-                      </a>
-                      <a href="{{ url_for('Airflow.gantt', dag_id=dag.dag_id) }}" class="dags-table-more__link">
-                        <span class="material-icons" aria-hidden="true">vertical_distribute</span>
-                        Gantt
+                      <a href="{{ url_for('Airflow.code', dag_id=dag.dag_id) }}" class="dags-table-more__link">
+                        <span class="material-icons" aria-hidden="true">code</span>
+                        Code
                       </a>
                       <a href="{{ url_for('Airflow.dag_details', dag_id=dag.dag_id) }}" class="dags-table-more__link">
                         <span class="material-icons" aria-hidden="true">details</span>
                         Details
                       </a>
-                      <a href="{{ url_for('Airflow.code', dag_id=dag.dag_id) }}" class="dags-table-more__link">
-                        <span class="material-icons" aria-hidden="true">code</span>
-                        Code
+                      <a href="{{ url_for('Airflow.gantt', dag_id=dag.dag_id) }}" class="dags-table-more__link">
+                        <span class="material-icons" aria-hidden="true">vertical_distribute</span>
+                        Gantt
+                      </a>
+                      <a href="{{ url_for('Airflow.landing_times', dag_id=dag.dag_id) }}" class="dags-table-more__link">
+                        <span class="material-icons" aria-hidden="true">flight_land</span>
+                        Landing
+                      </a>
+                      <a href="{{ url_for('Airflow.tries', dag_id=dag.dag_id) }}" class="dags-table-more__link">
+                        <span class="material-icons" aria-hidden="true">repeat</span>
+                        Tries
+                      </a>
+                      <a href="{{ url_for('Airflow.duration', dag_id=dag.dag_id) }}" class="dags-table-more__link">
+                        <span class="material-icons" aria-hidden="true">hourglass_bottom</span>
+                        Duration
+                      </a>
+                      <a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id) }}" class="dags-table-more__link">
+                        <span class="material-icons" aria-hidden="true">account_tree</span>
+                        Graph
+                      </a>
+                      <a href="{{ url_for('Airflow.tree', dag_id=dag.dag_id, num_runs=num_runs) }}" class="dags-table-more__link">
+                        <span class="material-icons" aria-hidden="true">nature</span>
+                        Tree
                       </a>
                     </div>
                     <span class="dags-table-more__toggle"><span class="material-icons">more_horiz</span></span>
