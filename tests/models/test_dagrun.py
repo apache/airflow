@@ -254,21 +254,12 @@ class TestDagRun(unittest.TestCase):
         dag_run = dag.create_dagrun(run_id='test_dagrun_fast_follow', state=State.RUNNING)
 
         task_instance_a = dag_run.get_task_instance(task_id=task_a.task_id)
-        task_instance_a.task = dag.get_task(task_a.task_id)
+        task_instance_a.task = task_a
+        task_instance_a.state = State.QUEUED
+        session.commit()
 
         task_instance_b = dag_run.get_task_instance(task_id=task_b.task_id)
-        task_instance_b.task = dag.get_task(task_b.task_id)
-
-        schedulable_tis, _ = dag_run.update_state()
-        self.assertEqual(len(schedulable_tis), 1)
-        self.assertEqual(schedulable_tis[0].task_id, task_a.task_id)
-        self.assertEqual(schedulable_tis[0].state, State.NONE)
-
-        dag_run.schedule_tis(schedulable_tis, session)
-        self.validate_ti_states(dag_run, {'A': State.SCHEDULED, 'B': State.NONE, 'C': State.NONE})
-
-        scheduler._critical_section_execute_task_instances(session=session)
-        self.validate_ti_states(dag_run, {'A': State.QUEUED, 'B': State.NONE, 'C': State.NONE})
+        task_instance_b.task = task_b
 
         task_instance_a.run()
         self.validate_ti_states(dag_run, {'A': State.SUCCESS, 'B': State.SCHEDULED, 'C': State.NONE})
@@ -306,18 +297,9 @@ class TestDagRun(unittest.TestCase):
         dag_run = dag.create_dagrun(run_id='test_dagrun_fast_follow_deactivated', state=State.RUNNING)
 
         task_instance_a = dag_run.get_task_instance(task_id=task_a.task_id)
-        task_instance_a.task = dag.get_task(task_a.task_id)
-
-        schedulable_tis, _ = dag_run.update_state()
-        self.assertEqual(len(schedulable_tis), 1)
-        self.assertEqual(schedulable_tis[0].task_id, task_a.task_id)
-        self.assertEqual(schedulable_tis[0].state, State.NONE)
-
-        dag_run.schedule_tis(schedulable_tis, session)
-        self.validate_ti_states(dag_run, {'A': State.SCHEDULED, 'B': State.NONE})
-
-        scheduler._critical_section_execute_task_instances(session=session)
-        self.validate_ti_states(dag_run, {'A': State.QUEUED, 'B': State.NONE})
+        task_instance_a.task = task_a
+        task_instance_a.state = State.QUEUED
+        session.commit()
 
         task_instance_a.run()
         self.validate_ti_states(dag_run, {'A': State.SUCCESS, 'B': State.NONE})
