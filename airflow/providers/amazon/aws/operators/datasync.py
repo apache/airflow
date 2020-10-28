@@ -261,7 +261,7 @@ class AWSDataSyncOperator(BaseOperator):
             return random.choice(task_arn_list)
         raise AirflowException(f"Unable to choose a Task from {task_arn_list}")
 
-    def choose_location(self, location_arn_list: List[str]) -> Optional[str]:
+    def choose_location(self, location_arn_list: Optional[List[str]]) -> Optional[str]:
         """Select 1 DataSync LocationArn from a list"""
         if not location_arn_list:
             return None
@@ -277,9 +277,6 @@ class AWSDataSyncOperator(BaseOperator):
 
     def _create_datasync_task(self) -> None:
         """Create a AWS DataSyncTask."""
-        if not self.candidate_source_location_arns or not self.candidate_destination_location_arns:
-            return
-
         hook = self.get_hook()
 
         self.source_location_arn = self.choose_location(self.candidate_source_location_arns)
