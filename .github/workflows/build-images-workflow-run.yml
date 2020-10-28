@@ -59,7 +59,6 @@ jobs:
       cacheDirective: ${{ steps.cache-directive.outputs.docker-cache }}
       buildImages: ${{ steps.build-images.outputs.buildImages }}
       upgradeToLatestConstraints: ${{ steps.upgrade-constraints.outputs.upgradeToLatestConstraints }}
-    if: github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule'
     steps:
       - name: "Get information about the original trigger of the run"
         uses: potiuk/get-workflow-origin@e3ba776faee1134e17551924b852bfb374e1703d  # v1_1
@@ -199,8 +198,7 @@ jobs:
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
     if: >
-      needs.cancel-workflow-runs.outputs.buildImages == 'true' &&
-      (github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule')
+      needs.cancel-workflow-runs.outputs.buildImages == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -253,8 +251,7 @@ jobs:
       fail-fast: true
     if: >
       needs.build-info.outputs.basic-checks-only == 'false' &&
-      needs.cancel-workflow-runs.outputs.buildImages == 'true' &&
-      (github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule')
+      needs.cancel-workflow-runs.outputs.buildImages == 'true'
     env:
       BACKEND: postgres
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
