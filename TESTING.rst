@@ -199,7 +199,7 @@ Run all Quarantined tests:
 Helm Unit Tests
 ===============
 
-On the Airflow Project, we have decided to stick with pythonic testing for our Helm chart. This makes our chart
+On the Airflow Project, we have decided to stick with Pythonic testing for our Helm chart. This makes our chart
 easier to test, easier to modify, and able to run with the same testing infrastructure. To add Helm unit tests
 go to the ``chart/tests`` directory and add your unit test by creating a class that extends ``unittest.TestCase``
 
@@ -207,8 +207,8 @@ go to the ``chart/tests`` directory and add your unit test by creating a class t
 
     class TestBaseChartTest(unittest.TestCase):
 
-To render the chart create a yaml string with the nested dictionary of options you wish to test. you can then
-use our ``render_chart`` function to render the object of interest into a testable python dictionary. Once the chart
+To render the chart create a YAML string with the nested dictionary of options you wish to test. You can then
+use our ``render_chart`` function to render the object of interest into a testable Python dictionary. Once the chart
 has been rendered, you can use the ``render_k8s_object`` function to create a k8s model object that simultaneously
 ensures that the object created properly conforms to the expected object spec and allows you to use object values
 instead of nested dictionaries.
@@ -216,8 +216,8 @@ instead of nested dictionaries.
 Example test here:
 
 .. code-block:: python
-    from .helm_template_generator import render_chart, render_k8s_object
 
+    from .helm_template_generator import render_chart, render_k8s_object
 
     git_sync_basic = """
     dags:
@@ -225,18 +225,20 @@ Example test here:
       enabled: true
     """
 
+
     class TestGitSyncScheduler(unittest.TestCase):
 
-    def test_basic(self):
-        helm_settings = yaml.safe_load(git_sync_basic)
-        res = render_chart('GIT-SYNC', helm_settings,
-                           show_only=["templates/scheduler/scheduler-deployment.yaml"])
-        dep: k8s.V1Deployment = render_k8s_object(res[0], k8s.V1Deployment)
-        self.assertEqual("dags", dep.spec.template.spec.volumes[1].name)
+        def test_basic(self):
+            helm_settings = yaml.safe_load(git_sync_basic)
+            res = render_chart('GIT-SYNC', helm_settings,
+                               show_only=["templates/scheduler/scheduler-deployment.yaml"])
+            dep: k8s.V1Deployment = render_k8s_object(res[0], k8s.V1Deployment)
+            self.assertEqual("dags", dep.spec.template.spec.volumes[1].name)
 
 To run tests using breeze run the following command
 
 .. code-block:: bash
+
     ./breeze --test-type Helm tests
 
 Airflow Integration Tests
