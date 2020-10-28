@@ -63,6 +63,7 @@ Committers
 - @msumit (Sumit Maheshwari)
 - @potiuk (Jarek Potiuk)
 - @r39132 (Siddharth "Sid" Anand)
+- @ryanahamilton (Ryan Hamilton)
 - @ryw (Ry Walker)
 - @saguziel (Alex Guziel)
 - @sekikn (Kengo Seki)
