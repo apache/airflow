@@ -158,6 +158,6 @@ The following config settings can be used to control aspects of the Scheduler HA
 
 - :ref:`config:scheduler__use_row_level_locking`
 
-  Should the scheduler issue `SELECT ... FOR UPDATE` in relevant queries.
+  Should the scheduler issue ``SELECT ... FOR UPDATE`` in relevant queries.
   If this is set to False then you should not run more than a single
   scheduler at once
