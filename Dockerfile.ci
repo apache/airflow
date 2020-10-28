@@ -350,6 +350,14 @@ RUN echo "source /etc/bash_completion" >> ~/.bashrc
 
 WORKDIR ${AIRFLOW_SOURCES}
 
+# Install Helm
+ARG HELM_VERSION="v3.2.4"
+
+RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
+    && HELM_URL="https://get.helm.sh/helm-${HELM_VERSION}-${SYSTEM}-amd64.tar.gz" \
+    && curl --location "${HELM_URL}" | tar -xvz -O "${SYSTEM}"-amd64/helm > /usr/local/bin/helm \
+    && chmod +x /usr/local/bin/helm
+
 # Additional python deps to install
 ARG ADDITIONAL_PYTHON_DEPS=""
 

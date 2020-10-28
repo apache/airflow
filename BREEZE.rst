@@ -2003,11 +2003,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  consistent-pylint daysago-import-check debug-statements detect-private-key doctoc
                  dont-use-safe-filter end-of-file-fixer fix-encoding-pragma flake8 forbid-tabs
                  helm-lint incorrect-use-of-LoggingMixin insert-license isort language-matters
-                 lint-dockerfile lint-openapi mermaid mixed-line-ending mypy no-relative-imports
-                 pre-commit-descriptions provide-create-sessions pydevd pydocstyle pylint
-                 pylint-tests python-no-log-warn restrict-start_date rst-backticks setup-order
-                 shellcheck sort-in-the-wild stylelint trailing-whitespace update-breeze-file
-                 update-extras update-local-yml-file update-setup-cfg-file yamllint
+                 lint-dockerfile lint-openapi mermaid mixed-line-ending mypy mypy-helm
+                 no-relative-imports pre-commit-descriptions provide-create-sessions pydevd
+                 pydocstyle pylint pylint-tests python-no-log-warn restrict-start_date rst-backticks
+                 setup-order shellcheck sort-in-the-wild stylelint trailing-whitespace
+                 update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
+                 yamllint
 
         You can pass extra arguments including options to to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
@@ -2042,7 +2043,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --test-type TEST_TYPE
           Type of the test to run. One of:
 
-                 All,Core,Providers,API,CLI,Integration,Other,WWW,Heisentests,Postgres,MySQL
+                 All,Core,Providers,API,CLI,Integration,Other,WWW,Heisentests,Postgres,MySQL,Helm
 
           Default: All
 
@@ -2419,7 +2420,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --test-type TEST_TYPE
           Type of the test to run. One of:
 
-                 All,Core,Providers,API,CLI,Integration,Other,WWW,Heisentests,Postgres,MySQL
+                 All,Core,Providers,API,CLI,Integration,Other,WWW,Heisentests,Postgres,MySQL,Helm
 
           Default: All
 

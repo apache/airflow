@@ -159,7 +159,7 @@ repos:
     rev: 20.8b1
     hooks:
       - id: black
-        files: api_connexion/.*\.py|.*providers.*\.py
+        files: api_connexion/.*\.py|.*providers.*\.py|^chart/tests/.*\.py
         exclude: .*kubernetes_pod\.py|.*google/common/hooks/base_google\.py$
         args: [--config=./pyproject.toml]
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -207,7 +207,15 @@ repos:
         args:
           - --convention=pep257
           - --add-ignore=D100,D102,D104,D105,D107,D205,D400,D401
-        exclude: ^tests/.*\.py$|^scripts/.*\.py$|^dev|^provider_packages|^kubernetes_tests|.*example_dags/.*
+        exclude: |
+          (?x)
+          ^tests/.*\.py$|
+          ^scripts/.*\.py$|
+          ^dev|
+          ^provider_packages|
+          ^kubernetes_tests|
+          .*example_dags/.*|
+          ^chart/.*\.py$
   - repo: local
     hooks:
       - id: lint-openapi
@@ -283,7 +291,7 @@ repos:
         entry: "^\\s*from\\s+\\."
         pass_filenames: true
         files: \.py$
-        exclude: ^tests/
+        exclude: ^tests/|^chart/tests/
       - id: language-matters
         language: pygrep
         name: Check for language that we do not accept as community
@@ -301,7 +309,7 @@ repos:
           ^CHANGELOG.txt$
       - id: consistent-pylint
         language: pygrep
-        name: Check for inconsitent pylint disable/enable without space
+        name: Check for inconsistent pylint disable/enable without space
         entry: "pylint:disable|pylint:enable"
         pass_filenames: true
         files: \.py$
@@ -457,6 +465,12 @@ repos:
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_mypy.sh"
         files: \.py$
+        exclude: ^dev|^provider_packages|^chart
+      - id: mypy
+        name: Run mypy for helm chart tests
+        language: system
+        entry: "./scripts/ci/pre_commit/pre_commit_mypy.sh"
+        files: ^chart/.*\.py$
         exclude: ^dev|^provider_packages
         require_serial: true
       - id: pylint

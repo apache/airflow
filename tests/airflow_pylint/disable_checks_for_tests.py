@@ -44,7 +44,8 @@ def transform(mod):
     """
     if mod.name.startswith("test_") or \
             mod.name.startswith("tests.") or \
-            mod.name.startswith("kubernetes_tests."):
+            mod.name.startswith("kubernetes_tests.") or \
+            mod.name.startswith("chart."):
         decoded_lines = mod.stream().read().decode("utf-8").split("\n")
         if decoded_lines[0].startswith("# pylint: disable="):
             decoded_lines[0] = decoded_lines[0] + " " + DISABLED_CHECKS_FOR_TESTS
