@@ -62,11 +62,12 @@ to leak the sensitive long lived credential key material.
 
 From an Airflow perspective Application Default Credentials can be used for
 a connection by specifying an empty URI.
-    For example:
 
-    .. code-block:: bash
+For example:
 
-       export AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT='google-cloud-platform://'
+.. code-block:: bash
+
+   export AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT='google-cloud-platform://'
 
 Configuring the Connection
 --------------------------
