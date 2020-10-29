@@ -21,7 +21,7 @@ from cached_property import cached_property
 
 from airflow import conf
 from airflow.upgrade.rules.base_rule import BaseRule
-from airflow.upgrade.rules.renamed_classes import ALL
+from airflow.upgrade.rules.providers.renamed_classes import ALL
 from airflow.utils.dag_processing import list_py_file_paths
 
 
