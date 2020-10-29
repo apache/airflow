@@ -123,6 +123,7 @@ class LocalWorkerBase(Process, LoggingMixin):
         finally:
             Sentry.flush()
             os._exit(ret)  # pylint: disable=protected-access
+            raise RuntimeError('unreachable -- keep mypy happy')
 
     @abstractmethod
     def do_work(self):
