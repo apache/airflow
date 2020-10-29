@@ -391,16 +391,6 @@ label[for="timezone-other"],
   background-color: #f5f5f5;
 }
 
-.dags-table-wrap {
-  border-radius: 4px 4px 0 0;
-  background-color: #f0f0f0;
-}
-
-.dags-table-header {
-  margin: 0;
-  padding: 16px 0;
-}
-
 .dag-view-tools {
   margin: 16px 0;
   padding: 16px 0;
