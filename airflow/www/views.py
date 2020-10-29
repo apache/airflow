@@ -47,7 +47,6 @@ from pygments.formatters import HtmlFormatter  # noqa pylint: disable=no-name-in
 from sqlalchemy import and_, desc, func, or_, union_all
 from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
-from airflow.utils import json as utils_json
 
 import airflow
 from airflow import models, plugins_manager, settings
@@ -67,7 +66,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.security import permissions
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
-from airflow.utils import timezone
+from airflow.utils import json as utils_json, timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.log.log_reader import TaskLogReader
