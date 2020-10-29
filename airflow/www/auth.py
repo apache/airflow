@@ -18,34 +18,23 @@
 from functools import wraps
 from typing import Callable, Optional, Sequence, Tuple, TypeVar, cast
 
-from flask import Response, current_app
-
-from airflow.api_connexion.exceptions import PermissionDenied, Unauthenticated
+from flask import current_app, flash, redirect, request, url_for
 
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 
-def check_authentication() -> None:
-    """Checks that the request has valid authorization information."""
-    response = current_app.api_auth.requires_authentication(Response)()
-    if response.status_code != 200:
-        # since this handler only checks authentication, not authorization,
-        # we should always return 401
-        raise Unauthenticated(headers=response.headers)
-
-
-def requires_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Callable[[T], T]:
+def has_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Callable[[T], T]:
     """Factory for decorator that checks current user's permissions against required permissions."""
-    appbuilder = current_app.appbuilder
-    appbuilder.sm.sync_resource_permissions(permissions)
-
     def requires_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
-            check_authentication()
-            if appbuilder.sm.check_authorization(permissions, kwargs.get('dag_id')):
+            appbuilder = current_app.appbuilder
+            if appbuilder.sm.check_authorization(permissions, request.args.get('dag_id', None)):
                 return func(*args, **kwargs)
-            raise PermissionDenied()
+            else:
+                access_denied = "Access is Denied"
+                flash(access_denied, "danger")
+            return redirect(url_for(appbuilder.sm.auth_view.__class__.__name__ + ".login", next=request.url,))
 
         return cast(T, decorated)
 
