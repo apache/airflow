@@ -37,6 +37,7 @@ from celery import Celery, Task, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend, Task as TaskDb, session_cleanup
 from celery.result import AsyncResult
+from celery.signals import import_modules as celery_import_modules
 from setproctitle import setproctitle  # pylint: disable=no-name-in-module
 
 import airflow.settings as settings
@@ -164,6 +165,31 @@ def send_task_to_executor(task_tuple: TaskInstanceInCelery) \
         result = ExceptionWithTraceback(e, exception_traceback)
 
     return key, command, result
+
+
+# pylint: disable=unused-import
+@celery_import_modules.connect
+def on_celery_import_modules(*args, **kwargs):
+    """
+    Preload some "expensive" airflow modules so that every task process doesn't have to import it again and
+    again.
+
+    Loading these for each task adds 0.3-0.5s *per task* before the task can run. For long running tasks this
+    doesn't matter, but for short tasks this starts to be a noticeable impact.
+    """
+    import jinja2.ext  # noqa: F401
+    import numpy  # noqa: F401
+
+    import airflow.jobs.local_task_job
+    import airflow.macros
+    import airflow.operators.bash
+    import airflow.operators.python
+    import airflow.operators.subdag_operator  # noqa: F401
+    try:
+        import kubernetes.client  # noqa: F401
+    except ImportError:
+        pass
+# pylint: enable=unused-import
 
 
 class CeleryExecutor(BaseExecutor):
