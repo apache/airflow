@@ -1174,7 +1174,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
                     ti for ti in siblings.task_ids if ti not in self.task.downstream_task_ids
                 }
                 schedulable_tis = [
-                    ti for ti in info['schedulable_tis'] if ti.task_id not in skippable_task_ids
+                    ti for ti in info.schedulable_tis if ti.task_id not in skippable_task_ids
                 ]
 
                 for schedulable_ti in schedulable_tis:

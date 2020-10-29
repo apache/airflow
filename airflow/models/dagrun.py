@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from datetime import datetime
-from typing import Any, Iterable, List, Optional, Tuple, Union
+from typing import Any, Iterable, List, NamedTuple, Optional, Tuple, Union
 
 from sqlalchemy import (
     Boolean, Column, DateTime, Index, Integer, PickleType, String, UniqueConstraint, and_, func, or_,
@@ -35,7 +35,6 @@ from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
-from airflow.typing_compat import TypedDict
 from airflow.utils import callback_requests, timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
@@ -44,7 +43,7 @@ from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
 
-class _TISchedulingDecision(TypedDict):
+class _TISchedulingDecision(NamedTuple):
     """
     Type of return for DagRun.task_instance_scheduling_decisions
 
@@ -54,8 +53,8 @@ class _TISchedulingDecision(TypedDict):
     tis: List[TI]
     schedulable_tis: List[TI]
     changed_tis: bool
-    unfinished_tis: List[TI]
-    finished_tis: List[TI]
+    unfinished_tasks: List[TI]
+    finished_tasks: List[TI]
 
 
 class DagRun(Base, LoggingMixin):
@@ -397,11 +396,11 @@ class DagRun(Base, LoggingMixin):
         dag = self.get_dag()
         info = self.task_instance_scheduling_decisions(session)
 
-        tis = info['tis']
-        schedulable_tis = info['schedulable_tis']
-        changed_tis = info['changed_tis']
-        finished_tasks = info['finished_tasks']
-        unfinished_tasks = info['unfinished_tasks']
+        tis = info.tis
+        schedulable_tis = info.schedulable_tis
+        changed_tis = info.changed_tis
+        finished_tasks = info.finished_tasks
+        unfinished_tasks = info.unfinished_tasks
 
         none_depends_on_past = all(not t.task.depends_on_past for t in unfinished_tasks)
         none_task_concurrency = all(t.task.task_concurrency is None for t in unfinished_tasks)
