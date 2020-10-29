@@ -54,6 +54,6 @@ class AirflowJsonEncoder(json.JSONEncoder):
             return float(obj)
         elif k8s is not None and isinstance(obj, k8s.V1Pod):
             from airflow.kubernetes.pod_generator import PodGenerator
-            PodGenerator.serialize_pod(obj)
+            return PodGenerator.serialize_pod(obj)
 
         raise TypeError(f"Object of type '{obj.__class__.__name__}' is not JSON serializable")
