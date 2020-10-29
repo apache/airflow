@@ -1458,7 +1458,7 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
         return super()._format_action(action)
 
 
-@lru_cache(maxsize=2)
+@lru_cache(maxsize=None)
 def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
     """Creates and returns command line argument parser"""
     parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
