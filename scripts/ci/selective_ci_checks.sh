@@ -30,27 +30,66 @@
 #
 declare -a pattern_array
 
-function output_all_basic_variables() {
-    initialization::ga_output python-versions \
-        "$(initialization::parameters_to_json "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
-    initialization::ga_output default-python-version "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
-    initialization::ga_output all-python-versions \
-        "$(initialization::parameters_to_json "${ALL_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
+if [[ ${PR_LABELS=} == *"full tests needed"* ]]; then
+    echo
+    echo "Found the right PR labels in '${PR_LABELS=}': 'full tests needed''"
+    echo
+    FULL_TESTS_NEEDED="true"
+else
+    echo
+    echo "Did not find the right PR labels in '${PR_LABELS=}': 'full tests needed'"
+    echo
+    FULL_TESTS_NEEDED="false"
+fi
 
-    initialization::ga_output kubernetes-versions \
-        "$(initialization::parameters_to_json "${CURRENT_KUBERNETES_VERSIONS[@]}")"
+function output_all_basic_variables() {
+    if [[ ${FULL_TESTS_NEEDED} == "true" ]]; then
+        initialization::ga_output python-versions \
+            "$(initialization::parameters_to_json "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
+        initialization::ga_output all-python-versions \
+            "$(initialization::parameters_to_json "${ALL_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
+        initialization::ga_output python-versions-list-as-string "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[*]}"
+    else
+        initialization::ga_output python-versions \
+            "$(initialization::parameters_to_json "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}")"
+        # this will work as long as DEFAULT_PYTHON_MAJOR_VERSION is the same master/v1-10
+        # all-python-versions are used in BuildImage Workflow
+        initialization::ga_output all-python-versions \
+            "$(initialization::parameters_to_json "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}")"
+        initialization::ga_output python-versions-list-as-string "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
+    fi
+    initialization::ga_output default-python-version "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
+
+    if [[ ${FULL_TESTS_NEEDED} == "true" ]]; then
+        initialization::ga_output kubernetes-versions \
+            "$(initialization::parameters_to_json "${CURRENT_KUBERNETES_VERSIONS[@]}")"
+    else
+        initialization::ga_output kubernetes-versions \
+            "$(initialization::parameters_to_json "${KUBERNETES_VERSION}")"
+    fi
     initialization::ga_output default-kubernetes-version "${KUBERNETES_VERSION}"
 
     initialization::ga_output kubernetes-modes \
         "$(initialization::parameters_to_json "${CURRENT_KUBERNETES_MODES[@]}")"
     initialization::ga_output default-kubernetes-mode "${KUBERNETES_MODE}"
 
-    initialization::ga_output postgres-versions \
-        "$(initialization::parameters_to_json "${CURRENT_POSTGRES_VERSIONS[@]}")"
+    if [[ ${FULL_TESTS_NEEDED} == "true" ]]; then
+        initialization::ga_output postgres-versions \
+            "$(initialization::parameters_to_json "${CURRENT_POSTGRES_VERSIONS[@]}")"
+    else
+        initialization::ga_output postgres-versions \
+            "$(initialization::parameters_to_json "${POSTGRES_VERSION}")"
+    fi
     initialization::ga_output default-postgres-version "${POSTGRES_VERSION}"
 
-    initialization::ga_output mysql-versions \
-        "$(initialization::parameters_to_json "${CURRENT_MYSQL_VERSIONS[@]}")"
+    if [[ ${FULL_TESTS_NEEDED} == "true" ]]; then
+        initialization::ga_output mysql-versions \
+            "$(initialization::parameters_to_json "${CURRENT_MYSQL_VERSIONS[@]}")"
+    else
+        initialization::ga_output mysql-versions \
+            "$(initialization::parameters_to_json "${MYSQL_VERSION}")"
+    fi
+
     initialization::ga_output default-mysql-version "${MYSQL_VERSION}"
 
     initialization::ga_output kind-versions \
@@ -61,11 +100,15 @@ function output_all_basic_variables() {
         "$(initialization::parameters_to_json "${CURRENT_HELM_VERSIONS[@]}")"
     initialization::ga_output default-helm-version "${HELM_VERSION}"
 
-    initialization::ga_output postgres-exclude '[{ "python-version": "3.6" }]'
-
-    initialization::ga_output mysql-exclude '[{ "python-version": "3.7" }]'
-
-    initialization::ga_output sqlite-exclude '[{ "python-version": "3.8" }]'
+    if [[ ${FULL_TESTS_NEEDED} == "true" ]]; then
+        initialization::ga_output postgres-exclude '[{ "python-version": "3.6" }]'
+        initialization::ga_output mysql-exclude '[{ "python-version": "3.7" }]'
+        initialization::ga_output sqlite-exclude '[{ "python-version": "3.8" }]'
+    else
+        initialization::ga_output postgres-exclude '[]'
+        initialization::ga_output mysql-exclude '[]'
+        initialization::ga_output sqlite-exclude '[]'
+    fi
 
     initialization::ga_output kubernetes-exclude '[]'
 }
@@ -441,14 +484,19 @@ function calculate_test_types_to_run() {
     fi
 }
 
-output_all_basic_variables
-
 if (($# < 1)); then
     echo
-    echo "No Commit SHA - running all tests!"
+    echo "No Commit SHA - running all tests (likely direct master merge, or scheduled run)!"
     echo
+    # override FULL_TESTS_NEEDED in master/scheduled run
+    FULL_TESTS_NEEDED="true"
+    readonly FULL_TESTS_NEEDED
+    output_all_basic_variables
     set_outputs_run_everything_and_exit
 fi
+
+readonly FULL_TESTS_NEEDED
+output_all_basic_variables
 
 image_build_needed="false"
 tests_needed="false"

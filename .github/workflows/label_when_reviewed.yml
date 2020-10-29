@@ -16,16 +16,14 @@
 # under the License.
 #
 ---
-name: 'Delete old artifacts'
-on:  # yamllint disable-line rule:truthy
-  schedule:
-    - cron: '27 */6 * * *'  # run every 6 hours
+name: Label when reviewed
+on: pull_request_review  # yamllint disable-line rule:truthy
 
 jobs:
-  delete-artifacts:
+
+  label-when-reviewed:
+    name: "Label PRs when reviewed"
     runs-on: ubuntu-latest
     steps:
-      - uses: kolpav/purge-artifacts-action@04c636a505f26ebc82f8d070b202fb87ff572b10  # v1.0
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          expire-in: 7days  # Setting this to 0 will delete all artifacts
+      - name: "Do nothing. Only trigger corresponding workflow_run event"
+        run: echo
