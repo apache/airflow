@@ -118,7 +118,6 @@ class DagBag(BaseDagBag, LoggingMixin):
 
         self.dagbag_import_error_tracebacks = conf.getboolean('core', 'dagbag_import_error_tracebacks')
         self.dagbag_import_error_traceback_depth = conf.getint('core', 'dagbag_import_error_traceback_depth')
-
         self.collect_dags(
             dag_folder=dag_folder,
             include_examples=include_examples,

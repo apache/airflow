@@ -87,3 +87,8 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
 
         assert mock_run.call_count == 1
         assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], unload_query)
+
+    def test_template_fields_overrides(self):
+        self.assertEqual(
+            RedshiftToS3Operator.template_fields, ('s3_bucket', 's3_key', 'schema', 'table', 'unload_options')
+        )

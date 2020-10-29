@@ -48,8 +48,6 @@ class TestGetLog(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        settings.configure_orm()
-        cls.session = settings.Session
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)
 
@@ -58,9 +56,9 @@ class TestGetLog(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             ],
         )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")

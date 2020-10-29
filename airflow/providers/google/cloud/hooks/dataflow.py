@@ -145,6 +145,8 @@ class _DataflowJobsController(LoggingMixin):
     :param num_retries: Maximum number of retries in case of connection problems.
     :param multiple_jobs: If set to true this task will be searched by name prefix (``name`` parameter),
         not by specific job ID, then actions will be performed on all matching jobs.
+    :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
+        instead of canceling.
     """
 
     def __init__(
@@ -157,6 +159,7 @@ class _DataflowJobsController(LoggingMixin):
         job_id: Optional[str] = None,
         num_retries: int = 0,
         multiple_jobs: bool = False,
+        drain_pipeline: bool = False,
     ) -> None:
 
         super().__init__()
@@ -168,6 +171,7 @@ class _DataflowJobsController(LoggingMixin):
         self._job_id = job_id
         self._num_retries = num_retries
         self._poll_sleep = poll_sleep
+        self.drain_pipeline = drain_pipeline
         self._jobs: Optional[List[dict]] = None
 
     def is_job_running(self) -> bool:
@@ -304,13 +308,18 @@ class _DataflowJobsController(LoggingMixin):
         return self._jobs
 
     def cancel(self) -> None:
-        """Cancels current job"""
+        """Cancels or drains current job"""
         jobs = self.get_jobs()
         job_ids = [job['id'] for job in jobs if job['currentState'] not in DataflowJobStatus.TERMINAL_STATES]
         if job_ids:
             batch = self._dataflow.new_batch_http_request()
             self.log.info("Canceling jobs: %s", ", ".join(job_ids))
-            for job_id in job_ids:
+            for job in jobs:
+                requested_state = (
+                    DataflowJobStatus.JOB_STATE_DRAINED
+                    if self.drain_pipeline and job['type'] == DataflowJobType.JOB_TYPE_STREAMING
+                    else DataflowJobStatus.JOB_STATE_CANCELLED
+                )
                 batch.add(
                     self._dataflow.projects()
                     .locations()
@@ -318,8 +327,8 @@ class _DataflowJobsController(LoggingMixin):
                     .update(
                         projectId=self._project_number,
                         location=self._job_location,
-                        jobId=job_id,
-                        body={"requestedState": DataflowJobStatus.JOB_STATE_CANCELLED},
+                        jobId=job['id'],
+                        body={"requestedState": requested_state},
                     )
                 )
             batch.execute()
@@ -427,8 +436,10 @@ class DataflowHook(GoogleBaseHook):
         delegate_to: Optional[str] = None,
         poll_sleep: int = 10,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        drain_pipeline: bool = False,
     ) -> None:
         self.poll_sleep = poll_sleep
+        self.drain_pipeline = drain_pipeline
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
@@ -464,6 +475,7 @@ class DataflowHook(GoogleBaseHook):
             job_id=job_id,
             num_retries=self.num_retries,
             multiple_jobs=multiple_jobs,
+            drain_pipeline=self.drain_pipeline,
         )
         job_controller.wait_for_done()
 
@@ -633,6 +645,7 @@ class DataflowHook(GoogleBaseHook):
             location=location,
             poll_sleep=self.poll_sleep,
             num_retries=self.num_retries,
+            drain_pipeline=self.drain_pipeline,
         )
         jobs_controller.wait_for_done()
         return response["job"]
@@ -870,6 +883,7 @@ class DataflowHook(GoogleBaseHook):
             name=name,
             location=location,
             poll_sleep=self.poll_sleep,
+            drain_pipeline=self.drain_pipeline,
         )
         return jobs_controller.is_job_running()
 
@@ -903,5 +917,6 @@ class DataflowHook(GoogleBaseHook):
             job_id=job_id,
             location=location,
             poll_sleep=self.poll_sleep,
+            drain_pipeline=self.drain_pipeline,
         )
         jobs_controller.cancel()

@@ -699,11 +699,11 @@ INSTALL_REQUIREMENTS = [
     'cryptography>=0.9.3',
     'dill>=0.2.2, <0.4',
     'flask>=1.1.0, <2.0',
-    'flask-appbuilder~=3.1.0',
+    'flask-appbuilder~=3.1.1',
     'flask-caching>=1.3.3, <2.0.0',
     'flask-login>=0.3, <0.5',
     'flask-swagger==0.2.13',
-    'flask-wtf>=0.14.2, <0.15',
+    'flask-wtf>=0.14.3, <0.15',
     'funcsigs>=1.0.0, <2.0.0',
     'graphviz>=0.12',
     'gunicorn>=19.5.0, <20.0',
@@ -737,7 +737,7 @@ INSTALL_REQUIREMENTS = [
     'typing-extensions>=3.7.4;python_version<"3.8"',
     'tzlocal>=1.4,<2.0.0',
     'unicodecsv>=0.14.1',
-    'werkzeug<1.0.0',
+    'werkzeug~=1.0, >=1.0.1',
 ]
 
 

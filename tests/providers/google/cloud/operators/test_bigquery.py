@@ -960,3 +960,24 @@ class TestBigQueryInsertJobOperator:
         # No force rerun
         with pytest.raises(AirflowException):
             op.execute({})
+
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.hashlib.md5')
+    @pytest.mark.parametrize(
+        "test_dag_id, expected_job_id",
+        [("test-dag-id-1.1", "airflow_test_dag_id_1_1_test_job_id_2020_01_23T00_00_00_hash")],
+    )
+    def test_job_id_validity(self, mock_md5, test_dag_id, expected_job_id):
+        hash_ = "hash"
+        mock_md5.return_value.hexdigest.return_value = hash_
+        context = {"execution_date": datetime(2020, 1, 23)}
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
+        with DAG(dag_id=test_dag_id, start_date=datetime(2020, 1, 23)):
+            op = BigQueryInsertJobOperator(
+                task_id="test_job_id", configuration=configuration, project_id=TEST_GCP_PROJECT_ID
+            )
+        assert op._job_id(context) == expected_job_id

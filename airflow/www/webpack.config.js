@@ -39,6 +39,7 @@ const config = {
     airflowDefaultTheme: `${STATIC_DIR}/css/bootstrap-theme.css`,
     base: `${STATIC_DIR}/js/base.js`,
     connectionForm: `${STATIC_DIR}/js/connection_form.js`,
+    dags: `${STATIC_DIR}/css/dags.css`,
     flash: `${STATIC_DIR}/css/flash.css`,
     gantt: `${STATIC_DIR}/css/gantt.css`,
     ganttChartD3v2: `${STATIC_DIR}/js/gantt-chart-d3v2.js`,

@@ -69,7 +69,11 @@ Apache Airflow is tested with:
 | SQLite       | latest stable             | latest stable            |
 | Kubernetes   | 1.16.2, 1.17.0            | 1.16.2, 1.17.0           |
 
-> Note: SQLite is used primarily for development purpose.
+**Note:** MariaDB and MySQL 5.x will work fine for a single scheduler, but don't work or have limitations
+running than a single scheduler -- please see the "Scheduler" docs.
+
+**Note:** SQLite is used primarily for development purpose.
+
 
 ### Additional notes on Python version requirements
 
@@ -207,7 +211,7 @@ Airflow is the work of the [community](https://github.com/apache/airflow/graphs/
 but the [core committers/maintainers](https://people.apache.org/committers-by-project.html#airflow)
 are responsible for reviewing and merging PRs as well as steering conversation around new feature requests.
 If you would like to become a maintainer, please review the Apache Airflow
-[committer requirements](https://cwiki.apache.org/confluence/display/AIRFLOW/Committers).
+[committer requirements](https://airflow.apache.org/docs/stable/project.html#committers).
 
 ## Can I use the Apache Airflow logo in my presentation?
 
@@ -222,4 +226,3 @@ If you would love to have Apache Airflow stickers, t-shirt etc. then check out
 
 - [Documentation](https://airflow.apache.org/docs/stable/)
 - [Chat](https://s.apache.org/airflow-slack)
-- [More](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links)

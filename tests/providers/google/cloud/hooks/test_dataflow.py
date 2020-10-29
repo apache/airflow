@@ -656,6 +656,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             poll_sleep=10,
             project_number=TEST_PROJECT,
             location=DEFAULT_DATAFLOW_LOCATION,
+            drain_pipeline=False,
         )
         mock_controller.return_value.wait_for_done.assert_called_once()
 
@@ -692,6 +693,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             poll_sleep=10,
             project_number=TEST_PROJECT,
             location=TEST_LOCATION,
+            drain_pipeline=False,
         )
         mock_controller.return_value.wait_for_done.assert_called_once()
 
@@ -730,6 +732,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             poll_sleep=10,
             project_number=TEST_PROJECT,
             location=TEST_LOCATION,
+            drain_pipeline=False,
         )
         mock_controller.return_value.wait_for_done.assert_called_once()
 
@@ -772,6 +775,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             num_retries=5,
             poll_sleep=10,
             project_number=TEST_PROJECT,
+            drain_pipeline=False,
         )
         mock_uuid.assert_called_once_with()
 
@@ -818,6 +822,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             num_retries=5,
             poll_sleep=10,
             project_number=TEST_PROJECT,
+            drain_pipeline=False,
         )
         mock_uuid.assert_called_once_with()
 
@@ -868,6 +873,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             name=UNIQUE_JOB_NAME,
             poll_sleep=10,
             project_number=TEST_PROJECT,
+            drain_pipeline=False,
         )
         jobs_controller.cancel()
 
@@ -1195,6 +1201,60 @@ class TestDataflowJob(unittest.TestCase):
             projectId='test-project',
         )
         mock_batch.add.assert_called_once_with(mock_update.return_value)
+
+    @parameterized.expand(
+        [
+            (False, "JOB_TYPE_BATCH", "JOB_STATE_CANCELLED"),
+            (False, "JOB_TYPE_STREAMING", "JOB_STATE_CANCELLED"),
+            (True, "JOB_TYPE_BATCH", "JOB_STATE_CANCELLED"),
+            (True, "JOB_TYPE_STREAMING", "JOB_STATE_DRAINED"),
+        ]
+    )
+    def test_dataflow_job_cancel_or_drain_job(self, drain_pipeline, job_type, requested_state):
+        job = {
+            "id": TEST_JOB_ID,
+            "name": UNIQUE_JOB_NAME,
+            "currentState": DataflowJobStatus.JOB_STATE_RUNNING,
+            "type": job_type,
+        }
+        get_method = self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.get
+        get_method.return_value.execute.return_value = job
+        # fmt: off
+        job_list_nest_method = (self.mock_dataflow
+                                .projects.return_value.
+                                locations.return_value.
+                                jobs.return_value.list_next)
+        job_list_nest_method.return_value = None
+        # fmt: on
+        dataflow_job = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name=UNIQUE_JOB_NAME,
+            location=TEST_LOCATION,
+            poll_sleep=10,
+            job_id=TEST_JOB_ID,
+            num_retries=20,
+            multiple_jobs=False,
+            drain_pipeline=drain_pipeline,
+        )
+        dataflow_job.cancel()
+
+        get_method.assert_called_once_with(jobId=TEST_JOB_ID, location=TEST_LOCATION, projectId=TEST_PROJECT)
+
+        get_method.return_value.execute.assert_called_once_with(num_retries=20)
+
+        self.mock_dataflow.new_batch_http_request.assert_called_once_with()
+
+        mock_batch = self.mock_dataflow.new_batch_http_request.return_value
+        mock_update = self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.update
+        mock_update.assert_called_once_with(
+            body={'requestedState': requested_state},
+            jobId='test-job-id',
+            location=TEST_LOCATION,
+            projectId='test-project',
+        )
+        mock_batch.add.assert_called_once_with(mock_update.return_value)
+        mock_batch.execute.assert_called_once()
 
     def test_dataflow_job_cancel_job_no_running_jobs(self):
         mock_jobs = self.mock_dataflow.projects.return_value.locations.return_value.jobs

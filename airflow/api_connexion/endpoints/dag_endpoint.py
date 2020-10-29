@@ -32,7 +32,7 @@ from airflow.security import permissions
 from airflow.utils.session import provide_session
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS)])
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
 @provide_session
 def get_dag(dag_id, session):
     """Get basic information about a DAG."""
@@ -44,7 +44,7 @@ def get_dag(dag_id, session):
     return dag_schema.dump(dag)
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS)])
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
 def get_dag_details(dag_id):
     """Get details of DAG."""
     dag: DAG = current_app.dag_bag.get_dag(dag_id)
@@ -53,7 +53,7 @@ def get_dag_details(dag_id):
     return dag_detail_schema.dump(dag)
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS)])
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
 @format_parameters({'limit': check_limit})
 def get_dags(limit, offset=0):
     """Get all DAGs."""
@@ -64,7 +64,7 @@ def get_dags(limit, offset=0):
     return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
 
 
-@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS)])
+@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)])
 @provide_session
 def patch_dag(session, dag_id, update_mask=None):
     """Update the specific DAG"""

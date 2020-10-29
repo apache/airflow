@@ -53,14 +53,15 @@ jobs:
       sourceHeadSha: ${{ steps.source-run-info.outputs.sourceHeadSha }}
       mergeCommitSha: ${{ steps.source-run-info.outputs.mergeCommitSha }}
       targetCommitSha: ${{ steps.source-run-info.outputs.targetCommitSha }}
+      pullRequestNumber: ${{ steps.source-run-info.outputs.pullRequestNumber }}
+      pullRequestLabels: ${{ steps.source-run-info.outputs.pullRequestLabels }}
       sourceEvent: ${{ steps.source-run-info.outputs.sourceEvent }}
       cacheDirective: ${{ steps.cache-directive.outputs.docker-cache }}
       buildImages: ${{ steps.build-images.outputs.buildImages }}
       upgradeToLatestConstraints: ${{ steps.upgrade-constraints.outputs.upgradeToLatestConstraints }}
-    if: github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule'
     steps:
-      - name: "Get information about the origin 'CI Build' run"
-        uses: potiuk/get-workflow-origin@c657bb36aef4a7402bbe9b2e09a820320f8ff447  # v1
+      - name: "Get information about the original trigger of the run"
+        uses: potiuk/get-workflow-origin@2ef0b065db6b688a2231f8a7f464df1aac254328  # v1_2
         id: source-run-info
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -112,8 +113,8 @@ jobs:
           sourceRunId: ${{ github.event.workflow_run.id }}
           notifyPRCancel: true
           jobNameRegexps: >
-            ["^Pylint$", "^Static checks$", "^Build docs$", "^Spell check docs$", "^Backport packages$",
-             "^Checks: Helm tests$", "^Test OpenAPI*"]
+            ["^Pylint$", "^Static checks", "^Build docs$", "^Spell check docs$", "^Backport packages$",
+             "^Provider packages", "^Checks: Helm tests$", "^Test OpenAPI*"]
       - name: "Extract canceled failed runs"
 
         # We use this step to build regexp that will be used to match the Source Run id in
@@ -197,8 +198,7 @@ jobs:
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
     if: >
-      needs.cancel-workflow-runs.outputs.buildImages == 'true' &&
-      (github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule')
+      needs.cancel-workflow-runs.outputs.buildImages == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -220,11 +220,15 @@ jobs:
           ref: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
           fetch-depth: 2
         if: needs.cancel-workflow-runs.outputs.sourceEvent  == 'pull_request'
+      # checkout the master version again, to use the right script in master workflow
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
       - name: Selective checks
         id: selective-checks
         env:
           EVENT_NAME: ${{ needs.cancel-workflow-runs.outputs.sourceEvent }}
           INCOMING_COMMIT_SHA: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
+          PR_LABELS: ${{ needs.cancel-workflow-runs.outputs.pullRequestLabels }}
         run: |
           if [[ ${EVENT_NAME} == "pull_request" ]]; then
             # Run selective checks
@@ -248,8 +252,7 @@ jobs:
       fail-fast: true
     if: >
       needs.build-info.outputs.basic-checks-only == 'false' &&
-      needs.cancel-workflow-runs.outputs.buildImages == 'true' &&
-      (github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule')
+      needs.cancel-workflow-runs.outputs.buildImages == 'true'
     env:
       BACKEND: postgres
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}

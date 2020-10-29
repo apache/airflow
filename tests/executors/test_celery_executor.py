@@ -196,6 +196,7 @@ class TestCeleryExecutor(unittest.TestCase):
         self.assertEqual(0, len(executor.queued_tasks), "Task should no longer be queued")
         self.assertEqual(executor.event_buffer[('fail', 'fake_simple_ti', when, 0)][0], State.FAILED)
 
+    @pytest.mark.quarantined
     @pytest.mark.backend("mysql", "postgres")
     def test_exception_propagation(self):
 
