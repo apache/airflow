@@ -76,7 +76,7 @@ class TestAirflowJsonEncoder(unittest.TestCase):
             )
         )
         self.assertEqual(
-            json.dumps(pod, cls=utils_json.AirflowJsonEncoder),
+            json.loads(json.dumps(pod, cls=utils_json.AirflowJsonEncoder)),
             {"metadata": {"name": "foo", "namespace": "bar"},
              "spec": {"containers": [{"image": "bar", "name": "foo"}]}}
         )
