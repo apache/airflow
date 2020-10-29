@@ -47,6 +47,7 @@ from pygments.formatters import HtmlFormatter  # noqa pylint: disable=no-name-in
 from sqlalchemy import and_, desc, func, or_, union_all
 from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
+from airflow.utils import json as utils_json
 
 import airflow
 from airflow import models, plugins_manager, settings
@@ -2444,7 +2445,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             ti.task_id: alchemy_to_dict(ti)
             for ti in dag.get_task_instances(dttm, dttm)}
 
-        return json.dumps(task_instances)
+        return json.dumps(task_instances, cls=utils_json.AirflowJsonEncoder)
 
 
 class ConfigurationView(AirflowBaseView):
