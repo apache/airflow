@@ -23,6 +23,7 @@ import json
 import os
 import textwrap
 from argparse import Action, ArgumentError, RawTextHelpFormatter
+from functools import lru_cache
 from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Union
 
 from tabulate import tabulate_formats
@@ -1457,6 +1458,7 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
         return super()._format_action(action)
 
 
+@lru_cache(maxsize=None)
 def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
     """Creates and returns command line argument parser"""
     parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
