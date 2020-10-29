@@ -24,6 +24,7 @@ import warnings
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 from cached_property import cached_property
+from google.api_core.exceptions import ServerError
 from google.api_core.retry import Retry
 from google.cloud.dataproc_v1beta2 import (  # pylint: disable=no-name-in-module
     ClusterControllerClient,
@@ -704,7 +705,9 @@ class DataprocHook(GoogleBaseHook):
         return operation
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def wait_for_job(self, job_id: str, location: str, project_id: str, wait_time: int = 10) -> None:
+    def wait_for_job(
+        self, job_id: str, location: str, project_id: str, wait_time: int = 10, timeout: Optional[int] = None
+    ) -> None:
         """
         Helper method which polls a job to check if it finishes.
 
@@ -716,12 +719,21 @@ class DataprocHook(GoogleBaseHook):
         :type location: str
         :param wait_time: Number of seconds between checks
         :type wait_time: int
+        :param timeout: How many seconds wait for job to be ready. Used only if ``asynchronous`` is False
+        :type timeout: int
         """
         state = None
+        start = time.monotonic()
         while state not in (JobStatus.ERROR, JobStatus.DONE, JobStatus.CANCELLED):
+            if timeout and start + timeout < time.monotonic():
+                raise AirflowException(f"Timeout: dataproc job {job_id} is not ready after {timeout}s")
             time.sleep(wait_time)
-            job = self.get_job(location=location, job_id=job_id, project_id=project_id)
-            state = job.status.state
+            try:
+                job = self.get_job(location=location, job_id=job_id, project_id=project_id)
+                state = job.status.state
+            except ServerError:
+                pass
+
         if state == JobStatus.ERROR:
             raise AirflowException('Job failed:\n{}'.format(job))
         if state == JobStatus.CANCELLED:

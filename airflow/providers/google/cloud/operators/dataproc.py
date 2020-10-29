@@ -1785,9 +1785,12 @@ class DataprocSubmitJobOperator(BaseOperator):
     :type asynchronous: bool
     :param cancel_on_kill: Flag which indicates whether cancel the hook's job or not, when on_kill is called
     :type cancel_on_kill: bool
+    :param wait_timeout: How many seconds wait for job to be ready. Used only if ``asynchronous`` is False
+    :type wait_timeout: int
     """
 
     template_fields = ('project_id', 'location', 'job', 'impersonation_chain')
+    template_fields_renderers = {"job": "json"}
 
     @apply_defaults
     def __init__(
@@ -1804,6 +1807,7 @@ class DataprocSubmitJobOperator(BaseOperator):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         asynchronous: bool = False,
         cancel_on_kill: bool = True,
+        wait_timeout: Optional[int] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1820,6 +1824,7 @@ class DataprocSubmitJobOperator(BaseOperator):
         self.cancel_on_kill = cancel_on_kill
         self.hook: Optional[DataprocHook] = None
         self.job_id: Optional[str] = None
+        self.wait_timeout = wait_timeout
 
     def execute(self, context: Dict):
         self.log.info("Submitting job")
@@ -1838,7 +1843,9 @@ class DataprocSubmitJobOperator(BaseOperator):
 
         if not self.asynchronous:
             self.log.info('Waiting for job %s to complete', job_id)
-            self.hook.wait_for_job(job_id=job_id, location=self.location, project_id=self.project_id)
+            self.hook.wait_for_job(
+                job_id=job_id, location=self.location, project_id=self.project_id, timeout=self.wait_timeout
+            )
             self.log.info('Job %s completed successfully.', job_id)
 
         self.job_id = job_id
