@@ -226,4 +226,3 @@ If you would love to have Apache Airflow stickers, t-shirt etc. then check out
 
 - [Documentation](https://airflow.apache.org/docs/stable/)
 - [Chat](https://s.apache.org/airflow-slack)
-- [More](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links)
