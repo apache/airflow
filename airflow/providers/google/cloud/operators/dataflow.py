@@ -219,7 +219,9 @@ class DataflowCreateJavaJobOperator(BaseOperator):
 
     def execute(self, context):
         self.hook = DataflowHook(
-            gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to, poll_sleep=self.poll_sleep
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            poll_sleep=self.poll_sleep,
         )
         dataflow_options = copy.copy(self.dataflow_default_options)
         dataflow_options.update(self.options)
@@ -467,6 +469,10 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
+        instead of canceling during during killing task instance. See:
+        https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
+    :type drain_pipeline: bool
     """
 
     template_fields = ["body", 'location', 'project_id', 'gcp_conn_id']
@@ -479,6 +485,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
+        drain_pipeline: bool = False,
         *args,
         **kwargs,
     ) -> None:
@@ -490,11 +497,11 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.job_id = None
         self.hook: Optional[DataflowHook] = None
+        self.drain_pipeline = drain_pipeline
 
     def execute(self, context):
         self.hook = DataflowHook(
-            gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
+            gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to, drain_pipeline=self.drain_pipeline
         )
 
         def set_current_job_id(job_id):
@@ -515,6 +522,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
             self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id)
 
 
+# pylint: disable=too-many-instance-attributes
 class DataflowCreatePythonJobOperator(BaseOperator):
     """
     Launching Cloud Dataflow jobs written in python. Note that both
@@ -582,6 +590,10 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         Cloud Platform for the dataflow job status while the job is in the
         JOB_STATE_RUNNING state.
     :type poll_sleep: int
+    :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
+        instead of canceling during during killing task instance. See:
+        https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
+    :type drain_pipeline: bool
     """
 
     template_fields = ['options', 'dataflow_default_options', 'job_name', 'py_file']
@@ -603,6 +615,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         poll_sleep: int = 10,
+        drain_pipeline: bool = False,
         **kwargs,
     ) -> None:
 
@@ -624,6 +637,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.poll_sleep = poll_sleep
+        self.drain_pipeline = drain_pipeline
         self.job_id = None
         self.hook = None
 
@@ -638,7 +652,10 @@ class DataflowCreatePythonJobOperator(BaseOperator):
                 self.py_file = tmp_gcs_file.name
 
             self.hook = DataflowHook(
-                gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to, poll_sleep=self.poll_sleep
+                gcp_conn_id=self.gcp_conn_id,
+                delegate_to=self.delegate_to,
+                poll_sleep=self.poll_sleep,
+                drain_pipeline=self.drain_pipeline,
             )
             dataflow_options = self.dataflow_default_options.copy()
             dataflow_options.update(self.options)
