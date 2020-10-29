@@ -23,18 +23,16 @@ from unittest import mock
 from parameterized import parameterized
 
 from airflow import models, settings
-from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models import DAG, DagBag, DagModel, TaskInstance as TI, clear_task_instances
 from airflow.models.dagrun import DagRun
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python import PythonOperator, ShortCircuitOperator
+from airflow.operators.python import ShortCircuitOperator
 from airflow.utils import timezone
 from airflow.utils.callback_requests import DagCallbackRequest
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
-from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_pools, clear_db_runs
 
 
@@ -217,92 +215,6 @@ class TestDagRun(unittest.TestCase):
         ti_op4.set_state(state=State.SUCCESS, session=session)
         dr.update_state()
         self.assertEqual(State.SUCCESS, dr.state)
-
-    def validate_ti_states(self, dag_run, ti_state_mapping):
-        for task_id, expected_state in ti_state_mapping.items():
-            task_instance = dag_run.get_task_instance(task_id=task_id)
-            self.assertEqual(task_instance.state, expected_state)
-
-    @conf_vars({('scheduler', 'schedule_after_task_execution'): 'True'})
-    def test_dagrun_fast_follow(self):
-        session = settings.Session()
-
-        dag = DAG(
-            'test_dagrun_fast_follow',
-            start_date=DEFAULT_DATE
-        )
-
-        dag_model = DagModel(
-            dag_id=dag.dag_id,
-            next_dagrun=dag.start_date,
-            is_active=True,
-        )
-        session.add(dag_model)
-        session.flush()
-
-        python_callable = lambda: True
-        with dag:
-            task_a = PythonOperator(task_id='A', python_callable=python_callable)
-            task_b = PythonOperator(task_id='B', python_callable=python_callable)
-            task_c = PythonOperator(task_id='C', python_callable=python_callable)
-            task_a >> task_b
-            task_b >> task_c
-
-        scheduler = SchedulerJob()
-        scheduler.dagbag.bag_dag(dag, root_dag=dag)
-
-        dag_run = dag.create_dagrun(run_id='test_dagrun_fast_follow', state=State.RUNNING)
-
-        task_instance_a = dag_run.get_task_instance(task_id=task_a.task_id)
-        task_instance_a.task = task_a
-        task_instance_a.state = State.QUEUED
-        session.commit()
-
-        task_instance_b = dag_run.get_task_instance(task_id=task_b.task_id)
-        task_instance_b.task = task_b
-
-        task_instance_a.run()
-        self.validate_ti_states(dag_run, {'A': State.SUCCESS, 'B': State.SCHEDULED, 'C': State.NONE})
-
-        scheduler._critical_section_execute_task_instances(session=session)
-        task_instance_b.run()
-        self.validate_ti_states(dag_run, {'A': State.SUCCESS, 'B': State.SUCCESS, 'C': State.SCHEDULED})
-
-    @conf_vars({('scheduler', 'schedule_after_task_execution'): 'False'})
-    def test_dagrun_fast_follow_deactivated(self):
-        session = settings.Session()
-
-        dag = DAG(
-            'test_dagrun_fast_follow_deactivated',
-            start_date=DEFAULT_DATE
-        )
-
-        dag_model = DagModel(
-            dag_id=dag.dag_id,
-            next_dagrun=dag.start_date,
-            is_active=True,
-        )
-        session.add(dag_model)
-        session.flush()
-
-        python_callable = lambda: True
-        with dag:
-            task_a = PythonOperator(task_id='A', python_callable=python_callable)
-            task_b = PythonOperator(task_id='B', python_callable=python_callable)
-            task_a >> task_b
-
-        scheduler = SchedulerJob()
-        scheduler.dagbag.bag_dag(dag, root_dag=dag)
-
-        dag_run = dag.create_dagrun(run_id='test_dagrun_fast_follow_deactivated', state=State.RUNNING)
-
-        task_instance_a = dag_run.get_task_instance(task_id=task_a.task_id)
-        task_instance_a.task = task_a
-        task_instance_a.state = State.QUEUED
-        session.commit()
-
-        task_instance_a.run()
-        self.validate_ti_states(dag_run, {'A': State.SUCCESS, 'B': State.NONE})
 
     def test_dagrun_deadlock(self):
         session = settings.Session()

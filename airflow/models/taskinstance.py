@@ -1153,17 +1153,33 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
                 # examine. In order for dep checks to work correctly, we
                 # include ourself (so TriggerRuleDep can check the state of the
                 # task we just executed)
+                task_ids = self.task.downstream_task_ids.union({self.task_id})
+
                 partial_dag = self.task.dag.partial_subset(
-                    self.task.downstream_task_ids.union({self.task_id}),
+                    task_ids,
+                    include_downstream=True,
                     include_upstream=False,
                 )
+                siblings = self.task.dag.partial_subset(
+                    task_ids,
+                    include_upstream=False,
+                    include_direct_parents=True
+                )
+
+                partial_dag.task_dict.update(siblings.task_dict)
                 dag_run.dag = partial_dag
                 info = dag_run.task_instance_scheduling_decisions(session)
-                schedulable_tis = info['schedulable_tis']
 
-                for downstream_ti in schedulable_tis:
-                    if not hasattr(downstream_ti, "task"):
-                        downstream_ti.task = self.task.dag.get_task(downstream_ti.task_id)
+                skippable_task_ids = {
+                    ti for ti in siblings.task_ids if ti not in self.task.downstream_task_ids
+                }
+                schedulable_tis = [
+                    ti for ti in info['schedulable_tis'] if ti.task_id not in skippable_task_ids
+                ]
+
+                for schedulable_ti in schedulable_tis:
+                    if not hasattr(schedulable_ti, "task"):
+                        schedulable_ti.task = self.task.dag.get_task(schedulable_ti.task_id)
 
                 num = dag_run.schedule_tis(schedulable_tis)
                 self.log.info("%d downstream tasks scheduled from follow-on schedule check", num)
