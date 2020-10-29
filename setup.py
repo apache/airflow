@@ -703,7 +703,7 @@ INSTALL_REQUIREMENTS = [
     'flask-caching>=1.3.3, <2.0.0',
     'flask-login>=0.3, <0.5',
     'flask-swagger==0.2.13',
-    'flask-wtf>=0.14.2, <0.15',
+    'flask-wtf>=0.14.3, <0.15',
     'funcsigs>=1.0.0, <2.0.0',
     'graphviz>=0.12',
     'gunicorn>=19.5.0, <20.0',
