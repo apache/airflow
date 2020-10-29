@@ -350,6 +350,7 @@ Currently, **officially** using Airflow:
 1. [USC Graduate School, University of Southern California](https://graduateschool.usc.edu/) [[@abhilash1in](https://github.com/abhilash1in), [@sudarshansunder](https://github.com/sudarshansunder)]
 1. [Ubisoft](https://www.ubisoft.com/) [[@Walkoss](https://github.com/Walkoss)]
 1. [Udacity](https://www.udacity.com/) [[@dandikunited](https://github.com/DandikUnited), [@simon-uc](https://github.com/simon-uc)]
+1. [Umami Collective](https://umamicollective.com) [[@juanuicich](https://github.com/juanuicich)]
 1. [United Airlines](https://www.united.com/) [[@ilopezfr](https://github.com/ilopezfr)]
 1. [Upsight](https://www.upsight.com)
 1. [VeeR VR](https://veer.tv) [[@pishilong](https://github.com/pishilong)]
