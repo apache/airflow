@@ -32,7 +32,7 @@ if [[ ${USE_GITHUB_REGISTRY} != "true" ||  ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} != 
 fi
 
 echo
-echo "Waiting for all images to appear: ${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[*]}"
+echo "Waiting for all images to appear: ${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}"
 echo
 
 echo
@@ -49,7 +49,7 @@ source "${AIRFLOW_SOURCES}/scripts/ci/libraries/_all_libs.sh"
 
 initialization::initialize_common_environment
 
-for PYTHON_MAJOR_MINOR_VERSION in "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[@]}"
+for PYTHON_MAJOR_MINOR_VERSION in ${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}
 do
     export AIRFLOW_CI_IMAGE_NAME="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci"
     push_pull_remove_images::wait_for_github_registry_image "${AIRFLOW_CI_IMAGE_NAME}" "${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
