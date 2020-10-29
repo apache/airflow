@@ -71,6 +71,7 @@ jobs:
     outputs:
       waitForImage: ${{ steps.wait-for-image.outputs.wait-for-image }}
       pythonVersions: ${{ steps.selective-checks.outputs.python-versions }}
+      pythonVersionsListAsString: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
       defaultPythonVersion: ${{ steps.selective-checks.outputs.default-python-version }}
       kubernetesVersions: ${{ steps.selective-checks.outputs.kubernetes-versions }}
       defaultKubernetesVersion: ${{ steps.selective-checks.outputs.default-kubernetes-version }}
@@ -98,7 +99,7 @@ jobs:
       pullRequestLabels: ${{ steps.source-run-info.outputs.pullRequestLabels }}
     steps:
       - name: "Get information about the PR"
-        uses: potiuk/get-workflow-origin@e3ba776faee1134e17551924b852bfb374e1703d  # v1_1
+        uses: potiuk/get-workflow-origin@2ef0b065db6b688a2231f8a7f464df1aac254328  # v1_2
         id: source-run-info
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -131,6 +132,7 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           INCOMING_COMMIT_SHA: ${{ github.sha }}
+          PR_LABELS: "${{ steps.source-run-info.outputs.pullRequestLabels }}"
         run: |
           if [[ ${EVENT_NAME} == "pull_request" ]]; then
             # Run selective checks
@@ -189,6 +191,9 @@ jobs:
       - name: >
           Wait for CI images
           ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        env:
+          CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
+            ${{needs.build-info.outputs.pythonVersionsListAsString}}
         # We wait for the images to be available either from the build-ci-image step or from
         # "build-images-workflow-run.yml' run as pull_request_target (it has the write
         # permissions in case pull_request from fork is run.
@@ -469,7 +474,7 @@ jobs:
 
 
   tests-postgres:
-    timeout-minutes: 60
+    timeout-minutes: 80
     name: >
       Postgres${{matrix.postgres-version}},Py${{matrix.python-version}}:
       ${{needs.build-info.outputs.testTypes}}
@@ -523,7 +528,7 @@ jobs:
           path: "./files/coverage.xml"
 
   tests-mysql:
-    timeout-minutes: 60
+    timeout-minutes: 80
     name: >
       MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}: ${{needs.build-info.outputs.testTypes}}
     runs-on: ubuntu-latest
@@ -745,6 +750,9 @@ jobs:
       - name: >
           Wait for PROD images
           ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        env:
+          CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
+            ${{needs.build-info.outputs.pythonVersionsListAsString}}
         run: ./scripts/ci/images/ci_wait_for_all_prod_images.sh
         if: needs.build-info.outputs.waitForImage == 'true'
 
