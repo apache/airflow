@@ -97,6 +97,7 @@ jobs:
       needs-api-tests: ${{ steps.selective-checks.outputs.needs-api-tests }}
       pullRequestNumber: ${{ steps.source-run-info.outputs.pullRequestNumber }}
       pullRequestLabels: ${{ steps.source-run-info.outputs.pullRequestLabels }}
+    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     steps:
       - name: "Get information about the PR"
         uses: potiuk/get-workflow-origin@2ef0b065db6b688a2231f8a7f464df1aac254328  # v1_2
@@ -148,7 +149,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-info]
     if: >
-      needs.build-info.outputs.needs-helm-tests == 'true'
+      needs.build-info.outputs.needs-helm-tests == 'true' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -160,7 +162,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-info]
     if: >
-      needs.build-info.outputs.needs-api-tests == 'true'
+      needs.build-info.outputs.needs-api-tests == 'true' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -173,7 +176,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-info]
     if: >
-      needs.build-info.outputs.basic-checks-only == 'false'
+      needs.build-info.outputs.basic-checks-only == 'false' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     env:
       BACKEND: sqlite
     steps:
@@ -212,7 +216,8 @@ jobs:
       MOUNT_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     if: >
-      needs.build-info.outputs.basic-checks-only == 'false'
+      needs.build-info.outputs.basic-checks-only == 'false' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -249,7 +254,8 @@ jobs:
       MOUNT_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     if: >
-      needs.build-info.outputs.basic-checks-only == 'true'
+      needs.build-info.outputs.basic-checks-only == 'true' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -283,7 +289,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-info, ci-images]
     if: >
-      needs.build-info.outputs.basic-checks-only == 'false'
+      needs.build-info.outputs.basic-checks-only == 'false' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     env:
       # We want to make sure we have latest sources as only in_container scripts are added
       # to the image but we want to static-check all of them
@@ -318,7 +325,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-info, ci-images]
     if: >
-      needs.build-info.outputs.basic-checks-only == 'false'
+      needs.build-info.outputs.basic-checks-only == 'false' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -341,7 +349,8 @@ jobs:
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     if: >
-      needs.build-info.outputs.basic-checks-only == 'false'
+      needs.build-info.outputs.basic-checks-only == 'false' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -361,7 +370,8 @@ jobs:
       BACKPORT_PACKAGES: "true"
       VERSION_SUFFIX_FOR_SVN: "rc1"
     if: >
-      needs.build-info.outputs.basic-checks-only == 'false'
+      needs.build-info.outputs.basic-checks-only == 'false' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -399,7 +409,8 @@ jobs:
       VERSION_SUFFIX_FOR_PYPI: "a0"
       VERSION_SUFFIX_FOR_SVN: "a0"
     if: >
-      needs.build-info.outputs.basic-checks-only == 'false'
+      needs.build-info.outputs.basic-checks-only == 'false' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -494,7 +505,8 @@ jobs:
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
       TEST_TYPE: ""
     if: >
-        needs.build-info.outputs.run-tests == 'true'
+        needs.build-info.outputs.run-tests == 'true' &&
+        (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -547,7 +559,8 @@ jobs:
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
       TEST_TYPE: ""
     if: >
-        needs.build-info.outputs.run-tests == 'true'
+        needs.build-info.outputs.run-tests == 'true' &&
+        (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -597,7 +610,8 @@ jobs:
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
       TEST_TYPE: ""
     if: >
-        needs.build-info.outputs.run-tests == 'true'
+        needs.build-info.outputs.run-tests == 'true' &&
+        (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -652,7 +666,8 @@ jobs:
       NUM_RUNS: 10
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     if: >
-      needs.build-info.outputs.run-tests == 'true'
+      needs.build-info.outputs.run-tests == 'true' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -713,6 +728,7 @@ jobs:
       - tests-sqlite
       - tests-mysql
       - tests-quarantined
+    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     steps:
       - name: "Download all artifacts from the current build"
         uses: actions/download-artifact@v2
@@ -734,7 +750,8 @@ jobs:
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     if: >
-      needs.build-info.outputs.basic-checks-only == 'false'
+      needs.build-info.outputs.basic-checks-only == 'false' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -779,7 +796,8 @@ jobs:
       KIND_VERSION: "${{ needs.build-info.outputs.defaultKindVersion }}"
       HELM_VERSION: "${{ needs.build-info.outputs.defaultHelmVersion }}"
     if: >
-      needs.build-info.outputs.run-kubernetes-tests == 'true'
+      needs.build-info.outputs.run-kubernetes-tests == 'true' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -934,7 +952,8 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
     if: >
       needs.build-info.outputs.basic-checks-only == 'false' &&
-      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' )
+      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ) &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -969,7 +988,8 @@ jobs:
       - tests-kubernetes
     if: >
       needs.build-info.outputs.basic-checks-only == 'false' &&
-      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' )
+      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ) &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
