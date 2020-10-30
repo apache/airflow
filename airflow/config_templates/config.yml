@@ -2014,7 +2014,7 @@
         from Kubernetes Executor provided as a single line formatted JSON dictionary string.
         List of supported params are similar for all core_v1_apis, hence a single config
         variable for all apis. See:
-        https://raw.githubusercontent.com/kubernetes-client/python/master/kubernetes/client/apis/core_v1_api.py
+        https://raw.githubusercontent.com/kubernetes-client/python/41f11a09995efcd0142e25946adc7591431bfb2f/kubernetes/client/api/core_v1_api.py
       version_added: 1.10.4
       type: string
       example: ~
