@@ -73,13 +73,17 @@ class TestPodGenerator(unittest.TestCase):
         self.labels = {
             'airflow-worker': 'uuid',
             'dag_id': 'dag_id',
-            'execution_date': 'date',
+            'execution_date': mock.ANY,
             'task_id': 'task_id',
             'try_number': '3',
             'airflow_version': mock.ANY,
             'kubernetes_executor': 'True'
         }
         self.metadata = {
+            'annotations':  {'dag_id': 'dag_id',
+                              'execution_date': '2020-08-24T00:00:00',
+                              'task_id': 'task_id',
+                              'try_number': '3'},
             'labels': self.labels,
             'name': 'pod_id-' + self.static_uuid.hex,
             'namespace': 'namespace'
@@ -811,7 +815,7 @@ class TestPodGenerator(unittest.TestCase):
         )
         sanitized_result = self.k8s_client.sanitize_for_serialization(result)
 
-        self.metadata.update({'annotations': {'should': 'stay'}})
+        self.metadata['annotations']['should'] = 'stay'
 
         self.assertEqual({
             'apiVersion': 'v1',
@@ -823,6 +827,7 @@ class TestPodGenerator(unittest.TestCase):
                     'command': ['command'],
                     'env': [],
                     'envFrom': [],
+                    'image': 'kube_image',
                     'name': 'base',
                     'ports': [],
                     'resources': {
@@ -884,20 +889,21 @@ class TestPodGenerator(unittest.TestCase):
         )
 
         result = PodGenerator.construct_pod(
-            'dag_id',
-            'task_id',
-            'pod_id',
-            3,
-            'date',
-            ['command'],
-            executor_config,
-            worker_config,
-            'namespace',
-            'uuid',
+            dag_id='dag_id',
+            task_id='task_id',
+            pod_id='pod_id',
+            try_number=3,
+            kube_image='kube_image',
+            date=self.execution_date,
+            command=['command'],
+            pod_override_object=executor_config,
+            base_worker_pod=worker_config,
+            namespace='namespace',
+            worker_uuid='uuid',
         )
         sanitized_result = self.k8s_client.sanitize_for_serialization(result)
 
-        self.metadata.update({'annotations': {'should': 'stay'}})
+        self.metadata['annotations']['should'] = 'stay'
 
         self.assertEqual({
             'apiVersion': 'v1',
@@ -1094,12 +1100,13 @@ spec:
             worker_uuid="test",
             pod_id="test",
             dag_id="test",
+            kube_image="foo",
             task_id="test",
             try_number=1,
-            date="23-07-2020",
+            date=parser.parse("23-07-2020"),
             command="test",
-            kube_executor_config=None,
-            worker_config=k8s.V1Pod(metadata=k8s.V1ObjectMeta(labels={"airflow-test": "airflow-task-pod"},
+            pod_override_object=None,
+            base_worker_pod=k8s.V1Pod(metadata=k8s.V1ObjectMeta(labels={"airflow-test": "airflow-task-pod"},
                                                               annotations={"my.annotation": "foo"})))
         self.assertIn("airflow-test", pod.metadata.labels)
         self.assertIn("my.annotation", pod.metadata.annotations)

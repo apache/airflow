@@ -392,7 +392,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
             'airflow-worker': 'sample-uuid',
             'airflow_version': airflow_version.replace('+', '-'),
             'dag_id': 'test_dag_id',
-            'execution_date': '2019-11-21 11:08:22.920875',
+            'execution_date': '2019-11-21T11_08_22.920875',
             'kubernetes_executor': 'True',
             'my_label': 'label_id',
             'task_id': 'test_task_id',
