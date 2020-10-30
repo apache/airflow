@@ -201,6 +201,10 @@ ARG_COLOR = Arg(
     default=ColorMode.AUTO)
 
 # list_dag_runs
+ARG_DAG_ID_OPT = Arg(
+    ("-d", "--dag-id"),
+    help="The id of the dag"
+)
 ARG_NO_BACKFILL = Arg(
     ("--no-backfill",),
     help="filter all the backfill dagruns given the dag id",
@@ -523,17 +527,11 @@ ARG_ERROR_LOGFILE = Arg(
          "stderr")
 
 # scheduler
-ARG_DAG_ID_OPT = Arg(
-    ("-d", "--dag-id"),
-    help="The id of the dag to run"
-)
 ARG_NUM_RUNS = Arg(
     ("-n", "--num-runs"),
     default=conf.getint('scheduler', 'num_runs'),
     type=int,
     help="Set the number of runs to execute before exiting")
-
-# worker
 ARG_DO_PICKLE = Arg(
     ("-p", "--do-pickle"),
     default=False,
@@ -542,6 +540,8 @@ ARG_DO_PICKLE = Arg(
         "to the workers, instead of letting workers run their version "
         "of the code"),
     action="store_true")
+
+# worker
 ARG_QUEUES = Arg(
     ("-q", "--queues"),
     help="Comma delimited list of queues to serve",
@@ -820,7 +820,7 @@ DAGS_COMMANDS = (
         name='list-jobs',
         help="List the jobs",
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_list_jobs'),
-        args=(ARG_DAG_ID_OPT, ARG_STATE, ARG_LIMIT, ARG_OUTPUT,),
+        args=(ARG_DAG_ID_OPT, ARG_STATE, ARG_LIMIT, ARG_OUTPUT),
     ),
     ActionCommand(
         name='state',
@@ -1236,7 +1236,7 @@ CELERY_COMMANDS = (
         help="Start a Celery worker node",
         func=lazy_load_command('airflow.cli.commands.celery_command.worker'),
         args=(
-            ARG_DO_PICKLE, ARG_QUEUES, ARG_CONCURRENCY, ARG_CELERY_HOSTNAME, ARG_PID, ARG_DAEMON,
+            ARG_QUEUES, ARG_CONCURRENCY, ARG_CELERY_HOSTNAME, ARG_PID, ARG_DAEMON,
             ARG_UMASK, ARG_STDOUT, ARG_STDERR, ARG_LOG_FILE, ARG_AUTOSCALE, ARG_SKIP_SERVE_LOGS
         ),
     ),
