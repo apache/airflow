@@ -708,6 +708,7 @@ contributors in case of simpler changes.
 
 We have the following test types (separated by packages in which they are):
 
+* Always - those are tests that should be always executed (always folder)
 * Core - for the core Airflow functionality (core folder)
 * API - Tests for the Airflow API (api and api_connexion folders)
 * CLI - Tests for the Airflow CLI (cli folder)
