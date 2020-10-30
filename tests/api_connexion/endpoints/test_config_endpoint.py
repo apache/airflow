@@ -60,7 +60,7 @@ class TestGetConfig:
         self.client = self.app.test_client()  # type:ignore
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
-    def test_should_response_200_text_plain(self, mock_as_dict):
+    def test_should_respond_200_text_plain(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config", headers={'Accept': 'text/plain'}, environ_overrides={'REMOTE_USER': "test"}
         )
@@ -78,7 +78,7 @@ class TestGetConfig:
         assert expected == response.data.decode()
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
-    def test_should_response_200_application_json(self, mock_as_dict):
+    def test_should_respond_200_application_json(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config",
             headers={'Accept': 'application/json'},
@@ -105,7 +105,7 @@ class TestGetConfig:
         assert expected == response.json
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
-    def test_should_response_406(self, mock_as_dict):
+    def test_should_respond_406(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config",
             headers={'Accept': 'application/octet-stream'},

@@ -153,7 +153,7 @@ class TestGetLog(unittest.TestCase):
         super().tearDown()
 
     @provide_session
-    def test_should_response_200_json(self, session):
+    def test_should_respond_200_json(self, session):
         self._create_dagrun(session)
         key = self.app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
@@ -176,7 +176,7 @@ class TestGetLog(unittest.TestCase):
         self.assertEqual(200, response.status_code)
 
     @provide_session
-    def test_should_response_200_text_plain(self, session):
+    def test_should_respond_200_text_plain(self, session):
         self._create_dagrun(session)
         key = self.app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)

@@ -78,7 +78,7 @@ class TestTaskEndpoint(unittest.TestCase):
 
 
 class TestGetTask(TestTaskEndpoint):
-    def test_should_response_200(self):
+    def test_should_respond_200(self):
         expected = {
             "class_ref": {
                 "class_name": "DummyOperator",
@@ -112,7 +112,7 @@ class TestGetTask(TestTaskEndpoint):
         assert response.status_code == 200
         assert response.json == expected
 
-    def test_should_response_200_serialized(self):
+    def test_should_respond_200_serialized(self):
         # Create empty app with empty dagbag to check if DAG is read from db
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             app_serialized = app.create_app(testing=True)
@@ -155,7 +155,7 @@ class TestGetTask(TestTaskEndpoint):
         assert response.status_code == 200
         assert response.json == expected
 
-    def test_should_response_404(self):
+    def test_should_respond_404(self):
         task_id = "xxxx_not_existing"
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/tasks/{task_id}", environ_overrides={'REMOTE_USER': "test"}
@@ -175,7 +175,7 @@ class TestGetTask(TestTaskEndpoint):
 
 
 class TestGetTasks(TestTaskEndpoint):
-    def test_should_response_200(self):
+    def test_should_respond_200(self):
         expected = {
             "tasks": [
                 {
@@ -214,7 +214,7 @@ class TestGetTasks(TestTaskEndpoint):
         assert response.status_code == 200
         assert response.json == expected
 
-    def test_should_response_404(self):
+    def test_should_respond_404(self):
         dag_id = "xxxx_not_existing"
         response = self.client.get(f"/api/v1/dags/{dag_id}/tasks", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
