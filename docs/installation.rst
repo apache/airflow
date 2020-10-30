@@ -37,7 +37,6 @@ Those "known-to-be-working" constraints are per major/minor python version. You 
 files when installing Airflow from PyPI. Note that you have to specify correct Airflow version
 and python versions in the URL.
 
-
   **Prerequisites**
 
   On Debian based Linux OS:
@@ -52,18 +51,21 @@ and python versions in the URL.
 
 .. code-block:: bash
 
-    pip install \
-     apache-airflow==1.10.12 \
-     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.7.txt"
-
+    AIRFLOW_VERSION=1.10.12
+    PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
+    # For example: 3.6
+    CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
+    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.6.txt
+    pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
 2. Installing with extras (for example postgres, google)
 
 .. code-block:: bash
 
-    pip install \
-     apache-airflow[postgres,google]==1.10.12 \
-     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.7.txt"
+    AIRFLOW_VERSION=1.10.12
+    PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
+    CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
+    pip install "apache-airflow[postgres,google]==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
 
 You need certain system level requirements in order to install Airflow. Those are requirements that are known
