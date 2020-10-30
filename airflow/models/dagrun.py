@@ -685,7 +685,7 @@ class DagRun(Base, LoggingMixin):
         Any DummyOperator without callbacks is instead set straight to the success state.
 
         All the TIs should belong to this DagRun, but this code is in the hot-path, this is not checked -- it
-        is the caller's responsiblity to call this function only with TIs from a single dag run.
+        is the caller's responsibility to call this function only with TIs from a single dag run.
         """
         # Get list of TIs that do not need to executed, these are
         # tasks using DummyOperator and without on_execute_callback / on_success_callback

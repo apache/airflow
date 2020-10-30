@@ -1180,7 +1180,7 @@ class DAG(BaseDag, LoggingMixin):
 
         if include_parentdag and self.is_subdag and self.parent_dag is not None:
             p_dag = self.parent_dag.sub_dag(
-                task_regex=r"^{}$".format(self.dag_id.split('.')[1]),
+                task_ids_or_regex=r"^{}$".format(self.dag_id.split('.')[1]),
                 include_upstream=False,
                 include_downstream=True)
 
@@ -1253,7 +1253,7 @@ class DAG(BaseDag, LoggingMixin):
                             if not external_dag:
                                 raise AirflowException("Could not find dag {}".format(tii.dag_id))
                             downstream = external_dag.sub_dag(
-                                task_regex=r"^{}$".format(tii.task_id),
+                                task_ids_or_regex=r"^{}$".format(tii.task_id),
                                 include_upstream=False,
                                 include_downstream=True
                             )

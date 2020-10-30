@@ -1056,7 +1056,7 @@ class TestBackfillJob(unittest.TestCase):
                                start_date=DEFAULT_DATE)
 
         executor = MockExecutor()
-        sub_dag = dag.sub_dag(task_regex="leave*",
+        sub_dag = dag.sub_dag(task_ids_or_regex="leave*",
                               include_downstream=False,
                               include_upstream=False)
         job = BackfillJob(dag=sub_dag,
@@ -1226,7 +1226,7 @@ class TestBackfillJob(unittest.TestCase):
         self.assertEqual(ti_downstream.state, State.SUCCESS)
 
         sdag = subdag.sub_dag(
-            task_regex='daily_job_subdag_task',
+            task_ids_or_regex='daily_job_subdag_task',
             include_downstream=True,
             include_upstream=False)
 

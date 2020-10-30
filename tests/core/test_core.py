@@ -43,6 +43,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 DEV_NULL = '/dev/null'
 DEFAULT_DATE = datetime(2015, 1, 1)
@@ -88,6 +89,8 @@ class TestCore(unittest.TestCase):
             synchronize_session=False)
         session.commit()
         session.close()
+        clear_db_dags()
+        clear_db_runs()
 
     def test_check_operators(self):
 
@@ -97,11 +100,13 @@ class TestCore(unittest.TestCase):
         captain_hook.run("CREATE TABLE operator_test_table (a, b)")
         captain_hook.run("insert into operator_test_table values (1,2)")
 
+        self.dag.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=DEFAULT_DATE)
         op = CheckOperator(
             task_id='check',
             sql="select count(*) from operator_test_table",
             conn_id=conn_id,
             dag=self.dag)
+
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         op = ValueCheckOperator(
@@ -158,6 +163,8 @@ class TestCore(unittest.TestCase):
             task_id='test_bash_operator',
             bash_command="echo success",
             dag=self.dag)
+        self.dag.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=DEFAULT_DATE)
+
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_bash_operator_multi_byte_output(self):
@@ -166,6 +173,7 @@ class TestCore(unittest.TestCase):
             bash_command="echo \u2600",
             dag=self.dag,
             output_encoding='utf-8')
+        self.dag.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=DEFAULT_DATE)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_bash_operator_kill(self):
@@ -222,6 +230,7 @@ class TestCore(unittest.TestCase):
             task_id='time_sqlite',
             sql="CREATE TABLE IF NOT EXISTS unitest (dummy VARCHAR(20))",
             dag=self.dag)
+        self.dag.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=DEFAULT_DATE)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_timeout(self):
@@ -245,6 +254,7 @@ class TestCore(unittest.TestCase):
             python_callable=test_py_op,
             templates_dict={'ds': "{{ ds }}"},
             dag=self.dag)
+        self.dag.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=DEFAULT_DATE)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_complex_template(self):
@@ -260,6 +270,7 @@ class TestCore(unittest.TestCase):
             },
             dag=self.dag)
         op.execute = verify_templated_field
+        self.dag.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=DEFAULT_DATE)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_template_non_bool(self):
@@ -285,6 +296,11 @@ class TestCore(unittest.TestCase):
         ti = TI(
             task=self.runme_0, execution_date=DEFAULT_DATE)
         ti.dag = self.dag_bash
+        self.dag_bash.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            state=State.RUNNING,
+            execution_date=DEFAULT_DATE
+        )
         ti.run(ignore_ti_state=True)
         context = ti.get_template_context()
 
@@ -322,6 +338,11 @@ class TestCore(unittest.TestCase):
         ti = TI(
             task=self.runme_0, execution_date=DEFAULT_DATE)
         ti.dag = self.dag_bash
+        self.dag_bash.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            state=State.RUNNING,
+            execution_date=DEFAULT_DATE
+        )
         ti.run(ignore_ti_state=True)
 
     def test_round_time(self):

@@ -102,7 +102,7 @@ def dag_backfill(args, dag=None):
 
     if args.task_regex:
         dag = dag.partial_subset(
-            task_regex=args.task_regex,
+            task_ids_or_regex=args.task_regex,
             include_upstream=not args.ignore_dependencies)
 
     run_conf = None

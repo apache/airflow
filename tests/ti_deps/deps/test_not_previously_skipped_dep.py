@@ -18,13 +18,14 @@
 
 import pendulum
 
-from airflow.models import DAG, TaskInstance
+from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import BranchPythonOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 
 def test_no_parent():
@@ -73,10 +74,10 @@ def test_parent_follow_branch():
     dag = DAG(
         "test_parent_follow_branch_dag", schedule_interval=None, start_date=start_date
     )
+    dag.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=start_date)
     op1 = BranchPythonOperator(task_id="op1", python_callable=lambda: "op2", dag=dag)
     op2 = DummyOperator(task_id="op2", dag=dag)
     op1 >> op2
-
     TaskInstance(op1, start_date).run()
     ti2 = TaskInstance(op2, start_date)
 
@@ -91,21 +92,24 @@ def test_parent_skip_branch():
     """
     A simple DAG with a BranchPythonOperator that does not follow op2. NotPreviouslySkippedDep is not met.
     """
-    start_date = pendulum.datetime(2020, 1, 1)
-    dag = DAG(
-        "test_parent_skip_branch_dag", schedule_interval=None, start_date=start_date
-    )
-    op1 = BranchPythonOperator(task_id="op1", python_callable=lambda: "op3", dag=dag)
-    op2 = DummyOperator(task_id="op2", dag=dag)
-    op3 = DummyOperator(task_id="op3", dag=dag)
-    op1 >> [op2, op3]
-
-    TaskInstance(op1, start_date).run()
-    ti2 = TaskInstance(op2, start_date)
-
     with create_session() as session:
+        session.query(DagRun).delete()
+        session.query(TaskInstance).delete()
+        start_date = pendulum.datetime(2020, 1, 1)
+        dag = DAG(
+            "test_parent_skip_branch_dag", schedule_interval=None, start_date=start_date
+        )
+        dag.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=start_date)
+        op1 = BranchPythonOperator(task_id="op1", python_callable=lambda: "op3", dag=dag)
+        op2 = DummyOperator(task_id="op2", dag=dag)
+        op3 = DummyOperator(task_id="op3", dag=dag)
+        op1 >> [op2, op3]
+        TaskInstance(op1, start_date).run()
+        ti2 = TaskInstance(op2, start_date)
         dep = NotPreviouslySkippedDep()
+
         assert len(list(dep.get_dep_statuses(ti2, session, DepContext()))) == 1
+        session.commit()
         assert not dep.is_met(ti2, session)
         assert ti2.state == State.SKIPPED
 

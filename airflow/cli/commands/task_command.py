@@ -411,7 +411,7 @@ def task_clear(args):
         if args.task_regex:
             for idx, dag in enumerate(dags):
                 dags[idx] = dag.partial_subset(
-                    task_regex=args.task_regex,
+                    task_ids_or_regex=args.task_regex,
                     include_downstream=args.downstream,
                     include_upstream=args.upstream)
 

@@ -1433,7 +1433,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         only_failed = request.form.get('only_failed') == "true"
 
         dag = dag.sub_dag(
-            task_regex=r"^{0}$".format(task_id),
+            task_ids_or_regex=r"^{0}$".format(task_id),
             include_downstream=downstream,
             include_upstream=upstream)
 
@@ -1706,7 +1706,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         root = request.args.get('root')
         if root:
             dag = dag.sub_dag(
-                task_regex=root,
+                task_ids_or_regex=root,
                 include_downstream=False,
                 include_upstream=True)
 
@@ -1876,7 +1876,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         root = request.args.get('root')
         if root:
             dag = dag.sub_dag(
-                task_regex=root,
+                task_ids_or_regex=root,
                 include_upstream=True,
                 include_downstream=False)
 
@@ -1980,7 +1980,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         root = request.args.get('root')
         if root:
             dag = dag.sub_dag(
-                task_regex=root,
+                task_ids_or_regex=root,
                 include_upstream=True,
                 include_downstream=False)
 
@@ -2091,7 +2091,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         root = request.args.get('root')
         if root:
             dag = dag.sub_dag(
-                task_regex=root,
+                task_ids_or_regex=root,
                 include_upstream=True,
                 include_downstream=False)
 
@@ -2161,7 +2161,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         root = request.args.get('root')
         if root:
             dag = dag.sub_dag(
-                task_regex=root,
+                task_ids_or_regex=root,
                 include_upstream=True,
                 include_downstream=False)
 
@@ -2284,7 +2284,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         root = request.args.get('root')
         if root:
             dag = dag.sub_dag(
-                task_regex=root,
+                task_ids_or_regex=root,
                 include_upstream=True,
                 include_downstream=False)
 
