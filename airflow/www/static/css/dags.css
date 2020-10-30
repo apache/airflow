@@ -24,7 +24,12 @@
 
 .dags-table-header {
   margin: 0;
-  padding: 16px 0;
+  padding-top: 16px;
+}
+
+.dags-table-body {
+  margin: 0 1px;
+  overflow-x: scroll;
 }
 
 .dags-table-more {
