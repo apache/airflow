@@ -318,7 +318,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         self.assert_log_line("Log from TI Logger", logs_list)
         self.assert_log_line("Log from Print statement", logs_list, expect_from_logging_mixin=True)
 
-        self.assertIn(f"INFO - Marking task as SUCCESS.dag_id={self.dag_id}, "
+        self.assertIn(f"INFO - Marking task as SUCCESS. dag_id={self.dag_id}, "
                       f"task_id={self.task_id}, execution_date=20170101T000000", logs)
 
     @mock.patch("airflow.task.task_runner.standard_task_runner.CAN_FORK", False)
@@ -343,7 +343,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
 
         self.assertIn(f"INFO - Running: ['airflow', 'tasks', 'run', '{self.dag_id}', "
                       f"'{self.task_id}', '{self.execution_date_str}',", logs)
-        self.assertIn(f"INFO - Marking task as SUCCESS.dag_id={self.dag_id}, "
+        self.assertIn(f"INFO - Marking task as SUCCESS. dag_id={self.dag_id}, "
                       f"task_id={self.task_id}, execution_date=20170101T000000", logs)
 
     def test_log_file_template_with_run_task(self):

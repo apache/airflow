@@ -1087,7 +1087,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             self.refresh_from_db(lock_for_update=True)
             self.state = State.SKIPPED
             self.log.info(
-                'Marking task as SKIPPED.'
+                'Marking task as SKIPPED. '
                 'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
                 self.dag_id,
                 self.task_id,
@@ -1123,7 +1123,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         # Recording SUCCESS
         self.end_date = timezone.utcnow()
         self.log.info(
-            'Marking task as SUCCESS.'
+            'Marking task as SUCCESS. '
             'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
             self.dag_id,
             self.task_id,
