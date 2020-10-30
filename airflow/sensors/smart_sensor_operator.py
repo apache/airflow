@@ -295,9 +295,6 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
     :type shard_min: int
     :param shard_max: shard code upper bound (exclusive)
     :type shard_max: int
-    :param poke_exception_cache_ttl: Time, in seconds before the current
-        exception expires and being cleaned up.
-    :type poke_exception_cache_ttl: int
     :param poke_timeout: Time, in seconds before the task times out and fails.
     :type poke_timeout: float
     """
@@ -311,7 +308,6 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
                  soft_fail=False,
                  shard_min=0,
                  shard_max=100000,
-                 poke_exception_cache_ttl=600,
                  poke_timeout=6.0,
                  *args,
                  **kwargs):
@@ -330,7 +326,6 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
         self.max_tis_per_query = 50
         self.shard_min = shard_min
         self.shard_max = shard_max
-        self.poke_exception_cache_ttl = poke_exception_cache_ttl
         self.poke_timeout = poke_timeout
 
     def _validate_input_values(self):
