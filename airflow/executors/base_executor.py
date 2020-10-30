@@ -16,7 +16,7 @@
 # under the License.
 """Base executor - this is the base class for all the implemented executors."""
 import sys
-from collections import OrderedDict
+from heapq import heappop, heappush
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from airflow.configuration import conf
@@ -60,7 +60,8 @@ class BaseExecutor(LoggingMixin):
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()
         self.parallelism: int = parallelism
-        self.queued_tasks: OrderedDict[TaskInstanceKey, QueuedTaskInstanceType] = OrderedDict()
+        self.queued_tasks: Set[TaskInstanceKey] = set()
+        self.queued_tasks_priority_queue: List[Tuple[int, QueuedTaskInstanceType]] = []
         self.running: Set[TaskInstanceKey] = set()
         self.event_buffer: Dict[TaskInstanceKey, EventBufferValueType] = {}
 
@@ -80,7 +81,11 @@ class BaseExecutor(LoggingMixin):
         """Queues command to task"""
         if task_instance.key not in self.queued_tasks and task_instance.key not in self.running:
             self.log.info("Adding to queue: %s", command)
-            self.queued_tasks[task_instance.key] = (command, priority, queue, task_instance)
+            self.queued_tasks.add(task_instance.key)
+            # heapq provides a min heap, while we need a max heap here
+            # so we use `-priority` as the 1st element of the items
+            heappush(self.queued_tasks_priority_queue, (-priority,
+                                                        (command, priority, queue, task_instance)))
         else:
             self.log.error("could not queue task %s", task_instance.key)
 
@@ -161,29 +166,16 @@ class BaseExecutor(LoggingMixin):
         self.log.debug("Calling the %s sync method", self.__class__)
         self.sync()
 
-    def order_queued_tasks_by_priority(self) -> List[Tuple[TaskInstanceKey, QueuedTaskInstanceType]]:
-        """
-        Orders the queued tasks by priority.
-
-        :return: List of tuples from the queued_tasks according to the priority.
-        """
-        return sorted(
-            [(k, v) for k, v in self.queued_tasks.items()],  # pylint: disable=unnecessary-comprehension
-            key=lambda x: x[1][1],
-            reverse=True,
-        )
-
     def trigger_tasks(self, open_slots: int) -> None:
         """
         Triggers tasks
 
         :param open_slots: Number of open slots
         """
-        sorted_queue = self.order_queued_tasks_by_priority()
-
         for _ in range(min((open_slots, len(self.queued_tasks)))):
-            key, (command, _, _, ti) = sorted_queue.pop(0)
-            self.queued_tasks.pop(key)
+            _, (command, _, _, ti) = heappop(self.queued_tasks_priority_queue)
+            key = ti.key
+            self.queued_tasks.remove(key)
             self.running.add(key)
             self.execute_async(key=key, command=command, queue=None, executor_config=ti.executor_config)
 

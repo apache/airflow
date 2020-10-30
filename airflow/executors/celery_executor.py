@@ -30,6 +30,7 @@ import subprocess
 import time
 import traceback
 from collections import OrderedDict
+from heapq import heappop
 from multiprocessing import Pool, cpu_count
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Set, Tuple, Union
 
@@ -248,14 +249,12 @@ class CeleryExecutor(BaseExecutor):
         :param open_slots: Number of open slots
         :return:
         """
-        sorted_queue = self.order_queued_tasks_by_priority()
-
         task_tuples_to_send: List[TaskInstanceInCelery] = []
 
-        for _ in range(min(open_slots, len(self.queued_tasks))):
-            key, (command, _, queue, simple_ti) = sorted_queue.pop(0)
-            task_tuple = (key, simple_ti, command, queue, execute_command)
-            task_tuples_to_send.append(task_tuple)
+        for _ in range(min((open_slots, len(self.queued_tasks)))):
+            _, (command, _, queue, simple_ti) = heappop(self.queued_tasks_priority_queue)
+            key = simple_ti.key
+            task_tuples_to_send.append((key, simple_ti, command, queue, execute_command))
             if key not in self.task_publish_retries:
                 self.task_publish_retries[key] = 1
 
@@ -288,7 +287,7 @@ class CeleryExecutor(BaseExecutor):
                     )
                     self.task_publish_retries[key] += 1
                     continue
-            self.queued_tasks.pop(key)
+            self.queued_tasks.remove(key)
             self.task_publish_retries.pop(key)
             if isinstance(result, ExceptionWithTraceback):
                 self.log.error(  # pylint: disable=logging-not-lazy

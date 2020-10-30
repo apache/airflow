@@ -24,6 +24,7 @@ DebugExecutor
 """
 
 import threading
+from heapq import heappop
 from typing import Any, Dict, List, Optional
 
 from airflow.configuration import conf
@@ -119,14 +120,10 @@ class DebugExecutor(BaseExecutor):
 
         :param open_slots: Number of open slots
         """
-        sorted_queue = sorted(
-            [(k, v) for k, v in self.queued_tasks.items()],  # pylint: disable=unnecessary-comprehension
-            key=lambda x: x[1][1],
-            reverse=True,
-        )
         for _ in range(min((open_slots, len(self.queued_tasks)))):
-            key, (_, _, _, ti) = sorted_queue.pop(0)
-            self.queued_tasks.pop(key)
+            _, (_, _, _, ti) = heappop(self.queued_tasks_priority_queue)
+            key = ti.key
+            self.queued_tasks.remove(key)
             self.running.add(key)
             self.tasks_to_run.append(ti)  # type: ignore
 

@@ -17,6 +17,7 @@
 # under the License.
 
 from collections import defaultdict
+from heapq import heappop
 
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstance import TaskInstanceKey
@@ -53,23 +54,19 @@ class MockExecutor(BaseExecutor):
             return
 
         with create_session() as session:
-            self.history.append(list(self.queued_tasks.values()))
-
-            # Create a stable/predictable sort order for events in self.history
-            # for tests!
-            def sort_by(item):
-                key, val = item
-                (dag_id, task_id, date, try_number) = key
-                (_, prio, _, _) = val
-                # Sort by priority (DESC), then date,task, try
-                return -prio, date, dag_id, task_id, try_number
+            self.history.append([x[1] for x in self.queued_tasks_priority_queue])
 
             open_slots = self.parallelism - len(self.running)
-            sorted_queue = sorted(self.queued_tasks.items(), key=sort_by)
-            for index in range(min((open_slots, len(sorted_queue)))):
-                (key, (_, _, _, ti)) = sorted_queue[index]
-                self.queued_tasks.pop(key)
-                ti._try_number += 1
+            for _ in range(min((open_slots, len(self.queued_tasks)))):
+                self.log.info("XDDEBUG-pos1: ")
+                self.log.info(self.queued_tasks)
+                self.log.info(self.queued_tasks_priority_queue)
+                _, (_, _, _, ti) = heappop(self.queued_tasks_priority_queue)
+                key = ti.key
+                self.log.info("XDDEBUG-pos2: ")
+                self.log.info(self.queued_tasks)
+                self.log.info(self.queued_tasks_priority_queue)
+                self.queued_tasks.remove(key)
                 state = self.mock_task_results[key]
                 ti.set_state(state, session=session)
                 self.change_state(key, state)

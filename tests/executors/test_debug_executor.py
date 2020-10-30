@@ -70,10 +70,12 @@ class TestDebugExecutor:
         executor = DebugExecutor()
         executor.execute_async = execute_async_mock
 
-        executor.queued_tasks = {
-            "t1": (None, 1, None, MagicMock(key="t1")),
-            "t2": (None, 2, None, MagicMock(key="t2")),
-        }
+        executor.queued_tasks = {"t1", "t2"}
+        from heapq import heappush
+        heappush(executor.queued_tasks_priority_queue,
+                 (-1, (None, 1, None, MagicMock(key="t1"))))
+        heappush(executor.queued_tasks_priority_queue,
+                 (-2, (None, 2, None, MagicMock(key="t2"))))
 
         executor.trigger_tasks(open_slots=4)
         assert not executor.queued_tasks

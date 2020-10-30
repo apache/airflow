@@ -1857,7 +1857,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.query(TaskInstance).delete()
         session.commit()
         key = 'dag_id', 'task_id', DEFAULT_DATE, 1
-        test_executor.queued_tasks[key] = 'value'
+        test_executor.queued_tasks.add(key)
         ti = TaskInstance(task, DEFAULT_DATE)
         ti.state = State.QUEUED
         session.merge(ti)  # pylint: disable=no-value-for-parameter
