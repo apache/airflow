@@ -53,8 +53,9 @@
     - name: executor
       description: |
         The executor class that airflow should use. Choices include
-        SequentialExecutor, LocalExecutor, CeleryExecutor, DaskExecutor, KubernetesExecutor,
-        CeleryKubernetesExecutor or the full import path to the class when using a custom executor.
+        ``SequentialExecutor``, ``LocalExecutor``, ``CeleryExecutor``, ``DaskExecutor``,
+        ``KubernetesExecutor``, ``CeleryKubernetesExecutor`` or the
+        full import path to the class when using a custom executor.
       version_added: ~
       type: string
       example: ~
@@ -77,10 +78,10 @@
       default: "utf-8"
     - name: sql_engine_collation_for_ids
       description: |
-        Collation for `dag_id`, `task_id`, `key` columns in case they have different encoding.
+        Collation for ``dag_id``, ``task_id``, ``key`` columns in case they have different encoding.
         This is particularly useful in case of mysql with utf8mb4 encoding because
-        primary keys for XCom table has too big size and `sql_engine_collation_for_ids` should
-        be set to `utf8mb3_general_ci`
+        primary keys for XCom table has too big size and ``sql_engine_collation_for_ids`` should
+        be set to ``utf8mb3_general_ci``.
       version_added: 2.0.0
       type: string
       example: ~
@@ -109,8 +110,8 @@
         It follows then that the total number of simultaneous connections the pool will allow
         is pool_size + max_overflow,
         and the total number of "sleeping" connections the pool will allow is pool_size.
-        max_overflow can be set to -1 to indicate no overflow limit;
-        no limit will be placed on the total number of concurrent connections. Defaults to 10.
+        max_overflow can be set to ``-1`` to indicate no overflow limit;
+        no limit will be placed on the total number of concurrent connections. Defaults to ``10``.
       version_added: 1.10.4
       type: string
       example: ~
@@ -145,7 +146,7 @@
       default: ""
     - name: sql_alchemy_connect_args
       description: |
-        Import path for connect args in SqlAlchemy. Default to an empty dict.
+        Import path for connect args in SqlAlchemy. Defaults to an empty dict.
         This is useful when you want to configure db engine args that SqlAlchemy won't parse
         in connection string.
         See https://docs.sqlalchemy.org/en/13/core/engines.html#sqlalchemy.create_engine.params.connect_args
@@ -187,7 +188,7 @@
     - name: load_examples
       description: |
         Whether to load the DAG examples that ship with Airflow. It's good to
-        get started, but you probably want to set this to False in a production
+        get started, but you probably want to set this to ``False`` in a production
         environment
       version_added: ~
       type: string
@@ -196,7 +197,7 @@
     - name: load_default_connections
       description: |
         Whether to load the default connections that ship with Airflow. It's good to
-        get started, but you probably want to set this to False in a production
+        get started, but you probably want to set this to ``False`` in a production
         environment
       version_added: 1.10.10
       type: string
@@ -204,7 +205,7 @@
       default: "True"
     - name: plugins_folder
       description: |
-        Where your Airflow plugins are stored
+        Path to the folder containing Airflow plugins
       version_added: ~
       type: string
       example: ~
@@ -368,8 +369,7 @@
       description: |
         Whether to persist DAG files code in DB.
         If set to True, Webserver reads file contents from DB instead of
-        trying to access files in a DAG folder. Defaults to same as the
-        ``store_serialized_dags`` setting.
+        trying to access files in a DAG folder.
       version_added: 1.10.10
       type: string
       example: "False"
@@ -378,8 +378,7 @@
       description: |
         Maximum number of Rendered Task Instance Fields (Template Fields) per task to store
         in the Database.
-        When Dag Serialization is enabled (``store_serialized_dags=True``), all the template_fields
-        for each of Task Instance are stored in the Database.
+        All the template_fields for each of Task Instance are stored in the Database.
         Keeping this number small may cause an error when you try to view ``Rendered`` tab in
         TaskInstance view for older tasks.
       version_added: 2.0.0
@@ -555,7 +554,7 @@
     - name: task_log_reader
       description: |
         Name of handler to read task instance logs.
-        Default to use task handler.
+        Defaults to use ``task`` handler.
       version_added: ~
       type: string
       example: ~
@@ -623,7 +622,7 @@
   options:
     - name: fail_fast
       description: |
-        Used only with DebugExecutor. If set to True DAG will fail with first
+        Used only with ``DebugExecutor``. If set to ``True`` DAG will fail with first
         failed task. Helpful for debugging purposes.
       version_added: 1.10.8
       type: string
@@ -927,16 +926,15 @@
       default: "True"
     - name: dag_default_view
       description: |
-        Default DAG view. Valid values are:
-        tree, graph, duration, gantt, landing_times
+        Default DAG view. Valid values are: ``tree``, ``graph``, ``duration``, ``gantt``, ``landing_times``
       version_added: ~
       type: string
       example: ~
       default: "tree"
     - name: dag_orientation
       description: |
-        "Default DAG orientation. Valid values are:"
-        LR (Left->Right), TB (Top->Bottom), RL (Right->Left), BT (Bottom->Top)
+        Default DAG orientation. Valid values are:
+        ``LR`` (Left->Right), ``TB`` (Top->Bottom), ``RL`` (Right->Left), ``BT`` (Bottom->Top)
       version_added: ~
       type: string
       example: ~
@@ -1220,14 +1218,14 @@
       default: ""
 - name: celery_kubernetes_executor
   description: |
-    This section only applies if you are using the CeleryKubernetesExecutor in
+    This section only applies if you are using the ``CeleryKubernetesExecutor`` in
     ``[core]`` section above
   options:
     - name: kubernetes_queue
       description: |
-        Define when to send a task to KubernetesExecutor when using CeleryKubernetesExecutor.
-        When the queue of a task is kubernetes_queue, the task is executed via KubernetesExecutor,
-        otherwise via CeleryExecutor
+        Define when to send a task to ``KubernetesExecutor`` when using ``CeleryKubernetesExecutor``.
+        When the queue of a task is ``kubernetes_queue``, the task is executed via ``KubernetesExecutor``,
+        otherwise via ``CeleryExecutor``
       version_added: ~
       type: string
       example: ~
@@ -1270,7 +1268,7 @@
       description: |
         Used to increase the number of tasks that a worker prefetches which can improve performance.
         The number of processes multiplied by worker_prefetch_multiplier is the number of tasks
-        that are prefetched by a worker.  A value greater than 1 can result in tasks being unnecessarily
+        that are prefetched by a worker. A value greater than 1 can result in tasks being unnecessarily
         blocked if there are multiple workers and one worker prefetches tasks that sit behind long
         running tasks while another worker has unutilized processes that are unable to process the already
         claimed blocked tasks.
@@ -1302,9 +1300,7 @@
     - name: broker_url
       description: |
         The Celery broker URL. Celery supports RabbitMQ, Redis and experimentally
-        a sqlalchemy database. Refer to the Celery documentation for more
-        information.
-        http://docs.celeryproject.org/en/latest/userguide/configuration.html#broker-settings
+        a sqlalchemy database. Refer to the Celery documentation for more information.
       version_added: ~
       type: string
       example: ~
@@ -1400,7 +1396,7 @@
     - name: pool
       description: |
         Celery Pool implementation.
-        Choices include: prefork (default), eventlet, gevent or solo.
+        Choices include: ``prefork`` (default), ``eventlet``, ``gevent`` or ``solo``.
         See:
         https://docs.celeryproject.org/en/latest/userguide/workers.html#concurrency
         https://docs.celeryproject.org/en/latest/userguide/concurrency/eventlet.html
@@ -1566,10 +1562,10 @@
       default: "300"
     - name: catchup_by_default
       description: |
-        Turn off scheduler catchup by setting this to False.
+        Turn off scheduler catchup by setting this to ``False``.
         Default behavior is unchanged and
         Command Line Backfills still work, but the scheduler
-        will not do scheduler catchup if this is False,
+        will not do scheduler catchup if this is ``False``,
         however it can be set on a per DAG basis in the
         DAG definition (catchup)
       version_added: ~
@@ -1592,7 +1588,7 @@
       default: "512"
     - name: use_row_level_locking
       description: |
-        Should the scheduler issue `SELECT ... FOR UPDATE` in relevant queries.
+        Should the scheduler issue ``SELECT ... FOR UPDATE`` in relevant queries.
         If this is set to False then you should not run more than a single
         scheduler at once
       version_added: 2.0.0
