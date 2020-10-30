@@ -731,8 +731,8 @@ class DataprocHook(GoogleBaseHook):
             try:
                 job = self.get_job(location=location, job_id=job_id, project_id=project_id)
                 state = job.status.state
-            except ServerError:
-                pass
+            except ServerError as err:
+                self.log.info("Retrying. Dataproc API returned server error when waiting for job: %s", err)
 
         if state == JobStatus.ERROR:
             raise AirflowException('Job failed:\n{}'.format(job))
