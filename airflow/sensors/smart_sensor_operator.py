@@ -290,7 +290,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
     :type poke_interval: int
     :param smart_sensor_timeout: Time, in seconds before the internal sensor
         job times out if poke_timeout is not defined.
-    :type smart_sensor_timeout: int
+    :type smart_sensor_timeout: float
     :param shard_min: shard code lower bound (inclusive)
     :type shard_min: int
     :param shard_max: shard code upper bound (exclusive)
@@ -299,7 +299,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
         exception expires and being cleaned up.
     :type poke_exception_cache_ttl: int
     :param poke_timeout: Time, in seconds before the task times out and fails.
-    :type poke_timeout: int
+    :type poke_timeout: float
     """
 
     ui_color = '#e6f1f2'
@@ -312,7 +312,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
                  shard_min=0,
                  shard_max=100000,
                  poke_exception_cache_ttl=600,
-                 poke_timeout=6,
+                 poke_timeout=6.0,
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)

@@ -237,9 +237,9 @@
       description: |
         How long before timing out a python file import
       version_added: ~
-      type: string
+      type: float
       example: ~
-      default: "30"
+      default: "30.0"
     - name: dagbag_import_error_tracebacks
       description: |
         Should a traceback be shown in the UI for dagbag import errors,
@@ -1413,9 +1413,9 @@
         The number of seconds to wait before timing out ``send_task_to_executor`` or
         ``fetch_celery_task_state`` operations.
       version_added: 1.10.8
-      type: int
+      type: float
       example: ~
-      default: "2"
+      default: "2.0"
     - name: task_track_started
       description: |
         Celery task will report its status as 'started' when the task is executed by a worker.
