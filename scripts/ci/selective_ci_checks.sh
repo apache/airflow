@@ -173,7 +173,7 @@ function set_basic_checks_only() {
     initialization::ga_output basic-checks-only "${@}"
 }
 
-ALL_TESTS="Core Other API CLI Providers WWW Integration Heisentests"
+ALL_TESTS="Always Core Other API CLI Providers WWW Integration Heisentests"
 readonly ALL_TESTS
 
 function set_outputs_run_everything_and_exit() {
@@ -480,7 +480,7 @@ function calculate_test_types_to_run() {
             echo
             SELECTED_TESTS="${SELECTED_TESTS} WWW"
         fi
-        initialization::ga_output test-types "Integration Heisentests ${SELECTED_TESTS}"
+        initialization::ga_output test-types "Always Integration Heisentests ${SELECTED_TESTS}"
     fi
 }
 
