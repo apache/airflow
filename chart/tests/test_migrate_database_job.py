@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,14 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-echo "Running helm tests"
+import unittest
 
-chart_directory="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/../../../chart/"
+import jmespath
+from tests.helm_template_generator import render_chart
 
-cat chart/files/pod-template-file.kubernetes-helm-yaml > chart/templates/pod-template-file.yaml
 
-docker run -w /airflow-chart -v "$chart_directory":/airflow-chart \
-  --entrypoint /bin/sh \
-  aneeshkj/helm-unittest \
-  -c "helm repo add stable https://charts.helm.sh/stable/; helm dependency update ; helm unittest ." \
-  && rm chart/templates/pod-template-file.yaml
+class MigrateDatabaseJobTest(unittest.TestCase):
+    def test_should_run_by_default(self):
+        docs = render_chart(
+            values={},
+            show_only=["templates/migrate-database-job.yaml"],
+        )
+
+        self.assertRegex(docs[0]["kind"], "Job")
+        self.assertEqual(
+            "run-airflow-migrations", jmespath.search("spec.template.spec.containers[0].name", docs[0])
+        )

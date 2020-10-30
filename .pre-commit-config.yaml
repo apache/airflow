@@ -58,12 +58,12 @@ repos:
           - --fuzzy-match-generates-todo
         files: \.rst$
       - id: insert-license
-        name: Add license for all JS/CSS files
-        files: \.(js|css)$
+        name: Add license for all JS/CSS/PUML files
+        files: \.(js|css|puml)$
         exclude: ^\.github/.*$|^airflow/www/static/.*|^airflow/www_rbac/static/.*$
         args:
           - --comment-style
-          - "/**| *| */"
+          - "/*!| *| */"
           - --license-filepath
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
@@ -121,7 +121,7 @@ repos:
       - id: insert-license
         name: Add license for all md files
         files: \.md$
-        exclude: ^\.github/.*$
+        exclude: ^\.github/.*$|PROVIDER_CHANGES.*\.md
         args:
           - --comment-style
           - "<!--|| -->"
@@ -133,7 +133,7 @@ repos:
     hooks:
       - id: doctoc
         name: Add TOC for md files
-        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.md$|^dev/README.md$
+        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.*.md$|^dev/README\.md$|^dev/PROVIDER_PACKAGES.md$
         args:
           - "--maxlevel"
           - "2"
@@ -141,7 +141,7 @@ repos:
     hooks:
       - id: check-hooks-apply
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.2.0
+    rev: v3.3.0
     hooks:
       - id: check-merge-conflict
       - id: debug-statements
@@ -157,13 +157,14 @@ repos:
       - id: rst-backticks
       - id: python-no-log-warn
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.24.2
+    rev: v1.25.0
     hooks:
       - id: yamllint
         name: Check yaml files with yamllint
         entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
-        exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/templates/.*\.yaml$
+        exclude:
+          ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml
   ##
   ## Dear committer.
   ##

@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,14 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-echo "Running helm tests"
+import unittest
 
-chart_directory="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/../../../chart/"
+import jmespath
+from tests.helm_template_generator import render_chart
 
-cat chart/files/pod-template-file.kubernetes-helm-yaml > chart/templates/pod-template-file.yaml
 
-docker run -w /airflow-chart -v "$chart_directory":/airflow-chart \
-  --entrypoint /bin/sh \
-  aneeshkj/helm-unittest \
-  -c "helm repo add stable https://charts.helm.sh/stable/; helm dependency update ; helm unittest ." \
-  && rm chart/templates/pod-template-file.yaml
+class CeleryKubernetesPodLauncherRole(unittest.TestCase):
+    def test_should_allow_both_scheduler_pod_launching_and_worker_pod_launching(self):
+        docs = render_chart(
+            values={"executor": "CeleryKubernetesExecutor"},
+            show_only=[
+                "templates/rbac/pod-launcher-rolebinding.yaml",
+            ],
+        )
+
+        self.assertEqual(jmespath.search("subjects[0].name", docs[0]), "RELEASE-NAME-scheduler")
+        self.assertEqual(jmespath.search("subjects[1].name", docs[0]), "RELEASE-NAME-worker")

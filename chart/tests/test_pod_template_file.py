@@ -16,21 +16,37 @@
 # under the License.
 
 import unittest
+from os import remove
+from os.path import realpath, dirname
+from shutil import copyfile
 
 import jmespath
 from tests.helm_template_generator import render_chart
 
+ROOT_FOLDER = realpath(dirname(realpath(__file__)) + "/..")
 
-class GitSyncSchedulerTest(unittest.TestCase):
-    def test_should_add_dags_volume(self):
-        docs = render_chart(
-            values={"dags": {"gitSync": {"enabled": True}}},
-            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+
+class PodTemplateFileTest(unittest.TestCase):
+    def setUp(self):
+        copyfile(
+            ROOT_FOLDER + "/files/pod-template-file.kubernetes-helm-yaml",
+            ROOT_FOLDER + "/templates/pod-template-file.yaml",
         )
 
-        self.assertEqual("dags", jmespath.search("spec.template.spec.volumes[1].name", docs[0]))
+    def tearDown(self):
+        remove(ROOT_FOLDER + "/templates/pod-template-file.yaml")
 
-    def test_validate_the_git_sync_container_spec(self):
+    def test_should_work(self):
+        docs = render_chart(
+            values={},
+            show_only=["templates/pod-template-file.yaml"],
+        )
+
+        self.assertRegex(docs[0]["kind"], "Pod")
+        self.assertIsNotNone(jmespath.search("spec.containers[0].image", docs[0]))
+        self.assertEqual("base", jmespath.search("spec.containers[0].name", docs[0]))
+
+    def test_should_add_an_init_container_if_git_sync_is_true(self):
         docs = render_chart(
             values={
                 "images": {
@@ -56,13 +72,13 @@ class GitSyncSchedulerTest(unittest.TestCase):
                         "sshKeySecret": None,
                         "credentialsSecret": None,
                         "knownHosts": None,
-                    },
-                    "persistence": {"enabled": True},
+                    }
                 },
             },
-            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+            show_only=["templates/pod-template-file.yaml"],
         )
 
+        self.assertRegex(docs[0]["kind"], "Pod")
         self.assertEqual(
             {
                 "name": "git-sync-test",
@@ -79,10 +95,11 @@ class GitSyncSchedulerTest(unittest.TestCase):
                     {"name": "GIT_SYNC_ADD_USER", "value": "true"},
                     {"name": "GIT_SYNC_WAIT", "value": "66"},
                     {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": "70"},
+                    {"name": "GIT_SYNC_ONE_TIME", "value": "true"},
                 ],
                 "volumeMounts": [{"mountPath": "/git-root", "name": "dags"}],
             },
-            jmespath.search("spec.template.spec.containers[1]", docs[0]),
+            jmespath.search("spec.initContainers[0]", docs[0]),
         )
 
     def test_validate_if_ssh_params_are_added(self):
@@ -98,24 +115,23 @@ class GitSyncSchedulerTest(unittest.TestCase):
                     }
                 }
             },
-            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+            show_only=["templates/pod-template-file.yaml"],
         )
 
         self.assertIn(
             {"name": "GIT_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"},
-            jmespath.search("spec.template.spec.containers[1].env", docs[0]),
+            jmespath.search("spec.initContainers[0].env", docs[0]),
         )
         self.assertIn(
-            {"name": "GIT_SYNC_SSH", "value": "true"},
-            jmespath.search("spec.template.spec.containers[1].env", docs[0]),
+            {"name": "GIT_SYNC_SSH", "value": "true"}, jmespath.search("spec.initContainers[0].env", docs[0])
         )
         self.assertIn(
             {"name": "GIT_KNOWN_HOSTS", "value": "false"},
-            jmespath.search("spec.template.spec.containers[1].env", docs[0]),
+            jmespath.search("spec.initContainers[0].env", docs[0]),
         )
         self.assertIn(
             {"name": "git-sync-ssh-key", "secret": {"secretName": "ssh-secret", "defaultMode": 288}},
-            jmespath.search("spec.template.spec.volumes", docs[0]),
+            jmespath.search("spec.volumes", docs[0]),
         )
 
     def test_should_set_username_and_pass_env_variables(self):
@@ -129,7 +145,7 @@ class GitSyncSchedulerTest(unittest.TestCase):
                     }
                 }
             },
-            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+            show_only=["templates/pod-template-file.yaml"],
         )
 
         self.assertIn(
@@ -137,23 +153,33 @@ class GitSyncSchedulerTest(unittest.TestCase):
                 "name": "GIT_SYNC_USERNAME",
                 "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_USERNAME"}},
             },
-            jmespath.search("spec.template.spec.containers[1].env", docs[0]),
+            jmespath.search("spec.initContainers[0].env", docs[0]),
         )
         self.assertIn(
             {
                 "name": "GIT_SYNC_PASSWORD",
                 "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}},
             },
-            jmespath.search("spec.template.spec.containers[1].env", docs[0]),
+            jmespath.search("spec.initContainers[0].env", docs[0]),
         )
 
     def test_should_set_the_volume_claim_correctly_when_using_an_existing_claim(self):
         docs = render_chart(
             values={"dags": {"persistence": {"enabled": True, "existingClaim": "test-claim"}}},
-            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+            show_only=["templates/pod-template-file.yaml"],
         )
 
         self.assertIn(
             {"name": "dags", "persistentVolumeClaim": {"claimName": "test-claim"}},
-            jmespath.search("spec.template.spec.volumes", docs[0]),
+            jmespath.search("spec.volumes", docs[0]),
         )
+
+    def test_should_set_a_custom_image_in_pod_template(self):
+        docs = render_chart(
+            values={"images": {"pod_template": {"repository": "dummy_image", "tag": "latest"}}},
+            show_only=["templates/pod-template-file.yaml"],
+        )
+
+        self.assertRegex(docs[0]["kind"], "Pod")
+        self.assertEqual("dummy_image:latest", jmespath.search("spec.containers[0].image", docs[0]))
+        self.assertEqual("base", jmespath.search("spec.containers[0].name", docs[0]))
