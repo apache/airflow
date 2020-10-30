@@ -92,7 +92,8 @@ def make_safe_label_value(string):
 
     return safe_label
 
-def datetime_to_label_safe_datestring(datetime_obj: datetime.datetime) -> str:
+
+def datetime_to_label_safe_datestring(datetime_obj):
     """
     Kubernetes doesn't like ":" in labels, since ISO datetime format uses ":" but
     not "_" let's
@@ -104,7 +105,7 @@ def datetime_to_label_safe_datestring(datetime_obj: datetime.datetime) -> str:
     return datetime_obj.isoformat().replace(":", "_").replace('+', '_plus_')
 
 
-def label_safe_datestring_to_datetime(string: str) -> datetime.datetime:
+def label_safe_datestring_to_datetime(string):
     """
     Kubernetes doesn't permit ":" in labels. ISO datetime format uses ":" but not
     "_", let's

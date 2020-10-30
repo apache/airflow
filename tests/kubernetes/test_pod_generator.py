@@ -25,7 +25,7 @@ from kubernetes.client import ApiClient, models as k8s
 
 from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.kubernetes.pod import Resources
-from airflow.kubernetes.pod_generator import PodDefaults, PodGenerator, extend_object_field, merge_objcts, \
+from airflow.kubernetes.pod_generator import PodDefaults, PodGenerator, extend_object_field, merge_objects, \
     datetime_to_label_safe_datestring
 from airflow.kubernetes.secret import Secret
 

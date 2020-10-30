@@ -18,6 +18,7 @@
 
 import unittest
 import six
+from dateutil import parser
 from parameterized import parameterized
 
 from tests.compat import mock
