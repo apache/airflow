@@ -422,3 +422,8 @@ label[for="timezone-other"],
   top: 2px;
   border: 0;
 }
+
+/* Override default Bootstrap behavior to prevent wrapping */
+.btn-group {
+  display: inline-flex;
+}
