@@ -20,7 +20,6 @@ from base64 import b64encode
 from select import select
 from typing import Optional, Union
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
@@ -157,12 +156,7 @@ class SSHOperator(BaseOperator):
 
                 exit_status = stdout.channel.recv_exit_status()
                 if exit_status == 0:
-                    enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
-                    if enable_pickling:
-                        return agg_stdout
-                    else:
-                        return b64encode(agg_stdout).decode('utf-8')
-
+                    return b64encode(agg_stdout).decode('utf-8')
                 else:
                     error_msg = agg_stderr.decode('utf-8')
                     raise AirflowException(

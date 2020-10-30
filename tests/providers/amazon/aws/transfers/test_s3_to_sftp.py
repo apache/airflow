@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from base64 import b64decode
 
 import boto3
 from moto import mock_s3
@@ -25,7 +26,6 @@ from airflow.providers.amazon.aws.transfers.s3_to_sftp import S3ToSFTPOperator
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
-from tests.test_utils.config import conf_vars
 
 TASK_ID = 'test_s3_to_sftp'
 BUCKET = 'test-s3-bucket'
@@ -70,7 +70,6 @@ class TestS3ToSFTPOperator(unittest.TestCase):
         self.s3_key = S3_KEY
 
     @mock_s3
-    @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_s3_to_sftp_operation(self):
         # Setting
         test_remote_file_content = (
@@ -121,8 +120,8 @@ class TestS3ToSFTPOperator(unittest.TestCase):
         ti3 = TaskInstance(task=check_file_task, execution_date=timezone.utcnow())
         ti3.run()
         self.assertEqual(
-            ti3.xcom_pull(task_ids='test_check_file', key='return_value').strip(),
-            test_remote_file_content.encode('utf-8'),
+            b64decode(ti3.xcom_pull(task_ids='test_check_file', key='return_value').strip()).decode('utf-8'),
+            test_remote_file_content,
         )
 
         # Clean up after finishing with test

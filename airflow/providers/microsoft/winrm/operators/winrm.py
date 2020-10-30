@@ -22,7 +22,6 @@ from typing import Optional, Union
 
 from winrm.exceptions import WinRMOperationTimeoutError
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
@@ -133,11 +132,7 @@ class WinRMOperator(BaseOperator):
 
         if return_code == 0:
             # returning output if do_xcom_push is set
-            enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
-            if enable_pickling:
-                return stdout_buffer
-            else:
-                return b64encode(b''.join(stdout_buffer)).decode('utf-8')
+            return b64encode(b''.join(stdout_buffer)).decode('utf-8')
         else:
             error_msg = "Error running cmd: {0}, return code: {1}, error: {2}".format(
                 self.command, return_code, b''.join(stderr_buffer).decode('utf-8')

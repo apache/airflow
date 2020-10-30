@@ -28,7 +28,6 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
-from tests.test_utils.config import conf_vars
 
 BUCKET = 'test-bucket'
 S3_KEY = 'test/test_1_file.csv'
@@ -69,7 +68,6 @@ class TestSFTPToS3Operator(unittest.TestCase):
         self.s3_key = S3_KEY
 
     @mock_s3
-    @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_sftp_to_s3_operation(self):
         # Setting
         test_remote_file_content = (

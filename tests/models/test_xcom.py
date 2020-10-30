@@ -46,14 +46,13 @@ class TestXCom(unittest.TestCase):
         assert cls().serialize_value(None) == "custom_value"
 
     @conf_vars(
-        {("core", "xcom_backend"): "", ("core", "enable_xcom_pickling"): "False"}
+        {("core", "xcom_backend"): ""}
     )
     def test_resolve_xcom_class_fallback_to_basexcom(self):
         cls = resolve_xcom_backend()
         assert issubclass(cls, BaseXCom)
         assert cls().serialize_value([1]) == b"[1]"
 
-    @conf_vars({("core", "enable_xcom_pickling"): "False"})
     @conf_vars({("core", "xcom_backend"): "to be removed"})
     def test_resolve_xcom_class_fallback_to_basexcom_no_config(self):
         conf.remove_option("core", "xcom_backend")
@@ -117,63 +116,6 @@ class TestXCom(unittest.TestCase):
 
         self.assertEqual(ret_value, json_obj)
 
-    @conf_vars({("core", "enable_xcom_pickling"): "True"})
-    def test_xcom_enable_pickle_type(self):
-        json_obj = {"key": "value"}
-        execution_date = timezone.utcnow()
-        key = "xcom_test2"
-        dag_id = "test_dag2"
-        task_id = "test_task2"
-        XCom.set(key=key,
-                 value=json_obj,
-                 dag_id=dag_id,
-                 task_id=task_id,
-                 execution_date=execution_date)
-
-        ret_value = XCom.get_many(key=key,
-                                  dag_ids=dag_id,
-                                  task_ids=task_id,
-                                  execution_date=execution_date).first().value
-
-        self.assertEqual(ret_value, json_obj)
-
-        session = settings.Session()
-        ret_value = session.query(XCom).filter(XCom.key == key, XCom.dag_id == dag_id,
-                                               XCom.task_id == task_id,
-                                               XCom.execution_date == execution_date
-                                               ).first().value
-
-        self.assertEqual(ret_value, json_obj)
-
-    @conf_vars({("core", "enable_xcom_pickling"): "True"})
-    def test_xcom_get_one_enable_pickle_type(self):
-        json_obj = {"key": "value"}
-        execution_date = timezone.utcnow()
-        key = "xcom_test3"
-        dag_id = "test_dag"
-        task_id = "test_task3"
-        XCom.set(key=key,
-                 value=json_obj,
-                 dag_id=dag_id,
-                 task_id=task_id,
-                 execution_date=execution_date)
-
-        ret_value = XCom.get_one(key=key,
-                                 dag_id=dag_id,
-                                 task_id=task_id,
-                                 execution_date=execution_date)
-
-        self.assertEqual(ret_value, json_obj)
-
-        session = settings.Session()
-        ret_value = session.query(XCom).filter(XCom.key == key, XCom.dag_id == dag_id,
-                                               XCom.task_id == task_id,
-                                               XCom.execution_date == execution_date
-                                               ).first().value
-
-        self.assertEqual(ret_value, json_obj)
-
-    @conf_vars({("core", "xcom_enable_pickling"): "False"})
     def test_xcom_disable_pickle_type_fail_on_non_json(self):
         class PickleRce:
             def __reduce__(self):
@@ -186,7 +128,6 @@ class TestXCom(unittest.TestCase):
                           task_id="test_task3",
                           execution_date=timezone.utcnow())
 
-    @conf_vars({("core", "xcom_enable_pickling"): "True"})
     def test_xcom_get_many(self):
         json_obj = {"key": "value"}
         execution_date = timezone.utcnow()

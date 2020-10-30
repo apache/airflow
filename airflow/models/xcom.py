@@ -18,8 +18,6 @@
 
 import json
 import logging
-import pickle
-from json import JSONDecodeError
 from typing import Any, Iterable, Optional, Union
 
 import pendulum
@@ -56,23 +54,13 @@ class BaseXCom(Base, LoggingMixin):
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
 
-    """
-    TODO: "pickling" has been deprecated and JSON is preferred.
-          "pickling" will be removed in Airflow 2.0.
-    """
     @reconstructor
     def init_on_load(self):
         """
         Called by the ORM after the instance has been loaded from the DB or otherwise reconstituted
         i.e automatically deserialize Xcom value when loading from DB.
         """
-        try:
-            self.value = XCom.deserialize_value(self)
-        except (UnicodeEncodeError, ValueError):
-            # For backward-compatibility.
-            # Preventing errors in webserver
-            # due to XComs mixed with pickled and unpickled.
-            self.value = pickle.loads(self.value)
+        self.value = XCom.deserialize_value(self)
 
     def __repr__(self):
         return '<XCom "{key}" ({task_id} @ {execution_date})>'.format(
@@ -92,8 +80,6 @@ class BaseXCom(Base, LoggingMixin):
             session=None):
         """
         Store an XCom value.
-        TODO: "pickling" has been deprecated and JSON is preferred.
-        "pickling" will be removed in Airflow 2.0.
 
         :return: None
         """
@@ -245,36 +231,12 @@ class BaseXCom(Base, LoggingMixin):
     @staticmethod
     def serialize_value(value: Any):
         """Serialize Xcom value to str or pickled object"""
-        # TODO: "pickling" has been deprecated and JSON is preferred.
-        # "pickling" will be removed in Airflow 2.0.
-        if conf.getboolean('core', 'enable_xcom_pickling'):
-            return pickle.dumps(value)
-        try:
-            return json.dumps(value).encode('UTF-8')
-        except (ValueError, TypeError):
-            log.error("Could not serialize the XCOM value into JSON. "
-                      "If you are using pickles instead of JSON "
-                      "for XCOM, then you need to enable pickle "
-                      "support for XCOM in your airflow config.")
-            raise
+        return json.dumps(value).encode('UTF-8')
 
     @staticmethod
     def deserialize_value(result) -> Any:
         """Deserialize Xcom value from str or pickle object"""
-        # TODO: "pickling" has been deprecated and JSON is preferred.
-        # "pickling" will be removed in Airflow 2.0.
-        enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
-        if enable_pickling:
-            return pickle.loads(result.value)
-
-        try:
-            return json.loads(result.value.decode('UTF-8'))
-        except JSONDecodeError:
-            log.error("Could not deserialize the XCOM value from JSON. "
-                      "If you are using pickles instead of JSON "
-                      "for XCOM, then you need to enable pickle "
-                      "support for XCOM in your airflow config.")
-            raise
+        return json.loads(result.value.decode('UTF-8'))
 
 
 def resolve_xcom_backend():
