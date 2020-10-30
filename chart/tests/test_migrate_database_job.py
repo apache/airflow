@@ -15,24 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
----
-templates:
-  - workers/worker-deployment.yaml
-tests:
-  - it: should add extraVolume and extraVolumeMount
-    set:
-      executor: CeleryExecutor
-      workers:
-        extraVolumes:
-          - name: test-volume
-            emptyDir: {}
-        extraVolumeMounts:
-          - name: test-volume
-            mountPath: /opt/test
-    asserts:
-      - equal:
-          path: spec.template.spec.volumes[0].name
-          value: test-volume
-      - equal:
-          path: spec.template.spec.containers[0].volumeMounts[0].name
-          value: test-volume
+import unittest
+
+import jmespath
+from tests.helm_template_generator import render_chart
+
+
+class MigrateDatabaseJobTest(unittest.TestCase):
+    def test_should_run_by_default(self):
+        docs = render_chart(
+            values={},
+            show_only=["templates/migrate-database-job.yaml"],
+        )
+
+        self.assertRegex(docs[0]["kind"], "Job")
+        self.assertEqual(
+            "run-airflow-migrations", jmespath.search("spec.template.spec.containers[0].name", docs[0])
+        )

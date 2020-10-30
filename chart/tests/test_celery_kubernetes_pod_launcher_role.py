@@ -15,24 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
----
-templates:
-  - scheduler/scheduler-deployment.yaml
-tests:
-  - it: should add extraVolume and extraVolumeMount
-    set:
-      executor: CeleryExecutor
-      scheduler:
-        extraVolumes:
-          - name: test-volume
-            emptyDir: {}
-        extraVolumeMounts:
-          - name: test-volume
-            mountPath: /opt/test
-    asserts:
-      - equal:
-          path: spec.template.spec.volumes[1].name
-          value: test-volume
-      - equal:
-          path: spec.template.spec.containers[0].volumeMounts[3].name
-          value: test-volume
+import unittest
+
+import jmespath
+from tests.helm_template_generator import render_chart
+
+
+class CeleryKubernetesPodLauncherRole(unittest.TestCase):
+    def test_should_allow_both_scheduler_pod_launching_and_worker_pod_launching(self):
+        docs = render_chart(
+            values={"executor": "CeleryKubernetesExecutor"},
+            show_only=[
+                "templates/rbac/pod-launcher-rolebinding.yaml",
+            ],
+        )
+
+        self.assertEqual(jmespath.search("subjects[0].name", docs[0]), "RELEASE-NAME-scheduler")
+        self.assertEqual(jmespath.search("subjects[1].name", docs[0]), "RELEASE-NAME-worker")

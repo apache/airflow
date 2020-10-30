@@ -142,19 +142,6 @@ jobs:
             ./scripts/ci/selective_ci_checks.sh
           fi
 
-  helm-tests:
-    timeout-minutes: 5
-    name: "Checks: Helm tests. Will soon be replaced with python tests"
-    runs-on: ubuntu-latest
-    needs: [build-info]
-    if: >
-      needs.build-info.outputs.needs-helm-tests == 'true'
-    steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
-      - name: "Helm Tests"
-        run: ./scripts/ci/kubernetes/ci_run_helm_testing.sh
-
   test-openapi-client-generation:
     name: "Test OpenAPI client generation"
     runs-on: ubuntu-latest
@@ -426,7 +413,7 @@ jobs:
           name: airflow-provider-readmes
           path: "./files/airflow-readme-*"
 
-  helm-python-tests:
+  tests-helm:
     timeout-minutes: 5
     name: "Python unit tests for helm chart"
     runs-on: ubuntu-latest
