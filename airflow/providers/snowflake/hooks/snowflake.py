@@ -135,3 +135,7 @@ class SnowflakeHook(DbApiHook):
 
     def set_autocommit(self, conn, autocommit: Any) -> None:
         conn.autocommit(autocommit)
+        conn.autocommit_mode = autocommit
+
+    def get_autocommit(self, conn):
+        return getattr(conn, 'autocommit_mode', False)
