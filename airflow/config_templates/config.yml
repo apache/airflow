@@ -1179,21 +1179,14 @@
       type: string
       example: ~
       default: "True"
-    - name: force_log_out_after
+    - name: session_lifetime_minutes
       description: |
-        Minutes of non-activity before logged out from UI
-        0 means never get forcibly logged out
-      version_added: 1.10.8
-      type: string
+        The UI cookie lifetime in minutes. User will be logged out from UI after
+        `session_lifetime_minutes` of non-activity
+      version_added: 2.0.0
+      type: int
       example: ~
-      default: "0"
-    - name: session_lifetime_days
-      description: |
-        The UI cookie lifetime in days
-      version_added: 1.10.8
-      type: string
-      example: ~
-      default: "30"
+      default: "43200"
 
 - name: email
   description: |

@@ -17,6 +17,7 @@
 # under the License.
 
 import unittest
+from datetime import timedelta
 from unittest import mock
 
 import pytest
@@ -24,6 +25,7 @@ from werkzeug.routing import Rule
 from werkzeug.test import create_environ
 from werkzeug.wrappers import Response
 
+from airflow.configuration import conf
 from airflow.www import app as application
 from tests.test_utils.config import conf_vars
 
@@ -221,3 +223,31 @@ class TestApp(unittest.TestCase):
         app = application.cached_app(testing=True)
         engine_params = {'pool_size': 3, 'pool_recycle': 120, 'pool_pre_ping': True, 'max_overflow': 5}
         self.assertEqual(app.config['SQLALCHEMY_ENGINE_OPTIONS'], engine_params)
+
+    @conf_vars({
+        ('webserver', 'session_lifetime_minutes'): '3600',
+    })
+    @mock.patch("airflow.www.app.app", None)
+    def test_should_set_permanent_session_timeout(self):
+        app = application.cached_app(testing=True)
+        self.assertEqual(app.config['PERMANENT_SESSION_LIFETIME'], timedelta(minutes=3600))
+
+    @conf_vars({
+        ('webserver', 'session_lifetime_days'): '30',
+        ('webserver', 'force_log_out_after'): '30',
+    })
+    @mock.patch("airflow.www.app.app", None)
+    def test_should_emit_deprecation_warnings(self):
+        with pytest.warns(DeprecationWarning) as warns:
+            conf.remove_option('webserver', 'session_lifetime_minutes')
+            app = application.cached_app(testing=True)
+
+        warn_msg = '`SESSION_LIFETIME_DAYS` option from `webserver` section has been ' \
+                   'renamed to `SESSION_LIFETIME_MINUTES`. New option allows to configure ' \
+                   'session lifetime in minutes. FORCE_LOG_OUT_AFTER option has been removed ' \
+                   'from `webserver` section.\nUsing default value for ' \
+                   '`SESSION_LIFETIME_MINUTES`: 43200'
+
+        warns = [w.message.args[0] for w in warns]
+        self.assertEqual(warn_msg in warns, True)
+        self.assertEqual(app.config['PERMANENT_SESSION_LIFETIME'], timedelta(minutes=43200))

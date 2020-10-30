@@ -270,6 +270,24 @@ The previous option used a colon(`:`) to split the module from function. Now the
 
 The change aims to unify the format of all options that refer to objects in the `airflow.cfg` file.
 
+#### Unify user session lifetime configuration
+In previous version of Airflow user session lifetime could be configured by
+`session_lifetime_days` and `force_log_out_after` options. In practise only `session_lifetime_days`
+had impact on session lifetime, but it was limited to values in day.
+In Airflow 2.0 we have removed mentioned options and introduced new `session_lifetime_minutes`
+option which simplify session lifetime configuration.
+
+Before
+ ```ini
+[webserver]
+force_log_out_after = 0
+session_lifetime_days = 30
+ ```
+After
+ ```ini
+[webserver]
+session_lifetime_minutes = 43200
+ ```
 
 #### Custom executors is loaded using full import path
 
