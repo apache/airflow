@@ -289,7 +289,6 @@ def remap_permissions():
         (old_view_name, old_perm_name) = old
         old_pvm = appbuilder.sm.find_permission_view_menu(old_perm_name, old_view_name)
         if not old_pvm:
-            print(f"There is not a PVM for {old_view_name}.{old_perm_name}")
             continue
         for new_perm_name, new_view_name in new:
             new_pvm = appbuilder.sm.add_permission_view_menu(new_perm_name, new_view_name)
@@ -297,11 +296,7 @@ def remap_permissions():
                 if appbuilder.sm.exist_permission_on_roles(old_view_name, old_perm_name, [role.id]):
                     appbuilder.sm.add_permission_role(role, new_pvm)
                     appbuilder.sm.del_permission_role(role, old_pvm)
-                    print(
-                        f"PRUNING: Perm View from Role {role.name}  ---->   {old_view_name}.{old_perm_name}"
-                    )
         appbuilder.sm.del_permission_view_menu(old_perm_name, old_view_name)
-        print(f"PRUNING: Permission View  ---->   {old_view_name}.{old_perm_name}")
 
         if not appbuilder.sm.find_permission(old_perm_name):
             continue
@@ -310,7 +305,6 @@ def remap_permissions():
             [appbuilder.sm.find_permission_view_menu(old_perm_name, view.name) for view in view_menus]
         ):
             appbuilder.sm.del_permission(old_perm_name)
-            print(f"PRUNING: Outdated Perm  ----> {old_perm_name}")
 
 
 def upgrade():
