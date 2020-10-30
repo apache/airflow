@@ -1231,7 +1231,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         # if it goes beyond
         if task_copy.execution_timeout:
             try:
-                with timeout(int(task_copy.execution_timeout.total_seconds())):
+                with timeout(task_copy.execution_timeout.total_seconds()):
                     result = task_copy.execute(context=context)
             except AirflowTaskTimeout:
                 task_copy.on_kill()

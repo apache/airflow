@@ -59,7 +59,7 @@ CELERY_FETCH_ERR_MSG_HEADER = 'Error fetching Celery task state'
 
 CELERY_SEND_ERR_MSG_HEADER = 'Error sending Celery task'
 
-OPERATION_TIMEOUT = conf.getint('celery', 'operation_timeout', fallback=2)
+OPERATION_TIMEOUT = conf.getfloat('celery', 'operation_timeout', fallback=2.0)
 
 '''
 To start the celery worker, run the command:
