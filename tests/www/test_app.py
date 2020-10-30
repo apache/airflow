@@ -236,10 +236,11 @@ class TestApp(unittest.TestCase):
             conf.remove_option('webserver', 'session_lifetime_minutes')
             app = application.cached_app(testing=True)
 
-        warn_msg = '`SESSION_LIFETIME_DAYS` option has been renamed to `SESSION_LIFETIME_MINUTES`. '\
-                   'New option allows to configure session lifetime in minutes. '\
-                   'FORCE_LOG_OUT_AFTER option has been removed.\nUsing default value '\
-                   'for `SESSION_LIFETIME_MINUTES`: 43200'
+        warn_msg = '`SESSION_LIFETIME_DAYS` option from `webserver` section has been '\
+                   'renamed to `SESSION_LIFETIME_MINUTES`. New option allows to configure '\
+                   'session lifetime in minutes. FORCE_LOG_OUT_AFTER option has been removed '\
+                   'from `webserver` section.\nUsing default value for '\
+                   '`SESSION_LIFETIME_MINUTES`: 43200'
 
         warns = [w.message.args[0] for w in warns]
         self.assertEqual(warn_msg in warns, True)

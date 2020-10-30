@@ -71,10 +71,11 @@ def create_app(config=None, testing=False, app_name="Airflow"):
         session_lifetime_minutes = conf.getint('webserver', 'SESSION_LIFETIME_MINUTES',
                                                fallback=default_session_lifetime_minutes)
     else:
-        warnings.warn('`SESSION_LIFETIME_DAYS` option has been renamed to `SESSION_LIFETIME_MINUTES`. '
-                      'New option allows to configure session lifetime in minutes. '
-                      'FORCE_LOG_OUT_AFTER option has been removed.\nUsing default value '
-                      'for `SESSION_LIFETIME_MINUTES`: {}'.format(default_session_lifetime_minutes),
+        warnings.warn('`SESSION_LIFETIME_DAYS` option from `webserver` section has been '
+                      'renamed to `SESSION_LIFETIME_MINUTES`. New option allows to configure '
+                      'session lifetime in minutes. FORCE_LOG_OUT_AFTER option has been removed '
+                      'from `webserver` section.\nUsing default value for '
+                      '`SESSION_LIFETIME_MINUTES`: {}'.format(default_session_lifetime_minutes),
                       DeprecationWarning)
         session_lifetime_minutes = default_session_lifetime_minutes
 
