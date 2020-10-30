@@ -1357,7 +1357,7 @@ These integrations allow you to perform various operations within various servic
      -
 
    * - `Snowflake <https://www.snowflake.com/>`__
-     -
+     - :doc:`How to use <howto/operator/snowflake>`
      - :mod:`airflow.providers.snowflake.hooks.snowflake`
      - :mod:`airflow.providers.snowflake.operators.snowflake`,
        :mod:`airflow.providers.snowflake.transfers.snowflake_to_slack`

@@ -42,5 +42,6 @@ determine what actually executes when your DAG runs.
     microsoft/index
     papermill
     python
+    snowflake
     external_task_sensor
     yandexcloud
