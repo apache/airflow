@@ -35,7 +35,7 @@ from parameterized import parameterized
 from airflow.hooks.base_hook import BaseHook
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import DAG, Connection, DagBag, TaskInstance
-from airflow.models.baseoperator import BaseOperator
+from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.operators.bash import BashOperator
 from airflow.security import permissions
 from airflow.serialization.json_schema import load_dag_schema_dict
@@ -605,6 +605,40 @@ class TestStringifiedDAGs(unittest.TestCase):
         # Test Deserialized link registered via Airflow Plugin
         google_link_from_plugin = simple_task.get_extra_links(test_date, GoogleLink.name)
         self.assertEqual("https://www.google.com", google_link_from_plugin)
+
+    def test_extra_operator_links_logs_error_for_non_registered_extra_links(self):
+        """
+        Assert OperatorLinks not registered via Plugins and if it is not an inbuilt Operator Link,
+        it can still deserialize the DAG (does not error) but just logs an error
+        """
+
+        class TaskStateLink(BaseOperatorLink):
+            """OperatorLink not registered via Plugins nor a built-in OperatorLink"""
+            name = 'My Link'
+
+            def get_link(self, operator, dttm):
+                return 'https://www.google.com'
+
+        class MyOperator(BaseOperator):
+            """Just a DummyOperator using above defined Extra Operator Link"""
+            operator_extra_links = [TaskStateLink()]
+
+            def execute(self, context):
+                pass
+
+        with DAG(dag_id='simple_dag', start_date=datetime(2019, 8, 1)) as dag:
+            MyOperator(task_id='blah')
+
+        serialized_dag = SerializedDAG.to_dict(dag)
+
+        with self.assertLogs("airflow.serialization.serialized_objects", level="ERROR") as log_output:
+            SerializedDAG.from_dict(serialized_dag)
+            received_logs = log_output.output[0]
+            expected_err_msg = (
+                "Operator Link class 'tests.serialization.test_dag_serialization.TaskStateLink' "
+                "not registered"
+            )
+            assert expected_err_msg in received_logs
 
     def test_extra_serialized_field_and_multiple_operator_links(self):
         """

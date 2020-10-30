@@ -499,7 +499,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                     _operator_link_class_path
                 ]
             else:
-                raise KeyError("Operator Link class %r not registered" % _operator_link_class_path)
+                log.error("Operator Link class %r not registered", _operator_link_class_path)
+                return {}
 
             op_predefined_extra_link: BaseOperatorLink = cattr.structure(
                 data, single_op_link_class)
