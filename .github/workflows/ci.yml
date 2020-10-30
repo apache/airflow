@@ -988,7 +988,6 @@ jobs:
     needs:
       - docs
       - docs-spell-check
-      - helm-tests
       - static-checks
       - static-checks-pylint
       - tests-sqlite

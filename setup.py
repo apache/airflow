@@ -314,7 +314,7 @@ kerberos = [
 ]
 kubernetes = [
     'cryptography>=2.0.0',
-    'kubernetes>=3.0.0',
+    'kubernetes>=3.0.0, <12.0.0',
 ]
 kylin = [
     'kylinpy>=2.6'
