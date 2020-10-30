@@ -90,7 +90,7 @@ class TestXComEndpoint(unittest.TestCase):
 
 
 class TestGetXComEntry(TestXComEndpoint):
-    def test_should_response_200(self):
+    def test_should_respond_200(self):
         dag_id = 'test-dag-id'
         task_id = 'test-task-id'
         execution_date = '2005-04-02T00:00:00+00:00'
@@ -167,7 +167,7 @@ class TestGetXComEntry(TestXComEndpoint):
 
 
 class TestGetXComEntries(TestXComEndpoint):
-    def test_should_response_200(self):
+    def test_should_respond_200(self):
         dag_id = 'test-dag-id'
         task_id = 'test-task-id'
         execution_date = '2005-04-02T00:00:00+00:00'
@@ -207,7 +207,7 @@ class TestGetXComEntries(TestXComEndpoint):
             },
         )
 
-    def test_should_response_200_with_tilde_and_access_to_all_dags(self):
+    def test_should_respond_200_with_tilde_and_access_to_all_dags(self):
         dag_id_1 = 'test-dag-id-1'
         task_id_1 = 'test-task-id-1'
         execution_date = '2005-04-02T00:00:00+00:00'
@@ -266,7 +266,7 @@ class TestGetXComEntries(TestXComEndpoint):
             },
         )
 
-    def test_should_response_200_with_tilde_and_granular_dag_access(self):
+    def test_should_respond_200_with_tilde_and_granular_dag_access(self):
         dag_id_1 = 'test-dag-id-1'
         task_id_1 = 'test-task-id-1'
         execution_date = '2005-04-02T00:00:00+00:00'

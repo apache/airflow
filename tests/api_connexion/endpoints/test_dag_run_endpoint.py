@@ -124,7 +124,7 @@ class TestDagRunEndpoint(unittest.TestCase):
 
 class TestDeleteDagRun(TestDagRunEndpoint):
     @provide_session
-    def test_should_response_204(self, session):
+    def test_should_respond_204(self, session):
         session.add_all(self._create_test_dag_run())
         session.commit()
         response = self.client.delete(
@@ -137,7 +137,7 @@ class TestDeleteDagRun(TestDagRunEndpoint):
         )
         self.assertEqual(response.status_code, 404)
 
-    def test_should_response_404(self):
+    def test_should_respond_404(self):
         response = self.client.delete(
             "api/v1/dags/INVALID_DAG_RUN/dagRuns/INVALID_DAG_RUN", environ_overrides={'REMOTE_USER': "test"}
         )
@@ -173,7 +173,7 @@ class TestDeleteDagRun(TestDagRunEndpoint):
 
 class TestGetDagRun(TestDagRunEndpoint):
     @provide_session
-    def test_should_response_200(self, session):
+    def test_should_respond_200(self, session):
         dagrun_model = DagRun(
             dag_id="TEST_DAG_ID",
             run_id="TEST_DAG_RUN_ID",
@@ -202,7 +202,7 @@ class TestGetDagRun(TestDagRunEndpoint):
         }
         assert response.json == expected_response
 
-    def test_should_response_404(self):
+    def test_should_respond_404(self):
         response = self.client.get(
             "api/v1/dags/invalid-id/dagRuns/invalid-id", environ_overrides={'REMOTE_USER': "test"}
         )
@@ -235,7 +235,7 @@ class TestGetDagRun(TestDagRunEndpoint):
 
 class TestGetDagRuns(TestDagRunEndpoint):
     @provide_session
-    def test_should_response_200(self, session):
+    def test_should_respond_200(self, session):
         self._create_test_dag_run()
         result = session.query(DagRun).all()
         assert len(result) == 2
@@ -780,7 +780,7 @@ class TestPostDagRun(TestDagRunEndpoint):
         ]
     )
     @provide_session
-    def test_should_response_200(self, name, request_json, session):
+    def test_should_respond_200(self, name, request_json, session):
         del name
         dag_instance = DagModel(dag_id="TEST_DAG_ID")
         session.add(dag_instance)

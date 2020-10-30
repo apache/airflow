@@ -76,7 +76,7 @@ class TestEventLogEndpoint(unittest.TestCase):
 
 class TestGetEventLog(TestEventLogEndpoint):
     @provide_session
-    def test_should_response_200(self, session):
+    def test_should_respond_200(self, session):
         log_model = Log(
             event='TEST_EVENT',
             task_instance=self._create_task_instance(),
@@ -103,7 +103,7 @@ class TestGetEventLog(TestEventLogEndpoint):
             },
         )
 
-    def test_should_response_404(self):
+    def test_should_respond_404(self):
         response = self.client.get("/api/v1/eventLogs/1", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
         self.assertEqual(
@@ -135,7 +135,7 @@ class TestGetEventLog(TestEventLogEndpoint):
 
 class TestGetEventLogs(TestEventLogEndpoint):
     @provide_session
-    def test_should_response_200(self, session):
+    def test_should_respond_200(self, session):
         log_model_1 = Log(
             event='TEST_EVENT_1',
             task_instance=self._create_task_instance(),

@@ -76,7 +76,7 @@ class TestDeleteVariable(TestVariableEndpoint):
         response = self.client.get("/api/v1/variables/delete_var1", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
 
-    def test_should_response_404_if_key_does_not_exist(self):
+    def test_should_respond_404_if_key_does_not_exist(self):
         response = self.client.delete(
             "/api/v1/variables/NONEXIST_VARIABLE_KEY", environ_overrides={'REMOTE_USER': "test"}
         )
@@ -103,7 +103,7 @@ class TestDeleteVariable(TestVariableEndpoint):
 
 
 class TestGetVariable(TestVariableEndpoint):
-    def test_should_response_200(self):
+    def test_should_respond_200(self):
         expected_value = '{"foo": 1}'
         Variable.set("TEST_VARIABLE_KEY", expected_value)
         response = self.client.get(
@@ -112,7 +112,7 @@ class TestGetVariable(TestVariableEndpoint):
         assert response.status_code == 200
         assert response.json == {"key": "TEST_VARIABLE_KEY", "value": expected_value}
 
-    def test_should_response_404_if_not_found(self):
+    def test_should_respond_404_if_not_found(self):
         response = self.client.get(
             "/api/v1/variables/NONEXIST_VARIABLE_KEY", environ_overrides={'REMOTE_USER': "test"}
         )
