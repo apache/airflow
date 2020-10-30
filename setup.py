@@ -305,7 +305,7 @@ kerberos = [
 ]
 kubernetes = [
     'cryptography>=2.0.0',
-    'kubernetes>=3.0.0',
+    'kubernetes>=3.0.0, <12.0.0',
 ]
 ldap = [
     'ldap3>=2.5.1',
