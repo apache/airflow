@@ -17,6 +17,7 @@
 # under the License.
 import json
 import unittest
+from datetime import datetime, timedelta
 
 from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.models import DagBag, DagRun
@@ -130,5 +131,52 @@ class TestDagRunsEndpoint(unittest.TestCase):
         self.assertEqual(200, response.status_code)
         data = json.loads(response.data.decode('utf-8'))
 
+        self.assertIsInstance(data, list)
+        self.assertEqual(len(data), 0)
+
+    def test_get_dag_runs_success_with_execution_start_date_parameter(self):
+        yesterday = datetime.now() - timedelta(1)
+        execution_start_date = datetime.strftime(yesterday, '%Y-%m-%dT%H:%M:%S')
+
+        url_template = '/api/experimental/dags/{}/dag_runs?execution_start_date={}'
+        dag_id = 'example_bash_operator'
+        # Create DagRun
+        dag_run = trigger_dag(
+            dag_id=dag_id, run_id='test_get_dag_runs_success')
+
+        response = self.app.get(url_template.format(dag_id, execution_start_date))
+        self.assertEqual(200, response.status_code)
+        data = json.loads(response.data.decode('utf-8'))
+
+        self.assertIsInstance(data, list)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['dag_id'], dag_id)
+        self.assertEqual(data[0]['id'], dag_run.id)
+
+    def test_get_dag_runs_success_with_invalid_execution_start_date_parameter(self):
+        url_template = '/api/experimental/dags/{}/dag_runs?execution_start_date=INVALID_DATE_STRING'
+        dag_id = 'example_bash_operator'
+        # Create DagRun
+        trigger_dag(
+            dag_id=dag_id, run_id='test_get_dag_runs_success')
+
+        response = self.app.get(url_template.format(dag_id))
+        self.assertEqual(400, response.status_code)
+        data = json.loads(response.data.decode('utf-8'))
+        self.assertIsInstance(data, dict)
+        self.assertTrue('error' in data)
+
+    def test_get_dag_runs_success_with_execution_start_date_parameter_no_result(self):
+        tomorrow = datetime.now() + timedelta(1)
+        execution_start_date = datetime.strftime(tomorrow, '%Y-%m-%dT%H:%M:%S')
+        url_template = '/api/experimental/dags/{}/dag_runs?execution_start_date={}'
+        dag_id = 'example_bash_operator'
+        # Create DagRun
+        trigger_dag(
+            dag_id=dag_id, run_id='test_get_dag_runs_success')
+
+        response = self.app.get(url_template.format(dag_id, execution_start_date))
+        self.assertEqual(200, response.status_code)
+        data = json.loads(response.data.decode('utf-8'))
         self.assertIsInstance(data, list)
         self.assertEqual(len(data), 0)

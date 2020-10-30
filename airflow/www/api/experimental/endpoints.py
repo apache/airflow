@@ -149,14 +149,29 @@ def dag_runs(dag_id):
     """
     Returns a list of Dag Runs for a specific DAG ID.
     :query param state: a query string parameter '?state=queued|running|success...'
+    :query param execution_start_date: a query string parameter '?|&execution_start_date=YYYY-mm-DDTHH:MM:SS'
 
     :param dag_id: String identifier of a DAG
-    :return: List of DAG runs of a DAG with requested state,
-        or all runs if the state is not specified
+    :return: List of DAG runs of a DAG with requested state or requested data range,
+        or all runs if the state/execution_start_date/execution_end_date is not specified
     """
+    # Convert string datetime into actual datetime
+    try:
+        execution_start_date = request.args.get('execution_start_date')
+        execution_start_datetime = timezone.parse(execution_start_date) if execution_start_date else None
+    except ValueError:
+        error_message = (
+            'Given execution date, {}, could not be identified '
+            'as a date. Example date format: 2020-10-16T14:34:15+00:00'
+            .format(execution_start_date))
+        log.error(error_message)
+        response = jsonify({'error': error_message})
+        response.status_code = 400
+        return response
+
     try:
         state = request.args.get('state')
-        dagruns = get_dag_runs(dag_id, state)
+        dagruns = get_dag_runs(dag_id, state=state, execution_start_date=execution_start_datetime)
     except AirflowException as err:
         log.info(err)
         response = jsonify(error="{}".format(err))

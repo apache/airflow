@@ -61,6 +61,9 @@ Endpoints
 
   Returns a list of Dag Runs for a specific DAG ID.
 
+  **Optional query params:**
+  **state:** dag run state such as queued, running, success, etc
+  **execution_start_date:** start execution date string in YYYY-mm-DDTHH:MM:SS format to filter dag runs newer than specified execution_start_date
 
 .. http:get:: /api/experimental/dags/<string:dag_id>/dag_runs/<string:execution_date>
 
