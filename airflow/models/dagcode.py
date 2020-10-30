@@ -28,7 +28,7 @@ from airflow.settings import STORE_DAG_CODE
 from airflow.utils import timezone
 from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped
 from airflow.utils.session import provide_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime, generate_index_hash
 
 log = logging.getLogger(__name__)
 
@@ -192,9 +192,4 @@ class DagCode(Base):
         :param full_filepath: full filepath of DAG file
         :return: hashed full_filepath
         """
-        # Hashing is needed because the length of fileloc is 2000 as an Airflow convention,
-        # which is over the limit of indexing.
-        import hashlib
-
-        # Only 7 bytes because MySQL BigInteger can hold only 8 bytes (signed).
-        return struct.unpack('>Q', hashlib.sha1(full_filepath.encode('utf-8')).digest()[-8:])[0] >> 8
+        return generate_index_hash(full_filepath)

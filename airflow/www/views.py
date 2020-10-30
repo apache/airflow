@@ -30,6 +30,7 @@ from json import JSONDecodeError
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
+import croniter
 import lazy_object_proxy
 import nvd3
 import sqlalchemy as sqla
@@ -68,7 +69,7 @@ from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_success,
 )
 from airflow.configuration import AIRFLOW_CONFIG, conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowClusterPolicyViolation, AirflowDagCycleException, AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
@@ -536,7 +537,11 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 for name, in dagtags
             ]
 
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = (
+                session.query(errors.ImportError)
+                .filter(errors.ImportError.category.in_(errors.FATAL_ERRORS))
+                .all()
+            )
 
         for import_error in import_errors:
             flash("Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=import_error), "dag_import_error")
@@ -2724,7 +2729,7 @@ class SlaMissModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(SlaMiss)  # noqa # type: ignore
 
-    class_permission_name = permissions.RESOURCE_SLA_MISS
+    class_permission_name = permissions.RESOURCE_DAG
     method_permission_name = {
         'list': 'read',
     }
@@ -2746,6 +2751,36 @@ class SlaMissModelView(AirflowModelView):
         'execution_date': wwwutils.datetime_f('execution_date'),
         'timestamp': wwwutils.datetime_f('timestamp'),
         'dag_id': wwwutils.dag_link,
+    }
+
+
+class ImportViewModelView(AirflowModelView):
+    """View to show ImportError table"""
+
+    route_base = '/import-errors'
+
+    datamodel = AirflowModelView.CustomSQLAInterface(errors.ImportError)  # noqa # type: ignore
+
+    class_permission_name = permissions.RESOURCE_IMPORT_ERROR
+    method_permission_name = {
+        'list': 'read',
+    }
+
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_ACCESS_MENU,
+    ]
+
+    list_columns = ['category', 'timestamp', 'filename', 'stacktrace']
+    add_columns = ['category', 'timestamp', 'filename', 'stacktrace']
+    edit_columns = ['category', 'timestamp', 'filename', 'stacktrace']
+    search_columns = ['category', 'timestamp', 'filename', 'stacktrace']
+    base_order = ('category', 'filename')
+
+    formatters_columns = {
+        'timestamp': wwwutils.datetime_f('timestamp'),
+        'dag_id': wwwutils.dag_link,
+        'stacktrace': wwwutils.multiline_text('stacktrace'),
     }
 
 

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import contextlib
 import hashlib
 import importlib
 import importlib.machinery
@@ -27,15 +27,18 @@ import textwrap
 import traceback
 import warnings
 import zipfile
+from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Dict, List, NamedTuple, Optional
+from typing import Dict, List, Match, NamedTuple, Optional, Tuple
 
 import tenacity
 from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
 from sqlalchemy.exc import OperationalError
+from sqlalchemy import event
 from sqlalchemy.orm import Session
 from tabulate import tabulate
 
+import airflow
 from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowClusterPolicyViolation, AirflowDagCycleException, SerializedDagNotFound
@@ -47,6 +50,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.timeout import timeout
 
+log = logging.getLogger(__file__)
+
 
 class FileLoadStat(NamedTuple):
     """Information about single file"""
@@ -56,6 +61,61 @@ class FileLoadStat(NamedTuple):
     dag_num: int
     task_num: int
     dags: str
+
+
+@contextlib.contextmanager
+def detect_queries(import_errors, traceback_depth):
+    """
+    Detects errors in database queries while importing DAGs and reports these situations as a warning
+    """
+
+    def after_cursor_execute(*args, **kwargs):
+        del (args,)
+        del kwargs
+        stack = "".join(traceback.format_stack(limit=-traceback_depth))
+        import_errors.append(
+            ("PerformanceWarning", f"Database queries during DAG file loading:\n" f"{stack}")
+        )
+
+    event.listen(airflow.settings.engine, "after_cursor_execute", after_cursor_execute)
+    yield
+    event.remove(airflow.settings.engine, "after_cursor_execute", after_cursor_execute)
+
+
+@contextlib.contextmanager
+def detect_warnings(import_errors):
+    with warnings.catch_warnings(record=True) as wrns:
+        warnings.simplefilter("always")
+        yield
+    for w in wrns:
+        msg = warnings.formatwarning(
+            message=w.message, category=w.category, filename=w.filename, lineno=w.lineno, line=w.line
+        )
+        print(msg, end="")
+        import_errors.append((w.category.__name__, msg))
+
+
+@contextlib.contextmanager
+def detect_exceptions(filepath, import_errors, display_tracebacks, traceback_depth):
+    try:
+        yield
+    except Exception as e:  # pylint: disable=broad-except
+        log.exception("Failed to import: %s", filepath)
+        if display_tracebacks:
+            import_errors.append((ImportError.__name__, traceback.format_exc(limit=-traceback_depth)))
+        else:
+            import_errors.append((ImportError.__name__, str(e)))
+
+
+@contextlib.contextmanager
+def handle_import_errors(filepath, import_errors, display_tracebacks, traceback_depth):
+    with contextlib.ExitStack() as exit_stack:
+        exit_stack.enter_context(detect_queries(import_errors, traceback_depth))
+        exit_stack.enter_context(detect_warnings(import_errors))
+        exit_stack.enter_context(
+            detect_exceptions(import_errors, filepath, display_tracebacks, traceback_depth)
+        )
+        yield
 
 
 class DagBag(LoggingMixin):
@@ -112,7 +172,7 @@ class DagBag(LoggingMixin):
         self.dags: Dict[str, DAG] = {}
         # the file's last modified timestamp when we last read it
         self.file_last_changed: Dict[str, datetime] = {}
-        self.import_errors: Dict[str, str] = {}
+        self.import_errors: Dict[str, List[Tuple[str, str]]] = defaultdict(list)
         self.has_logged = False
         self.read_dags_from_db = read_dags_from_db
         # Only used by read_dags_from_db=True
@@ -285,22 +345,19 @@ class DagBag(LoggingMixin):
             del sys.modules[mod_name]
 
         timeout_msg = f"DagBag import timeout for {filepath} after {self.DAGBAG_IMPORT_TIMEOUT}s"
-        with timeout(self.DAGBAG_IMPORT_TIMEOUT, error_message=timeout_msg):
-            try:
-                loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
-                spec = importlib.util.spec_from_loader(mod_name, loader)
-                new_module = importlib.util.module_from_spec(spec)
-                sys.modules[spec.name] = new_module
-                loader.exec_module(new_module)
-                return [new_module]
-            except Exception as e:  # pylint: disable=broad-except
-                self.log.exception("Failed to import: %s", filepath)
-                if self.dagbag_import_error_tracebacks:
-                    self.import_errors[filepath] = traceback.format_exc(
-                        limit=-self.dagbag_import_error_traceback_depth
-                    )
-                else:
-                    self.import_errors[filepath] = str(e)
+        with timeout(self.DAGBAG_IMPORT_TIMEOUT, error_message=timeout_msg), handle_import_errors(
+            filepath=filepath,
+            import_errors=self.import_errors[filepath],
+            display_tracebacks=self.dagbag_import_error_tracebacks,
+            traceback_depth=self.dagbag_import_error_traceback_depth,
+        ):
+            loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
+            spec = importlib.util.spec_from_loader(mod_name, loader)
+            new_module = importlib.util.module_from_spec(spec)
+            sys.modules[spec.name] = new_module
+            loader.exec_module(new_module)
+            return [new_module]
+
         return []
 
     def _load_modules_from_zip(self, filepath, safe_mode):
@@ -332,18 +389,15 @@ class DagBag(LoggingMixin):
             if mod_name in sys.modules:
                 del sys.modules[mod_name]
 
-            try:
+            with handle_import_errors(
+                filepath=filepath,
+                import_errors=self.import_errors[filepath],
+                display_tracebacks=self.dagbag_import_error_tracebacks,
+                traceback_depth=self.dagbag_import_error_traceback_depth,
+            ):
                 sys.path.insert(0, filepath)
                 current_module = importlib.import_module(mod_name)
                 mods.append(current_module)
-            except Exception as e:  # pylint: disable=broad-except
-                self.log.exception("Failed to import: %s", filepath)
-                if self.dagbag_import_error_tracebacks:
-                    self.import_errors[filepath] = traceback.format_exc(
-                        limit=-self.dagbag_import_error_traceback_depth
-                    )
-                else:
-                    self.import_errors[filepath] = str(e)
         return mods
 
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):
@@ -368,11 +422,11 @@ class DagBag(LoggingMixin):
                 found_dags += dag.subdags
             except (CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError) as cron_e:
                 self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
-                self.import_errors[dag.full_filepath] = f"Invalid Cron expression: {cron_e}"
+                self.import_errors[dag.full_filepath].append(f"Invalid Cron expression: {cron_e}")
                 self.file_last_changed[dag.full_filepath] = file_last_changed_on_disk
             except (AirflowDagCycleException, AirflowClusterPolicyViolation) as exception:
                 self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
-                self.import_errors[dag.full_filepath] = str(exception)
+                self.import_errors[dag.full_filepath].append(str(exception))
                 self.file_last_changed[dag.full_filepath] = file_last_changed_on_disk
         return found_dags
 
@@ -472,6 +526,8 @@ class DagBag(LoggingMixin):
         Stats.gauge('collect_dags', durations, 1)
         Stats.gauge('dagbag_size', len(self.dags), 1)
         Stats.gauge('dagbag_import_errors', len(self.import_errors), 1)
+        self.dagbag_stats = sorted(stats, key=lambda x: x.duration, reverse=True)
+        Stats.gauge('dagbag_import_errors', sum(len(d) for d in self.import_errors.values()), 1)
         self.dagbag_stats = sorted(stats, key=lambda x: x.duration, reverse=True)
         for file_stat in self.dagbag_stats:
             # file_stat.file similar format: /subdir/dag_name.py

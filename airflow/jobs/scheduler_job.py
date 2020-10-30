@@ -63,7 +63,13 @@ from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.sqlalchemy import is_lock_not_available_error, prohibit_commit, skip_locked, with_row_locks
+from airflow.utils.sqlalchemy import (
+    generate_index_hash,
+    is_lock_not_available_error,
+    prohibit_commit,
+    skip_locked,
+    with_row_locks,
+)
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -519,8 +525,8 @@ class DagFileProcessor(LoggingMixin):
                     session.merge(sla)
             session.commit()
 
-    @staticmethod
-    def update_import_errors(session: Session, dagbag: DagBag) -> None:
+    # @staticmethod
+    def update_import_errors(self, session: Session, dagbag: DagBag) -> None:
         """
         For the DAGs in the given DagBag, record any associated import errors and clears
         errors for files that no longer have them. These are usually displayed through the
@@ -531,15 +537,43 @@ class DagFileProcessor(LoggingMixin):
         :param dagbag: DagBag containing DAGs with import errors
         :type dagbag: airflow.DagBag
         """
-        # Clear the errors of the processed files
-        for dagbag_file in dagbag.file_last_changed:
-            session.query(errors.ImportError).filter(errors.ImportError.filename == dagbag_file).delete()
+        import_errors_with_hashes: List[Tuple[str, int, str, str]] = [
+            (filename, generate_index_hash(",".join([filename, category, stacktrace])), category, stacktrace)
+            for filename, current_errors in dagbag.import_errors.items()
+            for (category, stacktrace) in current_errors
+        ]
+        self.log.info("import_errors_with_hashes=%s", import_errors_with_hashes)
 
-        # Add the errors of the processed files
-        for filename, stacktrace in dagbag.import_errors.items():
-            session.add(
-                errors.ImportError(filename=filename, timestamp=timezone.utcnow(), stacktrace=stacktrace)
-            )
+        current_errors: List[errors.ImportError] = (
+            session.query(errors.ImportError.filename, errors.ImportError.error_hash)
+            .filter(errors.ImportError.filename.in_(dagbag.file_last_changed))
+            .all()
+        )
+        self.log.info("current_errors=%s", current_errors)
+
+        for filename in dagbag.file_last_changed:
+            hashes_for_file: List[int] = [h for f, h, _, _ in import_errors_with_hashes if filename == f]
+            if hashes_for_file:
+                session.query(errors.ImportError).filter(errors.ImportError.filename == filename).filter(
+                    errors.ImportError.error_hash.notin_(hashes_for_file)
+                ).delete(synchronize_session=False)
+            else:
+                session.query(errors.ImportError).filter(errors.ImportError.filename == filename).delete(
+                    synchronize_session=False
+                )
+
+        for (filename, hash_, category, stacktrace) in import_errors_with_hashes:
+            if (filename, hash_) not in current_errors:
+                session.add(
+                    errors.ImportError(
+                        filename=filename,
+                        timestamp=timezone.utcnow(),
+                        stacktrace=stacktrace,
+                        error_hash=hash_,
+                        category=category,
+                    )
+                )
+
         session.commit()
 
     @provide_session

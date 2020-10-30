@@ -15,21 +15,38 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import enum
 
-from sqlalchemy import Column, Integer, String, Text
+import croniter
+from sqlalchemy import BigInteger, Column, Enum as SqlAlchemyEnum, Integer, String, Text
 
+from airflow.exceptions import AirflowClusterPolicyViolation, AirflowDagCycleException
 from airflow.models.base import Base
 from airflow.utils.sqlalchemy import UtcDateTime
+
+FATAL_ERRORS = [
+    ImportError.__name__,
+    croniter.CroniterBadDateError.__name__,
+    croniter.CroniterBadCronError.__name__,
+    croniter.CroniterNotAlphaError.__name__,
+    AirflowDagCycleException.__name__,
+    AirflowClusterPolicyViolation.__name__,
+]
+"""
+Errors that prevent the DAG from loading correctly.
+"""
 
 
 class ImportError(Base):  # pylint: disable=redefined-builtin
     """
-    A table to store all Import Errors. The ImportErrors are recorded when parsing DAGs.
+    A table to store all Import Errors or Warnings. The ImportErrors are recorded when parsing DAGs.
     This errors are displayed on the Webserver.
     """
 
     __tablename__ = "import_error"
     id = Column(Integer, primary_key=True)
+    error_hash = Column(BigInteger, nullable=False, index=True)
+    category = Column(String(64), nullable=False)
     timestamp = Column(UtcDateTime)
     filename = Column(String(1024))
     stacktrace = Column(Text)

@@ -291,6 +291,16 @@ def dag_link(attr):
     return Markup('<a href="{}">{}</a>').format(url, dag_id)  # noqa  # noqa
 
 
+def multiline_text(attr_key):
+    """."""
+
+    def formatter(attr):
+        text = attr.get(attr_key)
+        return Markup('<pre>{}</pre>').format(text)
+
+    return formatter
+
+
 def dag_run_link(attr):
     """Generates a URL to the Graph View for a DagRun."""
     dag_id = attr.get('dag_id')

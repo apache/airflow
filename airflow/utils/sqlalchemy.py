@@ -17,8 +17,10 @@
 # under the License.
 
 import datetime
+import hashlib
 import json
 import logging
+import struct
 from typing import Any, Dict
 
 import pendulum
@@ -271,3 +273,11 @@ def is_lock_not_available_error(error: OperationalError):
     if db_err_code in ('55P03', 1205, 3572):
         return True
     return False
+
+
+def generate_index_hash(value) -> int:
+    # Hashing is needed because the length of value can be greater than 2000 characters
+    # which is over the limit of indexing.
+
+    # Only 7 bytes because MySQL BigInteger can hold only 8 bytes (signed).
+    return struct.unpack('>Q', hashlib.sha1(value.encode('utf-8')).digest()[-8:])[0] >> 8
