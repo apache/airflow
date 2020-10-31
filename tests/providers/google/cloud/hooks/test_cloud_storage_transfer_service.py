@@ -28,6 +28,7 @@ from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
+    COUNTERS,
     DESCRIPTION,
     FILTER_JOB_NAMES,
     FILTER_PROJECT_ID,
@@ -80,6 +81,12 @@ TEST_HTTP_ERR_CONTENT = b'Conflict'
 TEST_RESULT_STATUS_ENABLED = {STATUS: GcpTransferJobsStatus.ENABLED}
 TEST_RESULT_STATUS_DISABLED = {STATUS: GcpTransferJobsStatus.DISABLED}
 TEST_RESULT_STATUS_DELETED = {STATUS: GcpTransferJobsStatus.DELETED}
+
+TEST_NAME = "transferOperations/transferJobs-123-456"
+TEST_COUNTERS = {
+    "bytesFoundFromSource": 512,
+    "bytesCopiedToSink": 1024,
+}
 
 
 def _without_key(body, key):
@@ -370,8 +377,24 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
     )
     def test_wait_for_transfer_job(self, mock_list, mock_sleep, mock_project_id):
         mock_list.side_effect = [
-            [{METADATA: {STATUS: GcpTransferOperationStatus.IN_PROGRESS}}],
-            [{METADATA: {STATUS: GcpTransferOperationStatus.SUCCESS}}],
+            [
+                {
+                    NAME: TEST_NAME,
+                    METADATA: {
+                        STATUS: GcpTransferOperationStatus.IN_PROGRESS,
+                        COUNTERS: TEST_COUNTERS,
+                    },
+                },
+            ],
+            [
+                {
+                    NAME: TEST_NAME,
+                    METADATA: {
+                        STATUS: GcpTransferOperationStatus.SUCCESS,
+                        COUNTERS: TEST_COUNTERS,
+                    },
+                },
+            ],
         ]
 
         job_name = 'transferJobs/test-job'
@@ -400,7 +423,13 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
         list_execute_method = list_method.return_value.execute
         list_execute_method.return_value = {
             OPERATIONS: [
-                {NAME: TEST_TRANSFER_OPERATION_NAME, METADATA: {STATUS: GcpTransferOperationStatus.FAILED}}
+                {
+                    NAME: TEST_TRANSFER_OPERATION_NAME,
+                    METADATA: {
+                        STATUS: GcpTransferOperationStatus.FAILED,
+                        COUNTERS: TEST_COUNTERS,
+                    },
+                }
             ]
         }
 
@@ -427,7 +456,13 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
         list_execute_method = list_method.return_value.execute
         list_execute_method.return_value = {
             OPERATIONS: [
-                {NAME: TEST_TRANSFER_OPERATION_NAME, METADATA: {STATUS: GcpTransferOperationStatus.FAILED}}
+                {
+                    NAME: TEST_TRANSFER_OPERATION_NAME,
+                    METADATA: {
+                        STATUS: GcpTransferOperationStatus.FAILED,
+                        COUNTERS: TEST_COUNTERS,
+                    },
+                }
             ]
         }
 
@@ -498,7 +533,10 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
         ]
     )
     def test_operations_contain_expected_statuses_green_path(self, statuses, expected_statuses):
-        operations = [{NAME: TEST_TRANSFER_OPERATION_NAME, METADATA: {STATUS: status}} for status in statuses]
+        operations = [
+            {NAME: TEST_TRANSFER_OPERATION_NAME, METADATA: {STATUS: status, COUNTERS: TEST_COUNTERS}}
+            for status in statuses
+        ]
 
         result = CloudDataTransferServiceHook.operations_contain_expected_statuses(
             operations, expected_statuses

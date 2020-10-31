@@ -62,7 +62,7 @@ AWS_ACCESS_KEY = "awsAccessKey"
 AWS_S3_DATA_SOURCE = 'awsS3DataSource'
 BODY = 'body'
 BUCKET_NAME = 'bucketName'
-JOB_NAME = 'name'
+COUNTERS = 'counters'
 DAY = 'day'
 DESCRIPTION = "description"
 FILTER = 'filter'
@@ -72,6 +72,7 @@ GCS_DATA_SINK = 'gcsDataSink'
 GCS_DATA_SOURCE = 'gcsDataSource'
 HOURS = "hours"
 HTTP_DATA_SOURCE = 'httpDataSource'
+JOB_NAME = 'name'
 LIST_URL = 'list_url'
 METADATA = 'metadata'
 MINUTES = "minutes"
@@ -89,8 +90,8 @@ START_TIME_OF_DAY = 'startTimeOfDay'
 STATUS = "status"
 STATUS1 = 'status'
 TRANSFER_JOB = 'transfer_job'
-TRANSFER_JOB_FIELD_MASK = 'update_transfer_job_field_mask'
 TRANSFER_JOBS = 'transferJobs'
+TRANSFER_JOB_FIELD_MASK = 'update_transfer_job_field_mask'
 TRANSFER_OPERATIONS = 'transferOperations'
 TRANSFER_OPTIONS = 'transfer_options'
 TRANSFER_SPEC = 'transferSpec'
@@ -193,6 +194,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
                     return self.enable_transfer_job(job_name=job_name, project_id=body.get(PROJECT_ID))
             else:
                 raise e
+        self.log.info("Created job %s", transfer_job[NAME])
         return transfer_job
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -467,13 +469,13 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
 
         start_time = time.time()
         while time.time() - start_time < timeout:
-            operations = self.list_transfer_operations(
-                request_filter={FILTER_PROJECT_ID: job[PROJECT_ID], FILTER_JOB_NAMES: [job[NAME]]}
-            )
+            request_filter = {FILTER_PROJECT_ID: job[PROJECT_ID], FILTER_JOB_NAMES: [job[NAME]]}
+            operations = self.list_transfer_operations(request_filter=request_filter)
 
-            if CloudDataTransferServiceHook.operations_contain_expected_statuses(
-                operations, expected_statuses
-            ):
+            for operation in operations:
+                self.log.info("Progress for operation %s: %s", operation[NAME], operation[METADATA][COUNTERS])
+
+            if self.operations_contain_expected_statuses(operations, expected_statuses):
                 return
             time.sleep(TIME_TO_SLEEP_IN_SECONDS)
         raise AirflowException("Timeout. The operation could not be completed within the allotted time.")

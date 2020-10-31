@@ -18,7 +18,12 @@
 """This module contains a Google Cloud Transfer sensor."""
 from typing import Optional, Sequence, Set, Union
 
-from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import CloudDataTransferServiceHook
+from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
+    CloudDataTransferServiceHook,
+    COUNTERS,
+    METADATA,
+    NAME,
+)
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -90,6 +95,9 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         operations = hook.list_transfer_operations(
             request_filter={'project_id': self.project_id, 'job_names': [self.job_name]}
         )
+
+        for operation in operations:
+            self.log.info("Progress for operation %s: %s", operation[NAME], operation[METADATA][COUNTERS])
 
         check = CloudDataTransferServiceHook.operations_contain_expected_statuses(
             operations=operations, expected_statuses=self.expected_statuses
