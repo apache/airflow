@@ -17,6 +17,8 @@
 
 import unittest
 
+import jmespath
+
 from tests.helm_template_generator import render_chart
 
 OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 22
@@ -24,7 +26,15 @@ OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 22
 
 class TestBaseChartTest(unittest.TestCase):
     def test_basic_deployments(self):
-        k8s_objects = render_chart("TEST-BASIC", {"chart": {'metadata': 'AA'}})
+        k8s_objects = render_chart(
+            "TEST-BASIC",
+            values={
+                "chart": {
+                    'metadata': 'AA',
+                },
+                'labels': {"TEST-LABEL": "TEST-VALUE"},
+            },
+        )
         list_of_kind_names_tuples = [
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         ]
@@ -56,6 +66,16 @@ class TestBaseChartTest(unittest.TestCase):
             ],
         )
         self.assertEqual(OBJECT_COUNT_IN_BASIC_DEPLOYMENT, len(k8s_objects))
+        for k8s_object in k8s_objects:
+            labels = jmespath.search('metadata.labels', k8s_object) or {}
+            if 'postgresql' in labels.get('chart'):
+                continue
+            k8s_name = k8s_object['kind'] + ":" + k8s_object['metadata']['name']
+            self.assertEqual(
+                'TEST-VALUE',
+                labels.get("TEST-LABEL"),
+                f"Missing label TEST-LABEL on {k8s_name}. Current labels: {labels}",
+            )
 
     def test_basic_deployment_without_default_users(self):
         k8s_objects = render_chart("TEST-BASIC", {"webserver": {'defaultUser': {'enabled': False}}})

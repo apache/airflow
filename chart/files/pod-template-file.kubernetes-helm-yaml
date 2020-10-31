@@ -40,12 +40,7 @@ spec:
       volumeMounts:
         - mountPath: {{ template "airflow_logs" . }}
           name: airflow-logs
-{{- if or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
-        - mountPath: {{ template "airflow_dags_mount_path" . }}
-          name: airflow-dags
-          readOnly: false
-{{- end }}
-{{- if .Values.dags.gitSync.sshKeySecret }}
+{{- if .Values.dags.gitSync.knownHosts }}
         - mountPath: /etc/git-secret/known_hosts
           name: {{ .Values.dags.gitSync.knownHosts }}
           subPath: known_hosts
@@ -77,7 +72,7 @@ spec:
     {{ toYaml .Values.affinity | indent 8 }}
   tolerations:
     {{ toYaml .Values.tolerations | indent 8 }}
-  serviceAccountName: '{{ .Release.Name }}-worker-serviceaccount'
+  serviceAccountName: '{{ .Release.Name }}-worker'
   volumes:
   {{- if .Values.dags.persistence.enabled }}
   - name: dags
