@@ -507,7 +507,7 @@
                 "?task_id=" + encodeURIComponent(task_id) +
                 "&dag_id=" + encodeURIComponent(dag_id) +
                 "&execution_date=" + encodeURIComponent(execution_date);
-        $.each(extra_links, function(i, link){url = url + '&link_name=' + encodeURIComponent(link);});
+        url += '&' + extra_links.map((n) => { return `link_name=${encodeURIComponent(n)}` }).join("&")
 
         $.ajax(
           {url: url,
@@ -519,8 +519,10 @@
                 var external_link = $('<a href="#" data-toggle="tooltip" class="btn btn-primary disabled" target="_blank">'+link+'</a>')
                 link_tooltip.append(external_link)
                 external_link.attr('href', data[link]['url']);
-                external_link.removeClass('disabled');
-                link_tooltip.tooltip('disable');
+                if(!data[link]['error']){
+                  external_link.removeClass('disabled');
+                  link_tooltip.tooltip('disable');
+                }
                 markupArr.push(link_tooltip)
               });
               var extra_links_span = $('#extra_links');
@@ -532,7 +534,7 @@
               $.each(extra_links, function(i, link){
                 var link_tooltip = $('<span class="tool-tip" data-toggle="tooltip" style="padding-right: 2px; padding-left: 3px" data-placement="top" ' +
                   'title="link not yet available"></span>');
-                link_tooltip.tooltip('hide').attr('title', data[link]['responseJSON']['error']).tooltip('fixTitle');
+                link_tooltip.tooltip('hide').attr('title', data['responseJSON']['error']).tooltip('fixTitle');
               });
             }
           });

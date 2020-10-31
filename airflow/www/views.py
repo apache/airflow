@@ -2380,18 +2380,17 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         Args: dag_id: The id of the dag containing the task in question
               task_id: The id of the task in question
               execution_date: The date of execution of the task
-              link_name: The name of the link reference to find the actual URL for
+              link_name: The names of the links reference to find the actual URLs for
 
         Returns:
-            200: {url: <url of link>, error: None} - returned when there was no problem
-                finding the URL
-            404: {url: None, error: <error message>} - returned when the operator does
-                not return a URL
+            200: {<link_name>: {url: <url of link>, error: None}} - a collection having link_names as keys is 
+                returned when there was no problem finding the URLs
+            404: {url: None, error: <error message>} - returned when the dag and task_id not found 
+                and when no link-names provided
         """
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
-        link_name = request.args.get('link_name')
         link_names = request.args.getlist('link_name')
         dttm = timezone.parse(execution_date)
         dag = current_app.dag_bag.get_dag(dag_id)
@@ -2408,39 +2407,23 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             return response
 
         task = dag.get_task(task_id)
-        if(link_names != None and len(link_names) > 0):
+        if link_names:
             name_url_map = {}
-            status_code = 200
             for single_name in link_names:
                 try:
                     url = task.get_extra_links(dttm, single_name)
                     if url:
                         name_url_map[single_name] = {'error': None, 'url': url}
                     else:
-                        status_code = 404
                         name_url_map[single_name] = {'error': 'No URL found for {dest}'.format(dest=single_name), 'url': None}
                 except (ValueError, Exception) as err:
                     name_url_map[single_name] = {'error': str(err), 'url': None}
-                    status_code = 404
             response = jsonify(name_url_map)
-            response.status_code = status_code
             return response
         else:
-            try:
-                url = task.get_extra_links(dttm, link_name)
-            except (ValueError, Exception) as err:
-                response = jsonify({'url': None, 'error': str(err)})
-                response.status_code = 404
-                return response
-            if url:
-                response = jsonify({'error': None, 'url': url})
-                response.status_code = 200
-                return response
-            else:
-                response = jsonify(
-                    {'url': None, 'error': 'No URL found for {dest}'.format(dest=link_name)})
-                response.status_code = 404
-                return response
+            response = jsonify({'url': None, 'error': "no link names provided"})
+            response.status_code = 404
+            return response
 
     @expose('/object/task_instances')
     @auth.has_access([
