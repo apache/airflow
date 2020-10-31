@@ -23,10 +23,6 @@
             "description": "Default airflow tag to deploy.",
             "type": "string"
         },
-        "multi_namespaceMode": {
-          "description": "Whether the KubernetesExecutor can launch workers in multiple namespaces",
-          "type": "boolean"
-        },
         "nodeSelector": {
             "description": "Select certain nodes for airflow pods.",
             "type": "object",
@@ -60,6 +56,7 @@
                 "web": {
                     "description": "Configuration for the Ingress of the web Service.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "annotations": {
                             "description": "Annotations for the web Ingress.",
@@ -76,6 +73,7 @@
                         "tls": {
                             "description": "Configuration for web Ingress TLS.",
                             "type": "object",
+                            "additionalProperties": false,
                             "properties": {
                                 "enabled": {
                                     "description": "Enable TLS termination for the web Ingress.",
@@ -100,6 +98,7 @@
                 "flower": {
                     "description": "Configuration for the Ingress of the flower Service.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "annotations": {
                             "description": "Annotations for the flower Ingress.",
@@ -116,6 +115,7 @@
                         "tls": {
                             "description": "Configuration for flower Ingress TLS.",
                             "type": "object",
+                            "additionalProperties": false,
                             "properties": {
                                 "enabled": {
                                     "description": "Enable TLS termination for the flower Ingress.",
@@ -142,6 +142,7 @@
         "networkPolicies": {
             "description": "Network policy configuration.",
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "enabled": {
                     "description": "Enabled network policies.",
@@ -168,6 +169,7 @@
         "images": {
             "description": "Images.",
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "airflow": {
                     "description": "Configuration of the airflow image.",
@@ -189,6 +191,30 @@
                         },
                         "pullPolicy": {
                             "description": "The airflow image pull policy.",
+                            "type": "string"
+                        }
+                    }
+                },
+                "pod_template": {
+                    "description": "Configuration of the pod_template image.",
+                    "type": "object",
+                    "properties": {
+                        "repository": {
+                            "description": "The pod_template image repository.",
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        },
+                        "tag": {
+                            "description": "The pod_template image tag.",
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        },
+                        "pullPolicy": {
+                            "description": "The pod_template image pull policy.",
                             "type": "string"
                         }
                     }
@@ -320,6 +346,7 @@
         "data": {
             "description": "Airflow database configuration.",
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "metadataSecretName": {
                     "description": "Metadata connection string secret.",
@@ -338,6 +365,7 @@
                 "metadataConnection": {
                     "description": "Metadata connection configuration.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "user": {
                             "description": "The database user.",
@@ -371,6 +399,7 @@
                 "resultBackendConnection": {
                     "description": "Result backend connection configuration.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "user": {
                             "description": "The database user.",
@@ -417,9 +446,48 @@
                 "null"
             ]
         },
+        "kerberos": {
+            "description": "Kerberos configurations for airflow",
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "description": "Enable kerberos.",
+                    "type": "boolean"
+                },
+                "ccacheMountPath": {
+                    "description": "Path to mount shared volume for kerberos credentials cache.",
+                    "type": "string"
+                },
+                "ccacheFileName": {
+                    "description": "Name for kerberos credentials cache file.",
+                    "type": "string"
+                },
+                "configPath":{
+                    "description": "Path to mount krb5.conf kerberos configuration file.",
+                    "type": "string"
+                },
+                "keytabPath":{
+                    "description": "Path to mount the keytab for refreshing credentials in the kerberos sidecar.",
+                    "type": "string"
+                },
+                "principal":{
+                    "description": "Principal to use when refreshing kerberos credentials.",
+                    "type": "string"
+                },
+                "reinitFrequency": {
+                    "description": "How often (in seconds) airflow kerberos will reinitialize the credentials cache.",
+                    "type": "integer"
+                },
+                "config": {
+                    "description": "Contents of krb5.conf.",
+                    "type": "string"
+                }
+            }
+        },
         "workers": {
             "description": "Airflow Worker configuration.",
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "replicas": {
                     "description": "Number of airflow celery workers in StatefulSet.",
@@ -428,6 +496,7 @@
                 "keda": {
                     "description": "KEDA configuration.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "enabled": {
                             "description": "Allow KEDA autoscaling. `Persistence.enabled` must be set to false to use KEDA.",
@@ -453,6 +522,7 @@
                 "persistence": {
                     "description": "Persistence configuration.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "enabled": {
                             "description": "Enable persistent volumes.",
@@ -475,6 +545,16 @@
                         }
                     }
                 },
+                "kerberosSidecar": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable Kerberos sidecar for the worker.",
+                            "type": "boolean"
+                        }
+                    }
+                },
                 "resources": {
                     "type": "object"
                 },
@@ -489,20 +569,21 @@
                 "serviceAccountAnnotations": {
                   "description": "Annotations to add to the worker kubernetes service account.",
                   "type": "object"
+                },
+                "extraVolumes": {
+                    "description": "Mount additional volumes into workers.",
+                    "type": "array"
+                },
+                "extraVolumeMounts": {
+                    "description": "Mount additional volumes into workers.",
+                    "type": "array"
                 }
-              },
-          "extraVolumes": {
-            "description": "Mount additional volumes into workers.",
-            "type": "array"
-          },
-          "extraVolumeMounts": {
-            "description": "Mount additional volumes into workers.",
-            "type": "array"
-          }
+            }
         },
         "scheduler": {
             "description": "Airflow scheduler settings.",
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "replicas": {
                   "description": "Airflow 2.0 allows users to run multiple schedulers. This feature is only recommended for Mysql 8+ and postgres",
@@ -511,6 +592,7 @@
                 "podDisruptionBudget": {
                     "description": "Scheduler pod disruption budget.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "enabled": {
                             "description": "Enable pod disruption budget.",
@@ -519,6 +601,7 @@
                         "config": {
                             "description": "Disruption budget configuration.",
                             "type": "object",
+                            "additionalProperties": false,
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for scheduler.",
@@ -545,24 +628,26 @@
                 "serviceAccountAnnotations": {
                   "description": "Annotations to add to the scheduler kubernetes service account.",
                   "type": "object"
+                },
+                "extraVolumes": {
+                    "description": "Mount additional volumes into scheduler.",
+                    "type": "array"
+                },
+                "extraVolumeMounts": {
+                    "description": "Mount additional volumes into scheduler.",
+                    "type": "array"
                 }
-            },
-          "extraVolumes": {
-            "description": "Mount additional volumes into scheduler.",
-            "type": "array"
-          },
-          "extraVolumeMounts": {
-            "description": "Mount additional volumes into scheduler.",
-            "type": "array"
-          }
+            }
         },
         "webserver": {
             "description": "Airflow webserver settings.",
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "livenessProbe": {
                     "description": "Liveness probe configuration.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "initialDelaySeconds": {
                             "description": "Webserver Liveness probe initial delay.",
@@ -585,6 +670,7 @@
                 "readinessProbe": {
                     "description": "Readiness probe configuration.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "initialDelaySeconds": {
                             "description": "Webserver Readiness probe initial delay.",
@@ -618,6 +704,7 @@
                 "defaultUser": {
                     "description": "Optional default airflow user information",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "enabled": {
                             "description": "Enable default user creation.",
@@ -667,6 +754,7 @@
                 "service": {
                     "description": "Webserver service configuration.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "type": {
                             "description": "Webserver service type.",
@@ -687,6 +775,7 @@
         "flower": {
             "description": "Flower settings.",
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "extraNetworkPolicies": {
                     "description": "Additional network policies as needed.",
@@ -698,6 +787,7 @@
                 "service": {
                     "description": "Flower service configuration.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "type": {
                             "description": "Flower service type.",
@@ -710,6 +800,7 @@
         "statsd": {
             "description": "Statsd settings.",
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "enabled": {
                     "description": "Enable statsd.",
@@ -725,6 +816,7 @@
                 "service": {
                     "description": "Statsd service configuration.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "extraAnnotations": {
                             "description": "Extra annotations for the statsd service.",
@@ -737,6 +829,7 @@
         "pgbouncer": {
             "description": "Pgbouncer settings.",
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "enabled": {
                     "description": "Enable pgbouncer.",
@@ -761,6 +854,7 @@
                 "podDisruptionBudget": {
                     "description": "Pgbouner pod disruption budget.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "enabled": {
                             "description": "Enabled pod distribution budget.",
@@ -769,6 +863,7 @@
                         "config": {
                             "description": "Pod distribution configuration.",
                             "type": "object",
+                            "additionalProperties": false,
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for pgbouncer.",
@@ -784,6 +879,7 @@
                 "service": {
                     "description": "Pgbouncer service configuration.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "extraAnnotations": {
                             "description": "Extra annotations for the pgbouncer service.",
@@ -835,6 +931,7 @@
         "redis": {
             "description": "",
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "terminationGracePeriodSeconds": {
                     "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
@@ -843,6 +940,7 @@
                 "persistence": {
                     "description": "Persistence configuration.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "enabled": {
                             "description": "Enable persistent volumes.",
@@ -858,16 +956,6 @@
                                 "string",
                                 "null"
                             ]
-                        }
-                    }
-                },
-                "kerberosSidecar": {
-                    "description": "Run a side car in each worker pod to refresh Kerberos ccache with `airflow kerberos` according to the airflow security configuration",
-                    "type": "object",
-                    "properties": {
-                        "enabled": {
-                            "description": "Enable Kerberos side car on worker pods.",
-                            "type": "boolean"
                         }
                     }
                 },
@@ -904,6 +992,7 @@
         "registry": {
             "description": "Auth secret for a private registry. This is used if pulling airflow images from a private registry.",
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "secretName": {
                     "description": "Registry connection string secret.",
@@ -921,6 +1010,7 @@
         "elasticsearch": {
             "description": "Elasticsearch logging configuration.",
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "enabled": {
                     "description": "Enable elasticsearch task logging.",
@@ -942,6 +1032,7 @@
         "ports": {
             "description": "All ports used by chart.",
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "flowerUI": {
                     "description": "Flower UI port.",
@@ -988,6 +1079,7 @@
         "cleanup": {
             "description": "This runs as a CronJob to cleanup old pods.",
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "enabled": {
                     "description": "Enable cleanup.",
@@ -1032,13 +1124,22 @@
                 }
             }
         },
+        "multiNamespaceMode": {
+            "description": "Whether the KubernetesExecutor can launch workers and pods in multiple namespaces",
+            "type": "boolean"
+        },
+        "podTemplate": {
+            "description": "TODO ; also add type if you know it"
+        },
         "dags": {
             "description": "DAGs settings.",
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "persistence": {
                     "description": "Persistence configuration.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "enabled": {
                             "description": "Enable persistent volume for storing dags.",
@@ -1071,6 +1172,7 @@
                 "gitSync": {
                     "description": "Git sync settings.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "enabled": {
                             "description": "Enable Git sync.",
@@ -1115,48 +1217,26 @@
                         "containerName": {
                             "description": "Git sync container name.",
                             "type": "string"
+                        },
+                        "uid": {
+                            "description": "Git sync container run as user parameter.",
+                            "type": "integer"
+                        },
+                        "credentialsSecret": {
+                            "description": "TODO",
+                            "type": ["string", "null"]
+                        },
+                        "sshKeySecret": {
+                            "description": "TODO",
+                            "type": ["string", "null"]
+                        },
+                        "knownHosts": {
+                            "description": "TODO",
+                            "type": ["string", "null"]
                         }
                     }
                 }
             }
-        },
-        "kerberos": {
-            "description": "Kerberos configurations for airflow",
-            "type": "object",
-            "properties": {
-                "enabled": {
-                    "description": "Enable kerberos.",
-                    "type": "boolean"
-                },
-                "ccacheMountPath": {
-                    "description": "Path to mount shared volume for kerberos credentials cache.",
-                    "type": "string"
-                },
-                "ccacheFileName": {
-                    "description": "Name for kerberos credentials cache file.",
-                    "type": "string"
-                },
-                "configPath":{
-                    "description": "Path to mount krb5.conf kerberos configuration file.",
-                    "type": "string"
-                },
-                "keytabPath":{
-                    "description": "Path to mount the keytab for refreshing credentials in the kerberos sidecar.",
-                    "type": "string"
-                },
-                "principal":{
-                    "description": "Principal to use when refreshing kerberos credentials.",
-                    "type": "string"
-                },
-                "reinitFrequency": {
-                    "description": "How often (in seconds) airflow kerberos will reinitialize the credentials cache.",
-                    "type": "integer"
-                },
-                "config": {
-                    "description": "Contents of krb5.conf.",
-                    "type": "string"
-                }
-              }
         }
     }
 }
