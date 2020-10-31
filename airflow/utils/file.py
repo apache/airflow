@@ -114,7 +114,7 @@ def find_path_from_directory(
                 os.path.join(os.path.relpath(root, str(base_dir_path)), subdir)) for p in patterns)
         ]
 
-        patterns_by_dir = {os.path.join(root, sd): patterns.copy() for sd in dirs}
+        patterns_by_dir.update({os.path.join(root, sd): patterns.copy() for sd in dirs})
 
         for file in files:  # type: ignore
             if file == ignore_file_name:
