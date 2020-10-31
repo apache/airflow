@@ -21,6 +21,7 @@ import os
 import sys
 import unittest
 from datetime import datetime, timedelta
+from heapq import heappush
 from unittest import mock
 
 # leave this it is used by the test worker
@@ -141,7 +142,9 @@ class TestCeleryExecutor(unittest.TestCase):
 
                 # "Enqueue" them. We don't have a real SimpleTaskInstance, so directly edit the dict
                 for (key, simple_ti, command, queue, task) in task_tuples_to_send:  # pylint: disable=W0612
-                    executor.queued_tasks[key] = (command, 1, queue, simple_ti)
+                    executor.queued_tasks.add(key)
+                    heappush(self.queued_tasks_priority_queue, (-1,
+                                                                (command, 1, queue, simple_ti)))
                     executor.task_publish_retries[key] = 1
 
                 executor._process_tasks(task_tuples_to_send)
@@ -181,14 +184,11 @@ class TestCeleryExecutor(unittest.TestCase):
                 task_id="test", bash_command="true", dag=DAG(dag_id='id'), start_date=datetime.now()
             )
             when = datetime.now()
-            value_tuple = (
-                'command',
-                1,
-                None,
-                SimpleTaskInstance(ti=TaskInstance(task=task, execution_date=datetime.now())),
-            )
-            key = ('fail', 'fake_simple_ti', when, 0)
-            executor.queued_tasks[key] = value_tuple
+            simple_ti = SimpleTaskInstance(ti=TaskInstance(task=task, execution_date=datetime.now()))
+            value_tuple = ('command', 1, None, simple_ti)
+
+            executor.queued_tasks.add(simple_ti.key)
+            heappush(executor.queued_tasks_priority_queue, (-1, value_tuple))
             executor.task_publish_retries[key] = 1
             executor.heartbeat()
         assert 0 == len(executor.queued_tasks), "Task should no longer be queued"
