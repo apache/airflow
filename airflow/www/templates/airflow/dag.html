@@ -502,7 +502,7 @@
 
       if (extra_links && extra_links.length > 0){
         var markupArr = [];
-
+        extra_links.sort();
         var url = "{{ url_for('Airflow.extra_links') }}" +
                 "?task_id=" + encodeURIComponent(task_id) +
                 "&dag_id=" + encodeURIComponent(dag_id) +
@@ -522,15 +522,13 @@
                 external_link.removeClass('disabled');
                 link_tooltip.tooltip('disable');
                 markupArr.push(link_tooltip)
-                console.log(data[link]['url']);
               });
-              console.log(data);
-              $('#extra_links').prev('hr').show();
-              $('#extra_links').append(markupArr).show();
-              $('[data-toggle="tooltip"]').tooltip();
+              var extra_links_span = $('#extra_links');
+              extra_links_span.prev('hr').show();
+              extra_links_span.append(markupArr).show();
+              extra_links_span.find('[data-toggle="tooltip"]').tooltip();
             },
             error:  function (data) {
-              console.log(data);
               $.each(extra_links, function(i, link){
                 link_tooltip.tooltip('hide').attr('title', data[link]['responseJSON']['error']).tooltip('fixTitle');
               });
