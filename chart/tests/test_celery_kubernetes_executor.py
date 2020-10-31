@@ -31,8 +31,8 @@ class CeleryKubernetesExecutorTest(unittest.TestCase):
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        self.assertEqual("config", jmespath.search("spec.template.spec.volumes[1].name", docs[0]))
-        self.assertEqual("dags", jmespath.search("spec.template.spec.volumes[2].name", docs[0]))
+        self.assertEqual("config", jmespath.search("spec.template.spec.volumes[0].name", docs[0]))
+        self.assertEqual("dags", jmespath.search("spec.template.spec.volumes[1].name", docs[0]))
 
     def test_should_create_a_worker_deployment_with_the_celery_kubernetes_executor(self):
         docs = render_chart(
@@ -43,5 +43,5 @@ class CeleryKubernetesExecutorTest(unittest.TestCase):
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        self.assertEqual("config", jmespath.search("spec.template.spec.volumes[1].name", docs[0]))
-        self.assertEqual("dags", jmespath.search("spec.template.spec.volumes[2].name", docs[0]))
+        self.assertEqual("config", jmespath.search("spec.template.spec.volumes[0].name", docs[0]))
+        self.assertEqual("dags", jmespath.search("spec.template.spec.volumes[1].name", docs[0]))

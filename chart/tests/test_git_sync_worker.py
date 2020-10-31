@@ -31,8 +31,8 @@ class GitSyncWorkerTest(unittest.TestCase):
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        self.assertEqual("config", jmespath.search("spec.template.spec.volumes[1].name", docs[0]))
-        self.assertEqual("dags", jmespath.search("spec.template.spec.volumes[2].name", docs[0]))
+        self.assertEqual("config", jmespath.search("spec.template.spec.volumes[0].name", docs[0]))
+        self.assertEqual("dags", jmespath.search("spec.template.spec.volumes[1].name", docs[0]))
 
     def test_should_add_dags_volume_to_the_worker_if_git_sync_is_enabled_and_peristence_is_disabled(self):
         docs = render_chart(
@@ -43,8 +43,8 @@ class GitSyncWorkerTest(unittest.TestCase):
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        self.assertEqual("config", jmespath.search("spec.template.spec.volumes[1].name", docs[0]))
-        self.assertEqual("dags", jmespath.search("spec.template.spec.volumes[2].name", docs[0]))
+        self.assertEqual("config", jmespath.search("spec.template.spec.volumes[0].name", docs[0]))
+        self.assertEqual("dags", jmespath.search("spec.template.spec.volumes[1].name", docs[0]))
 
     def test_should_add_git_sync_container_to_worker_if_persistence_is_not_enabled_but_git_sync_is(self):
         docs = render_chart(
