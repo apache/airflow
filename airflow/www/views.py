@@ -2392,7 +2392,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
         link_name = request.args.get('link_name')
-        link_names = request.args.getlist('link_names')
+        link_names = request.args.getlist('link_name')
         dttm = timezone.parse(execution_date)
         dag = current_app.dag_bag.get_dag(dag_id)
 
