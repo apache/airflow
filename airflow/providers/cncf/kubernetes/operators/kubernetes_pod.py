@@ -390,6 +390,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                         args=self.arguments,
                         env=self.env_vars,
                         env_from=self.env_from,
+                        image_pull_policy=self.image_pull_policy,
                     )
                 ],
                 image_pull_secrets=self.image_pull_secrets,
