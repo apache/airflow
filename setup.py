@@ -442,7 +442,7 @@ devel = [
     'black',
     'blinker',
     'bowler',
-    'click==6.7',
+    'click~=7.1',
     'contextdecorator;python_version<"3.4"',
     'coverage',
     'docutils',
