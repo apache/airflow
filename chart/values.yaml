@@ -409,6 +409,13 @@ flower:
   #     cpu: 100m
   #     memory: 128Mi
 
+  # A secret containing the connection
+  secretName: ~
+
+  # Else, if username and password are set, create secret from username and password
+  username: ~
+  password: ~
+
   service:
     type: ClusterIP
 
