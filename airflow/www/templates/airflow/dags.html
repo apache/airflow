@@ -136,12 +136,12 @@
               <th width="12">
                 <span class="material-icons text-muted js-tooltip" title="Use this toggle to pause/unpause a DAG. The scheduler won't schedule new tasks instances for a paused DAG. Tasks already running at pause time won't be affected.">info</span>
               </th>
-              <th>DAG</th>
-              <th>Owner</th>
+              <th>{{ sorted_th_link("DAG", "dag_id") }}</th>
+              <th>{{ sorted_th_link("Owner", "owner") }}</th>
               <th>Runs
                 <span class="material-icons text-muted js-tooltip" aria-hidden="true" title="Status of all previous DAG runs.">info</span>
               </th>
-              <th>Schedule</th>
+              <th>{{ sorted_th_link("Schedule", "schedule") }}</th>
               <th style="width:180px;">Last Run
                 <span class="material-icons text-muted js-tooltip" aria-hidden="true" title="Execution Date/Time of Highest Dag Run.">info</span>
               </th>
