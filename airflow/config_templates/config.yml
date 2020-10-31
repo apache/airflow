@@ -298,11 +298,12 @@
     - name: enable_xcom_pickling
       description: |
         Whether to enable pickling for xcom (note that this is insecure and allows for
-        RCE exploits). This will be deprecated in Airflow 2.0 (be forced to False).
+        RCE exploits).
       version_added: ~
       type: string
       example: ~
-      default: "True"
+      default: "False"
+      see_also: "https://docs.python.org/3/library/pickle.html#comparison-with-json"
     - name: killed_task_cleanup_time
       description: |
         When a task is killed forcefully, this is the amount of time in seconds that
