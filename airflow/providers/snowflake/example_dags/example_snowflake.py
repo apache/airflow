@@ -36,7 +36,9 @@ SNOWFLAKE_SAMPLE_TABLE = 'sample_table'
 S3_FILE_PATH = '</path/to/file/sample_file.csv'
 
 # SQL commands
-CREATE_TABLE_SQL_STRING = f"CREATE OR REPLACE TRANSIENT TABLE {SNOWFLAKE_SAMPLE_TABLE} (name VARCHAR(250), id INT);"
+CREATE_TABLE_SQL_STRING = (
+    f"CREATE OR REPLACE TRANSIENT TABLE {SNOWFLAKE_SAMPLE_TABLE} (name VARCHAR(250), id INT);"
+)
 SQL_INSERT_STATEMENT = f"INSERT INTO {SNOWFLAKE_SAMPLE_TABLE} VALUES ('name', %(id)s)"
 SQL_LIST = [SQL_INSERT_STATEMENT % {"id": n} for n in range(0, 10)]
 SNOWFLAKE_SLACK_SQL = f"SELECT name, id FROM {SNOWFLAKE_SAMPLE_TABLE} LIMIT 10;"
@@ -65,7 +67,7 @@ snowflake_op_sql_str = SnowflakeOperator(
     warehouse=SNOWFLAKE_WAREHOUSE,
     database=SNOWFLAKE_DATABASE,
     schema=SNOWFLAKE_SCHEMA,
-    role=SNOWFLAKE_ROLE
+    role=SNOWFLAKE_ROLE,
 )
 
 snowflake_op_with_params = SnowflakeOperator(
@@ -81,17 +83,14 @@ snowflake_op_with_params = SnowflakeOperator(
 )
 
 snowflake_op_sql_list = SnowflakeOperator(
-    task_id='snowflake_op_sql_list',
-    dag=dag,
-    snowflake_conn_id=SNOWFLAKE_CONN_ID,
-    sql=SQL_LIST
+    task_id='snowflake_op_sql_list', dag=dag, snowflake_conn_id=SNOWFLAKE_CONN_ID, sql=SQL_LIST
 )
 
 snowflake_op_template_file = SnowflakeOperator(
     task_id='snowflake_op_template_file',
     dag=dag,
     snowflake_conn_id=SNOWFLAKE_CONN_ID,
-    sql='/path/to/sql/<filename>.sql'
+    sql='/path/to/sql/<filename>.sql',
 )
 
 # [END howto_operator_snowflake]
@@ -105,9 +104,8 @@ copy_into_table = S3ToSnowflakeOperator(
     table=SNOWFLAKE_SAMPLE_TABLE,
     schema=SNOWFLAKE_SCHEMA,
     stage=SNOWFLAKE_STAGE,
-    file_format="(type = 'CSV',"
-                "field_delimiter = ';')",
-    dag=dag
+    file_format="(type = 'CSV'," "field_delimiter = ';')",
+    dag=dag,
 )
 
 # [END howto_operator_s3_to_snowflake]
@@ -125,7 +123,9 @@ slack_report = SnowflakeToSlackOperator(
 
 # [END howto_operator_snowflake_to_slack]
 
-snowflake_op_sql_str >> [snowflake_op_with_params,
-                         snowflake_op_sql_list,
-                         snowflake_op_template_file,
-                         copy_into_table] >> slack_report
+snowflake_op_sql_str >> [
+    snowflake_op_with_params,
+    snowflake_op_sql_list,
+    snowflake_op_template_file,
+    copy_into_table,
+] >> slack_report
