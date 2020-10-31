@@ -271,13 +271,12 @@ class BackfillJob(BaseJob):
 
             self.log.debug("Executor state: %s task %s", state, ti)
 
-            if state in (State.FAILED, State.SUCCESS):
-                if ti.state == State.RUNNING or ti.state == State.QUEUED:
-                    msg = ("Executor reports task instance {} finished ({}) "
-                           "although the task says its {}. Was the task "
-                           "killed externally? Info: {}".format(ti, state, ti.state, info))
-                    self.log.error(msg)
-                    ti.handle_failure(msg)
+            if state in (State.FAILED, State.SUCCESS) and ti.state in self.STATES_COUNT_AS_RUNNING:
+                msg = ("Executor reports task instance {} finished ({}) "
+                       "although the task says its {}. Was the task "
+                       "killed externally? Info: {}".format(ti, state, ti.state, info))
+                self.log.error(msg)
+                ti.handle_failure(msg)
 
     @provide_session
     def _get_dag_run(self, run_date: datetime, dag: DAG, session: Session = None):
@@ -425,7 +424,7 @@ class BackfillJob(BaseJob):
             # determined deadlocked while they are actually
             # waiting for their upstream to finish
             @provide_session
-            def _per_task_process(task, key, ti, session=None):  # pylint: disable=too-many-return-statements
+            def _per_task_process(key, ti, session=None):  # pylint: disable=too-many-return-statements
                 ti.refresh_from_db(lock_for_update=True, session=session)
 
                 task = self.dag.get_task(ti.task_id, include_subdags=True)
@@ -600,7 +599,7 @@ class BackfillJob(BaseJob):
                                     "is reached."
                                 )
 
-                        _per_task_process(task, key, ti)
+                        _per_task_process(key, ti)
             except (NoAvailablePoolSlot, DagConcurrencyLimitReached, TaskConcurrencyLimitReached) as e:
                 self.log.debug(e)
 
