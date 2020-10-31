@@ -16,6 +16,7 @@
 # under the License.
 
 import unittest
+from typing import Any, Dict, List, Union
 
 import jmespath
 
@@ -84,3 +85,33 @@ class TestBaseChartTest(unittest.TestCase):
         ]
         self.assertNotIn(('Job', 'TEST-BASIC-create-user'), list_of_kind_names_tuples)
         self.assertEqual(OBJECT_COUNT_IN_BASIC_DEPLOYMENT - 1, len(k8s_objects))
+
+    def test_chart_is_consistent_with_official_airflow_image(self):
+        def get_k8s_objs_with_image(obj: Union[List[Any], Dict[str, Any]]) -> List[Dict[str, Any]]:
+            """
+            Recursive helper to retrieve all the k8s objects that have an "image" key
+            inside k8s obj or list of k8s obj
+            """
+            out = []
+            if isinstance(obj, list):
+                for item in obj:
+                    out += get_k8s_objs_with_image(item)
+            if isinstance(obj, dict):
+                if "image" in obj:
+                    out += [obj]
+                # include sub objs, just in case
+                for val in obj.values():
+                    out += get_k8s_objs_with_image(val)
+            return out
+
+        image_repo = "test-airflow-repo/airflow"
+        k8s_objects = render_chart("TEST-BASIC", {"defaultAirflowRepository": image_repo})
+
+        objs_with_image = get_k8s_objs_with_image(k8s_objects)
+        for obj in objs_with_image:
+            image: str = obj["image"]  # pylint: disable=invalid-sequence-index
+            if image.startswith(image_repo):
+                # Make sure that a command is not specified
+                self.assertNotIn("command", obj)
+                # Make sure that the first arg is never airflow
+                self.assertNotEqual(obj["args"][0], "airflow")  # pylint: disable=invalid-sequence-index
