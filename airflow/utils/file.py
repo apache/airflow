@@ -119,10 +119,11 @@ def find_path_from_directory(
         for file in files:  # type: ignore
             if file == ignore_file_name:
                 continue
-            file_path = os.path.join(root, str(file))
-            if any(re.findall(p, file_path) for p in patterns):
+            abs_file_path = os.path.join(root, str(file))
+            rel_file_path = os.path.join(os.path.relpath(root, str(base_dir_path)), str(file))
+            if any(p.search(rel_file_path) for p in patterns):
                 continue
-            yield str(file_path)
+            yield str(abs_file_path)
 
 
 def list_py_file_paths(directory: str,
