@@ -29,10 +29,10 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
+  {{- with .Values.ingress.flower.annotations }}
   annotations:
-    {{- range $key, $value := .Values.ingress.flower.annotations }}
-    {{ $key }}: {{ $value | quote }}
-    {{- end }}
+  {{ toYaml . | indent 4 }}
+  {{- end }}
 spec:
   {{- if .Values.ingress.flower.tls.enabled }}
   tls:
