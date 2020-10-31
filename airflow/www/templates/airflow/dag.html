@@ -502,39 +502,40 @@
 
       if (extra_links && extra_links.length > 0){
         var markupArr = [];
-        extra_links.sort();
-        $.each(extra_links, function(i, link){
-          var url = '{{ url_for('Airflow.extra_links') }}' +
-                  '?task_id=' + encodeURIComponent(task_id) +
-                  '&dag_id=' + encodeURIComponent(dag_id) +
-                  '&execution_date=' + encodeURIComponent(execution_date) +
-                  '&link_name=' + encodeURIComponent(link);
-          var external_link = $('<a href="#" class="btn btn-primary disabled" target="_blank"></a>')
-          var link_tooltip = $('<span class="tool-tip" data-toggle="tooltip" style="padding-right: 2px; padding-left: 3px" data-placement="top" ' +
-            'title="link not yet available"></span>');
-          link_tooltip.append(external_link)
-          external_link.text(link);
 
-          $.ajax(
-            {url: url,
-             cache: false,
-             success: function (data, textStatus, jqXHR) {
-               external_link.attr('href', data['url']);
-               external_link.removeClass('disabled');
-               link_tooltip.tooltip('disable');
-             },
-             error:  function (data) {
-               link_tooltip.tooltip('hide').attr('title', data['responseJSON']['error']).tooltip('fixTitle');
-             }
-           });
+        var url = "{{ url_for('Airflow.extra_links') }}" +
+                "?task_id=" + encodeURIComponent(task_id) +
+                "&dag_id=" + encodeURIComponent(dag_id) +
+                "&execution_date=" + encodeURIComponent(execution_date) +
+                "&link_names=" + encodeURIComponent(extra_links.join());
 
-          markupArr.push(link_tooltip)
-        });
-
-        var extra_links_span = $('#extra_links');
-        extra_links_span.prev('hr').show();
-        extra_links_span.append(markupArr).show();
-        extra_links_span.find('[data-toggle="tooltip"]').tooltip();
+        $.ajax(
+          {url: url,
+            cache: false,
+            success: function (data, textStatus, jqXHR) {
+              $.each(extra_links, function(i, link){
+                var external_link = $('<a href="#" data-toggle="tooltip" class="btn btn-primary disabled" target="_blank">'+link+'</a>')
+                var link_tooltip = $('<span class="tool-tip" data-toggle="tooltip" style="padding-right: 2px; padding-left: 3px" data-placement="top" ' +
+                  'title="link not yet available"></span>');
+                link_tooltip.append(external_link)
+                external_link.attr('href', data[link]['url']);
+                external_link.removeClass('disabled');
+                link_tooltip.tooltip('disable');
+                markupArr.push(link_tooltip)
+                console.log(data[link]['url']);
+              });
+              console.log(data);
+              $('#extra_links').prev('hr').show();
+              $('#extra_links').append(markupArr).show();
+              $('[data-toggle="tooltip"]').tooltip();
+            },
+            error:  function (data) {
+              console.log(data);
+              $.each(extra_links, function(i, link){
+                link_tooltip.tooltip('hide').attr('title', data[link]['responseJSON']['error']).tooltip('fixTitle');
+              });
+            }
+          });
       }
     }
 

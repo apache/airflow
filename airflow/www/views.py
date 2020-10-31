@@ -2407,21 +2407,39 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             return response
 
         task = dag.get_task(task_id)
-        try:
-            url = task.get_extra_links(dttm, link_name)
-        except ValueError as err:
-            response = jsonify({'url': None, 'error': str(err)})
-            response.status_code = 404
-            return response
-        if url:
-            response = jsonify({'error': None, 'url': url})
-            response.status_code = 200
+        if(link_names != None and len(link_names) > 0):
+            name_url_map = {}
+            status_code = 200
+            for single_name in link_names.split(','):
+                try:
+                    url = task.get_extra_links(dttm, single_name)
+                    if url:
+                        name_url_map[single_name] = {'error': None, 'url': url}
+                    else:
+                        status_code = 404
+                        name_url_map[single_name] = {'error': 'No URL found for {dest}'.format(dest=single_name), 'url': None}
+                except (ValueError, Exception) as err:
+                    name_url_map[single_name] = {'error': str(err), 'url': None}
+                    status_code = 404
+            response = jsonify(name_url_map)
+            response.status_code = status_code
             return response
         else:
-            response = jsonify(
-                {'url': None, 'error': 'No URL found for {dest}'.format(dest=link_name)})
-            response.status_code = 404
-            return response
+            try:
+                url = task.get_extra_links(dttm, link_name)
+            except (ValueError, Exception) as err:
+                response = jsonify({'url': None, 'error': str(err)})
+                response.status_code = 404
+                return response
+            if url:
+                response = jsonify({'error': None, 'url': url})
+                response.status_code = 200
+                return response
+            else:
+                response = jsonify(
+                    {'url': None, 'error': 'No URL found for {dest}'.format(dest=link_name)})
+                response.status_code = 404
+                return response
 
     @expose('/object/task_instances')
     @auth.has_access([
