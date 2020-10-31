@@ -388,7 +388,7 @@
           }
         },
         "data": {
-            "description": "Airflow database configuration.",
+            "description": "Airflow database & redis configuration.",
             "type": "object",
             "additionalProperties": false,
             "properties": {
@@ -401,6 +401,13 @@
                 },
                 "resultBackendSecretName": {
                     "description": "Result backend connection string secret.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "brokerUrlSecretName": {
+                    "description": "Redis broker URL secret.",
                     "type": [
                         "string",
                         "null"
@@ -473,6 +480,13 @@
                             "type": "string"
                         }
                     }
+                },
+                "brokerUrl": {
+                    "description": "Direct url to the redis broker (when using an external redis instance).",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
                 }
             }
         },
@@ -1088,10 +1102,14 @@
             }
         },
         "redis": {
-            "description": "",
+            "description": "Configuration for the redis provisioned by the chart.",
             "type": "object",
             "additionalProperties": false,
             "properties": {
+                "enabled": {
+                    "description": "Enable the redis provisioned by the chart (you can also use an external redis instance with data.brokerUrl or data.brokerUrlSecretName).",
+                    "type": "boolean"
+                },
                 "terminationGracePeriodSeconds": {
                     "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
                     "type": "integer"
@@ -1106,7 +1124,7 @@
                             "type": "boolean"
                         },
                         "size": {
-                            "description": "Volume size for worker StatefulSet.",
+                            "description": "Volume size for redis StatefulSet.",
                             "type": "string"
                         },
                         "storageClassName": {
@@ -1123,13 +1141,6 @@
                 },
                 "passwordSecretName": {
                     "description": "Redis password secret.",
-                    "type": [
-                        "string",
-                        "null"
-                    ]
-                },
-                "brokerURLSecretName": {
-                    "description": "Redis broker URL secret.",
                     "type": [
                         "string",
                         "null"
