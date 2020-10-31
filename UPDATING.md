@@ -50,7 +50,15 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
-### The default `[webserver] cookie_samesite` has been changed to `Lax`
+### The default value for `[core] enable_xcom_pickling` has been changed to `False`
+
+The pickle type for XCom messages has been replaced to JSON by default to prevent RCE attacks.
+Note that JSON serialization is stricter than pickling, so for example if you want to pass
+raw bytes through XCom you must encode them using an encoding like ``base64``.
+If you understand the risk and still want to use [pickling](https://docs.python.org/3/library/pickle.html),
+set `enable_xcom_pickling = False` in your Airflow config's `core` section.
+
+### The default value for `[webserver] cookie_samesite` has been changed to `Lax`
 
 As [recommended](https://flask.palletsprojects.com/en/1.1.x/config/#SESSION_COOKIE_SAMESITE) by Flask, the
 `[webserver] cookie_samesite` has bee changed to `Lax` from `None`.

@@ -56,10 +56,6 @@ class BaseXCom(Base, LoggingMixin):
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
 
-    """
-    TODO: "pickling" has been deprecated and JSON is preferred.
-          "pickling" will be removed in Airflow 2.0.
-    """
     @reconstructor
     def init_on_load(self):
         """
@@ -92,8 +88,6 @@ class BaseXCom(Base, LoggingMixin):
             session=None):
         """
         Store an XCom value.
-        TODO: "pickling" has been deprecated and JSON is preferred.
-        "pickling" will be removed in Airflow 2.0.
 
         :return: None
         """
@@ -245,8 +239,6 @@ class BaseXCom(Base, LoggingMixin):
     @staticmethod
     def serialize_value(value: Any):
         """Serialize Xcom value to str or pickled object"""
-        # TODO: "pickling" has been deprecated and JSON is preferred.
-        # "pickling" will be removed in Airflow 2.0.
         if conf.getboolean('core', 'enable_xcom_pickling'):
             return pickle.dumps(value)
         try:
@@ -261,12 +253,9 @@ class BaseXCom(Base, LoggingMixin):
     @staticmethod
     def deserialize_value(result) -> Any:
         """Deserialize Xcom value from str or pickle object"""
-        # TODO: "pickling" has been deprecated and JSON is preferred.
-        # "pickling" will be removed in Airflow 2.0.
         enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
         if enable_pickling:
             return pickle.loads(result.value)
-
         try:
             return json.loads(result.value.decode('UTF-8'))
         except JSONDecodeError:
