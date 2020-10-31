@@ -37,8 +37,8 @@ S3_FILE_PATH = '</path/to/file/sample_file.csv'
 
 # SQL commands
 CREATE_TABLE_SQL_STRING = f"CREATE OR REPLACE TRANSIENT TABLE {SNOWFLAKE_SAMPLE_TABLE} (name VARCHAR(250), id INT);"
-SQL_INSERT_STATEMENT = f"INSERT INTO {SNOWFLAKE_SAMPLE_TABLE} VALUES ('name', %s)"
-SQL_LIST = [SQL_INSERT_STATEMENT % n for n in range(0, 10)]
+SQL_INSERT_STATEMENT = f"INSERT INTO {SNOWFLAKE_SAMPLE_TABLE} VALUES ('name', %(id)s)"
+SQL_LIST = [SQL_INSERT_STATEMENT % {"id": n} for n in range(0, 10)]
 SNOWFLAKE_SLACK_SQL = f"SELECT name, id FROM {SNOWFLAKE_SAMPLE_TABLE} LIMIT 10;"
 SNOWFLAKE_SLACK_MESSAGE = (
     "Results in an ASCII table:\n```{{ results_df | tabulate(tablefmt='pretty', headers='keys') }}```"
@@ -73,7 +73,7 @@ snowflake_op_with_params = SnowflakeOperator(
     dag=dag,
     snowflake_conn_id=SNOWFLAKE_CONN_ID,
     sql=SQL_INSERT_STATEMENT,
-    parameters=(56,),
+    parameters={"id": 56},
     warehouse=SNOWFLAKE_WAREHOUSE,
     database=SNOWFLAKE_DATABASE,
     schema=SNOWFLAKE_SCHEMA,
