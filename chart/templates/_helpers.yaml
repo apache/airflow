@@ -252,6 +252,10 @@
 {{ default (printf "%s-elasticsearch" .Release.Name) .Values.elasticsearch.secretName }}
 {{- end }}
 
+{{ define "flower_secret" -}}
+{{ default (printf "%s-flower" .Release.Name) .Values.flower.secretName }}
+{{- end }}
+
 {{ define "kerberos_keytab_secret" -}}
 {{ .Release.Name }}-kerberos-keytab
 {{- end }}

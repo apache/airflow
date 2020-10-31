@@ -784,6 +784,27 @@
                 "resources": {
                     "type": "object"
                 },
+                "secretName": {
+                    "description": "A secret containing the user and password pair.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "username": {
+                    "description": "Username use to access flower.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "password": {
+                    "description": "Password use to access flower.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
                 "service": {
                     "description": "Flower service configuration.",
                     "type": "object",
