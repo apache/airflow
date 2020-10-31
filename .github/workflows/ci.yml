@@ -745,7 +745,7 @@ jobs:
 
   tests-kubernetes:
     timeout-minutes: 50
-    name: "K8s: ${{matrix.python-version}} ${{matrix.kubernetes-version}} ${{matrix.kubernetes-mode}}"
+    name: K8s ${{matrix.python-version}} ${{matrix.kubernetes-version}} ${{matrix.kubernetes-mode}}
     runs-on: ubuntu-latest
     needs: [build-info, prod-images]
     strategy:
