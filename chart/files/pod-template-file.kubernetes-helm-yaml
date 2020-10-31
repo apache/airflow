@@ -40,7 +40,7 @@ spec:
       volumeMounts:
         - mountPath: {{ template "airflow_logs" . }}
           name: airflow-logs
-{{- if .Values.dags.gitSync.sshKeySecret }}
+{{- if .Values.dags.gitSync.knownHosts }}
         - mountPath: /etc/git-secret/known_hosts
           name: {{ .Values.dags.gitSync.knownHosts }}
           subPath: known_hosts
