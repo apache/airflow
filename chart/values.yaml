@@ -163,6 +163,39 @@ secret: []
 #   secretName: ""
 #   secretKey: ""
 
+# Extra secrets that will be managed by the chart
+# (You can use them with extraEnv or extraEnvFrom or some of the extraVolumes values).
+# The format is "key/value" where
+#    * key (can be templated) is the the name the secret that will be created
+#    * value: an object with the standard 'data' or 'stringData' key (or both).
+#          The value associated with those keys must be a string (can be templated)
+extraSecrets: {}
+# eg:
+# extraSecrets:
+#   {{ .Release.Name }}-airflow-connections:
+#     data: |
+#       AIRFLOW_CONN_GCP: 'base64_encoded_gcp_conn_string'
+#       AIRFLOW_CONN_AWS: 'base64_encoded_aws_conn_string'
+#     stringData: |
+#       AIRFLOW_CONN_OTHER: 'other_conn'
+#   {{ .Release.Name }}-other-secret-name-suffix: |
+#     data: |
+#        ...
+
+# Extra ConfigMaps that will be managed by the chart
+# (You can use them with extraEnv or extraEnvFrom or some of the extraVolumes values).
+# The format is "key/value" where
+#    * key (can be templated) is the the name the configmap that will be created
+#    * value: an object with the standard 'data' key.
+#          The value associated with this keys must be a string (can be templated)
+extraConfigMaps: {}
+# eg:
+# extraConfigMaps:
+#   {{ .Release.Name }}-airflow-variables:
+#     data: |
+#       AIRFLOW_VAR_HELLO_MESSAGE: "Hi!"
+#       AIRFLOW_VAR_KUBERNETES_NAMESPACE: "{{ .Release.Namespace }}"
+
 # Airflow database config
 data:
   # If secret names are provided, use those secrets
