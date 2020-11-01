@@ -2420,11 +2420,13 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 if url:
                     name_url_map[single_name] = {'error': None, 'url': url}
                 else:
-                    name_url_map[single_name] = {'error': 'No URL found for {dest}'.format(dest=single_name), 'url': None}
+                    name_url_map[single_name] = {
+                        'error': 'No URL found for {dest}'.format(dest=single_name), 
+                        'url': None
+                    }
             except (ValueError, Exception) as err:
                 name_url_map[single_name] = {'error': str(err), 'url': None}
         return jsonify(name_url_map)
-            
 
     @expose('/object/task_instances')
     @auth.has_access([
