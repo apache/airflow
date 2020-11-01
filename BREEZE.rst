@@ -2006,7 +2006,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  lint-dockerfile lint-openapi mermaid mixed-line-ending mypy mypy-helm
                  no-relative-imports pre-commit-descriptions provide-create-sessions pydevd
                  pydocstyle pylint pylint-tests python-no-log-warn restrict-start_date rst-backticks
-                 setup-order setup-installation.rst shellcheck sort-in-the-wild stylelint
+                 setup-order setup-installation shellcheck sort-in-the-wild stylelint
                  trailing-whitespace update-breeze-file update-extras update-local-yml-file
                  update-setup-cfg-file yamllint
 
