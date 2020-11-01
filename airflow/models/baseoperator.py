@@ -1014,7 +1014,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     def get_flat_relative_ids(self,
                               upstream: bool = False,
                               found_descendants: Optional[Set[str]] = None,
-                              recurse: bool = True,
                               ) -> Set[str]:
         """Get a flat set of relatives' ids, either upstream or downstream."""
         if not self._dag:
@@ -1028,20 +1027,18 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             if relative_id not in found_descendants:
                 found_descendants.add(relative_id)
                 relative_task = self._dag.task_dict[relative_id]
-
-                if recurse:
-                    relative_task.get_flat_relative_ids(upstream, found_descendants)
+                relative_task.get_flat_relative_ids(upstream, found_descendants)
 
         return found_descendants
 
-    def get_flat_relatives(self, upstream: bool = False, recurse: bool = True):
+    def get_flat_relatives(self, upstream: bool = False):
         """Get a flat list of relatives, either upstream or downstream."""
         if not self._dag:
             return set()
         from airflow.models.dag import DAG
         dag: DAG = self._dag
         return list(map(lambda task_id: dag.task_dict[task_id],
-                        self.get_flat_relative_ids(upstream, recurse=recurse)))
+                        self.get_flat_relative_ids(upstream)))
 
     def run(
             self,

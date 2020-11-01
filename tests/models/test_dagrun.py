@@ -33,7 +33,7 @@ from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
-from tests.test_utils.db import clear_db_dags, clear_db_pools, clear_db_runs
+from tests.test_utils.db import clear_db_pools, clear_db_runs
 
 
 class TestDagRun(unittest.TestCase):
@@ -45,7 +45,6 @@ class TestDagRun(unittest.TestCase):
     def setUp(self):
         clear_db_runs()
         clear_db_pools()
-        clear_db_dags()
 
     def create_dag_run(self, dag,
                        state=State.RUNNING,

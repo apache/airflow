@@ -1754,10 +1754,10 @@ class TestTaskInstance(unittest.TestCase):
         with create_session() as session:
             session.query(RenderedTaskInstanceFields).delete()
 
-    def validate_ti_states(self, dag_run, ti_state_mapping):
+    def validate_ti_states(self, dag_run, ti_state_mapping, error_message):
         for task_id, expected_state in ti_state_mapping.items():
             task_instance = dag_run.get_task_instance(task_id=task_id)
-            self.assertEqual(task_instance.state, expected_state)
+            self.assertEqual(task_instance.state, expected_state, error_message)
 
     @parameterized.expand([
         (
@@ -1765,31 +1765,37 @@ class TestTaskInstance(unittest.TestCase):
             {'A': 'B', 'B': 'C'},
             {'A': State.QUEUED, 'B': State.NONE, 'C': State.NONE},
             {'A': State.SUCCESS, 'B': State.SCHEDULED, 'C': State.NONE},
-            {'A': State.SUCCESS, 'B': State.SUCCESS, 'C': State.SCHEDULED}
+            {'A': State.SUCCESS, 'B': State.SUCCESS, 'C': State.SCHEDULED},
+            "A -> B -> C, with fast-follow ON when A runs, B should be QUEUED. Same for B and C."
         ),
         (
             {('scheduler', 'schedule_after_task_execution'): 'False'},
             {'A': 'B', 'B': 'C'},
             {'A': State.QUEUED, 'B': State.NONE, 'C': State.NONE},
             {'A': State.SUCCESS, 'B': State.NONE, 'C': State.NONE},
-            None
+            None,
+            "A -> B -> C, with fast-follow OFF, when A runs, B shouldn't be QUEUED."
         ),
         (
             {('scheduler', 'schedule_after_task_execution'): 'True'},
             {'A': 'B', 'C': 'B', 'D': 'C'},
             {'A': State.QUEUED, 'B': State.NONE, 'C': State.NONE, 'D': State.NONE},
             {'A': State.SUCCESS, 'B': State.NONE, 'C': State.NONE, 'D': State.NONE},
-            None
+            None,
+            "D -> C -> B & A -> B, when A runs but C isn't QUEUED yet, B shouldn't be QUEUED."
         ),
         (
             {('scheduler', 'schedule_after_task_execution'): 'True'},
             {'A': 'C', 'B': 'C'},
             {'A': State.QUEUED, 'B': State.FAILED, 'C': State.NONE},
             {'A': State.SUCCESS, 'B': State.FAILED, 'C': State.UPSTREAM_FAILED},
-            None
+            None,
+            "A -> C & B -> C, when A is QUEUED but B has FAILED, C is marked UPSTREAM_FAILED."
         ),
     ])
-    def test_fast_follow(self, conf, dependencies, init_state, first_run_state, second_run_state):
+    def test_fast_follow(
+        self, conf, dependencies, init_state, first_run_state, second_run_state, error_message
+    ):
         with conf_vars(conf):
             session = settings.Session()
 
@@ -1841,12 +1847,12 @@ class TestTaskInstance(unittest.TestCase):
             session.commit()
             task_instance_a.run()
 
-            self.validate_ti_states(dag_run, first_run_state)
+            self.validate_ti_states(dag_run, first_run_state, error_message)
 
             if second_run_state:
                 scheduler._critical_section_execute_task_instances(session=session)
                 task_instance_b.run()
-                self.validate_ti_states(dag_run, second_run_state)
+                self.validate_ti_states(dag_run, second_run_state, error_message)
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])

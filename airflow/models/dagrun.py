@@ -43,7 +43,7 @@ from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
 
-class _TISchedulingDecision(NamedTuple):
+class TISchedulingDecision(NamedTuple):
     """
     Type of return for DagRun.task_instance_scheduling_decisions
 
@@ -477,7 +477,7 @@ class DagRun(Base, LoggingMixin):
         return schedulable_tis, callback
 
     @provide_session
-    def task_instance_scheduling_decisions(self, session: Session = None) -> _TISchedulingDecision:
+    def task_instance_scheduling_decisions(self, session: Session = None) -> TISchedulingDecision:
 
         schedulable_tis: List[TI] = []
         changed_tis = False
@@ -496,7 +496,7 @@ class DagRun(Base, LoggingMixin):
                 self, len(scheduleable_tasks))
             schedulable_tis, changed_tis = self._get_ready_tis(scheduleable_tasks, finished_tasks, session)
 
-        return _TISchedulingDecision(
+        return TISchedulingDecision(
             tis=tis,
             schedulable_tis=schedulable_tis,
             changed_tis=changed_tis,

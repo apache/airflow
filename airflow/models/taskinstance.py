@@ -1138,7 +1138,6 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             session.merge(self)
 
         session.commit()
-
         if conf.getboolean('scheduler', 'schedule_after_task_execution', fallback=True):
             from airflow.models.dagrun import DagRun  # Avoid circular import
 
@@ -1153,30 +1152,31 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
                 # examine. In order for dep checks to work correctly, we
                 # include ourself (so TriggerRuleDep can check the state of the
                 # task we just executed)
-                task_ids = self.task.downstream_task_ids.union({self.task_id})
+                tasks = self.task.downstream_list + [self.task]
+                task_ids = [t.task_id for t in tasks]
 
                 partial_dag = self.task.dag.partial_subset(
                     task_ids,
                     include_downstream=True,
                     include_upstream=False,
                 )
-                siblings = self.task.dag.partial_subset(
-                    task_ids,
-                    include_upstream=False,
-                    include_direct_parents=True
-                )
 
-                partial_dag.task_dict.update(siblings.task_dict)
+                child_dependencies = {}
+                for child in tasks:
+                    child_dependencies[child.task_id] = child
+                    for task in child.upstream_list:
+                        child_dependencies[task.task_id] = task
+                partial_dag.task_dict.update(child_dependencies)
+
                 dag_run.dag = partial_dag
                 info = dag_run.task_instance_scheduling_decisions(session)
 
                 skippable_task_ids = {
-                    ti for ti in siblings.task_ids if ti not in self.task.downstream_task_ids
+                    task_id for task_id in child_dependencies if task_id not in self.task.downstream_task_ids
                 }
                 schedulable_tis = [
                     ti for ti in info.schedulable_tis if ti.task_id not in skippable_task_ids
                 ]
-
                 for schedulable_ti in schedulable_tis:
                     if not hasattr(schedulable_ti, "task"):
                         schedulable_ti.task = self.task.dag.get_task(schedulable_ti.task_id)
