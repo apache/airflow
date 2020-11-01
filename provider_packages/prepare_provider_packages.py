@@ -164,8 +164,6 @@ def get_target_providers_package_folder(provider_package_id: str) -> str:
     return os.path.join(get_target_providers_folder(), *provider_package_id.split("."))
 
 
-sys.path.insert(0, SOURCE_DIR_PATH)
-
 DEPENDENCIES_JSON_FILE = os.path.join(PROVIDERS_PATH, "dependencies.json")
 
 MOVED_ENTITIES: Dict[EntityType, Dict[str, str]] = {
@@ -1215,7 +1213,7 @@ def update_release_notes_for_packages(provider_ids: List[str],
     :return:
     """
     imported_classes = import_all_provider_classes(
-        source_path=SOURCE_DIR_PATH, provider_ids=provider_ids, print_imports=False)
+        source_paths=[PROVIDERS_PATH], provider_ids=provider_ids, print_imports=False)
     make_sure_remote_apache_exists_and_fetch()
     if len(provider_ids) == 0:
         if backport_packages:
