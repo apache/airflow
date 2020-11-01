@@ -334,7 +334,7 @@ class _Stats(type):
 
     @classmethod
     def get_constant_tags(cls):
-        """Get constanst DataDog tags to add to all stats"""
+        """Get constant DataDog tags to add to all stats"""
         tags = []
         tags_in_string = conf.get('scheduler', 'statsd_datadog_tags', fallback=None)
         if tags_in_string is None or tags_in_string == '':
