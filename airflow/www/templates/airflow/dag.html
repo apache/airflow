@@ -507,7 +507,7 @@
                 "?task_id=" + encodeURIComponent(task_id) +
                 "&dag_id=" + encodeURIComponent(dag_id) +
                 "&execution_date=" + encodeURIComponent(execution_date);
-        url += '&' + extra_links.map((n) => { return `link_name=${encodeURIComponent(n)}` }).join("&")
+        url += '&' + extra_links.map((n) => `link_name=${encodeURIComponent(n)}`).join("&")
 
         $.ajax(
           {url: url,

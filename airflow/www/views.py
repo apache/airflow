@@ -2392,6 +2392,12 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
         link_names = request.args.getlist('link_name')
+
+        if not link_names:
+            response = jsonify({'url': None, 'error': "no link names provided"})
+            response.status_code = 404
+            return response
+
         dttm = timezone.parse(execution_date)
         dag = current_app.dag_bag.get_dag(dag_id)
 
@@ -2407,23 +2413,18 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             return response
 
         task = dag.get_task(task_id)
-        if link_names:
-            name_url_map = {}
-            for single_name in link_names:
-                try:
-                    url = task.get_extra_links(dttm, single_name)
-                    if url:
-                        name_url_map[single_name] = {'error': None, 'url': url}
-                    else:
-                        name_url_map[single_name] = {'error': 'No URL found for {dest}'.format(dest=single_name), 'url': None}
-                except (ValueError, Exception) as err:
-                    name_url_map[single_name] = {'error': str(err), 'url': None}
-            response = jsonify(name_url_map)
-            return response
-        else:
-            response = jsonify({'url': None, 'error': "no link names provided"})
-            response.status_code = 404
-            return response
+        name_url_map = {}
+        for single_name in link_names:
+            try:
+                url = task.get_extra_links(dttm, single_name)
+                if url:
+                    name_url_map[single_name] = {'error': None, 'url': url}
+                else:
+                    name_url_map[single_name] = {'error': 'No URL found for {dest}'.format(dest=single_name), 'url': None}
+            except (ValueError, Exception) as err:
+                name_url_map[single_name] = {'error': str(err), 'url': None}
+        return jsonify(name_url_map)
+            
 
     @expose('/object/task_instances')
     @auth.has_access([
