@@ -229,7 +229,7 @@ revert to its previous state and turn red. If you observe this behavior,
 try pausing the dag again, or check the console or server logs if the
 issue recurs.
 
-Why do I see error when importing or running airflow: `Symbol not found: _Py_GetArgcArgv`?
+Why do I see error when importing or running airflow: ``Symbol not found: _Py_GetArgcArgv``?
 -----------------------------------------------------
 
 If you are using a homebrew installed version of Python, this is generally caused by
