@@ -236,9 +236,9 @@ If you are using a homebrew installed version of Python, this is generally cause
 using python in ``/usr/local/opt/bin`` rather than the Frameworks installation (e.g. for ``python 3.7``: ``/usr/local/opt/python@3.7/Frameworks/Python.framework/Versions/3.7``).
 
 The crux of the issue is that a library Airflow depends on, ``setproctitle``, uses a non-public Python API
-which is not available from the standard installation `/usr/local/opt/` (which symlinks to a path under ``/usr/local/Cellar``).
+which is not available from the standard installation ``/usr/local/opt/`` (which symlinks to a path under ``/usr/local/Cellar``).
 
-An easy fix is just to ensure you use a version of Python that has a `dylib` of the python library available. For example:
+An easy fix is just to ensure you use a version of Python that has a dylib of the python library available. For example:
 
 .. code-block:: bash
   :linenos:
