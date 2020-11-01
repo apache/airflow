@@ -306,7 +306,7 @@ Step 4: Prepare PR
      files (such as this file). No python tests are run and no CI images are built for such PR. Usually
      it can be approved and merged few minutes after it is submitted (unless there is a big queue of jobs).
 
-   * In case of change involving python code changes or documentation changes, a subset of ful test matrix
+   * In case of change involving python code changes or documentation changes, a subset of full test matrix
      will be executed. This subset of tests perform relevant tests for single combination of python, backend
      version and only builds one CI image and one PROD image. Here the scope of tests depends on the
      scope of your changes:
