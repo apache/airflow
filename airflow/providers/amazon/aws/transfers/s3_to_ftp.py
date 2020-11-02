@@ -47,6 +47,7 @@ class S3ToFTPOperator(BaseOperator):
     :param local_file_path: The path to the file which is temporarily stored in the os
     : type local_file_path: str
     """
+
     template_fields = (
         's3_bucket',
         's3_key',
