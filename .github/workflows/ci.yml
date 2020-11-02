@@ -93,6 +93,8 @@ jobs:
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
+      image-build: ${{ steps.selective-checks.outputs.image-build }}
+      docs-build: ${{ steps.selective-checks.outputs.docs-build }}
       needs-helm-tests: ${{ steps.selective-checks.outputs.needs-helm-tests }}
       needs-api-tests: ${{ steps.selective-checks.outputs.needs-api-tests }}
       pullRequestNumber: ${{ steps.source-run-info.outputs.pullRequestNumber }}
@@ -159,8 +161,7 @@ jobs:
     name: "Wait for CI images"
     runs-on: ubuntu-latest
     needs: [build-info]
-    if: >
-      needs.build-info.outputs.basic-checks-only == 'false'
+    if: needs.build-info.outputs.image-build == 'true'
     env:
       BACKEND: sqlite
     steps:
@@ -198,8 +199,7 @@ jobs:
       SKIP: "pylint"
       MOUNT_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-    if: >
-      needs.build-info.outputs.basic-checks-only == 'false'
+    if: needs.build-info.outputs.basic-checks-only == 'false'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -235,8 +235,7 @@ jobs:
       SKIP: "build,mypy,flake8,pylint,bats-in-container-tests"
       MOUNT_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-    if: >
-      needs.build-info.outputs.basic-checks-only == 'true'
+    if: needs.build-info.outputs.basic-checks-only == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -269,8 +268,7 @@ jobs:
     name: "Pylint"
     runs-on: ubuntu-latest
     needs: [build-info, ci-images]
-    if: >
-      needs.build-info.outputs.basic-checks-only == 'false'
+    if: needs.build-info.outputs.basic-checks-only == 'false'
     env:
       # We want to make sure we have latest sources as only in_container scripts are added
       # to the image but we want to static-check all of them
@@ -304,8 +302,7 @@ jobs:
     name: "Build docs"
     runs-on: ubuntu-latest
     needs: [build-info, ci-images]
-    if: >
-      needs.build-info.outputs.basic-checks-only == 'false'
+    if: needs.build-info.outputs.docs-build == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -327,8 +324,7 @@ jobs:
     needs: [build-info, ci-images]
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-    if: >
-      needs.build-info.outputs.basic-checks-only == 'false'
+    if: needs.build-info.outputs.docs-build == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -347,8 +343,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       BACKPORT_PACKAGES: "true"
       VERSION_SUFFIX_FOR_SVN: "rc1"
-    if: >
-      needs.build-info.outputs.basic-checks-only == 'false'
+    if: needs.build-info.outputs.image-build == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -385,8 +380,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       VERSION_SUFFIX_FOR_PYPI: "a0"
       VERSION_SUFFIX_FOR_SVN: "a0"
-    if: >
-      needs.build-info.outputs.basic-checks-only == 'false'
+    if: needs.build-info.outputs.image-build == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -459,7 +453,6 @@ jobs:
             coverage-helm
           path: "./files/coverage.xml"
 
-
   tests-postgres:
     timeout-minutes: 80
     name: >
@@ -480,8 +473,7 @@ jobs:
       RUN_TESTS: true
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
       TEST_TYPE: ""
-    if: >
-        needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -533,8 +525,7 @@ jobs:
       RUN_TESTS: true
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
       TEST_TYPE: ""
-    if: >
-        needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -583,8 +574,7 @@ jobs:
       RUN_TESTS: true
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
       TEST_TYPE: ""
-    if: >
-        needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -638,8 +628,7 @@ jobs:
       TEST_TYPE: ""
       NUM_RUNS: 10
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    if: >
-      needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -720,8 +709,7 @@ jobs:
     env:
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-    if: >
-      needs.build-info.outputs.basic-checks-only == 'false'
+    if: needs.build-info.outputs.image-build == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -765,8 +753,7 @@ jobs:
       KUBERNETES_VERSION: "${{ matrix.kubernetes-version }}"
       KIND_VERSION: "${{ needs.build-info.outputs.defaultKindVersion }}"
       HELM_VERSION: "${{ needs.build-info.outputs.defaultHelmVersion }}"
-    if: >
-      needs.build-info.outputs.run-kubernetes-tests == 'true'
+    if: needs.build-info.outputs.run-kubernetes-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -883,7 +870,6 @@ jobs:
       - docs
       - docs-spell-check
     if: >
-      needs.build-info.outputs.basic-checks-only == 'false' &&
       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ) &&
       github.event_name != 'schedule'
     strategy:
@@ -919,9 +905,7 @@ jobs:
       - ci-images
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-    if: >
-      needs.build-info.outputs.basic-checks-only == 'false' &&
-      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' )
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -954,9 +938,7 @@ jobs:
       - tests-mysql
       - tests-postgres
       - tests-kubernetes
-    if: >
-      needs.build-info.outputs.basic-checks-only == 'false' &&
-      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' )
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -996,9 +978,7 @@ jobs:
       - tests-kubernetes
       - constraints-push
       - prepare-provider-packages
-    if: >
-      needs.build-info.outputs.basic-checks-only == 'false' &&
-      github.event_name == 'schedule' &&  github.repository == 'apache/airflow'
+    if: github.event_name == 'schedule' &&  github.repository == 'apache/airflow'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2

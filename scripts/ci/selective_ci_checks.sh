@@ -139,7 +139,6 @@ function get_changed_files() {
     readonly CHANGED_FILES
 }
 
-
 function run_tests() {
     initialization::ga_output run-tests "${@}"
 }
@@ -164,9 +163,16 @@ function needs_python_scans() {
     initialization::ga_output needs-python-scans "${@}"
 }
 
-
 function set_test_types() {
     initialization::ga_output test-types "${@}"
+}
+
+function set_docs_build() {
+    initialization::ga_output docs-build "${@}"
+}
+
+function set_image_build() {
+    initialization::ga_output image-build "${@}"
 }
 
 function set_basic_checks_only() {
@@ -185,6 +191,8 @@ function set_outputs_run_everything_and_exit() {
     run_kubernetes_tests "true"
     set_test_types "${ALL_TESTS}"
     set_basic_checks_only "false"
+    set_docs_build "true"
+    set_image_build "true"
     exit
 }
 
@@ -193,9 +201,10 @@ function set_outputs_run_all_tests() {
     run_kubernetes_tests "true"
     set_test_types "${ALL_TESTS}"
     set_basic_checks_only "false"
+    set_image_build "true"
 }
 
-function set_output_skip_all_tests_and_exit() {
+function set_output_skip_all_tests_and_docs_and_exit() {
     needs_api_tests "false"
     needs_helm_tests "false"
     needs_javascript_scans "false"
@@ -204,6 +213,22 @@ function set_output_skip_all_tests_and_exit() {
     run_kubernetes_tests "false"
     set_test_types ""
     set_basic_checks_only "true"
+    set_docs_build "false"
+    set_image_build "false"
+    exit
+}
+
+function set_output_skip_tests_but_build_images_and_exit() {
+    needs_api_tests "false"
+    needs_helm_tests "false"
+    needs_javascript_scans "false"
+    needs_python_scans "false"
+    run_tests "false"
+    run_kubernetes_tests "false"
+    set_test_types ""
+    set_basic_checks_only "true"
+    set_docs_build "true"
+    set_image_build "true"
     exit
 }
 
@@ -271,7 +296,6 @@ function check_if_javascript_security_scans_should_be_run() {
     fi
 }
 
-
 function check_if_api_tests_should_be_run() {
     local pattern_array=(
         "^airflow/api"
@@ -310,14 +334,15 @@ function check_if_docs_should_be_generated() {
         echo "None of the docs changed"
     else
         image_build_needed="true"
+        docs_build_needed="true"
     fi
 }
 
 AIRFLOW_SOURCES_TRIGGERING_TESTS=(
-        "^airflow"
-        "^chart"
-        "^tests"
-        "^kubernetes_tests"
+    "^airflow"
+    "^chart"
+    "^tests"
+    "^kubernetes_tests"
 )
 readonly AIRFLOW_SOURCES_TRIGGERING_TESTS
 
@@ -326,8 +351,13 @@ function check_if_tests_are_needed_at_all() {
     show_changed_files
 
     if [[ $(count_changed_files) == "0" ]]; then
-        echo "None of the important files changed, Skipping tests"
-        set_output_skip_all_tests_and_exit
+        if [[ ${image_build_needed} == "true" ]]; then
+            echo "No tests needed, Skipping tests but building images."
+            set_output_skip_tests_but_build_images_and_exit
+        else
+            echo "None of the important files changed, Skipping tests"
+            set_output_skip_all_tests_and_docs_and_exit
+        fi
     else
         image_build_needed="true"
         tests_needed="true"
@@ -499,6 +529,7 @@ readonly FULL_TESTS_NEEDED
 output_all_basic_variables
 
 image_build_needed="false"
+docs_build_needed="false"
 tests_needed="false"
 kubernetes_tests_needed="false"
 
@@ -507,9 +538,9 @@ run_all_tests_if_environment_files_changed
 check_if_docs_should_be_generated
 check_if_helm_tests_should_be_run
 check_if_api_tests_should_be_run
-check_if_tests_are_needed_at_all
 check_if_javascript_security_scans_should_be_run
 check_if_python_security_scans_should_be_run
+check_if_tests_are_needed_at_all
 get_count_all_files
 get_count_api_files
 get_count_cli_files
@@ -518,20 +549,13 @@ get_count_www_files
 get_count_kubernetes_files
 calculate_test_types_to_run
 
+set_image_build "${image_build_needed}"
 if [[ ${image_build_needed} == "true" ]]; then
     set_basic_checks_only "false"
 else
     set_basic_checks_only "true"
 fi
-
-if [[ ${tests_needed} == "true" ]]; then
-    run_tests "true"
-else
-    run_tests "false"
-fi
-
-if [[ ${kubernetes_tests_needed} == "true" ]]; then
-    run_kubernetes_tests "true"
-else
-    run_kubernetes_tests "false"
-fi
+set_basic_checks_only "${image_build_needed}"
+set_docs_build "${docs_build_needed}"
+run_tests "${tests_needed}"
+run_kubernetes_tests "${kubernetes_tests_needed}"
