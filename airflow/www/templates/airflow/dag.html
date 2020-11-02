@@ -549,14 +549,6 @@
         });
     }
 
-    function confirmTriggerDag(link, dag_id){
-      if (confirm("Are you sure you want to run '"+dag_id+"' now?")) {
-        postAsForm(link.href, {});
-      }
-      // Never follow the link
-      return false;
-    }
-
     function confirmDeleteDag(link, dag_id){
       if (confirm("Are you sure you want to delete '"+dag_id+"' now?\n\
         This option will delete ALL metadata, DAG runs, etc.\n\
