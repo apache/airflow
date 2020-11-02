@@ -27,12 +27,8 @@ from airflow.utils.decorators import apply_defaults
 
 
 class MongoToS3Operator(BaseOperator):
-    """
-    Mongo -> S3
-        A more specific baseOperator meant to move data
-        from mongo via pymongo to s3 via boto
-
-        things to note
+    """Operator meant to move data from mongo via pymongo to s3 via boto.
+    Things to note:
                 .execute() is written to depend on .transform()
                 .transform() is meant to be extended by child classes
                 to perform transformations unique to those operators needs
@@ -54,12 +50,10 @@ class MongoToS3Operator(BaseOperator):
     :param replace: whether or not to replace the file in S3 if it previously existed
     :param replace: bool
     :param allow_disk_use: in the case you are retrieving a lot of data, you may have
-    to use the disk to save it instead of saving all in the RAM
+        to use the disk to save it instead of saving all in the RAM
     :param allow_disk_use: bool
     """
 
-<<<<<<< HEAD
-    template_fields = ['s3_key', 'mongo_query', 'mongo_collection']
     template_fields = ('s3_bucket', 's3_key', 'mongo_query', 'mongo_collection')
     # pylint: disable=too-many-instance-attributes
 
@@ -80,7 +74,7 @@ class MongoToS3Operator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.mongo_conn_id = mongo_conn_id
-        self.s3_conn_id = aws_conn_id
+        self.aws_conn_id = aws_conn_id
         self.mongo_db = mongo_db
         self.mongo_collection = mongo_collection
 
@@ -103,7 +97,7 @@ class MongoToS3Operator(BaseOperator):
                 mongo_collection=self.mongo_collection,
                 aggregate_query=cast(list, self.mongo_query),
                 mongo_db=self.mongo_db,
-                allowDiskUse=self.allow_disk_use
+                allowDiskUse=self.allow_disk_use,
             )
 
         else:
@@ -111,13 +105,12 @@ class MongoToS3Operator(BaseOperator):
                 mongo_collection=self.mongo_collection,
                 query=cast(dict, self.mongo_query),
                 mongo_db=self.mongo_db,
-                allowDiskUse=self.allow_disk_use
+                allowDiskUse=self.allow_disk_use,
             )
 
         # Performs transform then stringifies the docs results into json format
         docs_str = self._stringify(self.transform(results))
 
-        # Load Into S3
         s3_conn.load_string(
             string_data=docs_str, key=self.s3_key, bucket_name=self.s3_bucket, replace=self.replace
         )

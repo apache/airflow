@@ -25,7 +25,7 @@ from airflow.utils import timezone
 
 TASK_ID = 'test_mongo_to_s3_operator'
 MONGO_CONN_ID = 'default_mongo'
-S3_CONN_ID = 'default_s3'
+AWS_CONN_ID = 'default_s3'
 MONGO_COLLECTION = 'example_collection'
 MONGO_QUERY = {"$lt": "{{ ts + 'Z' }}"}
 S3_BUCKET = 'example_bucket'
@@ -47,7 +47,7 @@ class TestMongoToS3Operator(unittest.TestCase):
         self.mock_operator = MongoToS3Operator(
             task_id=TASK_ID,
             mongo_conn_id=MONGO_CONN_ID,
-            s3_conn_id=S3_CONN_ID,
+            aws_conn_id=AWS_CONN_ID,
             mongo_collection=MONGO_COLLECTION,
             mongo_query=MONGO_QUERY,
             s3_bucket=S3_BUCKET,
@@ -58,14 +58,14 @@ class TestMongoToS3Operator(unittest.TestCase):
     def test_init(self):
         self.assertEqual(self.mock_operator.task_id, TASK_ID)
         self.assertEqual(self.mock_operator.mongo_conn_id, MONGO_CONN_ID)
-        self.assertEqual(self.mock_operator.s3_conn_id, S3_CONN_ID)
+        self.assertEqual(self.mock_operator.aws_conn_id, AWS_CONN_ID)
         self.assertEqual(self.mock_operator.mongo_collection, MONGO_COLLECTION)
         self.assertEqual(self.mock_operator.mongo_query, MONGO_QUERY)
         self.assertEqual(self.mock_operator.s3_bucket, S3_BUCKET)
         self.assertEqual(self.mock_operator.s3_key, S3_KEY)
 
     def test_template_field_overrides(self):
-        self.assertEqual(self.mock_operator.template_fields, ['s3_key', 'mongo_query', 'mongo_collection'])
+        self.assertEqual(self.mock_operator.template_fields, ('s3_bucket', 's3_key', 'mongo_query'))
 
     def test_render_template(self):
         ti = TaskInstance(self.mock_operator, DEFAULT_DATE)
