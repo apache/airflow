@@ -256,6 +256,9 @@ workers:
     # If not set and create is true, a name is generated using the release name
     # name:
 
+    # Annotations to add to worker kubernetes service account.
+    annotations: {}
+
   # Allow KEDA autoscaling.
   # Persistence.enabled must be set to false to use KEDA.
   keda:
@@ -302,8 +305,6 @@ workers:
   # This setting tells kubernetes that its ok to evict
   # when it wants to scale a node down.
   safeToEvict: true
-  # Annotations to add to worker kubernetes service account.
-  serviceAccountAnnotations: {}
   # Mount additional volumes into worker.
   extraVolumes: []
   extraVolumeMounts: []
@@ -321,6 +322,9 @@ scheduler:
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the release name
     # name:
+
+    # Annotations to add to scheduler kubernetes service account.
+    annotations: {}
 
   # Scheduler pod disruption budget
   podDisruptionBudget:
@@ -345,9 +349,6 @@ scheduler:
   # This setting tells kubernetes that its ok to evict
   # when it wants to scale a node down.
   safeToEvict: true
-
-  # Annotations to add to scheduler kubernetes service account.
-  serviceAccountAnnotations: {}
 
   # Mount additional volumes into scheduler.
   extraVolumes: []
@@ -377,6 +378,9 @@ webserver:
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the release name
     # name:
+
+    # Annotations to add to webserver kubernetes service account.
+    annotations: {}
 
 
   # Additional network policies as needed
@@ -421,9 +425,6 @@ webserver:
     type: ClusterIP
     ## service annotations
     annotations: {}
-
-  # Annotations to add to webserver kubernetes service account.
-  serviceAccountAnnotations: {}
 
 # Flower settings
 flower:
