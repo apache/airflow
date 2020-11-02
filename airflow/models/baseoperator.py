@@ -19,7 +19,6 @@
 import abc
 import copy
 import functools
-import logging
 import sys
 import warnings
 from abc import ABCMeta, abstractmethod
@@ -283,7 +282,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
     # base list which includes all the attrs that don't need deep copy.
     _base_operator_shallow_copy_attrs: Tuple[str, ...] = \
-        ('user_defined_macros', 'user_defined_filters', 'params', '_log',)
+        ('user_defined_macros', 'user_defined_filters', 'params')
 
     # each operator should override this class attr for shallow copy attrs.
     shallow_copy_attrs: Tuple[str, ...] = ()
@@ -469,8 +468,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         # Setting it to None by default as other Operators do not have that field
         from airflow.models.dag import DAG
         self.subdag: Optional[DAG] = None
-
-        self._log = logging.getLogger("airflow.task.operators")
 
         # Lineage
         self.inlets: List = []
@@ -795,16 +792,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             else:
                 setattr(result, k, copy.copy(v))
         return result
-
-    def __getstate__(self):
-        state = dict(self.__dict__)
-        del state['_log']
-
-        return state
-
-    def __setstate__(self, state):
-        self.__dict__ = state  # pylint: disable=attribute-defined-outside-init
-        self._log = logging.getLogger("airflow.task.operators")
 
     def render_template_fields(self, context: Dict, jinja_env: Optional[jinja2.Environment] = None) -> None:
         """
