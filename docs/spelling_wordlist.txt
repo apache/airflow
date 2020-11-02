@@ -785,6 +785,7 @@ hiveconfs
 hivemeta
 hiveserver
 hmsclient
+homebrew
 honoured
 hostPath
 hostname
