@@ -1406,6 +1406,7 @@ class DAG(BaseDag, LoggingMixin):
         task_ids_or_regex: Union[str, PatternType, Iterable[str]],
         include_downstream=False,
         include_upstream=True,
+        include_direct_upstream=False,
     ):
         """
         Returns a subset of the current dag as a deep copy of the current dag
@@ -1442,6 +1443,8 @@ class DAG(BaseDag, LoggingMixin):
                 also_include += t.get_flat_relatives(upstream=False)
             if include_upstream:
                 also_include += t.get_flat_relatives(upstream=True)
+            elif include_direct_upstream:
+                also_include += t.upstream_list
 
         # Compiling the unique list of tasks that made the cut
         # Make sure to not recursively deepcopy the dag while copying the task

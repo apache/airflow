@@ -1152,28 +1152,22 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
                 # examine. In order for dep checks to work correctly, we
                 # include ourself (so TriggerRuleDep can check the state of the
                 # task we just executed)
-                tasks = self.task.downstream_list + [self.task]
-                task_ids = [t.task_id for t in tasks]
-
                 partial_dag = self.task.dag.partial_subset(
-                    task_ids,
-                    include_downstream=True,
+                    self.task.downstream_task_ids,
+                    include_downstream=False,
                     include_upstream=False,
+                    include_direct_upstream=True,
                 )
-
-                child_dependencies = {}
-                for child in tasks:
-                    child_dependencies[child.task_id] = child
-                    for task in child.upstream_list:
-                        child_dependencies[task.task_id] = task
-                partial_dag.task_dict.update(child_dependencies)
 
                 dag_run.dag = partial_dag
                 info = dag_run.task_instance_scheduling_decisions(session)
 
                 skippable_task_ids = {
-                    task_id for task_id in child_dependencies if task_id not in self.task.downstream_task_ids
+                    task_id
+                    for task_id in partial_dag.task_ids
+                    if task_id not in self.task.downstream_task_ids
                 }
+
                 schedulable_tis = [
                     ti for ti in info.schedulable_tis if ti.task_id not in skippable_task_ids
                 ]
