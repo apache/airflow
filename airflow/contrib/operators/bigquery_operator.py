@@ -342,6 +342,8 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         schema (templated). For
         example: ``gs://test-bucket/dir1/dir2/employee_schema.json``
     :type gcs_schema_object: str
+    :param delete_if_exists: Should a table matching table_id be deleted before creating the new table
+    type: bool
     :param time_partitioning: configure optional time partitioning fields i.e.
         partition by field, type and  expiration as per API specifications.
 
@@ -419,6 +421,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                  project_id=None,
                  schema_fields=None,
                  gcs_schema_object=None,
+                 delete_if_exists=False,
                  time_partitioning=None,
                  bigquery_conn_id='bigquery_default',
                  google_cloud_storage_conn_id='google_cloud_default',
@@ -434,6 +437,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.table_id = table_id
         self.schema_fields = schema_fields
         self.gcs_schema_object = gcs_schema_object
+        self.delete_if_exists = delete_if_exists
         self.bigquery_conn_id = bigquery_conn_id
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
@@ -460,6 +464,13 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
 
         conn = bq_hook.get_conn()
         cursor = conn.cursor()
+
+        if self.delete_if_exists:
+            if bq_hook.table_exists(self.project_id, self.dataset_id, self.table_id):
+                cursor.run_table_delete(
+                    '{}.{}'.format(self.dataset_id, self.table_id),
+                    ignore_if_missing=True,
+                )
 
         cursor.create_empty_table(
             project_id=self.project_id,
