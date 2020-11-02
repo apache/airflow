@@ -667,6 +667,7 @@ dsn
 dttm
 dtypes
 durations
+dylib
 dynamodb
 dynload
 eRevalue
@@ -1235,6 +1236,7 @@ superclass
 svg
 swp
 symlink
+symlinks
 symlinking
 sync'ed
 sys
