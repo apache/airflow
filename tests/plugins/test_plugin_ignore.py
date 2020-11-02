@@ -23,8 +23,6 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-import pytest
-
 from airflow import settings
 from airflow.utils.file import find_path_from_directory
 
@@ -38,10 +36,11 @@ class TestIgnorePluginFile(unittest.TestCase):
         """
         Make tmp folder and files that should be ignored. And set base path.
         """
-        self.test_dir = tempfile.mkdtemp()
+        # Temp dir name includes an ignored token "not", but it shouldn't matter since it's in the base path.
+        self.test_dir = tempfile.mkdtemp(prefix="onotole")
         self.test_file = os.path.join(self.test_dir, 'test_file.txt')
         self.plugin_folder_path = os.path.join(self.test_dir, 'test_ignore')
-        os.mkdir(os.path.join(self.test_dir, "test_ignore"))
+        os.mkdir(self.plugin_folder_path)
         os.mkdir(os.path.join(self.plugin_folder_path, "subdir1"))
         os.mkdir(os.path.join(self.plugin_folder_path, "subdir2"))
         files_content = [
@@ -67,8 +66,6 @@ class TestIgnorePluginFile(unittest.TestCase):
         """
         shutil.rmtree(self.test_dir)
 
-    # See the issue: https://github.com/apache/airflow/issues/10988
-    @pytest.mark.heisentests
     def test_find_not_should_ignore_path(self):
         """
         Test that the .airflowignore work and whether the file is properly ignored.
