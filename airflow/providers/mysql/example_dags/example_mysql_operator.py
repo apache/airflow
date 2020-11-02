@@ -27,16 +27,14 @@ from airflow.utils.dates import days_ago
 
 default_args = {
     'owner': 'airflow',
-    'depends_on_past': False,
-    'start_date': days_ago(2),
-    'email': ['airflow@example.com'],
-    'email_on_failure': False,
-    'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
 }
 
-dag = DAG('mysql_dag', default_args=default_args, description='MySql DAG example')
+dag = DAG(
+    'example_mysql',
+    default_args=default_args,
+    start_date=days_ago(2),
+    tags=['example'],
+)
 
 # [START howto_operator_mysql]
 
