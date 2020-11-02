@@ -257,7 +257,7 @@ Here's the list of the subpackages and what they enable:
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
 | samba               | ``pip install 'apache-airflow[samba]'``             | :class:`airflow.providers.apache.hive.transfers.hive_to_samba.HiveToSambaOperator` |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
-| singularity         | ``pip install 'apache-airflow[singularity]'``       |                                                                                    |
+| singularity         | ``pip install 'apache-airflow[singularity]'``       | Singularity container operator                                                     |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
 | statsd              | ``pip install 'apache-airflow[statsd]'``            | Needed by StatsD metrics                                                           |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
