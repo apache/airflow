@@ -395,7 +395,7 @@ run ``airflow webserver``, ``airflow scheduler``, ``airflow worker`` in separate
 This can be achieved either via ``tmux`` or via exec-ing into the running container from the host. Tmux
 is installed inside the container and you can launch it with ``tmux`` command. Tmux provides you with the
 capability of creating multiple virtual terminals and multiplex between them. More about ``tmux`` can be
-found at `tmux github wiki page <https://github.com/tmux/tmux/wiki>`_ . Tmux has several useful shortcuts
+found at `tmux GitHub wiki page <https://github.com/tmux/tmux/wiki>`_ . Tmux has several useful shortcuts
 that allow you to split the terminals, open new tabs etc - it's pretty useful to learn it.
 
 .. raw:: html
@@ -1001,7 +1001,7 @@ Managing Dependencies
 ---------------------
 
 If you need to change apt dependencies in the ``Dockerfile.ci``, add Python packages in ``setup.py`` or
-add javascript dependencies in ``package.json``, you can either add dependencies temporarily for a single
+add JavaScript dependencies in ``package.json``, you can either add dependencies temporarily for a single
 Breeze session or permanently in ``setup.py``, ``Dockerfile.ci``, or ``package.json`` files.
 
 Installing Dependencies for a Single Breeze Session
@@ -1865,8 +1865,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  flake8 forbid-tabs helm-lint incorrect-use-of-LoggingMixin insert-license
                  language-matters lint-dockerfile lint-openapi mixed-line-ending mypy mypy-helm
                  no-relative-imports pre-commit-descriptions pydevd python2-compile python2-fastcheck
-                 python-no-log-warn rst-backticks setup-order shellcheck sort-in-the-wild
-                 trailing-whitespace update-breeze-file update-extras update-local-yml-file yamllint
+                 python-no-log-warn rst-backticks setup-order setup-installation shellcheck
+                 sort-in-the-wild trailing-whitespace update-breeze-file update-extras
+                 update-local-yml-file yamllint
 
         You can pass extra arguments including options to to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:

@@ -213,6 +213,12 @@ repos:
         files: ^setup.py$
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_order_setup.py
+      - id: setup-installation
+        name: Checks if all the libraries in setup.py are listed in installation.rst file
+        language: python
+        files: ^setup.py$|^docs/installation.rst$
+        pass_filenames: false
+        entry: ./scripts/ci/pre_commit/pre_commit_check_setup_installation.py
       - id: update-breeze-file
         name: Update output of breeze command in BREEZE.rst
         entry: "./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.sh"

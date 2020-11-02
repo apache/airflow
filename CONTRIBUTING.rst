@@ -540,13 +540,15 @@ This is the full list of those extras:
 
   .. START EXTRAS HERE
 
-all, all_dbs, async, atlas, aws, azure, azure_blob_storage, azure_container_instances, azure_cosmos,
-azure_data_lake, azure_secrets, cassandra, celery, cgroups, cloudant, crypto, dask, databricks,
-datadog, devel, devel_azure, devel_ci, devel_hadoop, doc, docker, druid, elasticsearch, emr, gcp,
-gcp_api, github_enterprise, google_auth, grpc, hashicorp, hdfs, hive, jdbc, jira, kerberos,
-kubernetes, ldap, mongo, mssql, mysql, oracle, papermill, password, pinot, postgres, presto, qds,
-rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry, slack, snowflake, ssh, statsd,
-vertica, virtualenv, webhdfs, winrm
+all, all_dbs, amazon, apache.atlas, apache.cassandra, apache.druid, apache.hdfs, apache.hive,
+apache.pinot, apache.presto, apache.webhdfs, async, atlas, aws, azure, azure_blob_storage,
+azure_container_instances, azure_cosmos, azure_data_lake, azure_secrets, cassandra, celery, cgroups,
+cloudant, cncf.kubernetes, crypto, dask, databricks, datadog, devel, devel_all, devel_azure,
+devel_ci, devel_hadoop, doc, docker, druid, elasticsearch, emr, gcp, gcp_api, github_enterprise,
+google, google_auth, grpc, hashicorp, hdfs, hive, jdbc, jira, kerberos, kubernetes, ldap,
+microsoft.azure, microsoft.mssql, microsoft.winrm, mongo, mssql, mysql, oracle, papermill, password,
+pinot, postgres, presto, qds, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry,
+slack, snowflake, ssh, statsd, vertica, virtualenv, webhdfs, winrm
 
   .. END EXTRAS HERE
 
