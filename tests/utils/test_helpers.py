@@ -139,10 +139,9 @@ class TestHelpers(unittest.TestCase):
         self.assertDictEqual(merged, {'a': 1, 'r': {'b': 0, 'c': 3}})
 
     @conf_vars({
-        ("webserver", "base_url"): "http://base_url",
         ("webserver", "dag_default_view"): "custom",
     })
     def test_build_airflow_url_with_query(self):
         query = {"dag_id": "test_dag", "param": "key/to.encode"}
         url = build_airflow_url_with_query(query)
-        assert url == "http://base_url/custom?dag_id=test_dag&param=key%2Fto.encode"
+        assert url == "/custom?dag_id=test_dag&param=key%2Fto.encode"

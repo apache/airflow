@@ -213,5 +213,4 @@ def build_airflow_url_with_query(query: Dict[str, Any]) -> str:
     'http://0.0.0.0:8000/base/graph?dag_id=my-task&root=&execution_date=2020-10-27T10%3A59%3A25.615587
     """
     view = conf.get('webserver', 'dag_default_view').lower()
-    base_url = conf.get('webserver', 'base_url')
-    return f"{parse.urljoin(base_url, view)}?{parse.urlencode(query)}"
+    return f"/{view}?{parse.urlencode(query)}"
