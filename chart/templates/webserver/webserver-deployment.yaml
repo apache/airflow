@@ -65,7 +65,7 @@ spec:
         {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
         {{- end }}
     spec:
-      serviceAccountName: {{ .Release.Name }}-webserver
+      serviceAccountName: {{ default (printf "%s-webserver" .Release.Name) .Values.webserver.serviceAccount.name }}
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
       affinity:
