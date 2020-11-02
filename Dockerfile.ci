@@ -277,7 +277,7 @@ COPY airflow/www_rbac/static ${AIRFLOW_SOURCES}/airflow/www_rbac/static/
 # Package JS/css for production
 RUN yarn --cwd airflow/www_rbac run prod
 
-COPY scripts/ci/in_container/entrypoint_ci.sh /entrypoint
+COPY scripts/in_container/entrypoint_ci.sh /entrypoint
 RUN chmod a+x /entrypoint
 
 # Copy selected subdirectories only
