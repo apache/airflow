@@ -37,7 +37,7 @@ class MongoToS3Operator(BaseOperator):
                 .transform() is meant to be extended by child classes
                 to perform transformations unique to those operators needs
 
-    :param mongo_conn_id: reference to a specific schema in redshift database
+    :param mongo_conn_id: reference to a specific mongo connection
     :type mongo_conn_id: str
     :param aws_conn_id: reference to a specific S3 connection
     :type aws_conn_id: str
