@@ -29,9 +29,9 @@ from airflow.utils.decorators import apply_defaults
 class MongoToS3Operator(BaseOperator):
     """Operator meant to move data from mongo via pymongo to s3 via boto.
     Things to note:
-                .execute() is written to depend on .transform()
-                .transform() is meant to be extended by child classes
-                to perform transformations unique to those operators needs
+        -.execute() is written to depend on .transform()
+        -.transform() is meant to be extended by child classes
+        to perform transformations unique to those operators needs
 
     :param mongo_conn_id: reference to a specific mongo connection
     :type mongo_conn_id: str
