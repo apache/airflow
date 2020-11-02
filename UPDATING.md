@@ -58,6 +58,17 @@ raw bytes through XCom you must encode them using an encoding like ``base64``.
 If you understand the risk and still want to use [pickling](https://docs.python.org/3/library/pickle.html),
 set `enable_xcom_pickling = False` in your Airflow config's `core` section.
 
+### Airflowignore of base path
+
+There was a bug fixed in https://github.com/apache/airflow/pull/11993 that the "airflowignore" checked
+the base path of the dag folder for forbidden dags, not only the relative part. This had the effect
+that if the base path contained the excluded word the whole dag folder could have been excluded. For
+example if the airflowignore file contained x, and the dags folder was '/var/x/dags', then all dags in
+the folder would be excluded. The fix only matches the relative path only now which means that if you
+previously used full path as ignored, you should change it to relative one. For example if your dag
+folder was '/var/dags/' and your airflowignore contained '/var/dag/excluded/', you should change it
+to 'excluded/'.
+
 ### The default value for `[webserver] cookie_samesite` has been changed to `Lax`
 
 As [recommended](https://flask.palletsprojects.com/en/1.1.x/config/#SESSION_COOKIE_SAMESITE) by Flask, the
