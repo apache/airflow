@@ -1138,6 +1138,12 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             session.merge(self)
 
         session.commit()
+
+        self._run_mini_scheduler_on_child_tasks(session)
+
+    @provide_session
+    @Sentry.enrich_errors
+    def _run_mini_scheduler_on_child_tasks(self, session=None) -> None:
         if conf.getboolean('scheduler', 'schedule_after_task_execution', fallback=True):
             from airflow.models.dagrun import DagRun  # Avoid circular import
 
@@ -1179,9 +1185,12 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
                 self.log.info("%d downstream tasks scheduled from follow-on schedule check", num)
 
                 session.commit()
-            except OperationalError:
+            except OperationalError as e:
                 # Any kind of DB error here is _non fatal_ as this block is just an optimisation.
-                self.log.info("DB error when checking downstream tasks ignored", exc_info=True)
+                self.log.info(
+                    "Skipping mini scheduling run due to exception: {}".format(e.statement),
+                    exc_info=True,
+                )
                 session.rollback()
 
     def _prepare_and_execute_task_with_callbacks(

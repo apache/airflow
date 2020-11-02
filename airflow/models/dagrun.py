@@ -44,11 +44,7 @@ from airflow.utils.types import DagRunType
 
 
 class TISchedulingDecision(NamedTuple):
-    """
-    Type of return for DagRun.task_instance_scheduling_decisions
-
-    This is only used by type checkers, at run time this is a plain dict.
-    """
+    """Type of return for DagRun.task_instance_scheduling_decisions"""
 
     tis: List[TI]
     schedulable_tis: List[TI]
