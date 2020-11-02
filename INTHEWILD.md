@@ -140,6 +140,7 @@ Currently, **officially** using Airflow:
 1. [Dynata](https://www.dynata.com) [[@neil3handari](https://github.com/neil3handari)]
 1. [EBANX](https://www.ebanx.com/) [[@estevammr](https://github.com/estevammr) & [@nathangngencissk](https://github.com/nathangngencissk) & [@raafaadg](https://github.com/raafaadg) & [@whrocha](https://github.com/whrocha)]
 1. [Easy Taxi](http://www.easytaxi.com/) [[@caique-lima](https://github.com/caique-lima) & [@diraol](https://github.com/diraol)]
+1. [Elai Data](https://www.elaidata.com/) [[@lgov](https://github.com/lgov)]
 1. [EllisDon](http://www.ellisdon.com/) [[@d2kalra](https://github.com/d2kalra) & [@zbasama](https://github.com/zbasama)]
 1. [Endesa](https://www.endesa.com) [[@drexpp](https://github.com/drexpp)]
 1. [Enigma](https://www.enigma.com) [[@hydrosquall](https://github.com/hydrosquall)]
