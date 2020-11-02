@@ -136,7 +136,7 @@ How can I create DAGs dynamically?
 
 Airflow looks in your ``DAGS_FOLDER`` for modules that contain ``DAG`` objects
 in their global namespace and adds the objects it finds in the
-``DagBag``. Knowing this all, we need is a way to dynamically assign
+``DagBag``. Knowing this, all we need is a way to dynamically assign
 variable in the global namespace. This is easily done in python using the
 ``globals()`` function for the standard library, which behaves like a
 simple dictionary.
