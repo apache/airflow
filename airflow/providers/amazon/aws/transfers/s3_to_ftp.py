@@ -19,8 +19,8 @@
 import os
 
 from airflow.models import BaseOperator
-from airflow.hooks.S3_hook import S3Hook
-from airflow.contrib.hooks.ftp_hook import FTPHook
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.ftp.hooks.ftp import FTPHook
 from urllib.parse import urlparse
 from airflow.utils.decorators import apply_defaults
 from airflow.plugins_manager import AirflowPlugin
