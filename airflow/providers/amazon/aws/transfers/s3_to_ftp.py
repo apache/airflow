@@ -80,12 +80,11 @@ class S3ToFTPOperator(BaseOperator):
         return parsed_s3_key.path.lstrip('/')
 
     def execute(self, context):
-        self.s3_key = self.get_s3_key(self.s3_key)
         s3_hook = S3Hook(self.s3_conn_id)
-        s3_client = s3_hook.get_conn()
-        s3_client.download_file(self.s3_bucket, self.s3_key, self.local_file_path)
+        local_file_path = s3_hook.download_file(self.s3_bucket, self.s3_key)
 
         ftp_hook = FTPHook(ftp_conn_id=self.ftp_conn_id)
-        ftp_hook.store_file(self.local_file_path, self.ftp_path)
-
-        os.remove(self.local_file_path)
+        try:  
+            ftp_hook.store_file(self.ftp_path, local_file_path)
+        finally:
+            os.remove(local_file_path)
