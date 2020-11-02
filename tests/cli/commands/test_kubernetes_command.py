@@ -27,7 +27,7 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import kubernetes_command
 
 
-class TestGeneratteDagYamlCommand(unittest.TestCase):
+class TestGenerateDagYamlCommand(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.parser = cli_parser.get_parser()
@@ -44,6 +44,12 @@ class TestGeneratteDagYamlCommand(unittest.TestCase):
             self.assertTrue(os.path.isfile(out_dir + file_name))
             self.assertGreater(os.stat(out_dir + file_name).st_size, 0)
 
+
+class TestCleanUpPodsCommand(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = cli_parser.get_parser()
+
     @mock.patch('kubernetes.client.CoreV1Api.delete_namespaced_pod')
     def test_delete_pod(self, delete_namespaced_pod):
         kubernetes_command._delete_pod('dummy', 'awesome-namespace')
@@ -51,13 +57,32 @@ class TestGeneratteDagYamlCommand(unittest.TestCase):
 
     @mock.patch('airflow.cli.commands.kubernetes_command._delete_pod')
     @mock.patch('kubernetes.client.CoreV1Api.list_namespaced_pod')
-    @mock.patch('kubernetes.config.load_incluster_config')
+    @mock.patch('airflow.kubernetes.kube_client.config.load_incluster_config')
+    def test_running_pods_are_not_cleaned(self, load_incluster_config, list_namespaced_pod, delete_pod):
+        pod1 = MagicMock()
+        pod1.metadata.name = 'dummy'
+        pod1.status.phase = 'Running'
+        pod1.status.reason = None
+        pods = list_namespaced_pod()
+        pods.metadata._continue = None
+        pods.items = [pod1]
+        kubernetes_command.cleanup_pods(
+            self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
+        )
+        delete_pod.assert_not_called()
+        load_incluster_config.assert_called_once()
+
+    @mock.patch('airflow.cli.commands.kubernetes_command._delete_pod')
+    @mock.patch('kubernetes.client.CoreV1Api.list_namespaced_pod')
+    @mock.patch('airflow.kubernetes.kube_client.config.load_incluster_config')
     def test_cleanup_succeeded_pods(self, load_incluster_config, list_namespaced_pod, delete_pod):
         pod1 = MagicMock()
         pod1.metadata.name = 'dummy'
         pod1.status.phase = 'Succeeded'
         pod1.status.reason = None
-        list_namespaced_pod().items = [pod1]
+        pods = list_namespaced_pod()
+        pods.metadata._continue = None
+        pods.items = [pod1]
         kubernetes_command.cleanup_pods(
             self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
         )
@@ -75,7 +100,9 @@ class TestGeneratteDagYamlCommand(unittest.TestCase):
         pod1.status.phase = 'Failed'
         pod1.status.reason = None
         pod1.spec.restart_policy = 'Always'
-        list_namespaced_pod().items = [pod1]
+        pods = list_namespaced_pod()
+        pods.metadata._continue = None
+        pods.items = [pod1]
         kubernetes_command.cleanup_pods(
             self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
         )
@@ -93,7 +120,9 @@ class TestGeneratteDagYamlCommand(unittest.TestCase):
         pod1.status.phase = 'Failed'
         pod1.status.reason = None
         pod1.spec.restart_policy = 'Never'
-        list_namespaced_pod().items = [pod1]
+        pods = list_namespaced_pod()
+        pods.metadata._continue = None
+        pods.items = [pod1]
         kubernetes_command.cleanup_pods(
             self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
         )
@@ -109,7 +138,9 @@ class TestGeneratteDagYamlCommand(unittest.TestCase):
         pod1.status.phase = 'Failed'
         pod1.status.reason = 'Evicted'
         pod1.spec.restart_policy = 'Never'
-        list_namespaced_pod().items = [pod1]
+        pods = list_namespaced_pod()
+        pods.metadata._continue = None
+        pods.items = [pod1]
         kubernetes_command.cleanup_pods(
             self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
         )
@@ -125,7 +156,9 @@ class TestGeneratteDagYamlCommand(unittest.TestCase):
         pod1.metadata.name = 'dummy'
         pod1.status.phase = 'Succeeded'
         pod1.status.reason = None
-        list_namespaced_pod().items = [pod1]
+        pods = list_namespaced_pod()
+        pods.metadata._continue = None
+        pods.items = [pod1]
         kubernetes_command.cleanup_pods(
             self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
         )

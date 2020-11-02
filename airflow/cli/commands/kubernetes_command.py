@@ -19,12 +19,13 @@ import os
 import sys
 
 import yaml
-from kubernetes import client, config
+from kubernetes import client
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 
 from airflow.executors.kubernetes_executor import KubeConfig, create_pod_id
 from airflow.kubernetes import pod_generator
+from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import TaskInstance
 from airflow.settings import pod_mutation_hook
@@ -87,34 +88,36 @@ def cleanup_pods(args):
     pod_restart_policy_never = 'never'
 
     print('Loading Kubernetes configuration')
-    config.load_incluster_config()
-    core_v1 = client.CoreV1Api()
+    kube_client = get_kube_client()
     print(f'Listing pods in namespace {namespace}')
-    pod_list = core_v1.list_namespaced_pod(namespace)
+    continue_token = None
+    while True:  # pylint: disable=too-many-nested-blocks
+        pod_list = kube_client.list_namespaced_pod(namespace=namespace, limit=500, _continue=continue_token)
+        for pod in pod_list.items:
+            pod_name = pod.metadata.name
+            print(f'Inspecting pod {pod_name}')
+            pod_phase = pod.status.phase.lower()
+            pod_reason = pod.status.reason.lower() if pod.status.reason else ''
+            pod_restart_policy = pod.spec.restart_policy.lower()
 
-    for pod in pod_list.items:
-        pod_name = pod.metadata.name
-        print(f'Inspecting pod {pod_name}')
-        pod_phase = pod.status.phase.lower()
-        pod_reason = pod.status.reason.lower() if pod.status.reason else ''
-        pod_restart_policy = pod.spec.restart_policy.lower()
-
-        if (
-            pod_phase == pod_succeeded
-            or (pod_phase == pod_failed and pod_restart_policy == pod_restart_policy_never)
-            or (pod_reason == pod_reason_evicted)
-        ):
-
-            print(
-                f'Deleting pod "{pod_name}" phase "{pod_phase}" and reason "{pod_reason}", '
-                f'restart policy "{pod_restart_policy}"'
-            )
-            try:
-                _delete_pod(pod.metadata.name, namespace)
-            except ApiException as e:
-                print(f"can't remove POD: {e}", file=sys.stderr)
-            continue
-        print(f'No action taken on pod {pod_name}')
+            if (
+                pod_phase == pod_succeeded
+                or (pod_phase == pod_failed and pod_restart_policy == pod_restart_policy_never)
+                or (pod_reason == pod_reason_evicted)
+            ):
+                print(
+                    f'Deleting pod "{pod_name}" phase "{pod_phase}" and reason "{pod_reason}", '
+                    f'restart policy "{pod_restart_policy}"'
+                )
+                try:
+                    _delete_pod(pod.metadata.name, namespace)
+                except ApiException as e:
+                    print(f"can't remove POD: {e}", file=sys.stderr)
+                continue
+            print(f'No action taken on pod {pod_name}')
+        continue_token = pod_list.metadata._continue  # pylint: disable=protected-access
+        if not continue_token:
+            break
 
 
 def _delete_pod(name, namespace):
