@@ -85,6 +85,38 @@ class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
                 encryption_configuration=None
             )
 
+    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    def test_execute_delete_if_exists(self, mock_hook):
+        mock_hook.table_exists.return_value = True
+        operator = BigQueryCreateEmptyTableOperator(task_id=TASK_ID,
+                                                    dataset_id=TEST_DATASET,
+                                                    project_id=TEST_GCP_PROJECT_ID,
+                                                    table_id=TEST_TABLE_ID,
+                                                    delete_if_exists=True)
+
+        operator.execute(None)
+        mock_hook.return_value \
+            .get_conn.return_value \
+            .cursor.return_value \
+            .run_table_delete \
+            .assert_called_once_with(
+                '{}.{}'.format(TEST_DATASET, TEST_TABLE_ID),
+                ignore_if_missing=True,
+            )
+        mock_hook.return_value \
+            .get_conn.return_value \
+            .cursor.return_value \
+            .create_empty_table \
+            .assert_called_once_with(
+                dataset_id=TEST_DATASET,
+                project_id=TEST_GCP_PROJECT_ID,
+                table_id=TEST_TABLE_ID,
+                schema_fields=None,
+                time_partitioning={},
+                labels=None,
+                encryption_configuration=None
+            )
+
 
 class BigQueryCreateExternalTableOperatorTest(unittest.TestCase):
 
