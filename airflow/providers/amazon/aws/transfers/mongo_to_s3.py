@@ -28,10 +28,6 @@ from airflow.utils.decorators import apply_defaults
 
 class MongoToS3Operator(BaseOperator):
     """Operator meant to move data from mongo via pymongo to s3 via boto.
-    Things to note:
-        -.execute() is written to depend on .transform()
-        -.transform() is meant to be extended by child classes
-        to perform transformations unique to those operators needs
 
     :param mongo_conn_id: reference to a specific mongo connection
     :type mongo_conn_id: str
@@ -88,7 +84,7 @@ class MongoToS3Operator(BaseOperator):
         self.allow_disk_use = allow_disk_use
 
     def execute(self, context) -> bool:
-        """Executed by task_instance at runtime"""
+        """Is written to depend on transform method"""
         s3_conn = S3Hook(self.aws_conn_id)
 
         # Grab collection and execute query according to whether or not it is a pipeline
@@ -125,7 +121,8 @@ class MongoToS3Operator(BaseOperator):
 
     @staticmethod
     def transform(docs: Any) -> Any:
-        """
+        """This method is meant to be extended by child classes
+        to perform transformations unique to those operators needs.
         Processes pyMongo cursor and returns an iterable with each element being
                 a JSON serializable dictionary
 
