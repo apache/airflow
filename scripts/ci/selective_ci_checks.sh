@@ -164,6 +164,9 @@ function needs_python_scans() {
     initialization::ga_output needs-python-scans "${@}"
 }
 
+function needs_doc_build() {
+    initialization::ga_output needs-doc-build "${@}"
+}
 
 function set_test_types() {
     initialization::ga_output test-types "${@}"
@@ -179,6 +182,7 @@ readonly ALL_TESTS
 function set_outputs_run_everything_and_exit() {
     needs_api_tests "true"
     needs_helm_tests "true"
+    needs_doc_build "true"
     needs_javascript_scans "true"
     needs_python_scans "true"
     run_tests "true"
@@ -198,6 +202,7 @@ function set_outputs_run_all_tests() {
 function set_output_skip_all_tests_and_exit() {
     needs_api_tests "false"
     needs_helm_tests "false"
+    needs_doc_build "false"
     needs_javascript_scans "false"
     needs_python_scans "false"
     run_tests "false"
@@ -308,8 +313,10 @@ function check_if_docs_should_be_generated() {
 
     if [[ $(count_changed_files) == "0" ]]; then
         echo "None of the docs changed"
+        needs_doc_build "false"
     else
         image_build_needed="true"
+        needs_doc_build "true"
     fi
 }
 

@@ -94,6 +94,7 @@ jobs:
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
       needs-helm-tests: ${{ steps.selective-checks.outputs.needs-helm-tests }}
+      needs-doc-build: ${{ steps.selective-checks.outputs.needs-doc-build }}
       needs-api-tests: ${{ steps.selective-checks.outputs.needs-api-tests }}
       pullRequestNumber: ${{ steps.source-run-info.outputs.pullRequestNumber }}
       pullRequestLabels: ${{ steps.source-run-info.outputs.pullRequestLabels }}
@@ -305,7 +306,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-info, ci-images]
     if: >
-      needs.build-info.outputs.basic-checks-only == 'false'
+      needs.build-info.outputs.needs-doc-build == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -328,7 +329,7 @@ jobs:
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     if: >
-      needs.build-info.outputs.basic-checks-only == 'false'
+      needs.build-info.outputs.needs-doc-build == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
