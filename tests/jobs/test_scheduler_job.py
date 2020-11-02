@@ -31,7 +31,6 @@ import psutil
 import pytest
 from parameterized import parameterized
 from sqlalchemy import func
-from sqlalchemy.exc import OperationalError
 
 import airflow.example_dags
 import airflow.smart_sensor_dags
@@ -708,23 +707,6 @@ class TestDagFileProcessor(unittest.TestCase):
                 content = callback_file2.read()
             self.assertEqual("Callback fired", content)
             os.remove(callback_file.name)
-
-    @mock.patch("airflow.jobs.scheduler_job.DagBag")
-    def test_process_file_should_retry_sync_to_db(self, mock_dagbag):
-        """Test that dagbag.sync_to_db is retried on OperationalError"""
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-
-        mock_dagbag.return_value.dags = {'example_dag': mock.ANY}
-        op_error = OperationalError(statement=mock.ANY, params=mock.ANY, orig=mock.ANY)
-
-        # Mock error for the first 2 tries and a successful third try
-        side_effect = [op_error, op_error, mock.ANY]
-
-        mock_sync_to_db = mock.Mock(side_effect=side_effect)
-        mock_dagbag.return_value.sync_to_db = mock_sync_to_db
-
-        dag_file_processor.process_file("/dev/null", callback_requests=mock.MagicMock())
-        mock_sync_to_db.assert_has_calls([mock.call(), mock.call(), mock.call()])
 
     def test_should_mark_dummy_task_as_success(self):
         dag_file = os.path.join(

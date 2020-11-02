@@ -21,10 +21,12 @@ import textwrap
 import unittest
 from datetime import datetime, timezone
 from tempfile import NamedTemporaryFile, mkdtemp
+from unittest import mock
 from unittest.mock import patch
 
 from freezegun import freeze_time
 from sqlalchemy import func
+from sqlalchemy.exc import OperationalError
 
 import airflow.example_dags
 from airflow import models
@@ -660,6 +662,37 @@ class TestDagBag(unittest.TestCase):
 
             new_serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
             self.assertEqual(new_serialized_dags_count, 1)
+
+    @patch("airflow.models.dagbag.DagBag.collect_dags")
+    @patch("airflow.models.serialized_dag.SerializedDagModel.bulk_sync_to_db")
+    @patch("airflow.models.dag.DAG.bulk_write_to_db")
+    def test_sync_to_db_is_retried(self, mock_bulk_write_to_db, mock_sdag_sync_to_db, mock_collect_dags):
+        """Test that dagbag.sync_to_db is retried on OperationalError"""
+
+        dagbag = DagBag("/dev/null")
+
+        op_error = OperationalError(statement=mock.ANY, params=mock.ANY, orig=mock.ANY)
+
+        # Mock error for the first 2 tries and a successful third try
+        side_effect = [op_error, op_error, mock.ANY]
+
+        mock_bulk_write_to_db.side_effect = side_effect
+
+        mock_session = mock.MagicMock()
+        dagbag.sync_to_db(session=mock_session)
+
+        # Test that 3 attempts were made to run 'DAG.bulk_write_to_db' successfully
+        mock_bulk_write_to_db.assert_has_calls([
+            mock.call(mock.ANY, session=mock.ANY),
+            mock.call(mock.ANY, session=mock.ANY),
+            mock.call(mock.ANY, session=mock.ANY),
+        ])
+        # Assert that rollback is called twice (i.e. whenever OperationalError occurs)
+        mock_session.rollback.assert_has_calls([mock.call(), mock.call()])
+        # Check that 'SerializedDagModel.bulk_sync_to_db' is also called
+        # Only called once since the other two times the 'DAG.bulk_write_to_db' error'd
+        # and the session was roll-backed before even reaching 'SerializedDagModel.bulk_sync_to_db'
+        mock_sdag_sync_to_db.assert_has_calls([mock.call(mock.ANY, session=mock.ANY)])
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
