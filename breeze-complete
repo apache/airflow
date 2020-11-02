@@ -102,6 +102,7 @@ python2-fastcheck
 python-no-log-warn
 rst-backticks
 setup-order
+setup-installation
 shellcheck
 sort-in-the-wild
 trailing-whitespace
