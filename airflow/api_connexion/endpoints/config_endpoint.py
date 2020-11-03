@@ -20,6 +20,7 @@ from flask import Response, request
 from airflow.api_connexion import security
 from airflow.api_connexion.schemas.config_schema import Config, ConfigOption, ConfigSection, config_schema
 from airflow.configuration import conf
+from airflow.security import permissions
 from airflow.settings import json
 
 LINE_SEP = '\n'  # `\n` cannot appear in f-strings
@@ -61,11 +62,9 @@ def _config_to_json(config: Config) -> str:
     return json.dumps(config_schema.dump(config), indent=4)
 
 
-@security.requires_authentication
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG)])
 def get_config() -> Response:
-    """
-    Get current configuration.
-    """
+    """Get current configuration."""
     serializer = {
         'text/plain': _config_to_text,
         'application/json': _config_to_json,

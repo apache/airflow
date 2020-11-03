@@ -42,7 +42,9 @@ class TestMarkTasks(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        dagbag = models.DagBag(include_examples=True)
+        models.DagBag(include_examples=True, read_dags_from_db=False).sync_to_db()
+        dagbag = models.DagBag(include_examples=True, read_dags_from_db=True)
+        dagbag.collect_dags_from_db()
         cls.dag1 = dagbag.dags['example_bash_operator']
         cls.dag1.sync_to_db()
         cls.dag2 = dagbag.dags['example_subdag_operator']
@@ -104,10 +106,10 @@ class TestMarkTasks(unittest.TestCase):
         self.assertTrue(len(tis) > 0)
 
         for ti in tis:  # pylint: disable=too-many-nested-blocks
-            self.assertEqual(ti.operator, dag.get_task(ti.task_id).__class__.__name__)
+            self.assertEqual(ti.operator, dag.get_task(ti.task_id).task_type)
             if ti.task_id in task_ids and ti.execution_date in execution_dates:
                 self.assertEqual(ti.state, state)
-                if state in State.finished():
+                if state in State.finished:
                     self.assertIsNotNone(ti.end_date)
             else:
                 for old_ti in old_tis:
@@ -149,7 +151,7 @@ class TestMarkTasks(unittest.TestCase):
         self.verify_state(self.dag1, [task.task_id], [self.execution_dates[0]],
                           State.FAILED, snapshot)
 
-        # dont alter other tasks
+        # don't alter other tasks
         snapshot = TestMarkTasks.snapshot_state(self.dag1, self.execution_dates)
         task = self.dag1.get_task("runme_0")
         altered = set_state(tasks=[task], execution_date=self.execution_dates[0],
@@ -281,7 +283,7 @@ class TestMarkDAGRun(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        dagbag = models.DagBag(include_examples=True)
+        dagbag = models.DagBag(include_examples=True, read_dags_from_db=False)
         cls.dag1 = dagbag.dags['example_bash_operator']
         cls.dag1.sync_to_db()
         cls.dag2 = dagbag.dags['example_subdag_operator']

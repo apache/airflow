@@ -17,17 +17,16 @@
 import enum
 
 
-class DagRunType(enum.Enum):
+class DagRunType(str, enum.Enum):
     """Class with DagRun types"""
+
     BACKFILL_JOB = "backfill"
     SCHEDULED = "scheduled"
     MANUAL = "manual"
 
     @staticmethod
     def from_run_id(run_id: str) -> "DagRunType":
-        """
-        Resolved DagRun type from run_id.
-        """
+        """Resolved DagRun type from run_id."""
         for run_type in DagRunType:
             if run_id and run_id.startswith(f"{run_type.value}__"):
                 return run_type

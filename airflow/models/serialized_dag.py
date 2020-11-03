@@ -25,12 +25,13 @@ from typing import Any, Dict, List, Optional
 
 import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, String, and_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, backref, relationship
 from sqlalchemy.sql import exists
 
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagcode import DagCode
+from airflow.models.dagrun import DagRun
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
 from airflow.utils import timezone
@@ -46,7 +47,6 @@ class SerializedDagModel(Base):
     serialized_dag table is a snapshot of DAG files synchronized by scheduler.
     This feature is controlled by:
 
-    * ``[core] store_serialized_dags = True``: enable this feature
     * ``[core] min_serialized_dag_update_interval = 30`` (s):
       serialized DAGs are updated in DB when a file gets processed by scheduler,
       to reduce DB write rate, there is a minimal interval of updating serialized DAGs.
@@ -54,10 +54,11 @@ class SerializedDagModel(Base):
       interval of deleting serialized DAGs in DB when the files are deleted, suggest
       to use a smaller interval such as 60
 
-    It is used by webserver to load dags when ``store_serialized_dags=True``.
-    Because reading from database is lightweight compared to importing from files,
+    It is used by webserver to load dags
+    because reading from database is lightweight compared to importing from files,
     it solves the webserver scalability issue.
     """
+
     __tablename__ = 'serialized_dag'
 
     dag_id = Column(String(ID_LEN), primary_key=True)
@@ -70,6 +71,22 @@ class SerializedDagModel(Base):
 
     __table_args__ = (
         Index('idx_fileloc_hash', fileloc_hash, unique=False),
+    )
+
+    dag_runs = relationship(
+        DagRun,
+        primaryjoin=dag_id == DagRun.dag_id,
+        foreign_keys=dag_id,
+        backref=backref('serialized_dag', uselist=False, innerjoin=True),
+    )
+
+    dag_model = relationship(
+        DagModel,
+        primaryjoin=dag_id == DagModel.dag_id,  # type: ignore
+        foreign_keys=dag_id,
+        uselist=False,
+        innerjoin=True,
+        backref=backref('serialized_dag', uselist=False, innerjoin=True),
     )
 
     def __init__(self, dag: DAG):
@@ -246,3 +263,18 @@ class SerializedDagModel(Base):
         :type session: Session
         """
         return session.query(cls.last_updated).filter(cls.dag_id == dag_id).scalar()
+
+    @classmethod
+    @provide_session
+    def get_latest_version_hash(cls, dag_id: str, session: Session = None) -> str:
+        """
+        Get the latest DAG version for a given DAG ID.
+
+        :param dag_id: DAG ID
+        :type dag_id: str
+        :param session: ORM Session
+        :type session: Session
+        :return: DAG Hash
+        :rtype: str
+        """
+        return session.query(cls.dag_hash).filter(cls.dag_id == dag_id).scalar()

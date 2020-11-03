@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Translate operators.
-"""
+"""This module contains Google Translate operators."""
 from typing import List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
@@ -118,7 +116,7 @@ class CloudTranslateTextOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> dict:
         hook = CloudTranslateHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

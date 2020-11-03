@@ -99,9 +99,7 @@ class SparkSqlOperator(BaseOperator):
         self._hook: Optional[SparkSqlHook] = None
 
     def execute(self, context: Dict[str, Any]) -> None:
-        """
-        Call the SparkSqlHook to run the provided sql query
-        """
+        """Call the SparkSqlHook to run the provided sql query"""
         if self._hook is None:
             self._hook = self._get_hook()
         self._hook.run_query()

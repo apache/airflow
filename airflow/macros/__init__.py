@@ -40,7 +40,6 @@ def ds_add(ds, days):
     >>> ds_add('2015-01-06', -5)
     '2015-01-01'
     """
-
     ds = datetime.strptime(ds, '%Y-%m-%d')
     if days:
         ds = ds + timedelta(days)

@@ -18,8 +18,7 @@
 # under the License.
 import datetime
 import unittest
-
-import mock
+from unittest import mock
 
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG

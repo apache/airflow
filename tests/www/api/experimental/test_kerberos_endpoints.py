@@ -77,9 +77,6 @@ class TestApiKerberos(unittest.TestCase):
             # disable mutual authentication for testing
             CLIENT_AUTH.mutual_authentication = 3
 
-            # case can influence the results
-            CLIENT_AUTH.hostname_override = socket.getfqdn()
-
             CLIENT_AUTH.handle_response(response)
             self.assertIn('Authorization', response.request.headers)
 

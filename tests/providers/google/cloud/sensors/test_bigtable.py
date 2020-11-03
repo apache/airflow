@@ -17,9 +17,9 @@
 # under the License.
 
 import unittest
+from unittest import mock
 
 import google.api_core.exceptions
-import mock
 from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable.table import ClusterState
 from parameterized import parameterized

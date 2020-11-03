@@ -132,9 +132,7 @@ def trigger_dag(dag_id):
 @api_experimental.route('/dags/<string:dag_id>', methods=['DELETE'])
 @requires_authentication
 def delete_dag(dag_id):
-    """
-    Delete all DB records related to the specified Dag.
-    """
+    """Delete all DB records related to the specified Dag."""
     try:
         count = delete.delete_dag(dag_id)
     except AirflowException as err:
@@ -219,7 +217,6 @@ def task_info(dag_id, task_id):
 @requires_authentication
 def dag_paused(dag_id, paused):
     """(Un)pauses a dag"""
-
     is_paused = bool(paused == 'true')
 
     models.DagModel.get_dagmodel(dag_id).set_is_paused(
@@ -233,7 +230,6 @@ def dag_paused(dag_id, paused):
 @requires_authentication
 def dag_is_paused(dag_id):
     """Get paused state of a dag"""
-
     is_paused = models.DagModel.get_dagmodel(dag_id).is_paused
 
     return jsonify({'is_paused': is_paused})
@@ -250,7 +246,6 @@ def task_instance_info(dag_id, execution_date, task_id):
     "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15". This will
     of course need to have been encoded for URL in the request.
     """
-
     # Convert string datetime into actual datetime
     try:
         execution_date = timezone.parse(execution_date)
@@ -291,7 +286,6 @@ def dag_run_status(dag_id, execution_date):
     "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15". This will
     of course need to have been encoded for URL in the request.
     """
-
     # Convert string datetime into actual datetime
     try:
         execution_date = timezone.parse(execution_date)
@@ -334,7 +328,7 @@ def latest_dag_runs():
                 'dag_run_url': url_for('Airflow.graph', dag_id=dagrun.dag_id,
                                        execution_date=dagrun.execution_date)
             })
-    return jsonify(items=payload)  # old flask versions dont support jsonifying arrays
+    return jsonify(items=payload)  # old flask versions don't support jsonifying arrays
 
 
 @api_experimental.route('/pools/<string:name>', methods=['GET'])
@@ -400,7 +394,6 @@ def delete_pool(name):
 
 @api_experimental.route('/lineage/<string:dag_id>/<string:execution_date>',
                         methods=['GET'])
-@requires_authentication
 def get_lineage(dag_id: str, execution_date: str):
     """Get Lineage details for a DagRun"""
     # Convert string datetime into actual datetime

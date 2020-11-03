@@ -58,6 +58,29 @@ class TestAirflowJsonEncoder(unittest.TestCase):
             '3.76953125'
         )
 
+    def test_encode_k8s_v1pod(self):
+        from kubernetes.client import models as k8s
+
+        pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                name="foo",
+                namespace="bar",
+            ),
+            spec=k8s.V1PodSpec(
+                containers=[
+                    k8s.V1Container(
+                        name="foo",
+                        image="bar",
+                    )
+                ]
+            )
+        )
+        self.assertEqual(
+            json.loads(json.dumps(pod, cls=utils_json.AirflowJsonEncoder)),
+            {"metadata": {"name": "foo", "namespace": "bar"},
+             "spec": {"containers": [{"image": "bar", "name": "foo"}]}}
+        )
+
     def test_encode_raises(self):
         self.assertRaisesRegex(TypeError,
                                "^.*is not JSON serializable$",

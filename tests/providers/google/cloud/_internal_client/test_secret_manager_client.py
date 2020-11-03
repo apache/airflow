@@ -77,7 +77,7 @@ class TestSecretManagerClient(TestCase):
         mock_secrets_client.return_value = mock_client
         mock_client.secret_version_path.return_value = "full-path"
         test_response = AccessSecretVersionResponse()
-        test_response.payload.data = "result".encode("UTF-8")
+        test_response.payload.data = "result".encode()
         mock_client.access_secret_version.return_value = test_response
         secrets_client = _SecretManagerClient(credentials="credentials")
         secret = secrets_client.get_secret(secret_id="existing", project_id="project_id")
@@ -93,7 +93,7 @@ class TestSecretManagerClient(TestCase):
         mock_secrets_client.return_value = mock_client
         mock_client.secret_version_path.return_value = "full-path"
         test_response = AccessSecretVersionResponse()
-        test_response.payload.data = "result".encode("UTF-8")
+        test_response.payload.data = "result".encode()
         mock_client.access_secret_version.return_value = test_response
         secrets_client = _SecretManagerClient(credentials="credentials")
         secret = secrets_client.get_secret(

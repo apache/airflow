@@ -45,9 +45,7 @@ def upgrade():
 
 
 def downgrade():
-    """
-    Revert column size from 256 to 50 characters, might result in data loss.
-    """
+    """Revert column size from 256 to 50 characters, might result in data loss."""
     # use batch_alter_table to support SQLite workaround
     with op.batch_alter_table('task_instance') as batch_op:
         batch_op.alter_column('queue', type_=sa.String(50))

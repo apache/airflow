@@ -186,7 +186,7 @@ if REMOTE_LOGGING:
     elif REMOTE_BASE_LOG_FOLDER.startswith('cloudwatch://'):
         CLOUDWATCH_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {
             'task': {
-                'class': 'airflow.utils.log.cloudwatch_task_handler.CloudwatchTaskHandler',
+                'class': 'airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler',
                 'formatter': 'airflow',
                 'base_log_folder': str(os.path.expanduser(BASE_LOG_FOLDER)),
                 'log_group_arn': urlparse(REMOTE_BASE_LOG_FOLDER).netloc,
@@ -212,7 +212,7 @@ if REMOTE_LOGGING:
     elif REMOTE_BASE_LOG_FOLDER.startswith('wasb'):
         WASB_REMOTE_HANDLERS: Dict[str, Dict[str, Union[str, bool]]] = {
             'task': {
-                'class': 'airflow.utils.log.wasb_task_handler.WasbTaskHandler',
+                'class': 'airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler',
                 'formatter': 'airflow',
                 'base_log_folder': str(os.path.expanduser(BASE_LOG_FOLDER)),
                 'wasb_log_folder': REMOTE_BASE_LOG_FOLDER,

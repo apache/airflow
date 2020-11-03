@@ -16,11 +16,11 @@
 # under the License.
 """Executes task in a Kubernetes POD"""
 import re
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple, Any
 
 import yaml
-from kubernetes.client import models as k8s
 from kubernetes.client import CoreV1Api
+from kubernetes.client import models as k8s
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import kube_client, pod_generator, pod_launcher
@@ -30,6 +30,7 @@ from airflow.utils.decorators import apply_defaults
 from airflow.utils.helpers import validate_key
 from airflow.utils.state import State
 from airflow.version import version as airflow_version
+from airflow.kubernetes.pod_generator import PodGenerator
 
 
 class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
@@ -49,7 +50,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :param namespace: the namespace to run within kubernetes.
     :type namespace: str
     :param image: Docker image you wish to launch. Defaults to hub.docker.com,
-        but fully qualified URLS will point to custom repositories.
+        but fully qualified URLS will point to custom repositories. (templated)
     :type image: str
     :param name: name of the pod in which the task will run, will be used (plus a random
         suffix) to generate a pod id (DNS-1123 subdomain, containing only [a-z0-9.-]).
@@ -78,7 +79,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :type cluster_context: str
     :param reattach_on_restart: if the scheduler dies while the pod is running, reattach and monitor
     :type reattach_on_restart: bool
-    :param labels: labels to apply to the Pod.
+    :param labels: labels to apply to the Pod. (templated)
     :type labels: dict
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
     :type startup_timeout_seconds: int
@@ -132,7 +133,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
     :type do_xcom_push: bool
-    :param pod_template_file: path to pod template file
+    :param pod_template_file: path to pod template file (templated)
     :type pod_template_file: str
     :param priority_class_name: priority class name for the launched Pod
     :type priority_class_name: str
@@ -140,8 +141,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         defaults to kubernetes default
     :type termination_grace_period: int
     """
+
     template_fields: Iterable[str] = (
-        'image', 'cmds', 'arguments', 'env_vars', 'config_file', 'pod_template_file')
+        'image', 'cmds', 'arguments', 'env_vars', 'labels', 'config_file', 'pod_template_file')
 
     @apply_defaults
     def __init__(self,  # pylint: disable=too-many-arguments,too-many-locals
@@ -184,7 +186,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  pod_template_file: Optional[str] = None,
                  priority_class_name: Optional[str] = None,
                  termination_grace_period: Optional[int] = None,
-                 **kwargs):
+                 **kwargs) -> None:
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
         super().__init__(resources=None, **kwargs)
@@ -265,6 +267,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                                                      config_file=self.config_file)
 
             self.pod = self.create_pod_request_obj()
+            self.namespace = self.pod.metadata.namespace
+
             self.client = client
 
             # Add combination of labels to uniquely identify a running pod
@@ -285,18 +289,22 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
             if len(pod_list.items) == 1:
                 try_numbers_match = self._try_numbers_match(context, pod_list.items[0])
-                final_state, result = self.handle_pod_overlap(labels, try_numbers_match, launcher, pod_list)
+                final_state, result = self.handle_pod_overlap(labels, try_numbers_match, launcher,
+                                                              pod_list.items[0])
             else:
                 self.log.info("creating pod with labels %s and launcher %s", labels, launcher)
                 final_state, _, result = self.create_new_pod_for_operator(labels, launcher)
             if final_state != State.SUCCESS:
+                status = self.client.read_namespaced_pod(self.name, self.namespace)
                 raise AirflowException(
-                    'Pod returned a failure: {state}'.format(state=final_state))
+                    'Pod returned a failure: {state}'.format(state=status))
             return result
         except AirflowException as ex:
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
 
-    def handle_pod_overlap(self, labels, try_numbers_match, launcher, pod_list):
+    def handle_pod_overlap(
+        self, labels: dict, try_numbers_match: bool, launcher: Any, pod: k8s.V1Pod
+    ) -> Tuple[State, Optional[str]]:
         """
 
         In cases where the Scheduler restarts while a KubernetesPodOperator task is running,
@@ -315,10 +323,13 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         else:
             log_line = "found a running pod with labels {} but a different try_number.".format(labels)
 
-        if self.reattach_on_restart:
+        # In case of failed pods, should reattach the first time, but only once
+        # as the task will have already failed.
+        if self.reattach_on_restart and not pod.metadata.labels.get("already_checked"):
             log_line += " Will attach to this pod and monitor instead of starting new one"
             self.log.info(log_line)
-            final_state, result = self.monitor_launched_pod(launcher, pod_list.items[0])
+            self.pod = pod
+            final_state, result = self.monitor_launched_pod(launcher, pod)
         else:
             log_line += "creating pod with labels {} and launcher {}".format(labels, launcher)
             self.log.info(log_line)
@@ -326,12 +337,12 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         return final_state, result
 
     @staticmethod
-    def _get_pod_identifying_label_string(labels):
+    def _get_pod_identifying_label_string(labels) -> str:
         filtered_labels = {label_id: label for label_id, label in labels.items() if label_id != 'try_number'}
         return ','.join([label_id + '=' + label for label_id, label in sorted(filtered_labels.items())])
 
     @staticmethod
-    def _try_numbers_match(context, pod):
+    def _try_numbers_match(context, pod) -> bool:
         return pod.metadata.labels['try_number'] == context['ti'].try_number
 
     def _set_name(self, name):
@@ -346,54 +357,60 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         will supersede all other values.
 
         """
+        self.log.debug("Creating pod for K8sPodOperator task %s", self.task_id)
         if self.pod_template_file:
-            pod = pod_generator.PodGenerator.deserialize_model_file(self.pod_template_file)
-        elif not self.pod:
-            pod = k8s.V1Pod(
-                api_version="v1",
-                kind="Pod",
-                metadata=k8s.V1ObjectMeta(
-                    namespace=self.namespace,
-                    labels=self.labels,
-                    name=self.name,
-                    annotations=self.annotations,
-
-                ),
-                spec=k8s.V1PodSpec(
-                    node_selector=self.node_selectors,
-                    affinity=self.affinity,
-                    tolerations=self.tolerations,
-                    init_containers=self.init_containers,
-                    containers=[
-                        k8s.V1Container(
-                            image=self.image,
-                            name="base",
-                            command=self.cmds,
-                            ports=self.ports,
-                            resources=self.k8s_resources,
-                            volume_mounts=self.volume_mounts,
-                            args=self.arguments,
-                            env=self.env_vars,
-                            env_from=self.env_from,
-                        )
-                    ],
-                    image_pull_secrets=self.image_pull_secrets,
-                    service_account_name=self.service_account_name,
-                    host_network=self.hostnetwork,
-                    security_context=self.security_context,
-                    dns_policy=self.dnspolicy,
-                    scheduler_name=self.schedulername,
-                    restart_policy='Never',
-                    priority_class_name=self.priority_class_name,
-                    volumes=self.volumes,
-                )
-            )
+            self.log.debug("Pod template file found, will parse for base pod")
+            pod_template = pod_generator.PodGenerator.deserialize_model_file(self.pod_template_file)
         else:
-            pod = self.pod
+            pod_template = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="name"))
+
+        pod = k8s.V1Pod(
+            api_version="v1",
+            kind="Pod",
+            metadata=k8s.V1ObjectMeta(
+                namespace=self.namespace,
+                labels=self.labels,
+                name=self.name,
+                annotations=self.annotations,
+
+            ),
+            spec=k8s.V1PodSpec(
+                node_selector=self.node_selectors,
+                affinity=self.affinity,
+                tolerations=self.tolerations,
+                init_containers=self.init_containers,
+                containers=[
+                    k8s.V1Container(
+                        image=self.image,
+                        name="base",
+                        command=self.cmds,
+                        ports=self.ports,
+                        resources=self.k8s_resources,
+                        volume_mounts=self.volume_mounts,
+                        args=self.arguments,
+                        env=self.env_vars,
+                        env_from=self.env_from,
+                    )
+                ],
+                image_pull_secrets=self.image_pull_secrets,
+                service_account_name=self.service_account_name,
+                host_network=self.hostnetwork,
+                security_context=self.security_context,
+                dns_policy=self.dnspolicy,
+                scheduler_name=self.schedulername,
+                restart_policy='Never',
+                priority_class_name=self.priority_class_name,
+                volumes=self.volumes,
+            )
+        )
+
+        pod = PodGenerator.reconcile_pods(pod_template, pod)
+
         for secret in self.secrets:
+            self.log.debug("Adding secret to task %s", self.task_id)
             pod = secret.attach_to_pod(pod)
         if self.do_xcom_push:
-            from airflow.kubernetes.pod_generator import PodGenerator
+            self.log.debug("Adding xcom sidecar to task %s", self.task_id)
             pod = PodGenerator.add_xcom_sidecar(pod)
         return pod
 
@@ -408,6 +425,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         if not (self.full_pod_spec or self.pod_template_file):
             # Add Airflow Version to the label
             # And a label to identify that pod is launched by KubernetesPodOperator
+            self.log.debug("Adding k8spodoperator labels to pod before launch for task %s", self.task_id)
             self.labels.update(
                 {
                     'airflow_version': airflow_version.replace('+', '-'),
@@ -429,8 +447,15 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             raise
         finally:
             if self.is_delete_operator_pod:
+                self.log.debug("Deleting pod for task %s", self.task_id)
                 launcher.delete_pod(self.pod)
         return final_state, self.pod, result
+
+    def patch_already_checked(self, pod: k8s.V1Pod):
+        """Add an "already tried annotation to ensure we only retry once"""
+        pod.metadata.labels["already_checked"] = "True"
+        body = PodGenerator.serialize_pod(pod)
+        self.client.patch_namespaced_pod(pod.metadata.name, pod.metadata.namespace, body)
 
     def monitor_launched_pod(self, launcher, pod) -> Tuple[State, Optional[str]]:
         """
@@ -449,6 +474,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             if self.log_events_on_failure:
                 for event in launcher.read_pod_events(pod).items:
                     self.log.error("Pod Event: %s - %s", event.reason, event.message)
+            self.patch_already_checked(self.pod)
             raise AirflowException(
                 'Pod returned a failure: {state}'.format(state=final_state)
             )

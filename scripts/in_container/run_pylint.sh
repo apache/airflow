@@ -18,6 +18,11 @@
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
+# Pylint is _very_ unhappy with implicit namespaces, so for this test only, we need to make it not
+trap "rm airflow/providers/__init__.py" EXIT
+touch airflow/providers/__init__.py
+
+
 export PYTHONPATH=${AIRFLOW_SOURCES}
 if [[ ${#@} == "0" ]]; then
     echo

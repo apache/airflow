@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Base operator for all operators.
-"""
+"""Base operator for all operators."""
 import abc
 import copy
 import functools
@@ -68,9 +66,7 @@ TaskStateChangeCallback = Callable[[Context], None]
 
 
 class BaseOperatorMeta(abc.ABCMeta):
-    """
-    Base metaclass of BaseOperator.
-    """
+    """Base metaclass of BaseOperator."""
 
     def __call__(cls, *args, **kwargs):
         """
@@ -271,10 +267,14 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         result
     :type do_xcom_push: bool
     """
+
     # For derived classes to define which fields will get jinjaified
     template_fields: Iterable[str] = ()
     # Defines which files extensions to look for in the templated fields
     template_ext: Iterable[str] = ()
+    # Template field renderers indicating type of the field, for example sql, json, bash
+    template_fields_renderers: Dict[str, str] = {}
+
     # Defines the color in the UI
     ui_color = '#fff'  # type: str
     ui_fgcolor = '#000'  # type: str
@@ -566,34 +566,24 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             self.set_xcomargs_dependencies()
 
     def add_inlets(self, inlets: Iterable[Any]):
-        """
-        Sets inlets to this operator
-        """
+        """Sets inlets to this operator"""
         self._inlets.extend(inlets)
 
     def add_outlets(self, outlets: Iterable[Any]):
-        """
-        Defines the outlets of this operator
-        """
+        """Defines the outlets of this operator"""
         self._outlets.extend(outlets)
 
     def get_inlet_defs(self):
-        """
-        :return: list of inlets defined for this operator
-        """
+        """:return: list of inlets defined for this operator"""
         return self._inlets
 
     def get_outlet_defs(self):
-        """
-        :return: list of outlets defined for this operator
-        """
+        """:return: list of outlets defined for this operator"""
         return self._outlets
 
     @property
     def dag(self) -> Any:
-        """
-        Returns the Operator's DAG if set, otherwise raises an error
-        """
+        """Returns the Operator's DAG if set, otherwise raises an error"""
         if self.has_dag():
             return self._dag
         else:
@@ -624,9 +614,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self._dag = dag
 
     def has_dag(self):
-        """
-        Returns True if the Operator has been assigned to a DAG.
-        """
+        """Returns True if the Operator has been assigned to a DAG."""
         return getattr(self, '_dag', None) is not None
 
     @property
@@ -733,7 +721,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     @cached_property
     def operator_extra_link_dict(self) -> Dict[str, Any]:
         """Returns dictionary of all extra links for the operator"""
-
         op_extra_links_from_plugin: Dict[str, Any] = {}
         from airflow import plugins_manager
         plugins_manager.initialize_extra_operators_links_plugins()
@@ -762,9 +749,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
     @prepare_lineage
     def pre_execute(self, context: Any):
-        """
-        This hook is triggered right before self.execute() is called.
-        """
+        """This hook is triggered right before self.execute() is called."""
 
     def execute(self, context: Any):
         """
@@ -830,7 +815,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         :param jinja_env: Jinja environment
         :type jinja_env: jinja2.Environment
         """
-
         if not jinja_env:
             jinja_env = self.get_template_env()
 
@@ -865,11 +849,11 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         :type seen_oids: set
         :return: Templated content
         """
-
         if not jinja_env:
             jinja_env = self.get_template_env()
 
         # Imported here to avoid circular dependency
+        from airflow.models.dagparam import DagParam
         from airflow.models.xcom_arg import XComArg
 
         if isinstance(content, str):
@@ -878,7 +862,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 return jinja_env.get_template(content).render(**context)
             else:
                 return jinja_env.from_string(content).render(**context)
-        elif isinstance(content, XComArg):
+        elif isinstance(content, (XComArg, DagParam)):
             return content.resolve(context)
 
         if isinstance(content, tuple):
@@ -1029,11 +1013,9 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
     def get_flat_relative_ids(self,
                               upstream: bool = False,
-                              found_descendants: Optional[Set[str]] = None) -> Set[str]:
-        """
-        Get a flat set of relatives' ids, either upstream or downstream.
-        """
-
+                              found_descendants: Optional[Set[str]] = None,
+                              ) -> Set[str]:
+        """Get a flat set of relatives' ids, either upstream or downstream."""
         if not self._dag:
             return set()
 
@@ -1045,15 +1027,12 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             if relative_id not in found_descendants:
                 found_descendants.add(relative_id)
                 relative_task = self._dag.task_dict[relative_id]
-                relative_task.get_flat_relative_ids(upstream,
-                                                    found_descendants)
+                relative_task.get_flat_relative_ids(upstream, found_descendants)
 
         return found_descendants
 
     def get_flat_relatives(self, upstream: bool = False):
-        """
-        Get a flat list of relatives, either upstream or downstream.
-        """
+        """Get a flat list of relatives, either upstream or downstream."""
         if not self._dag:
             return set()
         from airflow.models.dag import DAG
@@ -1068,9 +1047,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             ignore_first_depends_on_past: bool = True,
             ignore_ti_state: bool = False,
             mark_success: bool = False) -> None:
-        """
-        Run a set of task instances for a date range.
-        """
+        """Run a set of task instances for a date range."""
         start_date = start_date or self.start_date
         end_date = end_date or self.end_date or timezone.utcnow()
 
@@ -1111,7 +1088,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             return self.downstream_list
 
     def __repr__(self):
-        return "<Task({self.__class__.__name__}): {self.task_id}>".format(
+        return "<Task({self.task_type}): {self.task_id}>".format(
             self=self)
 
     @property
@@ -1314,15 +1291,13 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 vars(BaseOperator(task_id='test')).keys() - {
                     'inlets', 'outlets', '_upstream_task_ids', 'default_args', 'dag', '_dag',
                     '_BaseOperator__instantiated',
-                } | {'_task_type', 'subdag', 'ui_color', 'ui_fgcolor', 'template_fields'})
+                } | {'_task_type', 'subdag', 'ui_color', 'ui_fgcolor',
+                     'template_fields', 'template_fields_renderers'})
 
         return cls.__serialized_fields
 
     def is_smart_sensor_compatible(self):
-        """
-        Return if this operator can use smart service. Default False.
-
-        """
+        """Return if this operator can use smart service. Default False."""
         return False
 
 
@@ -1418,9 +1393,7 @@ def cross_downstream(from_tasks: Sequence[BaseOperator],
 
 @attr.s(auto_attribs=True)
 class BaseOperatorLink(metaclass=ABCMeta):
-    """
-    Abstract base class that defines how we get an operator link.
-    """
+    """Abstract base class that defines how we get an operator link."""
 
     operators: ClassVar[List[Type[BaseOperator]]] = []
     """

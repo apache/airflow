@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Dataproc Job sensor.
-"""
+"""This module contains a Dataproc Job sensor."""
 # pylint: disable=C0302
 
 from google.cloud.dataproc_v1beta2.types import JobStatus
@@ -62,7 +60,7 @@ class DataprocJobSensor(BaseSensorOperator):
         self.dataproc_job_id = dataproc_job_id
         self.location = location
 
-    def poke(self, context):
+    def poke(self, context: dict) -> bool:
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id)
         job = hook.get_job(job_id=self.dataproc_job_id, location=self.location, project_id=self.project_id)
         state = job.status.state

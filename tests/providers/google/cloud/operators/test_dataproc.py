@@ -464,7 +464,7 @@ class TestDataprocSubmitJobOperator(unittest.TestCase):
             metadata=METADATA,
         )
         mock_hook.return_value.wait_for_job.assert_called_once_with(
-            job_id=job_id, project_id=GCP_PROJECT, location=GCP_LOCATION
+            job_id=job_id, project_id=GCP_PROJECT, location=GCP_LOCATION, timeout=None
         )
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))

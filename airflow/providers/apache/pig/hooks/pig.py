@@ -49,7 +49,6 @@ class PigCliHook(BaseHook):
         >>> ("hdfs://" in result)
         True
         """
-
         with TemporaryDirectory(prefix='airflow_pigop_') as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir) as f:
                 f.write(pig.encode('utf-8'))
@@ -88,9 +87,7 @@ class PigCliHook(BaseHook):
                 return stdout
 
     def kill(self) -> None:
-        """
-        Kill Pig job
-        """
+        """Kill Pig job"""
         if self.sub_process:
             if self.sub_process.poll() is None:
                 self.log.info("Killing the Pig job")

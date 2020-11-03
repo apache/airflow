@@ -23,6 +23,7 @@ import json
 import os
 import textwrap
 from argparse import Action, ArgumentError, RawTextHelpFormatter
+from functools import lru_cache
 from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Union
 
 from tabulate import tabulate_formats
@@ -37,11 +38,7 @@ from airflow.utils.helpers import partition
 from airflow.utils.module_loading import import_string
 from airflow.utils.timezone import parse as parsedate
 
-DAGS_FOLDER = settings.DAGS_FOLDER
-
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
-if BUILD_DOCS:
-    DAGS_FOLDER = '[AIRFLOW_HOME]/dags'
 
 
 def lazy_load_command(import_path: str) -> Callable:
@@ -68,13 +65,12 @@ class DefaultHelpParser(argparse.ArgumentParser):
             raise ArgumentError(action, message)
         if value == 'kubernetes':
             try:
-                from kubernetes.client import models
-                if not models:
-                    message = "kubernetes subcommand requires that ' \
-                              'you run pip install 'apache-airflow[cncf.kubernetes]'"
-                    raise ArgumentError(action, message)
-            except Exception:  # pylint: disable=W0703
-                message = 'kubernetes subcommand requires that you pip install the kubernetes python client'
+                import kubernetes.client  # noqa: F401 pylint: disable=unused-import
+            except ImportError:
+                message = (
+                    'The kubernetes subcommand requires that you pip install the kubernetes python client.'
+                    "To do it, run: pip install 'apache-airflow[cncf.kubernetes]'"
+                )
                 raise ArgumentError(action, message)
 
         if action.choices is not None and value not in action.choices:
@@ -94,6 +90,7 @@ _UNSET = object()
 
 class Arg:
     """Class to keep information about command line argument"""
+
     # pylint: disable=redefined-builtin,unused-argument
     def __init__(self, flags=_UNSET, help=_UNSET, action=_UNSET, default=_UNSET, nargs=_UNSET, type=_UNSET,
                  choices=_UNSET, required=_UNSET, metavar=_UNSET):
@@ -144,7 +141,7 @@ ARG_SUBDIR = Arg(
         "File location or directory from which to look for the dag. "
         "Defaults to '[AIRFLOW_HOME]/dags' where [AIRFLOW_HOME] is the "
         "value you set for 'AIRFLOW_HOME' config you set in 'airflow.cfg' "),
-    default=DAGS_FOLDER)
+    default='[AIRFLOW_HOME]/dags' if BUILD_DOCS else settings.DAGS_FOLDER)
 ARG_START_DATE = Arg(
     ("-s", "--start-date"),
     help="Override start_date YYYY-MM-DD",
@@ -157,7 +154,7 @@ ARG_OUTPUT_PATH = Arg(
     ("-o", "--output-path",),
     help="The output for generated yaml files",
     type=str,
-    default=os.getcwd())
+    default="[CWD]" if BUILD_DOCS else os.getcwd())
 ARG_DRY_RUN = Arg(
     ("-n", "--dry-run"),
     help="Perform a dry run for each task. Only renders Template Fields for each task, nothing else",
@@ -200,6 +197,10 @@ ARG_COLOR = Arg(
     default=ColorMode.AUTO)
 
 # list_dag_runs
+ARG_DAG_ID_OPT = Arg(
+    ("-d", "--dag-id"),
+    help="The id of the dag"
+)
 ARG_NO_BACKFILL = Arg(
     ("--no-backfill",),
     help="filter all the backfill dagruns given the dag id",
@@ -526,17 +527,11 @@ ARG_ACCESS_LOGFORMAT = Arg(
     help="The access log format for gunicorn logs")
 
 # scheduler
-ARG_DAG_ID_OPT = Arg(
-    ("-d", "--dag-id"),
-    help="The id of the dag to run"
-)
 ARG_NUM_RUNS = Arg(
     ("-n", "--num-runs"),
     default=conf.getint('scheduler', 'num_runs'),
     type=int,
     help="Set the number of runs to execute before exiting")
-
-# worker
 ARG_DO_PICKLE = Arg(
     ("-p", "--do-pickle"),
     default=False,
@@ -545,6 +540,8 @@ ARG_DO_PICKLE = Arg(
         "to the workers, instead of letting workers run their version "
         "of the code"),
     action="store_true")
+
+# worker
 ARG_QUEUES = Arg(
     ("-q", "--queues"),
     help="Comma delimited list of queues to serve",
@@ -771,6 +768,7 @@ ALTERNATIVE_CONN_SPECS_ARGS = [
 
 class ActionCommand(NamedTuple):
     """Single CLI command"""
+
     name: str
     help: str
     func: Callable
@@ -781,6 +779,7 @@ class ActionCommand(NamedTuple):
 
 class GroupCommand(NamedTuple):
     """ClI command with subcommands"""
+
     name: str
     help: str
     subcommands: Iterable
@@ -821,7 +820,7 @@ DAGS_COMMANDS = (
         name='list-jobs',
         help="List the jobs",
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_list_jobs'),
-        args=(ARG_DAG_ID_OPT, ARG_STATE, ARG_LIMIT, ARG_OUTPUT,),
+        args=(ARG_DAG_ID_OPT, ARG_STATE, ARG_LIMIT, ARG_OUTPUT),
     ),
     ActionCommand(
         name='state',
@@ -1237,7 +1236,7 @@ CELERY_COMMANDS = (
         help="Start a Celery worker node",
         func=lazy_load_command('airflow.cli.commands.celery_command.worker'),
         args=(
-            ARG_DO_PICKLE, ARG_QUEUES, ARG_CONCURRENCY, ARG_CELERY_HOSTNAME, ARG_PID, ARG_DAEMON,
+            ARG_QUEUES, ARG_CONCURRENCY, ARG_CELERY_HOSTNAME, ARG_PID, ARG_DAEMON,
             ARG_UMASK, ARG_STDOUT, ARG_STDERR, ARG_LOG_FILE, ARG_AUTOSCALE, ARG_SKIP_SERVE_LOGS
         ),
     ),
@@ -1279,7 +1278,7 @@ KUBERNETES_COMMANDS = (
         name='generate-dag-yaml',
         help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
              "launching into a cluster",
-        func=lazy_load_command('airflow.cli.commands.dag_command.generate_pod_yaml'),
+        func=lazy_load_command('airflow.cli.commands.kubernetes_command.generate_pod_yaml'),
         args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_OUTPUT_PATH),
     ),
 )
@@ -1292,7 +1291,7 @@ airflow_commands: List[CLICommand] = [
     ),
     GroupCommand(
         name="kubernetes",
-        help='tools to help run the KubernetesExecutor',
+        help='Tools to help run the KubernetesExecutor',
         subcommands=KUBERNETES_COMMANDS
     ),
     GroupCommand(
@@ -1336,7 +1335,7 @@ airflow_commands: List[CLICommand] = [
         help="Start a scheduler instance",
         func=lazy_load_command('airflow.cli.commands.scheduler_command.scheduler'),
         args=(
-            ARG_DAG_ID_OPT, ARG_SUBDIR, ARG_NUM_RUNS, ARG_DO_PICKLE, ARG_PID, ARG_DAEMON, ARG_STDOUT,
+            ARG_SUBDIR, ARG_NUM_RUNS, ARG_DO_PICKLE, ARG_PID, ARG_DAEMON, ARG_STDOUT,
             ARG_STDERR, ARG_LOG_FILE
         ),
     ),
@@ -1423,6 +1422,7 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
 
     It displays simple commands and groups of commands in separate sections.
     """
+
     def _format_action(self, action: Action):
         if isinstance(action, argparse._SubParsersAction):  # pylint: disable=protected-access
 
@@ -1458,6 +1458,7 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
         return super()._format_action(action)
 
 
+@lru_cache(maxsize=None)
 def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
     """Creates and returns command line argument parser"""
     parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
@@ -1473,13 +1474,9 @@ def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
 
 
 def _sort_args(args: Iterable[Arg]) -> Iterable[Arg]:
-    """
-    Sort subcommand optional args, keep positional args
-    """
+    """Sort subcommand optional args, keep positional args"""
     def get_long_option(arg: Arg):
-        """
-        Get long option from Arg.flags
-        """
+        """Get long option from Arg.flags"""
         return arg.flags[0] if len(arg.flags) == 1 else arg.flags[1]
     positional, optional = partition(lambda x: x.flags[0].startswith("-"), args)
     yield from positional

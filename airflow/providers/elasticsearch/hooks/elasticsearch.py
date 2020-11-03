@@ -36,9 +36,7 @@ class ElasticsearchHook(DbApiHook):
         self.connection = connection
 
     def get_conn(self) -> ESConnection:
-        """
-        Returns a elasticsearch connection object
-        """
+        """Returns a elasticsearch connection object"""
         conn_id = getattr(self, self.conn_name_attr)
         conn = self.connection or self.get_connection(conn_id)
 

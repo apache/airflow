@@ -32,8 +32,9 @@ from sqlalchemy.orm.session import Session
 
 from airflow import models, settings
 from airflow.exceptions import AirflowException, AirflowFailException, AirflowSkipException
+from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models import (
-    DAG, DagRun, Pool, RenderedTaskInstanceFields, TaskInstance as TI, TaskReschedule, Variable,
+    DAG, DagModel, DagRun, Pool, RenderedTaskInstanceFields, TaskInstance as TI, TaskReschedule, Variable,
 )
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
@@ -84,6 +85,7 @@ class TestTaskInstance(unittest.TestCase):
 
     @staticmethod
     def clean_db():
+        db.clear_db_dags()
         db.clear_db_pools()
         db.clear_db_runs()
         db.clear_db_task_fail()
@@ -343,6 +345,13 @@ class TestTaskInstance(unittest.TestCase):
         # TI.run() will sync from DB before validating deps.
         with create_session() as session:
             session.add(ti)
+
+            dag.create_dagrun(
+                execution_date=ti.execution_date,
+                state=State.RUNNING,
+                run_type=DagRunType.SCHEDULED,
+                session=session,
+            )
             session.commit()
         ti.run(mark_success=True)
         self.assertEqual(ti.state, State.SUCCESS)
@@ -355,8 +364,13 @@ class TestTaskInstance(unittest.TestCase):
         task = DummyOperator(task_id='test_run_pooling_task_op', dag=dag,
                              pool='test_pool', owner='airflow',
                              start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
-        ti = TI(
-            task=task, execution_date=timezone.utcnow())
+        ti = TI(task=task, execution_date=timezone.utcnow())
+
+        dag.create_dagrun(
+            execution_date=ti.execution_date,
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
         ti.run()
 
         db.clear_db_pools()
@@ -384,8 +398,14 @@ class TestTaskInstance(unittest.TestCase):
             task = DummyOperator(task_id='test_run_pooling_task_op', owner='airflow',
                                  executor_config={'foo': 'bar'},
                                  start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
-        ti = TI(
-            task=task, execution_date=timezone.utcnow())
+        ti = TI(task=task, execution_date=timezone.utcnow())
+
+        dag.create_dagrun(
+            execution_date=ti.execution_date,
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+            session=session,
+        )
 
         ti.run(session=session)
         tis = dag.get_task_instances()
@@ -395,11 +415,18 @@ class TestTaskInstance(unittest.TestCase):
                                   executor_config={'bar': 'baz'},
                                   start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
 
-        ti = TI(
-            task=task2, execution_date=timezone.utcnow())
+        ti = TI(task=task2, execution_date=timezone.utcnow())
+
+        dag.create_dagrun(
+            execution_date=ti.execution_date,
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+            session=session,
+        )
         ti.run(session=session)
         tis = dag.get_task_instances()
         self.assertEqual({'bar': 'baz'}, tis[1].executor_config)
+        session.rollback()
 
     def test_run_pooling_task_with_mark_success(self):
         """
@@ -414,8 +441,13 @@ class TestTaskInstance(unittest.TestCase):
             pool='test_pool',
             owner='airflow',
             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
-        ti = TI(
-            task=task, execution_date=timezone.utcnow())
+        ti = TI(task=task, execution_date=timezone.utcnow())
+
+        dag.create_dagrun(
+            execution_date=ti.execution_date,
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
         ti.run(mark_success=True)
         self.assertEqual(ti.state, State.SUCCESS)
 
@@ -435,8 +467,12 @@ class TestTaskInstance(unittest.TestCase):
             python_callable=raise_skip_exception,
             owner='airflow',
             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
-        ti = TI(
-            task=task, execution_date=timezone.utcnow())
+        ti = TI(task=task, execution_date=timezone.utcnow())
+        dag.create_dagrun(
+            execution_date=ti.execution_date,
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
         ti.run()
         self.assertEqual(State.SKIPPED, ti.state)
 
@@ -460,8 +496,12 @@ class TestTaskInstance(unittest.TestCase):
             except AirflowException:
                 pass
 
-        ti = TI(
-            task=task, execution_date=timezone.utcnow())
+        ti = TI(task=task, execution_date=timezone.utcnow())
+        dag.create_dagrun(
+            execution_date=ti.execution_date,
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
 
         self.assertEqual(ti.try_number, 1)
         # first run -- up for retry
@@ -478,64 +518,61 @@ class TestTaskInstance(unittest.TestCase):
         run_with_error(ti)
         self.assertEqual(ti.state, State.FAILED)
 
-    @parameterized.expand([
-        (False, None,),
-        (True, {'env': None, 'bash_command': 'echo test_retry_handling; exit 1'},),
-    ])
-    def test_retry_handling(self, dag_serialization, expected_rendered_ti_fields):
+    def test_retry_handling(self):
         """
         Test that task retries are handled properly
         """
-        with patch("airflow.models.taskinstance.STORE_SERIALIZED_DAGS", dag_serialization):
-            dag = models.DAG(dag_id='test_retry_handling')
-            task = BashOperator(
-                task_id='test_retry_handling_op',
-                bash_command='echo {{dag.dag_id}}; exit 1',
-                retries=1,
-                retry_delay=datetime.timedelta(seconds=0),
-                dag=dag,
-                owner='test_pool',
-                start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+        expected_rendered_ti_fields = {'env': None, 'bash_command': 'echo test_retry_handling; exit 1'}
 
-            def run_with_error(ti):
-                try:
-                    ti.run()
-                except AirflowException:
-                    pass
+        dag = models.DAG(dag_id='test_retry_handling')
+        task = BashOperator(
+            task_id='test_retry_handling_op',
+            bash_command='echo {{dag.dag_id}}; exit 1',
+            retries=1,
+            retry_delay=datetime.timedelta(seconds=0),
+            dag=dag,
+            owner='test_pool',
+            start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
 
-            ti = TI(
-                task=task, execution_date=timezone.utcnow())
-            self.assertEqual(ti.try_number, 1)
+        def run_with_error(ti):
+            try:
+                ti.run()
+            except AirflowException:
+                pass
 
-            # first run -- up for retry
-            run_with_error(ti)
-            self.assertEqual(ti.state, State.UP_FOR_RETRY)
-            self.assertEqual(ti._try_number, 1)
-            self.assertEqual(ti.try_number, 2)
+        ti = TI(
+            task=task, execution_date=timezone.utcnow())
+        self.assertEqual(ti.try_number, 1)
 
-            # second run -- fail
-            run_with_error(ti)
-            self.assertEqual(ti.state, State.FAILED)
-            self.assertEqual(ti._try_number, 2)
-            self.assertEqual(ti.try_number, 3)
+        # first run -- up for retry
+        run_with_error(ti)
+        self.assertEqual(ti.state, State.UP_FOR_RETRY)
+        self.assertEqual(ti._try_number, 1)
+        self.assertEqual(ti.try_number, 2)
 
-            # Clear the TI state since you can't run a task with a FAILED state without
-            # clearing it first
-            dag.clear()
+        # second run -- fail
+        run_with_error(ti)
+        self.assertEqual(ti.state, State.FAILED)
+        self.assertEqual(ti._try_number, 2)
+        self.assertEqual(ti.try_number, 3)
 
-            # third run -- up for retry
-            run_with_error(ti)
-            self.assertEqual(ti.state, State.UP_FOR_RETRY)
-            self.assertEqual(ti._try_number, 3)
-            self.assertEqual(ti.try_number, 4)
+        # Clear the TI state since you can't run a task with a FAILED state without
+        # clearing it first
+        dag.clear()
 
-            # fourth run -- fail
-            run_with_error(ti)
-            ti.refresh_from_db()
-            self.assertEqual(ti.state, State.FAILED)
-            self.assertEqual(ti._try_number, 4)
-            self.assertEqual(ti.try_number, 5)
-            self.assertEqual(RenderedTaskInstanceFields.get_templated_fields(ti), expected_rendered_ti_fields)
+        # third run -- up for retry
+        run_with_error(ti)
+        self.assertEqual(ti.state, State.UP_FOR_RETRY)
+        self.assertEqual(ti._try_number, 3)
+        self.assertEqual(ti.try_number, 4)
+
+        # fourth run -- fail
+        run_with_error(ti)
+        ti.refresh_from_db()
+        self.assertEqual(ti.state, State.FAILED)
+        self.assertEqual(ti._try_number, 4)
+        self.assertEqual(ti.try_number, 5)
+        self.assertEqual(RenderedTaskInstanceFields.get_templated_fields(ti), expected_rendered_ti_fields)
 
     def test_next_retry_datetime(self):
         delay = datetime.timedelta(seconds=30)
@@ -634,6 +671,12 @@ class TestTaskInstance(unittest.TestCase):
         ti = TI(task=task, execution_date=timezone.utcnow())
         self.assertEqual(ti._try_number, 0)
         self.assertEqual(ti.try_number, 1)
+
+        dag.create_dagrun(
+            execution_date=ti.execution_date,
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
 
         def run_ti_and_assert(run_date, expected_start_date, expected_end_date,
                               expected_duration,
@@ -778,6 +821,12 @@ class TestTaskInstance(unittest.TestCase):
         dag.clear()
 
         run_date = task.start_date + datetime.timedelta(days=5)
+
+        dag.create_dagrun(
+            execution_date=run_date,
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
 
         ti = TI(task, run_date)
 
@@ -952,8 +1001,14 @@ class TestTaskInstance(unittest.TestCase):
             owner='airflow',
             start_date=timezone.datetime(2016, 6, 2, 0, 0, 0))
         exec_date = timezone.utcnow()
-        ti = TI(
-            task=task, execution_date=exec_date)
+        ti = TI(task=task, execution_date=exec_date)
+
+        dag.create_dagrun(
+            execution_date=ti.execution_date,
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
+
         ti.run(mark_success=True)
         ti.xcom_push(key=key, value=value)
         self.assertEqual(ti.xcom_pull(task_ids='test_xcom', key=key), value)
@@ -986,8 +1041,14 @@ class TestTaskInstance(unittest.TestCase):
             owner='airflow',
             start_date=timezone.datetime(2016, 6, 2, 0, 0, 0))
         exec_date = timezone.utcnow()
-        ti = TI(
-            task=task, execution_date=exec_date)
+        ti = TI(task=task, execution_date=exec_date)
+
+        dag.create_dagrun(
+            execution_date=ti.execution_date,
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
+
         ti.run(mark_success=True)
         ti.xcom_push(key=key, value=value)
         self.assertEqual(ti.xcom_pull(task_ids='test_xcom', key=key), value)
@@ -1024,6 +1085,11 @@ class TestTaskInstance(unittest.TestCase):
             start_date=datetime.datetime(2017, 1, 1)
         )
         ti = TI(task=task, execution_date=datetime.datetime(2017, 1, 1))
+        dag.create_dagrun(
+            execution_date=ti.execution_date,
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
         ti.run()
         self.assertEqual(
             ti.xcom_pull(
@@ -1192,7 +1258,7 @@ class TestTaskInstance(unittest.TestCase):
             start_date=DEFAULT_DATE,
             email='to')
 
-        ti = TI(task=task, execution_date=datetime.datetime.now())
+        ti = TI(task=task, execution_date=timezone.utcnow())
 
         try:
             ti.run()
@@ -1219,8 +1285,7 @@ class TestTaskInstance(unittest.TestCase):
             start_date=DEFAULT_DATE,
             email='to')
 
-        ti = TI(
-            task=task, execution_date=datetime.datetime.now())
+        ti = TI(task=task, execution_date=timezone.utcnow())
 
         opener = mock_open(read_data='template: {{ti.task_id}}')
         with patch('airflow.models.taskinstance.open', opener, create=True):
@@ -1261,7 +1326,15 @@ class TestTaskInstance(unittest.TestCase):
         ti.state = State.RUNNING
         session = settings.Session()
         session.merge(ti)
+
+        dag.create_dagrun(
+            execution_date=ti.execution_date,
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+            session=session,
+        )
         session.commit()
+
         callback_wrapper.wrap_task_instance(ti)
         ti._run_raw_task()
         self.assertTrue(callback_wrapper.callback_ran)
@@ -1484,15 +1557,23 @@ class TestTaskInstance(unittest.TestCase):
         ti = TI(task=task, execution_date=datetime.datetime.now())
         ti.state = State.RUNNING
         session = settings.Session()
+
+        dag.create_dagrun(
+            execution_date=ti.execution_date,
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+            session=session,
+        )
         session.merge(ti)
         session.commit()
+
         ti._run_raw_task()
         assert called
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
     def test_handle_failure(self):
-        import mock
+        from unittest import mock
 
         start_date = timezone.datetime(2016, 6, 1)
         dag = models.DAG(dag_id="test_handle_failure", schedule_interval=None, start_date=start_date)
@@ -1650,13 +1731,7 @@ class TestTaskInstance(unittest.TestCase):
                                                execution_date=DEFAULT_DATE, mark_success=True)
         assert assert_command == generate_command
 
-    @parameterized.expand([
-        (True, ),
-        (False, )
-    ])
-    def test_get_rendered_template_fields(self, store_serialized_dag):
-        # SetUp
-        settings.STORE_SERIALIZED_DAGS = store_serialized_dag
+    def test_get_rendered_template_fields(self):
 
         with DAG('test-dag', start_date=DEFAULT_DATE):
             task = BashOperator(task_id='op1', bash_command="{{ task.task_id }}")
@@ -1673,12 +1748,111 @@ class TestTaskInstance(unittest.TestCase):
         new_ti = TI(task=new_task, execution_date=DEFAULT_DATE)
         new_ti.get_rendered_template_fields()
 
-        self.assertEqual(settings.STORE_SERIALIZED_DAGS, store_serialized_dag)
         self.assertEqual("op1", ti.task.bash_command)
 
         # CleanUp
         with create_session() as session:
             session.query(RenderedTaskInstanceFields).delete()
+
+    def validate_ti_states(self, dag_run, ti_state_mapping, error_message):
+        for task_id, expected_state in ti_state_mapping.items():
+            task_instance = dag_run.get_task_instance(task_id=task_id)
+            self.assertEqual(task_instance.state, expected_state, error_message)
+
+    @parameterized.expand([
+        (
+            {('scheduler', 'schedule_after_task_execution'): 'True'},
+            {'A': 'B', 'B': 'C'},
+            {'A': State.QUEUED, 'B': State.NONE, 'C': State.NONE},
+            {'A': State.SUCCESS, 'B': State.SCHEDULED, 'C': State.NONE},
+            {'A': State.SUCCESS, 'B': State.SUCCESS, 'C': State.SCHEDULED},
+            "A -> B -> C, with fast-follow ON when A runs, B should be QUEUED. Same for B and C."
+        ),
+        (
+            {('scheduler', 'schedule_after_task_execution'): 'False'},
+            {'A': 'B', 'B': 'C'},
+            {'A': State.QUEUED, 'B': State.NONE, 'C': State.NONE},
+            {'A': State.SUCCESS, 'B': State.NONE, 'C': State.NONE},
+            None,
+            "A -> B -> C, with fast-follow OFF, when A runs, B shouldn't be QUEUED."
+        ),
+        (
+            {('scheduler', 'schedule_after_task_execution'): 'True'},
+            {'A': 'B', 'C': 'B', 'D': 'C'},
+            {'A': State.QUEUED, 'B': State.NONE, 'C': State.NONE, 'D': State.NONE},
+            {'A': State.SUCCESS, 'B': State.NONE, 'C': State.NONE, 'D': State.NONE},
+            None,
+            "D -> C -> B & A -> B, when A runs but C isn't QUEUED yet, B shouldn't be QUEUED."
+        ),
+        (
+            {('scheduler', 'schedule_after_task_execution'): 'True'},
+            {'A': 'C', 'B': 'C'},
+            {'A': State.QUEUED, 'B': State.FAILED, 'C': State.NONE},
+            {'A': State.SUCCESS, 'B': State.FAILED, 'C': State.UPSTREAM_FAILED},
+            None,
+            "A -> C & B -> C, when A is QUEUED but B has FAILED, C is marked UPSTREAM_FAILED."
+        ),
+    ])
+    def test_fast_follow(
+        self, conf, dependencies, init_state, first_run_state, second_run_state, error_message
+    ):
+        with conf_vars(conf):
+            session = settings.Session()
+
+            dag = DAG(
+                'test_dagrun_fast_follow',
+                start_date=DEFAULT_DATE
+            )
+
+            dag_model = DagModel(
+                dag_id=dag.dag_id,
+                next_dagrun=dag.start_date,
+                is_active=True,
+            )
+            session.add(dag_model)
+            session.flush()
+
+            python_callable = lambda: True
+            with dag:
+                task_a = PythonOperator(task_id='A', python_callable=python_callable)
+                task_b = PythonOperator(task_id='B', python_callable=python_callable)
+                task_c = PythonOperator(task_id='C', python_callable=python_callable)
+                if 'D' in init_state:
+                    task_d = PythonOperator(task_id='D', python_callable=python_callable)
+                for upstream, downstream in dependencies.items():
+                    dag.set_dependency(upstream, downstream)
+
+            scheduler = SchedulerJob()
+            scheduler.dagbag.bag_dag(dag, root_dag=dag)
+
+            dag_run = dag.create_dagrun(run_id='test_dagrun_fast_follow', state=State.RUNNING)
+
+            task_instance_a = dag_run.get_task_instance(task_id=task_a.task_id)
+            task_instance_a.task = task_a
+            task_instance_a.set_state(init_state['A'])
+
+            task_instance_b = dag_run.get_task_instance(task_id=task_b.task_id)
+            task_instance_b.task = task_b
+            task_instance_b.set_state(init_state['B'])
+
+            task_instance_c = dag_run.get_task_instance(task_id=task_c.task_id)
+            task_instance_c.task = task_c
+            task_instance_c.set_state(init_state['C'])
+
+            if 'D' in init_state:
+                task_instance_d = dag_run.get_task_instance(task_id=task_d.task_id)
+                task_instance_d.task = task_d
+                task_instance_d.state = init_state['D']
+
+            session.commit()
+            task_instance_a.run()
+
+            self.validate_ti_states(dag_run, first_run_state, error_message)
+
+            if second_run_state:
+                scheduler._critical_section_execute_task_instances(session=session)
+                task_instance_b.run()
+                self.validate_ti_states(dag_run, second_run_state, error_message)
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
@@ -1726,7 +1900,7 @@ class TestRunRawTaskQueriesCount(unittest.TestCase):
 
     @parameterized.expand([
         # Expected queries, mark_success
-        (7, False),
+        (10, False),
         (5, True),
     ])
     def test_execute_queries_count(self, expected_query_count, mark_success):
@@ -1735,7 +1909,14 @@ class TestRunRawTaskQueriesCount(unittest.TestCase):
             task = DummyOperator(task_id='op', dag=dag)
             ti = TI(task=task, execution_date=datetime.datetime.now())
             ti.state = State.RUNNING
+
             session.merge(ti)
+            dag.create_dagrun(
+                execution_date=ti.execution_date,
+                state=State.RUNNING,
+                run_type=DagRunType.SCHEDULED,
+                session=session,
+            )
 
         with assert_queries_count(expected_query_count):
             ti._run_raw_task(mark_success=mark_success)
@@ -1746,11 +1927,16 @@ class TestRunRawTaskQueriesCount(unittest.TestCase):
             task = DummyOperator(task_id='op', dag=dag)
             ti = TI(task=task, execution_date=datetime.datetime.now())
             ti.state = State.RUNNING
-            session.merge(ti)
 
-        with assert_queries_count(10), patch(
-            "airflow.models.taskinstance.STORE_SERIALIZED_DAGS", True
-        ):
+            session.merge(ti)
+            dag.create_dagrun(
+                execution_date=ti.execution_date,
+                state=State.RUNNING,
+                run_type=DagRunType.SCHEDULED,
+                session=session,
+            )
+
+        with assert_queries_count(10):
             ti._run_raw_task()
 
     def test_operator_field_with_serialization(self):

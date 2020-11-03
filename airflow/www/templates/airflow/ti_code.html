@@ -21,10 +21,10 @@
 {% block title %}Airflow - DAGs{% endblock %}
 
 {% block content %}
-    {{ super() }}
-    <h4>{{ title }}</h4>
-    {% for k, v in html_dict.items() %}
-        <h5>{{ k }}</h5>
-        {{ v }}
-    {% endfor %}
+  {{ super() }}
+  <h4>{{ title }}</h4>
+  {% for k, v in html_dict.items() %}
+    <h5>{{ k }}</h5>
+    {{ v }}
+  {% endfor %}
 {% endblock %}

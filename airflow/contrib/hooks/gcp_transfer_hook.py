@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.providers.google.cloud.hooks.cloud_storage_transfer_service`.
+This module is deprecated. Please use
+`airflow.providers.google.cloud.hooks.cloud_storage_transfer_service`.
 """
 
 import warnings

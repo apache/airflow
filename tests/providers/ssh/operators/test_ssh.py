@@ -191,6 +191,7 @@ class TestSSHOperator(unittest.TestCase):
             (COMMAND, True, True),
             (COMMAND_WITH_SUDO, False, True),
             (COMMAND_WITH_SUDO, True, True),
+            (None, True, True),
         ]
     )
     def test_get_pyt_set_correctly(self, command, get_pty_in, get_pty_out):

@@ -55,7 +55,6 @@ def utcnow() -> dt.datetime:
 
     :return:
     """
-
     # pendulum utcnow() is not used as that sets a TimezoneInfo object
     # instead of a Timezone. This is not pickable and also creates issues
     # when using replace()
@@ -71,7 +70,6 @@ def utc_epoch() -> dt.datetime:
 
     :return:
     """
-
     # pendulum utcnow() is not used as that sets a TimezoneInfo object
     # instead of a Timezone. This is not pickable and also creates issues
     # when using replace()

@@ -17,13 +17,13 @@
 # under the License.
 
 import unittest
+from unittest import mock
+from unittest.mock import PropertyMock
 
 import google
-import mock
 from google.cloud.bigtable import Client
 from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable_admin_v2 import enums
-from mock import PropertyMock
 
 from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
 from tests.providers.google.cloud.utils.base_gcp_mock import (

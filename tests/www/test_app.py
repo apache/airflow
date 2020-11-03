@@ -19,6 +19,7 @@
 import unittest
 from unittest import mock
 
+import pytest
 from werkzeug.routing import Rule
 from werkzeug.test import create_environ
 from werkzeug.wrappers import Response
@@ -195,3 +196,22 @@ class TestApp(unittest.TestCase):
 
         self.assertEqual(b"success", response.get_data())
         self.assertEqual(response.status_code, 200)
+
+    @conf_vars({
+        ('core', 'sql_alchemy_pool_enabled'): 'True',
+        ('core', 'sql_alchemy_pool_size'): '3',
+        ('core', 'sql_alchemy_max_overflow'): '5',
+        ('core', 'sql_alchemy_pool_recycle'): '120',
+        ('core', 'sql_alchemy_pool_pre_ping'): 'True',
+    })
+    @mock.patch("airflow.www.app.app", None)
+    @pytest.mark.backend("mysql", "postgres")
+    def test_should_set_sqlalchemy_engine_options(self):
+        app = application.cached_app(testing=True)
+        engine_params = {
+            'pool_size': 3,
+            'pool_recycle': 120,
+            'pool_pre_ping': True,
+            'max_overflow': 5
+        }
+        self.assertEqual(app.config['SQLALCHEMY_ENGINE_OPTIONS'], engine_params)

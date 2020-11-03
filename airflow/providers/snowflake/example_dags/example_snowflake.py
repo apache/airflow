@@ -18,29 +18,33 @@
 """
 Example use of Snowflake related operators.
 """
-import os
-
 from airflow import DAG
 from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
 from airflow.providers.snowflake.transfers.s3_to_snowflake import S3ToSnowflakeOperator
 from airflow.providers.snowflake.transfers.snowflake_to_slack import SnowflakeToSlackOperator
 from airflow.utils.dates import days_ago
 
-SNOWFLAKE_CONN_ID = os.environ.get('SNOWFLAKE_CONN_ID', 'snowflake_default')
-SLACK_CONN_ID = os.environ.get('SLACK_CONN_ID', 'slack_default')
+SNOWFLAKE_CONN_ID = 'my_snowflake_conn'
+SLACK_CONN_ID = 'my_slack_conn'
 # TODO: should be able to rely on connection's schema, but currently param required by S3ToSnowflakeTransfer
-SNOWFLAKE_SCHEMA = os.environ.get('SNOWFLAKE_SCHEMA', 'public')
-SNOWFLAKE_STAGE = os.environ.get('SNOWFLAKE_STAGE', 'airflow')
-SNOWFLAKE_SAMPLE_TABLE = os.environ.get('SNOWFLAKE_SAMPLE_TABLE', 'snowflake_sample_data.tpch_sf001.orders')
-SNOWFLAKE_LOAD_TABLE = os.environ.get('SNOWFLAKE_LOAD_TABLE', 'airflow_example')
-SNOWFLAKE_LOAD_JSON_PATH = os.environ.get('SNOWFLAKE_LOAD_PATH', 'example.json')
+SNOWFLAKE_SCHEMA = 'schema_name'
+SNOWFLAKE_STAGE = 'stage_name'
+SNOWFLAKE_WAREHOUSE = 'warehouse_name'
+SNOWFLAKE_DATABASE = 'database_name'
+SNOWFLAKE_ROLE = 'role_name'
+SNOWFLAKE_SAMPLE_TABLE = 'sample_table'
+S3_FILE_PATH = '</path/to/file/sample_file.csv'
 
-SNOWFLAKE_SELECT_SQL = f"SELECT * FROM {SNOWFLAKE_SAMPLE_TABLE} LIMIT 100;"
-SNOWFLAKE_SLACK_SQL = f"SELECT O_ORDERKEY, O_CUSTKEY, O_ORDERSTATUS FROM {SNOWFLAKE_SAMPLE_TABLE} LIMIT 10;"
+# SQL commands
+CREATE_TABLE_SQL_STRING = (
+    f"CREATE OR REPLACE TRANSIENT TABLE {SNOWFLAKE_SAMPLE_TABLE} (name VARCHAR(250), id INT);"
+)
+SQL_INSERT_STATEMENT = f"INSERT INTO {SNOWFLAKE_SAMPLE_TABLE} VALUES ('name', %(id)s)"
+SQL_LIST = [SQL_INSERT_STATEMENT % {"id": n} for n in range(0, 10)]
+SNOWFLAKE_SLACK_SQL = f"SELECT name, id FROM {SNOWFLAKE_SAMPLE_TABLE} LIMIT 10;"
 SNOWFLAKE_SLACK_MESSAGE = (
     "Results in an ASCII table:\n```{{ results_df | tabulate(tablefmt='pretty', headers='keys') }}```"
 )
-SNOWFLAKE_CREATE_TABLE_SQL = f"CREATE TRANSIENT TABLE IF NOT EXISTS {SNOWFLAKE_LOAD_TABLE}(data VARIANT);"
 
 default_args = {
     'owner': 'airflow',
@@ -53,12 +57,60 @@ dag = DAG(
     tags=['example'],
 )
 
-select = SnowflakeOperator(
-    task_id='select',
+# [START howto_operator_snowflake]
+
+snowflake_op_sql_str = SnowflakeOperator(
+    task_id='snowflake_op_sql_str',
+    dag=dag,
     snowflake_conn_id=SNOWFLAKE_CONN_ID,
-    sql=SNOWFLAKE_SELECT_SQL,
+    sql=CREATE_TABLE_SQL_STRING,
+    warehouse=SNOWFLAKE_WAREHOUSE,
+    database=SNOWFLAKE_DATABASE,
+    schema=SNOWFLAKE_SCHEMA,
+    role=SNOWFLAKE_ROLE,
+)
+
+snowflake_op_with_params = SnowflakeOperator(
+    task_id='snowflake_op_with_params',
+    dag=dag,
+    snowflake_conn_id=SNOWFLAKE_CONN_ID,
+    sql=SQL_INSERT_STATEMENT,
+    parameters={"id": 56},
+    warehouse=SNOWFLAKE_WAREHOUSE,
+    database=SNOWFLAKE_DATABASE,
+    schema=SNOWFLAKE_SCHEMA,
+    role=SNOWFLAKE_ROLE,
+)
+
+snowflake_op_sql_list = SnowflakeOperator(
+    task_id='snowflake_op_sql_list', dag=dag, snowflake_conn_id=SNOWFLAKE_CONN_ID, sql=SQL_LIST
+)
+
+snowflake_op_template_file = SnowflakeOperator(
+    task_id='snowflake_op_template_file',
+    dag=dag,
+    snowflake_conn_id=SNOWFLAKE_CONN_ID,
+    sql='/path/to/sql/<filename>.sql',
+)
+
+# [END howto_operator_snowflake]
+
+# [START howto_operator_s3_to_snowflake]
+
+copy_into_table = S3ToSnowflakeOperator(
+    task_id='copy_into_table',
+    snowflake_conn_id=SNOWFLAKE_CONN_ID,
+    s3_keys=[S3_FILE_PATH],
+    table=SNOWFLAKE_SAMPLE_TABLE,
+    schema=SNOWFLAKE_SCHEMA,
+    stage=SNOWFLAKE_STAGE,
+    file_format="(type = 'CSV'," "field_delimiter = ';')",
     dag=dag,
 )
+
+# [END howto_operator_s3_to_snowflake]
+
+# [START howto_operator_snowflake_to_slack]
 
 slack_report = SnowflakeToSlackOperator(
     task_id="slack_report",
@@ -69,24 +121,11 @@ slack_report = SnowflakeToSlackOperator(
     dag=dag,
 )
 
-create_table = SnowflakeOperator(
-    task_id='create_table',
-    snowflake_conn_id=SNOWFLAKE_CONN_ID,
-    sql=SNOWFLAKE_CREATE_TABLE_SQL,
-    schema=SNOWFLAKE_SCHEMA,
-    dag=dag,
-)
+# [END howto_operator_snowflake_to_slack]
 
-copy_into_table = S3ToSnowflakeOperator(
-    task_id='copy_into_table',
-    snowflake_conn_id=SNOWFLAKE_CONN_ID,
-    s3_keys=[SNOWFLAKE_LOAD_JSON_PATH],
-    table=SNOWFLAKE_LOAD_TABLE,
-    schema=SNOWFLAKE_SCHEMA,
-    stage=SNOWFLAKE_STAGE,
-    file_format="(type = 'JSON')",
-    dag=dag,
-)
-
-select >> slack_report
-create_table >> copy_into_table
+snowflake_op_sql_str >> [
+    snowflake_op_with_params,
+    snowflake_op_sql_list,
+    snowflake_op_template_file,
+    copy_into_table,
+] >> slack_report

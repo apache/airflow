@@ -20,34 +20,39 @@ import hashlib
 import importlib
 import importlib.machinery
 import importlib.util
+import logging
 import os
 import sys
 import textwrap
+import traceback
 import warnings
 import zipfile
 from datetime import datetime, timedelta
 from typing import Dict, List, NamedTuple, Optional
 
+import tenacity
 from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import Session
 from tabulate import tabulate
 
 from airflow import settings
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDagBag
-from airflow.exceptions import AirflowClusterPolicyViolation, AirflowDagCycleException
+from airflow.exceptions import AirflowClusterPolicyViolation, AirflowDagCycleException, SerializedDagNotFound
 from airflow.plugins_manager import integrate_dag_plugins
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import test_cycle
 from airflow.utils.file import correct_maybe_zipped, list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 from airflow.utils.timeout import timeout
 
 
 class FileLoadStat(NamedTuple):
-    """
-    Information about single file
-    """
+    """Information about single file"""
+
     file: str
     duration: timedelta
     dag_num: int
@@ -73,14 +78,12 @@ class DagBag(BaseDagBag, LoggingMixin):
     :param include_smart_sensor: whether to include the smart sensor native
         DAGs that create the smart sensor operators for whole cluster
     :type include_smart_sensor: bool
-    :param read_dags_from_db: Read DAGs from DB if store_serialized_dags is ``True``.
-        If ``False`` DAGs are read from python files. This property is not used when
-        determining whether or not to write Serialized DAGs, that is done by checking
-        the config ``store_serialized_dags``.
+    :param read_dags_from_db: Read DAGs from DB if ``True`` is passed.
+        If ``False`` DAGs are read from python files.
     :type read_dags_from_db: bool
     """
 
-    DAGBAG_IMPORT_TIMEOUT = conf.getint('core', 'DAGBAG_IMPORT_TIMEOUT')
+    DAGBAG_IMPORT_TIMEOUT = conf.getfloat('core', 'DAGBAG_IMPORT_TIMEOUT')
     SCHEDULER_ZOMBIE_TASK_THRESHOLD = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
     def __init__(
@@ -113,7 +116,11 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.read_dags_from_db = read_dags_from_db
         # Only used by read_dags_from_db=True
         self.dags_last_fetched: Dict[str, datetime] = {}
+        # Only used by SchedulerJob to compare the dag_hash to identify change in DAGs
+        self.dags_hash: Dict[str, str] = {}
 
+        self.dagbag_import_error_tracebacks = conf.getboolean('core', 'dagbag_import_error_tracebacks')
+        self.dagbag_import_error_traceback_depth = conf.getint('core', 'dagbag_import_error_traceback_depth')
         self.collect_dags(
             dag_folder=dag_folder,
             include_examples=include_examples,
@@ -121,9 +128,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             safe_mode=safe_mode)
 
     def size(self) -> int:
-        """
-        :return: the amount of dags contained in this dagbag
-        """
+        """:return: the amount of dags contained in this dagbag"""
         return len(self.dags)
 
     @property
@@ -139,7 +144,8 @@ class DagBag(BaseDagBag, LoggingMixin):
     def dag_ids(self) -> List[str]:
         return list(self.dags.keys())
 
-    def get_dag(self, dag_id):
+    @provide_session
+    def get_dag(self, dag_id, session: Session = None):
         """
         Gets the DAG out of the dictionary, and refreshes it if expired
 
@@ -154,7 +160,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             from airflow.models.serialized_dag import SerializedDagModel
             if dag_id not in self.dags:
                 # Load from DB if not (yet) in the bag
-                self._add_dag_from_db(dag_id=dag_id)
+                self._add_dag_from_db(dag_id=dag_id, session=session)
                 return self.dags.get(dag_id)
 
             # If DAG is in the DagBag, check the following
@@ -166,9 +172,12 @@ class DagBag(BaseDagBag, LoggingMixin):
                 dag_id in self.dags_last_fetched and
                 timezone.utcnow() > self.dags_last_fetched[dag_id] + min_serialized_dag_fetch_secs
             ):
-                sd_last_updated_datetime = SerializedDagModel.get_last_updated_datetime(dag_id=dag_id)
+                sd_last_updated_datetime = SerializedDagModel.get_last_updated_datetime(
+                    dag_id=dag_id,
+                    session=session,
+                )
                 if sd_last_updated_datetime > self.dags_last_fetched[dag_id]:
-                    self._add_dag_from_db(dag_id=dag_id)
+                    self._add_dag_from_db(dag_id=dag_id, session=session)
 
             return self.dags.get(dag_id)
 
@@ -178,16 +187,16 @@ class DagBag(BaseDagBag, LoggingMixin):
         if dag_id in self.dags:
             dag = self.dags[dag_id]
             if dag.is_subdag:
-                root_dag_id = dag.parent_dag.dag_id
+                root_dag_id = dag.parent_dag.dag_id  # type: ignore
 
         # If DAG Model is absent, we can't check last_expired property. Is the DAG not yet synchronized?
-        orm_dag = DagModel.get_current(root_dag_id)
+        orm_dag = DagModel.get_current(root_dag_id, session=session)
         if not orm_dag:
             return self.dags.get(dag_id)
 
         # If the dag corresponding to root_dag_id is absent or expired
         is_missing = root_dag_id not in self.dags
-        is_expired = (orm_dag.last_expired and dag.last_loaded < orm_dag.last_expired)
+        is_expired = (orm_dag.last_expired and dag and dag.last_loaded < orm_dag.last_expired)
         if is_missing or is_expired:
             # Reprocess source file
             found_dags = self.process_file(
@@ -200,18 +209,19 @@ class DagBag(BaseDagBag, LoggingMixin):
                 del self.dags[dag_id]
         return self.dags.get(dag_id)
 
-    def _add_dag_from_db(self, dag_id: str):
+    def _add_dag_from_db(self, dag_id: str, session: Session):
         """Add DAG to DagBag from DB"""
         from airflow.models.serialized_dag import SerializedDagModel
-        row = SerializedDagModel.get(dag_id)
+        row = SerializedDagModel.get(dag_id, session)
         if not row:
-            raise ValueError(f"DAG '{dag_id}' not found in serialized_dag table")
+            raise SerializedDagNotFound(f"DAG '{dag_id}' not found in serialized_dag table")
 
         dag = row.dag
         for subdag in dag.subdags:
             self.dags[subdag.dag_id] = subdag
         self.dags[dag.dag_id] = dag
         self.dags_last_fetched[dag.dag_id] = timezone.utcnow()
+        self.dags_hash[dag.dag_id] = row.dag_hash
 
     def process_file(self, filepath, only_if_updated=True, safe_mode=True):
         """
@@ -264,7 +274,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         if mod_name in sys.modules:
             del sys.modules[mod_name]
 
-        with timeout(self.DAGBAG_IMPORT_TIMEOUT):
+        timeout_msg = f"DagBag import timeout for {filepath} after {self.DAGBAG_IMPORT_TIMEOUT}s"
+        with timeout(self.DAGBAG_IMPORT_TIMEOUT, error_message=timeout_msg):
             try:
                 loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
                 spec = importlib.util.spec_from_loader(mod_name, loader)
@@ -274,7 +285,12 @@ class DagBag(BaseDagBag, LoggingMixin):
                 return [new_module]
             except Exception as e:  # pylint: disable=broad-except
                 self.log.exception("Failed to import: %s", filepath)
-                self.import_errors[filepath] = str(e)
+                if self.dagbag_import_error_tracebacks:
+                    self.import_errors[filepath] = traceback.format_exc(
+                        limit=-self.dagbag_import_error_traceback_depth
+                    )
+                else:
+                    self.import_errors[filepath] = str(e)
         return []
 
     def _load_modules_from_zip(self, filepath, safe_mode):
@@ -313,7 +329,12 @@ class DagBag(BaseDagBag, LoggingMixin):
                 mods.append(current_module)
             except Exception as e:  # pylint: disable=broad-except
                 self.log.exception("Failed to import: %s", filepath)
-                self.import_errors[filepath] = str(e)
+                if self.dagbag_import_error_tracebacks:
+                    self.import_errors[filepath] = traceback.format_exc(
+                        limit=-self.dagbag_import_error_traceback_depth
+                    )
+                else:
+                    self.import_errors[filepath] = str(e)
         return mods
 
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):
@@ -336,9 +357,9 @@ class DagBag(BaseDagBag, LoggingMixin):
                     dag.fileloc = filepath
             try:
                 dag.is_subdag = False
-                self.bag_dag(dag=dag, root_dag=dag)
                 if isinstance(dag.normalized_schedule_interval, str):
                     croniter(dag.normalized_schedule_interval)
+                self.bag_dag(dag=dag, root_dag=dag)
                 found_dags.append(dag)
                 found_dags += dag.subdags
             except (CroniterBadCronError,
@@ -360,7 +381,6 @@ class DagBag(BaseDagBag, LoggingMixin):
         Adds the DAG into the bag, recurses into sub dags.
         Throws AirflowDagCycleException if a cycle is detected in this dag or its subdags
         """
-
         test_cycle(dag)  # throws if a task cycle is found
 
         dag.resolve_template_files()
@@ -499,17 +519,36 @@ class DagBag(BaseDagBag, LoggingMixin):
         """)
         return report
 
-    def sync_to_db(self):
-        """
-        Save attributes about list of DAG to the DB.
-        """
+    @provide_session
+    def sync_to_db(self, session: Optional[Session] = None):
+        """Save attributes about list of DAG to the DB."""
         # To avoid circular import - airflow.models.dagbag -> airflow.models.dag -> airflow.models.dagbag
         from airflow.models.dag import DAG
         from airflow.models.serialized_dag import SerializedDagModel
-        self.log.debug("Calling the DAG.bulk_sync_to_db method")
-        DAG.bulk_sync_to_db(self.dags.values())
-        # Write Serialized DAGs to DB if DAG Serialization is turned on
-        # Even though self.read_dags_from_db is False
-        if settings.STORE_SERIALIZED_DAGS:
-            self.log.debug("Calling the SerializedDagModel.bulk_sync_to_db method")
-            SerializedDagModel.bulk_sync_to_db(self.dags.values())
+
+        # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
+        # of any Operational Errors
+        # In case of failures, provide_session handles rollback
+        for attempt in tenacity.Retrying(
+            retry=tenacity.retry_if_exception_type(exception_types=OperationalError),
+            wait=tenacity.wait_random_exponential(multiplier=0.5, max=5),
+            stop=tenacity.stop_after_attempt(settings.MAX_DB_RETRIES),
+            before_sleep=tenacity.before_sleep_log(self.log, logging.DEBUG),
+            reraise=True
+        ):
+            with attempt:
+                self.log.debug(
+                    "Running dagbag.sync_to_db with retries. Try %d of %d",
+                    attempt.retry_state.attempt_number,
+                    settings.MAX_DB_RETRIES
+                )
+                self.log.debug("Calling the DAG.bulk_sync_to_db method")
+                try:
+                    DAG.bulk_write_to_db(self.dags.values(), session=session)
+
+                    # Write Serialized DAGs to DB
+                    self.log.debug("Calling the SerializedDagModel.bulk_sync_to_db method")
+                    SerializedDagModel.bulk_sync_to_db(self.dags.values(), session=session)
+                except OperationalError:
+                    session.rollback()
+                    raise

@@ -64,6 +64,7 @@ class SimpleHttpOperator(BaseOperator):
         'data',
         'headers',
     ]
+    template_fields_renderers = {'headers': 'json', 'data': 'py'}
     template_ext = ()
     ui_color = '#f4a460'
 

@@ -70,6 +70,7 @@ class SensorWork:
 
     :param si: The sensor_instance ORM object.
     """
+
     def __init__(self, si):
         self.dag_id = si.dag_id
         self.task_id = si.task_id
@@ -112,9 +113,7 @@ class SensorWork:
         return handler
 
     def _get_sensor_logger(self, si):
-        """
-        Return logger for a sensor instance object.
-        """
+        """Return logger for a sensor instance object."""
         # The created log_id is used inside of smart sensor as the key to fetch
         # the corresponding in memory log handler.
         si.raw = False  # Otherwise set_context will fail
@@ -137,9 +136,7 @@ class SensorWork:
         return logger
 
     def close_sensor_logger(self):
-        """
-        Close log handler for a sensor work.
-        """
+        """Close log handler for a sensor work."""
         for handler in self.log.handlers:
             try:
                 handler.close()
@@ -148,16 +145,12 @@ class SensorWork:
 
     @property
     def ti_key(self):
-        """
-        Key for the task instance that maps to the sensor work.
-        """
+        """Key for the task instance that maps to the sensor work."""
         return self.dag_id, self.task_id, self.execution_date
 
     @property
     def cache_key(self):
-        """
-        Key used to query in smart sensor for cached sensor work.
-        """
+        """Key used to query in smart sensor for cached sensor work."""
         return self.operator, self.encoded_poke_context
 
 
@@ -170,6 +163,7 @@ class CachedPokeWork:
     last_poke_time: The latest time this cached work being called.
     to_flush: If we should flush the cached work.
     """
+
     def __init__(self):
         self.state = None
         self.sensor_task = None
@@ -185,15 +179,11 @@ class CachedPokeWork:
         self.last_poke_time = timezone.utcnow()
 
     def clear_state(self):
-        """
-        Clear state for cached poke work.
-        """
+        """Clear state for cached poke work."""
         self.state = None
 
     def set_to_flush(self):
-        """
-        Mark this poke work to be popped from cached dict after current loop.
-        """
+        """Mark this poke work to be popped from cached dict after current loop."""
         self.to_flush = True
 
     def is_expired(self):
@@ -209,6 +199,7 @@ class SensorExceptionInfo:
     Hold sensor exception information and the type of exception. For possible transient
     infra failure, give the task more chance to retry before fail it.
     """
+
     def __init__(self,
                  exception_info,
                  is_infra_failure=False,
@@ -260,9 +251,7 @@ class SensorExceptionInfo:
 
     @property
     def exception_info(self):
-        """
-        :return: exception msg.
-        """
+        """:return: exception msg."""
         return self._exception_info
 
     @property
@@ -301,17 +290,15 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
     :type poke_interval: int
     :param smart_sensor_timeout: Time, in seconds before the internal sensor
         job times out if poke_timeout is not defined.
-    :type smart_sensor_timeout: int
+    :type smart_sensor_timeout: float
     :param shard_min: shard code lower bound (inclusive)
     :type shard_min: int
     :param shard_max: shard code upper bound (exclusive)
     :type shard_max: int
-    :param poke_exception_cache_ttl: Time, in seconds before the current
-        exception expires and being cleaned up.
-    :type poke_exception_cache_ttl: int
     :param poke_timeout: Time, in seconds before the task times out and fails.
-    :type poke_timeout: int
+    :type poke_timeout: float
     """
+
     ui_color = '#e6f1f2'
 
     @apply_defaults
@@ -321,8 +308,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
                  soft_fail=False,
                  shard_min=0,
                  shard_max=100000,
-                 poke_exception_cache_ttl=600,
-                 poke_timeout=6,
+                 poke_timeout=6.0,
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
@@ -340,7 +326,6 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
         self.max_tis_per_query = 50
         self.shard_min = shard_min
         self.shard_max = shard_max
-        self.poke_exception_cache_ttl = poke_exception_cache_ttl
         self.poke_timeout = poke_timeout
 
     def _validate_input_values(self):
@@ -432,7 +417,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
         def mark_state(ti, sensor_instance):
             ti.state = state
             sensor_instance.state = state
-            if state in State.finished():
+            if state in State.finished:
                 ti.end_date = end_date
                 ti.set_duration()
 
@@ -495,18 +480,18 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
                 sensor_work.log.exception(e, exc_info=True)
 
         def handle_failure(sensor_work, ti):
-            if sensor_work.execution_context.get('retries', None) and \
+            if sensor_work.execution_context.get('retries') and \
                     ti.try_number <= ti.max_tries:
                 # retry
                 ti.state = State.UP_FOR_RETRY
-                if sensor_work.execution_context.get('email_on_retry', None) and \
-                        sensor_work.execution_context.get('email', None):
+                if sensor_work.execution_context.get('email_on_retry') and \
+                        sensor_work.execution_context.get('email'):
                     sensor_work.log.info("%s sending email alert for retry", sensor_work.ti_key)
                     email_alert(ti, error)
             else:
                 ti.state = State.FAILED
-                if sensor_work.execution_context.get('email_on_failure', None) and \
-                        sensor_work.execution_context.get('email', None):
+                if sensor_work.execution_context.get('email_on_failure') and \
+                        sensor_work.execution_context.get('email'):
                     sensor_work.log.info("%s sending email alert for failure", sensor_work.ti_key)
                     email_alert(ti, error)
 
@@ -562,7 +547,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
         :param sensor_work: SensorWork
         """
         task_timeout = sensor_work.execution_context.get('timeout', self.timeout)
-        task_execution_timeout = sensor_work.execution_context.get('execution_timeout', None)
+        task_execution_timeout = sensor_work.execution_context.get('execution_timeout')
         if task_execution_timeout:
             task_timeout = min(task_timeout, task_execution_timeout)
 
@@ -667,10 +652,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
             self._handle_poke_exception(sensor_work)
 
     def flush_cached_sensor_poke_results(self):
-        """
-        Flush outdated cached sensor states saved in previous loop.
-
-        """
+        """Flush outdated cached sensor states saved in previous loop."""
         for key, cached_work in self.cached_dedup_works.items():
             if cached_work.is_expired():
                 self.cached_dedup_works.pop(key, None)
@@ -753,7 +735,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
             if duration < self.poke_interval:
                 sleep(self.poke_interval - duration)
             if (timezone.utcnow() - started_at).total_seconds() > self.timeout:
-                self.log.info("Time is out for smart senosr.")
+                self.log.info("Time is out for smart sensor.")
                 return
 
     def on_kill(self):

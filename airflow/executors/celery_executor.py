@@ -37,7 +37,10 @@ from celery import Celery, Task, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend, Task as TaskDb, session_cleanup
 from celery.result import AsyncResult
+from celery.signals import import_modules as celery_import_modules
+from setproctitle import setproctitle  # pylint: disable=no-name-in-module
 
+import airflow.settings as settings
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -56,7 +59,7 @@ CELERY_FETCH_ERR_MSG_HEADER = 'Error fetching Celery task state'
 
 CELERY_SEND_ERR_MSG_HEADER = 'Error sending Celery task'
 
-OPERATION_TIMEOUT = conf.getint('celery', 'operation_timeout', fallback=2)
+OPERATION_TIMEOUT = conf.getfloat('celery', 'operation_timeout', fallback=2.0)
 
 '''
 To start the celery worker, run the command:
@@ -78,6 +81,45 @@ def execute_command(command_to_exec: CommandType) -> None:
     """Executes command."""
     BaseExecutor.validate_command(command_to_exec)
     log.info("Executing command in Celery: %s", command_to_exec)
+
+    if settings.EXECUTE_TASKS_NEW_PYTHON_INTERPRETER:
+        _execute_in_subprocess(command_to_exec)
+    else:
+        _execute_in_fork(command_to_exec)
+
+
+def _execute_in_fork(command_to_exec: CommandType) -> None:
+    pid = os.fork()
+    if pid:
+        # In parent, wait for the child
+        pid, ret = os.waitpid(pid, 0)
+        if ret == 0:
+            return
+
+        raise AirflowException('Celery command failed on host: ' + get_hostname())
+
+    from airflow.sentry import Sentry
+
+    ret = 1
+    try:
+        from airflow.cli.cli_parser import get_parser
+        parser = get_parser()
+        # [1:] - remove "airflow" from the start of the command
+        args = parser.parse_args(command_to_exec[1:])
+
+        setproctitle(f"airflow task supervisor: {command_to_exec}")
+
+        args.func(args)
+        ret = 0
+    except Exception as e:  # pylint: disable=broad-except
+        log.error("Failed to execute task %s.", str(e))
+        ret = 1
+    finally:
+        Sentry.flush()
+        os._exit(ret)  # pylint: disable=protected-access
+
+
+def _execute_in_subprocess(command_to_exec: CommandType) -> None:
     env = os.environ.copy()
     try:
         # pylint: disable=unexpected-keyword-arg
@@ -123,6 +165,31 @@ def send_task_to_executor(task_tuple: TaskInstanceInCelery) \
         result = ExceptionWithTraceback(e, exception_traceback)
 
     return key, command, result
+
+
+# pylint: disable=unused-import
+@celery_import_modules.connect
+def on_celery_import_modules(*args, **kwargs):
+    """
+    Preload some "expensive" airflow modules so that every task process doesn't have to import it again and
+    again.
+
+    Loading these for each task adds 0.3-0.5s *per task* before the task can run. For long running tasks this
+    doesn't matter, but for short tasks this starts to be a noticeable impact.
+    """
+    import jinja2.ext  # noqa: F401
+    import numpy  # noqa: F401
+
+    import airflow.jobs.local_task_job
+    import airflow.macros
+    import airflow.operators.bash
+    import airflow.operators.python
+    import airflow.operators.subdag_operator  # noqa: F401
+    try:
+        import kubernetes.client  # noqa: F401
+    except ImportError:
+        pass
+# pylint: enable=unused-import
 
 
 class CeleryExecutor(BaseExecutor):
@@ -210,7 +277,7 @@ class CeleryExecutor(BaseExecutor):
 
                 # Store the Celery task_id in the event buffer. This will get "overwritten" if the task
                 # has another event, but that is fine, because the only other events are success/failed at
-                # which point we dont need the ID anymore anyway
+                # which point we don't need the ID anymore anyway
                 self.event_buffer[key] = (State.QUEUED, result.task_id)
 
                 # If the task runs _really quickly_ we may already have a result!
@@ -225,7 +292,15 @@ class CeleryExecutor(BaseExecutor):
         # since tasks are roughly uniform in size
         chunksize = self._num_tasks_per_send_process(len(task_tuples_to_send))
         num_processes = min(len(task_tuples_to_send), self._sync_parallelism)
-        with Pool(processes=num_processes) as send_pool:
+
+        def reset_signals():
+            # Since we are run from inside the SchedulerJob, we don't to
+            # inherit the signal handlers that we registered there.
+            import signal
+            signal.signal(signal.SIGINT, signal.SIG_DFL)
+            signal.signal(signal.SIGTERM, signal.SIG_DFL)
+
+        with Pool(processes=num_processes, initializer=reset_signals) as send_pool:
             key_and_async_results = send_pool.map(
                 send_task_to_executor,
                 task_tuples_to_send,
@@ -282,7 +357,6 @@ class CeleryExecutor(BaseExecutor):
 
     def update_all_task_states(self) -> None:
         """Updates states of the tasks."""
-
         self.log.debug("Inquiring about %s celery task(s)", len(self.tasks))
         state_and_info_by_celery_task_id = self.bulk_state_fetcher.get_many(self.tasks.values())
 
@@ -401,7 +475,6 @@ def fetch_celery_task_state(async_result: AsyncResult) -> \
         of the task
     :rtype: tuple[str, str, str]
     """
-
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
             # Accessing state property of celery task will make actual network request
@@ -425,14 +498,13 @@ class BulkStateFetcher(LoggingMixin):
     If DatabaseBackend is used as result backend, the SELECT ...WHERE task_id IN (...) query is used
     Otherwise, multiprocessing.Pool will be used. Each task status will be downloaded individually.
     """
+
     def __init__(self, sync_parralelism=None):
         super().__init__()
         self._sync_parallelism = sync_parralelism
 
     def get_many(self, async_results) -> Mapping[str, EventBufferValueType]:
-        """
-        Gets status for many Celery tasks using the best method available.
-        """
+        """Gets status for many Celery tasks using the best method available."""
         if isinstance(app.backend, BaseKeyValueStoreBackend):
             result = self._get_many_from_kv_backend(async_results)
             return result

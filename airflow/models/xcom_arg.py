@@ -34,7 +34,7 @@ class XComArg(TaskMixin):
         op >> xcomarg   (by BaseOperator code)
         op << xcomarg   (by BaseOperator code)
 
-    **Example**: The moment you get a result from any operator (functional or regular) you can ::
+    **Example**: The moment you get a result from any operator (decorated or regular) you can ::
 
         any_op = AnyOperator()
         xcomarg = XComArg(any_op)
@@ -67,9 +67,7 @@ class XComArg(TaskMixin):
                 and self.key == other.key)
 
     def __getitem__(self, item):
-        """
-        Implements xcomresult['some_result_key']
-        """
+        """Implements xcomresult['some_result_key']"""
         return XComArg(operator=self.operator, key=item)
 
     def __str__(self):
@@ -113,15 +111,11 @@ class XComArg(TaskMixin):
         return self._key
 
     def set_upstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]):
-        """
-        Proxy to underlying operator set_upstream method. Required by TaskMixin.
-        """
+        """Proxy to underlying operator set_upstream method. Required by TaskMixin."""
         self.operator.set_upstream(task_or_task_list)
 
     def set_downstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]):
-        """
-        Proxy to underlying operator set_downstream method. Required by TaskMixin.
-        """
+        """Proxy to underlying operator set_downstream method. Required by TaskMixin."""
         self.operator.set_downstream(task_or_task_list)
 
     def resolve(self, context: Dict) -> Any:

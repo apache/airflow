@@ -25,6 +25,7 @@ from enum import Enum, unique
 @unique
 class Encoding(str, Enum):
     """Enum of encoding constants."""
+
     TYPE = '__type'
     VAR = '__var'
 
@@ -33,6 +34,7 @@ class Encoding(str, Enum):
 @unique
 class DagAttributeTypes(str, Enum):
     """Enum of supported attribute types of DAG."""
+
     DAG = 'dag'
     OP = 'operator'
     DATETIME = 'datetime'

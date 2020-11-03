@@ -17,7 +17,8 @@
 # under the License.
 """Qubole operator"""
 import re
-from typing import Iterable
+from datetime import datetime
+from typing import Iterable, Optional
 
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import BaseOperator, BaseOperatorLink
@@ -37,7 +38,7 @@ class QDSLink(BaseOperatorLink):
 
     name = 'Go to QDS'
 
-    def get_link(self, operator, dttm):
+    def get_link(self, operator: BaseOperator, dttm: datetime) -> str:
         """
         Get link to qubole command result page.
 
@@ -47,7 +48,8 @@ class QDSLink(BaseOperatorLink):
         """
         ti = TaskInstance(task=operator, execution_date=dttm)
         conn = BaseHook.get_connection(
-            getattr(operator, "qubole_conn_id", None) or operator.kwargs['qubole_conn_id']
+            getattr(operator, "qubole_conn_id", None)
+            or operator.kwargs['qubole_conn_id']  # type: ignore[attr-defined]
         )
         if conn and conn.host:
             host = re.sub(r'api$', 'v2/analyze?command_id=', conn.host)
@@ -217,10 +219,10 @@ class QuboleOperator(BaseOperator):
     operator_extra_links = (QDSLink(),)
 
     @apply_defaults
-    def __init__(self, *, qubole_conn_id="qubole_default", **kwargs):
+    def __init__(self, *, qubole_conn_id: str = "qubole_default", **kwargs) -> None:
         self.kwargs = kwargs
         self.kwargs['qubole_conn_id'] = qubole_conn_id
-        self.hook = None
+        self.hook: Optional[QuboleHook] = None
         filtered_base_kwargs = self._get_filtered_args(kwargs)
         super().__init__(**filtered_base_kwargs)
 
@@ -230,7 +232,7 @@ class QuboleOperator(BaseOperator):
         if self.on_retry_callback is None:
             self.on_retry_callback = QuboleHook.handle_failure_retry
 
-    def _get_filtered_args(self, all_kwargs):
+    def _get_filtered_args(self, all_kwargs) -> dict:
         qubole_args = (
             flatten_list(COMMAND_ARGS.values())
             + HYPHEN_ARGS
@@ -239,32 +241,32 @@ class QuboleOperator(BaseOperator):
         )
         return {key: value for key, value in all_kwargs.items() if key not in qubole_args}
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         return self.get_hook().execute(context)
 
-    def on_kill(self, ti=None):
+    def on_kill(self, ti=None) -> None:
         if self.hook:
             self.hook.kill(ti)
         else:
             self.get_hook().kill(ti)
 
-    def get_results(self, ti=None, fp=None, inline=True, delim=None, fetch=True):
+    def get_results(self, ti=None, fp=None, inline: bool = True, delim=None, fetch: bool = True) -> str:
         """get_results from Qubole"""
         return self.get_hook().get_results(ti, fp, inline, delim, fetch)
 
-    def get_log(self, ti):
+    def get_log(self, ti) -> None:
         """get_log from Qubole"""
         return self.get_hook().get_log(ti)
 
-    def get_jobs_id(self, ti):
+    def get_jobs_id(self, ti) -> None:
         """Get jobs_id from Qubole"""
         return self.get_hook().get_jobs_id(ti)
 
-    def get_hook(self):
+    def get_hook(self) -> QuboleHook:
         """Reinitialising the hook, as some template fields might have changed"""
         return QuboleHook(**self.kwargs)
 
-    def __getattribute__(self, name):
+    def __getattribute__(self, name: str) -> str:
         if name in QuboleOperator.template_fields:
             if name in self.kwargs:
                 return self.kwargs[name]
@@ -273,7 +275,7 @@ class QuboleOperator(BaseOperator):
         else:
             return object.__getattribute__(self, name)
 
-    def __setattr__(self, name, value):
+    def __setattr__(self, name: str, value: str) -> None:
         if name in QuboleOperator.template_fields:
             self.kwargs[name] = value
         else:

@@ -18,6 +18,7 @@
 #
 """Hook for winrm remote execution."""
 import getpass
+from typing import Optional
 
 from winrm.protocol import Protocol
 
@@ -90,27 +91,27 @@ class WinRMHook(BaseHook):
 
     def __init__(
         self,
-        ssh_conn_id=None,
-        endpoint=None,
-        remote_host=None,
-        remote_port=5985,
-        transport='plaintext',
-        username=None,
-        password=None,
-        service='HTTP',
-        keytab=None,
-        ca_trust_path=None,
-        cert_pem=None,
-        cert_key_pem=None,
-        server_cert_validation='validate',
-        kerberos_delegation=False,
-        read_timeout_sec=30,
-        operation_timeout_sec=20,
-        kerberos_hostname_override=None,
-        message_encryption='auto',
-        credssp_disable_tlsv1_2=False,
-        send_cbt=True,
-    ):
+        ssh_conn_id: Optional[str] = None,
+        endpoint: Optional[str] = None,
+        remote_host: Optional[str] = None,
+        remote_port: int = 5985,
+        transport: str = 'plaintext',
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        service: str = 'HTTP',
+        keytab: Optional[str] = None,
+        ca_trust_path: Optional[str] = None,
+        cert_pem: Optional[str] = None,
+        cert_key_pem: Optional[str] = None,
+        server_cert_validation: str = 'validate',
+        kerberos_delegation: bool = False,
+        read_timeout_sec: int = 30,
+        operation_timeout_sec: int = 20,
+        kerberos_hostname_override: Optional[str] = None,
+        message_encryption: Optional[str] = 'auto',
+        credssp_disable_tlsv1_2: bool = False,
+        send_cbt: bool = True,
+    ) -> None:
         super().__init__()
         self.ssh_conn_id = ssh_conn_id
         self.endpoint = endpoint

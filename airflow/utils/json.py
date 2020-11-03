@@ -30,18 +30,15 @@ except ImportError:
 
 
 class AirflowJsonEncoder(json.JSONEncoder):
-    """
-    Custom Airflow json encoder implementation.
-    """
+    """Custom Airflow json encoder implementation."""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.default = self._default
 
     @staticmethod
     def _default(obj):
-        """
-        Convert dates and numpy objects in a json serializable format.
-        """
+        """Convert dates and numpy objects in a json serializable format."""
         if isinstance(obj, datetime):
             return obj.strftime('%Y-%m-%dT%H:%M:%SZ')
         elif isinstance(obj, date):
@@ -57,6 +54,6 @@ class AirflowJsonEncoder(json.JSONEncoder):
             return float(obj)
         elif k8s is not None and isinstance(obj, k8s.V1Pod):
             from airflow.kubernetes.pod_generator import PodGenerator
-            PodGenerator.serialize_pod(obj)
+            return PodGenerator.serialize_pod(obj)
 
         raise TypeError(f"Object of type '{obj.__class__.__name__}' is not JSON serializable")

@@ -168,9 +168,7 @@ class SparkSqlHook(BaseHook):
             )
 
     def kill(self) -> None:
-        """
-        Kill Spark job
-        """
+        """Kill Spark job"""
         if self._sp and self._sp.poll() is None:
             self.log.info("Killing the Spark-Sql job")
             self._sp.kill()

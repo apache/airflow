@@ -18,7 +18,7 @@
 import json
 import unittest
 
-import mock
+from unittest import mock
 import requests
 import requests_mock
 import tenacity

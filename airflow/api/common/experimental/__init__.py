@@ -19,7 +19,6 @@
 from datetime import datetime
 from typing import Optional
 
-from airflow.configuration import conf
 from airflow.exceptions import DagNotFound, DagRunNotFound, TaskNotFound
 from airflow.models import DagBag, DagModel, DagRun
 
@@ -32,10 +31,10 @@ def check_and_get_dag(dag_id: str, task_id: Optional[str] = None) -> DagModel:
 
     dagbag = DagBag(
         dag_folder=dag_model.fileloc,
-        read_dags_from_db=conf.getboolean('core', 'store_serialized_dags')
+        read_dags_from_db=True
     )
-    dag = dagbag.get_dag(dag_id)  # prefetch dag if it is stored serialized
-    if dag_id not in dagbag.dags:
+    dag = dagbag.get_dag(dag_id)
+    if not dag:
         error_message = "Dag id {} not found".format(dag_id)
         raise DagNotFound(error_message)
     if task_id and not dag.has_task(task_id):

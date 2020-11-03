@@ -228,6 +228,8 @@ Python PATH: [/home/rootcss/venvs/airflow/bin:/usr/lib/python38.zip:/usr/lib/pyt
 
 Below is the sample output of the ``airflow info`` command:
 
+.. seealso:: :ref:`plugins:loading`
+
 .. code-block:: none
 
     Apache Airflow [1.10.11]

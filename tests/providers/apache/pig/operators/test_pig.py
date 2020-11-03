@@ -17,7 +17,7 @@
 
 import unittest
 
-import mock
+from unittest import mock
 
 from airflow.providers.apache.pig.hooks.pig import PigCliHook
 from airflow.providers.apache.pig.operators.pig import PigOperator

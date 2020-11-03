@@ -1,0 +1,63 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""Kubernetes sub-commands"""
+import os
+
+import yaml
+from kubernetes.client.api_client import ApiClient
+
+from airflow.executors.kubernetes_executor import KubeConfig, create_pod_id
+from airflow.kubernetes import pod_generator
+from airflow.kubernetes.pod_generator import PodGenerator
+from airflow.models import TaskInstance
+from airflow.settings import pod_mutation_hook
+from airflow.utils import cli as cli_utils
+from airflow.utils.cli import get_dag
+
+
+@cli_utils.action_logging
+def generate_pod_yaml(args):
+    """Generates yaml files for each task in the DAG. Used for testing output of KubernetesExecutor"""
+    execution_date = args.execution_date
+    dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
+    yaml_output_path = args.output_path
+    kube_config = KubeConfig()
+    for task in dag.tasks:
+        ti = TaskInstance(task, execution_date)
+        pod = PodGenerator.construct_pod(
+            dag_id=args.dag_id,
+            task_id=ti.task_id,
+            pod_id=create_pod_id(
+                args.dag_id, ti.task_id),
+            try_number=ti.try_number,
+            kube_image=kube_config.kube_image,
+            date=ti.execution_date,
+            command=ti.command_as_list(),
+            pod_override_object=PodGenerator.from_obj(ti.executor_config),
+            scheduler_job_id="worker-config",
+            namespace=kube_config.executor_namespace,
+            base_worker_pod=PodGenerator.deserialize_model_file(kube_config.pod_template_file)
+        )
+        pod_mutation_hook(pod)
+        api_client = ApiClient()
+        date_string = pod_generator.datetime_to_label_safe_datestring(execution_date)
+        yaml_file_name = f"{args.dag_id}_{ti.task_id}_{date_string}.yml"
+        os.makedirs(os.path.dirname(yaml_output_path + "/airflow_yaml_output/"), exist_ok=True)
+        with open(yaml_output_path + "/airflow_yaml_output/" + yaml_file_name, "w") as output:
+            sanitized_pod = api_client.sanitize_for_serialization(pod)
+            output.write(yaml.dump(sanitized_pod))
+    print(f"YAML output can be found at {yaml_output_path}/airflow_yaml_output/")

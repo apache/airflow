@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import io
 import logging
 import os
 import re
@@ -29,9 +28,7 @@ log = logging.getLogger(__name__)
 
 
 def TemporaryDirectory(*args, **kwargs):  # pylint: disable=invalid-name
-    """
-    This function is deprecated. Please use `tempfile.TemporaryDirectory`
-    """
+    """This function is deprecated. Please use `tempfile.TemporaryDirectory`"""
     import warnings
     from tempfile import TemporaryDirectory as TmpDir
     warnings.warn(
@@ -67,7 +64,6 @@ def correct_maybe_zipped(fileloc):
     If the path contains a folder with a .zip suffix, then
     the folder is treated as a zip archive and path to zip is returned.
     """
-
     _, archive, _ = ZIP_REGEX.search(fileloc).groups()
     if archive and zipfile.is_zipfile(archive):
         return archive
@@ -86,7 +82,7 @@ def open_maybe_zipped(fileloc, mode='r'):
     if archive and zipfile.is_zipfile(archive):
         return zipfile.ZipFile(archive, mode=mode).open(filename)
     else:
-        return io.open(fileloc, mode=mode)
+        return open(fileloc, mode=mode)
 
 
 def find_path_from_directory(
@@ -99,7 +95,6 @@ def find_path_from_directory(
 
     :return : file path not to be ignored.
     """
-
     patterns_by_dir: Dict[str, List[Pattern[str]]] = {}
 
     for root, dirs, files in os.walk(str(base_dir_path), followlinks=True):
@@ -119,15 +114,16 @@ def find_path_from_directory(
                 os.path.join(os.path.relpath(root, str(base_dir_path)), subdir)) for p in patterns)
         ]
 
-        patterns_by_dir = {os.path.join(root, sd): patterns.copy() for sd in dirs}
+        patterns_by_dir.update({os.path.join(root, sd): patterns.copy() for sd in dirs})
 
         for file in files:  # type: ignore
             if file == ignore_file_name:
                 continue
-            file_path = os.path.join(root, str(file))
-            if any(re.findall(p, file_path) for p in patterns):
+            abs_file_path = os.path.join(root, str(file))
+            rel_file_path = os.path.join(os.path.relpath(root, str(base_dir_path)), str(file))
+            if any(p.search(rel_file_path) for p in patterns):
                 continue
-            yield str(file_path)
+            yield str(abs_file_path)
 
 
 def list_py_file_paths(directory: str,
@@ -174,7 +170,6 @@ def list_py_file_paths(directory: str,
 
 def find_dag_file_paths(directory: str, file_paths: list, safe_mode: bool):
     """Finds file paths of all DAG files."""
-
     for file_path in find_path_from_directory(
             directory, ".airflowignore"):
         try:
@@ -213,4 +208,5 @@ def might_contain_dag(file_path: str, safe_mode: bool, zip_file: Optional[zipfil
             return True
         with open(file_path, 'rb') as dag_file:
             content = dag_file.read()
-    return all(s in content for s in (b'DAG', b'airflow'))
+    content = content.lower()
+    return all(s in content for s in (b'dag', b'airflow'))

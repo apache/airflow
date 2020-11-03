@@ -52,6 +52,8 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``bats-tests``                        Runs BATS bash unit tests
 ----------------------------------- ---------------------------------------------------------------- ------------
+``bats-in-container-tests``           Run in Breeze container bats tests                                   *
+----------------------------------- ---------------------------------------------------------------- ------------
 ``black``                             Runs Black (the uncompromising Python code formatter)
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``build``                             Builds image for mypy, pylint, flake8.                               *
@@ -86,7 +88,7 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``dont-use-safe-filter``              Don't use safe in templates.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``no-relative-imports``               Use absolute imports, not realtive
+``no-relative-imports``               Use absolute imports, not relative
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``end-of-file-fixer``                 Makes sure that there is an empty line at the end.
 ----------------------------------- ---------------------------------------------------------------- ------------
@@ -95,6 +97,8 @@ require Breeze Docker images to be installed locally:
 ``flake8``                            Runs flake8.                                                         *
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``forbid-tabs``                       Fails if tabs are used in the project.
+----------------------------------- ---------------------------------------------------------------- ------------
+``helm-lint``                         Verifies if helm lint passes for the chart
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``incorrect-use-of-LoggingMixin``     Checks if LoggingMixin is properly imported.
 ----------------------------------- ---------------------------------------------------------------- ------------
@@ -114,6 +118,8 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``mypy``                              Runs mypy.                                                           *
 ----------------------------------- ---------------------------------------------------------------- ------------
+``mypy-helm``                         Runs mypy.                                                           *
+----------------------------------- ---------------------------------------------------------------- ------------
 ``pre-commit-descriptions``           Check if all pre-commits are described in docs.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``provide-create-sessions``           Make sure provide-session and create-session imports are OK.
@@ -131,6 +137,8 @@ require Breeze Docker images to be installed locally:
 ``rst-backticks``                     Checks if RST files use double backticks for code.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``setup-order``                       Checks for an order of dependencies in setup.py
+----------------------------------- ---------------------------------------------------------------- ------------
+``setup-installation``                Checks if all the libraries in setup.py are listed in docs
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``shellcheck``                        Checks shell files with shellcheck.
 ----------------------------------- ---------------------------------------------------------------- ------------

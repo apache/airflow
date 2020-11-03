@@ -162,12 +162,12 @@ class TestCli(TestCase):
 
         all_command_as_args = [
             command_as_args
-            for top_commaand in cli_parser.airflow_commands
+            for top_command in cli_parser.airflow_commands
             for command_as_args in (
-                [[top_commaand.name]]
-                if isinstance(top_commaand, cli_parser.ActionCommand)
+                [[top_command.name]]
+                if isinstance(top_command, cli_parser.ActionCommand)
                 else [
-                    [top_commaand.name, nested_command.name] for nested_command in top_commaand.subcommands
+                    [top_command.name, nested_command.name] for nested_command in top_command.subcommands
                 ]
             )
         ]

@@ -26,6 +26,16 @@ function build_images::add_build_args_for_remote_install() {
         "--build-arg" "AIRFLOW_SOURCES_FROM=empty"
         "--build-arg" "AIRFLOW_SOURCES_TO=/empty"
     )
+    if [[ ${AIRFLOW_CONSTRAINTS_REFERENCE} != "" ]]; then
+        EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+            "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${AIRFLOW_CONSTRAINTS_REFERENCE}"
+        )
+    fi
+    if [[ "${AIRFLOW_CONSTRAINTS_LOCATION}" != "" ]]; then
+        EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+            "--build-arg" "AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}"
+        )
+    fi
     if [[ ${AIRFLOW_VERSION} =~ [^0-9]*1[^0-9]*10[^0-9]([0-9]*) ]]; then
         # All types of references/versions match this regexp for 1.10 series
         # for example v1_10_test, 1.10.10, 1.10.9 etc. ${BASH_REMATCH[1]} matches last
@@ -317,7 +327,7 @@ function build_images::get_docker_image_names() {
     export PYTHON_BASE_IMAGE="python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
 
     # CI image base tag
-    export AIRFLOW_CI_BASE_TAG="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci"
+    export AIRFLOW_CI_BASE_TAG="${DOCKER_TAG=${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci}"
 
     # CI image to build
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}"
@@ -326,7 +336,7 @@ function build_images::get_docker_image_names() {
     export AIRFLOW_CI_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}-ci"
 
     # Base production image tag - used to build kubernetes tag as well
-    export AIRFLOW_PROD_BASE_TAG="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}"
+    export AIRFLOW_PROD_BASE_TAG="${DOCKER_TAG=${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}}"
 
     # PROD image to build
     export AIRFLOW_PROD_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_PROD_BASE_TAG}"
@@ -352,7 +362,7 @@ function build_images::prepare_ci_build() {
     if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
         if [[ -n ${GITHUB_TOKEN=} ]]; then
             echo "${GITHUB_TOKEN}" | docker login \
-                --username "${GITHUB_USERNAME}" \
+                --username "${GITHUB_USERNAME:-apache}" \
                 --password-stdin \
                 "${GITHUB_REGISTRY}"
         fi
@@ -509,8 +519,8 @@ function build_images::build_ci_image() {
         " >"${DETECTED_TERMINAL}"
         spinner::spin "${OUTPUT_LOG}" &
         SPIN_PID=$!
-        # shellcheck disable=SC2064
-        traps::add_trap "kill ${SPIN_PID} || true" INT TERM HUP EXIT
+        # shellcheck disable=SC2064,SC2016
+        traps::add_trap '$(kill '${SPIN_PID}' || true)' EXIT HUP INT TERM
     fi
     push_pull_remove_images::pull_ci_images_if_needed
     if [[ "${DOCKER_CACHE}" == "disabled" ]]; then
@@ -531,6 +541,12 @@ function build_images::build_ci_image() {
         "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}"
     )
 
+    if [[ "${AIRFLOW_CONSTRAINTS_LOCATION}" != "" ]]; then
+        EXTRA_DOCKER_CI_BUILD_FLAGS+=(
+            "--build-arg" "AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}"
+        )
+    fi
+
     if [[ -n ${SPIN_PID=} ]]; then
         kill -HUP "${SPIN_PID}" || true
         wait "${SPIN_PID}" || true
@@ -541,8 +557,8 @@ function build_images::build_ci_image() {
         " >"${DETECTED_TERMINAL}"
         spinner::spin "${OUTPUT_LOG}" &
         SPIN_PID=$!
-        # shellcheck disable=SC2064
-        traps::add_trap "kill ${SPIN_PID} || true" EXIT HUP INT TERM
+        # shellcheck disable=SC2064,SC2016
+        traps::add_trap '$(kill '${SPIN_PID}' || true)' EXIT HUP INT TERM
     fi
     if [[ -n ${DETECTED_TERMINAL=} ]]; then
         echo -n "
@@ -550,6 +566,23 @@ Docker building ${AIRFLOW_CI_IMAGE}.
 " >"${DETECTED_TERMINAL}"
     fi
     set +u
+
+    local additional_dev_args=()
+    if [[ ${DEV_APT_DEPS} != "" ]]; then
+        additional_dev_args+=("--build-arg" "DEV_APT_DEPS=\"${DEV_APT_DEPS}\"")
+    fi
+    if [[ ${DEV_APT_COMMAND} != "" ]]; then
+        additional_dev_args+=("--build-arg" "DEV_APT_COMMAND=\"${DEV_APT_COMMAND}\"")
+    fi
+
+    local additional_runtime_args=()
+    if [[ ${RUNTIME_APT_DEPS} != "" ]]; then
+        additional_runtime_args+=("--build-arg" "RUNTIME_APT_DEPS=\"${RUNTIME_APT_DEPS}\"")
+    fi
+    if [[ ${RUNTIME_APT_COMMAND} != "" ]]; then
+        additional_runtime_args+=("--build-arg" "RUNTIME_APT_COMMAND=\"${RUNTIME_APT_COMMAND}\"")
+    fi
+
     docker build \
         "${EXTRA_DOCKER_CI_BUILD_FLAGS[@]}" \
         --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
@@ -557,20 +590,35 @@ Docker building ${AIRFLOW_CI_IMAGE}.
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${BRANCH_NAME}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
+        --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES}" \
+        --build-arg INSTALL_PROVIDERS_FROM_SOURCES="${INSTALL_PROVIDERS_FROM_SOURCES}" \
         --build-arg ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS}" \
         --build-arg ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS}" \
-        --build-arg ADDITIONAL_DEV_DEPS="${ADDITIONAL_DEV_DEPS}" \
-        --build-arg ADDITIONAL_RUNTIME_DEPS="${ADDITIONAL_RUNTIME_DEPS}" \
+        --build-arg ADDITIONAL_DEV_APT_COMMAND="${ADDITIONAL_DEV_APT_COMMAND}" \
+        --build-arg ADDITIONAL_DEV_APT_DEPS="${ADDITIONAL_DEV_APT_DEPS}" \
+        --build-arg ADDITIONAL_DEV_APT_ENV="${ADDITIONAL_DEV_APT_ENV}" \
+        --build-arg ADDITIONAL_RUNTIME_APT_COMMAND="${ADDITIONAL_RUNTIME_APT_COMMAND}" \
+        --build-arg ADDITIONAL_RUNTIME_APT_DEPS="${ADDITIONAL_RUNTIME_APT_DEPS}" \
+        --build-arg ADDITIONAL_RUNTIME_APT_ENV="${ADDITIONAL_RUNTIME_APT_ENV}" \
+        --build-arg INSTALL_AIRFLOW_VIA_PIP="${INSTALL_AIRFLOW_VIA_PIP}" \
+        --build-arg AIRFLOW_LOCAL_PIP_WHEELS="${AIRFLOW_LOCAL_PIP_WHEELS}" \
         --build-arg UPGRADE_TO_LATEST_CONSTRAINTS="${UPGRADE_TO_LATEST_CONSTRAINTS}" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
+        "${additional_dev_args[@]}" \
+        "${additional_runtime_args[@]}" \
         "${DOCKER_CACHE_CI_DIRECTIVE[@]}" \
         -t "${AIRFLOW_CI_IMAGE}" \
         --target "main" \
         . -f Dockerfile.ci
     set -u
     if [[ -n "${DEFAULT_CI_IMAGE=}" ]]; then
+        echo "Tagging additionally image ${AIRFLOW_CI_IMAGE} with ${DEFAULT_CI_IMAGE}"
         docker tag "${AIRFLOW_CI_IMAGE}" "${DEFAULT_CI_IMAGE}"
+    fi
+    if [[ -n "${IMAGE_TAG=}" ]]; then
+        echo "Tagging additionally image ${AIRFLOW_CI_IMAGE} with ${IMAGE_TAG}"
+        docker tag "${AIRFLOW_CI_IMAGE}" "${IMAGE_TAG}"
     fi
     if [[ -n ${SPIN_PID=} ]]; then
         kill -HUP "${SPIN_PID}" || true
@@ -583,7 +631,7 @@ Docker building ${AIRFLOW_CI_IMAGE}.
 # DockerHub user etc. the variables are set so that other functions can use those variables.
 function build_images::prepare_prod_build() {
     if [[ -n "${INSTALL_AIRFLOW_REFERENCE=}" ]]; then
-        # When --install-airflow-reference is used then the image is build from github tag
+        # When --install-airflow-reference is used then the image is build from GitHub tag
         EXTRA_DOCKER_PROD_BUILD_FLAGS=(
             "--build-arg" "AIRFLOW_INSTALL_SOURCES=https://github.com/apache/airflow/archive/${INSTALL_AIRFLOW_REFERENCE}.tar.gz#egg=apache-airflow"
         )
@@ -679,42 +727,80 @@ function build_images::build_prod_images() {
         exit 1
     fi
     set +u
+    local additional_dev_args=()
+    if [[ ${DEV_APT_DEPS} != "" ]]; then
+        additional_dev_args+=("--build-arg" "DEV_APT_DEPS=\"${DEV_APT_DEPS}\"")
+    fi
+    if [[ ${DEV_APT_COMMAND} != "" ]]; then
+        additional_dev_args+=("--build-arg" "DEV_APT_COMMAND=\"${DEV_APT_COMMAND}\"")
+    fi
     docker build \
         "${EXTRA_DOCKER_PROD_BUILD_FLAGS[@]}" \
         --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
         --build-arg PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}" \
+        --build-arg INSTALL_MYSQL_CLIENT="${INSTALL_MYSQL_CLIENT}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${AIRFLOW_BRANCH_FOR_PYPI_PRELOADING}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
         --build-arg ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS}" \
         --build-arg ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS}" \
-        --build-arg ADDITIONAL_DEV_DEPS="${ADDITIONAL_DEV_DEPS}" \
+        "${additional_dev_args[@]}" \
+        --build-arg INSTALL_PROVIDERS_FROM_SOURCES="${INSTALL_PROVIDERS_FROM_SOURCES}" \
+        --build-arg ADDITIONAL_DEV_APT_COMMAND="${ADDITIONAL_DEV_APT_COMMAND}" \
+        --build-arg ADDITIONAL_DEV_APT_DEPS="${ADDITIONAL_DEV_APT_DEPS}" \
+        --build-arg ADDITIONAL_DEV_APT_ENV="${ADDITIONAL_DEV_APT_ENV}" \
+        --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES}" \
+        --build-arg INSTALL_AIRFLOW_VIA_PIP="${INSTALL_AIRFLOW_VIA_PIP}" \
+        --build-arg AIRFLOW_LOCAL_PIP_WHEELS="${AIRFLOW_LOCAL_PIP_WHEELS}" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
         "${DOCKER_CACHE_PROD_BUILD_DIRECTIVE[@]}" \
         -t "${AIRFLOW_PROD_BUILD_IMAGE}" \
         --target "airflow-build-image" \
         . -f Dockerfile
+    local additional_runtime_args=()
+    if [[ ${RUNTIME_APT_DEPS} != "" ]]; then
+        additional_runtime_args+=("--build-arg" "RUNTIME_APT_DEPS=\"${RUNTIME_APT_DEPS}\"")
+    fi
+    if [[ ${RUNTIME_APT_COMMAND} != "" ]]; then
+        additional_runtime_args+=("--build-arg" "RUNTIME_APT_COMMAND=\"${RUNTIME_APT_COMMAND}\"")
+    fi
     docker build \
         "${EXTRA_DOCKER_PROD_BUILD_FLAGS[@]}" \
         --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
         --build-arg PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}" \
+        --build-arg INSTALL_MYSQL_CLIENT="${INSTALL_MYSQL_CLIENT}" \
         --build-arg ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS}" \
         --build-arg ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS}" \
-        --build-arg ADDITIONAL_DEV_DEPS="${ADDITIONAL_DEV_DEPS}" \
-        --build-arg ADDITIONAL_RUNTIME_DEPS="${ADDITIONAL_RUNTIME_DEPS}" \
+        --build-arg INSTALL_PROVIDERS_FROM_SOURCES="${INSTALL_PROVIDERS_FROM_SOURCES}" \
+        --build-arg ADDITIONAL_DEV_APT_COMMAND="${ADDITIONAL_DEV_APT_COMMAND}" \
+        --build-arg ADDITIONAL_DEV_APT_DEPS="${ADDITIONAL_DEV_APT_DEPS}" \
+        --build-arg ADDITIONAL_DEV_APT_ENV="${ADDITIONAL_DEV_APT_ENV}" \
+        --build-arg ADDITIONAL_RUNTIME_APT_COMMAND="${ADDITIONAL_RUNTIME_APT_COMMAND}" \
+        --build-arg ADDITIONAL_RUNTIME_APT_DEPS="${ADDITIONAL_RUNTIME_APT_DEPS}" \
+        --build-arg ADDITIONAL_RUNTIME_APT_ENV="${ADDITIONAL_RUNTIME_APT_ENV}" \
+        --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES}" \
+        --build-arg INSTALL_AIRFLOW_VIA_PIP="${INSTALL_AIRFLOW_VIA_PIP}" \
+        --build-arg AIRFLOW_LOCAL_PIP_WHEELS="${AIRFLOW_LOCAL_PIP_WHEELS}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${AIRFLOW_BRANCH_FOR_PYPI_PRELOADING}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
+        "${additional_dev_args[@]}" \
+        "${additional_runtime_args[@]}" \
         "${DOCKER_CACHE_PROD_DIRECTIVE[@]}" \
         -t "${AIRFLOW_PROD_IMAGE}" \
         --target "main" \
         . -f Dockerfile
     set -u
     if [[ -n "${DEFAULT_PROD_IMAGE:=}" ]]; then
+        echo "Tagging additionally image ${AIRFLOW_PROD_IMAGE} with ${DEFAULT_PROD_IMAGE}"
         docker tag "${AIRFLOW_PROD_IMAGE}" "${DEFAULT_PROD_IMAGE}"
+    fi
+    if [[ -n "${IMAGE_TAG=}" ]]; then
+        echo "Tagging additionally image ${AIRFLOW_PROD_IMAGE} with ${IMAGE_TAG}"
+        docker tag "${AIRFLOW_PROD_IMAGE}" "${IMAGE_TAG}"
     fi
 }
 

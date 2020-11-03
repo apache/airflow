@@ -25,7 +25,7 @@ readonly INTHEWILD
 export LC_ALL=C
 
 temp_file=$(mktemp)
-sed '/1\./q' "${INTHEWILD}" | head -n -1 >"${temp_file}"
+sed '/1\./q' "${INTHEWILD}" | awk 'n>=1 { print a[n%1] } { a[n%1]=$0; n=n+1 }' >"${temp_file}"
 sed -n '/1\./p' "${INTHEWILD}" | sort >> "${temp_file}"
 
 cat "${temp_file}" > "${INTHEWILD}"

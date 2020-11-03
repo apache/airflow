@@ -113,7 +113,7 @@ Default time zone
 
 The default time zone is the time zone defined by the ``default_timezone`` setting under ``[core]``. If
 you just installed Airflow it will be set to ``utc``, which is recommended. You can also set it to
-``system`` or an IANA time zone (e.g.``Europe/Amsterdam``). DAGs are also evaluated on Airflow workers,
+``system`` or an IANA time zone (e.g. ``Europe/Amsterdam``). DAGs are also evaluated on Airflow workers,
 it is therefore important to make sure this setting is equal on all Airflow nodes.
 
 

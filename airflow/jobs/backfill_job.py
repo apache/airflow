@@ -51,6 +51,7 @@ class BackfillJob(BaseJob):
     triggers a set of task instance runs, in the right order and lasts for
     as long as it takes for the set of task instance to be completed.
     """
+
     STATES_COUNT_AS_RUNNING = (State.RUNNING, State.QUEUED)
 
     __mapper_args__ = {
@@ -90,6 +91,7 @@ class BackfillJob(BaseJob):
         :param total_runs: Number of total dag runs able to run
         :type total_runs: int
         """
+
         # TODO(edgarRd): AIRFLOW-1444: Add consistency check on counts
         def __init__(self,  # pylint: disable=too-many-arguments
                      to_run=None,
@@ -269,13 +271,12 @@ class BackfillJob(BaseJob):
 
             self.log.debug("Executor state: %s task %s", state, ti)
 
-            if state in (State.FAILED, State.SUCCESS):
-                if ti.state == State.RUNNING or ti.state == State.QUEUED:
-                    msg = ("Executor reports task instance {} finished ({}) "
-                           "although the task says its {}. Was the task "
-                           "killed externally? Info: {}".format(ti, state, ti.state, info))
-                    self.log.error(msg)
-                    ti.handle_failure(msg)
+            if state in (State.FAILED, State.SUCCESS) and ti.state in self.STATES_COUNT_AS_RUNNING:
+                msg = ("Executor reports task instance {} finished ({}) "
+                       "although the task says its {}. Was the task "
+                       "killed externally? Info: {}".format(ti, state, ti.state, info))
+                self.log.error(msg)
+                ti.handle_failure(msg)
 
     @provide_session
     def _get_dag_run(self, run_date: datetime, dag: DAG, session: Session = None):
@@ -323,6 +324,7 @@ class BackfillJob(BaseJob):
             session=session,
             conf=self.conf,
             run_type=DagRunType.BACKFILL_JOB,
+            creating_job_id=self.id,
         )
 
         # set required transient field
@@ -331,7 +333,7 @@ class BackfillJob(BaseJob):
         # explicitly mark as backfill and running
         run.state = State.RUNNING
         run.run_id = run.generate_run_id(DagRunType.BACKFILL_JOB, run_date)
-        run.run_type = DagRunType.BACKFILL_JOB.value
+        run.run_type = DagRunType.BACKFILL_JOB
         run.verify_integrity(session=session)
         return run
 
@@ -410,7 +412,6 @@ class BackfillJob(BaseJob):
         :return: the list of execution_dates for the finished dag runs
         :rtype: list
         """
-
         executed_run_dates = []
 
         while ((len(ti_status.to_run) > 0 or len(ti_status.running) > 0) and
@@ -423,7 +424,7 @@ class BackfillJob(BaseJob):
             # determined deadlocked while they are actually
             # waiting for their upstream to finish
             @provide_session
-            def _per_task_process(task, key, ti, session=None):  # pylint: disable=too-many-return-statements
+            def _per_task_process(key, ti, session=None):  # pylint: disable=too-many-return-statements
                 ti.refresh_from_db(lock_for_update=True, session=session)
 
                 task = self.dag.get_task(ti.task_id, include_subdags=True)
@@ -598,7 +599,7 @@ class BackfillJob(BaseJob):
                                     "is reached."
                                 )
 
-                        _per_task_process(task, key, ti)
+                        _per_task_process(key, ti)
             except (NoAvailablePoolSlot, DagConcurrencyLimitReached, TaskConcurrencyLimitReached) as e:
                 self.log.debug(e)
 
@@ -629,7 +630,7 @@ class BackfillJob(BaseJob):
             _dag_runs = ti_status.active_runs[:]
             for run in _dag_runs:
                 run.update_state(session=session)
-                if run.state in State.finished():
+                if run.state in State.finished:
                     ti_status.finished_runs += 1
                     ti_status.active_runs.remove(run)
                     executed_run_dates.append(run.execution_date)
@@ -748,7 +749,7 @@ class BackfillJob(BaseJob):
         """
         for dag_run in dag_runs:
             dag_run.update_state()
-            if dag_run.state not in State.finished():
+            if dag_run.state not in State.finished:
                 dag_run.set_state(State.FAILED)
             session.merge(dag_run)
 
@@ -863,7 +864,7 @@ class BackfillJob(BaseJob):
                 .filter(
                     # pylint: disable=comparison-with-callable
                     DagRun.state == State.RUNNING,
-                    DagRun.run_type != DagRunType.BACKFILL_JOB.value,
+                    DagRun.run_type != DagRunType.BACKFILL_JOB,
                     TaskInstance.state.in_(resettable_states))).all()
         else:
             resettable_tis = filter_by_dag_run.get_task_instances(state=resettable_states,

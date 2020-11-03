@@ -57,9 +57,7 @@ class DatadogHook(BaseHook, LoggingMixin):
         initialize(api_key=self.api_key, app_key=self.app_key)
 
     def validate_response(self, response: Dict[str, Any]) -> None:
-        """
-        Validate Datadog response
-        """
+        """Validate Datadog response"""
         if response['status'] != 'ok':
             self.log.error("Datadog returned: %s", response)
             raise AirflowException("Error status received from Datadog")

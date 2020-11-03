@@ -1,4 +1,3 @@
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -68,9 +67,7 @@ def expand_env_var(env_var):
 
 
 def run_command(command):
-    """
-    Runs command and returns stdout
-    """
+    """Runs command and returns stdout"""
     process = subprocess.Popen(
         shlex.split(command),
         stdout=subprocess.PIPE,
@@ -178,6 +175,9 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
             'task_runner': (re.compile(r'\ABashTaskRunner\Z'), r'StandardTaskRunner', '2.0'),
             'hostname_callable': (re.compile(r':'), r'.', '2.0'),
         },
+        'webserver': {
+            'navbar_color': (re.compile(r'\A#007A87\Z', re.IGNORECASE), '#fff', '2.1'),
+        },
         'email': {
             'email_backend': (
                 re.compile(r'^airflow\.contrib\.utils\.sendgrid\.send_email$'),
@@ -228,7 +228,6 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
         Validate that config values aren't invalid given other config values
         or system-level limitations and requirements.
         """
-
         if (
                 self.get("core", "executor") not in ('DebugExecutor', 'SequentialExecutor') and
                 "sqlite" in self.get('core', 'sql_alchemy_conn')):

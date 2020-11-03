@@ -29,6 +29,7 @@ class TriggerRuleDep(BaseTIDep):
     Determines if a task's upstream tasks are in a state that allows a given task instance
     to run.
     """
+
     NAME = "Trigger Rule"
     IGNOREABLE = True
     IS_TASK_DEP = True
@@ -109,7 +110,6 @@ class TriggerRuleDep(BaseTIDep):
         :param session: database session
         :type session: sqlalchemy.orm.session.Session
         """
-
         task = ti.task
         upstream = len(task.upstream_task_ids)
         trigger_rule = task.trigger_rule

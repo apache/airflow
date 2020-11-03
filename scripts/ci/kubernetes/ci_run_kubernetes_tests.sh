@@ -21,6 +21,7 @@
 kind::make_sure_kubernetes_tools_are_installed
 kind::get_kind_cluster_name
 
+traps::add_trap kind::stop_kubectl EXIT HUP INT TERM
 traps::add_trap kind::dump_kind_logs EXIT HUP INT TERM
 
 interactive="false"
@@ -83,9 +84,10 @@ fi
 
 . "${virtualenv_path}/bin/activate"
 
+pip install --upgrade pip==20.2.3
+
 pip install pytest freezegun pytest-cov \
   --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
-
 
 pip install -e ".[kubernetes]" \
   --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"

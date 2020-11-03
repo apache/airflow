@@ -181,9 +181,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         )
 
     def get_hook(self) -> JenkinsHook:
-        """
-        Instantiate jenkins hook
-        """
+        """Instantiate jenkins hook"""
         return JenkinsHook(self.jenkins_connection_id)
 
     def execute(self, context: Mapping[Any, Any]) -> Optional[str]:

@@ -58,9 +58,11 @@ arbitrary number of tasks. In general, each one should correspond to a single
 logical workflow.
 
 .. note:: When searching for DAGs, Airflow only considers Python files
-   that contain the strings "airflow" and "DAG" by default. To consider
-   all Python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE``
+   that contain the strings "airflow" and "dag" by default (case-insensitive).
+   To consider all Python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE``
    configuration flag.
+
+.. _concepts:scope:
 
 Scope
 -----
@@ -102,6 +104,8 @@ any of its operators. This makes it easy to apply a common parameter to many ope
     op = DummyOperator(task_id='dummy', dag=dag)
     print(op.owner) # Airflow
 
+.. _concepts:context_manager:
+
 Context Manager
 ---------------
 
@@ -116,17 +120,23 @@ DAGs can be used as context managers to automatically assign new operators to th
 
     op.dag is dag # True
 
-.. _concepts:functional_dags:
+.. _concepts:task_flow_api:
 
-Functional DAGs
----------------
+TaskFlow API
+------------
 
-DAGs can be defined using functional abstractions. Outputs and inputs are sent between tasks using
-:ref:`XCom values <concepts:xcom>`. In addition, you can wrap functions as tasks using the
-:ref:`task decorator <concepts:task_decorator>`. Airflow will also automatically add dependencies between
-tasks to ensure that XCom messages are available when operators are executed.
+.. versionadded:: 2.0.0
 
-Example DAG with functional abstraction
+Airflow 2.0 adds a new style of authoring dags called the TaskFlow API which removes a lot of the boilerplate
+around creating PythonOperators, managing dependencies between task and accessing XCom values. (During
+development this feature was called "Functional DAGs", so if you see or hear any references to that, it's the
+same thing)
+
+Outputs and inputs are sent between tasks using :ref:`XCom values <concepts:xcom>`. In addition, you can wrap
+functions as tasks using the :ref:`task decorator <concepts:task_decorator>`. Airflow will also automatically
+add dependencies between tasks to ensure that XCom messages are available when operators are executed.
+
+Example DAG built with the TaskFlow API
 
 .. code-block:: python
 
@@ -155,6 +165,32 @@ Example DAG with functional abstraction
         subject=email_info['subject'],
         html_content=email_info['body']
     )
+
+DAG decorator
+-------------
+
+.. versionadded:: 2.0.0
+
+In addition to creating DAGs using :ref:`context manager <concepts:context_manager>`, in Airflow 2.0 you can also
+create DAGs from a function. DAG decorator creates a DAG generator function. Any function decorated with ``@dag``
+returns a DAG object.
+
+DAG decorator also sets up the parameters you have in the function as DAG params. This allows you to parameterize
+your DAGs and set the parameters when triggering the DAG manually. See
+:ref:`Passing Parameters when triggering dags <dagrun:parameters>` to learn how to pass parameters when triggering DAGs.
+
+You can also use the parameters on jinja templates by using the ``{{context.params}}`` dictionary.
+
+Example DAG with decorator:
+
+.. exampleinclude:: /../airflow/example_dags/example_dag_decorator.py
+    :language: python
+    :start-after: [START dag_decorator_usage]
+    :end-before: [END dag_decorator_usage]
+
+.. note:: Note that Airflow will only load DAGs that appear in ``globals()`` as noted in :ref:`scope section <concepts:scope>`.
+  This means you need to make sure to have a variable for your returned DAG is in the module scope.
+  Otherwise Airflow won't detect your decorated DAG.
 
 .. _concepts:executor_config:
 
@@ -227,9 +263,10 @@ When a DAG Run is created, task_1 will start running and task_2 waits for task_1
 Python task decorator
 ---------------------
 
+.. versionadded:: 2.0.0
+
 Airflow ``task`` decorator converts any Python function to an Airflow operator.
 The decorated function can be called once to set the arguments and key arguments for operator execution.
-
 
 .. code-block:: python
 
@@ -250,10 +287,10 @@ The decorated function can be called once to set the arguments and key arguments
 
       hello_name('Airflow users')
 
-Task decorator captures returned values and sends them to the :ref:`XCom backend <concepts:xcom>`. By default, returned
-value is saved as a single XCom value. You can set ``multiple_outputs`` key argument to ``True`` to unroll dictionaries,
-lists or tuples into separate XCom values. This can be used with regular operators to create
-:ref:`functional DAGs <concepts:functional_dags>`.
+Task decorator captures returned values and sends them to the :ref:`XCom backend <concepts:xcom>`. By default,
+the returned value is saved as a single XCom value. You can set ``multiple_outputs`` key argument to ``True``
+to unroll dictionaries, lists or tuples into separate XCom values. This can be used with regular operators to
+create :ref:`decorated DAGs <concepts:task_flow_api>`.
 
 Calling a decorated function returns an ``XComArg`` instance. You can use it to set templated fields on downstream
 operators.
@@ -1184,7 +1221,7 @@ may look like inside your ``airflow_local_settings.py``:
 .. code-block:: python
 
     def policy(task):
-        if task.__class__.__name__ == 'HivePartitionSensor':
+        if task.task_type == 'HivePartitionSensor':
             task.queue = "sensor_queue"
         if task.timeout > timedelta(hours=48):
             task.timeout = timedelta(hours=48)
@@ -1497,7 +1534,7 @@ A ``.airflowignore`` file specifies the directories or files in ``DAG_FOLDER``
 or ``PLUGINS_FOLDER`` that Airflow should intentionally ignore.
 Each line in ``.airflowignore`` specifies a regular expression pattern,
 and directories or files whose names (not DAG id) match any of the patterns
-would be ignored (under the hood,``re.findall()`` is used to match the pattern).
+would be ignored (under the hood,``Pattern.search()`` is used to match the pattern).
 Overall it works like a ``.gitignore`` file.
 Use the ``#`` character to indicate a comment; all characters
 on a line following a ``#`` will be ignored.

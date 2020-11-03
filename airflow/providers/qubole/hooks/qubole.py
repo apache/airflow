@@ -22,6 +22,7 @@ import logging
 import os
 import pathlib
 import time
+from typing import List, Dict, Tuple
 
 from qds_sdk.commands import (
     Command,
@@ -63,24 +64,24 @@ COMMAND_CLASSES = {
 POSITIONAL_ARGS = {'hadoopcmd': ['sub_command'], 'shellcmd': ['parameters'], 'pigcmd': ['parameters']}
 
 
-def flatten_list(list_of_lists):
+def flatten_list(list_of_lists) -> list:
     """Flatten the list"""
     return [element for array in list_of_lists for element in array]
 
 
-def filter_options(options):
+def filter_options(options: list) -> list:
     """Remove options from the list"""
     options_to_remove = ["help", "print-logs-live", "print-logs", "pool"]
     return [option for option in options if option not in options_to_remove]
 
 
-def get_options_list(command_class):
+def get_options_list(command_class) -> list:
     """Get options list"""
     options_list = [option.get_opt_string().strip("--") for option in command_class.optparser.option_list]
     return filter_options(options_list)
 
 
-def build_command_args():
+def build_command_args() -> Tuple[Dict[str, list], list]:
     """Build Command argument from command and options"""
     command_args, hyphen_args = {}, set()
     for cmd in COMMAND_CLASSES:
@@ -108,7 +109,7 @@ COMMAND_ARGS, HYPHEN_ARGS = build_command_args()
 class QuboleHook(BaseHook):
     """Hook for Qubole communication"""
 
-    def __init__(self, *args, **kwargs):  # pylint: disable=unused-argument
+    def __init__(self, *args, **kwargs) -> None:  # pylint: disable=unused-argument
         super().__init__()
         conn = self.get_connection(kwargs['qubole_conn_id'])
         Qubole.configure(api_token=conn.password, api_url=conn.host)
@@ -120,7 +121,7 @@ class QuboleHook(BaseHook):
         self.task_instance = None
 
     @staticmethod
-    def handle_failure_retry(context):
+    def handle_failure_retry(context) -> None:
         """Handle retries in case of failures"""
         ti = context['ti']
         cmd_id = ti.xcom_pull(key='qbol_cmd_id', task_ids=ti.task_id)
@@ -137,25 +138,35 @@ class QuboleHook(BaseHook):
                     log.info('Cancelling the Qubole Command Id: %s', cmd_id)
                     cmd.cancel()
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         """Execute call"""
         args = self.cls.parse(self.create_cmd_args(context))
         self.cmd = self.cls.create(**args)
         self.task_instance = context['task_instance']
-        context['task_instance'].xcom_push(key='qbol_cmd_id', value=self.cmd.id)
-        self.log.info("Qubole command created with Id: %s and Status: %s", self.cmd.id, self.cmd.status)
+        context['task_instance'].xcom_push(key='qbol_cmd_id', value=self.cmd.id)  # type: ignore[attr-defined]
+        self.log.info(
+            "Qubole command created with Id: %s and Status: %s",
+            self.cmd.id,  # type: ignore[attr-defined]
+            self.cmd.status,  # type: ignore[attr-defined]
+        )
 
-        while not Command.is_done(self.cmd.status):
+        while not Command.is_done(self.cmd.status):  # type: ignore[attr-defined]
             time.sleep(Qubole.poll_interval)
-            self.cmd = self.cls.find(self.cmd.id)
-            self.log.info("Command Id: %s and Status: %s", self.cmd.id, self.cmd.status)
+            self.cmd = self.cls.find(self.cmd.id)  # type: ignore[attr-defined]
+            self.log.info(
+                "Command Id: %s and Status: %s", self.cmd.id, self.cmd.status  # type: ignore[attr-defined]
+            )
 
         if 'fetch_logs' in self.kwargs and self.kwargs['fetch_logs'] is True:
-            self.log.info("Logs for Command Id: %s \n%s", self.cmd.id, self.cmd.get_log())
+            self.log.info(
+                "Logs for Command Id: %s \n%s", self.cmd.id, self.cmd.get_log()  # type: ignore[attr-defined]
+            )
 
-        if self.cmd.status != 'done':
+        if self.cmd.status != 'done':  # type: ignore[attr-defined]
             raise AirflowException(
-                'Command Id: {0} failed with Status: {1}'.format(self.cmd.id, self.cmd.status)
+                'Command Id: {0} failed with Status: {1}'.format(
+                    self.cmd.id, self.cmd.status  # type: ignore[attr-defined]
+                )
             )
 
     def kill(self, ti):
@@ -176,7 +187,7 @@ class QuboleHook(BaseHook):
             self.log.info('Sending KILL signal to Qubole Command Id: %s', self.cmd.id)
             self.cmd.cancel()
 
-    def get_results(self, ti=None, fp=None, inline=True, delim=None, fetch=True):
+    def get_results(self, ti=None, fp=None, inline: bool = True, delim=None, fetch: bool = True) -> str:
         """
         Get results (or just s3 locations) of a command from Qubole and save into a file
 
@@ -198,12 +209,12 @@ class QuboleHook(BaseHook):
             cmd_id = ti.xcom_pull(key="qbol_cmd_id", task_ids=self.task_id)
             self.cmd = self.cls.find(cmd_id)
 
-        self.cmd.get_results(fp, inline, delim, fetch)
+        self.cmd.get_results(fp, inline, delim, fetch)  # type: ignore[attr-defined]
         fp.flush()
         fp.close()
         return fp.name
 
-    def get_log(self, ti):
+    def get_log(self, ti) -> None:
         """
         Get Logs of a command from Qubole
 
@@ -214,7 +225,7 @@ class QuboleHook(BaseHook):
             cmd_id = ti.xcom_pull(key="qbol_cmd_id", task_ids=self.task_id)
         Command.get_log_id(cmd_id)
 
-    def get_jobs_id(self, ti):
+    def get_jobs_id(self, ti) -> None:
         """
         Get jobs associated with a Qubole commands
 
@@ -225,7 +236,7 @@ class QuboleHook(BaseHook):
             cmd_id = ti.xcom_pull(key="qbol_cmd_id", task_ids=self.task_id)
         Command.get_jobs_id(cmd_id)
 
-    def create_cmd_args(self, context):
+    def create_cmd_args(self, context) -> List[str]:
         """Creates command arguments"""
         args = []
         cmd_type = self.kwargs['command_type']
@@ -255,7 +266,7 @@ class QuboleHook(BaseHook):
         return args
 
     @staticmethod
-    def _add_tags(tags, value):
+    def _add_tags(tags, value) -> None:
         if isinstance(value, str):
             tags.add(value)
         elif isinstance(value, (list, tuple)):

@@ -21,10 +21,12 @@ import textwrap
 import unittest
 from datetime import datetime, timezone
 from tempfile import NamedTemporaryFile, mkdtemp
+from unittest import mock
 from unittest.mock import patch
 
 from freezegun import freeze_time
 from sqlalchemy import func
+from sqlalchemy.exc import OperationalError
 
 import airflow.example_dags
 from airflow import models
@@ -174,6 +176,7 @@ class TestDagBag(unittest.TestCase):
         for file in invalid_dag_files:
             dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, file))
         self.assertEqual(len(dagbag.import_errors), len(invalid_dag_files))
+        self.assertEqual(len(dagbag.dags), 0)
 
     @patch.object(DagModel, 'get_current')
     def test_get_dag_without_refresh(self, mock_dagmodel):
@@ -641,7 +644,6 @@ class TestDagBag(unittest.TestCase):
         with create_session() as session:
             session.query(DagModel).filter(DagModel.dag_id == 'test_deactivate_unknown_dags').delete()
 
-    @patch("airflow.models.dagbag.settings.STORE_SERIALIZED_DAGS", True)
     def test_serialized_dags_are_written_to_db_on_sync(self):
         """
         Test that when dagbag.sync_to_db is called the DAGs are Serialized and written to DB
@@ -661,7 +663,37 @@ class TestDagBag(unittest.TestCase):
             new_serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
             self.assertEqual(new_serialized_dags_count, 1)
 
-    @patch("airflow.models.dagbag.settings.STORE_SERIALIZED_DAGS", True)
+    @patch("airflow.models.dagbag.DagBag.collect_dags")
+    @patch("airflow.models.serialized_dag.SerializedDagModel.bulk_sync_to_db")
+    @patch("airflow.models.dag.DAG.bulk_write_to_db")
+    def test_sync_to_db_is_retried(self, mock_bulk_write_to_db, mock_sdag_sync_to_db, mock_collect_dags):
+        """Test that dagbag.sync_to_db is retried on OperationalError"""
+
+        dagbag = DagBag("/dev/null")
+
+        op_error = OperationalError(statement=mock.ANY, params=mock.ANY, orig=mock.ANY)
+
+        # Mock error for the first 2 tries and a successful third try
+        side_effect = [op_error, op_error, mock.ANY]
+
+        mock_bulk_write_to_db.side_effect = side_effect
+
+        mock_session = mock.MagicMock()
+        dagbag.sync_to_db(session=mock_session)
+
+        # Test that 3 attempts were made to run 'DAG.bulk_write_to_db' successfully
+        mock_bulk_write_to_db.assert_has_calls([
+            mock.call(mock.ANY, session=mock.ANY),
+            mock.call(mock.ANY, session=mock.ANY),
+            mock.call(mock.ANY, session=mock.ANY),
+        ])
+        # Assert that rollback is called twice (i.e. whenever OperationalError occurs)
+        mock_session.rollback.assert_has_calls([mock.call(), mock.call()])
+        # Check that 'SerializedDagModel.bulk_sync_to_db' is also called
+        # Only called once since the other two times the 'DAG.bulk_write_to_db' error'd
+        # and the session was roll-backed before even reaching 'SerializedDagModel.bulk_sync_to_db'
+        mock_sdag_sync_to_db.assert_has_calls([mock.call(mock.ANY, session=mock.ANY)])
+
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
     def test_get_dag_with_dag_serialization(self):
@@ -684,7 +716,7 @@ class TestDagBag(unittest.TestCase):
         # from DB
         with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 4)):
             with assert_queries_count(0):
-                self.assertEqual(dag_bag.get_dag("example_bash_operator").tags, ["example"])
+                self.assertEqual(dag_bag.get_dag("example_bash_operator").tags, ["example", "example2"])
 
         # Make a change in the DAG and write Serialized DAG to the DB
         with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 6)):
@@ -698,7 +730,7 @@ class TestDagBag(unittest.TestCase):
                 updated_ser_dag_1 = dag_bag.get_dag("example_bash_operator")
                 updated_ser_dag_1_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
 
-        self.assertCountEqual(updated_ser_dag_1.tags, ["example", "new_tag"])
+        self.assertCountEqual(updated_ser_dag_1.tags, ["example", "example2", "new_tag"])
         self.assertGreater(updated_ser_dag_1_update_time, ser_dag_1_update_time)
 
     def test_collect_dags_from_db(self):

@@ -31,7 +31,7 @@ class TestGetCurrentApiClient(unittest.TestCase):
         ("cli", 'api_client'): 'airflow.api.client.json_client',
         ("cli", 'endpoint_url'): 'http://localhost:1234',
     })
-    def test_should_create_cllient(self, mock_client):
+    def test_should_create_client(self, mock_client):
         result = get_current_api_client()
 
         mock_client.assert_called_once_with(

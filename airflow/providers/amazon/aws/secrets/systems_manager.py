@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Objects relating to sourcing connections from AWS SSM Parameter Store
-"""
+"""Objects relating to sourcing connections from AWS SSM Parameter Store"""
 from typing import Optional
 
 import boto3
@@ -71,9 +69,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
 
     @cached_property
     def client(self):
-        """
-        Create a SSM client
-        """
+        """Create a SSM client"""
         session = boto3.Session(profile_name=self.profile_name)
         return session.client("ssm", **self.kwargs)
 

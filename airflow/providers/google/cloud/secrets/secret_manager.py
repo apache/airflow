@@ -15,9 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-Objects relating to sourcing connections from Google Cloud Secrets Manager
-"""
+"""Objects relating to sourcing connections from Google Cloud Secrets Manager"""
 from typing import Optional
 
 from cached_property import cached_property
@@ -57,6 +55,9 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
     :type connections_prefix: str
     :param variables_prefix: Specifies the prefix of the secret to read to get Variables.
     :type variables_prefix: str
+    :param config_prefix: Specifies the prefix of the secret to read to get Airflow Configurations
+        containing secrets.
+    :type config_prefix: str
     :param gcp_key_path: Path to Google Cloud Service Account key file (JSON). Mutually exclusive with
         gcp_keyfile_dict. use default credentials in the current environment if not provided.
     :type gcp_key_path: str
@@ -75,16 +76,18 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         self,
         connections_prefix: str = "airflow-connections",
         variables_prefix: str = "airflow-variables",
+        config_prefix: str = "airflow-config",
         gcp_keyfile_dict: Optional[dict] = None,
         gcp_key_path: Optional[str] = None,
         gcp_scopes: Optional[str] = None,
         project_id: Optional[str] = None,
         sep: str = "-",
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.connections_prefix = connections_prefix
         self.variables_prefix = variables_prefix
+        self.config_prefix = config_prefix
         self.sep = sep
         if not self._is_valid_prefix_and_sep():
             raise AirflowException(
@@ -128,6 +131,15 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         :return: Variable Value
         """
         return self._get_secret(self.variables_prefix, key)
+
+    def get_config(self, key: str) -> Optional[str]:
+        """
+        Get Airflow Configuration
+
+        :param key: Configuration Option Key
+        :return: Configuration Option Value
+        """
+        return self._get_secret(self.config_prefix, key)
 
     def _get_secret(self, path_prefix: str, secret_id: str) -> Optional[str]:
         """

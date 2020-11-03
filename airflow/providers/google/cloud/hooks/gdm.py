@@ -19,7 +19,7 @@
 
 from typing import Any, Dict, List, Optional, Sequence, Union
 
-from googleapiclient.discovery import build
+from googleapiclient.discovery import build, Resource
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
@@ -37,13 +37,13 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
-        super(GoogleDeploymentManagerHook, self).__init__(
+        super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
 
-    def get_conn(self):
+    def get_conn(self) -> Resource:
         """
         Returns a Google Deployment Manager service object.
 
@@ -87,7 +87,7 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_deployment(
         self, project_id: Optional[str], deployment: Optional[str] = None, delete_policy: Optional[str] = None
-    ):
+    ) -> None:
         """
         Deletes a deployment and all associated resources in a google cloud project.
 

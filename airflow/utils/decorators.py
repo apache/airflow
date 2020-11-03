@@ -40,7 +40,6 @@ def apply_defaults(func: T) -> T:
     inheritance and argument defaults, this decorator also alerts with
     specific information about the missing arguments.
     """
-
     # Cache inspect.signature for the wrapper closure to avoid calling it
     # at every decorated invocation. This is separate sig_cache created
     # per decoration, i.e. each function decorated using apply_defaults will
@@ -61,7 +60,7 @@ def apply_defaults(func: T) -> T:
         dag_args: Dict[str, Any] = {}
         dag_params: Dict[str, Any] = {}
 
-        dag = kwargs.get('dag', None) or DagContext.get_current_dag()
+        dag = kwargs.get('dag') or DagContext.get_current_dag()
         if dag:
             dag_args = copy(dag.default_args) or {}
             dag_params = copy(dag.params) or {}
