@@ -63,9 +63,7 @@ class CloudBuildHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
-            impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain
         )
         self._client: Optional[CloudBuildClient] = None
 
@@ -73,17 +71,11 @@ class CloudBuildHook(GoogleBaseHook):
         """
         Retrieves the connection to Google Cloud Build.
 
-<<<<<<< HEAD
         :return: Google Cloud Build client object.
         :rtype: `google.cloud.devtools.cloudbuild_v1.CloudBuildClient`
-=======
-    def get_conn(self) -> build:
->>>>>>> e324b37a67e32c368df50604a00160d7766b5c33
         """
         if not self._client:
-            self._client = CloudBuildClient(
-                credentials=self._get_credentials(), client_info=self.client_info,
-            )
+            self._client = CloudBuildClient(credentials=self._get_credentials(), client_info=self.client_info)
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -122,7 +114,7 @@ class CloudBuildHook(GoogleBaseHook):
         self.log.info("Start cancelling build: %s.", id_)
 
         build = client.cancel_build(
-            project_id=project_id, id_=id_, retry=retry, timeout=timeout, metadata=metadata,
+            project_id=project_id, id_=id_, retry=retry, timeout=timeout, metadata=metadata
         )
 
         self.log.info("Build has been cancelled: %s.", id_)
@@ -169,7 +161,7 @@ class CloudBuildHook(GoogleBaseHook):
         self.log.info("Start creating build.")
 
         operation = client.create_build(
-            project_id=project_id, build=build, retry=retry, timeout=timeout, metadata=metadata,
+            project_id=project_id, build=build, retry=retry, timeout=timeout, metadata=metadata
         )
 
         operation_dict = MessageToDict(operation)
@@ -224,7 +216,7 @@ class CloudBuildHook(GoogleBaseHook):
         self.log.info("Start creating build trigger.")
 
         trigger = client.create_build_trigger(
-            project_id=project_id, trigger=trigger, retry=retry, timeout=timeout, metadata=metadata,
+            project_id=project_id, trigger=trigger, retry=retry, timeout=timeout, metadata=metadata
         )
 
         self.log.info("Build trigger has been created.")
@@ -265,7 +257,7 @@ class CloudBuildHook(GoogleBaseHook):
         self.log.info("Start deleting build trigger: %s.", trigger_id)
 
         client.delete_build_trigger(
-            project_id=project_id, trigger_id=trigger_id, retry=retry, timeout=timeout, metadata=metadata,
+            project_id=project_id, trigger_id=trigger_id, retry=retry, timeout=timeout, metadata=metadata
         )
 
         self.log.info("Build trigger has been deleted: %s.", trigger_id)
@@ -306,7 +298,7 @@ class CloudBuildHook(GoogleBaseHook):
         self.log.info("Start retrieving build: %s.", id_)
 
         build = client.get_build(
-            project_id=project_id, id_=id_, retry=retry, timeout=timeout, metadata=metadata,
+            project_id=project_id, id_=id_, retry=retry, timeout=timeout, metadata=metadata
         )
 
         self.log.info("Build has been retrieved: %s.", id_)
@@ -349,7 +341,7 @@ class CloudBuildHook(GoogleBaseHook):
         self.log.info("Start retrieving build trigger: %s.", trigger_id)
 
         trigger = client.get_build_trigger(
-            project_id=project_id, trigger_id=trigger_id, retry=retry, timeout=timeout, metadata=metadata,
+            project_id=project_id, trigger_id=trigger_id, retry=retry, timeout=timeout, metadata=metadata
         )
 
         self.log.info("Build trigger has been retrieved: %s.", trigger_id)
@@ -387,7 +379,6 @@ class CloudBuildHook(GoogleBaseHook):
 
         :rtype: `google.cloud.devtools.cloudbuild_v1.types.ListBuildTriggersResponse`
         """
-
         if not project_id:
             raise ValueError("The project_id should be set")
 
@@ -499,7 +490,7 @@ class CloudBuildHook(GoogleBaseHook):
         self.log.info("Start retrying build: %s.", id_)
 
         operation = client.retry_build(
-            project_id=project_id, id_=id_, retry=retry, timeout=timeout, metadata=metadata,
+            project_id=project_id, id_=id_, retry=retry, timeout=timeout, metadata=metadata
         )
 
         operation_dict = MessageToDict(operation)

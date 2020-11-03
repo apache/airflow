@@ -23,7 +23,7 @@ import json
 import re
 import warnings
 from copy import deepcopy
-from typing import Any, Optional, Sequence, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union
 from urllib.parse import unquote, urlparse
 
 import yaml
@@ -911,7 +911,6 @@ class BuildProcessor:
         :return: the body.
         :rtype: `google.cloud.devtools.cloudbuild_v1.types.Build`
         """
-
         if 'source' in self.build:
             self._verify_source()
             self._reformat_source()

@@ -244,7 +244,7 @@ with models.DAG(
 
     # [START howto_operator_list_build_triggers]
     list_build_triggers = CloudBuildListBuildTriggersOperator(
-        task_id="list_build_triggers", project_id=GCP_PROJECT_ID,
+        task_id="list_build_triggers", project_id=GCP_PROJECT_ID
     )
     # [END howto_operator_list_build_triggers]
 

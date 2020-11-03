@@ -53,12 +53,12 @@ BUILD_ID = "test-build-id-9832661"
 REPO_SOURCE = {"repo_source": {"repo_name": "test_repo", "branch_name": "master"}}
 BUILD = {
     "source": REPO_SOURCE,
-    "steps": [{"name": "gcr.io/cloud-builders/gcloud", "entrypoint": "/bin/sh", "args": ["-c", "ls"],}],
+    "steps": [{"name": "gcr.io/cloud-builders/gcloud", "entrypoint": "/bin/sh", "args": ["-c", "ls"]}],
     "status": "SUCCESS",
 }
 BUILD_TRIGGER = {
     "name": "test-cloud-build-trigger",
-    "trigger_template": {"project_id": PROJECT_ID, "repo_name": "test_repo", "branch_name": "master",},
+    "trigger_template": {"project_id": PROJECT_ID, "repo_name": "test_repo", "branch_name": "master"},
     "filename": "cloudbuild.yaml",
 }
 OPERATION = {"metadata": {"build": {"id": BUILD_ID}}}
@@ -74,7 +74,7 @@ class TestCloudBuildOperator(TestCase):
         operator.execute(context=None)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         mock_hook.return_value.cancel_build.assert_called_once_with(
-            id_=TRIGGER_ID, project_id=None, retry=None, timeout=None, metadata=None,
+            id_=TRIGGER_ID, project_id=None, retry=None, timeout=None, metadata=None
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
@@ -85,7 +85,7 @@ class TestCloudBuildOperator(TestCase):
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         build = ParseDict(BUILD, Build())
         mock_hook.return_value.create_build.assert_called_once_with(
-            build=build, project_id=None, wait=True, retry=None, timeout=None, metadata=None,
+            build=build, project_id=None, wait=True, retry=None, timeout=None, metadata=None
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
@@ -96,7 +96,7 @@ class TestCloudBuildOperator(TestCase):
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         build = ParseDict(BUILD, Build())
         mock_hook.return_value.create_build.assert_called_once_with(
-            build=build, project_id=None, wait=True, retry=None, timeout=None, metadata=None,
+            build=build, project_id=None, wait=True, retry=None, timeout=None, metadata=None
         )
 
     @parameterized.expand(
@@ -134,7 +134,7 @@ class TestCloudBuildOperator(TestCase):
         operator.execute(context=None)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         mock_hook.return_value.create_build_trigger.assert_called_once_with(
-            trigger=BUILD_TRIGGER, project_id=None, retry=None, timeout=None, metadata=None,
+            trigger=BUILD_TRIGGER, project_id=None, retry=None, timeout=None, metadata=None
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
@@ -144,7 +144,7 @@ class TestCloudBuildOperator(TestCase):
         operator.execute(context=None)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         mock_hook.return_value.delete_build_trigger.assert_called_once_with(
-            trigger_id=TRIGGER_ID, project_id=None, retry=None, timeout=None, metadata=None,
+            trigger_id=TRIGGER_ID, project_id=None, retry=None, timeout=None, metadata=None
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
@@ -154,7 +154,7 @@ class TestCloudBuildOperator(TestCase):
         operator.execute(context=None)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         mock_hook.return_value.get_build.assert_called_once_with(
-            id_=BUILD_ID, project_id=None, retry=None, timeout=None, metadata=None,
+            id_=BUILD_ID, project_id=None, retry=None, timeout=None, metadata=None
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
@@ -164,7 +164,7 @@ class TestCloudBuildOperator(TestCase):
         operator.execute(context=None)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         mock_hook.return_value.get_build_trigger.assert_called_once_with(
-            trigger_id=TRIGGER_ID, project_id=None, retry=None, timeout=None, metadata=None,
+            trigger_id=TRIGGER_ID, project_id=None, retry=None, timeout=None, metadata=None
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
@@ -174,7 +174,7 @@ class TestCloudBuildOperator(TestCase):
         operator.execute(context=None)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         mock_hook.return_value.list_build_triggers.assert_called_once_with(
-            project_id=None, page_size=None, page_token=None, retry=None, timeout=None, metadata=None,
+            project_id=None, page_size=None, page_token=None, retry=None, timeout=None, metadata=None
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
@@ -184,7 +184,7 @@ class TestCloudBuildOperator(TestCase):
         operator.execute(context=None)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         mock_hook.return_value.list_builds.assert_called_once_with(
-            project_id=None, page_size=None, filter_=None, retry=None, timeout=None, metadata=None,
+            project_id=None, page_size=None, filter_=None, retry=None, timeout=None, metadata=None
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
@@ -194,7 +194,7 @@ class TestCloudBuildOperator(TestCase):
         operator.execute(context=None)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         mock_hook.return_value.retry_build.assert_called_once_with(
-            id_=BUILD_ID, project_id=None, wait=True, retry=None, timeout=None, metadata=None,
+            id_=BUILD_ID, project_id=None, wait=True, retry=None, timeout=None, metadata=None
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
@@ -240,11 +240,11 @@ class TestBuildProcessor(TestCase):
         [
             (
                 "https://source.developers.google.com/p/airflow-project/r/airflow-repo",
-                {"project_id": "airflow-project", "repo_name": "airflow-repo", "branch_name": "master",},
+                {"project_id": "airflow-project", "repo_name": "airflow-repo", "branch_name": "master"},
             ),
             (
                 "https://source.developers.google.com/p/airflow-project/r/airflow-repo#branch-name",
-                {"project_id": "airflow-project", "repo_name": "airflow-repo", "branch_name": "branch-name",},
+                {"project_id": "airflow-project", "repo_name": "airflow-repo", "branch_name": "branch-name"},
             ),
             (
                 "https://source.developers.google.com/p/airflow-project/r/airflow-repo#feature/branch",
@@ -283,19 +283,17 @@ class TestBuildProcessor(TestCase):
             ),
             (
                 "gs://bucket-name/airflow-object.tar.gz#1231231",
-                {"bucket": "bucket-name", "object": "airflow-object.tar.gz", "generation": "1231231",},
+                {"bucket": "bucket-name", "object": "airflow-object.tar.gz", "generation": "1231231"},
             ),
         ]
     )
     def test_convert_storage_url_to_dict_valid(self, url, expected_dict):
         body = {"source": {"storage_source": url}}
         body = BuildProcessor(build=body).process_body()
-        self.assertEqual(
-            body.source.storage_source, ParseDict(expected_dict, StorageSource()),
-        )
+        self.assertEqual(body.source.storage_source, ParseDict(expected_dict, StorageSource()))
 
     @parameterized.expand(
-        [("///object",), ("gsXXa:///object",), ("gs://bucket-name/",), ("gs://bucket-name",),]
+        [("///object",), ("gsXXa:///object",), ("gs://bucket-name/",), ("gs://bucket-name",)]
     )
     def test_convert_storage_url_to_dict_invalid(self, url):
         body = {"source": {"storage_source": url}}
