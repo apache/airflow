@@ -97,13 +97,17 @@ class RefactorBackportPackages:
 
         .. code-block:: diff
 
-            --- ./airflow/providers/google/cloud/operators/kubernetes_engine.py
-            +++ ./airflow/providers/google/cloud/operators/kubernetes_engine.py
-            @@ -179,86 +179,3 @@
-            -
-            -class GKEStartPodOperator(KubernetesPodOperator):
-            -
-            - ...
+            --- ./airflow/providers/qubole/example_dags/example_qubole.py
+            +++ ./airflow/providers/qubole/example_dags/example_qubole.py
+            @@ -22,7 +22,7 @@
+
+             from airflow import DAG
+             from airflow.operators.dummy_operator import DummyOperator
+            -from airflow.operators.python import BranchPythonOperator, PythonOperator
+            +from airflow.operators.python_operator import BranchPythonOperator, PythonOperator
+             from airflow.providers.qubole.operators.qubole import QuboleOperator
+             from airflow.providers.qubole.sensors.qubole import QuboleFileSensor, QubolePartitionSensor
+             from airflow.utils.dates import days_ago
 
         :param class_name: name to remove
         """
@@ -124,7 +128,7 @@ class RefactorBackportPackages:
              # specific language governing permissions and limitations
              # under the License.
 
-            -from airflow.operators.bash import BaseOperator
+            -from airflow.operators.baseoperator import BaseOperator
             +from airflow.operators.bash_operator import BaseOperator
              from airflow.providers.dingding.hooks.dingding import DingdingHook
              from airflow.utils.decorators import apply_defaults

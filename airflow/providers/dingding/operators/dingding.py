@@ -17,7 +17,8 @@
 # under the License.
 from typing import Union, Optional, List
 
-from airflow.operators.bash import BaseOperator
+from airflow.models import BaseOperator
+
 from airflow.providers.dingding.hooks.dingding import DingdingHook
 from airflow.utils.decorators import apply_defaults
 
