@@ -112,8 +112,7 @@ class AirflowMesosScheduler(MesosClient):
         for i, offer in enumerate(offers):
             if i == 0:
                 self.run_job(offer)
-            else:
-                offer.decline()
+            offer.decline()
             i += 1
 
     def run_job(self, mesos_offer):
