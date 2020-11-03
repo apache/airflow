@@ -86,7 +86,7 @@ class TestMongoToS3Operator(unittest.TestCase):
         operator.execute(None)
 
         mock_mongo_hook.return_value.find.assert_called_once_with(
-            mongo_collection=MONGO_COLLECTION, query=MONGO_QUERY, mongo_db=None
+            mongo_collection=MONGO_COLLECTION, query=MONGO_QUERY, mongo_db=None, allowDiskUse=False
         )
 
         op_stringify = self.mock_operator._stringify
