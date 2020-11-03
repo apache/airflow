@@ -2851,8 +2851,6 @@ class PluginView(AirflowBaseView):
     ]
 
     plugins_attributes_to_dump = [
-        "operators",
-        "sensors",
         "hooks",
         "executors",
         "macros",
