@@ -1464,6 +1464,74 @@ Happy Airflowing!
     print(output_string)
 
 
+@cli_utils.action_logging
+def cleanup_pods(args):
+    from kubernetes.client.rest import ApiException
+
+    from airflow.kubernetes.kube_client import get_kube_client
+
+    """Clean up k8s pods in evicted/failed/succeeded states"""
+    namespace = args.namespace
+
+    # https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/
+    # All Containers in the Pod have terminated in success, and will not be restarted.
+    pod_succeeded = 'succeeded'
+
+    # All Containers in the Pod have terminated, and at least one Container has terminated in failure.
+    # That is, the Container either exited with non-zero status or was terminated by the system.
+    pod_failed = 'failed'
+
+    # https://kubernetes.io/docs/tasks/administer-cluster/out-of-resource/
+    pod_reason_evicted = 'evicted'
+    # If pod is failed and restartPolicy is:
+    # * Always: Restart Container; Pod phase stays Running.
+    # * OnFailure: Restart Container; Pod phase stays Running.
+    # * Never: Pod phase becomes Failed.
+    pod_restart_policy_never = 'never'
+
+    print('Loading Kubernetes configuration')
+    kube_client = get_kube_client()
+    print('Listing pods in namespace {}'.format(namespace))
+    continue_token = None
+    while True:  # pylint: disable=too-many-nested-blocks
+        pod_list = kube_client.list_namespaced_pod(namespace=namespace, limit=500, _continue=continue_token)
+        for pod in pod_list.items:
+            pod_name = pod.metadata.name
+            print('Inspecting pod {}'.format(pod_name))
+            pod_phase = pod.status.phase.lower()
+            pod_reason = pod.status.reason.lower() if pod.status.reason else ''
+            pod_restart_policy = pod.spec.restart_policy.lower()
+
+            if (
+                pod_phase == pod_succeeded
+                or (pod_phase == pod_failed and pod_restart_policy == pod_restart_policy_never)
+                or (pod_reason == pod_reason_evicted)
+            ):
+                print('Deleting pod "{}" phase "{}" and reason "{}", restart policy "{}"'.format(
+                    pod_name, pod_phase, pod_reason, pod_restart_policy)
+                )
+                try:
+                    _delete_pod(pod.metadata.name, namespace)
+                except ApiException as e:
+                    print("can't remove POD: {}".format(e), file=sys.stderr)
+                continue
+            print('No action taken on pod {}'.format(pod_name))
+        continue_token = pod_list.metadata._continue  # pylint: disable=protected-access
+        if not continue_token:
+            break
+
+
+def _delete_pod(name, namespace):
+    """Helper Function for cleanup_pods"""
+    from kubernetes import client
+
+    core_v1 = client.CoreV1Api()
+    delete_options = client.V1DeleteOptions()
+    print('Deleting POD "{}" from "{}" namespace'.format(name, namespace))
+    api_response = core_v1.delete_namespaced_pod(name=name, namespace=namespace, body=delete_options)
+    print(api_response)
+
+
 @cli_utils.deprecated_action(new_name='celery worker')
 @cli_utils.action_logging
 def worker(args):
@@ -2705,6 +2773,13 @@ ARG_SKIP_SERVE_LOGS = Arg(
     action="store_true",
 )
 
+# kubernetes cleanup-pods
+ARG_NAMESPACE = Arg(
+    ("--namespace",),
+    default='default',
+    help="Kubernetes Namespace",
+)
+
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE,
     ARG_CONN_HOST,
@@ -3153,6 +3228,12 @@ CONFIG_COMMANDS = (
 )
 
 KUBERNETES_COMMANDS = (
+    ActionCommand(
+        name='cleanup-pods',
+        help="Clean up Kubernetes pods in evicted/failed/succeeded states",
+        func=cleanup_pods,
+        args=(ARG_NAMESPACE, ),
+    ),
     ActionCommand(
         name='generate-dag-yaml',
         help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
