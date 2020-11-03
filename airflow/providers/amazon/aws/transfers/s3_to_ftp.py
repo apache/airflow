@@ -48,10 +48,7 @@ class S3ToFTPOperator(BaseOperator):
     : type local_file_path: str
     """
 
-    template_fields = (
-        's3_bucket',
-        's3_key'
-    )
+    template_fields = ('s3_bucket', 's3_key')
 
     @apply_defaults
     def __init__(
