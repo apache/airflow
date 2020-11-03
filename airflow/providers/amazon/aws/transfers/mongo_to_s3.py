@@ -129,7 +129,7 @@ class MongoToS3Operator(BaseOperator):
         """This method is meant to be extended by child classes
         to perform transformations unique to those operators needs.
         Processes pyMongo cursor and returns an iterable with each element being
-                a JSON serializable dictionary
+        a JSON serializable dictionary
 
         Base transform() assumes no processing is needed
         ie. docs is a pyMongo cursor of documents and cursor just
