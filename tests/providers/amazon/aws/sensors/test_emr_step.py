@@ -397,15 +397,7 @@ LIST_STEPS_FAILED_RESPONSES = {
                 'State': 'FAILED',
                 'StateChangeReason': {},
                 'FailureDetails': {
-<<<<<<< HEAD
-<<<<<<< HEAD
                     'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z6N',
-=======
-                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z5N',
->>>>>>> 6b2ae7054... AWS EmrStepSensor to auto detect steps (#11877)
-=======
-                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z6N',
->>>>>>> 0fe082ca6... AWS EmrStepSensor to auto detect steps (#11877)
                     'Reason': 'Unknown Error.',
                 },
                 'Timeline': {
@@ -427,15 +419,7 @@ LIST_STEPS_FAILED_RESPONSES = {
                 'State': 'FAILED',
                 'StateChangeReason': {},
                 'FailureDetails': {
-<<<<<<< HEAD
-<<<<<<< HEAD
                     'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z7N',
-=======
-                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z5N',
->>>>>>> 6b2ae7054... AWS EmrStepSensor to auto detect steps (#11877)
-=======
-                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z7N',
->>>>>>> 0fe082ca6... AWS EmrStepSensor to auto detect steps (#11877)
                     'Reason': 'Unknown Error.',
                 },
                 'Timeline': {
@@ -457,15 +441,7 @@ LIST_STEPS_FAILED_RESPONSES = {
                 'State': 'FAILED',
                 'StateChangeReason': {},
                 'FailureDetails': {
-<<<<<<< HEAD
-<<<<<<< HEAD
                     'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z8N',
-=======
-                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z5N',
->>>>>>> 6b2ae7054... AWS EmrStepSensor to auto detect steps (#11877)
-=======
-                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z8N',
->>>>>>> 0fe082ca6... AWS EmrStepSensor to auto detect steps (#11877)
                     'Reason': 'Unknown Error.',
                 },
                 'Timeline': {
@@ -515,15 +491,7 @@ LIST_STEPS_INTERRUPTED_RESPONSES = {
                 'State': 'INTERRUPTED',
                 'StateChangeReason': {},
                 'FailureDetails': {
-<<<<<<< HEAD
-<<<<<<< HEAD
                     'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z6N',
-=======
-                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z5N',
->>>>>>> 6b2ae7054... AWS EmrStepSensor to auto detect steps (#11877)
-=======
-                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z6N',
->>>>>>> 0fe082ca6... AWS EmrStepSensor to auto detect steps (#11877)
                     'Reason': 'Unknown Error.',
                 },
                 'Timeline': {
@@ -545,15 +513,7 @@ LIST_STEPS_INTERRUPTED_RESPONSES = {
                 'State': 'INTERRUPTED',
                 'StateChangeReason': {},
                 'FailureDetails': {
-<<<<<<< HEAD
-<<<<<<< HEAD
                     'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z7N',
-=======
-                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z5N',
->>>>>>> 6b2ae7054... AWS EmrStepSensor to auto detect steps (#11877)
-=======
-                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z7N',
->>>>>>> 0fe082ca6... AWS EmrStepSensor to auto detect steps (#11877)
                     'Reason': 'Unknown Error.',
                 },
                 'Timeline': {
@@ -575,15 +535,7 @@ LIST_STEPS_INTERRUPTED_RESPONSES = {
                 'State': 'INTERRUPTED',
                 'StateChangeReason': {},
                 'FailureDetails': {
-<<<<<<< HEAD
-<<<<<<< HEAD
                     'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z8N',
-=======
-                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z5N',
->>>>>>> 6b2ae7054... AWS EmrStepSensor to auto detect steps (#11877)
-=======
-                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z8N',
->>>>>>> 0fe082ca6... AWS EmrStepSensor to auto detect steps (#11877)
                     'Reason': 'Unknown Error.',
                 },
                 'Timeline': {
@@ -629,15 +581,7 @@ LIST_STEPS_MIXED_RESPONSES = {
                 'State': 'FAILED',
                 'StateChangeReason': {},
                 'FailureDetails': {
-<<<<<<< HEAD
-<<<<<<< HEAD
                     'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z6N',
-=======
-                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z5N',
->>>>>>> 6b2ae7054... AWS EmrStepSensor to auto detect steps (#11877)
-=======
-                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z6N',
->>>>>>> 0fe082ca6... AWS EmrStepSensor to auto detect steps (#11877)
                     'Reason': 'Unknown Error.',
                 },
                 'Timeline': {
@@ -686,10 +630,6 @@ LIST_STEPS_MIXED_RESPONSES = {
     'ResponseMetadata': {'HTTPStatusCode': 200, 'RequestId': 'omitted'},
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 0fe082ca6... AWS EmrStepSensor to auto detect steps (#11877)
 LIST_STEPS_RUNNING_FAILED_RESPONSES = {
     'Steps': [
         {
@@ -846,7 +786,6 @@ LIST_STEPS_COMPLETED_FAILED_RESPONSES = {
     'ResponseMetadata': {'HTTPStatusCode': 200, 'RequestId': 'omitted'},
 }
 
-<<<<<<< HEAD
 
 class TestGetListSteps(unittest.TestCase):
     def test_deferred_failure(self):
@@ -892,57 +831,6 @@ class TestGetListSteps(unittest.TestCase):
             self.emr_client_mock.list_steps.assert_has_calls(calls)
             self.assertIsNotNone(xcom_result)
 
-=======
-
-class TestGetListSteps(unittest.TestCase):
->>>>>>> 6b2ae7054... AWS EmrStepSensor to auto detect steps (#11877)
-=======
-
-class TestGetListSteps(unittest.TestCase):
-    def test_deferred_failure(self):
-        args = {
-            "owner": "airflow",
-            "start_date": timezone.datetime(2018, 1, 1),
-        }
-
-        dag = DAG(
-            'test_dag',
-            default_args=args,
-            schedule_interval="@once",
-        )
-        self.emr_client_mock = MagicMock()
-        self.sensor = EmrStepSensor(
-            task_id='test_task',
-            poke_interval=0,
-            job_flow_id='j-8989898989',
-            step_id=None,
-            deferred_failure=False,
-            aws_conn_id='aws_default',
-            dag=dag,
-        )
-
-        mock_emr_session = MagicMock()
-        mock_emr_session.client.return_value = self.emr_client_mock
-
-        # Mock out the emr_client creator
-        self.boto3_session_mock = MagicMock(return_value=mock_emr_session)
-
-        self.emr_client_mock.list_steps.side_effect = [
-            LIST_STEPS_RUNNING_FAILED_RESPONSES,
-        ]
-
-        with patch('boto3.session.Session', self.boto3_session_mock):
-            ti = TaskInstance(task=self.sensor, execution_date=timezone.utcnow())
-            self.assertRaises(AirflowException, ti.run, None)
-            xcom_result = ti.xcom_pull(task_ids=self.sensor.task_id, key="return_value")
-            calls = [
-                unittest.mock.call(ClusterId='j-8989898989'),
-            ]
-            self.assertEqual(self.emr_client_mock.list_steps.call_count, 1)
-            self.emr_client_mock.list_steps.assert_has_calls(calls)
-            self.assertIsNotNone(xcom_result)
-
->>>>>>> 0fe082ca6... AWS EmrStepSensor to auto detect steps (#11877)
     def setUp(self):
         args = {
             "owner": "airflow",

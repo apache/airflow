@@ -39,16 +39,8 @@ class EmrStepSensor(EmrBaseSensor):
     :type job_flow_id: str
     :param step_id: step to check the state of
     :type step_id: str or list
-<<<<<<< HEAD
-<<<<<<< HEAD
     :param deferred_failure: continue waiting for all steps to complete even if any have failed.
     :type deferred_failure: bool
-=======
->>>>>>> 6b2ae7054... AWS EmrStepSensor to auto detect steps (#11877)
-=======
-    :param deferred_failure: continue waiting for all steps to complete even if any have failed.
-    :type deferred_failure: bool
->>>>>>> 0fe082ca6... AWS EmrStepSensor to auto detect steps (#11877)
     :param target_states: the target states, sensor waits until
         step reaches any of these states
     :type target_states: list[str]
@@ -110,10 +102,6 @@ class EmrStepSensor(EmrBaseSensor):
         if all(step_state in self.target_states for step_state in step_states):
             return True
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 0fe082ca6... AWS EmrStepSensor to auto detect steps (#11877)
         all_steps_done = all(
             step_state in (self.failed_states + self.target_states) for step_state in step_states
         )
@@ -131,30 +119,10 @@ class EmrStepSensor(EmrBaseSensor):
                             step_id, details.get('Reason'), details.get('Message'), details.get('LogFile')
                         )
                     )
-<<<<<<< HEAD
             if failure_messages:
                 final_message = 'EMR job failed \n' + '\n'.join(failure_messages)
                 self.log.error(final_message)
                 raise AirflowException(final_message)
-=======
-        if any(step_state in self.failed_states for step_state in step_states):
-            fail_details = [fail_msg['Status'].get('FailureDetails') for fail_msg in response['Steps']]
-            failure_messages = [
-                'for reason {} with message {} and log file {}'.format(
-                    details.get('Reason'), details.get('Message'), details.get('LogFile')
-                )
-                for details in fail_details
-            ]
-            if failure_messages:
-                final_message = 'EMR job failed ' + ' '.join(failure_messages)
-            raise AirflowException(final_message)
->>>>>>> 6b2ae7054... AWS EmrStepSensor to auto detect steps (#11877)
-=======
-            if failure_messages:
-                final_message = 'EMR job failed \n' + '\n'.join(failure_messages)
-                self.log.error(final_message)
-                raise AirflowException(final_message)
->>>>>>> 0fe082ca6... AWS EmrStepSensor to auto detect steps (#11877)
 
         return False
 
