@@ -107,7 +107,7 @@ class SnowflakeOperator(BaseOperator):
             role=self.role,
             schema=self.schema,
             authenticator=self.authenticator,
-            session_parameters=self.session_parameters
+            session_parameters=self.session_parameters,
         )
 
     def execute(self, context: Any) -> None:
