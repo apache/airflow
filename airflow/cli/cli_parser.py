@@ -38,11 +38,7 @@ from airflow.utils.helpers import partition
 from airflow.utils.module_loading import import_string
 from airflow.utils.timezone import parse as parsedate
 
-DAGS_FOLDER = settings.DAGS_FOLDER
-
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
-if BUILD_DOCS:
-    DAGS_FOLDER = '[AIRFLOW_HOME]/dags'
 
 
 def lazy_load_command(import_path: str) -> Callable:
@@ -145,7 +141,7 @@ ARG_SUBDIR = Arg(
         "File location or directory from which to look for the dag. "
         "Defaults to '[AIRFLOW_HOME]/dags' where [AIRFLOW_HOME] is the "
         "value you set for 'AIRFLOW_HOME' config you set in 'airflow.cfg' "),
-    default=DAGS_FOLDER)
+    default='[AIRFLOW_HOME]/dags' if BUILD_DOCS else settings.DAGS_FOLDER)
 ARG_START_DATE = Arg(
     ("-s", "--start-date"),
     help="Override start_date YYYY-MM-DD",
@@ -158,7 +154,7 @@ ARG_OUTPUT_PATH = Arg(
     ("-o", "--output-path",),
     help="The output for generated yaml files",
     type=str,
-    default=os.getcwd())
+    default="[CWD]" if BUILD_DOCS else os.getcwd())
 ARG_DRY_RUN = Arg(
     ("-n", "--dry-run"),
     help="Perform a dry run for each task. Only renders Template Fields for each task, nothing else",
