@@ -36,7 +36,7 @@ class S3ToFTPOperator(BaseOperator):
         uploading file to the FTP server.
     :type ftp_path: str
     :param s3_conn_id: The s3 connection id. The name or identifier for
-        establishing a connection to S3
+        establishing a connection to S3.
     :type s3_conn_id: str
     :param s3_bucket: The targeted s3 bucket. This is the S3 bucket from
         where the file is downloaded.
@@ -50,7 +50,7 @@ class S3ToFTPOperator(BaseOperator):
 
     template_fields = (
         's3_bucket',
-        's3_key',
+        's3_key'
     )
 
     @apply_defaults
