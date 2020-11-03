@@ -22,18 +22,17 @@ Example Airflow DAG for Google Cloud Dataflow service
 import os
 from urllib.parse import urlparse
 
-from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
-
 from airflow import models
+from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
 from airflow.providers.google.cloud.operators.dataflow import (
     CheckJobRunning,
     DataflowCreateJavaJobOperator,
     DataflowCreatePythonJobOperator,
     DataflowTemplatedJobStartOperator,
 )
+from airflow.providers.google.cloud.sensors.dataflow import DataflowJobStatusSensor
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
 from airflow.utils.dates import days_ago
-from airflow.providers.google.cloud.sensors.dataflow import DataflowJobStatusSensor
 
 GCS_TMP = os.environ.get('GCP_DATAFLOW_GCS_TMP', 'gs://test-dataflow-example/temp/')
 GCS_STAGING = os.environ.get('GCP_DATAFLOW_GCS_STAGING', 'gs://test-dataflow-example/staging/')
@@ -130,8 +129,6 @@ with models.DAG(
         py_interpreter='python3',
         py_system_site_packages=False,
     )
-    # [END howto_operator_start_python_job]
-
 
 with models.DAG(
     "example_gcp_dataflow_native_python_async",
@@ -148,7 +145,7 @@ with models.DAG(
         options={
             'output': GCS_OUTPUT,
         },
-        py_requirements=['apache-beam[gcp]==2.21.0'],
+        py_requirements=['apache-beam[gcp]==2.25.0'],
         py_interpreter='python3',
         py_system_site_packages=False,
         location='europe-west3',

@@ -297,17 +297,17 @@ class _DataflowJobsController(LoggingMixin):
         :raise: Exception
         """
         if self._wait_until_finished is None:
-            wait_until_finished = DataflowJobType.JOB_TYPE_STREAMING != job['type']
+            wait_until_finished = job['type'] != DataflowJobType.JOB_TYPE_STREAMING
         else:
             wait_until_finished = self._wait_until_finished
 
-        if DataflowJobStatus.JOB_STATE_DONE == job['currentState']:
+        if job['currentState'] == DataflowJobStatus.JOB_STATE_DONE:
             return True
-        elif DataflowJobStatus.JOB_STATE_FAILED == job['currentState']:
+        elif job['currentState'] == DataflowJobStatus.JOB_STATE_FAILED:
             raise Exception("Google Cloud Dataflow job {} has failed.".format(job['name']))
-        elif DataflowJobStatus.JOB_STATE_CANCELLED == job['currentState']:
+        elif job['currentState'] == DataflowJobStatus.JOB_STATE_CANCELLED:
             raise Exception("Google Cloud Dataflow job {} was cancelled.".format(job['name']))
-        elif DataflowJobStatus.JOB_STATE_RUNNING == job['currentState'] and not wait_until_finished:
+        elif job['currentState'] == DataflowJobStatus.JOB_STATE_RUNNING and not wait_until_finished:
             return True
         elif job['currentState'] in DataflowJobStatus.AWAITING_STATES:
             return False
@@ -1086,8 +1086,8 @@ class DataflowHook(GoogleBaseHook):
         :param project_id: Optional, the Google Cloud project ID in which to start a job.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id:
-        :param location: Job location.
-        :type location: str
+        :param location: The location of the Dataflow job (for example europe-west1). See:
+            https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
         :return: the Job
         :rtype: dict
         """

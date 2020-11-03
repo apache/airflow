@@ -17,14 +17,13 @@
 # under the License.
 
 import unittest
-
 from unittest import mock
+
 from parameterized import parameterized
 
-
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.sensors.dataflow import DataflowJobStatusSensor
 from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
+from airflow.providers.google.cloud.sensors.dataflow import DataflowJobStatusSensor
 
 TEST_TASK_ID = "tesk-id"
 TEST_JOB_ID = "test_job_id"
