@@ -19,8 +19,6 @@
 Example use of MySql related operators.
 """
 
-from datetime import timedelta
-
 from airflow import DAG
 from airflow.operators.mysql_operator import MySqlOperator
 from airflow.utils.dates import days_ago
@@ -47,7 +45,10 @@ drop_table_mysql_task = MySqlOperator(
 # [START howto_operator_mysql_external_file]
 
 mysql_task = MySqlOperator(
-    task_id='create_table_mysql_external_file', mysql_conn_id='mysql_conn_id', sql='/scripts/drop_table.sql', dag=dag
+    task_id='create_table_mysql_external_file',
+    mysql_conn_id='mysql_conn_id',
+    sql='/scripts/drop_table.sql',
+    dag=dag,
 )
 
 # [END howto_operator_mysql_external_file]
