@@ -100,7 +100,7 @@ class TestSnowflakeHook(unittest.TestCase):
             'region': 'af_region',
             'role': 'af_role',
             'authenticator': 'snowflake',
-            'session_parameters': {"QUERY_TAG": "This is a test hook"}
+            'session_parameters': {"QUERY_TAG": "This is a test hook"},
         }
         self.assertEqual(self.db_hook.snowflake_conn_id, 'snowflake_default')  # pylint: disable=no-member
         self.assertEqual(conn_params_shouldbe, self.db_hook._get_conn_params())
