@@ -46,6 +46,7 @@ class SnowflakeHook(DbApiHook):
         self.role = kwargs.pop("role", None)
         self.schema = kwargs.pop("schema", None)
         self.authenticator = kwargs.pop("authenticator", None)
+        self.session_parameters = kwargs.pop("session_parameters", None)
 
     def _get_conn_params(self) -> Dict[str, Optional[str]]:
         """
@@ -62,6 +63,7 @@ class SnowflakeHook(DbApiHook):
         role = conn.extra_dejson.get('role', '')
         schema = conn.schema or ''
         authenticator = conn.extra_dejson.get('authenticator', 'snowflake')
+        session_parameters = conn.extra_dejson.get('session_parameters')
 
         conn_config = {
             "user": conn.login,
@@ -73,6 +75,7 @@ class SnowflakeHook(DbApiHook):
             "region": self.region or region,
             "role": self.role or role,
             "authenticator": self.authenticator or authenticator,
+            "session_parameters": self.session_parameters or session_parameters,
         }
 
         # If private_key_file is specified in the extra json, load the contents of the file as a private
