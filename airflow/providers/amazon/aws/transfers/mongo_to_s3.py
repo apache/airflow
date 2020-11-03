@@ -57,7 +57,7 @@ class MongoToS3Operator(BaseOperator):
     def __init__(
         self,
         *,
-        s3_conn_id: str,
+        s3_conn_id: Optional[str] = None,
         mongo_conn_id: str = 'mongo_default',
         aws_conn_id: str = 'aws_default',
         mongo_collection: str,
