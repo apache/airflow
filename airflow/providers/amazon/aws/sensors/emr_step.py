@@ -108,7 +108,7 @@ class EmrStepSensor(EmrBaseSensor):
 
         # Check failure conditions
         if not self.deferred_failure or all_steps_done:
-            failure_messages = list()
+            failure_messages = []
             for step in response['Steps']:
                 step_status = step['Status']
                 step_id = step['Id']
