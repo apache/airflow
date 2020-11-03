@@ -1500,6 +1500,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if not job:
             raise AirflowException(f"Unknown job type. Supported types: {supported_jobs.keys()}")
         job = job.from_api_repr(job_data, client)
+        self.log.info("Inserting job %s", job.job_id)
         # Start the job and wait for it to complete and get the result.
         job.result()
         return job
