@@ -397,7 +397,7 @@ LIST_STEPS_FAILED_RESPONSES = {
                 'State': 'FAILED',
                 'StateChangeReason': {},
                 'FailureDetails': {
-                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z5N',
+                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z6N',
                     'Reason': 'Unknown Error.',
                 },
                 'Timeline': {
@@ -419,7 +419,7 @@ LIST_STEPS_FAILED_RESPONSES = {
                 'State': 'FAILED',
                 'StateChangeReason': {},
                 'FailureDetails': {
-                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z5N',
+                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z7N',
                     'Reason': 'Unknown Error.',
                 },
                 'Timeline': {
@@ -441,7 +441,7 @@ LIST_STEPS_FAILED_RESPONSES = {
                 'State': 'FAILED',
                 'StateChangeReason': {},
                 'FailureDetails': {
-                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z5N',
+                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z8N',
                     'Reason': 'Unknown Error.',
                 },
                 'Timeline': {
@@ -491,7 +491,7 @@ LIST_STEPS_INTERRUPTED_RESPONSES = {
                 'State': 'INTERRUPTED',
                 'StateChangeReason': {},
                 'FailureDetails': {
-                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z5N',
+                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z6N',
                     'Reason': 'Unknown Error.',
                 },
                 'Timeline': {
@@ -513,7 +513,7 @@ LIST_STEPS_INTERRUPTED_RESPONSES = {
                 'State': 'INTERRUPTED',
                 'StateChangeReason': {},
                 'FailureDetails': {
-                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z5N',
+                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z7N',
                     'Reason': 'Unknown Error.',
                 },
                 'Timeline': {
@@ -535,7 +535,7 @@ LIST_STEPS_INTERRUPTED_RESPONSES = {
                 'State': 'INTERRUPTED',
                 'StateChangeReason': {},
                 'FailureDetails': {
-                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z5N',
+                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z8N',
                     'Reason': 'Unknown Error.',
                 },
                 'Timeline': {
@@ -581,7 +581,7 @@ LIST_STEPS_MIXED_RESPONSES = {
                 'State': 'FAILED',
                 'StateChangeReason': {},
                 'FailureDetails': {
-                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z5N',
+                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z6N',
                     'Reason': 'Unknown Error.',
                 },
                 'Timeline': {
@@ -630,8 +630,207 @@ LIST_STEPS_MIXED_RESPONSES = {
     'ResponseMetadata': {'HTTPStatusCode': 200, 'RequestId': 'omitted'},
 }
 
+LIST_STEPS_RUNNING_FAILED_RESPONSES = {
+    'Steps': [
+        {
+            'Id': 's-VK57YR1Z9Z5N',
+            'Name': 'calculate_pi',
+            'Config': {
+                'Args': ['/usr/lib/spark/bin/run-example', 'SparkPi', '10'],
+                'Jar': 'command-runner.jar',
+                'Properties': {},
+            },
+            'ActionOnFailure': 'CONTINUE',
+            'Status': {
+                'State': 'RUNNING',
+                'StateChangeReason': {},
+                'Timeline': {
+                    'CreationDateTime': datetime(2016, 6, 20, 19, 0, 18),
+                    'StartDateTime': datetime(2016, 6, 20, 19, 2, 34),
+                },
+            },
+        },
+        {
+            'Id': 's-VK57YR1Z9Z6N',
+            'Name': 'calculate_pi',
+            'Config': {
+                'Args': ['/usr/lib/spark/bin/run-example', 'SparkPi', '10'],
+                'Jar': 'command-runner.jar',
+                'Properties': {},
+            },
+            'ActionOnFailure': 'CONTINUE',
+            'Status': {
+                'State': 'RUNNING',
+                'StateChangeReason': {},
+                'Timeline': {
+                    'CreationDateTime': datetime(2016, 6, 20, 19, 0, 18),
+                    'StartDateTime': datetime(2016, 6, 20, 19, 2, 34),
+                },
+            },
+        },
+        {
+            'Id': 's-VK57YR1Z9Z7N',
+            'Name': 'calculate_pi',
+            'Config': {
+                'Args': ['/usr/lib/spark/bin/run-example', 'SparkPi', '10'],
+                'Jar': 'command-runner.jar',
+                'Properties': {},
+            },
+            'ActionOnFailure': 'CONTINUE',
+            'Status': {
+                'State': 'FAILED',
+                'StateChangeReason': {},
+                'FailureDetails': {
+                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z7N',
+                    'Reason': 'Unknown Error.',
+                },
+            },
+        },
+        {
+            'Id': 's-VK57YR1Z9Z8N',
+            'Name': 'calculate_pi',
+            'Config': {
+                'Args': ['/usr/lib/spark/bin/run-example', 'SparkPi', '10'],
+                'Jar': 'command-runner.jar',
+                'Properties': {},
+            },
+            'ActionOnFailure': 'CONTINUE',
+            'Status': {
+                'State': 'FAILED',
+                'StateChangeReason': {},
+                'FailureDetails': {
+                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z8N',
+                    'Reason': 'Unknown Error.',
+                },
+            },
+        },
+    ],
+    'ResponseMetadata': {'HTTPStatusCode': 200, 'RequestId': 'omitted'},
+}
+
+LIST_STEPS_COMPLETED_FAILED_RESPONSES = {
+    'Steps': [
+        {
+            'Id': 's-VK57YR1Z9Z5N',
+            'Name': 'calculate_pi',
+            'Config': {
+                'Args': ['/usr/lib/spark/bin/run-example', 'SparkPi', '10'],
+                'Jar': 'command-runner.jar',
+                'Properties': {},
+            },
+            'ActionOnFailure': 'CONTINUE',
+            'Status': {
+                'State': 'COMPLETED',
+                'StateChangeReason': {},
+                'Timeline': {
+                    'CreationDateTime': datetime(2016, 6, 20, 19, 0, 18),
+                    'StartDateTime': datetime(2016, 6, 20, 19, 2, 34),
+                },
+            },
+        },
+        {
+            'Id': 's-VK57YR1Z9Z6N',
+            'Name': 'calculate_pi',
+            'Config': {
+                'Args': ['/usr/lib/spark/bin/run-example', 'SparkPi', '10'],
+                'Jar': 'command-runner.jar',
+                'Properties': {},
+            },
+            'ActionOnFailure': 'CONTINUE',
+            'Status': {
+                'State': 'COMPLETED',
+                'StateChangeReason': {},
+                'Timeline': {
+                    'CreationDateTime': datetime(2016, 6, 20, 19, 0, 18),
+                    'StartDateTime': datetime(2016, 6, 20, 19, 2, 34),
+                },
+            },
+        },
+        {
+            'Id': 's-VK57YR1Z9Z7N',
+            'Name': 'calculate_pi',
+            'Config': {
+                'Args': ['/usr/lib/spark/bin/run-example', 'SparkPi', '10'],
+                'Jar': 'command-runner.jar',
+                'Properties': {},
+            },
+            'ActionOnFailure': 'CONTINUE',
+            'Status': {
+                'State': 'FAILED',
+                'StateChangeReason': {},
+                'FailureDetails': {
+                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z5N',
+                    'Reason': 'Unknown Error.',
+                },
+            },
+        },
+        {
+            'Id': 's-VK57YR1Z9Z8N',
+            'Name': 'calculate_pi',
+            'Config': {
+                'Args': ['/usr/lib/spark/bin/run-example', 'SparkPi', '10'],
+                'Jar': 'command-runner.jar',
+                'Properties': {},
+            },
+            'ActionOnFailure': 'CONTINUE',
+            'Status': {
+                'State': 'FAILED',
+                'StateChangeReason': {},
+                'FailureDetails': {
+                    'LogFile': 's3://fake-log-files/emr-logs/j-8989898989/steps/s-VK57YR1Z9Z5N',
+                    'Reason': 'Unknown Error.',
+                },
+            },
+        },
+    ],
+    'ResponseMetadata': {'HTTPStatusCode': 200, 'RequestId': 'omitted'},
+}
+
 
 class TestGetListSteps(unittest.TestCase):
+    def test_deferred_failure(self):
+        args = {
+            "owner": "airflow",
+            "start_date": timezone.datetime(2018, 1, 1),
+        }
+
+        dag = DAG(
+            'test_dag',
+            default_args=args,
+            schedule_interval="@once",
+        )
+        self.emr_client_mock = MagicMock()
+        self.sensor = EmrStepSensor(
+            task_id='test_task',
+            poke_interval=0,
+            job_flow_id='j-8989898989',
+            step_id=None,
+            deferred_failure=False,
+            aws_conn_id='aws_default',
+            dag=dag,
+        )
+
+        mock_emr_session = MagicMock()
+        mock_emr_session.client.return_value = self.emr_client_mock
+
+        # Mock out the emr_client creator
+        self.boto3_session_mock = MagicMock(return_value=mock_emr_session)
+
+        self.emr_client_mock.list_steps.side_effect = [
+            LIST_STEPS_RUNNING_FAILED_RESPONSES,
+        ]
+
+        with patch('boto3.session.Session', self.boto3_session_mock):
+            ti = TaskInstance(task=self.sensor, execution_date=timezone.utcnow())
+            self.assertRaises(AirflowException, ti.run, None)
+            xcom_result = ti.xcom_pull(task_ids=self.sensor.task_id, key="return_value")
+            calls = [
+                unittest.mock.call(ClusterId='j-8989898989'),
+            ]
+            self.assertEqual(self.emr_client_mock.list_steps.call_count, 1)
+            self.emr_client_mock.list_steps.assert_has_calls(calls)
+            self.assertIsNotNone(xcom_result)
+
     def setUp(self):
         args = {
             "owner": "airflow",

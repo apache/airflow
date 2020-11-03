@@ -14,7 +14,7 @@
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
-# under the License.
+# under the License.Ek gaan
 
 from typing import Any, Dict, Iterable, Optional
 
@@ -39,12 +39,16 @@ class EmrStepSensor(EmrBaseSensor):
     :type job_flow_id: str
     :param step_id: step to check the state of
     :type step_id: str or list
+    :param deferred_failure: continue waiting for all steps to complete even if any have failed.
+    :type deferred_failure: bool
     :param target_states: the target states, sensor waits until
         step reaches any of these states
     :type target_states: list[str]
     :param failed_states: the failure states, sensor fails when
         step reaches any of these states
     :type failed_states: list[str]
+    :raises AirflowException: if any step is in failed_states. If ``deferred_failure`` is True
+        then the exception is only raised after all steps have run.
     """
 
     template_fields = ['job_flow_id', 'step_id', 'target_states', 'failed_states']
@@ -56,6 +60,7 @@ class EmrStepSensor(EmrBaseSensor):
         *,
         job_flow_id: str,
         step_id: str,
+        deferred_failure: bool = True,
         target_states: Optional[Iterable[str]] = None,
         failed_states: Optional[Iterable[str]] = None,
         **kwargs,
@@ -63,6 +68,7 @@ class EmrStepSensor(EmrBaseSensor):
         super().__init__(**kwargs)
         self.job_flow_id = job_flow_id
         self.step_id = step_id
+        self.deferred_failure = deferred_failure
         self.target_states = target_states or ['COMPLETED']
         self.failed_states = failed_states or ['CANCELLED', 'FAILED', 'INTERRUPTED']
 
@@ -96,17 +102,27 @@ class EmrStepSensor(EmrBaseSensor):
         if all(step_state in self.target_states for step_state in step_states):
             return True
 
-        if any(step_state in self.failed_states for step_state in step_states):
-            fail_details = [fail_msg['Status'].get('FailureDetails') for fail_msg in response['Steps']]
-            failure_messages = [
-                'for reason {} with message {} and log file {}'.format(
-                    details.get('Reason'), details.get('Message'), details.get('LogFile')
-                )
-                for details in fail_details
-            ]
+        all_steps_done = all(
+            step_state in (self.failed_states + self.target_states) for step_state in step_states
+        )
+
+        # Check failure conditions
+        if not self.deferred_failure or all_steps_done:
+            failure_messages = list()
+            for step in response['Steps']:
+                step_status = step['Status']
+                step_id = step['Id']
+                if step_status['State'] in self.failed_states:
+                    details = step_status.get('FailureDetails')
+                    failure_messages.append(
+                        'Step {} failed for reason {} with message {} and log file {}'.format(
+                            step_id, details.get('Reason'), details.get('Message'), details.get('LogFile')
+                        )
+                    )
             if failure_messages:
-                final_message = 'EMR job failed ' + ' '.join(failure_messages)
-            raise AirflowException(final_message)
+                final_message = 'EMR job failed \n' + '\n'.join(failure_messages)
+                self.log.error(final_message)
+                raise AirflowException(final_message)
 
         return False
 
