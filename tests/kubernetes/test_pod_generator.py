@@ -80,10 +80,10 @@ class TestPodGenerator(unittest.TestCase):
             'kubernetes_executor': 'True'
         }
         self.metadata = {
-            'annotations':  {'dag_id': 'dag_id',
-                              'execution_date': '2020-08-24T00:00:00',
-                              'task_id': 'task_id',
-                              'try_number': '3'},
+            'annotations': {'dag_id': 'dag_id',
+                            'execution_date': '2020-08-24T00:00:00',
+                            'task_id': 'task_id',
+                            'try_number': '3'},
             'labels': self.labels,
             'name': 'pod_id-' + self.static_uuid.hex,
             'namespace': 'namespace'
@@ -1106,7 +1106,8 @@ spec:
             date=parser.parse("23-07-2020"),
             command="test",
             pod_override_object=None,
-            base_worker_pod=k8s.V1Pod(metadata=k8s.V1ObjectMeta(labels={"airflow-test": "airflow-task-pod"},
-                                                              annotations={"my.annotation": "foo"})))
+            base_worker_pod=k8s.V1Pod(
+                metadata=k8s.V1ObjectMeta(labels={"airflow-test": "airflow-task-pod"},
+                                          annotations={"my.annotation": "foo"})))
         self.assertIn("airflow-test", pod.metadata.labels)
         self.assertIn("my.annotation", pod.metadata.annotations)
