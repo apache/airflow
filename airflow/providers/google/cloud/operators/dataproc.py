@@ -1699,6 +1699,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
     """
 
     template_fields = ['template', 'impersonation_chain']
+    template_fields_renderers = {"template": "json"}
 
     @apply_defaults
     def __init__(
