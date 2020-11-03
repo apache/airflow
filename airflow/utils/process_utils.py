@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-Utilities for running or stopping processes
-"""
+"""Utilities for running or stopping processes"""
 import errno
 import logging
 import os
@@ -191,7 +189,7 @@ def execute_interactive(cmd: List[str], **kwargs):
 def kill_child_processes_by_pids(pids_to_kill: List[int], timeout: int = 5) -> None:
     """
     Kills child processes for the current process.
- 
+
     First, it sends the SIGTERM signal, and after the time specified by the `timeout` parameter, sends
     the SIGKILL signal, if the process is still alive.
 

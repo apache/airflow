@@ -26,20 +26,32 @@ from unittest import mock
 import pytest
 
 from airflow.api.auth.backend.kerberos_auth import CLIENT_AUTH
+from airflow.models import DagBag
 from airflow.www import app as application
 from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_dags
 
 KRB5_KTNAME = os.environ.get("KRB5_KTNAME")
 
 
 @pytest.mark.integration("kerberos")
 class TestApiKerberos(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        dagbag = DagBag(include_examples=True)
+        for dag in dagbag.dags.values():
+            dag.sync_to_db()
+
     @conf_vars({
         ("api", "auth_backend"): "airflow.api.auth.backend.kerberos_auth",
         ("kerberos", "keytab"): KRB5_KTNAME,
     })
     def setUp(self):
         self.app = application.create_app(testing=True)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        clear_db_dags()
 
     def test_trigger_dag(self):
         with self.app.test_client() as client:
@@ -64,9 +76,6 @@ class TestApiKerberos(unittest.TestCase):
 
             # disable mutual authentication for testing
             CLIENT_AUTH.mutual_authentication = 3
-
-            # case can influence the results
-            CLIENT_AUTH.hostname_override = socket.getfqdn()
 
             CLIENT_AUTH.handle_response(response)
             self.assertIn('Authorization', response.request.headers)

@@ -33,7 +33,7 @@ function add_trap() {
         local handlers
         handlers="$( trap -p "${signal}" | cut -f2 -d \' )"
         # shellcheck disable=SC2064
-        trap "${handlers}${handlers:+;}${trap}" "${signal}"
+        trap "${trap};${handlers}" "${signal}"
     done
 }
 
@@ -235,53 +235,22 @@ EOF
 }
 
 function stop_output_heartbeat() {
-    kill "${HEARTBEAT_PID}"
+    kill "${HEARTBEAT_PID}" || true
     wait "${HEARTBEAT_PID}" || true 2> /dev/null
 }
 
-function setup_kerberos() {
-    FQDN=$(hostname)
-    ADMIN="admin"
-    PASS="airflow"
-    KRB5_KTNAME=/etc/airflow.keytab
-
-    sudo cp "${AIRFLOW_SOURCES}/scripts/in_container/krb5/krb5.conf" /etc/krb5.conf
-
-    echo -e "${PASS}\n${PASS}" | \
-        sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "addprinc -randkey airflow/${FQDN}" 2>&1 \
-          | sudo tee "${AIRFLOW_HOME}/logs/kadmin_1.log" >/dev/null
-    RES_1=$?
-
-    sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "ktadd -k ${KRB5_KTNAME} airflow" 2>&1 \
-          | sudo tee "${AIRFLOW_HOME}/logs/kadmin_2.log" >/dev/null
-    RES_2=$?
-
-    sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "ktadd -k ${KRB5_KTNAME} airflow/${FQDN}" 2>&1 \
-          | sudo tee "${AIRFLOW_HOME}/logs``/kadmin_3.log" >/dev/null
-    RES_3=$?
-
-    if [[ ${RES_1} != 0 || ${RES_2} != 0 || ${RES_3} != 0 ]]; then
-        exit 1
-    else
-        echo
-        echo "Kerberos enabled and working."
-        echo
-        sudo chmod 0644 "${KRB5_KTNAME}"
-    fi
-}
-
 function dump_airflow_logs() {
-    DUMP_FILE=/files/airflow_logs_$(date "+%Y-%m-%d")_${CI_BUILD_ID}_${CI_JOB_ID}.log.tar.gz
+    local dump_file
+    dump_file=/files/airflow_logs_$(date "+%Y-%m-%d")_${CI_BUILD_ID}_${CI_JOB_ID}.log.tar.gz
     echo "###########################################################################################"
     echo "                   Dumping logs from all the airflow tasks"
     echo "###########################################################################################"
     pushd "${AIRFLOW_HOME}" || exit 1
-    tar -czf "${DUMP_FILE}" logs
-    echo "                   Logs dumped to ${DUMP_FILE}"
+    tar -czf "${dump_file}" logs
+    echo "                   Logs dumped to ${dump_file}"
     popd || exit 1
     echo "###########################################################################################"
 }
-
 
 function install_released_airflow_version() {
     pip uninstall -y apache-airflow || true
@@ -294,6 +263,117 @@ function install_released_airflow_version() {
     pip install --upgrade "${INSTALLS[@]}"
 }
 
+function setup_backport_packages() {
+    if [[ ${BACKPORT_PACKAGES:=} == "true" ]]; then
+        export PACKAGE_TYPE="backport"
+        export PACKAGE_PREFIX_UPPERCASE="BACKPORT_"
+        export PACKAGE_PREFIX_LOWERCASE="backport_"
+        export PACKAGE_PREFIX_HYPHEN="backport-"
+    else
+        export PACKAGE_TYPE="regular"
+        export PACKAGE_PREFIX_UPPERCASE=""
+        export PACKAGE_PREFIX_LOWERCASE=""
+        export PACKAGE_PREFIX_HYPHEN=""
+    fi
+    readonly PACKAGE_TYPE
+    readonly PACKAGE_PREFIX_UPPERCASE
+    readonly PACKAGE_PREFIX_LOWERCASE
+    readonly PACKAGE_PREFIX_HYPHEN
+
+    readonly BACKPORT_PACKAGES
+    export BACKPORT_PACKAGES
+}
+
+function verify_suffix_versions_for_package_preparation {
+    TARGET_VERSION_SUFFIX=""
+    FILE_VERSION_SUFFIX=""
+
+    VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI:=""}
+    readonly VERSION_SUFFIX_FOR_PYPI
+
+    VERSION_SUFFIX_FOR_SVN=${VERSION_SUFFIX_FOR_SVN:=""}
+
+    if [[ ${VERSION_SUFFIX_FOR_PYPI} != "" ]]; then
+        echo
+        echo "Version suffix for PyPI = ${VERSION_SUFFIX_FOR_PYPI}"
+        echo
+    fi
+    if [[ ${VERSION_SUFFIX_FOR_SVN} != "" ]]; then
+        echo
+        echo "Version suffix for SVN  = ${VERSION_SUFFIX_FOR_SVN}"
+        echo
+    fi
+
+    if [[ ${VERSION_SUFFIX_FOR_SVN} =~ ^rc ]]; then
+        >&2 echo
+        >&2 echo "The version suffix for SVN is used only for file names in RC version"
+        >&2 echo "This suffix is only added to the files '${VERSION_SUFFIX_FOR_SVN}' "
+        >&2 echo
+        FILE_VERSION_SUFFIX=${VERSION_SUFFIX_FOR_SVN}
+        VERSION_SUFFIX_FOR_SVN=""
+    fi
+    readonly FILE_VERSION_SUFFIX
+    readonly VERSION_SUFFIX_FOR_SVN
+
+    export FILE_VERSION_SUFFIX
+    export VERSION_SUFFIX_FOR_SVN
+    export VERSION_SUFFIX_FOR_PYPI
+
+    if [[ ${VERSION_SUFFIX_FOR_PYPI} != '' && ${VERSION_SUFFIX_FOR_SVN} != '' ]]; then
+        if [[ ${VERSION_SUFFIX_FOR_PYPI} != "${VERSION_SUFFIX_FOR_SVN}" ]]; then
+            >&2 echo
+            >&2 echo "If you specify both version suffixes they must match"
+            >&2 echo "However they are different: '${VERSION_SUFFIX_FOR_PYPI}' vs. '${VERSION_SUFFIX_FOR_SVN}'"
+            >&2 echo
+            exit 1
+        else
+            if [[ ${VERSION_SUFFIX_FOR_PYPI} =~ ^rc ]]; then
+                >&2 echo
+                >&2 echo "If you prepare an RC candidate, you need to specify only PyPI suffix"
+                >&2 echo "However you specified both: '${VERSION_SUFFIX_FOR_PYPI}' vs. '${VERSION_SUFFIX_FOR_SVN}'"
+                >&2 echo
+                exit 2
+            fi
+            # Just use one of them - they are both the same:
+            TARGET_VERSION_SUFFIX=${VERSION_SUFFIX_FOR_PYPI}
+        fi
+    else
+        if [[ ${VERSION_SUFFIX_FOR_PYPI} == '' && ${VERSION_SUFFIX_FOR_SVN} == '' ]]; then
+            # Preparing "official version"
+            TARGET_VERSION_SUFFIX=""
+        else
+
+            if [[ ${VERSION_SUFFIX_FOR_PYPI} == '' ]]; then
+                >&2 echo
+                >&2 echo "You should never specify version for PYPI only. Version for SVN can't be empty if the SVN is not."
+                >&2 echo "You specified: '${VERSION_SUFFIX_FOR_PYPI}'"
+                >&2 echo
+                exit 3
+            fi
+            TARGET_VERSION_SUFFIX=${VERSION_SUFFIX_FOR_PYPI}${VERSION_SUFFIX_FOR_SVN}
+            if [[ ! ${TARGET_VERSION_SUFFIX} =~ rc.* ]]; then
+                >&2 echo
+                >&2 echo "If you prepare an alpha/beta release, you need to specify both PyPI/SVN suffixes"
+                >&2 echo "And they have to match. You specified only one."
+                >&2 echo
+                exit 4
+            fi
+        fi
+    fi
+    readonly TARGET_VERSION_SUFFIX
+    export TARGET_VERSION_SUFFIX
+}
+
+function filenames_to_python_module() {
+  for file in "$@";
+  do
+    # Turn the file name into a python package name
+    no_leading_dotslash="${file#./}"
+    no_py="${no_leading_dotslash/.py/}"
+    no_init="${no_py/\/__init__/}"
+    echo "${no_init//\//.}"
+  done
+}
 
 export CI=${CI:="false"}
 export GITHUB_ACTIONS=${GITHUB_ACTIONS:="false"}

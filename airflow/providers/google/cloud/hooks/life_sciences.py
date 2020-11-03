@@ -18,7 +18,7 @@
 """Hook for Google Cloud Life Sciences service"""
 
 import time
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Optional, Sequence, Union
 
 import google.api_core.path_template
 from googleapiclient.discovery import build
@@ -66,11 +66,13 @@ class LifeSciencesHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self.api_version = api_version
 
-    def get_conn(self):
+    def get_conn(self) -> build:
         """
         Retrieves the connection to Cloud Life Sciences.
 
@@ -82,7 +84,7 @@ class LifeSciencesHook(GoogleBaseHook):
         return self._conn
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def run_pipeline(self, body: Dict, location: str, project_id: str):
+    def run_pipeline(self, body: dict, location: str, project_id: str) -> dict:
         """
         Runs a pipeline
 
@@ -114,7 +116,7 @@ class LifeSciencesHook(GoogleBaseHook):
         return response
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def _location_path(self, project_id: str, location: str):
+    def _location_path(self, project_id: str, location: str) -> str:
         """
         Return a location string.
 
@@ -126,7 +128,9 @@ class LifeSciencesHook(GoogleBaseHook):
         :type location: str
         """
         return google.api_core.path_template.expand(
-            'projects/{project}/locations/{location}', project=project_id, location=location,
+            'projects/{project}/locations/{location}',
+            project=project_id,
+            location=location,
         )
 
     def _wait_for_operation_to_complete(self, operation_name: str) -> None:

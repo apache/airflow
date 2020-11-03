@@ -23,7 +23,7 @@ import json
 import re
 import warnings
 from copy import deepcopy
-from typing import Any, Dict, Optional, Sequence, Tuple, Union
+from typing import Any, Optional, Sequence, Tuple, Union
 from urllib.parse import unquote, urlparse
 
 import yaml
@@ -95,7 +95,7 @@ class CloudBuildCancelBuildOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: dict):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.cancel_build(
             id_=self.id_,
@@ -153,8 +153,8 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     def __init__(
         self,
         *,
-        build: Union[Dict, Build, str],
-        body: Optional[Dict] = None,
+        build: Union[dict, Build, str],
+        body: Optional[dict] = None,
         project_id: Optional[str] = None,
         wait: bool = True,
         retry: Optional[Retry] = None,
@@ -195,7 +195,7 @@ class CloudBuildCreateBuildOperator(BaseOperator):
             if self.build_raw.endswith('.json'):
                 self.build = json.loads(file.read())
 
-    def execute(self, context):
+    def execute(self, context: dict):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 
         build = BuildProcessor(build=self.build).process_body()
@@ -268,7 +268,7 @@ class CloudBuildCreateBuildTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: dict):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.create_build_trigger(
             trigger=self.trigger,
@@ -334,7 +334,7 @@ class CloudBuildDeleteBuildTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: dict):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         hook.delete_build_trigger(
             trigger_id=self.trigger_id,
@@ -401,7 +401,7 @@ class CloudBuildGetBuildOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: dict):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.get_build(
             id_=self.id_,
@@ -469,7 +469,7 @@ class CloudBuildGetBuildTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: dict):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.get_build_trigger(
             trigger_id=self.trigger_id,
@@ -541,7 +541,7 @@ class CloudBuildListBuildTriggersOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: dict):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.list_build_triggers(
             project_id=self.project_id,
@@ -614,7 +614,7 @@ class CloudBuildListBuildsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: dict):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         results = hook.list_builds(
             project_id=self.project_id,
@@ -688,7 +688,7 @@ class CloudBuildRetryBuildOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: dict):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.retry_build(
             id_=self.id_,
@@ -766,7 +766,7 @@ class CloudBuildRunBuildTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: dict):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.run_build_trigger(
             trigger_id=self.trigger_id,
@@ -841,7 +841,7 @@ class CloudBuildUpdateBuildTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: dict):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.update_build_trigger(
             trigger_id=self.trigger_id,
@@ -863,10 +863,10 @@ class BuildProcessor:
 
     :param build: The request body of the build.
         See: https://cloud.google.com/cloud-build/docs/api/reference/rest/Shared.Types/Build
-    :type build: Union[Dict, Build]
+    :type build: Union[dict, Build]
     """
 
-    def __init__(self, build: Union[Dict, Build]) -> None:
+    def __init__(self, build: Union[dict, Build]) -> None:
         if isinstance(build, Build):
             self.build = MessageToDict(build)
         self.build = deepcopy(build)
@@ -918,7 +918,7 @@ class BuildProcessor:
         return ParseDict(self.build, Build())
 
     @staticmethod
-    def _convert_repo_url_to_dict(source: str) -> Dict[str, Any]:
+    def _convert_repo_url_to_dict(source: str) -> dict:
         """
         Convert url to repository in Google Cloud Source to a format supported by the API
 
@@ -954,7 +954,7 @@ class BuildProcessor:
         return source_dict
 
     @staticmethod
-    def _convert_storage_url_to_dict(storage_url: str) -> Dict[str, Any]:
+    def _convert_storage_url_to_dict(storage_url: str) -> dict:
         """
         Convert url to object in Google Cloud Storage to a format supported by the API
 

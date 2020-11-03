@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-json_formatter module stores all related to ElasticSearch specific logger classes
-"""
+"""json_formatter module stores all related to ElasticSearch specific logger classes"""
 
 import json
 import logging
@@ -27,9 +25,8 @@ from airflow.utils.helpers import merge_dicts
 
 
 class JSONFormatter(logging.Formatter):
-    """
-    JSONFormatter instances are used to convert a log record to json.
-    """
+    """JSONFormatter instances are used to convert a log record to json."""
+
     # pylint: disable=too-many-arguments
     def __init__(self, fmt=None, datefmt=None, style='%', json_fields=None, extras=None):
         super().__init__(fmt, datefmt, style)
@@ -39,6 +36,9 @@ class JSONFormatter(logging.Formatter):
             json_fields = []
         self.json_fields = json_fields
         self.extras = extras
+
+    def usesTime(self):
+        return self.json_fields.count('asctime') > 0
 
     def format(self, record):
         super().format(record)

@@ -216,9 +216,10 @@ class TestCliExportConnections(unittest.TestCase):
                                                                                       mock_splittext):
         output_filepath = '/tmp/connections.json'
 
-        def my_side_effect():
+        def my_side_effect(_):
             raise Exception("dummy exception")
-        mock_session.return_value.__enter__.return_value.query.return_value.all.side_effect = my_side_effect
+        mock_session.return_value.__enter__.return_value.query.return_value.order_by.side_effect = \
+            my_side_effect
         mock_splittext.return_value = (None, '.json')
 
         args = self.parser.parse_args([
@@ -339,13 +340,18 @@ class TestCliExportConnections(unittest.TestCase):
         ])
         connection_command.connections_export(args)
 
-        expected_connections = (
+        expected_connections = [
             "airflow_db=mysql://root:plainpassword@mysql/airflow\n"
-            "druid_broker_default=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql\n")
+            "druid_broker_default=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql\n",
+
+            "druid_broker_default=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql\n"
+            "airflow_db=mysql://root:plainpassword@mysql/airflow\n"
+        ]
 
         mock_splittext.assert_called_once()
         mock_file_open.assert_called_once_with(output_filepath, 'w', -1, 'UTF-8', None)
-        mock_file_open.return_value.write.assert_called_once_with(expected_connections)
+        mock_file_open.return_value.write.assert_called_once_with(mock.ANY)
+        self.assertIn(mock_file_open.return_value.write.call_args_list[0][0][0], expected_connections)
 
     @mock.patch('os.path.splitext')
     @mock.patch('builtins.open', new_callable=mock.mock_open())
@@ -361,13 +367,18 @@ class TestCliExportConnections(unittest.TestCase):
         ])
         connection_command.connections_export(args)
 
-        expected_connections = (
+        expected_connections = [
             "airflow_db=mysql://root:plainpassword@mysql/airflow\n"
-            "druid_broker_default=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql\n")
+            "druid_broker_default=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql\n",
+
+            "druid_broker_default=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql\n"
+            "airflow_db=mysql://root:plainpassword@mysql/airflow\n"
+        ]
 
         mock_splittext.assert_called_once()
         mock_file_open.assert_called_once_with(output_filepath, 'w', -1, 'UTF-8', None)
-        mock_file_open.return_value.write.assert_called_once_with(expected_connections)
+        mock_file_open.return_value.write.assert_called_once_with(mock.ANY)
+        self.assertIn(mock_file_open.return_value.write.call_args_list[0][0][0], expected_connections)
 
     @mock.patch('os.path.splitext')
     @mock.patch('builtins.open', new_callable=mock.mock_open())

@@ -22,7 +22,7 @@ import json
 import unittest
 import uuid
 
-import mock
+from unittest import mock
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.operators.azure_cosmos import AzureCosmosInsertDocumentOperator

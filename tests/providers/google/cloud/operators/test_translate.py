@@ -18,7 +18,7 @@
 
 import unittest
 
-import mock
+from unittest import mock
 
 from airflow.providers.google.cloud.operators.translate import CloudTranslateTextOperator
 
@@ -49,7 +49,8 @@ class TestCloudTranslate(unittest.TestCase):
         )
         return_value = op.execute(context=None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.translate.assert_called_once_with(
             values=['zażółć gęślą jaźń'],

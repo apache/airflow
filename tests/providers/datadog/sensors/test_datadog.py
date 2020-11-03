@@ -20,7 +20,7 @@ import json
 import unittest
 from typing import List
 
-from mock import patch
+from unittest.mock import patch
 
 from airflow.models import Connection
 from airflow.providers.datadog.sensors.datadog import DatadogSensor

@@ -52,7 +52,7 @@ def get_sensitive_variables_fields():
     sensitive_fields = set(DEFAULT_SENSITIVE_VARIABLE_FIELDS)
     sensitive_variable_fields = conf.get('admin', 'sensitive_variable_fields')
     if sensitive_variable_fields:
-        sensitive_fields.update(set(field.strip() for field in sensitive_variable_fields.split(',')))
+        sensitive_fields.update({field.strip() for field in sensitive_variable_fields.split(',')})
     return sensitive_fields
 
 
@@ -96,7 +96,6 @@ def generate_pages(current_page,
     :param window: the number of pages to be shown in the paging component (7 default)
     :return: the HTML string of the paging component
     """
-
     void_link = 'javascript:void(0)'
     first_node = Markup("""<li class="paginate_button {disabled}" id="dags_first">
     <a href="{href_link}" aria-controls="dags" data-dt-idx="0" tabindex="0">&laquo;</a>
@@ -185,9 +184,7 @@ def epoch(dttm):
 
 
 def json_response(obj):
-    """
-    Returns a json response from a json serializable python object
-    """
+    """Returns a json response from a json serializable python object"""
     return Response(
         response=json.dumps(
             obj, indent=4, cls=AirflowJsonEncoder),
@@ -196,9 +193,7 @@ def json_response(obj):
 
 
 def make_cache_key(*args, **kwargs):
-    """
-    Used by cache to get a unique key per URL
-    """
+    """Used by cache to get a unique key per URL"""
     path = request.path
     args = str(hash(frozenset(request.args.items())))
     return (path + args).encode('ascii', 'ignore')
@@ -224,8 +219,8 @@ def task_instance_link(attr):
         <span style="white-space: nowrap;">
         <a href="{url}">{task_id}</a>
         <a href="{url_root}" title="Filter on this task and upstream">
-        <span class="glyphicon glyphicon-filter" style="margin-left:0;"
-            aria-hidden="true"></span>
+        <span class="material-icons" style="margin-left:0;"
+            aria-hidden="true">filter_alt</span>
         </a>
         </span>
         """).format(url=url, task_id=task_id, url_root=url_root)
@@ -234,9 +229,12 @@ def task_instance_link(attr):
 def state_token(state):
     """Returns a formatted string with HTML for a given State"""
     color = State.color(state)
+    fg_color = State.color_fg(state)
     return Markup(  # noqa
-        '<span class="label" style="background-color:{color};">'
-        '{state}</span>').format(color=color, state=state)
+        """
+        <span class="label" style="color:{fg_color}; background-color:{color};"
+            title="Current State: {state}">{state}</span>
+        """).format(color=color, state=state, fg_color=fg_color)
 
 
 def state_f(attr):
@@ -334,12 +332,12 @@ def wrapped_markdown(s, css_class=None):
         '<div class="rich_doc {css_class}" >'.format(css_class=css_class) + markdown.markdown(s) + "</div>"
     )
 
+
 # pylint: disable=no-member
-
-
 def get_attr_renderer():
     """Return Dictionary containing different Pygments Lexers for Rendering & Highlighting"""
     return {
+        'bash': lambda x: render(x, lexers.BashLexer),
         'bash_command': lambda x: render(x, lexers.BashLexer),
         'hql': lambda x: render(x, lexers.SqlLexer),
         'sql': lambda x: render(x, lexers.SqlLexer),
@@ -348,9 +346,13 @@ def get_attr_renderer():
         'doc_rst': lambda x: render(x, lexers.RstLexer),
         'doc_yaml': lambda x: render(x, lexers.YamlLexer),
         'doc_md': wrapped_markdown,
+        'json': lambda x: render(x, lexers.JsonLexer),
+        'md': wrapped_markdown,
+        'py': lambda x: render(get_python_source(x), lexers.PythonLexer),
         'python_callable': lambda x: render(get_python_source(x), lexers.PythonLexer),
+        'rst': lambda x: render(x, lexers.RstLexer),
+        'yaml': lambda x: render(x, lexers.YamlLexer),
     }
-
 # pylint: enable=no-member
 
 
@@ -366,9 +368,8 @@ def get_chart_height(dag):
 
 
 class UtcAwareFilterMixin:  # noqa: D101
-    """
-    Mixin for filter for UTC time.
-    """
+    """Mixin for filter for UTC time."""
+
     def apply(self, query, value):
         """Apply the filter."""
         value = timezone.parse(value, timezone=timezone.utc)
@@ -377,33 +378,23 @@ class UtcAwareFilterMixin:  # noqa: D101
 
 
 class UtcAwareFilterEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterEqual):  # noqa: D101
-    """
-    Equality filter for UTC time.
-    """
+    """Equality filter for UTC time."""
 
 
 class UtcAwareFilterGreater(UtcAwareFilterMixin, fab_sqlafilters.FilterGreater):  # noqa: D101
-    """
-    Greater Than filter for UTC time.
-    """
+    """Greater Than filter for UTC time."""
 
 
 class UtcAwareFilterSmaller(UtcAwareFilterMixin, fab_sqlafilters.FilterSmaller):  # noqa: D101
-    """
-    Smaller Than filter for UTC time.
-    """
+    """Smaller Than filter for UTC time."""
 
 
 class UtcAwareFilterNotEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterNotEqual):  # noqa: D101
-    """
-    Not Equal To filter for UTC time.
-    """
+    """Not Equal To filter for UTC time."""
 
 
 class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):  # noqa: D101
-    """
-    Retrieve conversion tables for UTC-Aware filters.
-    """
+    """Retrieve conversion tables for UTC-Aware filters."""
 
     conversion_table = (
         (('is_utcdatetime', [UtcAwareFilterEqual,
@@ -421,6 +412,7 @@ class CustomSQLAInterface(SQLAInterface):
     '_' from the key to lookup the column names.
 
     """
+
     def __init__(self, obj, session=None):
         super().__init__(obj, session=session)
 

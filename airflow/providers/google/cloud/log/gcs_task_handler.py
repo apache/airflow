@@ -27,7 +27,11 @@ from airflow.providers.google.cloud.utils.credentials_provider import get_creden
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-_DEFAULT_SCOPESS = frozenset(["https://www.googleapis.com/auth/devstorage.read_write",])
+_DEFAULT_SCOPESS = frozenset(
+    [
+        "https://www.googleapis.com/auth/devstorage.read_write",
+    ]
+)
 
 
 class GCSTaskHandler(FileTaskHandler, LoggingMixin):
@@ -106,9 +110,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         self.upload_on_close = not ti.raw
 
     def close(self):
-        """
-        Close and upload local log file to remote storage GCS.
-        """
+        """Close and upload local log file to remote storage GCS."""
         # When application exit, system shuts down all handlers by
         # calling close method. Here we check if logger is already
         # closed to prevent uploading the log to remote storage multiple

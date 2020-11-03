@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains operator to move data from Vertica to Hive.
-"""
+"""This module contains operator to move data from Vertica to Hive."""
 
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile

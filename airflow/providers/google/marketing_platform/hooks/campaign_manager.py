@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Campaign Manager hook.
-"""
+"""This module contains Google Campaign Manager hook."""
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 from googleapiclient import http
@@ -28,9 +26,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 class GoogleCampaignManagerHook(GoogleBaseHook):
-    """
-    Hook for Google Campaign Manager.
-    """
+    """Hook for Google Campaign Manager."""
 
     _conn = None  # type: Optional[Resource]
 
@@ -42,17 +38,22 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self.api_version = api_version
 
     def get_conn(self) -> Resource:
-        """
-        Retrieves connection to Campaign Manager.
-        """
+        """Retrieves connection to Campaign Manager."""
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build("dfareporting", self.api_version, http=http_authorized, cache_discovery=False,)
+            self._conn = build(
+                "dfareporting",
+                self.api_version,
+                http=http_authorized,
+                cache_discovery=False,
+            )
         return self._conn
 
     def delete_report(self, profile_id: str, report_id: str) -> Any:
@@ -96,7 +97,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         scope: Optional[str] = None,
         sort_field: Optional[str] = None,
         sort_order: Optional[str] = None,
-    ) -> List[Dict]:
+    ) -> List[dict]:
         """
         Retrieves list of reports.
 
@@ -111,7 +112,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         :param sort_order: Order of sorted results.
         :type sort_order: Optional[str]
         """
-        reports = []  # type: List[Dict]
+        reports: List[dict] = []
         conn = self.get_conn()
         request = conn.reports().list(  # pylint: disable=no-member
             profileId=profile_id,
@@ -129,7 +130,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
 
         return reports
 
-    def patch_report(self, profile_id: str, report_id: str, update_mask: Dict) -> Any:
+    def patch_report(self, profile_id: str, report_id: str, update_mask: dict) -> Any:
         """
         Updates a report. This method supports patch semantics.
 

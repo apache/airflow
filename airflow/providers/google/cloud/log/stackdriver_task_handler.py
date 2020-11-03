@@ -14,9 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Handler that integrates with Stackdriver
-"""
+"""Handler that integrates with Stackdriver"""
 import logging
 from typing import Collection, Dict, List, Optional, Tuple, Type
 from urllib.parse import urlencode
@@ -244,7 +242,8 @@ class StackdriverTaskHandler(logging.Handler):
         """
         messages = []
         new_messages, next_page_token = self._read_single_logs_page(
-            log_filter=log_filter, page_token=next_page_token,
+            log_filter=log_filter,
+            page_token=next_page_token,
         )
         messages.append(new_messages)
         if all_pages:

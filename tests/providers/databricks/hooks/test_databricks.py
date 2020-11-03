@@ -21,7 +21,7 @@ import itertools
 import json
 import unittest
 
-import mock
+from unittest import mock
 from requests import exceptions as requests_exceptions
 
 from airflow import __version__
@@ -258,7 +258,10 @@ class TestDatabricksHook(unittest.TestCase):
         self.assertEqual(run_id, '1')
         mock_requests.post.assert_called_once_with(
             submit_run_endpoint(HOST),
-            json={'notebook_task': NOTEBOOK_TASK, 'new_cluster': NEW_CLUSTER,},
+            json={
+                'notebook_task': NOTEBOOK_TASK,
+                'new_cluster': NEW_CLUSTER,
+            },
             params=None,
             auth=(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
@@ -274,7 +277,10 @@ class TestDatabricksHook(unittest.TestCase):
         self.assertEqual(run_id, '1')
         mock_requests.post.assert_called_once_with(
             submit_run_endpoint(HOST),
-            json={'spark_python_task': SPARK_PYTHON_TASK, 'new_cluster': NEW_CLUSTER,},
+            json={
+                'spark_python_task': SPARK_PYTHON_TASK,
+                'new_cluster': NEW_CLUSTER,
+            },
             params=None,
             auth=(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
@@ -446,6 +452,17 @@ class TestDatabricksHookToken(unittest.TestCase):
         args = mock_requests.post.call_args
         kwargs = args[1]
         self.assertEqual(kwargs['auth'].token, TOKEN)
+
+
+class TestDatabricksHookTokenWhenNoHostIsProvidedInExtra(TestDatabricksHookToken):
+    @provide_session
+    def setUp(self, session=None):
+        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.extra = json.dumps({'token': TOKEN})
+
+        session.commit()
+
+        self.hook = DatabricksHook()
 
 
 class TestRunState(unittest.TestCase):

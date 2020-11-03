@@ -17,9 +17,9 @@
 # under the License.
 #
 import unittest
+from unittest import mock
 
 import boto3
-import mock
 
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.providers.amazon.aws.hooks.datasync import AWSDataSyncHook
@@ -98,7 +98,8 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
             S3Config={"BucketAccessRoleArn": "role"},
         )["LocationArn"]
         self.task_arn = self.client.create_task(
-            SourceLocationArn=self.source_location_arn, DestinationLocationArn=self.destination_location_arn,
+            SourceLocationArn=self.source_location_arn,
+            DestinationLocationArn=self.destination_location_arn,
         )["TaskArn"]
 
     def tearDown(self):

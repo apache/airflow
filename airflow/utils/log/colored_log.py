@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Class responsible for colouring logs based on log level.
-"""
+"""Class responsible for colouring logs based on log level."""
 import re
 import sys
 from logging import LogRecord
@@ -44,6 +42,7 @@ class CustomTTYColoredFormatter(TTYColoredFormatter):
     by adding attributes to message arguments and coloring error
     traceback.
     """
+
     def __init__(self, *args, **kwargs):
         kwargs["stream"] = sys.stdout or kwargs.get("stream")
         kwargs["log_colors"] = DEFAULT_COLORS

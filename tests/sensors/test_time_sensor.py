@@ -17,9 +17,9 @@
 # under the License.
 
 from datetime import datetime, time
+from unittest.mock import patch
 
 import pendulum
-from mock import patch
 from parameterized import parameterized
 
 from airflow.models.dag import DAG

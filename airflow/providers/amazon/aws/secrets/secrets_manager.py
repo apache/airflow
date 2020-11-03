@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Objects relating to sourcing secrets from AWS Secrets Manager
-"""
+"""Objects relating to sourcing secrets from AWS Secrets Manager"""
 
 from typing import Optional
 
@@ -82,10 +80,10 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     @cached_property
     def client(self):
-        """
-        Create a Secrets Manager client
-        """
-        session = boto3.session.Session(profile_name=self.profile_name,)
+        """Create a Secrets Manager client"""
+        session = boto3.session.Session(
+            profile_name=self.profile_name,
+        )
         return session.client(service_name="secretsmanager", **self.kwargs)
 
     def get_conn_uri(self, conn_id: str) -> Optional[str]:
@@ -126,7 +124,9 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         """
         secrets_path = self.build_path(path_prefix, secret_id, self.sep)
         try:
-            response = self.client.get_secret_value(SecretId=secrets_path,)
+            response = self.client.get_secret_value(
+                SecretId=secrets_path,
+            )
             return response.get('SecretString')
         except self.client.exceptions.ResourceNotFoundException:
             self.log.debug(

@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Implements Docker operator
-"""
+"""Implements Docker operator"""
 import ast
 from tempfile import TemporaryDirectory
 from typing import Dict, Iterable, List, Optional, Union
@@ -165,7 +163,7 @@ class DockerOperator(BaseOperator):
         dns_search: Optional[List[str]] = None,
         auto_remove: bool = False,
         shm_size: Optional[int] = None,
-        tty: Optional[bool] = False,
+        tty: bool = False,
         cap_add: Optional[Iterable[str]] = None,
         extra_hosts: Optional[Dict[str, str]] = None,
         **kwargs,
@@ -222,9 +220,7 @@ class DockerOperator(BaseOperator):
         )
 
     def _run_image(self) -> Optional[str]:
-        """
-        Run a Docker container with the provided image
-        """
+        """Run a Docker container with the provided image"""
         self.log.info('Starting docker container from image %s', self.image)
 
         with TemporaryDirectory(prefix='airflowtmp', dir=self.host_tmp_dir) as host_tmp_dir:

@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Video Intelligence Hook.
-"""
+"""This module contains a Google Cloud Video Intelligence Hook."""
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.operation import Operation
@@ -59,7 +57,9 @@ class CloudVideoIntelligenceHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self._conn = None
 

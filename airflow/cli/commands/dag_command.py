@@ -101,7 +101,7 @@ def dag_backfill(args, dag=None):
     args.start_date = args.start_date or args.end_date
 
     if args.task_regex:
-        dag = dag.sub_dag(
+        dag = dag.partial_subset(
             task_regex=args.task_regex,
             include_upstream=not args.ignore_dependencies)
 
@@ -147,9 +147,7 @@ def dag_backfill(args, dag=None):
 
 @cli_utils.action_logging
 def dag_trigger(args):
-    """
-    Creates a dag run for the specified dag
-    """
+    """Creates a dag run for the specified dag"""
     api_client = get_current_api_client()
     try:
         message = api_client.trigger_dag(dag_id=args.dag_id,
@@ -163,9 +161,7 @@ def dag_trigger(args):
 
 @cli_utils.action_logging
 def dag_delete(args):
-    """
-    Deletes all DB records related to the specified dag
-    """
+    """Deletes all DB records related to the specified dag"""
     api_client = get_current_api_client()
     if args.yes or input(
             "This will drop all existing records related to the specified DAG. "
@@ -271,7 +267,7 @@ def dag_state(args):
 def dag_next_execution(args):
     """
     Returns the next execution datetime of a DAG at the command line.
-    >>> airflow dags next_execution tutorial
+    >>> airflow dags next-execution tutorial
     2018-08-31 10:38:00
     """
     dag = get_dag(args.subdir, args.dag_id)

@@ -23,9 +23,7 @@ from airflow.utils.decorators import apply_defaults
 
 
 class RedisKeySensor(BaseSensorOperator):
-    """
-    Checks for the existence of a key in a Redis
-    """
+    """Checks for the existence of a key in a Redis"""
 
     template_fields = ('key',)
     ui_color = '#f0eee4'

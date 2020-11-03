@@ -22,7 +22,7 @@ Unit Tests for the GSheets Hook
 
 import unittest
 
-import mock
+from unittest import mock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook

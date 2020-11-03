@@ -21,22 +21,24 @@ from datetime import date, datetime
 
 import numpy as np
 
+try:
+    from kubernetes.client import models as k8s
+except ImportError:
+    k8s = None
+
 # Dates and JSON encoding/decoding
 
 
 class AirflowJsonEncoder(json.JSONEncoder):
-    """
-    Custom Airflow json encoder implementation.
-    """
+    """Custom Airflow json encoder implementation."""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.default = self._default
 
     @staticmethod
     def _default(obj):
-        """
-        Convert dates and numpy objects in a json serializable format.
-        """
+        """Convert dates and numpy objects in a json serializable format."""
         if isinstance(obj, datetime):
             return obj.strftime('%Y-%m-%dT%H:%M:%SZ')
         elif isinstance(obj, date):
@@ -50,5 +52,8 @@ class AirflowJsonEncoder(json.JSONEncoder):
         elif isinstance(obj, (np.float_, np.float16, np.float32, np.float64,
                               np.complex_, np.complex64, np.complex128)):
             return float(obj)
+        elif k8s is not None and isinstance(obj, k8s.V1Pod):
+            from airflow.kubernetes.pod_generator import PodGenerator
+            return PodGenerator.serialize_pod(obj)
 
         raise TypeError(f"Object of type '{obj.__class__.__name__}' is not JSON serializable")

@@ -47,10 +47,17 @@ class TestS3KeySensor(unittest.TestCase):
             )
 
     @parameterized.expand(
-        [['s3://bucket/key', None, 'key', 'bucket'], ['key', 'bucket', 'key', 'bucket'],]
+        [
+            ['s3://bucket/key', None, 'key', 'bucket'],
+            ['key', 'bucket', 'key', 'bucket'],
+        ]
     )
     def test_parse_bucket_key(self, key, bucket, parsed_key, parsed_bucket):
-        op = S3KeySensor(task_id='s3_key_sensor', bucket_key=key, bucket_name=bucket,)
+        op = S3KeySensor(
+            task_id='s3_key_sensor',
+            bucket_key=key,
+            bucket_name=bucket,
+        )
         self.assertEqual(op.bucket_key, parsed_key)
         self.assertEqual(op.bucket_name, parsed_bucket)
 

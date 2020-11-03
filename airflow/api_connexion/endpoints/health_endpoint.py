@@ -22,9 +22,7 @@ UNHEALTHY = "unhealthy"
 
 
 def get_health():
-    """
-    Return the health of the airflow scheduler and metadatabase
-    """
+    """Return the health of the airflow scheduler and metadatabase"""
     metadatabase_status = HEALTHY
     latest_scheduler_heartbeat = None
     scheduler_status = UNHEALTHY
@@ -40,7 +38,10 @@ def get_health():
 
     payload = {
         "metadatabase": {"status": metadatabase_status},
-        "scheduler": {"status": scheduler_status, "latest_scheduler_heartbeat": latest_scheduler_heartbeat,},
+        "scheduler": {
+            "status": scheduler_status,
+            "latest_scheduler_heartbeat": latest_scheduler_heartbeat,
+        },
     }
 
     return health_schema.dump(payload)

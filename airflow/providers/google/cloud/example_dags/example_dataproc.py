@@ -29,12 +29,13 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocSubmitJobOperator,
     DataprocUpdateClusterOperator,
 )
+from airflow.providers.google.cloud.sensors.dataproc import DataprocJobSensor
 from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "an-id")
 CLUSTER_NAME = os.environ.get("GCP_DATAPROC_CLUSTER_NAME", "example-project")
 REGION = os.environ.get("GCP_LOCATION", "europe-west1")
-ZONE = os.environ.get("GCP_REGION", "europe-west-1b")
+ZONE = os.environ.get("GCP_REGION", "europe-west1-b")
 BUCKET = os.environ.get("GCP_DATAPROC_BUCKET", "dataproc-system-tests")
 OUTPUT_FOLDER = "wordcount"
 OUTPUT_PATH = "gs://{}/{}/".format(BUCKET, OUTPUT_FOLDER)
@@ -46,20 +47,16 @@ SPARKR_URI = "gs://{}/{}".format(BUCKET, SPARKR_MAIN)
 # Cluster definition
 # [START how_to_cloud_dataproc_create_cluster]
 
-CLUSTER = {
-    "project_id": PROJECT_ID,
-    "cluster_name": CLUSTER_NAME,
-    "config": {
-        "master_config": {
-            "num_instances": 1,
-            "machine_type_uri": "n1-standard-4",
-            "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 1024},
-        },
-        "worker_config": {
-            "num_instances": 2,
-            "machine_type_uri": "n1-standard-4",
-            "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 1024},
-        },
+CLUSTER_CONFIG = {
+    "master_config": {
+        "num_instances": 1,
+        "machine_type_uri": "n1-standard-4",
+        "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 1024},
+    },
+    "worker_config": {
+        "num_instances": 2,
+        "machine_type_uri": "n1-standard-4",
+        "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 1024},
     },
 }
 
@@ -68,10 +65,10 @@ CLUSTER = {
 # Update options
 # [START how_to_cloud_dataproc_updatemask_cluster_operator]
 CLUSTER_UPDATE = {
-    "config": {"worker_config": {"num_instances": 3}, "secondary_worker_config": {"num_instances": 3},}
+    "config": {"worker_config": {"num_instances": 3}, "secondary_worker_config": {"num_instances": 3}}
 }
 UPDATE_MASK = {
-    "paths": ["config.worker_config.num_instances", "config.secondary_worker_config.num_instances",]
+    "paths": ["config.worker_config.num_instances", "config.secondary_worker_config.num_instances"]
 }
 # [END how_to_cloud_dataproc_updatemask_cluster_operator]
 
@@ -140,10 +137,14 @@ HADOOP_JOB = {
 }
 # [END how_to_cloud_dataproc_hadoop_config]
 
-with models.DAG("example_gcp_dataproc", start_date=days_ago(1), schedule_interval=None,) as dag:
+with models.DAG("example_gcp_dataproc", start_date=days_ago(1), schedule_interval=None) as dag:
     # [START how_to_cloud_dataproc_create_cluster_operator]
     create_cluster = DataprocCreateClusterOperator(
-        task_id="create_cluster", project_id=PROJECT_ID, cluster=CLUSTER, region=REGION
+        task_id="create_cluster",
+        project_id=PROJECT_ID,
+        cluster_config=CLUSTER_CONFIG,
+        region=REGION,
+        cluster_name=CLUSTER_NAME,
     )
     # [END how_to_cloud_dataproc_create_cluster_operator]
 
@@ -163,12 +164,26 @@ with models.DAG("example_gcp_dataproc", start_date=days_ago(1), schedule_interva
         task_id="pig_task", job=PIG_JOB, location=REGION, project_id=PROJECT_ID
     )
     spark_sql_task = DataprocSubmitJobOperator(
-        task_id="spark_sql_task", job=SPARK_SQL_JOB, location=REGION, project_id=PROJECT_ID,
+        task_id="spark_sql_task", job=SPARK_SQL_JOB, location=REGION, project_id=PROJECT_ID
     )
 
     spark_task = DataprocSubmitJobOperator(
         task_id="spark_task", job=SPARK_JOB, location=REGION, project_id=PROJECT_ID
     )
+
+    # [START cloud_dataproc_async_submit_sensor]
+    spark_task_async = DataprocSubmitJobOperator(
+        task_id="spark_task_async", job=SPARK_JOB, location=REGION, project_id=PROJECT_ID, asynchronous=True
+    )
+
+    spark_task_async_sensor = DataprocJobSensor(
+        task_id='spark_task_async_sensor_task',
+        location=REGION,
+        project_id=PROJECT_ID,
+        dataproc_job_id="{{task_instance.xcom_pull(task_ids='spark_task_async')}}",
+        poke_interval=10,
+    )
+    # [END cloud_dataproc_async_submit_sensor]
 
     # [START how_to_cloud_dataproc_submit_job_to_cluster_operator]
     pyspark_task = DataprocSubmitJobOperator(
@@ -190,7 +205,7 @@ with models.DAG("example_gcp_dataproc", start_date=days_ago(1), schedule_interva
 
     # [START how_to_cloud_dataproc_delete_cluster_operator]
     delete_cluster = DataprocDeleteClusterOperator(
-        task_id="delete_cluster", project_id=PROJECT_ID, cluster_name=CLUSTER_NAME, region=REGION,
+        task_id="delete_cluster", project_id=PROJECT_ID, cluster_name=CLUSTER_NAME, region=REGION
     )
     # [END how_to_cloud_dataproc_delete_cluster_operator]
 
@@ -199,6 +214,7 @@ with models.DAG("example_gcp_dataproc", start_date=days_ago(1), schedule_interva
     scale_cluster >> pig_task >> delete_cluster
     scale_cluster >> spark_sql_task >> delete_cluster
     scale_cluster >> spark_task >> delete_cluster
+    scale_cluster >> spark_task_async >> spark_task_async_sensor >> delete_cluster
     scale_cluster >> pyspark_task >> delete_cluster
     scale_cluster >> sparkr_task >> delete_cluster
     scale_cluster >> hadoop_task >> delete_cluster

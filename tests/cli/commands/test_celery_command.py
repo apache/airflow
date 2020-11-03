@@ -18,8 +18,8 @@
 import unittest
 from argparse import Namespace
 from tempfile import NamedTemporaryFile
+from unittest import mock
 
-import mock
 import pytest
 import sqlalchemy
 
@@ -137,8 +137,9 @@ class TestCeleryStopCommand(unittest.TestCase):
         celery_command.worker(worker_args)
         run_mock = mock_celery_worker.return_value.run
         assert run_mock.call_args
-        assert 'pidfile' in run_mock.call_args.kwargs
-        assert run_mock.call_args.kwargs['pidfile'] == pid_file
+        _, kwargs = run_mock.call_args
+        assert 'pidfile' in kwargs
+        assert kwargs['pidfile'] == pid_file
 
         # Call stop
         stop_args = self.parser.parse_args(['celery', 'stop'])

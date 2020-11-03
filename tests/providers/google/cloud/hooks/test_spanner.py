@@ -18,8 +18,8 @@
 
 import unittest
 
-import mock
-from mock import PropertyMock
+from unittest import mock
+from unittest.mock import PropertyMock
 
 from airflow.providers.google.cloud.hooks.spanner import SpannerHook
 from tests.providers.google.cloud.utils.base_gcp_mock import (
@@ -193,7 +193,8 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         delete_method = instance_method.return_value.delete
         delete_method.return_value = False
         res = self.spanner_hook_default_project_id.delete_instance(
-            instance_id=SPANNER_INSTANCE, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+            instance_id=SPANNER_INSTANCE,
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
         get_client.assert_called_once_with(project_id='example-project')
         instance_method.assert_called_once_with('instance')

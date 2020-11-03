@@ -24,6 +24,7 @@ import subprocess
 import sys
 import textwrap
 import time
+from contextlib import suppress
 from time import sleep
 from typing import Dict, List, NoReturn
 
@@ -78,6 +79,7 @@ class GunicornMonitor(LoggingMixin):
     :param reload_on_plugin_change: If set to True, Airflow will track files in plugins_folder directory.
         When it detects changes, then reload the gunicorn.
     """
+
     def __init__(
         self,
         gunicorn_master_pid: int,
@@ -146,9 +148,7 @@ class GunicornMonitor(LoggingMixin):
         return len(workers)
 
     def _wait_until_true(self, fn, timeout: int = 0) -> None:
-        """
-        Sleeps until fn is true
-        """
+        """Sleeps until fn is true"""
         start_time = time.time()
         while not fn():
             if 0 < timeout <= time.time() - start_time:
@@ -202,9 +202,7 @@ class GunicornMonitor(LoggingMixin):
         )
 
     def start(self) -> NoReturn:
-        """
-        Starts monitoring the webserver.
-        """
+        """Starts monitoring the webserver."""
         try:  # pylint: disable=too-many-nested-blocks
             self._wait_until_true(
                 lambda: self.num_workers_expected == self._get_num_workers_running(),
@@ -392,7 +390,10 @@ def webserver(args):
         def kill_proc(signum, _):  # pylint: disable=unused-argument
             log.info("Received signal: %s. Closing gunicorn.", signum)
             gunicorn_master_proc.terminate()
-            gunicorn_master_proc.wait()
+            with suppress(TimeoutError):
+                gunicorn_master_proc.wait(timeout=30)
+            if gunicorn_master_proc.poll() is not None:
+                gunicorn_master_proc.kill()
             sys.exit(0)
 
         def monitor_gunicorn(gunicorn_master_pid: int):

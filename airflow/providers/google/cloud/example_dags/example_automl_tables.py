@@ -142,13 +142,18 @@ with models.DAG(
     ] = "{{ get_target_column_spec(task_instance.xcom_pull('list_columns_spec_task'), target) }}"
 
     update_dataset_task = AutoMLTablesUpdateDatasetOperator(
-        task_id="update_dataset_task", dataset=update, location=GCP_AUTOML_LOCATION,
+        task_id="update_dataset_task",
+        dataset=update,
+        location=GCP_AUTOML_LOCATION,
     )
     # [END howto_operator_automl_update_dataset]
 
     # [START howto_operator_automl_create_model]
     create_model_task = AutoMLTrainModelOperator(
-        task_id="create_model_task", model=MODEL, location=GCP_AUTOML_LOCATION, project_id=GCP_PROJECT_ID,
+        task_id="create_model_task",
+        model=MODEL,
+        location=GCP_AUTOML_LOCATION,
+        project_id=GCP_PROJECT_ID,
     )
 
     model_id = "{{ task_instance.xcom_pull('create_model_task', key='model_id') }}"
@@ -222,7 +227,9 @@ with models.DAG(
 
     # [START howto_operator_list_dataset]
     list_datasets_task = AutoMLListDatasetOperator(
-        task_id="list_datasets_task", location=GCP_AUTOML_LOCATION, project_id=GCP_PROJECT_ID,
+        task_id="list_datasets_task",
+        location=GCP_AUTOML_LOCATION,
+        project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_list_dataset]
 
@@ -252,7 +259,10 @@ with models.DAG(
 ) as get_deploy_dag:
     # [START howto_operator_get_model]
     get_model_task = AutoMLGetModelOperator(
-        task_id="get_model_task", model_id=MODEL_ID, location=GCP_AUTOML_LOCATION, project_id=GCP_PROJECT_ID,
+        task_id="get_model_task",
+        model_id=MODEL_ID,
+        location=GCP_AUTOML_LOCATION,
+        project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_get_model]
 

@@ -103,9 +103,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self):
-        """
-        Returns S3Hook.
-        """
+        """Returns S3Hook."""
         return S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
     def is_keys_unchanged(self, current_objects: Set[str]) -> bool:

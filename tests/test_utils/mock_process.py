@@ -84,5 +84,4 @@ class MockConnectionCursor:
         return self.iterable
 
     def __iter__(self):
-        for i in self.iterable:
-            yield i
+        yield from self.iterable

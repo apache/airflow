@@ -39,11 +39,11 @@ class DagCode(Base):
     dag_code table contains code of DAG files synchronized by scheduler.
     This feature is controlled by:
 
-    * ``[core] store_serialized_dags = True``: enable this feature
     * ``[core] store_dag_code = True``: enable this feature
 
     For details on dag serialization see SerializedDagModel
     """
+
     __tablename__ = 'dag_code'
 
     fileloc_hash = Column(

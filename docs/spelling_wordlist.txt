@@ -264,6 +264,7 @@ Parallelize
 Parameterizing
 Paramiko
 Params
+Paxos
 Pem
 Pinot
 Popen
@@ -300,7 +301,6 @@ Reddit
 Redhat
 ReidentifyContentResponse
 Reinitialising
-Retrives
 Riccomini
 Roadmap
 Robinhood
@@ -343,7 +343,6 @@ Systemd
 TCP
 TLS
 TTY
-TThe
 TZ
 TaskInstance
 Taskfail
@@ -357,8 +356,8 @@ ToC
 Tomasz
 Tooltip
 Tsai
+Tuneables
 UA
-UNload
 Uellendall
 Umask
 Un
@@ -399,8 +398,6 @@ Zsh
 Zymergen
 abc
 accessor
-accountmaking
-acessible
 ack
 ackIds
 acknowledgement
@@ -476,6 +473,7 @@ backreference
 backtick
 backticks
 balancer
+balancers
 baseOperator
 basedn
 basestring
@@ -485,6 +483,7 @@ basph
 batchGet
 bc
 bcc
+bdist
 behaviour
 behaviours
 bigquery
@@ -535,16 +534,17 @@ cloudant
 cloudml
 cloudsqldatabehook
 cloudwatch
+cmake
 cmd
 cmdline
 cmds
 cname
 cnf
+cnt
 codebase
 codecov
 colour
 colours
-commiter
 compat
 concat
 conda
@@ -581,6 +581,7 @@ csv
 ctor
 cubeName
 customDataImportUids
+customizable
 cx
 dabf
 dagBag
@@ -630,7 +631,6 @@ dep
 deploymentUrl
 deps
 desc
-desecending
 deserialization
 deserialize
 deserialized
@@ -666,7 +666,9 @@ dsn
 dttm
 dtypes
 durations
+dylib
 dynamodb
+dynload
 eRevalue
 ec
 ecb
@@ -677,6 +679,7 @@ emr
 enableAutoScale
 encryptor
 enqueue
+enqueued
 entrypoint
 enum
 env
@@ -738,6 +741,7 @@ gRPC
 ga
 gantt
 gbq
+gcc
 gcloud
 gcp
 gcpcloudsql
@@ -781,6 +785,7 @@ hiveconfs
 hivemeta
 hiveserver
 hmsclient
+homebrew
 honoured
 hostPath
 hostname
@@ -826,11 +831,11 @@ instafail
 installable
 instanceTemplates
 instantiation
-instatiating
 integrations
 interdependencies
 internalIpOnly
 ints
+intvl
 io
 ip
 isfile
@@ -862,6 +867,7 @@ js
 json
 jthomas
 jupyter
+jupytercmd
 kaxilnaik
 keepalive
 keepalives
@@ -993,6 +999,7 @@ os
 ot
 overridable
 oversubscription
+pagerduty
 pageviews
 paginator
 papermill
@@ -1045,7 +1052,6 @@ prestocmd
 prestodb
 prev
 profiler
-programatic
 programmatically
 projectId
 projectid
@@ -1104,11 +1110,14 @@ repos
 reqs
 resetdb
 resourceVersion
+resultset
 resumable
+retransmits
 rfc
 ricard
 rideable
 romeoandjuliet
+rootcss
 rowid
 rpc
 rshift
@@ -1118,6 +1127,7 @@ ru
 runAsUser
 runnable
 runtime
+ryanahamilton
 ryw
 sagemaker
 saguziel
@@ -1130,6 +1140,7 @@ savedModel
 scalability
 scalable
 sched
+schedulable
 schedulername
 schemas
 sdk
@@ -1212,7 +1223,6 @@ subpackages
 subpages
 subpartitioned
 subpath
-subproces
 subprocess
 subprocesses
 subquery
@@ -1222,10 +1232,12 @@ subtask
 subtasks
 sudo
 sudoers
+summarization
 superclass
 svg
 swp
 symlink
+symlinks
 symlinking
 sync'ed
 sys
@@ -1236,8 +1248,10 @@ tablefmt
 tagKey
 tagValue
 tao
+taskflow
 taskinstance
 tblproperties
+tcp
 templatable
 templateable
 templated
@@ -1265,6 +1279,8 @@ tokopedia
 tolerations
 tooltip
 tooltips
+traceback
+tracebacks
 travis
 trojan
 tsv
@@ -1303,6 +1319,7 @@ useLegacySQL
 useQueryCache
 userId
 userpass
+usr
 utc
 utcnow
 utf
@@ -1331,7 +1348,7 @@ webserver
 webservers
 webservice
 whitespace
-wil
+whl
 winrm
 workgroup
 workgroups

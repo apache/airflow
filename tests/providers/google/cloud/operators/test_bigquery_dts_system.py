@@ -64,7 +64,9 @@ class GcpBigqueryDtsSystemTest(GoogleSystemTest):
     def setUp(self):
         super().setUp()
         self.create_dataset(
-            project_id=GCP_PROJECT_ID, dataset=GCP_DTS_BQ_DATASET, table=GCP_DTS_BQ_TABLE,
+            project_id=GCP_PROJECT_ID,
+            dataset=GCP_DTS_BQ_DATASET,
+            table=GCP_DTS_BQ_TABLE,
         )
         self.upload_data(dataset=GCP_DTS_BQ_DATASET, table=GCP_DTS_BQ_TABLE, gcs_file=BUCKET_URI)
 

@@ -23,6 +23,7 @@ import json
 import os
 import textwrap
 from argparse import Action, ArgumentError, RawTextHelpFormatter
+from functools import lru_cache
 from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Union
 
 from tabulate import tabulate_formats
@@ -66,6 +67,16 @@ class DefaultHelpParser(argparse.ArgumentParser):
         if value == 'celery' and executor != ExecutorLoader.CELERY_EXECUTOR:
             message = f'celery subcommand works only with CeleryExecutor, your current executor: {executor}'
             raise ArgumentError(action, message)
+        if value == 'kubernetes':
+            try:
+                import kubernetes.client  # noqa: F401 pylint: disable=unused-import
+            except ImportError:
+                message = (
+                    'The kubernetes subcommand requires that you pip install the kubernetes python client.'
+                    "To do it, run: pip install 'apache-airflow[cncf.kubernetes]'"
+                )
+                raise ArgumentError(action, message)
+
         if action.choices is not None and value not in action.choices:
             check_legacy_command(action, value)
 
@@ -83,6 +94,7 @@ _UNSET = object()
 
 class Arg:
     """Class to keep information about command line argument"""
+
     # pylint: disable=redefined-builtin,unused-argument
     def __init__(self, flags=_UNSET, help=_UNSET, action=_UNSET, default=_UNSET, nargs=_UNSET, type=_UNSET,
                  choices=_UNSET, required=_UNSET, metavar=_UNSET):
@@ -142,6 +154,11 @@ ARG_END_DATE = Arg(
     ("-e", "--end-date"),
     help="Override end_date YYYY-MM-DD",
     type=parsedate)
+ARG_OUTPUT_PATH = Arg(
+    ("-o", "--output-path",),
+    help="The output for generated yaml files",
+    type=str,
+    default=os.getcwd())
 ARG_DRY_RUN = Arg(
     ("-n", "--dry-run"),
     help="Perform a dry run for each task. Only renders Template Fields for each task, nothing else",
@@ -184,6 +201,10 @@ ARG_COLOR = Arg(
     default=ColorMode.AUTO)
 
 # list_dag_runs
+ARG_DAG_ID_OPT = Arg(
+    ("-d", "--dag-id"),
+    help="The id of the dag"
+)
 ARG_NO_BACKFILL = Arg(
     ("--no-backfill",),
     help="filter all the backfill dagruns given the dag id",
@@ -506,17 +527,11 @@ ARG_ERROR_LOGFILE = Arg(
          "stderr")
 
 # scheduler
-ARG_DAG_ID_OPT = Arg(
-    ("-d", "--dag-id"),
-    help="The id of the dag to run"
-)
 ARG_NUM_RUNS = Arg(
     ("-n", "--num-runs"),
     default=conf.getint('scheduler', 'num_runs'),
     type=int,
     help="Set the number of runs to execute before exiting")
-
-# worker
 ARG_DO_PICKLE = Arg(
     ("-p", "--do-pickle"),
     default=False,
@@ -525,6 +540,8 @@ ARG_DO_PICKLE = Arg(
         "to the workers, instead of letting workers run their version "
         "of the code"),
     action="store_true")
+
+# worker
 ARG_QUEUES = Arg(
     ("-q", "--queues"),
     help="Comma delimited list of queues to serve",
@@ -751,6 +768,7 @@ ALTERNATIVE_CONN_SPECS_ARGS = [
 
 class ActionCommand(NamedTuple):
     """Single CLI command"""
+
     name: str
     help: str
     func: Callable
@@ -761,6 +779,7 @@ class ActionCommand(NamedTuple):
 
 class GroupCommand(NamedTuple):
     """ClI command with subcommands"""
+
     name: str
     help: str
     subcommands: Iterable
@@ -785,7 +804,7 @@ DAGS_COMMANDS = (
         args=(ARG_SUBDIR, ARG_OUTPUT),
     ),
     ActionCommand(
-        name='list_runs',
+        name='list-runs',
         help="List DAG runs given a DAG id",
         description=(
             "List DAG runs given a DAG id. If state option is given, it will only search for all the "
@@ -798,10 +817,10 @@ DAGS_COMMANDS = (
         args=(ARG_DAG_ID_OPT, ARG_NO_BACKFILL, ARG_STATE, ARG_OUTPUT, ARG_START_DATE, ARG_END_DATE),
     ),
     ActionCommand(
-        name='list_jobs',
+        name='list-jobs',
         help="List the jobs",
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_list_jobs'),
-        args=(ARG_DAG_ID_OPT, ARG_STATE, ARG_LIMIT, ARG_OUTPUT,),
+        args=(ARG_DAG_ID_OPT, ARG_STATE, ARG_LIMIT, ARG_OUTPUT),
     ),
     ActionCommand(
         name='state',
@@ -810,7 +829,7 @@ DAGS_COMMANDS = (
         args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR),
     ),
     ActionCommand(
-        name='next_execution',
+        name='next-execution',
         help="Get the next execution datetimes of a DAG",
         description=(
             "Get the next execution datetimes of a DAG. It returns one execution unless the "
@@ -932,7 +951,7 @@ TASKS_COMMANDS = (
         args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE, ARG_SUBDIR),
     ),
     ActionCommand(
-        name='failed_deps',
+        name='failed-deps',
         help="Returns the unmet dependencies for a task instance",
         description=(
             "Returns the unmet dependencies for a task instance from the perspective of the scheduler. "
@@ -973,7 +992,7 @@ TASKS_COMMANDS = (
         ),
     ),
     ActionCommand(
-        name='states_for_dag_run',
+        name='states-for-dag-run',
         help="Get the status of all task instances in a dag run",
         func=lazy_load_command('airflow.cli.commands.task_command.task_states_for_dag_run'),
         args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_OUTPUT),
@@ -1172,13 +1191,13 @@ USERS_COMMANDS = (
         args=(ARG_USERNAME,),
     ),
     ActionCommand(
-        name='add_role',
+        name='add-role',
         help='Add role to a user',
         func=lazy_load_command('airflow.cli.commands.user_command.add_role'),
         args=(ARG_USERNAME_OPTIONAL, ARG_EMAIL_OPTIONAL, ARG_ROLE),
     ),
     ActionCommand(
-        name='remove_role',
+        name='remove-role',
         help='Remove role from a user',
         func=lazy_load_command('airflow.cli.commands.user_command.remove_role'),
         args=(ARG_USERNAME_OPTIONAL, ARG_EMAIL_OPTIONAL, ARG_ROLE),
@@ -1217,7 +1236,7 @@ CELERY_COMMANDS = (
         help="Start a Celery worker node",
         func=lazy_load_command('airflow.cli.commands.celery_command.worker'),
         args=(
-            ARG_DO_PICKLE, ARG_QUEUES, ARG_CONCURRENCY, ARG_CELERY_HOSTNAME, ARG_PID, ARG_DAEMON,
+            ARG_QUEUES, ARG_CONCURRENCY, ARG_CELERY_HOSTNAME, ARG_PID, ARG_DAEMON,
             ARG_UMASK, ARG_STDOUT, ARG_STDERR, ARG_LOG_FILE, ARG_AUTOSCALE, ARG_SKIP_SERVE_LOGS
         ),
     ),
@@ -1254,11 +1273,26 @@ CONFIG_COMMANDS = (
     ),
 )
 
+KUBERNETES_COMMANDS = (
+    ActionCommand(
+        name='generate-dag-yaml',
+        help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
+             "launching into a cluster",
+        func=lazy_load_command('airflow.cli.commands.kubernetes_command.generate_pod_yaml'),
+        args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_OUTPUT_PATH),
+    ),
+)
+
 airflow_commands: List[CLICommand] = [
     GroupCommand(
         name='dags',
         help='Manage DAGs',
         subcommands=DAGS_COMMANDS,
+    ),
+    GroupCommand(
+        name="kubernetes",
+        help='Tools to help run the KubernetesExecutor',
+        subcommands=KUBERNETES_COMMANDS
     ),
     GroupCommand(
         name='tasks',
@@ -1301,7 +1335,7 @@ airflow_commands: List[CLICommand] = [
         help="Start a scheduler instance",
         func=lazy_load_command('airflow.cli.commands.scheduler_command.scheduler'),
         args=(
-            ARG_DAG_ID_OPT, ARG_SUBDIR, ARG_NUM_RUNS, ARG_DO_PICKLE, ARG_PID, ARG_DAEMON, ARG_STDOUT,
+            ARG_SUBDIR, ARG_NUM_RUNS, ARG_DO_PICKLE, ARG_PID, ARG_DAEMON, ARG_STDOUT,
             ARG_STDERR, ARG_LOG_FILE
         ),
     ),
@@ -1333,13 +1367,13 @@ airflow_commands: List[CLICommand] = [
         subcommands=ROLES_COMMANDS,
     ),
     ActionCommand(
-        name='sync_perm',
+        name='sync-perm',
         help="Update permissions for existing roles and DAGs",
         func=lazy_load_command('airflow.cli.commands.sync_perm_command.sync_perm'),
         args=(),
     ),
     ActionCommand(
-        name='rotate_fernet_key',
+        name='rotate-fernet-key',
         func=lazy_load_command('airflow.cli.commands.rotate_fernet_key_command.rotate_fernet_key'),
         help='Rotate encrypted connection credentials and variables',
         description=(
@@ -1388,6 +1422,7 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
 
     It displays simple commands and groups of commands in separate sections.
     """
+
     def _format_action(self, action: Action):
         if isinstance(action, argparse._SubParsersAction):  # pylint: disable=protected-access
 
@@ -1423,6 +1458,7 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
         return super()._format_action(action)
 
 
+@lru_cache(maxsize=None)
 def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
     """Creates and returns command line argument parser"""
     parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
@@ -1438,13 +1474,9 @@ def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
 
 
 def _sort_args(args: Iterable[Arg]) -> Iterable[Arg]:
-    """
-    Sort subcommand optional args, keep positional args
-    """
+    """Sort subcommand optional args, keep positional args"""
     def get_long_option(arg: Arg):
-        """
-        Get long option from Arg.flags
-        """
+        """Get long option from Arg.flags"""
         return arg.flags[0] if len(arg.flags) == 1 else arg.flags[1]
     positional, optional = partition(lambda x: x.flags[0].startswith("-"), args)
     yield from positional

@@ -31,11 +31,12 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models import DagBag, TaskInstance
-from airflow.settings import Session
+from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.utils import timezone
 from airflow.utils.cli import get_dag
+from airflow.utils.session import create_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools, clear_db_runs
 
@@ -46,11 +47,11 @@ ROOT_FOLDER = os.path.realpath(
 
 
 def reset(dag_id):
-    session = Session()
-    tis = session.query(TaskInstance).filter_by(dag_id=dag_id)
-    tis.delete()
-    session.commit()
-    session.close()
+    with create_session() as session:
+        tis = session.query(TaskInstance).filter_by(dag_id=dag_id)
+        tis.delete()
+        runs = session.query(DagRun).filter_by(dag_id=dag_id)
+        runs.delete()
 
 
 class TestCliTasks(unittest.TestCase):
@@ -188,7 +189,7 @@ class TestCliTasks(unittest.TestCase):
 
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_states_for_dag_run(self.parser.parse_args([
-                'tasks', 'states_for_dag_run', 'example_python_operator', defaut_date2.isoformat()]))
+                'tasks', 'states-for-dag-run', 'example_python_operator', defaut_date2.isoformat()]))
         actual_out = stdout.getvalue()
 
         formatted_rows = [('example_python_operator',
@@ -256,8 +257,10 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
     def setUp(self) -> None:
         self.dag_id = "test_logging_dag"
         self.task_id = "test_task"
+        self.dag_path = os.path.join(ROOT_FOLDER, "dags", "test_logging_in_dag.py")
         reset(self.dag_id)
-        self.execution_date_str = timezone.make_aware(datetime(2017, 1, 1)).isoformat()
+        self.execution_date = timezone.make_aware(datetime(2017, 1, 1))
+        self.execution_date_str = self.execution_date.isoformat()
         self.log_dir = conf.get('logging', 'base_log_folder')
         self.log_filename = f"{self.dag_id}/{self.task_id}/{self.execution_date_str}/1.log"
         self.ti_log_file_path = os.path.join(self.log_dir, self.log_filename)
@@ -295,7 +298,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         #  We are not using self.assertLogs as we want to verify what actually is stored in the Log file
         # as that is what gets displayed
 
-        with conf_vars({('core', 'dags_folder'): os.path.join(ROOT_FOLDER, f"tests/dags/{self.dag_id}")}):
+        with conf_vars({('core', 'dags_folder'): self.dag_path}):
             task_command.task_run(self.parser.parse_args([
                 'tasks', 'run', self.dag_id, self.task_id, '--local', self.execution_date_str]))
 
@@ -315,14 +318,14 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         self.assert_log_line("Log from TI Logger", logs_list)
         self.assert_log_line("Log from Print statement", logs_list, expect_from_logging_mixin=True)
 
-        self.assertIn(f"INFO - Marking task as SUCCESS.dag_id={self.dag_id}, "
+        self.assertIn(f"INFO - Marking task as SUCCESS. dag_id={self.dag_id}, "
                       f"task_id={self.task_id}, execution_date=20170101T000000", logs)
 
     @mock.patch("airflow.task.task_runner.standard_task_runner.CAN_FORK", False)
     def test_logging_with_run_task_subprocess(self):
         # We are not using self.assertLogs as we want to verify what actually is stored in the Log file
         # as that is what gets displayed
-        with conf_vars({('core', 'dags_folder'): os.path.join(ROOT_FOLDER, f"tests/dags/{self.dag_id}")}):
+        with conf_vars({('core', 'dags_folder'): self.dag_path}):
             task_command.task_run(self.parser.parse_args([
                 'tasks', 'run', self.dag_id, self.task_id, '--local', self.execution_date_str]))
 
@@ -340,8 +343,45 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
 
         self.assertIn(f"INFO - Running: ['airflow', 'tasks', 'run', '{self.dag_id}', "
                       f"'{self.task_id}', '{self.execution_date_str}',", logs)
-        self.assertIn(f"INFO - Marking task as SUCCESS.dag_id={self.dag_id}, "
+        self.assertIn(f"INFO - Marking task as SUCCESS. dag_id={self.dag_id}, "
                       f"task_id={self.task_id}, execution_date=20170101T000000", logs)
+
+    def test_log_file_template_with_run_task(self):
+        """Verify that the taskinstance has the right context for log_filename_template"""
+
+        with mock.patch.object(task_command, "_run_task_by_selected_method"):
+            with conf_vars({('core', 'dags_folder'): self.dag_path}):
+                # increment the try_number of the task to be run
+                dag = DagBag().get_dag(self.dag_id)
+                task = dag.get_task(self.task_id)
+                with create_session() as session:
+                    dag.create_dagrun(
+                        execution_date=self.execution_date,
+                        start_date=timezone.utcnow(),
+                        state=State.RUNNING,
+                        run_type=DagRunType.MANUAL,
+                        session=session,
+                    )
+                    ti = TaskInstance(task, self.execution_date)
+                    ti.refresh_from_db(session=session, lock_for_update=True)
+                    ti.try_number = 1  # not running, so starts at 0
+                    session.merge(ti)
+
+                log_file_path = os.path.join(os.path.dirname(self.ti_log_file_path), "2.log")
+
+                try:
+                    task_command.task_run(
+                        self.parser.parse_args(
+                            ['tasks', 'run', self.dag_id, self.task_id, '--local', self.execution_date_str]
+                        )
+                    )
+
+                    assert os.path.exists(log_file_path)
+                finally:
+                    try:
+                        os.remove(log_file_path)
+                    except OSError:
+                        pass
 
 
 class TestCliTaskBackfill(unittest.TestCase):
@@ -355,7 +395,6 @@ class TestCliTaskBackfill(unittest.TestCase):
 
         self.parser = cli_parser.get_parser()
 
-    @pytest.mark.quarantined
     def test_run_ignores_all_dependencies(self):
         """
         Test that run respects ignore_all_dependencies

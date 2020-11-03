@@ -61,6 +61,7 @@ CLIENT_AUTH: Optional[Union[Tuple[str, str], AuthBase]] = HTTPKerberosAuth(servi
 
 class KerberosService:  # pylint: disable=too-few-public-methods
     """Class to keep information about the Kerberos Service initialized"""
+
     def __init__(self):
         self.service_name = None
 
@@ -71,7 +72,6 @@ _KERBEROS_SERVICE = KerberosService()
 
 def init_app(app):
     """Initializes application with kerberos"""
-
     hostname = app.config.get('SERVER_NAME')
     if not hostname:
         hostname = getfqdn()

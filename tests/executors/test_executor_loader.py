@@ -16,8 +16,8 @@
 # under the License.
 
 import unittest
+from unittest import mock
 
-import mock
 from parameterized import parameterized
 
 from airflow import plugins_manager
@@ -46,8 +46,11 @@ class TestExecutorLoader(unittest.TestCase):
         ExecutorLoader._default_executor = None
 
     @parameterized.expand([
-        ("LocalExecutor", ),
+        ("CeleryExecutor", ),
+        ("CeleryKubernetesExecutor", ),
         ("DebugExecutor", ),
+        ("KubernetesExecutor", ),
+        ("LocalExecutor", ),
     ])
     def test_should_support_executor_from_core(self, executor_name):
         with conf_vars({

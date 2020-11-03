@@ -21,37 +21,39 @@
 {% block title %}Airflow - DAGs{% endblock %}
 
 {% block content %}
-{{ super() }}
-<h4>{{ title }}</h4>
-<ul class="nav nav-pills" role="tablist">
-  {% for log in logs %}
-  <li role="presentation" class="{{ 'active' if loop.last else '' }}">
-    <a href="#{{ loop.index }}" aria-controls="{{ loop.index }}" role="tab" data-toggle="tab">
-      {{ loop.index }}
-    </a>
-  </li>
-  {% endfor %}
-  <li class="active" style="float: right">
-    <a onclick='scrollBottom()'>Jump to end</a>
-  </li>
-  <li class="active" style="float: right">
-    <a onclick='toggleWrap()'>Toggle wrap</a>
-  </li>
-
-</ul>
-<div class="tab-content">
-  {% for log in logs %}
-  <div role="tabpanel" class="tab-pane {{ 'active' if loop.last else '' }}" id="{{ loop.index }}">
-    <img id="loading-{{ loop.index }}" style="margin-top:0%; margin-left:50%; height:50px; width:50px; position: absolute;"
-         alt="spinner" src="{{ url_for('static', filename='loading.gif') }}">
-    <pre><code id="try-{{ loop.index }}" class="{{ 'wrap' if wrapped else '' }}">{{ log }}</code></pre>
+  {{ super() }}
+  <h4>{{ title }}</h4>
+  <div class="row">
+    <div class="col-md-8">
+      <ul class="nav nav-pills" role="tablist">
+        {% for log in logs %}
+          <li role="presentation" class="{{ 'active' if loop.last else '' }}">
+            <a href="#{{ loop.index }}" aria-controls="{{ loop.index }}" role="tab" data-toggle="tab">
+              {{ loop.index }}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="col-md-4 text-right">
+      <a class="btn btn-default" onclick="scrollBottom()">Jump To End</a>
+      <a class="btn btn-default" onclick="toggleWrap()">Toggle Wrap</a>
+    </div>
   </div>
-  {% endfor %}
+  <div class="tab-content">
+    {% for log in logs %}
+      <div role="tabpanel" class="tab-pane {{ 'active' if loop.last else '' }}" id="{{ loop.index }}">
+        <img id="loading-{{ loop.index }}" style="margin-top:0%; margin-left:50%; height:50px; width:50px; position: absolute;"
+             alt="spinner" src="{{ url_for('static', filename='loading.gif') }}">
+        <div id="log-group-{{ loop.index }}"></div>
+      </div>
+    {% endfor %}
   </div>
+  <br>
 {% endblock %}
 {% block tail %}
-{{ super() }}
-<script>
+  {{ super() }}
+  <script>
     // Time interval to wait before next log fetching. Default 2s.
     const DELAY = "{{ (log_fetch_delay_sec | int ) * 1000 }}";
     // Distance away from page bottom to enable auto tailing.
@@ -122,16 +124,30 @@
             if(auto_tailing && checkAutoTailingCondition()) {
               var should_scroll = true;
             }
-            // The message may contain HTML, so either have to escape it or write it as text.
-            var escaped_message = escapeHtml(res.message);
 
             // Detect urls
             var url_regex = /http(s)?:\/\/[\w\.\-]+(\.?:[\w\.\-]+)*([\/?#][\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=\.%]+)?/g;
-            var linkified_message = escaped_message.replace(url_regex, function(url) {
-              return "<a href=\"" + url + "\" target=\"_blank\">" + url + "</a>";
-            });
 
-            document.getElementById(`try-${try_number}`).innerHTML += linkified_message + "<br/>";
+            res.message.forEach(function(item, index){
+              var log_block_element_id = "try-" + try_number + "-" + item[0];
+              var log_block = document.getElementById(log_block_element_id);
+              if (!log_block) {
+                log_div_block = document.createElement('div');
+                log_pre_block = document.createElement('pre');
+                log_div_block.appendChild(log_pre_block);
+                log_pre_block.innerHTML = "<code id=\"" + log_block_element_id + "\"  ></code>";
+                document.getElementById("log-group-" + try_number).appendChild(log_div_block);
+                log_block = document.getElementById(log_block_element_id);
+              }
+
+              // The message may contain HTML, so either have to escape it or write it as text.
+              var escaped_message = escapeHtml(item[1]);
+              var linkified_message = escaped_message.replace(url_regex, function(url) {
+                return "<a href=\"" + url + "\" target=\"_blank\">" + url + "</a>";
+              });
+              log_block.innerHTML += linkified_message + "\n";
+            })
+
             // Auto scroll window to the end if current window location is near the end.
             if(should_scroll) {
               scrollBottom();
@@ -159,6 +175,5 @@
         autoTailingLog(i, null, auto_tailing=(i == TOTAL_ATTEMPTS));
       }
     });
-
-</script>
+  </script>
 {% endblock %}

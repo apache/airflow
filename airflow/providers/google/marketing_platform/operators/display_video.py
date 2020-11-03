@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google DisplayVideo operators.
-"""
+"""This module contains Google DisplayVideo operators."""
 import csv
 import json
 import shutil
@@ -97,7 +95,7 @@ class GoogleDisplayVideo360CreateReportOperator(BaseOperator):
             with open(self.body, 'r') as file:
                 self.body = json.load(file)
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> dict:
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -178,7 +176,7 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
         if not (report_name or report_id):
             raise AirflowException("Provide one of the values: `report_name` or `report_id`.")
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -283,7 +281,7 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
         bucket = name if not name.startswith("gs://") else name[5:]
         return bucket.strip("/")
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict):
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -322,7 +320,10 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
                 mime_type="text/csv",
             )
         self.log.info(
-            "Report %s was saved in bucket %s as %s.", self.report_id, self.bucket_name, report_name,
+            "Report %s was saved in bucket %s as %s.",
+            self.report_id,
+            self.bucket_name,
+            report_name,
         )
         self.xcom_push(context, key="report_name", value=report_name)
 
@@ -389,7 +390,7 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -397,7 +398,9 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         self.log.info(
-            "Running report %s with the following params:\n %s", self.report_id, self.params,
+            "Running report %s with the following params:\n %s",
+            self.report_id,
+            self.params,
         )
         hook.run_query(query_id=self.report_id, params=self.params)
 
@@ -451,7 +454,7 @@ class GoogleDisplayVideo360DownloadLineItemsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict) -> str:
+    def execute(self, context: dict) -> str:
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -531,7 +534,7 @@ class GoogleDisplayVideo360UploadLineItemsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -549,7 +552,9 @@ class GoogleDisplayVideo360UploadLineItemsOperator(BaseOperator):
         # downloaded file from the GCS could be a 1GB size or even more
         with tempfile.NamedTemporaryFile("w+") as f:
             line_items = gcs_hook.download(
-                bucket_name=self.bucket_name, object_name=self.object_name, filename=f.name,
+                bucket_name=self.bucket_name,
+                object_name=self.object_name,
+                filename=f.name,
             )
             f.flush()
             hook.upload_line_items(line_items=line_items)
@@ -619,7 +624,7 @@ class GoogleDisplayVideo360CreateSDFDownloadTaskOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> Dict[str, Any]:
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -705,7 +710,7 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> str:
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

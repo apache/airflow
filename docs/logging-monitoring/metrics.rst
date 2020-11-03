@@ -67,6 +67,8 @@ your PYTHONPATH.
     [scheduler]
     statsd_custom_client_path = x.y.customclient
 
+See :doc:`../modules_management` for details on how Python and Airflow manage modules.
+
 Counters
 --------
 
@@ -85,6 +87,11 @@ Name                                    Description
 ``scheduler.tasks.killed_externally``   Number of tasks killed externally
 ``scheduler.tasks.running``             Number of tasks running in executor
 ``scheduler.tasks.starving``            Number of tasks that cannot be scheduled because of no open slot in pool
+``scheduler.orphaned_tasks.cleared``    Number of Orphaned tasks cleared by the Scheduler
+``scheduler.orphaned_tasks.adopted``    Number of Orphaned tasks adopted by the Scheduler
+``scheduler.critical_section_busy``     Count of times a scheduler process tried to get a lock on the critical
+                                        section (needed to send tasks to the executor) and found it locked by
+                                        another process.
 ``sla_email_notification_failure``      Number of failed SLA miss email notification attempts
 ``ti.start.<dagid>.<taskid>``           Number of started task in a given dag. Similar to <job_name>_start but for task
 ``ti.finish.<dagid>.<taskid>.<state>``  Number of completed task in a given dag. Similar to <job_name>_end but for task
@@ -110,19 +117,26 @@ Name                                                Description
 ``pool.queued_slots.<pool_name>``                   Number of queued slots in the pool
 ``pool.running_slots.<pool_name>``                  Number of running slots in the pool
 ``pool.starving_tasks.<pool_name>``                 Number of starving tasks in the pool
+``smart_sensor_operator.poked_tasks``               Number of tasks poked by the smart sensor in the previous poking loop
+``smart_sensor_operator.poked_success``             Number of newly succeeded tasks poked by the smart sensor in the previous poking loop
+``smart_sensor_operator.poked_exception``           Number of exceptions in the previous smart sensor poking loop
+``smart_sensor_operator.exception_failures``        Number of failures caused by exception in the previous smart sensor poking loop
+``smart_sensor_operator.infra_failures``            Number of infrastructure failures in the previous smart sensor poking loop
 =================================================== ========================================================================
 
 Timers
 ------
 
-=========================================== =================================================
+=========================================== =================================================================
 Name                                        Description
-=========================================== =================================================
+=========================================== =================================================================
 ``dagrun.dependency-check.<dag_id>``        Milliseconds taken to check DAG dependencies
 ``dag.<dag_id>.<task_id>.duration``         Milliseconds taken to finish a task
 ``dag_processing.last_duration.<dag_file>`` Milliseconds taken to load the given DAG file
 ``dagrun.duration.success.<dag_id>``        Milliseconds taken for a DagRun to reach success state
 ``dagrun.duration.failed.<dag_id>``         Milliseconds taken for a DagRun to reach failed state
-``dagrun.schedule_delay.<dag_id>``          Milliseconds of delay between the scheduled DagRun
-                                            start date and the actual DagRun start date
-=========================================== =================================================
+``dagrun.schedule_delay.<dag_id>``          Milliseconds of delay between the scheduled DagRun start date and
+                                            the actual DagRun start date
+``scheduler.critical_section_duration``     Milliseconds spent in the critical section of scheduler loop --
+                                            only a single scheduler can enter this loop at a time
+=========================================== =================================================================

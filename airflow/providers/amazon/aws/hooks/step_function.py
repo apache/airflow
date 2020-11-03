@@ -32,8 +32,9 @@ class StepFunctionHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    def __init__(self, region_name=None, *args, **kwargs):
-        super().__init__(client_type='stepfunctions', *args, **kwargs)
+    def __init__(self, region_name: Optional[str] = None, *args, **kwargs) -> None:
+        kwargs["client_type"] = "stepfunctions"
+        super().__init__(*args, **kwargs)
 
     def start_execution(
         self,
@@ -66,7 +67,7 @@ class StepFunctionHook(AwsBaseHook):
         self.log.info('Executing Step Function State Machine: %s', state_machine_arn)
 
         response = self.conn.start_execution(**execution_args)
-        return response.get('executionArn', None)
+        return response.get('executionArn')
 
     def describe_execution(self, execution_arn: str) -> dict:
         """

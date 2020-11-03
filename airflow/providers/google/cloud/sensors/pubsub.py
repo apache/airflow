@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google PubSub sensor.
-"""
+"""This module contains a Google PubSub sensor."""
 import warnings
 from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
@@ -156,12 +154,12 @@ class PubSubPullSensor(BaseSensorOperator):
 
         self._return_value = None
 
-    def execute(self, context):
+    def execute(self, context: dict):
         """Overridden to allow messages to be passed"""
         super().execute(context)
         return self._return_value
 
-    def poke(self, context):
+    def poke(self, context: dict) -> bool:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -181,7 +179,9 @@ class PubSubPullSensor(BaseSensorOperator):
 
         if pulled_messages and self.ack_messages:
             hook.acknowledge(
-                project_id=self.project_id, subscription=self.subscription, messages=pulled_messages,
+                project_id=self.project_id,
+                subscription=self.subscription,
+                messages=pulled_messages,
             )
 
         return bool(pulled_messages)
@@ -200,7 +200,6 @@ class PubSubPullSensor(BaseSensorOperator):
         :param context: same as in `execute`
         :return: value to be saved to XCom.
         """
-
         messages_json = [MessageToDict(m) for m in pulled_messages]
 
         return messages_json

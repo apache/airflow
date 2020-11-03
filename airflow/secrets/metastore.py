@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Objects relating to sourcing connections from metastore database
-"""
+"""Objects relating to sourcing connections from metastore database"""
 
 from typing import TYPE_CHECKING, List
 
@@ -29,9 +27,7 @@ if TYPE_CHECKING:
 
 
 class MetastoreBackend(BaseSecretsBackend):
-    """
-    Retrieves Connection object from airflow metastore database.
-    """
+    """Retrieves Connection object from airflow metastore database."""
 
     # pylint: disable=missing-docstring
     @provide_session

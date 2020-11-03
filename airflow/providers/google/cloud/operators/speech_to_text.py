@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Speech to Text operator.
-"""
+"""This module contains a Google Speech to Text operator."""
 from typing import Optional, Sequence, Union
 
 from google.api_core.retry import Retry
@@ -102,7 +100,7 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def _validate_inputs(self):
+    def _validate_inputs(self) -> None:
         if self.audio == "":
             raise AirflowException("The required parameter 'audio' is empty")
         if self.config == "":
@@ -110,7 +108,8 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudSpeechToTextHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
         respones = hook.recognize_speech(
             config=self.config, audio=self.audio, retry=self.retry, timeout=self.timeout

@@ -18,7 +18,7 @@
 
 import unittest
 
-import mock
+from unittest import mock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
@@ -43,7 +43,11 @@ create_tuning_params = {
         'Strategy': 'Bayesian',
         'HyperParameterTuningJobObjective': {'Type': 'Maximize', 'MetricName': 'test_metric'},
         'ResourceLimits': {'MaxNumberOfTrainingJobs': '123', 'MaxParallelTrainingJobs': '123'},
-        'ParameterRanges': {'IntegerParameterRanges': [{'Name': 'k', 'MinValue': '2', 'MaxValue': '10'},]},
+        'ParameterRanges': {
+            'IntegerParameterRanges': [
+                {'Name': 'k', 'MinValue': '2', 'MaxValue': '10'},
+            ]
+        },
     },
     'TrainingJobDefinition': {
         'StaticHyperParameters': {

@@ -16,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from unittest.mock import MagicMock, patch
 
 import boto3
-from mock import MagicMock, patch
 
 from airflow.providers.amazon.aws.sensors.cloud_formation import (
     CloudFormationCreateStackSensor,

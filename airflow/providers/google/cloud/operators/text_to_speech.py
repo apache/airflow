@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Text to Speech operator.
-"""
+"""This module contains a Google Text to Speech operator."""
 
 from tempfile import NamedTemporaryFile
 from typing import Dict, Optional, Sequence, Union
@@ -119,7 +117,7 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def _validate_inputs(self):
+    def _validate_inputs(self) -> None:
         for parameter in [
             "input_data",
             "voice",
@@ -130,9 +128,10 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
             if getattr(self, parameter) == "":
                 raise AirflowException("The required parameter '{}' is empty".format(parameter))
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = CloudTextToSpeechHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
         result = hook.synthesize_speech(
             input_data=self.input_data,
@@ -144,7 +143,8 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
         with NamedTemporaryFile() as temp_file:
             temp_file.write(result.audio_content)
             cloud_storage_hook = GCSHook(
-                google_cloud_storage_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
+                google_cloud_storage_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
             )
             cloud_storage_hook.upload(
                 bucket_name=self.target_bucket_name, object_name=self.target_filename, filename=temp_file.name

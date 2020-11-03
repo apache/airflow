@@ -130,7 +130,7 @@ labelPRBasedOnFilePath:
     - airflow/bin/cli.py
     - airflow/cli/**/*.py
     - tests/cli/**/*.py
-    - docs/cli-ref.rst
+    - docs/cli-and-env-variables-ref.rst
     - docs/usage-cli.rst
 
   area:Lineage:
@@ -221,7 +221,7 @@ firstPRWelcomeComment: >
 
   Mailing List: dev@airflow.apache.org
 
-  Slack: https://apache-airflow-slack.herokuapp.com/
+  Slack: https://s.apache.org/airflow-slack
 
 # Comment to be posted to congratulate user on their first merged PR
 firstPRMergeComment: >

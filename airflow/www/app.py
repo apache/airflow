@@ -58,6 +58,7 @@ def sync_appbuilder_roles(flask_app):
     if conf.getboolean('webserver', 'UPDATE_FAB_PERMS'):
         security_manager = flask_app.appbuilder.sm
         security_manager.sync_roles()
+        security_manager.sync_resource_permissions()
 
 
 def create_app(config=None, testing=False, app_name="Airflow"):
@@ -71,6 +72,7 @@ def create_app(config=None, testing=False, app_name="Airflow"):
     flask_app.config.from_pyfile(settings.WEBSERVER_CONFIG, silent=True)
     flask_app.config['APP_NAME'] = app_name
     flask_app.config['TESTING'] = testing
+    flask_app.config['SQLALCHEMY_DATABASE_URI'] = conf.get('core', 'SQL_ALCHEMY_CONN')
     flask_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     flask_app.config['SESSION_COOKIE_HTTPONLY'] = True
@@ -79,6 +81,9 @@ def create_app(config=None, testing=False, app_name="Airflow"):
 
     if config:
         flask_app.config.from_mapping(config)
+
+    if 'SQLALCHEMY_ENGINE_OPTIONS' not in flask_app.config:
+        flask_app.config['SQLALCHEMY_ENGINE_OPTIONS'] = settings.prepare_engine_args()
 
     # Configure the JSON encoder used by `|tojson` filter from Flask
     flask_app.json_encoder = AirflowJsonEncoder

@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Pub/Sub Hook.
-"""
+"""This module contains a Google Pub/Sub Hook."""
 import warnings
 from base64 import b64decode
 from typing import Dict, List, Optional, Sequence, Tuple, Union
@@ -44,9 +42,7 @@ from airflow.version import version
 
 
 class PubSubException(Exception):
-    """
-    Alias for Exception.
-    """
+    """Alias for Exception."""
 
 
 class PubSubHook(GoogleBaseHook):
@@ -64,7 +60,9 @@ class PubSubHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self._client = None
 
@@ -90,7 +88,12 @@ class PubSubHook(GoogleBaseHook):
         return SubscriberClient(credentials=self._get_credentials(), client_info=self.client_info)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def publish(self, topic: str, messages: List[Dict], project_id: str,) -> None:
+    def publish(
+        self,
+        topic: str,
+        messages: List[dict],
+        project_id: str,
+    ) -> None:
         """
         Publishes messages to a Pub/Sub topic.
 
@@ -269,7 +272,10 @@ class PubSubHook(GoogleBaseHook):
         try:
             # pylint: disable=no-member
             publisher.delete_topic(
-                topic=topic_path, retry=retry, timeout=timeout, metadata=metadata,
+                topic=topic_path,
+                retry=retry,
+                timeout=timeout,
+                metadata=metadata,
             )
         except NotFound:
             self.log.warning('Topic does not exist: %s', topic_path)
@@ -289,15 +295,15 @@ class PubSubHook(GoogleBaseHook):
         subscription_project_id: Optional[str] = None,
         ack_deadline_secs: int = 10,
         fail_if_exists: bool = False,
-        push_config: Optional[Union[Dict, PushConfig]] = None,
+        push_config: Optional[Union[dict, PushConfig]] = None,
         retain_acked_messages: Optional[bool] = None,
-        message_retention_duration: Optional[Union[Dict, Duration]] = None,
+        message_retention_duration: Optional[Union[dict, Duration]] = None,
         labels: Optional[Dict[str, str]] = None,
         enable_message_ordering: bool = False,
-        expiration_policy: Optional[Union[Dict, ExpirationPolicy]] = None,
+        expiration_policy: Optional[Union[dict, ExpirationPolicy]] = None,
         filter_: Optional[str] = None,
-        dead_letter_policy: Optional[Union[Dict, DeadLetterPolicy]] = None,
-        retry_policy: Optional[Union[Dict, RetryPolicy]] = None,
+        dead_letter_policy: Optional[Union[dict, DeadLetterPolicy]] = None,
+        retry_policy: Optional[Union[dict, RetryPolicy]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,

@@ -21,10 +21,9 @@
 
 {% block plugin_content %}
 <div>
-    <h4>
-        <span style="color:#AAA;">Table:</span>
-        <span>{{ table.dbName }}.{{ table.tableName }}</span>
-    </h4>
+  <h4>
+    <span class="text-muted">Table:</span> {{ table.dbName }}.{{ table.tableName }}
+  </h4>
 </div>
 <ul class="nav nav-tabs" id="tabs" style="clear: both">
     <li role="presentation" class="active"><a href="#home" aria-controls="fields" role="tab" data-toggle="tab">Fields</a></li>

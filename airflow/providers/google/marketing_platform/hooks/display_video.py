@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google DisplayVideo hook.
-"""
+"""This module contains Google DisplayVideo hook."""
 
 from typing import Any, Dict, List, Optional, Sequence, Union
 
@@ -27,9 +25,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 class GoogleDisplayVideo360Hook(GoogleBaseHook):
-    """
-    Hook for Google Display & Video 360.
-    """
+    """Hook for Google Display & Video 360."""
 
     _conn = None  # type: Optional[Any]
 
@@ -41,28 +37,34 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self.api_version = api_version
 
     def get_conn(self) -> Resource:
-        """
-        Retrieves connection to DisplayVideo.
-        """
+        """Retrieves connection to DisplayVideo."""
         if not self._conn:
             http_authorized = self._authorize()
             self._conn = build(
-                "doubleclickbidmanager", self.api_version, http=http_authorized, cache_discovery=False,
+                "doubleclickbidmanager",
+                self.api_version,
+                http=http_authorized,
+                cache_discovery=False,
             )
         return self._conn
 
     def get_conn_to_display_video(self) -> Resource:
-        """
-        Retrieves connection to DisplayVideo.
-        """
+        """Retrieves connection to DisplayVideo."""
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build("displayvideo", self.api_version, http=http_authorized, cache_discovery=False,)
+            self._conn = build(
+                "displayvideo",
+                self.api_version,
+                http=http_authorized,
+                cache_discovery=False,
+            )
         return self._conn
 
     @staticmethod
@@ -84,10 +86,9 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         LineItem, Creative, Pixel, InventorySource, UserList, UniversalChannel, and summary.
         :type entity_type: str
         """
-
         return [f"gdbm-{partner_id}/entity/{{{{ ds_nodash }}}}.*.{entity_type}.json"]
 
-    def create_query(self, query: Dict[str, Any]) -> Dict:
+    def create_query(self, query: Dict[str, Any]) -> dict:
         """
         Creates a query.
 
@@ -116,7 +117,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
 
-    def get_query(self, query_id: str) -> Dict:
+    def get_query(self, query_id: str) -> dict:
         """
         Retrieves a stored query.
 
@@ -131,11 +132,10 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         )
         return response
 
-    def list_queries(self,) -> List[Dict]:
-        """
-        Retrieves stored queries.
-
-        """
+    def list_queries(
+        self,
+    ) -> List[Dict]:
+        """Retrieves stored queries."""
         response = (
             self.get_conn()  # pylint: disable=no-member
             .queries()
@@ -169,7 +169,6 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         :return: response body.
         :rtype: List[Dict[str, Any]]
         """
-
         request_body = {
             "lineItems": line_items,
             "dryRun": False,
@@ -193,7 +192,6 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
             https://developers.google.com/bid-manager/v1.1/lineitems/downloadlineitems
         :type request_body: Dict[str, Any]
         """
-
         response = (
             self.get_conn()  # pylint: disable=no-member
             .lineitems()
@@ -212,7 +210,6 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         More information about body request n be found here:
         https://developers.google.com/display-video/api/reference/rest/v1/sdfdownloadtasks/create
         """
-
         result = (
             self.get_conn_to_display_video()  # pylint: disable=no-member
             .sdfdownloadtasks()
@@ -228,7 +225,6 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         :param operation_name: The name of the operation resource.
         :type operation_name: str
         """
-
         result = (
             self.get_conn_to_display_video()  # pylint: disable=no-member
             .sdfdownloadtasks()
@@ -245,7 +241,6 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         :param resource_name: of the media that is being downloaded.
         :type resource_name: str
         """
-
         request = (
             self.get_conn_to_display_video()  # pylint: disable=no-member
             .media()

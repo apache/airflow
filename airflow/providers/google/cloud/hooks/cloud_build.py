@@ -15,10 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Hook for Google Cloud Build service."""
-
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.devtools.cloudbuild_v1 import CloudBuildClient
@@ -65,7 +63,9 @@ class CloudBuildHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self._client: Optional[CloudBuildClient] = None
 
@@ -73,8 +73,12 @@ class CloudBuildHook(GoogleBaseHook):
         """
         Retrieves the connection to Google Cloud Build.
 
+<<<<<<< HEAD
         :return: Google Cloud Build client object.
         :rtype: `google.cloud.devtools.cloudbuild_v1.CloudBuildClient`
+=======
+    def get_conn(self) -> build:
+>>>>>>> e324b37a67e32c368df50604a00160d7766b5c33
         """
         if not self._client:
             self._client = CloudBuildClient(
@@ -128,7 +132,7 @@ class CloudBuildHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def create_build(
         self,
-        build: Union[Dict, Build],
+        build: Union[dict, Build],
         project_id: str,
         wait: bool = True,
         retry: Optional[Retry] = None,

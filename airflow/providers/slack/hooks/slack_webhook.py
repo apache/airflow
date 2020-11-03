@@ -17,6 +17,7 @@
 # under the License.
 #
 import json
+from typing import Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
@@ -88,7 +89,7 @@ class SlackWebhookHook(HttpHook):
         self.link_names = link_names
         self.proxy = proxy
 
-    def _get_token(self, token, http_conn_id):
+    def _get_token(self, token: str, http_conn_id: Optional[str]) -> str:
         """
         Given either a manually set token or a conn_id, return the webhook_token to use.
 
@@ -108,7 +109,7 @@ class SlackWebhookHook(HttpHook):
         else:
             raise AirflowException('Cannot get token: No valid Slack ' 'webhook token nor conn_id supplied')
 
-    def _build_slack_message(self):
+    def _build_slack_message(self) -> str:
         """
         Construct the Slack message. All relevant parameters are combined here to a valid
         Slack json message.
@@ -136,10 +137,8 @@ class SlackWebhookHook(HttpHook):
         cmd['text'] = self.message
         return json.dumps(cmd)
 
-    def execute(self):
-        """
-        Remote Popen (actually execute the slack webhook call)
-        """
+    def execute(self) -> None:
+        """Remote Popen (actually execute the slack webhook call)"""
         proxies = {}
         if self.proxy:
             # we only need https proxy for Slack, as the endpoint is https
@@ -150,5 +149,5 @@ class SlackWebhookHook(HttpHook):
             endpoint=self.webhook_token,
             data=slack_message,
             headers={'Content-type': 'application/json'},
-            extra_options={'proxies': proxies},
+            extra_options={'proxies': proxies, 'check_response': True},
         )

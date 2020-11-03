@@ -65,5 +65,7 @@ class EC2StartInstanceOperator(BaseOperator):
         instance = ec2_hook.get_instance(instance_id=self.instance_id)
         instance.start()
         ec2_hook.wait_for_state(
-            instance_id=self.instance_id, target_state="running", check_interval=self.check_interval,
+            instance_id=self.instance_id,
+            target_state="running",
+            check_interval=self.check_interval,
         )

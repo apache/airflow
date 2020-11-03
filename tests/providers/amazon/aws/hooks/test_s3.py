@@ -19,10 +19,10 @@
 import gzip as gz
 import os
 import tempfile
+from unittest import mock
 from unittest.mock import Mock
 
 import boto3
-import mock
 import pytest
 from botocore.exceptions import ClientError, NoCredentialsError
 
@@ -79,7 +79,7 @@ class TestAwsS3Hook:
         hook.create_bucket(bucket_name='new_bucket', region_name='us-east-1')
         bucket = hook.get_bucket('new_bucket')
         assert bucket is not None
-        region = bucket.meta.client.get_bucket_location(Bucket=bucket.name).get('LocationConstraint', None)
+        region = bucket.meta.client.get_bucket_location(Bucket=bucket.name).get('LocationConstraint')
         # https://github.com/spulec/moto/pull/1961
         # If location is "us-east-1", LocationConstraint should be None
         assert region is None
@@ -90,7 +90,7 @@ class TestAwsS3Hook:
         hook.create_bucket(bucket_name='new_bucket', region_name='us-east-2')
         bucket = hook.get_bucket('new_bucket')
         assert bucket is not None
-        region = bucket.meta.client.get_bucket_location(Bucket=bucket.name).get('LocationConstraint', None)
+        region = bucket.meta.client.get_bucket_location(Bucket=bucket.name).get('LocationConstraint')
         assert region == 'us-east-2'
 
     def test_check_for_prefix(self, s3_bucket):
@@ -108,7 +108,7 @@ class TestAwsS3Hook:
         bucket.put_object(Key='a', Body=b'a')
         bucket.put_object(Key='dir/b', Body=b'b')
 
-        assert hook.list_prefixes(s3_bucket, prefix='non-existent/') is None
+        assert [] == hook.list_prefixes(s3_bucket, prefix='non-existent/')
         assert ['dir/'] == hook.list_prefixes(s3_bucket, delimiter='/')
         assert ['a'] == hook.list_keys(s3_bucket, delimiter='/')
         assert ['dir/b'] == hook.list_keys(s3_bucket, prefix='dir/')
@@ -117,7 +117,7 @@ class TestAwsS3Hook:
         hook = S3Hook()
         bucket = hook.get_bucket(s3_bucket)
 
-        # we dont need to test the paginator that's covered by boto tests
+        # we don't need to test the paginator that's covered by boto tests
         keys = ["%s/b" % i for i in range(2)]
         dirs = ["%s/" % i for i in range(2)]
         for key in keys:
@@ -131,7 +131,7 @@ class TestAwsS3Hook:
         bucket.put_object(Key='a', Body=b'a')
         bucket.put_object(Key='dir/b', Body=b'b')
 
-        assert hook.list_keys(s3_bucket, prefix='non-existent/') is None
+        assert [] == hook.list_keys(s3_bucket, prefix='non-existent/')
         assert ['a', 'dir/b'] == hook.list_keys(s3_bucket)
         assert ['a'] == hook.list_keys(s3_bucket, delimiter='/')
         assert ['dir/b'] == hook.list_keys(s3_bucket, prefix='dir/')
@@ -425,3 +425,24 @@ class TestAwsS3Hook:
         params = {x[0]: x[1] for x in [x.split("=") for x in url[0:].split("&")]}
 
         assert {"AWSAccessKeyId", "Signature", "Expires"}.issubset(set(params.keys()))
+
+    def test_should_throw_error_if_extra_args_is_not_dict(self):
+        with pytest.raises(ValueError):
+            S3Hook(extra_args=1)
+
+    def test_should_throw_error_if_extra_args_contains_unknown_arg(self, s3_bucket):
+        hook = S3Hook(extra_args={"unknown_s3_args": "value"})
+        with tempfile.TemporaryFile() as temp_file:
+            temp_file.write(b"Content")
+            temp_file.seek(0)
+            with pytest.raises(ValueError):
+                hook.load_file_obj(temp_file, "my_key", s3_bucket, acl_policy='public-read')
+
+    def test_should_pass_extra_args(self, s3_bucket):
+        hook = S3Hook(extra_args={"ContentLanguage": "value"})
+        with tempfile.TemporaryFile() as temp_file:
+            temp_file.write(b"Content")
+            temp_file.seek(0)
+            hook.load_file_obj(temp_file, "my_key", s3_bucket, acl_policy='public-read')
+            resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
+            assert resource.get()['ContentLanguage'] == "value"

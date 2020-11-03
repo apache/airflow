@@ -79,6 +79,7 @@ Content
     start
     installation
     tutorial
+    tutorial_taskflow_api
     howto/index
     ui
     concepts
@@ -94,8 +95,12 @@ Content
     kubernetes
     lineage
     dag-serialization
+    modules_management
+    backport-providers
+    smart-sensor
     changelog
     best-practices
+    production-deployment
     faq
     privacy_notice
 
@@ -104,7 +109,7 @@ Content
     :caption: References
 
     Operators and hooks <operators-and-hooks-ref>
-    CLI <cli-ref>
+    CLI <cli-and-env-variables-ref>
     Macros <macros-ref>
     Python API <_api/index>
     Experimental REST API <rest-api-ref>

@@ -63,11 +63,13 @@ class CloudTasksHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self._client = None
 
-    def get_conn(self):
+    def get_conn(self) -> CloudTasksClient:
         """
         Provides a client for interacting with the Google Cloud Tasks API.
 
@@ -82,7 +84,7 @@ class CloudTasksHook(GoogleBaseHook):
     def create_queue(
         self,
         location: str,
-        task_queue: Union[Dict, Queue],
+        task_queue: Union[dict, Queue],
         project_id: str,
         queue_name: Optional[str] = None,
         retry: Optional[Retry] = None,
@@ -115,7 +117,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.tasks_v2.types.Queue
         """
-
         client = self.get_conn()
 
         if queue_name:
@@ -128,7 +129,11 @@ class CloudTasksHook(GoogleBaseHook):
                 raise AirflowException('Unable to set queue_name.')
         full_location_path = CloudTasksClient.location_path(project_id, location)
         return client.create_queue(
-            parent=full_location_path, queue=task_queue, retry=retry, timeout=timeout, metadata=metadata,
+            parent=full_location_path,
+            queue=task_queue,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -174,7 +179,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.tasks_v2.types.Queue
         """
-
         client = self.get_conn()
 
         if queue_name and location:
@@ -186,7 +190,11 @@ class CloudTasksHook(GoogleBaseHook):
             else:
                 raise AirflowException('Unable to set queue_name.')
         return client.update_queue(
-            queue=task_queue, update_mask=update_mask, retry=retry, timeout=timeout, metadata=metadata,
+            queue=task_queue,
+            update_mask=update_mask,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -220,7 +228,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.tasks_v2.types.Queue
         """
-
         client = self.get_conn()
 
         full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
@@ -261,7 +268,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: list[google.cloud.tasks_v2.types.Queue]
         """
-
         client = self.get_conn()
 
         full_location_path = CloudTasksClient.location_path(project_id, location)
@@ -305,7 +311,6 @@ class CloudTasksHook(GoogleBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: sequence[tuple[str, str]]]
         """
-
         client = self.get_conn()
 
         full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
@@ -342,7 +347,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: list[google.cloud.tasks_v2.types.Queue]
         """
-
         client = self.get_conn()
 
         full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
@@ -379,7 +383,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: list[google.cloud.tasks_v2.types.Queue]
         """
-
         client = self.get_conn()
 
         full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
@@ -416,7 +419,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: list[google.cloud.tasks_v2.types.Queue]
         """
-
         client = self.get_conn()
 
         full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
@@ -465,7 +467,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.tasks_v2.types.Task
         """
-
         client = self.get_conn()
 
         if task_name:
@@ -524,12 +525,15 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.tasks_v2.types.Task
         """
-
         client = self.get_conn()
 
         full_task_name = CloudTasksClient.task_path(project_id, location, queue_name, task_name)
         return client.get_task(
-            name=full_task_name, response_view=response_view, retry=retry, timeout=timeout, metadata=metadata,
+            name=full_task_name,
+            response_view=response_view,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -571,7 +575,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: list[google.cloud.tasks_v2.types.Task]
         """
-
         client = self.get_conn()
         full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
         tasks = client.list_tasks(
@@ -617,7 +620,6 @@ class CloudTasksHook(GoogleBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: sequence[tuple[str, str]]]
         """
-
         client = self.get_conn()
 
         full_task_name = CloudTasksClient.task_path(project_id, location, queue_name, task_name)
@@ -661,10 +663,13 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.tasks_v2.types.Task
         """
-
         client = self.get_conn()
 
         full_task_name = CloudTasksClient.task_path(project_id, location, queue_name, task_name)
         return client.run_task(
-            name=full_task_name, response_view=response_view, retry=retry, timeout=timeout, metadata=metadata,
+            name=full_task_name,
+            response_view=response_view,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )

@@ -22,17 +22,13 @@ from airflow.hooks.dbapi_hook import DbApiHook
 
 
 class SqliteHook(DbApiHook):
-    """
-    Interact with SQLite.
-    """
+    """Interact with SQLite."""
 
     conn_name_attr = 'sqlite_conn_id'
     default_conn_name = 'sqlite_default'
 
     def get_conn(self) -> sqlite3.dbapi2.Connection:
-        """
-        Returns a sqlite connection object
-        """
+        """Returns a sqlite connection object"""
         conn_id = getattr(self, self.conn_name_attr)
         airflow_conn = self.get_connection(conn_id)
         conn = sqlite3.connect(airflow_conn.host)

@@ -91,6 +91,14 @@ class TestQuboleOperator(unittest.TestCase):
 
         self.assertEqual(task.get_hook().create_cmd_args({'run_id': 'dummy'})[0], "--note-id=123")
 
+    def test_notify(self):
+        dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
+
+        with dag:
+            task = QuboleOperator(task_id=TASK_ID, command_type='sparkcmd', notify=True, dag=dag)
+
+        self.assertEqual(task.get_hook().create_cmd_args({'run_id': 'dummy'})[0], "--notify")
+
     def test_position_args_parameters(self):
         dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
 
@@ -142,7 +150,9 @@ class TestQuboleOperator(unittest.TestCase):
         dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
         with dag:
             QuboleOperator(
-                task_id=TASK_ID, command_type='shellcmd', qubole_conn_id=TEST_CONN,
+                task_id=TASK_ID,
+                command_type='shellcmd',
+                qubole_conn_id=TEST_CONN,
             )
 
         serialized_dag = SerializedDAG.to_dict(dag)
@@ -167,3 +177,8 @@ class TestQuboleOperator(unittest.TestCase):
         # check for negative case
         url2 = simple_task.get_extra_links(datetime(2017, 1, 2), 'Go to QDS')
         self.assertEqual(url2, '')
+
+    def test_parameter_pool_passed(self):
+        test_pool = 'test_pool'
+        op = QuboleOperator(task_id=TASK_ID, pool=test_pool)
+        self.assertEqual(op.pool, test_pool)

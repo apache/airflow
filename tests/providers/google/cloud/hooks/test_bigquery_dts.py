@@ -19,7 +19,7 @@
 import unittest
 from copy import deepcopy
 
-import mock
+from unittest import mock
 from google.cloud.bigquery_datatransfer_v1 import DataTransferServiceClient
 from google.cloud.bigquery_datatransfer_v1.types import TransferConfig
 from google.protobuf.json_format import ParseDict
@@ -60,9 +60,7 @@ class BigQueryDataTransferHookTestCase(unittest.TestCase):
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = BiqQueryDataTransferServiceHook()
-            self.hook._get_credentials = mock.MagicMock(  # type: ignore
-                return_value=CREDENTIALS
-            )
+            self.hook._get_credentials = mock.MagicMock(return_value=CREDENTIALS)  # type: ignore
 
     def test_version_information(self):
         expected_version = "airflow_v" + version

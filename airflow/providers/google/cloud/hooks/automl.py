@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains a Google AutoML hook.
-"""
+"""This module contains a Google AutoML hook."""
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from cached_property import cached_property
@@ -57,15 +55,15 @@ class CloudAutoMLHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self._client = None  # type: Optional[AutoMlClient]
 
     @staticmethod
     def extract_object_id(obj: Dict) -> str:
-        """
-        Returns unique id of the object.
-        """
+        """Returns unique id of the object."""
         return obj["name"].rpartition("/")[-1]
 
     def get_conn(self) -> AutoMlClient:
@@ -233,7 +231,12 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.prediction_client
         name = client.model_path(project=project_id, location=location, model=model_id)
         result = client.predict(
-            name=name, payload=payload, params=params, retry=retry, timeout=timeout, metadata=metadata,
+            name=name,
+            payload=payload,
+            params=params,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
         return result
 
@@ -272,7 +275,11 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.get_conn()
         parent = client.location_path(project=project_id, location=location)
         result = client.create_dataset(
-            parent=parent, dataset=dataset, retry=retry, timeout=timeout, metadata=metadata,
+            parent=parent,
+            dataset=dataset,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
         return result
 
@@ -314,7 +321,11 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.get_conn()
         name = client.dataset_path(project=project_id, location=location, dataset=dataset_id)
         result = client.import_data(
-            name=name, input_config=input_config, retry=retry, timeout=timeout, metadata=metadata,
+            name=name,
+            input_config=input_config,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
         return result
 
@@ -368,7 +379,10 @@ class CloudAutoMLHook(GoogleBaseHook):
         """
         client = self.get_conn()
         parent = client.table_spec_path(
-            project=project_id, location=location, dataset=dataset_id, table_spec=table_spec_id,
+            project=project_id,
+            location=location,
+            dataset=dataset_id,
+            table_spec=table_spec_id,
         )
         result = client.list_column_specs(
             parent=parent,
@@ -464,7 +478,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         """
         Updates a dataset.
 
-        :param dataset: TThe dataset which replaces the resource on the server.
+        :param dataset: The dataset which replaces the resource on the server.
             If a dict is provided, it must be of the same form as the protobuf message Dataset.
         :type dataset: Union[dict, Dataset]
         :param update_mask: The update mask applies to the resource.  If a dict is provided, it must
@@ -483,7 +497,11 @@ class CloudAutoMLHook(GoogleBaseHook):
         """
         client = self.get_conn()
         result = client.update_dataset(
-            dataset=dataset, update_mask=update_mask, retry=retry, timeout=timeout, metadata=metadata,
+            dataset=dataset,
+            update_mask=update_mask,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
         return result
 

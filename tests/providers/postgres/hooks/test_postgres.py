@@ -105,6 +105,14 @@ class TestPostgresHookConn(unittest.TestCase):
         )
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
+    def test_get_conn_extra(self, mock_connect):
+        self.connection.extra = '{"connect_timeout": 3}'
+        self.db_hook.get_conn()
+        mock_connect.assert_called_once_with(
+            user='login', password='password', host='host', dbname='schema', port=None, connect_timeout=3
+        )
+
+    @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_client_type')
     def test_get_conn_rds_iam_redshift(self, mock_client, mock_connect):
         self.connection.extra = '{"iam":true, "redshift":true}'
@@ -223,7 +231,16 @@ class TestPostgresHook(unittest.TestCase):
     @pytest.mark.backend("postgres")
     def test_insert_rows_replace(self):
         table = "table"
-        rows = [(1, "hello",), (2, "world",)]
+        rows = [
+            (
+                1,
+                "hello",
+            ),
+            (
+                2,
+                "world",
+            ),
+        ]
         fields = ("id", "value")
 
         self.db_hook.insert_rows(table, rows, fields, replace=True, replace_index=fields[0])
@@ -245,7 +262,16 @@ class TestPostgresHook(unittest.TestCase):
     @pytest.mark.backend("postgres")
     def test_insert_rows_replace_missing_target_field_arg(self):
         table = "table"
-        rows = [(1, "hello",), (2, "world",)]
+        rows = [
+            (
+                1,
+                "hello",
+            ),
+            (
+                2,
+                "world",
+            ),
+        ]
         fields = ("id", "value")
         self.db_hook.insert_rows(table, rows, replace=True, replace_index=fields[0])
 
@@ -253,7 +279,16 @@ class TestPostgresHook(unittest.TestCase):
     @pytest.mark.backend("postgres")
     def test_insert_rows_replace_missing_replace_index_arg(self):
         table = "table"
-        rows = [(1, "hello",), (2, "world",)]
+        rows = [
+            (
+                1,
+                "hello",
+            ),
+            (
+                2,
+                "world",
+            ),
+        ]
         fields = ("id", "value")
         self.db_hook.insert_rows(table, rows, fields, replace=True)
 

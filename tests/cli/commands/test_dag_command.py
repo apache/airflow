@@ -21,9 +21,7 @@ import os
 import tempfile
 import unittest
 from datetime import datetime, timedelta
-
-import mock
-import pytest
+from unittest import mock
 
 from airflow import settings
 from airflow.cli import cli_parser
@@ -257,7 +255,7 @@ class TestCliDags(unittest.TestCase):
 
         # Test None output
         args = self.parser.parse_args(['dags',
-                                       'next_execution',
+                                       'next-execution',
                                        dag_ids[0]])
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_next_execution(args)
@@ -289,7 +287,7 @@ class TestCliDags(unittest.TestCase):
 
             # Test num-executions = 1 (default)
             args = self.parser.parse_args(['dags',
-                                           'next_execution',
+                                           'next-execution',
                                            dag_id])
             with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
                 dag_command.dag_next_execution(args)
@@ -298,7 +296,7 @@ class TestCliDags(unittest.TestCase):
 
             # Test num-executions = 2
             args = self.parser.parse_args(['dags',
-                                           'next_execution',
+                                           'next-execution',
                                            dag_id,
                                            '--num-executions',
                                            '2'])
@@ -340,7 +338,7 @@ class TestCliDags(unittest.TestCase):
         dag_command.dag_trigger(self.parser.parse_args([
             'dags', 'trigger', 'example_bash_operator', ]))
         args = self.parser.parse_args(['dags',
-                                       'list_runs',
+                                       'list-runs',
                                        '--dag-id',
                                        'example_bash_operator',
                                        '--no-backfill',
@@ -351,7 +349,7 @@ class TestCliDags(unittest.TestCase):
         dag_command.dag_list_dag_runs(args)
 
     def test_cli_list_jobs_with_args(self):
-        args = self.parser.parse_args(['dags', 'list_jobs', '--dag-id',
+        args = self.parser.parse_args(['dags', 'list-jobs', '--dag-id',
                                        'example_bash_operator',
                                        '--state', 'success',
                                        '--limit', '100',
@@ -369,7 +367,6 @@ class TestCliDags(unittest.TestCase):
         dag_command.dag_unpause(args)
         self.assertIn(self.dagbag.dags['example_bash_operator'].get_is_paused(), [False, 0])
 
-    @pytest.mark.quarantined
     def test_trigger_dag(self):
         dag_command.dag_trigger(self.parser.parse_args([
             'dags', 'trigger', 'example_bash_operator',
@@ -415,7 +412,7 @@ class TestCliDags(unittest.TestCase):
             self.assertEqual(session.query(DM).filter_by(dag_id=key).count(), 0)
 
     def test_cli_list_jobs(self):
-        args = self.parser.parse_args(['dags', 'list_jobs'])
+        args = self.parser.parse_args(['dags', 'list-jobs'])
         dag_command.dag_list_jobs(args)
 
     def test_dag_state(self):

@@ -100,9 +100,7 @@ def _run_task_by_executor(args, dag, ti):
 
 
 def _run_task_by_local_task_job(args, ti):
-    """
-    Run LocalTaskJob, which monitors the raw task execution process
-    """
+    """Run LocalTaskJob, which monitors the raw task execution process"""
     run_job = LocalTaskJob(
         task_instance=ti,
         mark_success=args.mark_success,
@@ -143,7 +141,6 @@ def _run_raw_task(args, ti):
 @cli_utils.action_logging
 def task_run(args, dag=None):
     """Runs a single task instance"""
-
     # Load custom airflow config
     if args.cfg_path:
         with open(args.cfg_path, 'r') as conf_file:
@@ -174,6 +171,7 @@ def task_run(args, dag=None):
 
     task = dag.get_task(task_id=args.task_id)
     ti = TaskInstance(task, args.execution_date)
+    ti.refresh_from_db()
     ti.init_run_context(raw=args.raw)
 
     hostname = get_hostname()
@@ -224,7 +222,7 @@ def task_failed_deps(args):
     Returns the unmet dependencies for a task instance from the perspective of the
     scheduler (i.e. why a task instance doesn't get scheduled and then queued by the
     scheduler, and then run by an executor).
-    >>> airflow tasks failed_deps tutorial sleep 2015-01-01
+    >>> airflow tasks failed-deps tutorial sleep 2015-01-01
     Task instance dependencies not met:
     Dagrun Running: Task instance's dagrun did not exist: Unknown reason
     Trigger Rule: Task's trigger rule 'all_success' requires all upstream tasks
@@ -289,7 +287,6 @@ def _guess_debugger():
     * `ipdb <https://github.com/gotcha/ipdb>`__
     * `pdb <https://docs.python.org/3/library/pdb.html>`__
     """
-
     for mod in SUPPORTED_DEBUGGER_MODULES:
         try:
             return importlib.import_module(mod)
@@ -413,7 +410,7 @@ def task_clear(args):
 
         if args.task_regex:
             for idx, dag in enumerate(dags):
-                dags[idx] = dag.sub_dag(
+                dags[idx] = dag.partial_subset(
                     task_regex=args.task_regex,
                     include_downstream=args.downstream,
                     include_upstream=args.upstream)

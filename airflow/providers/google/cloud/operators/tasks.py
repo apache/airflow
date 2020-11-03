@@ -112,7 +112,10 @@ class CloudTasksQueueCreateOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         try:
             queue = hook.create_queue(
                 location=self.location,
@@ -220,7 +223,10 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         queue = hook.update_queue(
             task_queue=self.task_queue,
             project_id=self.project_id,
@@ -302,7 +308,10 @@ class CloudTasksQueueGetOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         queue = hook.get_queue(
             location=self.location,
             queue_name=self.queue_name,
@@ -386,7 +395,10 @@ class CloudTasksQueuesListOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         queues = hook.list_queues(
             location=self.location,
             project_id=self.project_id,
@@ -465,7 +477,10 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         hook.delete_queue(
             location=self.location,
             queue_name=self.queue_name,
@@ -544,7 +559,10 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         queue = hook.purge_queue(
             location=self.location,
             queue_name=self.queue_name,
@@ -624,7 +642,10 @@ class CloudTasksQueuePauseOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         queues = hook.pause_queue(
             location=self.location,
             queue_name=self.queue_name,
@@ -704,7 +725,10 @@ class CloudTasksQueueResumeOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         queue = hook.resume_queue(
             location=self.location,
             queue_name=self.queue_name,
@@ -801,7 +825,10 @@ class CloudTasksTaskCreateOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         task = hook.create_task(
             location=self.location,
             queue_name=self.queue_name,
@@ -894,7 +921,10 @@ class CloudTasksTaskGetOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         task = hook.get_task(
             location=self.location,
             queue_name=self.queue_name,
@@ -986,7 +1016,10 @@ class CloudTasksTasksListOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         tasks = hook.list_tasks(
             location=self.location,
             queue_name=self.queue_name,
@@ -1071,7 +1104,10 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         hook.delete_task(
             location=self.location,
             queue_name=self.queue_name,
@@ -1161,7 +1197,10 @@ class CloudTasksTaskRunOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         task = hook.run_task(
             location=self.location,
             queue_name=self.queue_name,

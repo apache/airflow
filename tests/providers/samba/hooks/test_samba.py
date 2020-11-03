@@ -19,7 +19,7 @@
 import unittest
 from unittest.mock import call
 
-import mock
+from unittest import mock
 import smbclient
 
 from airflow.exceptions import AirflowException

@@ -28,6 +28,7 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.sensors.external_task_sensor import ExternalTaskMarker, ExternalTaskSensor
 from airflow.sensors.time_sensor import TimeSensor
+from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
@@ -396,6 +397,26 @@ exit 0
             )
 
 
+class TestExternalTaskMarker(unittest.TestCase):
+    def test_serialized_fields(self):
+        self.assertTrue({"recursion_depth"}.issubset(ExternalTaskMarker.get_serialized_fields()))
+
+    def test_serialized_external_task_marker(self):
+        dag = DAG('test_serialized_external_task_marker', start_date=DEFAULT_DATE)
+        task = ExternalTaskMarker(
+            task_id="parent_task",
+            external_dag_id="external_task_marker_child",
+            external_task_id="child_task1",
+            dag=dag
+        )
+
+        serialized_op = SerializedBaseOperator.serialize_operator(task)
+        deserialized_op = SerializedBaseOperator.deserialize_operator(serialized_op)
+        self.assertEqual(deserialized_op.task_type, 'ExternalTaskMarker')
+        self.assertEqual(getattr(deserialized_op, 'external_dag_id'), 'external_task_marker_child')
+        self.assertEqual(getattr(deserialized_op, 'external_task_id'), 'child_task1')
+
+
 @pytest.fixture
 def dag_bag_ext():
     """
@@ -551,7 +572,7 @@ def test_external_task_marker_exception(dag_bag_ext):
 @pytest.fixture
 def dag_bag_cyclic():
     """
-    Create a DagBag with DAGs having cyclic dependenceis set up by ExternalTaskMarker and
+    Create a DagBag with DAGs having cyclic dependencies set up by ExternalTaskMarker and
     ExternalTaskSensor.
 
     dag_0:   task_a_0 >> task_b_0
@@ -647,3 +668,57 @@ def test_clear_multiple_external_task_marker(dag_bag_multiple):
     # That has since been fixed. It should take no more than a few seconds to call
     # dag.clear() here.
     assert agg_dag.clear(start_date=execution_date, end_date=execution_date, dag_bag=dag_bag_multiple) == 51
+
+
+@pytest.fixture
+def dag_bag_head_tail():
+    """
+    Create a DagBag containing one DAG, with task "head" depending on task "tail" of the
+    previous execution_date.
+
+    20200501     20200502                 20200510
+    +------+     +------+                 +------+
+    | head |    -->head |    -->         -->head |
+    |  |   |   / |  |   |   /           / |  |   |
+    |  v   |  /  |  v   |  /           /  |  v   |
+    | body | /   | body | /     ...   /   | body |
+    |  |   |/    |  |   |/           /    |  |   |
+    |  v   /     |  v   /           /     |  v   |
+    | tail/|     | tail/|          /      | tail |
+    +------+     +------+                 +------+
+    """
+    dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
+    with DAG("head_tail", start_date=DEFAULT_DATE, schedule_interval="@daily") as dag:
+        head = ExternalTaskSensor(task_id='head',
+                                  external_dag_id=dag.dag_id,
+                                  external_task_id="tail",
+                                  execution_delta=timedelta(days=1),
+                                  mode="reschedule")
+        body = DummyOperator(task_id="body")
+        tail = ExternalTaskMarker(task_id="tail",
+                                  external_dag_id=dag.dag_id,
+                                  external_task_id=head.task_id,
+                                  execution_date="{{ tomorrow_ds_nodash }}")
+        head >> body >> tail
+
+    dag_bag.bag_dag(dag=dag, root_dag=dag)
+
+    yield dag_bag
+
+
+def test_clear_overlapping_external_task_marker(dag_bag_head_tail):
+    dag = dag_bag_head_tail.get_dag("head_tail")
+
+    # Mark first head task success.
+    first = TaskInstance(task=dag.get_task("head"), execution_date=DEFAULT_DATE)
+    first.run(mark_success=True)
+
+    for delta in range(10):
+        execution_date = DEFAULT_DATE + timedelta(days=delta)
+        run_tasks(dag_bag_head_tail, execution_date=execution_date)
+
+    # The next two lines are doing the same thing. Clearing the first "head" with "Future"
+    # selected is the same as not selecting "Future". They should take similar amount of
+    # time too because dag.clear() uses visited_external_tis to keep track of visited ExternalTaskMarker.
+    assert dag.clear(start_date=DEFAULT_DATE, dag_bag=dag_bag_head_tail) == 30
+    assert dag.clear(start_date=DEFAULT_DATE, end_date=execution_date, dag_bag=dag_bag_head_tail) == 30

@@ -51,7 +51,8 @@ function kind::make_sure_kubernetes_tools_are_installed() {
     if [[ ! -f "${KIND_BINARY_PATH}"  || ${DOWNLOADED_KIND_VERSION} != "${KIND_VERSION}" ]]; then
         echo
         echo "Downloading Kind version ${KIND_VERSION}"
-        curl --fail --location "${KIND_URL}" --output "${KIND_BINARY_PATH}"
+        repeats::run_with_retry 4 \
+            "curl --fail --location '${KIND_URL}' --output '${KIND_BINARY_PATH}'"
         chmod a+x "${KIND_BINARY_PATH}"
     else
         echo "Kind version ok"
@@ -66,7 +67,8 @@ function kind::make_sure_kubernetes_tools_are_installed() {
     if [[ ! -f "${KUBECTL_BINARY_PATH}" || ${DOWNLOADED_KUBECTL_VERSION} != "${KUBECTL_VERSION}" ]]; then
         echo
         echo "Downloading Kubectl version ${KUBECTL_VERSION}"
-        curl --fail --location "${KUBECTL_URL}" --output "${KUBECTL_BINARY_PATH}"
+        repeats::run_with_retry 4 \
+            "curl --fail --location '${KUBECTL_URL}' --output '${KUBECTL_BINARY_PATH}'"
         chmod a+x "${KUBECTL_BINARY_PATH}"
     else
         echo "Kubectl version ok"
@@ -81,8 +83,8 @@ function kind::make_sure_kubernetes_tools_are_installed() {
     if [[ ! -f "${HELM_BINARY_PATH}" || ${DOWNLOADED_HELM_VERSION} != "${HELM_VERSION}" ]]; then
         echo
         echo "Downloading Helm version ${HELM_VERSION}"
-        curl     --location "${HELM_URL}" |
-            tar -xvz -O "${SYSTEM}-amd64/helm" >"${HELM_BINARY_PATH}"
+        repeats::run_with_retry 4 \
+            "curl --location '${HELM_URL}' | tar -xvz -O '${SYSTEM}-amd64/helm' >'${HELM_BINARY_PATH}'"
         chmod a+x "${HELM_BINARY_PATH}"
     else
         echo "Helm version ok"
@@ -253,6 +255,8 @@ USER root
 
 COPY --chown=airflow:root airflow/example_dags/ \${AIRFLOW_HOME}/dags/
 
+COPY --chown=airflow:root airflow/kubernetes_executor_templates/ \${AIRFLOW_HOME}/pod_templates/
+
 USER airflow
 
 EOF
@@ -266,11 +270,44 @@ function kind::load_image_to_kind_cluster() {
     kind load docker-image --name "${KIND_CLUSTER_NAME}" "${AIRFLOW_PROD_IMAGE_KUBERNETES}"
 }
 
+MAX_NUM_TRIES_FOR_PORT_FORWARD=12
+readonly MAX_NUM_TRIES_FOR_PORT_FORWARD
+
+SLEEP_TIME_FOR_PORT_FORWARD=10
+readonly SLEEP_TIME_FOR_PORT_FORWARD
+
+forwarded_port_number=8080
+
+function kind::start_kubectl_forward() {
+    echo
+    echo "Trying to forward port ${forwarded_port_number} to 8080 on server"
+    echo
+    kubectl port-forward svc/airflow-webserver "${forwarded_port_number}:8080" --namespace airflow >/dev/null &
+}
+
+function kind::stop_kubectl() {
+    echo
+    echo "Stops all kubectl instances"
+    echo
+    killall kubectl || true
+    sleep 10
+    killall -s KILL kubectl || true
+
+}
+
 function kind::forward_port_to_kind_webserver() {
     num_tries=0
     set +e
-    while ! curl http://localhost:8080/health -s | grep -q healthy; do
-        if [[ ${num_tries} == 6 ]]; then
+    kind::start_kubectl_forward
+    sleep "${SLEEP_TIME_FOR_PORT_FORWARD}"
+    while ! curl "http://localhost:${forwarded_port_number}/health" -s | grep -q healthy; do
+        echo
+        echo "Trying to establish port forwarding to 'airflow webserver'"
+        echo
+        if [[ ${INCREASE_PORT_NUMBER_FOR_KUBERNETES} == "true" ]] ; then
+            forwarded_port_number=$(( forwarded_port_number + 1 ))
+        fi
+        if [[ ${num_tries} == "${MAX_NUM_TRIES_FOR_PORT_FORWARD}" ]]; then
             echo >&2
             echo >&2 "ERROR! Could not setup a forward port to Airflow's webserver after ${num_tries}! Exiting."
             echo >&2
@@ -279,11 +316,15 @@ function kind::forward_port_to_kind_webserver() {
         echo
         echo "Trying to establish port forwarding to 'airflow webserver'"
         echo
-        kubectl port-forward svc/airflow-webserver 8080:8080 --namespace airflow >/dev/null &
-        sleep 10
+        kind::start_kubectl_forward
+        sleep "${SLEEP_TIME_FOR_PORT_FORWARD}"
         num_tries=$(( num_tries + 1))
     done
-    echo "Connection to 'airflow webserver' established"
+    echo
+    echo "Connection to 'airflow webserver' established on port ${forwarded_port_number}"
+    echo
+    initialization::ga_env CLUSTER_FORWARDED_PORT "${forwarded_port_number}"
+    export CLUSTER_FORWARDED_PORT="${forwarded_port_number}"
     set -e
 }
 

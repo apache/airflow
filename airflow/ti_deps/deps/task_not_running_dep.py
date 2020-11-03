@@ -24,6 +24,7 @@ from airflow.utils.state import State
 
 class TaskNotRunningDep(BaseTIDep):
     """Ensures that the task instance's state is not running."""
+
     NAME = "Task Instance Not Running"
     IGNOREABLE = False
 

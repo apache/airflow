@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Facebook Ads Reporting hooks
-"""
+"""This module contains Facebook Ads Reporting hooks"""
 import time
 from enum import Enum
 from typing import Any, Dict, List
@@ -33,9 +31,7 @@ from airflow.hooks.base_hook import BaseHook
 
 
 class JobStatus(Enum):
-    """
-    Available options for facebook async task status
-    """
+    """Available options for facebook async task status"""
 
     COMPLETED = 'Job Completed'
     STARTED = 'Job Started'
@@ -59,7 +55,11 @@ class FacebookAdsReportingHook(BaseHook):
 
     """
 
-    def __init__(self, facebook_conn_id: str = "facebook_default", api_version: str = "v6.0",) -> None:
+    def __init__(
+        self,
+        facebook_conn_id: str = "facebook_default",
+        api_version: str = "v6.0",
+    ) -> None:
         super().__init__()
         self.facebook_conn_id = facebook_conn_id
         self.api_version = api_version
@@ -92,7 +92,10 @@ class FacebookAdsReportingHook(BaseHook):
         return config
 
     def bulk_facebook_report(
-        self, params: Dict[str, Any], fields: List[str], sleep_time: int = 5,
+        self,
+        params: Dict[str, Any],
+        fields: List[str],
+        sleep_time: int = 5,
     ) -> List[AdsInsights]:
         """
         Pulls data from the Facebook Ads API

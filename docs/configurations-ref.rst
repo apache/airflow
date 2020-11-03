@@ -42,6 +42,8 @@ can set in ``airflow.cfg`` file or using environment variables.
 
     {% for option in section["options"] %}
 
+    .. _config:{{ section["name"] }}__{{ option["name"] }}:
+
     {{ option["name"] }}
     {{ "-" * option["name"]|length }}
 
@@ -51,6 +53,10 @@ can set in ``airflow.cfg`` file or using environment variables.
 
     {% if option["description"] %}
     {{ option["description"] }}
+    {% endif %}
+
+    {% if option.get("see_also") %}
+    .. seealso:: {{ option["see_also"] }}
     {% endif %}
 
     :Type: {{ option["type"] }}

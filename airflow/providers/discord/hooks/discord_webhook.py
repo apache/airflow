@@ -127,9 +127,7 @@ class DiscordWebhookHook(HttpHook):
         return json.dumps(payload)
 
     def execute(self) -> None:
-        """
-        Execute the Discord webhook call
-        """
+        """Execute the Discord webhook call"""
         proxies = {}
         if self.proxy:
             # we only need https proxy for Discord

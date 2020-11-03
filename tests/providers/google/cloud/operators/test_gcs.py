@@ -18,7 +18,7 @@
 
 import unittest
 
-import mock
+from unittest import mock
 
 from airflow.providers.google.cloud.operators.gcs import (
     GCSBucketCreateAclEntryOperator,
@@ -196,11 +196,16 @@ class TestGCSFileTransformOperator(unittest.TestCase):
         )
 
         mock_subprocess.Popen.assert_called_once_with(
-            args=[transform_script, source, destination], stdout="pipe", stderr="stdout", close_fds=True,
+            args=[transform_script, source, destination],
+            stdout="pipe",
+            stderr="stdout",
+            close_fds=True,
         )
 
         mock_hook.return_value.upload.assert_called_with(
-            bucket_name=destination_bucket, object_name=destination_object, filename=destination,
+            bucket_name=destination_bucket,
+            object_name=destination_object,
+            filename=destination,
         )
 
 

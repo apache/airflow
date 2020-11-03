@@ -38,12 +38,12 @@ class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
     integer_fields = [['ProductionVariants', 'InitialInstanceCount']]
 
     @apply_defaults
-    def __init__(self, *, config, **kwargs):
+    def __init__(self, *, config: dict, **kwargs):
         super().__init__(config=config, **kwargs)
 
         self.config = config
 
-    def execute(self, context):
+    def execute(self, context) -> dict:
         self.preprocess_config()
 
         self.log.info('Creating SageMaker Endpoint Config %s.', self.config['EndpointConfigName'])

@@ -63,6 +63,7 @@ Committers
 - @msumit (Sumit Maheshwari)
 - @potiuk (Jarek Potiuk)
 - @r39132 (Siddharth "Sid" Anand)
+- @ryanahamilton (Ryan Hamilton)
 - @ryw (Ry Walker)
 - @saguziel (Alex Guziel)
 - @sekikn (Kengo Seki)
@@ -70,7 +71,7 @@ Committers
 - @XD-DENG (Xiaodong Deng)
 - @zhongjiajie (Jiajie Zhong)
 
-For the full list of contributors, take a look at `Airflow's Github
+For the full list of contributors, take a look at `Airflow's GitHub
 Contributor page:
 <https://github.com/apache/airflow/graphs/contributors>`_
 
@@ -86,7 +87,7 @@ Resources & links
   * Airflow users mailing list: users-subscribe@airflow.apache.org
 
 * `Issues on GitHub <https://github.com/apache/airflow/issues>`_
-* `Slack (chat) Channel <https://apache-airflow-slack.herokuapp.com/>`_
+* `Slack (chat) Channel <https://s.apache.org/airflow-slack>`_
 * `More resources and links to Airflow related content on the Wiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links>`_
 
 

@@ -18,7 +18,7 @@
 import unittest
 from unittest.mock import patch
 
-import mock
+from unittest import mock
 import requests
 
 from airflow.exceptions import AirflowException, AirflowSensorTimeout

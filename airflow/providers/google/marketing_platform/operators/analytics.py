@@ -15,12 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Analytics 360 operators.
-"""
+"""This module contains Google Analytics 360 operators."""
 import csv
 from tempfile import NamedTemporaryFile
-from typing import Dict, Optional, Sequence, Union
+from typing import Dict, Optional, Sequence, Union, Any, List
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -71,14 +69,14 @@ class GoogleAnalyticsListAccountsOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
 
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> List[Dict[str, Any]]:
         hook = GoogleAnalyticsHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
@@ -147,7 +145,7 @@ class GoogleAnalyticsGetAdsLinkOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> Dict[str, Any]:
         hook = GoogleAnalyticsHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
@@ -206,7 +204,7 @@ class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
 
         self.account_id = account_id
@@ -215,13 +213,16 @@ class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> List[Dict[str, Any]]:
         hook = GoogleAnalyticsHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        result = hook.list_ad_words_links(account_id=self.account_id, web_property_id=self.web_property_id,)
+        result = hook.list_ad_words_links(
+            account_id=self.account_id,
+            web_property_id=self.web_property_id,
+        )
         return result
 
 
@@ -284,7 +285,7 @@ class GoogleAnalyticsDataImportUploadOperator(BaseOperator):
         api_version: str = "v3",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.storage_bucket = storage_bucket
         self.storage_name_object = storage_name_object
@@ -297,7 +298,7 @@ class GoogleAnalyticsDataImportUploadOperator(BaseOperator):
         self.api_version = api_version
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -313,10 +314,14 @@ class GoogleAnalyticsDataImportUploadOperator(BaseOperator):
 
         with NamedTemporaryFile("w+") as tmp_file:
             self.log.info(
-                "Downloading file from GCS: %s/%s ", self.storage_bucket, self.storage_name_object,
+                "Downloading file from GCS: %s/%s ",
+                self.storage_bucket,
+                self.storage_name_object,
             )
             gcs_hook.download(
-                bucket_name=self.storage_bucket, object_name=self.storage_name_object, filename=tmp_file.name,
+                bucket_name=self.storage_bucket,
+                object_name=self.storage_name_object,
+                filename=tmp_file.name,
             )
 
             ga_hook.upload_data(
@@ -369,7 +374,7 @@ class GoogleAnalyticsDeletePreviousDataUploadsOperator(BaseOperator):
         api_version: str = "v3",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
 
         self.account_id = account_id
@@ -380,7 +385,7 @@ class GoogleAnalyticsDeletePreviousDataUploadsOperator(BaseOperator):
         self.api_version = api_version
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         ga_hook = GoogleAnalyticsHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -398,7 +403,10 @@ class GoogleAnalyticsDeletePreviousDataUploadsOperator(BaseOperator):
         delete_request_body = {"customDataImportUids": cids}
 
         ga_hook.delete_upload_data(
-            self.account_id, self.web_property_id, self.custom_data_source_id, delete_request_body,
+            self.account_id,
+            self.web_property_id,
+            self.custom_data_source_id,
+            delete_request_body,
         )
 
 
@@ -451,8 +459,8 @@ class GoogleAnalyticsModifyFileHeadersDataImportOperator(BaseOperator):
         custom_dimension_header_mapping: Optional[Dict[str, str]] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
-        super(GoogleAnalyticsModifyFileHeadersDataImportOperator, self).__init__(**kwargs)
+    ) -> None:
+        super().__init__(**kwargs)
         self.storage_bucket = storage_bucket
         self.storage_name_object = storage_name_object
         self.gcp_conn_id = gcp_conn_id
@@ -493,7 +501,7 @@ class GoogleAnalyticsModifyFileHeadersDataImportOperator(BaseOperator):
         with open(tmp_file_location, "w") as write_file:
             write_file.writelines(all_data)
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -502,11 +510,15 @@ class GoogleAnalyticsModifyFileHeadersDataImportOperator(BaseOperator):
         with NamedTemporaryFile("w+") as tmp_file:
             # Download file from GCS
             self.log.info(
-                "Downloading file from GCS: %s/%s ", self.storage_bucket, self.storage_name_object,
+                "Downloading file from GCS: %s/%s ",
+                self.storage_bucket,
+                self.storage_name_object,
             )
 
             gcs_hook.download(
-                bucket_name=self.storage_bucket, object_name=self.storage_name_object, filename=tmp_file.name,
+                bucket_name=self.storage_bucket,
+                object_name=self.storage_name_object,
+                filename=tmp_file.name,
             )
 
             # Modify file
@@ -518,8 +530,12 @@ class GoogleAnalyticsModifyFileHeadersDataImportOperator(BaseOperator):
 
             # Upload newly formatted file to cloud storage
             self.log.info(
-                "Uploading file to GCS: %s/%s ", self.storage_bucket, self.storage_name_object,
+                "Uploading file to GCS: %s/%s ",
+                self.storage_bucket,
+                self.storage_name_object,
             )
             gcs_hook.upload(
-                bucket_name=self.storage_bucket, object_name=self.storage_name_object, filename=tmp_file.name,
+                bucket_name=self.storage_bucket,
+                object_name=self.storage_name_object,
+                filename=tmp_file.name,
             )

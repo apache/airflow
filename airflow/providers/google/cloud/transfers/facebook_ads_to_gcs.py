@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Facebook Ad Reporting to GCS operators.
-"""
+"""This module contains Facebook Ad Reporting to GCS operators."""
 import csv
 import tempfile
 from typing import Any, Dict, List, Optional, Sequence, Union
@@ -110,7 +108,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         self.gzip = gzip
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict):
         service = FacebookAdsReportingHook(
             facebook_conn_id=self.facebook_conn_id, api_version=self.api_version
         )
@@ -126,7 +124,10 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
                 writer.writeheader()
                 writer.writerows(converted_rows)
                 csvfile.flush()
-                hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+                hook = GCSHook(
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                )
                 hook.upload(
                     bucket_name=self.bucket_name,
                     object_name=self.object_name,

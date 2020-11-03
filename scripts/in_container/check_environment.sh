@@ -24,11 +24,11 @@ EXIT_CODE=0
 DISABLED_INTEGRATIONS=""
 
 function check_service {
-    INTEGRATION_NAME=$1
+    LABEL=$1
     CALL=$2
     MAX_CHECK=${3:=1}
 
-    echo -n "${INTEGRATION_NAME}: "
+    echo -n "${LABEL}: "
     while true
     do
         set +e
@@ -61,23 +61,28 @@ function check_service {
 }
 
 function check_integration {
-    INTEGRATION_NAME=$1
+    INTEGRATION_LABEL=$1
+    INTEGRATION_NAME=$2
+    CALL=$3
+    MAX_CHECK=${4:=1}
 
     ENV_VAR_NAME=INTEGRATION_${INTEGRATION_NAME^^}
     if [[ ${!ENV_VAR_NAME:=} != "true" ]]; then
-        DISABLED_INTEGRATIONS="${DISABLED_INTEGRATIONS} ${INTEGRATION_NAME}"
+        if [[ ! ${DISABLED_INTEGRATIONS} == *" ${INTEGRATION_NAME}"* ]]; then
+            DISABLED_INTEGRATIONS="${DISABLED_INTEGRATIONS} ${INTEGRATION_NAME}"
+        fi
         return
     fi
-    check_service "${@}"
+    check_service "${INTEGRATION_LABEL}" "${CALL}" "${MAX_CHECK}"
 }
 
 function check_db_backend {
     MAX_CHECK=${1:=1}
 
     if [[ ${BACKEND} == "postgres" ]]; then
-        check_service "postgres" "nc -zvv postgres 5432" "${MAX_CHECK}"
+        check_service "PostgreSQL" "nc -zvv postgres 5432" "${MAX_CHECK}"
     elif [[ ${BACKEND} == "mysql" ]]; then
-        check_service "mysql" "nc -zvv mysql 3306" "${MAX_CHECK}"
+        check_service "MySQL" "nc -zvv mysql 3306" "${MAX_CHECK}"
     elif [[ ${BACKEND} == "sqlite" ]]; then
         return
     else
@@ -97,6 +102,29 @@ function resetdb_if_requested() {
     return $?
 }
 
+function startairflow_if_requested() {
+    if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
+
+
+        export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
+        export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
+
+        . "$( dirname "${BASH_SOURCE[0]}" )/configure_environment.sh"
+
+        # initialize db and create the admin user if it's a new run
+        if [[ ${RUN_AIRFLOW_1_10} == "true" ]]; then
+            airflow initdb
+            airflow create_user -u admin -p admin -f Thor -l Adminstra -r Admin -e dummy@dummy.email || true
+        else
+            airflow db init
+            airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e dummy@dummy.email
+        fi
+
+        . "$( dirname "${BASH_SOURCE[0]}" )/run_init_script.sh"
+
+    fi
+    return $?
+}
 
 echo "==============================================================================================="
 echo "             Checking integrations and backends"
@@ -105,13 +133,16 @@ if [[ -n ${BACKEND=} ]]; then
     check_db_backend 20
     echo "-----------------------------------------------------------------------------------------------"
 fi
-check_integration kerberos "nc -zvv kerberos 88" 30
-check_integration mongo "nc -zvv mongo 27017" 20
-check_integration redis "nc -zvv redis 6379" 20
-check_integration rabbitmq "nc -zvv rabbitmq 5672" 20
-check_integration cassandra "nc -zvv cassandra 9042" 20
-check_integration openldap "nc -zvv openldap 389" 20
-check_integration presto "nc -zvv presto 8080" 40
+check_integration "Kerberos" "kerberos" "nc -zvv kdc-server-example-com 88" 30
+check_integration "MongoDB" "mongo" "nc -zvv mongo 27017" 20
+check_integration "Redis" "redis" "nc -zvv redis 6379" 20
+check_integration "RabbitMQ" "rabbitmq" "nc -zvv rabbitmq 5672" 20
+check_integration "Cassandra" "cassandra" "nc -zvv cassandra 9042" 20
+check_integration "OpenLDAP" "openldap" "nc -zvv openldap 389" 20
+check_integration "Presto (HTTP)" "presto" "nc -zvv presto 8080" 40
+check_integration "Presto (HTTPS)" "presto" "nc -zvv presto 7778" 40
+check_integration "Presto (API)" "presto" \
+    "curl --max-time 1 http://presto:8080/v1/info/ | grep '\"starting\":false'" 20
 echo "-----------------------------------------------------------------------------------------------"
 
 if [[ ${EXIT_CODE} != 0 ]]; then
@@ -124,6 +155,7 @@ if [[ ${EXIT_CODE} != 0 ]]; then
 fi
 
 resetdb_if_requested
+startairflow_if_requested
 
 if [[ -n ${DISABLED_INTEGRATIONS=} ]]; then
     echo

@@ -26,6 +26,8 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Airflow Master](#airflow-master)
+- [Airflow 2.0.0a1](#airflow-200a1)
+- [Airflow 1.10.13](#airflow-11013)
 - [Airflow 1.10.12](#airflow-11012)
 - [Airflow 1.10.11](#airflow-11011)
 - [Airflow 1.10.10](#airflow-11010)
@@ -47,6 +49,32 @@ assists users migrating to a new version.
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Airflow Master
+
+### The default value for `[core] enable_xcom_pickling` has been changed to `False`
+
+The pickle type for XCom messages has been replaced to JSON by default to prevent RCE attacks.
+Note that JSON serialization is stricter than pickling, so for example if you want to pass
+raw bytes through XCom you must encode them using an encoding like ``base64``.
+If you understand the risk and still want to use [pickling](https://docs.python.org/3/library/pickle.html),
+set `enable_xcom_pickling = False` in your Airflow config's `core` section.
+
+### Airflowignore of base path
+
+There was a bug fixed in https://github.com/apache/airflow/pull/11993 that the "airflowignore" checked
+the base path of the dag folder for forbidden dags, not only the relative part. This had the effect
+that if the base path contained the excluded word the whole dag folder could have been excluded. For
+example if the airflowignore file contained x, and the dags folder was '/var/x/dags', then all dags in
+the folder would be excluded. The fix only matches the relative path only now which means that if you
+previously used full path as ignored, you should change it to relative one. For example if your dag
+folder was '/var/dags/' and your airflowignore contained '/var/dag/excluded/', you should change it
+to 'excluded/'.
+
+### The default value for `[webserver] cookie_samesite` has been changed to `Lax`
+
+As [recommended](https://flask.palletsprojects.com/en/1.1.x/config/#SESSION_COOKIE_SAMESITE) by Flask, the
+`[webserver] cookie_samesite` has bee changed to `Lax` from `None`.
+
+## Airflow 2.0.0a1
 
 The 2.0 release of the Airflow is a significant upgrade, and includes substantial major changes,
 and some of them may be breaking. Existing code written for earlier versions of this project will may require updates
@@ -74,57 +102,7 @@ https://developers.google.com/style/inclusive-documentation
 
 This section describes the major changes that have been made in this release.
 
-#### Python 2 support is going away
 
-> WARNING: Breaking change
-
-Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0 will only support Python 3.6 and up.
-
-If you have a specific task that still requires Python 2 then you can use the PythonVirtualenvOperator for this.
-
-#### Drop legacy UI in favor of FAB RBAC UI
-
-> WARNING: Breaking change
-
-Previously we were using two versions of UI, which were hard to maintain as we need to implement/update the same feature
-in both versions. With this release we've removed the older UI in favor of Flask App Builder RBAC UI. No need to set the
-RBAC UI explicitly in the configuration now as this is the only default UI. We did it to avoid
-the huge maintenance burden of two independent user interfaces
-
-Please note that that custom auth backends will need re-writing to target new FAB based UI.
-
-As part of this change, a few configuration items in `[webserver]` section are removed and no longer applicable,
-including `authenticate`, `filter_by_owner`, `owner_mode`, and `rbac`.
-
-Before upgrading to this release, we recommend activating the new FAB RBAC UI. For that, you should set
-the `rbac` options  in `[webserver]` in the `airflow.cfg` file to `true`
-
-```ini
-[webserver]
-rbac = true
-```
-
-In order to login to the interface, you need to create an administrator account.
-```
-airflow create_user \
-    --role Admin \
-    --username admin \
-    --firstname FIRST_NAME \
-    --lastname LAST_NAME \
-    --email EMAIL@example.org
-```
-
-If you have already installed Airflow 2.0, you can create a user with the command `airflow users create`.
-You don't need to make changes to the configuration file as the FAB RBAC UI is
-the only supported UI.
-```
-airflow users create \
-    --role Admin \
-    --username admin \
-    --firstname FIRST_NAME \
-    --lastname LAST_NAME \
-    --email EMAIL@example.org
-```
 
 #### Changes to import paths
 
@@ -138,239 +116,8 @@ All changes made are backward compatible, but if you use the old import paths yo
 see a deprecation warning. The old import paths can be abandoned in the future.
 
 
-### Breaking Change in OAuth
-
-The flask-ouathlib has been replaced with authlib because flask-outhlib has
-been deprecated in favour of authlib.
-The Old and New provider configuration keys that have changed are as follows
-
-|      Old Keys       |      New keys     |
-|---------------------|-------------------|
-| consumer_key        | client_id         |
-| consumer_secret     | client_secret     |
-| base_url            | api_base_url      |
-| request_token_params| client_kwargs     |
-
-For more information, visit https://flask-appbuilder.readthedocs.io/en/latest/security.html#authentication-oauth
-
-### Migration Guide from Experimental API to Stable API v1
-In Airflow 2.0, we added the new REST API. Experimental API still works, but support may be dropped in the future.
-If your application is still using the experimental API, you should consider migrating to the stable API.
-
-The stable API exposes many endpoints available through the webserver. Here are the
-differences between the two endpoints that will help you migrate from the
-experimental REST API to the stable REST API.
-
-#### Base Endpoint
-The base endpoint for the stable API v1 is ``/api/v1/``. You must change the
-experimental base endpoint from ``/api/experimental/`` to ``/api/v1/``.
-The table below shows the differences:
-
-| Purpose                           | Experimental REST API Endpoint                                                   | Stable REST API Endpoint                                                       |
-|-----------------------------------|----------------------------------------------------------------------------------|--------------------------------------------------------------------------------|
-| Create a DAGRuns(POST)            | /api/experimental/dags/<DAG_ID>/dag_runs                                         | /api/v1/dags/{dag_id}/dagRuns                                                  |
-| List DAGRuns(GET)                 | /api/experimental/dags/<DAG_ID>/dag_runs                                         | /api/v1/dags/{dag_id}/dagRuns                                                  |
-| Check Health status(GET)          | /api/experimental/test                                                           | /api/v1/health                                                                 |
-| Task information(GET)             | /api/experimental/dags/<DAG_ID>/tasks/<TASK_ID>                                  | /api/v1//dags/{dag_id}/tasks/{task_id}                                         |
-| TaskInstance public variable(GET) | /api/experimental/dags/<DAG_ID>/dag_runs/<string:execution_date>/tasks/<TASK_ID> | /api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}             |
-| Pause DAG(PATCH)                  | /api/experimental/dags/<DAG_ID>/paused/<string:paused>                           | /api/v1/dags/{dag_id}                                                          |
-| Information of paused DAG(GET)    | /api/experimental/dags/<DAG_ID>/paused                                           | /api/v1/dags/{dag_id}                                                          |
-| Latest DAG Runs(GET)              | /api/experimental/latest_runs                                                    | /api/v1/dags/{dag_id}/dagRuns                                                  |
-| Get all pools(GET)                | /api/experimental/pools                                                          | /api/v1/pools                                                                  |
-| Create a pool(POST)               | /api/experimental/pools                                                          | /api/v1/pools                                                                  |
-| Delete a pool(DELETE)             | /api/experimental/pools/<string:name>                                            | /api/v1/pools/{pool_name}                                                      |
-| DAG Lineage(GET)                  | /api/experimental/lineage/<DAG_ID>/<string:execution_date>/                      | /api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries |
-
-#### Note
-This endpoint ``/api/v1/dags/{dag_id}/dagRuns`` also allows you to filter dag_runs with parameters such as ``start_date``, ``end_date``, ``execution_date`` etc in the query string.
-Therefore the operation previously performed by this endpoint
-
-    /api/experimental/dags/<string:dag_id>/dag_runs/<string:execution_date>
-
-can now be handled with filter parameters in the query string.
-Getting information about latest runs can be accomplished with the help of
-filters in the query string of this endpoint(``/api/v1/dags/{dag_id}/dagRuns``). Please check the Stable API
-reference documentation for more information
 
 
-### Changes to Exception handling for from DAG callbacks
-
-Exception from DAG callbacks used to crash scheduler. In order to make
-scheduler more robust, we have changed this behavior to log the exception
-instead. On top of that, a new `dag.callback_exceptions` counter metric has
-been added to help better monitor callback exceptions.
-
-
-### CLI changes in Airflow 2.0
-
-The Airflow CLI has been organized so that related commands are grouped together as subcommands,
-which means that if you use these commands in your scripts, you have to make changes to them.
-
-This section describes the changes that have been made, and what you need to do to update your script.
-
-The ability to manipulate users from the command line has been changed. ``airflow create_user``,  ``airflow delete_user``
- and ``airflow list_users`` has been grouped to a single command `airflow users` with optional flags `create`, `list` and `delete`.
-
-The `airflow list_dags` command is now `airflow dags list`, `airflow pause` is `airflow dags pause`, etc.
-
-In Airflow 1.10 and 2.0 there is an `airflow config` command but there is a difference in behavior. In Airflow 1.10,
-it prints all config options while in Airflow 2.0, it's a command group. `airflow config` is now `airflow config list`.
-You can check other options by running the command `airflow config --help`
-
-For a complete list of updated CLI commands, see https://airflow.apache.org/cli.html.
-
-You can learn about the commands by running ``airflow --help``. For example to get help about the ``celery`` group command,
-you have to run the help command: ``airflow celery --help``.
-
-| Old command                 | New command                        |     Group          |
-|-----------------------------|------------------------------------|--------------------|
-| ``airflow worker``          | ``airflow celery worker``          |    ``celery``      |
-| ``airflow flower``          | ``airflow celery flower``          |    ``celery``      |
-| ``airflow trigger_dag``     | ``airflow dags trigger``           |    ``dags``        |
-| ``airflow delete_dag``      | ``airflow dags delete``            |    ``dags``        |
-| ``airflow show_dag``        | ``airflow dags show``              |    ``dags``        |
-| ``airflow list_dag``        | ``airflow dags list``              |    ``dags``        |
-| ``airflow dag_status``      | ``airflow dags status``            |    ``dags``        |
-| ``airflow backfill``        | ``airflow dags backfill``          |    ``dags``        |
-| ``airflow list_dag_runs``   | ``airflow dags list_runs``         |    ``dags``        |
-| ``airflow pause``           | ``airflow dags pause``             |    ``dags``        |
-| ``airflow unpause``         | ``airflow dags unpause``           |    ``dags``        |
-| ``airflow test``            | ``airflow tasks test``             |    ``tasks``       |
-| ``airflow clear``           | ``airflow tasks clear``            |    ``tasks``       |
-| ``airflow list_tasks``      | ``airflow tasks list``             |    ``tasks``       |
-| ``airflow task_failed_deps``| ``airflow tasks failed_deps``      |    ``tasks``       |
-| ``airflow task_state``      | ``airflow tasks state``            |    ``tasks``       |
-| ``airflow run``             | ``airflow tasks run``              |    ``tasks``       |
-| ``airflow render``          | ``airflow tasks render``           |    ``tasks``       |
-| ``airflow initdb``          | ``airflow db init``                |     ``db``         |
-| ``airflow resetdb``         | ``airflow db reset``               |     ``db``         |
-| ``airflow upgradedb``       | ``airflow db upgrade``             |     ``db``         |
-| ``airflow checkdb``         | ``airflow db check``               |     ``db``         |
-| ``airflow shell``           | ``airflow db shell``               |     ``db``         |
-| ``airflow pool``            | ``airflow pools``                  |     ``pools``      |
-| ``airflow create_user``     | ``airflow users create``           |     ``users``      |
-| ``airflow delete_user``     | ``airflow users delete``           |     ``users``      |
-| ``airflow list_users``      | ``airflow users list``             |     ``users``      |
-
-
-Example Usage for the ``users`` group:
-
-To create a new user:
-```bash
-airflow users create --username jondoe --lastname doe --firstname jon --email jdoe@apache.org --role Viewer --password test
-```
-
-To list users:
-```bash
-airflow users list
-```
-
-To delete a user:
-```bash
-airflow users delete --username jondoe
-```
-
-To add a user to a role:
-```bash
-airflow users add-role --username jondoe --role Public
-```
-
-To remove a user from a role:
-```bash
-airflow users remove-role --username jondoe --role Public
-```
-
-#### Use exactly single character for short option style change in CLI
-
-For Airflow short option, use exactly one single character, New commands are available according to the following table:
-
-| Old command                                          | New command                                         |
-| :----------------------------------------------------| :---------------------------------------------------|
-| ``airflow (dags\|tasks\|scheduler) [-sd, --subdir]`` | ``airflow (dags\|tasks\|scheduler) [-S, --subdir]`` |
-| ``airflow tasks test [-dr, --dry_run]``              | ``airflow tasks test [-n, --dry-run]``              |
-| ``airflow dags backfill [-dr, --dry_run]``           | ``airflow dags backfill [-n, --dry-run]``           |
-| ``airflow tasks clear [-dx, --dag_regex]``           | ``airflow tasks clear [-R, --dag-regex]``           |
-| ``airflow kerberos [-kt, --keytab]``                 | ``airflow kerberos [-k, --keytab]``                 |
-| ``airflow tasks run [-int, --interactive]``          | ``airflow tasks run [-N, --interactive]``           |
-| ``airflow webserver [-hn, --hostname]``              | ``airflow webserver [-H, --hostname]``              |
-| ``airflow celery worker [-cn, --celery_hostname]``   | ``airflow celery worker [-H, --celery-hostname]``   |
-| ``airflow celery flower [-hn, --hostname]``          | ``airflow celery flower [-H, --hostname]``          |
-| ``airflow celery flower [-fc, --flower_conf]``       | ``airflow celery flower [-c, --flower-conf]``       |
-| ``airflow celery flower [-ba, --basic_auth]``        | ``airflow celery flower [-A, --basic-auth]``        |
-| ``airflow celery flower [-tp, --task_params]``       | ``airflow celery flower [-t, --task-params]``       |
-| ``airflow celery flower [-pm, --post_mortem]``       | ``airflow celery flower [-m, --post-mortem]``       |
-
-For Airflow long option, use [kebab-case](https://en.wikipedia.org/wiki/Letter_case) instead of [snake_case](https://en.wikipedia.org/wiki/Snake_case)
-
-| Old option                         | New option                         |
-| :--------------------------------- | :--------------------------------- |
-| ``--task_regex``                   | ``--task-regex``                   |
-| ``--start_date``                   | ``--start-date``                   |
-| ``--end_date``                     | ``--end-date``                     |
-| ``--dry_run``                      | ``--dry-run``                      |
-| ``--no_backfill``                  | ``--no-backfill``                  |
-| ``--mark_success``                 | ``--mark-success``                 |
-| ``--donot_pickle``                 | ``--donot-pickle``                 |
-| ``--ignore_dependencies``          | ``--ignore-dependencies``          |
-| ``--ignore_first_depends_on_past`` | ``--ignore-first-depends-on-past`` |
-| ``--delay_on_limit``               | ``--delay-on-limit``               |
-| ``--reset_dagruns``                | ``--reset-dagruns``                |
-| ``--rerun_failed_tasks``           | ``--rerun-failed-tasks``           |
-| ``--run_backwards``                | ``--run-backwards``                |
-| ``--only_failed``                  | ``--only-failed``                  |
-| ``--only_running``                 | ``--only-running``                 |
-| ``--exclude_subdags``              | ``--exclude-subdags``              |
-| ``--exclude_parentdag``            | ``--exclude-parentdag``            |
-| ``--dag_regex``                    | ``--dag-regex``                    |
-| ``--run_id``                       | ``--run-id``                       |
-| ``--exec_date``                    | ``--exec-date``                    |
-| ``--ignore_all_dependencies``      | ``--ignore-all-dependencies``      |
-| ``--ignore_depends_on_past``       | ``--ignore-depends-on-past``       |
-| ``--ship_dag``                     | ``--ship-dag``                     |
-| ``--job_id``                       | ``--job-id``                       |
-| ``--cfg_path``                     | ``--cfg-path``                     |
-| ``--ssl_cert``                     | ``--ssl-cert``                     |
-| ``--ssl_key``                      | ``--ssl-key``                      |
-| ``--worker_timeout``               | ``--worker-timeout``               |
-| ``--access_logfile``               | ``--access-logfile``               |
-| ``--error_logfile``                | ``--error-logfile``                |
-| ``--dag_id``                       | ``--dag-id``                       |
-| ``--num_runs``                     | ``--num-runs``                     |
-| ``--do_pickle``                    | ``--do-pickle``                    |
-| ``--celery_hostname``              | ``--celery-hostname``              |
-| ``--broker_api``                   | ``--broker-api``                   |
-| ``--flower_conf``                  | ``--flower-conf``                  |
-| ``--url_prefix``                   | ``--url-prefix``                   |
-| ``--basic_auth``                   | ``--basic-auth``                   |
-| ``--task_params``                  | ``--task-params``                  |
-| ``--post_mortem``                  | ``--post-mortem``                  |
-| ``--conn_uri``                     | ``--conn-uri``                     |
-| ``--conn_type``                    | ``--conn-type``                    |
-| ``--conn_host``                    | ``--conn-host``                    |
-| ``--conn_login``                   | ``--conn-login``                   |
-| ``--conn_password``                | ``--conn-password``                |
-| ``--conn_schema``                  | ``--conn-schema``                  |
-| ``--conn_port``                    | ``--conn-port``                    |
-| ``--conn_extra``                   | ``--conn-extra``                   |
-| ``--use_random_password``          | ``--use-random-password``          |
-| ``--skip_serve_logs``              | ``--skip-serve-logs``              |
-
-#### Remove serve_logs command from CLI
-
-The ``serve_logs`` command has been deleted. This command should be run only by internal application mechanisms
-and there is no need for it to be accessible from the CLI interface.
-
-#### dag_state CLI command
-
-If the DAGRun was triggered with conf key/values passed in, they will also be printed in the dag_state CLI response
-ie. running, {"name": "bob"}
-whereas in in prior releases it just printed the state:
-ie. running
-
-#### Deprecating ignore_first_depends_on_past on backfill command and default it to True
-
-When doing backfill with `depends_on_past` dags, users will need to pass `--ignore-first-depends-on-past`.
-We should default it as `true` to avoid confusion
 
 ### Database schema changes
 
@@ -463,7 +210,7 @@ called `my_plugin` then your configuration looks like this
 
 ```ini
 [core]
-executor = my_plguin.MyCustomExecutor
+executor = my_plugin.MyCustomExecutor
 ```
 And now it should look like this:
 ```ini
@@ -646,7 +393,7 @@ dag >> dummy
 This is no longer supported. Instead, we recommend using the DAG as context manager:
 
 ```python
-with DAG('my_dag'):
+with DAG('my_dag') as dag:
     dummy = DummyOperator(task_id='dummy')
 ```
 
@@ -687,7 +434,7 @@ The `chain` method and `cross_downstream` method both use BaseOperator. If any o
 any classes or functions from helpers module, then it automatically has an
 implicit dependency to BaseOperator. That can often lead to cyclic dependencies.
 
-More information in [Airflow-6392](https://issues.apache.org/jira/browse/AIRFLOW-6392)
+More information in [AIRFLOW-6392](https://issues.apache.org/jira/browse/AIRFLOW-6392)
 
 In Airflow <2.0 you imported those two methods like this:
 
@@ -1501,7 +1248,7 @@ you should write `@GoogleBaseHook.provide_gcp_credential_file`
 It is highly recommended to have 1TB+ disk size for Dataproc to have sufficient throughput:
 https://cloud.google.com/compute/docs/disks/performance
 
-Hence, the default value for `master_disk_size` in DataprocCreateClusterOperator has been changes from 500GB to 1TB.
+Hence, the default value for `master_disk_size` in `DataprocCreateClusterOperator` has been changed from 500GB to 1TB.
 
 #### `<airflow class="providers google c"></airflow>loud.operators.bigquery.BigQueryGetDatasetTablesOperator`
 
@@ -1602,6 +1349,12 @@ of this provider.
 
 This section describes the changes that have been made, and what you need to do to update your if
 you use any code located in `airflow.providers` package.
+
+#### Changed return type of `list_prefixes` and `list_keys` methods in `S3Hook`
+
+Previously, the `list_prefixes` and `list_keys` methods returned `None` when there were no
+results. The behavior has been changed to return an empty list instead of `None` in this
+case.
 
 #### Removed Hipchat integration
 
@@ -1764,6 +1517,16 @@ Now the `dag_id` will not appear repeated in the payload, and the response forma
 ...
 }
 ```
+
+## Airflow 1.10.13
+
+### Removed Kerberos support for HDFS hook
+
+The HDFS hook's Kerberos support has been removed due to removed python-krbV dependency from PyPI
+and generally lack of support for SSL in Python3 (Snakebite-py3 we use as dependency has no
+support for SSL connection to HDFS).
+
+SSL support still works for WebHDFS hook.
 
 ## Airflow 1.10.12
 

@@ -16,10 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module allows you to connect to the Google Discovery API Service and query it.
-"""
-from typing import Dict, Optional, Sequence, Union
+"""This module allows you to connect to the Google Discovery API Service and query it."""
+from typing import Optional, Sequence, Union
 
 from googleapiclient.discovery import Resource, build
 
@@ -63,12 +61,14 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self.api_service_name = api_service_name
         self.api_version = api_version
 
-    def get_conn(self):
+    def get_conn(self) -> Resource:
         """
         Creates an authenticated api client for the given api service name and credentials.
 
@@ -87,7 +87,7 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
             )
         return self._conn
 
-    def query(self, endpoint: str, data: Dict, paginate: bool = False, num_retries: int = 0) -> Dict:
+    def query(self, endpoint: str, data: dict, paginate: bool = False, num_retries: int = 0) -> dict:
         """
         Creates a dynamic API call to any Google API registered in Google's API Client Library
         and queries it.

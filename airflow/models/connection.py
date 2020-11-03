@@ -115,7 +115,7 @@ def _parse_netloc_to_hostname(uri_parts):
     return hostname
 
 
-class Connection(Base, LoggingMixin):
+class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attributes
     """
     Placeholder to store information about different database instances
     connection information. The idea here is that scripts use references to
@@ -145,6 +145,7 @@ class Connection(Base, LoggingMixin):
     :param uri: URI address describing connection parameters.
     :type uri: str
     """
+
     __tablename__ = "connection"
 
     id = Column(Integer(), primary_key=True)

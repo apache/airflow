@@ -15,12 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Ad to GCS operators.
-"""
+"""This module contains Google Ad to GCS operators."""
 import csv
 from tempfile import NamedTemporaryFile
-from typing import Dict, Optional, Sequence, Union
+from typing import Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.ads.hooks.ads import GoogleAdsHook
@@ -94,7 +92,7 @@ class GoogleAdsListAccountsOperator(BaseOperator):
         self.gzip = gzip
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> str:
         uri = f"gs://{self.bucket}/{self.object_name}"
 
         ads_hook = GoogleAdsHook(gcp_conn_id=self.gcp_conn_id, google_ads_conn_id=self.google_ads_conn_id)

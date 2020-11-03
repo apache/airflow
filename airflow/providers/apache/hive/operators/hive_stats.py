@@ -97,9 +97,7 @@ class HiveStatsCollectionOperator(BaseOperator):
         self.dttm = '{{ execution_date.isoformat() }}'
 
     def get_default_exprs(self, col: str, col_type: str) -> Dict[Any, Any]:
-        """
-        Get default expressions
-        """
+        """Get default expressions"""
         if col in self.excluded_columns:
             return {}
         exp = {(col, 'non_null'): f"COUNT({col})"}
@@ -181,5 +179,13 @@ class HiveStatsCollectionOperator(BaseOperator):
         mysql.insert_rows(
             table='hive_stats',
             rows=rows,
-            target_fields=['ds', 'dttm', 'table_name', 'partition_repr', 'col', 'metric', 'value',],
+            target_fields=[
+                'ds',
+                'dttm',
+                'table_name',
+                'partition_repr',
+                'col',
+                'metric',
+                'value',
+            ],
         )

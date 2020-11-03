@@ -53,6 +53,7 @@ Extra (optional)
       ``RoundRobinPolicy``, ``DCAwareRoundRobinPolicy``, ``WhiteListRoundRobinPolicy`` and ``TokenAwarePolicy``. ``RoundRobinPolicy`` is the default load balancing policy.
     * ``load_balancing_policy_args`` - This parameter specifies the arguments for the load balancing policy being used.
     * ``cql_version`` - This parameter specifies the CQL version of cassandra.
+    * ``protocol_version`` - This parameter specifies the maximum version of the native protocol to use.
     * ``ssl_options`` - This parameter specifies the details related to SSL, if it's enabled in Cassandra.
 
 

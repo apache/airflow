@@ -95,14 +95,14 @@ class SerializedDagModelTest(unittest.TestCase):
 
             # Update DAG
             example_bash_op_dag.tags += ["new_tag"]
-            self.assertCountEqual(example_bash_op_dag.tags, ["example", "new_tag"])
+            self.assertCountEqual(example_bash_op_dag.tags, ["example", "example2", "new_tag"])
 
             SDM.write_dag(dag=example_bash_op_dag)
             s_dag_2 = session.query(SDM).get(example_bash_op_dag.dag_id)
 
             self.assertNotEqual(s_dag.last_updated, s_dag_2.last_updated)
             self.assertNotEqual(s_dag.dag_hash, s_dag_2.dag_hash)
-            self.assertEqual(s_dag_2.data["dag"]["tags"], ["example", "new_tag"])
+            self.assertEqual(s_dag_2.data["dag"]["tags"], ["example", "example2", "new_tag"])
 
     def test_read_dags(self):
         """DAGs can be read from database."""

@@ -27,9 +27,8 @@ from airflow.typing_compat import Protocol
 
 
 class ConnectorProtocol(Protocol):
-    """
-    A protocol where you can connect to a database.
-    """
+    """A protocol where you can connect to a database."""
+
     def connect(self, host: str, port: int, username: str, schema: str) -> Any:
         """
         Connect to a database.
@@ -43,9 +42,8 @@ class ConnectorProtocol(Protocol):
 
 
 class DbApiHook(BaseHook):
-    """
-    Abstract base class for sql hooks.
-    """
+    """Abstract base class for sql hooks."""
+
     # Override to provide the connection name.
     conn_name_attr = None  # type: str
     # Override to have a default connection id for a particular dbHook
@@ -67,8 +65,7 @@ class DbApiHook(BaseHook):
             setattr(self, self.conn_name_attr, kwargs[self.conn_name_attr])
 
     def get_conn(self):
-        """Returns a connection object
-        """
+        """Returns a connection object"""
         db = self.get_connection(getattr(self, self.conn_name_attr))
         return self.connector.connect(
             host=db.host,
@@ -198,9 +195,7 @@ class DbApiHook(BaseHook):
                 conn.commit()
 
     def set_autocommit(self, conn, autocommit):
-        """
-        Sets the autocommit flag on the connection
-        """
+        """Sets the autocommit flag on the connection"""
         if not self.supports_autocommit and autocommit:
             self.log.warning(
                 "%s connection doesn't support autocommit but autocommit activated.",
@@ -220,13 +215,10 @@ class DbApiHook(BaseHook):
         :return: connection autocommit setting.
         :rtype: bool
         """
-
         return getattr(conn, 'autocommit', False) and self.supports_autocommit
 
     def get_cursor(self):
-        """
-        Returns a cursor
-        """
+        """Returns a cursor"""
         return self.get_conn().cursor()
 
     @staticmethod
@@ -320,7 +312,6 @@ class DbApiHook(BaseHook):
         :return: The serialized cell
         :rtype: str
         """
-
         if cell is None:
             return None
         if isinstance(cell, datetime):

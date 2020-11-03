@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains operator to move data from MSSQL to Hive.
-"""
+"""This module contains operator to move data from MSSQL to Hive."""
 
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
@@ -104,9 +102,7 @@ class MsSqlToHiveOperator(BaseOperator):
 
     @classmethod
     def type_map(cls, mssql_type: int) -> str:
-        """
-        Maps MsSQL type to Hive type.
-        """
+        """Maps MsSQL type to Hive type."""
         map_dict = {
             pymssql.BINARY.value: 'INT',  # pylint: disable=c-extension-no-member
             pymssql.DECIMAL.value: 'FLOAT',  # pylint: disable=c-extension-no-member

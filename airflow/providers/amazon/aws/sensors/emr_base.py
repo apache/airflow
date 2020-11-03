@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Iterable
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
@@ -42,17 +42,19 @@ class EmrBaseSensor(BaseSensorOperator):
     ui_color = '#66c3ff'
 
     @apply_defaults
-    def __init__(self, *, aws_conn_id='aws_default', **kwargs):
+    def __init__(self, *, aws_conn_id: str = 'aws_default', **kwargs):
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
-        self.target_states = None  # will be set in subclasses
-        self.failed_states = None  # will be set in subclasses
-        self.hook = None
+        self.target_states: Optional[Iterable[str]] = None  # will be set in subclasses
+        self.failed_states: Optional[Iterable[str]] = None  # will be set in subclasses
+        self.hook: Optional[EmrHook] = None
 
-    def get_hook(self):
+    def get_hook(self) -> EmrHook:
         """Get EmrHook"""
-        if not self.hook:
-            self.hook = EmrHook(aws_conn_id=self.aws_conn_id)
+        if self.hook:
+            return self.hook
+
+        self.hook = EmrHook(aws_conn_id=self.aws_conn_id)
         return self.hook
 
     def poke(self, context):

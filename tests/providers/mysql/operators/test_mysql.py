@@ -46,7 +46,10 @@ class TestMySql(unittest.TestCase):
                 conn.execute("DROP TABLE IF EXISTS {}".format(table))
 
     @parameterized.expand(
-        [("mysqlclient",), ("mysql-connector-python",),]
+        [
+            ("mysqlclient",),
+            ("mysql-connector-python",),
+        ]
     )
     def test_mysql_operator_test(self, client):
         with MySqlContext(client):
@@ -59,7 +62,10 @@ class TestMySql(unittest.TestCase):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @parameterized.expand(
-        [("mysqlclient",), ("mysql-connector-python",),]
+        [
+            ("mysqlclient",),
+            ("mysql-connector-python",),
+        ]
     )
     def test_mysql_operator_test_multi(self, client):
         with MySqlContext(client):
@@ -68,11 +74,18 @@ class TestMySql(unittest.TestCase):
                 "TRUNCATE TABLE test_airflow",
                 "INSERT INTO test_airflow VALUES ('X')",
             ]
-            op = MySqlOperator(task_id='mysql_operator_test_multi', sql=sql, dag=self.dag,)
+            op = MySqlOperator(
+                task_id='mysql_operator_test_multi',
+                sql=sql,
+                dag=self.dag,
+            )
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @parameterized.expand(
-        [("mysqlclient",), ("mysql-connector-python",),]
+        [
+            ("mysqlclient",),
+            ("mysql-connector-python",),
+        ]
     )
     def test_overwrite_schema(self, client):
         """
@@ -81,7 +94,10 @@ class TestMySql(unittest.TestCase):
         with MySqlContext(client):
             sql = "SELECT 1;"
             op = MySqlOperator(
-                task_id='test_mysql_operator_test_schema_overwrite', sql=sql, dag=self.dag, database="foobar",
+                task_id='test_mysql_operator_test_schema_overwrite',
+                sql=sql,
+                dag=self.dag,
+                database="foobar",
             )
 
             from _mysql_exceptions import OperationalError

@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains operator to move data from Hive to Druid.
-"""
+"""This module contains operator to move data from Hive to Druid."""
 
 from typing import Any, Dict, List, Optional
 
@@ -152,7 +150,10 @@ class HiveToDruidOperator(BaseOperator):
         druid = DruidHook(druid_ingest_conn_id=self.druid_ingest_conn_id)
 
         try:
-            index_spec = self.construct_ingest_query(static_path=static_path, columns=columns,)
+            index_spec = self.construct_ingest_query(
+                static_path=static_path,
+                columns=columns,
+            )
 
             self.log.info("Inserting rows into Druid, hdfs path: %s", static_path)
 
@@ -173,7 +174,6 @@ class HiveToDruidOperator(BaseOperator):
         :param columns: List of all the columns that are available
         :type columns: list
         """
-
         # backward compatibility for num_shards,
         # but target_partition_size is the default setting
         # and overwrites the num_shards

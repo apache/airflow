@@ -30,15 +30,14 @@ from airflow.api_connexion.schemas.connection_schema import (
     connection_schema,
 )
 from airflow.models import Connection
+from airflow.security import permissions
 from airflow.utils.session import provide_session
 
 
-@security.requires_authentication
+@security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_CONNECTION)])
 @provide_session
 def delete_connection(connection_id, session):
-    """
-    Delete a connection entry
-    """
+    """Delete a connection entry"""
     connection = session.query(Connection).filter_by(conn_id=connection_id).one_or_none()
     if connection is None:
         raise NotFound(
@@ -49,12 +48,10 @@ def delete_connection(connection_id, session):
     return NoContent, 204
 
 
-@security.requires_authentication
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION)])
 @provide_session
 def get_connection(connection_id, session):
-    """
-    Get a connection entry
-    """
+    """Get a connection entry"""
     connection = session.query(Connection).filter(Connection.conn_id == connection_id).one_or_none()
     if connection is None:
         raise NotFound(
@@ -64,13 +61,11 @@ def get_connection(connection_id, session):
     return connection_collection_item_schema.dump(connection)
 
 
-@security.requires_authentication
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION)])
 @format_parameters({'limit': check_limit})
 @provide_session
 def get_connections(session, limit, offset=0):
-    """
-    Get all connection entries
-    """
+    """Get all connection entries"""
     total_entries = session.query(func.count(Connection.id)).scalar()
     query = session.query(Connection)
     connections = query.order_by(Connection.id).offset(offset).limit(limit).all()
@@ -79,12 +74,10 @@ def get_connections(session, limit, offset=0):
     )
 
 
-@security.requires_authentication
+@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_CONNECTION)])
 @provide_session
 def patch_connection(connection_id, session, update_mask=None):
-    """
-    Update a connection entry
-    """
+    """Update a connection entry"""
     try:
         data = connection_schema.load(request.json, partial=True)
     except ValidationError as err:
@@ -97,7 +90,7 @@ def patch_connection(connection_id, session, update_mask=None):
             "Connection not found",
             detail=f"The Connection with connection_id: `{connection_id}` was not found",
         )
-    if data.get('conn_id', None) and connection.conn_id != data['conn_id']:
+    if data.get('conn_id') and connection.conn_id != data['conn_id']:
         raise BadRequest(detail="The connection_id cannot be updated.")
     if update_mask:
         update_mask = [i.strip() for i in update_mask]
@@ -115,12 +108,10 @@ def patch_connection(connection_id, session, update_mask=None):
     return connection_schema.dump(connection)
 
 
-@security.requires_authentication
+@security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION)])
 @provide_session
 def post_connection(session):
-    """
-    Create connection entry
-    """
+    """Create connection entry"""
     body = request.json
     try:
         data = connection_schema.load(body)

@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Spanner Hook.
-"""
+"""This module contains a Google Cloud Spanner Hook."""
 from typing import Callable, List, Optional, Sequence, Union
 
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
@@ -46,7 +44,9 @@ class SpannerHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self._client = None
 
@@ -66,7 +66,11 @@ class SpannerHook(GoogleBaseHook):
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_instance(self, instance_id: str, project_id: str,) -> Instance:
+    def get_instance(
+        self,
+        instance_id: str,
+        project_id: str,
+    ) -> Instance:
         """
         Gets information about a particular instance.
 
@@ -130,7 +134,12 @@ class SpannerHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_instance(
-        self, instance_id: str, configuration_name: str, node_count: int, display_name: str, project_id: str,
+        self,
+        instance_id: str,
+        configuration_name: str,
+        node_count: int,
+        display_name: str,
+        project_id: str,
     ) -> None:
         """
         Creates a new Cloud Spanner instance.
@@ -160,7 +169,12 @@ class SpannerHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def update_instance(
-        self, instance_id: str, configuration_name: str, node_count: int, display_name: str, project_id: str,
+        self,
+        instance_id: str,
+        configuration_name: str,
+        node_count: int,
+        display_name: str,
+        project_id: str,
     ) -> None:
         """
         Updates an existing Cloud Spanner instance.
@@ -210,7 +224,12 @@ class SpannerHook(GoogleBaseHook):
             raise e
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_database(self, instance_id: str, database_id: str, project_id: str,) -> Optional[Database]:
+    def get_database(
+        self,
+        instance_id: str,
+        database_id: str,
+        project_id: str,
+    ) -> Optional[Database]:
         """
         Retrieves a database in Cloud Spanner. If the database does not exist
         in the specified instance, it returns None.
@@ -239,7 +258,11 @@ class SpannerHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_database(
-        self, instance_id: str, database_id: str, ddl_statements: List[str], project_id: str,
+        self,
+        instance_id: str,
+        database_id: str,
+        ddl_statements: List[str],
+        project_id: str,
     ) -> None:
         """
         Creates a new database in Cloud Spanner.
@@ -358,7 +381,13 @@ class SpannerHook(GoogleBaseHook):
         return True
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def execute_dml(self, instance_id: str, database_id: str, queries: List[str], project_id: str,) -> None:
+    def execute_dml(
+        self,
+        instance_id: str,
+        database_id: str,
+        queries: List[str],
+        project_id: str,
+    ) -> None:
         """
         Executes an arbitrary DML query (INSERT, UPDATE, DELETE).
 

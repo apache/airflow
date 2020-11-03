@@ -29,6 +29,7 @@ import logging
 from typing import Any, Dict, Optional, Tuple, Union
 
 import boto3
+from botocore.credentials import ReadOnlyCredentials
 from botocore.config import Config
 from cached_property import cached_property
 
@@ -39,7 +40,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class _SessionFactory(LoggingMixin):
-    def __init__(self, conn: Connection, region_name: str, config: Config):
+    def __init__(self, conn: Connection, region_name: Optional[str], config: Config) -> None:
         super().__init__()
         self.conn = conn
         self.region_name = region_name
@@ -71,7 +72,9 @@ class _SessionFactory(LoggingMixin):
             self.log.info("Retrieving region_name from Connection.extra_config['region_name']")
             region_name = self.extra_config["region_name"]
         self.log.info(
-            "Creating session with aws_access_key_id=%s region_name=%s", aws_access_key_id, region_name,
+            "Creating session with aws_access_key_id=%s region_name=%s",
+            aws_access_key_id,
+            region_name,
         )
 
         return boto3.session.Session(
@@ -161,7 +164,9 @@ class _SessionFactory(LoggingMixin):
             assume_role_kwargs["ExternalId"] = self.extra_config.get("external_id")
         role_session_name = f"Airflow_{self.conn.conn_id}"
         self.log.info(
-            "Doing sts_client.assume_role to role_arn=%s (role_session_name=%s)", role_arn, role_session_name,
+            "Doing sts_client.assume_role to role_arn=%s (role_session_name=%s)",
+            role_arn,
+            role_session_name,
         )
         return sts_client.assume_role(
             RoleArn=role_arn, RoleSessionName=role_session_name, **assume_role_kwargs
@@ -187,7 +192,7 @@ class _SessionFactory(LoggingMixin):
             RoleArn=role_arn, PrincipalArn=principal_arn, SAMLAssertion=saml_assertion, **assume_role_kwargs
         )
 
-    def _fetch_saml_assertion_using_http_spegno_auth(self, saml_config: Dict[str, Any]):
+    def _fetch_saml_assertion_using_http_spegno_auth(self, saml_config: Dict[str, Any]) -> str:
         import requests
 
         # requests_gssapi will need paramiko > 2.6 since you'll need
@@ -215,8 +220,8 @@ class _SessionFactory(LoggingMixin):
                     '(Exclude this setting will default to HTTPSPNEGOAuth() ).'
                 )
         # Query the IDP
-        idp_reponse = requests.get(idp_url, auth=auth, **idp_request_kwargs)
-        idp_reponse.raise_for_status()
+        idp_response = requests.get(idp_url, auth=auth, **idp_request_kwargs)
+        idp_response.raise_for_status()
         # Assist with debugging. Note: contains sensitive info!
         xpath = saml_config['saml_response_xpath']
         log_idp_response = 'log_idp_response' in saml_config and saml_config['log_idp_response']
@@ -225,10 +230,10 @@ class _SessionFactory(LoggingMixin):
                 'The IDP response contains sensitive information,' ' but log_idp_response is ON (%s).',
                 log_idp_response,
             )
-            self.log.info('idp_reponse.content= %s', idp_reponse.content)
+            self.log.info('idp_response.content= %s', idp_response.content)
             self.log.info('xpath= %s', xpath)
         # Extract SAML Assertion from the returned HTML / XML
-        xml = etree.fromstring(idp_reponse.content)
+        xml = etree.fromstring(idp_response.content)
         saml_assertion = xml.xpath(xpath)
         if isinstance(saml_assertion, list):
             if len(saml_assertion) == 1:
@@ -281,9 +286,9 @@ class AwsBaseHook(BaseHook):
         self.config = config
 
         if not (self.client_type or self.resource_type):
-            raise AirflowException('Either client_type or resource_type' ' must be provided.')
+            raise AirflowException('Either client_type or resource_type must be provided.')
 
-    def _get_credentials(self, region_name):
+    def _get_credentials(self, region_name: Optional[str]) -> Tuple[boto3.session.Session, Optional[str]]:
 
         if not self.aws_conn_id:
             session = boto3.session.Session(region_name=region_name)
@@ -317,12 +322,18 @@ class AwsBaseHook(BaseHook):
             # http://boto3.readthedocs.io/en/latest/guide/configuration.html
 
         self.log.info(
-            "Creating session using boto3 credential strategy region_name=%s", region_name,
+            "Creating session using boto3 credential strategy region_name=%s",
+            region_name,
         )
         session = boto3.session.Session(region_name=region_name)
         return session, None
 
-    def get_client_type(self, client_type, region_name=None, config=None):
+    def get_client_type(
+        self,
+        client_type: str,
+        region_name: Optional[str] = None,
+        config: Optional[Config] = None,
+    ) -> boto3.client:
         """Get the underlying boto3 client using boto3 session"""
         session, endpoint_url = self._get_credentials(region_name)
 
@@ -333,7 +344,12 @@ class AwsBaseHook(BaseHook):
 
         return session.client(client_type, endpoint_url=endpoint_url, config=config, verify=self.verify)
 
-    def get_resource_type(self, resource_type, region_name=None, config=None):
+    def get_resource_type(
+        self,
+        resource_type: str,
+        region_name: Optional[str] = None,
+        config: Optional[Config] = None,
+    ) -> boto3.resource:
         """Get the underlying boto3 resource using boto3 session"""
         session, endpoint_url = self._get_credentials(region_name)
 
@@ -345,7 +361,7 @@ class AwsBaseHook(BaseHook):
         return session.resource(resource_type, endpoint_url=endpoint_url, config=config, verify=self.verify)
 
     @cached_property
-    def conn(self):
+    def conn(self) -> Union[boto3.client, boto3.resource]:
         """
         Get the underlying boto3 client/resource (cached)
 
@@ -360,7 +376,7 @@ class AwsBaseHook(BaseHook):
             # Rare possibility - subclasses have not specified a client_type or resource_type
             raise NotImplementedError('Could not get boto3 connection!')
 
-    def get_conn(self):
+    def get_conn(self) -> Union[boto3.client, boto3.resource]:
         """
         Get the underlying boto3 client/resource (cached)
 
@@ -373,12 +389,12 @@ class AwsBaseHook(BaseHook):
         # Compat shim
         return self.conn
 
-    def get_session(self, region_name=None):
+    def get_session(self, region_name: Optional[str] = None) -> boto3.session.Session:
         """Get the underlying boto3.session."""
         session, _ = self._get_credentials(region_name)
         return session
 
-    def get_credentials(self, region_name=None):
+    def get_credentials(self, region_name: Optional[str] = None) -> ReadOnlyCredentials:
         """
         Get the underlying `botocore.Credentials` object.
 
@@ -390,7 +406,7 @@ class AwsBaseHook(BaseHook):
         # See https://stackoverflow.com/a/36291428/8283373
         return session.get_credentials().get_frozen_credentials()
 
-    def expand_role(self, role):
+    def expand_role(self, role: str) -> str:
         """
         If the IAM role is a role name, get the Amazon Resource Name (ARN) for the role.
         If IAM role is already an IAM role ARN, no change is made.
@@ -404,7 +420,9 @@ class AwsBaseHook(BaseHook):
             return self.get_client_type("iam").get_role(RoleName=role)["Role"]["Arn"]
 
 
-def _parse_s3_config(config_file_name, config_format="boto", profile=None):
+def _parse_s3_config(
+    config_file_name: str, config_format: Optional[str] = "boto", profile: Optional[str] = None
+) -> Tuple[Optional[str], Optional[str]]:
     """
     Parses a config file for s3 credentials. Can currently
     parse boto, s3cmd.conf and AWS SDK config formats

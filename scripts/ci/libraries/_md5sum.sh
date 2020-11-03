@@ -92,7 +92,7 @@ function md5sum::calculate_md5sum_for_all_files() {
             FILES_MODIFIED="true"
         fi
     done
-    set +e
+    set -e
 }
 
 #

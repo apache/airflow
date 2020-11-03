@@ -65,9 +65,7 @@ class DruidCheckOperator(CheckOperator):
         self.sql = sql
 
     def get_db_hook(self) -> DruidDbApiHook:
-        """
-        Return the druid db api hook.
-        """
+        """Return the druid db api hook."""
         return DruidDbApiHook(druid_broker_conn_id=self.druid_broker_conn_id)
 
     def get_first(self, sql: str) -> Any:

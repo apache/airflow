@@ -21,8 +21,7 @@ import unittest
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-
-import mock
+from unittest import mock
 
 from airflow import utils
 from airflow.configuration import conf

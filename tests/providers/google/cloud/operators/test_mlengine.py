@@ -96,7 +96,11 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
         super().setUp()
         self.dag = DAG(
             'test_dag',
-            default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE, 'end_date': DEFAULT_DATE,},
+            default_args={
+                'owner': 'airflow',
+                'start_date': DEFAULT_DATE,
+                'end_date': DEFAULT_DATE,
+            },
             schedule_interval='@daily',
         )
 
@@ -128,7 +132,9 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
         prediction_output = prediction_task.execute(None)
 
         mock_hook.assert_called_once_with(
-            'google_cloud_default', None, impersonation_chain=None,
+            'google_cloud_default',
+            None,
+            impersonation_chain=None,
         )
         hook_instance.create_job.assert_called_once_with(
             project_id='test-project',
@@ -169,7 +175,9 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
         prediction_output = prediction_task.execute(None)
 
         mock_hook.assert_called_once_with(
-            'google_cloud_default', None, impersonation_chain=None,
+            'google_cloud_default',
+            None,
+            impersonation_chain=None,
         )
         hook_instance.create_job.assert_called_once_with(
             project_id='test-project',
@@ -205,7 +213,9 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
         prediction_output = prediction_task.execute(None)
 
         mock_hook.assert_called_once_with(
-            'google_cloud_default', None, impersonation_chain=None,
+            'google_cloud_default',
+            None,
+            impersonation_chain=None,
         )
         hook_instance.create_job.assert_called_once_with(
             project_id='test-project',
@@ -282,7 +292,9 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
             prediction_task.execute(None)
 
             mock_hook.assert_called_once_with(
-                'google_cloud_default', None, impersonation_chain=None,
+                'google_cloud_default',
+                None,
+                impersonation_chain=None,
             )
             hook_instance.create_job.assert_called_once_with(
                 'test-project', {'jobId': 'test_prediction', 'predictionInput': input_with_model}, ANY
@@ -342,7 +354,9 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
         training_op.execute(MagicMock())
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id='google_cloud_default', delegate_to=None, impersonation_chain=None,
+            gcp_conn_id='google_cloud_default',
+            delegate_to=None,
+            impersonation_chain=None,
         )
         # Make sure only 'create_job' is invoked on hook instance
         self.assertEqual(len(hook_instance.mock_calls), 1)
@@ -351,11 +365,55 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
         )
 
     @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    def test_success_create_training_job_with_master_config(self, mock_hook):
+        custom_training_default_args: dict = copy.deepcopy(self.TRAINING_DEFAULT_ARGS)
+        custom_training_default_args['scale_tier'] = 'CUSTOM'
+
+        training_input = copy.deepcopy(self.TRAINING_INPUT)
+        training_input['trainingInput']['runtimeVersion'] = '1.6'
+        training_input['trainingInput']['pythonVersion'] = '3.5'
+        training_input['trainingInput']['jobDir'] = 'gs://some-bucket/jobs/test_training'
+        training_input['trainingInput']['scaleTier'] = 'CUSTOM'
+        training_input['trainingInput']['masterType'] = 'n1-standard-4'
+        training_input['trainingInput']['masterConfig'] = {
+            'acceleratorConfig': {'count': '1', 'type': 'NVIDIA_TESLA_P4'},
+        }
+
+        success_response = training_input.copy()
+        success_response['state'] = 'SUCCEEDED'
+        hook_instance = mock_hook.return_value
+        hook_instance.create_job.return_value = success_response
+
+        training_op = MLEngineStartTrainingJobOperator(
+            runtime_version='1.6',
+            python_version='3.5',
+            job_dir='gs://some-bucket/jobs/test_training',
+            master_type='n1-standard-4',
+            master_config={
+                'acceleratorConfig': {'count': '1', 'type': 'NVIDIA_TESLA_P4'},
+            },
+            **custom_training_default_args,
+        )
+        training_op.execute(MagicMock())
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id='google_cloud_default',
+            delegate_to=None,
+            impersonation_chain=None,
+        )
+        # Make sure only 'create_job' is invoked on hook instance
+        self.assertEqual(len(hook_instance.mock_calls), 1)
+        hook_instance.create_job.assert_called_once_with(
+            project_id='test-project', job=training_input, use_existing_job_fn=ANY
+        )
+
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_success_create_training_job_with_optional_args(self, mock_hook):
         training_input = copy.deepcopy(self.TRAINING_INPUT)
         training_input['trainingInput']['runtimeVersion'] = '1.6'
         training_input['trainingInput']['pythonVersion'] = '3.5'
         training_input['trainingInput']['jobDir'] = 'gs://some-bucket/jobs/test_training'
+        training_input['trainingInput']['serviceAccount'] = 'test@serviceaccount.com'
 
         success_response = self.TRAINING_INPUT.copy()
         success_response['state'] = 'SUCCEEDED'
@@ -366,12 +424,15 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
             runtime_version='1.6',
             python_version='3.5',
             job_dir='gs://some-bucket/jobs/test_training',
+            service_account='test@serviceaccount.com',
             **self.TRAINING_DEFAULT_ARGS,
         )
         training_op.execute(MagicMock())
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id='google_cloud_default', delegate_to=None, impersonation_chain=None,
+            gcp_conn_id='google_cloud_default',
+            delegate_to=None,
+            impersonation_chain=None,
         )
         # Make sure only 'create_job' is invoked on hook instance
         self.assertEqual(len(hook_instance.mock_calls), 1)
@@ -392,7 +453,9 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
             training_op.execute(None)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id='google_cloud_default', delegate_to=None, impersonation_chain=None,
+            gcp_conn_id='google_cloud_default',
+            delegate_to=None,
+            impersonation_chain=None,
         )
         # Make sure only 'create_job' is invoked on hook instance
         self.assertEqual(len(hook_instance.mock_calls), 1)
@@ -414,7 +477,9 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
             training_op.execute(None)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id='google_cloud_default', delegate_to=None, impersonation_chain=None,
+            gcp_conn_id='google_cloud_default',
+            delegate_to=None,
+            impersonation_chain=None,
         )
         # Make sure only 'create_job' is invoked on hook instance
         self.assertEqual(len(hook_instance.mock_calls), 1)
@@ -427,7 +492,10 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
     def test_console_extra_link(self, mock_hook):
         training_op = MLEngineStartTrainingJobOperator(**self.TRAINING_DEFAULT_ARGS)
 
-        ti = TaskInstance(task=training_op, execution_date=DEFAULT_DATE,)
+        ti = TaskInstance(
+            task=training_op,
+            execution_date=DEFAULT_DATE,
+        )
 
         job_id = self.TRAINING_DEFAULT_ARGS['job_id']
         project_id = self.TRAINING_DEFAULT_ARGS['project_id']
@@ -443,7 +511,8 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
         )
 
         self.assertEqual(
-            '', training_op.get_extra_links(datetime.datetime(2019, 1, 1), AIPlatformConsoleLink.name),
+            '',
+            training_op.get_extra_links(datetime.datetime(2019, 1, 1), AIPlatformConsoleLink.name),
         )
 
     def test_console_extra_link_serialized_field(self):
@@ -469,7 +538,10 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
             "project_id": project_id,
         }
 
-        ti = TaskInstance(task=training_op, execution_date=DEFAULT_DATE,)
+        ti = TaskInstance(
+            task=training_op,
+            execution_date=DEFAULT_DATE,
+        )
         ti.xcom_push(key='gcp_metadata', value=gcp_metadata)
 
         self.assertEqual(
@@ -478,7 +550,8 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
         )
 
         self.assertEqual(
-            '', simple_task.get_extra_links(datetime.datetime(2019, 1, 1), AIPlatformConsoleLink.name),
+            '',
+            simple_task.get_extra_links(datetime.datetime(2019, 1, 1), AIPlatformConsoleLink.name),
         )
 
 
@@ -500,7 +573,9 @@ class TestMLEngineTrainingCancelJobOperator(unittest.TestCase):
         cancel_training_op.execute(None)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id='google_cloud_default', delegate_to=None, impersonation_chain=None,
+            gcp_conn_id='google_cloud_default',
+            delegate_to=None,
+            impersonation_chain=None,
         )
         # Make sure only 'cancel_job' is invoked on hook instance
         self.assertEqual(len(hook_instance.mock_calls), 1)
@@ -521,7 +596,9 @@ class TestMLEngineTrainingCancelJobOperator(unittest.TestCase):
             cancel_training_op.execute(None)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id='google_cloud_default', delegate_to=None, impersonation_chain=None,
+            gcp_conn_id='google_cloud_default',
+            delegate_to=None,
+            impersonation_chain=None,
         )
         # Make sure only 'create_job' is invoked on hook instance
         self.assertEqual(len(hook_instance.mock_calls), 1)
@@ -684,7 +761,9 @@ class TestMLEngineVersionOperator(unittest.TestCase):
         training_op.execute(None)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id='google_cloud_default', delegate_to=None, impersonation_chain=None,
+            gcp_conn_id='google_cloud_default',
+            delegate_to=None,
+            impersonation_chain=None,
         )
         # Make sure only 'create_version' is invoked on hook instance
         self.assertEqual(len(hook_instance.mock_calls), 1)
@@ -807,7 +886,8 @@ class TestMLEngineListVersions(unittest.TestCase):
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.list_versions.assert_called_once_with(
-            project_id=TEST_PROJECT_ID, model_name=TEST_MODEL_NAME,
+            project_id=TEST_PROJECT_ID,
+            model_name=TEST_MODEL_NAME,
         )
 
     def test_missing_model_name(self):

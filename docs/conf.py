@@ -207,9 +207,13 @@ exclude_patterns: List[str] = [
     "_api/airflow/providers/cncf/index.rst",
     # Packages without operators
     "_api/airflow/providers/sendgrid",
+    # Setup.py files of the providers
+    "_api/airflow/providers/*/*setup/index.rst",
+    "_api/airflow/providers/*/*/*setup/index.rst",
     # Templates or partials
     'autoapi_templates',
     'howto/operator/google/_partials',
+    'howto/operator/microsoft/_partials'
 ]
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
@@ -553,6 +557,7 @@ redoc = [
         'spec': OPENAPI_FILE,
         'opts': {
             'hide-hostname': True,
+            'no-auto-auth': True,
         }
     },
 ]

@@ -19,9 +19,7 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
 function run_flake8() {
-    FILES=("$@")
-
-    if [[ "${#FILES[@]}" == "0" ]]; then
+    if [[ "${#@}" == "0" ]]; then
         docker run "${EXTRA_DOCKER_FLAGS[@]}" \
             --entrypoint "/usr/local/bin/dumb-init"  \
             "${AIRFLOW_CI_IMAGE}" \
@@ -30,7 +28,7 @@ function run_flake8() {
         docker run "${EXTRA_DOCKER_FLAGS[@]}" \
             --entrypoint "/usr/local/bin/dumb-init"  \
             "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/in_container/run_flake8.sh" "${FILES[@]}"
+            "--" "/opt/airflow/scripts/in_container/run_flake8.sh" "${@}"
     fi
 }
 

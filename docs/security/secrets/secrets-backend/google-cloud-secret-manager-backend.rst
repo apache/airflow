@@ -116,11 +116,13 @@ The name of the secret must fit the following formats:
 
  * for connection: ``[variable_prefix][sep][connection_name]``
  * for variable: ``[connections_prefix][sep][variable_name]``
+ * for Airflow config: ``[config_prefix][sep][config_name]``
 
 where:
 
  * ``connections_prefix`` - fixed value defined in the ``connections_prefix`` parameter in backend configuration. Default: ``airflow-connections``.
  * ``variable_prefix`` - fixed value defined in the ``variable_prefix`` parameter in backend configuration. Default: ``airflow-variables``.
+ * ``config_prefix`` - fixed value defined in the ``config_prefix`` parameter in backend configuration. Default: ``airflow-config``.
  * ``sep`` - fixed value defined in the ``sep`` parameter in backend configuration. Default: ``-``.
 
 The Cloud Secrets Manager secret name should follow the pattern ``^[a-zA-Z0-9-_]*$``.

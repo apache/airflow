@@ -26,7 +26,6 @@ LABEL org.apache.airflow.component="statsd-exporter"
 LABEL org.apache.airflow.stasd.version="${STATSD_VERSION}"
 LABEL org.apache.airflow.airflow_stasd_exporter.version="${AIRFLOW_STATSD_EXPORTER_VERSION}"
 LABEL org.apache.airflow.commit_sha="${COMMIT_SHA}"
-
-MAINTAINER "Apache Airflow Community <dev@airflow.apache.org>"
+LABEL maintainer="Apache Airflow Community <dev@airflow.apache.org>"
 
 COPY mappings.yml /etc/statsd-exporter/mappings.yml

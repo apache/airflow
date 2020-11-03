@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Text to Speech Hook.
-"""
+"""This module contains a Google Cloud Text to Speech Hook."""
 from typing import Dict, Optional, Sequence, Union
 
 from google.api_core.retry import Retry
@@ -63,7 +61,9 @@ class CloudTextToSpeechHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self._client = None  # type: Optional[TextToSpeechClient]
 

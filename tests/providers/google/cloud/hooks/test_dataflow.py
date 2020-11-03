@@ -22,8 +22,8 @@ import shlex
 import unittest
 from typing import Any, Dict
 
-import mock
-from mock import MagicMock
+from unittest import mock
+from unittest.mock import MagicMock
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -81,6 +81,15 @@ TEST_PROJECT = 'test-project'
 TEST_JOB_ID = 'test-job-id'
 TEST_LOCATION = 'custom-location'
 DEFAULT_PY_INTERPRETER = 'python3'
+TEST_FLEX_PARAMETERS = {
+    "containerSpecGcsPath": "gs://test-bucket/test-file",
+    "jobName": 'test-job-name',
+    "parameters": {
+        "inputSubscription": 'test-subsription',
+        "outputTable": "test-project:test-dataset.streaming_beam_sql",
+    },
+}
+TEST_PROJECT_ID = 'test-project-id'
 
 
 class TestFallbackToVariables(unittest.TestCase):
@@ -138,7 +147,10 @@ class TestFallbackToVariables(unittest.TestCase):
 
 
 def mock_init(
-    self, gcp_conn_id, delegate_to=None, impersonation_chain=None,
+    self,
+    gcp_conn_id,
+    delegate_to=None,
+    impersonation_chain=None,
 ):  # pylint: disable=unused-argument
     pass
 
@@ -169,7 +181,10 @@ class TestDataflowHook(unittest.TestCase):
         dataflowjob_instance = mock_dataflowjob.return_value
         dataflowjob_instance.wait_for_done.return_value = None
         self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME, variables=DATAFLOW_VARIABLES_PY, dataflow=PY_FILE, py_options=PY_OPTIONS,
+            job_name=JOB_NAME,
+            variables=DATAFLOW_VARIABLES_PY,
+            dataflow=PY_FILE,
+            py_options=PY_OPTIONS,
         )
         expected_cmd = [
             "python3",
@@ -200,7 +215,10 @@ class TestDataflowHook(unittest.TestCase):
         variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
         variables['region'] = TEST_LOCATION
         self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME, variables=variables, dataflow=PY_FILE, py_options=PY_OPTIONS,
+            job_name=JOB_NAME,
+            variables=variables,
+            dataflow=PY_FILE,
+            py_options=PY_OPTIONS,
         )
         expected_cmd = [
             "python3",
@@ -265,7 +283,10 @@ class TestDataflowHook(unittest.TestCase):
         variables['extra-package'] = ['a.whl', 'b.whl']
 
         self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME, variables=variables, dataflow=PY_FILE, py_options=PY_OPTIONS,
+            job_name=JOB_NAME,
+            variables=variables,
+            dataflow=PY_FILE,
+            py_options=PY_OPTIONS,
         )
         expected_cmd = [
             "python3",
@@ -295,7 +316,13 @@ class TestDataflowHook(unittest.TestCase):
     @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
     @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
     def test_start_python_dataflow_with_custom_interpreter(
-        self, name, py_interpreter, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid,
+        self,
+        name,
+        py_interpreter,
+        mock_conn,
+        mock_dataflow,
+        mock_dataflowjob,
+        mock_uuid,
     ):
         del name  # unused variable
         mock_uuid.return_value = MOCK_UUID
@@ -325,7 +352,11 @@ class TestDataflowHook(unittest.TestCase):
         self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
 
     @parameterized.expand(
-        [(['foo-bar'], False), (['foo-bar'], True), ([], True),]
+        [
+            (['foo-bar'], False),
+            (['foo-bar'], True),
+            ([], True),
+        ]
     )
     @mock.patch(DATAFLOW_STRING.format('prepare_virtualenv'))
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
@@ -418,7 +449,8 @@ class TestDataflowHook(unittest.TestCase):
             '--jobName={}-{}'.format(JOB_NAME, MOCK_UUID),
         ]
         self.assertListEqual(
-            sorted(expected_cmd), sorted(mock_dataflow.call_args[1]["cmd"]),
+            sorted(expected_cmd),
+            sorted(mock_dataflow.call_args[1]["cmd"]),
         )
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
@@ -487,7 +519,8 @@ class TestDataflowHook(unittest.TestCase):
             '--jobName={}-{}'.format(JOB_NAME, MOCK_UUID),
         ]
         self.assertListEqual(
-            sorted(expected_cmd), sorted(mock_dataflow.call_args[1]["cmd"]),
+            sorted(expected_cmd),
+            sorted(mock_dataflow.call_args[1]["cmd"]),
         )
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
@@ -522,7 +555,8 @@ class TestDataflowHook(unittest.TestCase):
             '--jobName={}-{}'.format(JOB_NAME, MOCK_UUID),
         ]
         self.assertListEqual(
-            sorted(expected_cmd), sorted(mock_dataflow.call_args[1]["cmd"]),
+            sorted(expected_cmd),
+            sorted(mock_dataflow.call_args[1]["cmd"]),
         )
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
@@ -622,6 +656,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             poll_sleep=10,
             project_number=TEST_PROJECT,
             location=DEFAULT_DATAFLOW_LOCATION,
+            drain_pipeline=False,
         )
         mock_controller.return_value.wait_for_done.assert_called_once()
 
@@ -644,7 +679,10 @@ class TestDataflowTemplateHook(unittest.TestCase):
         )
 
         launch_method.assert_called_once_with(
-            projectId=TEST_PROJECT, location=TEST_LOCATION, gcsPath=TEST_TEMPLATE, body=mock.ANY,
+            projectId=TEST_PROJECT,
+            location=TEST_LOCATION,
+            gcsPath=TEST_TEMPLATE,
+            body=mock.ANY,
         )
 
         mock_controller.assert_called_once_with(
@@ -655,6 +693,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             poll_sleep=10,
             project_number=TEST_PROJECT,
             location=TEST_LOCATION,
+            drain_pipeline=False,
         )
         mock_controller.return_value.wait_for_done.assert_called_once()
 
@@ -693,6 +732,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             poll_sleep=10,
             project_number=TEST_PROJECT,
             location=TEST_LOCATION,
+            drain_pipeline=False,
         )
         mock_controller.return_value.wait_for_done.assert_called_once()
 
@@ -718,10 +758,14 @@ class TestDataflowTemplateHook(unittest.TestCase):
             parameters=PARAMETERS,
             dataflow_template=TEST_TEMPLATE,
             project_id=TEST_PROJECT,
+            environment={"numWorkers": 17},
         )
         body = {"jobName": mock.ANY, "parameters": PARAMETERS, "environment": RUNTIME_ENV}
         method.assert_called_once_with(
-            projectId=TEST_PROJECT, location=DEFAULT_DATAFLOW_LOCATION, gcsPath=TEST_TEMPLATE, body=body,
+            projectId=TEST_PROJECT,
+            location=DEFAULT_DATAFLOW_LOCATION,
+            gcsPath=TEST_TEMPLATE,
+            body=body,
         )
         mock_dataflowjob.assert_called_once_with(
             dataflow=mock_conn.return_value,
@@ -731,8 +775,90 @@ class TestDataflowTemplateHook(unittest.TestCase):
             num_retries=5,
             poll_sleep=10,
             project_number=TEST_PROJECT,
+            drain_pipeline=False,
         )
         mock_uuid.assert_called_once_with()
+
+    @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'), return_value=MOCK_UUID)
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    def test_start_template_dataflow_update_runtime_env(self, mock_conn, mock_dataflowjob, mock_uuid):
+        options_with_runtime_env = copy.deepcopy(RUNTIME_ENV)
+        del options_with_runtime_env["numWorkers"]
+        runtime_env = {"numWorkers": 17}
+        expected_runtime_env = copy.deepcopy(RUNTIME_ENV)
+        expected_runtime_env.update(runtime_env)
+
+        dataflowjob_instance = mock_dataflowjob.return_value
+        dataflowjob_instance.wait_for_done.return_value = None
+        # fmt: off
+        method = (mock_conn.return_value
+                  .projects.return_value
+                  .locations.return_value
+                  .templates.return_value
+                  .launch)
+        # fmt: on
+        method.return_value.execute.return_value = {'job': {'id': TEST_JOB_ID}}
+        self.dataflow_hook.start_template_dataflow(  # pylint: disable=no-value-for-parameter
+            job_name=JOB_NAME,
+            variables=options_with_runtime_env,
+            parameters=PARAMETERS,
+            dataflow_template=TEST_TEMPLATE,
+            project_id=TEST_PROJECT,
+            environment=runtime_env,
+        )
+        body = {"jobName": mock.ANY, "parameters": PARAMETERS, "environment": expected_runtime_env}
+        method.assert_called_once_with(
+            projectId=TEST_PROJECT,
+            location=DEFAULT_DATAFLOW_LOCATION,
+            gcsPath=TEST_TEMPLATE,
+            body=body,
+        )
+        mock_dataflowjob.assert_called_once_with(
+            dataflow=mock_conn.return_value,
+            job_id=TEST_JOB_ID,
+            location=DEFAULT_DATAFLOW_LOCATION,
+            name='test-dataflow-pipeline-{}'.format(MOCK_UUID),
+            num_retries=5,
+            poll_sleep=10,
+            project_number=TEST_PROJECT,
+            drain_pipeline=False,
+        )
+        mock_uuid.assert_called_once_with()
+
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    def test_start_flex_template(self, mock_conn, mock_controller):
+        mock_locations = mock_conn.return_value.projects.return_value.locations
+        launch_method = mock_locations.return_value.flexTemplates.return_value.launch
+        launch_method.return_value.execute.return_value = {"job": {"id": TEST_JOB_ID}}
+        mock_controller.return_value.get_jobs.return_value = [{"id": TEST_JOB_ID}]
+
+        on_new_job_id_callback = mock.MagicMock()
+        result = self.dataflow_hook.start_flex_template(
+            body={"launchParameter": TEST_FLEX_PARAMETERS},
+            location=TEST_LOCATION,
+            project_id=TEST_PROJECT_ID,
+            on_new_job_id_callback=on_new_job_id_callback,
+        )
+        on_new_job_id_callback.assert_called_once_with(TEST_JOB_ID)
+        launch_method.assert_called_once_with(
+            projectId='test-project-id',
+            body={'launchParameter': TEST_FLEX_PARAMETERS},
+            location=TEST_LOCATION,
+        )
+        mock_controller.assert_called_once_with(
+            dataflow=mock_conn.return_value,
+            project_number=TEST_PROJECT_ID,
+            job_id=TEST_JOB_ID,
+            location=TEST_LOCATION,
+            poll_sleep=self.dataflow_hook.poll_sleep,
+            num_retries=self.dataflow_hook.num_retries,
+        )
+        mock_controller.return_value.get_jobs.wait_for_done.assrt_called_once_with()
+        mock_controller.return_value.get_jobs.assrt_called_once_with()
+
+        self.assertEqual(result, {"id": TEST_JOB_ID})
 
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
     @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
@@ -747,6 +873,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             name=UNIQUE_JOB_NAME,
             poll_sleep=10,
             project_number=TEST_PROJECT,
+            drain_pipeline=False,
         )
         jobs_controller.cancel()
 
@@ -1036,26 +1163,68 @@ class TestDataflowJob(unittest.TestCase):
         self.assertEqual(False, result)
 
     def test_dataflow_job_cancel_job(self):
+        mock_jobs = self.mock_dataflow.projects.return_value.locations.return_value.jobs
+        get_method = mock_jobs.return_value.get
+        get_method.return_value.execute.side_effect = [
+            {"id": TEST_JOB_ID, "name": JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_RUNNING},
+            {"id": TEST_JOB_ID, "name": JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_PENDING},
+            {"id": TEST_JOB_ID, "name": JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_QUEUED},
+            {"id": TEST_JOB_ID, "name": JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_CANCELLING},
+            {"id": TEST_JOB_ID, "name": JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DRAINING},
+            {"id": TEST_JOB_ID, "name": JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_STOPPED},
+            {"id": TEST_JOB_ID, "name": JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_CANCELLED},
+        ]
+
+        mock_jobs.return_value.list_next.return_value = None
+        dataflow_job = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name=UNIQUE_JOB_NAME,
+            location=TEST_LOCATION,
+            poll_sleep=0,
+            job_id=TEST_JOB_ID,
+            num_retries=20,
+            multiple_jobs=False,
+        )
+        dataflow_job.cancel()
+
+        get_method.assert_called_with(jobId=TEST_JOB_ID, location=TEST_LOCATION, projectId=TEST_PROJECT)
+        get_method.return_value.execute.assert_called_with(num_retries=20)
+
+        self.mock_dataflow.new_batch_http_request.assert_called_once_with()
+        mock_batch = self.mock_dataflow.new_batch_http_request.return_value
+        mock_update = mock_jobs.return_value.update
+        mock_update.assert_called_once_with(
+            body={'requestedState': 'JOB_STATE_CANCELLED'},
+            jobId='test-job-id',
+            location=TEST_LOCATION,
+            projectId='test-project',
+        )
+        mock_batch.add.assert_called_once_with(mock_update.return_value)
+
+    @parameterized.expand(
+        [
+            (False, "JOB_TYPE_BATCH", "JOB_STATE_CANCELLED"),
+            (False, "JOB_TYPE_STREAMING", "JOB_STATE_CANCELLED"),
+            (True, "JOB_TYPE_BATCH", "JOB_STATE_CANCELLED"),
+            (True, "JOB_TYPE_STREAMING", "JOB_STATE_DRAINED"),
+        ]
+    )
+    def test_dataflow_job_cancel_or_drain_job(self, drain_pipeline, job_type, requested_state):
         job = {
             "id": TEST_JOB_ID,
             "name": UNIQUE_JOB_NAME,
             "currentState": DataflowJobStatus.JOB_STATE_RUNNING,
+            "type": job_type,
         }
-        # fmt: off
-        get_method = (
-            self.mock_dataflow.projects.return_value.
-            locations.return_value.
-            jobs.return_value.
-            get
-        )
+        get_method = self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.get
         get_method.return_value.execute.return_value = job
-
-        (
-            self.mock_dataflow.projects.return_value.
-            locations.return_value.
-            jobs.return_value.
-            list_next.return_value
-        ) = None
+        # fmt: off
+        job_list_nest_method = (self.mock_dataflow
+                                .projects.return_value.
+                                locations.return_value.
+                                jobs.return_value.list_next)
+        job_list_nest_method.return_value = None
         # fmt: on
         dataflow_job = _DataflowJobsController(
             dataflow=self.mock_dataflow,
@@ -1066,6 +1235,7 @@ class TestDataflowJob(unittest.TestCase):
             job_id=TEST_JOB_ID,
             num_retries=20,
             multiple_jobs=False,
+            drain_pipeline=drain_pipeline,
         )
         dataflow_job.cancel()
 
@@ -1076,22 +1246,45 @@ class TestDataflowJob(unittest.TestCase):
         self.mock_dataflow.new_batch_http_request.assert_called_once_with()
 
         mock_batch = self.mock_dataflow.new_batch_http_request.return_value
-        # fmt: off
-        mock_update = (
-            self.mock_dataflow.projects.return_value.
-            locations.return_value.
-            jobs.return_value.
-            update
-        )
-        # fmt: on
+        mock_update = self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.update
         mock_update.assert_called_once_with(
-            body={'requestedState': 'JOB_STATE_CANCELLED'},
+            body={'requestedState': requested_state},
             jobId='test-job-id',
             location=TEST_LOCATION,
             projectId='test-project',
         )
         mock_batch.add.assert_called_once_with(mock_update.return_value)
         mock_batch.execute.assert_called_once()
+
+    def test_dataflow_job_cancel_job_no_running_jobs(self):
+        mock_jobs = self.mock_dataflow.projects.return_value.locations.return_value.jobs
+        get_method = mock_jobs.return_value.get
+        get_method.return_value.execute.side_effect = [
+            {"id": TEST_JOB_ID, "name": JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DONE},
+            {"id": TEST_JOB_ID, "name": JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_UPDATED},
+            {"id": TEST_JOB_ID, "name": JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DRAINED},
+            {"id": TEST_JOB_ID, "name": JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_FAILED},
+            {"id": TEST_JOB_ID, "name": JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_CANCELLED},
+        ]
+
+        mock_jobs.return_value.list_next.return_value = None
+        dataflow_job = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name=UNIQUE_JOB_NAME,
+            location=TEST_LOCATION,
+            poll_sleep=0,
+            job_id=TEST_JOB_ID,
+            num_retries=20,
+            multiple_jobs=False,
+        )
+        dataflow_job.cancel()
+
+        get_method.assert_called_with(jobId=TEST_JOB_ID, location=TEST_LOCATION, projectId=TEST_PROJECT)
+        get_method.return_value.execute.assert_called_with(num_retries=20)
+
+        self.mock_dataflow.new_batch_http_request.assert_not_called()
+        mock_jobs.return_value.update.assert_not_called()
 
 
 APACHE_BEAM_V_2_14_0_JAVA_SDK_LOG = f""""\

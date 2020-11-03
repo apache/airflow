@@ -18,8 +18,8 @@
 #
 
 import datetime
+from unittest.mock import ANY, Mock, patch
 
-from mock import ANY, Mock, patch
 from pytest import raises
 from sqlalchemy.exc import OperationalError
 

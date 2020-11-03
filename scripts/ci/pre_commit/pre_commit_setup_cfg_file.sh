@@ -16,26 +16,36 @@
 # specific language governing permissions and limitations
 # under the License.
 set -euo pipefail
-PRE_COMMIT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-AIRFLOW_SOURCES=$(cd "${PRE_COMMIT_DIR}/../../../" && pwd);
-cd "${AIRFLOW_SOURCES}" || exit 1
 export PRINT_INFO_FROM_SCRIPTS="false"
+readonly PRINT_INFO_FROM_SCRIPTS
+
+PRE_COMMIT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+readonly PRE_COMMIT_DIR
+
+AIRFLOW_SOURCES=$(cd "${PRE_COMMIT_DIR}/../../../" && pwd);
+readonly AIRFLOW_SOURCES
+
+cd "${AIRFLOW_SOURCES}" || exit 1
 
 TMP_FILE=$(mktemp)
+readonly TMP_FILE
+
 TMP_OUTPUT=$(mktemp)
+readonly TMP_OUTPUT
 
 find  "licenses" -type f -exec echo "  " {} \; | LC_ALL=C sort >>"${TMP_FILE}"
 
 SETUP_CFG_FILE="${AIRFLOW_SOURCES}/setup.cfg"
+readonly SETUP_CFG_FILE
 
-LEAD='^# Start of licenses generated automatically$'
-TAIL='^# End of licences generated automatically$'
+lead_marker='^# Start of licenses generated automatically$'
+tail_marker='^# End of licences generated automatically$'
 
-BEGIN_GEN=$(grep -n "${LEAD}" <"${SETUP_CFG_FILE}" | sed 's/\(.*\):.*/\1/g')
-END_GEN=$(grep -n "${TAIL}" <"${SETUP_CFG_FILE}" | sed 's/\(.*\):.*/\1/g')
-cat <(head -n "${BEGIN_GEN}" "${SETUP_CFG_FILE}") \
+beginning_of_generated_help_line_number=$(grep -n "${lead_marker}" <"${SETUP_CFG_FILE}" | sed 's/\(.*\):.*/\1/g')
+end_of_generated_help_line_number=$(grep -n "${tail_marker}" <"${SETUP_CFG_FILE}" | sed 's/\(.*\):.*/\1/g')
+cat <(head -n "${beginning_of_generated_help_line_number}" "${SETUP_CFG_FILE}") \
     "${TMP_FILE}" \
-    <(tail -n +"${END_GEN}" "${SETUP_CFG_FILE}") \
+    <(tail -n +"${end_of_generated_help_line_number}" "${SETUP_CFG_FILE}") \
     >"${TMP_OUTPUT}"
 
 mv "${TMP_OUTPUT}" "${SETUP_CFG_FILE}"

@@ -78,7 +78,7 @@ class AzureDataExplorerHook(BaseHook):
     :type azure_data_explorer_conn_id: str
     """
 
-    def __init__(self, azure_data_explorer_conn_id: str = 'azure_data_explorer_default'):
+    def __init__(self, azure_data_explorer_conn_id: str = 'azure_data_explorer_default') -> None:
         super().__init__()
         self.conn_id = azure_data_explorer_conn_id
         self.connection = self.get_conn()
@@ -90,7 +90,7 @@ class AzureDataExplorerHook(BaseHook):
         if not cluster:
             raise AirflowException('Host connection option is required')
 
-        def get_required_param(name):
+        def get_required_param(name: str) -> str:
             """Extract required parameter from extra JSON, raise exception if not found"""
             value = conn.extra_dejson.get(name)
             if not value:

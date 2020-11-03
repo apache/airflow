@@ -62,7 +62,7 @@ def mock_plugin_manager(**kwargs):
     with ExitStack() as exit_stack:
         for attr in PLUGINS_MANAGER_NULLABLE_ATTRIBUTES:
             exit_stack.enter_context(  # pylint: disable=no-member
-                mock.patch(f"airflow.plugins_manager.{attr}", kwargs.get(attr, None))
+                mock.patch(f"airflow.plugins_manager.{attr}", kwargs.get(attr))
             )
         exit_stack.enter_context(  # pylint: disable=no-member
             mock.patch("airflow.plugins_manager.import_errors", kwargs.get("import_errors", {}))

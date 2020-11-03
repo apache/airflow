@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -55,12 +56,12 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
     def __init__(
         self,
         *,
-        config,
-        aws_conn_id,
-        wait_for_completion=True,
-        print_log=True,
-        check_interval=30,
-        max_ingestion_time=None,
+        config: dict,
+        aws_conn_id: str,
+        wait_for_completion: bool = True,
+        print_log: bool = True,
+        check_interval: int = 30,
+        max_ingestion_time: Optional[int] = None,
         action_if_job_exists: str = "increment",  # TODO use typing.Literal for this in Python 3.8
         **kwargs,
     ):
@@ -78,7 +79,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         self.max_ingestion_time = max_ingestion_time
         self._create_integer_fields()
 
-    def _create_integer_fields(self):
+    def _create_integer_fields(self) -> None:
         """Set fields which should be casted to integers."""
         self.integer_fields = [
             ['ProcessingResources', 'ClusterConfig', 'InstanceCount'],
@@ -87,12 +88,12 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         if 'StoppingCondition' in self.config:
             self.integer_fields += [['StoppingCondition', 'MaxRuntimeInSeconds']]
 
-    def expand_role(self):
+    def expand_role(self) -> None:
         if 'RoleArn' in self.config:
             hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
             self.config['RoleArn'] = hook.expand_role(self.config['RoleArn'])
 
-    def execute(self, context):
+    def execute(self, context) -> dict:
         self.preprocess_config()
 
         processing_job_name = self.config["ProcessingJobName"]

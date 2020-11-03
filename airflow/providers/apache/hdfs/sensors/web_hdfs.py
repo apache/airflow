@@ -22,9 +22,7 @@ from airflow.utils.decorators import apply_defaults
 
 
 class WebHdfsSensor(BaseSensorOperator):
-    """
-    Waits for a file or folder to land in HDFS
-    """
+    """Waits for a file or folder to land in HDFS"""
 
     template_fields = ('filepath',)
 

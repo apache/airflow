@@ -18,7 +18,7 @@
 
 import unittest
 
-import mock
+from unittest import mock
 
 from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator
 

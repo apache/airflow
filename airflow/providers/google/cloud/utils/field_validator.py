@@ -140,8 +140,7 @@ COMPOSITE_FIELD_TYPES = ['union', 'dict', 'list']
 
 
 class GcpFieldValidationException(AirflowException):
-    """Thrown when validation finds dictionary field not valid according to specification.
-    """
+    """Thrown when validation finds dictionary field not valid according to specification."""
 
 
 class GcpValidationSpecificationException(AirflowException):
@@ -422,7 +421,7 @@ class GcpBodyFieldValidator(LoggingMixin):
             )
         return True
 
-    def validate(self, body_to_validate):
+    def validate(self, body_to_validate: dict) -> None:
         """
         Validates if the body (dictionary) follows specification that the validator was
         instantiated with. Raises ValidationSpecificationException or

@@ -17,7 +17,7 @@
 #
 ---
 name: Quarantined Build
-on:
+on:  # yamllint disable-line rule:truthy
   schedule:
     # Run quarantined builds 4 times a day to gather better quarantine stats
     - cron: '12 */6 * * *'
@@ -51,7 +51,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       run-tests: ${{ steps.trigger-tests.outputs.run-tests }}
-    if: github.repository == 'apache/airflow'
     steps:
       - uses: actions/checkout@v2
       - name: "Check if tests should be run"
@@ -77,9 +76,8 @@ jobs:
       TEST_TYPE: Quarantined
       NUM_RUNS: 20
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    if: >
-      github.repository == 'apache/airflow' &&
-      (needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request')
+    if: |
+      needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -88,15 +86,15 @@ jobs:
       - name: "Set issue id for master"
         if: github.ref == 'refs/heads/master'
         run: |
-          echo "::set-env name=ISSUE_ID::10118"
+          echo "ISSUE_ID=10118" >> $GITHUB_ENV
       - name: "Set issue id for v1-10-stable"
         if: github.ref == 'refs/heads/v1-10-stable'
         run: |
-          echo "::set-env name=ISSUE_ID::10127"
+          echo "ISSUE_ID=10127" >> $GITHUB_ENV
       - name: "Set issue id for v1-10-test"
         if: github.ref == 'refs/heads/v1-10-test'
         run: |
-          echo "::set-env name=ISSUE_ID::10128"
+          echo "ISSUE_ID=10128" >> $GITHUB_ENV
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"

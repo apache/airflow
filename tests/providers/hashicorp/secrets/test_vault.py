@@ -122,7 +122,12 @@ class TestVaultSecrets(TestCase):
         )
         self.assertEqual('postgresql://airflow:airflow@host:5432/airflow', returned_uri)
 
-    @mock.patch.dict('os.environ', {'AIRFLOW_CONN_TEST_MYSQL': 'mysql://airflow:airflow@host:5432/airflow',})
+    @mock.patch.dict(
+        'os.environ',
+        {
+            'AIRFLOW_CONN_TEST_MYSQL': 'mysql://airflow:airflow@host:5432/airflow',
+        },
+    )
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_conn_uri_non_existent_key(self, mock_hvac):
         """
@@ -215,7 +220,12 @@ class TestVaultSecrets(TestCase):
         )
         self.assertEqual('world', returned_uri)
 
-    @mock.patch.dict('os.environ', {'AIRFLOW_VAR_HELLO': 'world',})
+    @mock.patch.dict(
+        'os.environ',
+        {
+            'AIRFLOW_VAR_HELLO': 'world',
+        },
+    )
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_variable_value_non_existent_key(self, mock_hvac):
         """
@@ -305,3 +315,54 @@ class TestVaultSecrets(TestCase):
         test_client = VaultBackend(**kwargs)
         returned_uri = test_client.get_config("sql_alchemy_conn")
         self.assertEqual('sqlite:////Users/airflow/airflow/airflow.db', returned_uri)
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_connections_path_none_value(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+
+        kwargs = {
+            "connections_path": None,
+            "mount_point": "airflow",
+            "auth_type": "token",
+            "url": "http://127.0.0.1:8200",
+            "token": "s.FnL7qg0YnHZDpf4zKKuFy0UK",
+        }
+
+        test_client = VaultBackend(**kwargs)
+        self.assertIsNone(test_client.get_conn_uri(conn_id="test"))
+        mock_hvac.Client.assert_not_called()
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_variables_path_none_value(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+
+        kwargs = {
+            "variables_path": None,
+            "mount_point": "airflow",
+            "auth_type": "token",
+            "url": "http://127.0.0.1:8200",
+            "token": "s.FnL7qg0YnHZDpf4zKKuFy0UK",
+        }
+
+        test_client = VaultBackend(**kwargs)
+        self.assertIsNone(test_client.get_variable("hello"))
+        mock_hvac.Client.assert_not_called()
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_config_path_none_value(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+
+        kwargs = {
+            "config_path": None,
+            "mount_point": "airflow",
+            "auth_type": "token",
+            "url": "http://127.0.0.1:8200",
+            "token": "s.FnL7qg0YnHZDpf4zKKuFy0UK",
+        }
+
+        test_client = VaultBackend(**kwargs)
+        self.assertIsNone(test_client.get_config("test"))
+        mock_hvac.Client.assert_not_called()

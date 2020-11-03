@@ -38,12 +38,14 @@
     "mysql",
     "postgres",
     "presto",
+    "salesforce",
     "sftp"
   ],
   "hashicorp": [
     "google"
   ],
   "microsoft.azure": [
+    "google",
     "oracle"
   ],
   "microsoft.mssql": [

@@ -64,8 +64,6 @@ underscore.js
 jquery.dataTables.min.js
 jqClock.min.js
 dagre-d3.min.js
-bootstrap-toggle.min.js
-bootstrap-toggle.min.css
 d3.v3.min.js
 ace.js
 node_modules/*
@@ -80,6 +78,7 @@ rat-results.txt
 apache-airflow-.*\+source.tar.gz.*
 apache-airflow-.*\+bin.tar.gz.*
 PULL_REQUEST_TEMPLATE.md
+BACKPORT_PROVIDERS_CHANGES*.md
 PROVIDERS_CHANGES*.md
 
 # Temporary list of files to make compatible with Pylint

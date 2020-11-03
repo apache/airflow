@@ -20,7 +20,7 @@
 import os
 import unittest
 
-import mock
+from unittest import mock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.transfers.sftp_to_gcs import SFTPToGCSOperator
@@ -69,7 +69,9 @@ class TestSFTPToGCSOperator(unittest.TestCase):
         )
         task.execute(None)
         gcs_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         sftp_hook.assert_called_once_with(SFTP_CONN_ID)
 
@@ -102,7 +104,9 @@ class TestSFTPToGCSOperator(unittest.TestCase):
         )
         task.execute(None)
         gcs_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         sftp_hook.assert_called_once_with(SFTP_CONN_ID)
 
@@ -191,7 +195,10 @@ class TestSFTPToGCSOperator(unittest.TestCase):
         task.execute(None)
 
         sftp_hook.return_value.delete_file.assert_has_calls(
-            [mock.call("main_dir/test_object3.json"), mock.call("main_dir/sub_dir/test_object3.json"),]
+            [
+                mock.call("main_dir/test_object3.json"),
+                mock.call("main_dir/sub_dir/test_object3.json"),
+            ]
         )
 
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")

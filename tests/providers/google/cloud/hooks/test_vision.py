@@ -17,7 +17,7 @@
 # under the License.
 import unittest
 
-import mock
+from unittest import mock
 from google.cloud.vision import enums
 from google.cloud.vision_v1 import ProductSearchClient
 from google.cloud.vision_v1.proto.image_annotator_pb2 import (
@@ -601,7 +601,8 @@ class TestGcpVisionHook(unittest.TestCase):
         err = cm.exception
         self.assertTrue(err)
         self.assertIn(
-            ERR_UNABLE_TO_CREATE.format(label='Product', id_label='product_id'), str(err),
+            ERR_UNABLE_TO_CREATE.format(label='Product', id_label='product_id'),
+            str(err),
         )
         update_product_method.assert_not_called()
 

@@ -28,8 +28,10 @@ warnings.warn(
 
 class GoogleCloudBaseHook(GoogleBaseHook):
     """
-    This class is deprecated. Please use `airflow.providers.google.common.hooks.base_google.GoogleBaseHook`.
+    This class is deprecated. Please use
+    `airflow.providers.google.common.hooks.base_google.GoogleBaseHook`.
     """
+
     def __init__(self, *args, **kwargs):
         warnings.warn(
             "This class is deprecated. Please use "
