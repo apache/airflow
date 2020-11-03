@@ -26,7 +26,7 @@ from avmesos.client import MesosClient
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor, CommandType
-from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+from airflow.models.taskinstance import TaskInstanceKey
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
@@ -74,9 +74,9 @@ class AirflowMesosScheduler(MesosClient):
             self.log.error("Expecting docker image for  mesos executor")
             raise AirflowException("mesos.slave_docker_image not provided for mesos executor")
 
-        if not conf.get('mesos', 'DOCKER_VOLUME_DAG_DRIVER'):
-            self.log.error("Expecting docker volume dag driver for mesos executor")
-            raise AirflowException("mesos.docker_volume_dag_driver not provided for mesos executor")
+        if not conf.get('mesos', 'DOCKER_VOLUME_DRIVER'):
+            self.log.error("Expecting docker volume driver for mesos executor")
+            raise AirflowException("mesos.docker_volume_driver not provided for mesos executor")
 
         if not conf.get('mesos', 'DOCKER_VOLUME_DAG_NAME'):
             self.log.error("Expecting docker volume dag name for mesos executor")
@@ -86,6 +86,14 @@ class AirflowMesosScheduler(MesosClient):
             self.log.error("Expecting docker volume dag container path for mesos executor")
             raise AirflowException("mesos.docker_volume_dag_container_path not provided for mesos executor")
 
+        if not conf.get('mesos', 'DOCKER_VOLUME_LOGS_NAME'):
+            self.log.error("Expecting docker volume logs name for mesos executor")
+            raise AirflowException("mesos.docker_volume_logs_name not provided for mesos executor")
+
+        if not conf.get('mesos', 'DOCKER_VOLUME_LOGS_CONTAINER_PATH'):
+            self.log.error("Expecting docker volume logs container path for mesos executor")
+            raise AirflowException("mesos.docker_volume_logs_container_path not provided for mesos executor")
+
         if not conf.get('mesos', 'DOCKER_SOCK'):
             self.log.error("Expecting docker sock path for mesos executor")
             raise AirflowException("mesos.docker_sock not provided for mesos executor")
@@ -93,14 +101,20 @@ class AirflowMesosScheduler(MesosClient):
         self.mesos_slave_docker_image = conf.get(
             'mesos', 'DOCKER_IMAGE_SLAVE'
         ).replace('"', '')
-        self.mesos_docker_volume_dag_driver = conf.get(
-            'mesos', 'DOCKER_VOLUME_DAG_DRIVER'
+        self.mesos_docker_volume_driver = conf.get(
+            'mesos', 'DOCKER_VOLUME_DRIVER'
         ).replace('"', '')
         self.mesos_docker_volume_dag_name = conf.get(
             'mesos', 'DOCKER_VOLUME_DAG_NAME'
         ).replace('"', '')
         self.mesos_docker_volume_dag_container_path = conf.get(
             'mesos', 'DOCKER_VOLUME_DAG_CONTAINER_PATH'
+        ).replace('"', '')
+        self.mesos_docker_volume_logs_name = conf.get(
+            'mesos', 'DOCKER_VOLUME_LOGS_NAME'
+        ).replace('"', '')
+        self.mesos_docker_volume_logs_container_path = conf.get(
+            'mesos', 'DOCKER_VOLUME_LOGS_CONTAINER_PATH'
         ).replace('"', '')
         self.mesos_docker_sock = conf.get('mesos', 'DOCKER_SOCK')
         self.core_sql_alchemy_conn = conf.get('core', 'SQL_ALCHEMY_CONN')
@@ -212,8 +226,19 @@ class AirflowMesosScheduler(MesosClient):
                             'source' : {
                                 'type' : 'DOCKER_VOLUME',
                                 'docker_volume' : {
-                                    'driver': self.mesos_docker_volume_dag_driver,
+                                    'driver': self.mesos_docker_volume_driver,
                                     'name' : self.mesos_docker_volume_dag_name
+                                }
+                            }
+                        },
+                        {
+                            'container_path' : self.mesos_docker_volume_logs_container_path,
+                            'mode' : 'RW',
+                            'source' : {
+                                'type' : 'DOCKER_VOLUME',
+                                'docker_volume' : {
+                                    'driver': self.mesos_docker_volume_driver,
+                                    'name' : self.mesos_docker_volume_logs_name
                                 }
                             }
                         }
@@ -283,10 +308,6 @@ class AirflowMesosScheduler(MesosClient):
             # after a failover.
             # Discard these tasks.
             self.log.info("Unrecognised task key %s", task_id)
-            return
-
-        if task_state == "TASK_RUNNING":
-            self.result_queue.put((key, State.RUNNING))
             return
 
         if task_state == "TASK_FINISHED":
@@ -427,18 +448,6 @@ class MesosExecutor(BaseExecutor):
                 self.log.info("tasks failed %s", key)
                 self.task_queue.task_done()
             self.change_state(*results)
-            self._change_state(*results)
-
-    @provide_session
-    def _change_state(self, key: TaskInstanceKey, state: str, info=None, session=None) -> None:
-        """Local function to change the state directly in the database"""
-        self.log.debug(info)
-        if session is not None:
-            session.query(TaskInstance).filter(
-                TaskInstance.dag_id == key.dag_id,
-                TaskInstance.task_id == key.task_id,
-                TaskInstance.execution_date == key.execution_date
-            ).update({TaskInstance.state: state})
 
     def execute_async(self,
                       key: TaskInstanceKey,

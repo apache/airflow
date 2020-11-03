@@ -2186,10 +2186,9 @@
       type: string
       example: ~
       default: "avhost/docker-airflow"
-    - name: docker_volume_dag_driver
+    - name: docker_volume_driver
       description: |
-        Docker Volume Driver to mount the volume to the docker_image_slave which
-        includes all DAG's
+        Docker Volume Driver to mount the volumes to the docker_image_slave
       version_added: ~
       type: string
       example: ~
@@ -2208,7 +2207,7 @@
       version_added: ~
       type: string
       example: ~
-      default: "/usr/local/airflow/dags"
+      default: "/home/airflow/airflow/dags"
     - name: docker_sock
       description: |
         Docker Sock path to mount into the airflow container. Thats important if we
@@ -2217,3 +2216,19 @@
       type: string
       example: ~
       default: "/var/run/docker.sock"
+    - name: docker_volume_logs_name
+      description: |
+        Docker Volume Name which will hold all log files of the DAG's run. It will be
+        mountet into docker_image_slave
+      version_added: ~
+      type: string
+      example: ~
+      default: "airflowlogs"
+    - name: docker_volume_logs_container_path
+      description: |
+        Docker Volume Container path where the docker_volume_logs_name have to mount,
+        therefore airflow can write the log files
+      version_added: ~
+      type: string
+      example: ~
+      default: "/home/airflow/airflow/logs"
