@@ -93,7 +93,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           name: "Please rebase or re-run to run full tests"
           status: "in_progress"
-          sha: ${{ github.event.pull_request.head.sha }}
+          sha: ${{ steps.source-run-info.outputs.sourceHeadSha }}
           details_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           output: >
             {"summary":
