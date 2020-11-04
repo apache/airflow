@@ -53,6 +53,7 @@ GCP_STACKDDRIVER = 'gcp_stackdriver.json'
 GCP_TASKS_KEY = 'gcp_tasks.json'
 GMP_KEY = 'gmp.json'
 G_FIREBASE_KEY = 'g_firebase.json'
+GCP_AWS_KEY = 'gcp_aws.json'
 
 KEYPATH_EXTRA = 'extra__google_cloud_platform__key_path'
 KEYFILE_DICT_EXTRA = 'extra__google_cloud_platform__keyfile_dict'
