@@ -24,7 +24,7 @@ This is a simple ETL data pipeline example which demonstrates the use of the Tas
 using three simple tasks for Extract, Transform, and Load.
 
 Documentation that goes along with the Airflow TaskFlow API tutorial located
-[here](https://airflow.apache.org/tutorial_functional.html)
+[here](https://airflow.apache.org/docs/stable/tutorial_taskflow_api.html)
 """
 # [START tutorial]
 # [START import_module]
