@@ -58,7 +58,7 @@ IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 CLUSTER_NAME = "cluster_name"
 CONFIG = {
     "gce_cluster_config": {
-        "zone_uri": "https://www.googleapis.com/compute/v1/projects/" "project_id/zones/zone",
+        "zone_uri": "https://www.googleapis.com/compute/v1/projects/project_id/zones/zone",
         "metadata": {"metadata": "data"},
         "network_uri": "network_uri",
         "subnetwork_uri": "subnetwork_uri",

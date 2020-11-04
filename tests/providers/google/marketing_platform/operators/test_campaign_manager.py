@@ -49,9 +49,9 @@ CONVERSION = {
 
 class TestGoogleCampaignManagerDeleteReportOperator(TestCase):
     @mock.patch(
-        "airflow.providers.google.marketing_platform.operators." "campaign_manager.GoogleCampaignManagerHook"
+        "airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerHook"
     )
-    @mock.patch("airflow.providers.google.marketing_platform.operators." "campaign_manager.BaseOperator")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.campaign_manager.BaseOperator")
     def test_execute(self, mock_base_op, hook_mock):
         profile_id = "PROFILE_ID"
         report_id = "REPORT_ID"
@@ -74,13 +74,13 @@ class TestGoogleCampaignManagerDeleteReportOperator(TestCase):
 
 
 class TestGoogleCampaignManagerGetReportOperator(TestCase):
-    @mock.patch("airflow.providers.google.marketing_platform.operators." "campaign_manager.http")
-    @mock.patch("airflow.providers.google.marketing_platform.operators." "campaign_manager.tempfile")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.campaign_manager.http")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.campaign_manager.tempfile")
     @mock.patch(
-        "airflow.providers.google.marketing_platform.operators." "campaign_manager.GoogleCampaignManagerHook"
+        "airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerHook"
     )
-    @mock.patch("airflow.providers.google.marketing_platform.operators." "campaign_manager.GCSHook")
-    @mock.patch("airflow.providers.google.marketing_platform.operators." "campaign_manager.BaseOperator")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.campaign_manager.GCSHook")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.campaign_manager.BaseOperator")
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators."
         "campaign_manager.GoogleCampaignManagerDownloadReportOperator.xcom_push"
@@ -142,9 +142,9 @@ class TestGoogleCampaignManagerGetReportOperator(TestCase):
 
 class TestGoogleCampaignManagerInsertReportOperator(TestCase):
     @mock.patch(
-        "airflow.providers.google.marketing_platform.operators." "campaign_manager.GoogleCampaignManagerHook"
+        "airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerHook"
     )
-    @mock.patch("airflow.providers.google.marketing_platform.operators." "campaign_manager.BaseOperator")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.campaign_manager.BaseOperator")
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators."
         "campaign_manager.GoogleCampaignManagerInsertReportOperator.xcom_push"
@@ -192,9 +192,9 @@ class TestGoogleCampaignManagerInsertReportOperator(TestCase):
 
 class TestGoogleCampaignManagerRunReportOperator(TestCase):
     @mock.patch(
-        "airflow.providers.google.marketing_platform.operators." "campaign_manager.GoogleCampaignManagerHook"
+        "airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerHook"
     )
-    @mock.patch("airflow.providers.google.marketing_platform.operators." "campaign_manager.BaseOperator")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.campaign_manager.BaseOperator")
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators."
         "campaign_manager.GoogleCampaignManagerRunReportOperator.xcom_push"
@@ -229,9 +229,9 @@ class TestGoogleCampaignManagerRunReportOperator(TestCase):
 
 class TestGoogleCampaignManagerBatchInsertConversionsOperator(TestCase):
     @mock.patch(
-        "airflow.providers.google.marketing_platform.operators." "campaign_manager.GoogleCampaignManagerHook"
+        "airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerHook"
     )
-    @mock.patch("airflow.providers.google.marketing_platform.operators." "campaign_manager.BaseOperator")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.campaign_manager.BaseOperator")
     def test_execute(self, mock_base_op, hook_mock):
         profile_id = "PROFILE_ID"
         op = GoogleCampaignManagerBatchInsertConversionsOperator(
@@ -255,9 +255,9 @@ class TestGoogleCampaignManagerBatchInsertConversionsOperator(TestCase):
 
 class TestGoogleCampaignManagerBatchUpdateConversionOperator(TestCase):
     @mock.patch(
-        "airflow.providers.google.marketing_platform.operators." "campaign_manager.GoogleCampaignManagerHook"
+        "airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerHook"
     )
-    @mock.patch("airflow.providers.google.marketing_platform.operators." "campaign_manager.BaseOperator")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.campaign_manager.BaseOperator")
     def test_execute(self, mock_base_op, hook_mock):
         profile_id = "PROFILE_ID"
         op = GoogleCampaignManagerBatchUpdateConversionsOperator(

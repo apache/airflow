@@ -280,7 +280,7 @@ class TestCloudSql(unittest.TestCase):
             )
             op.execute(None)
         err = cm.exception
-        self.assertIn("The body field 'settings.tier' can't be empty. " "Please provide a value.", str(err))
+        self.assertIn("The body field 'settings.tier' can't be empty. Please provide a value.", str(err))
         mock_hook.assert_called_once_with(
             api_version="v1beta4",
             gcp_conn_id="google_cloud_default",

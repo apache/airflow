@@ -410,7 +410,7 @@ class GcpBodyFieldValidator(LoggingMixin):
                 )
         elif field_type is None:
             self.log.debug(
-                "The type of field '%s' is not specified in '%s'. " "Not validating its content.",
+                "The type of field '%s' is not specified in '%s'. Not validating its content.",
                 full_field_path,
                 validation_spec,
             )

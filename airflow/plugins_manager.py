@@ -38,8 +38,6 @@ import_errors: Dict[str, str] = {}
 plugins = None  # type: Optional[List[AirflowPlugin]]
 
 # Plugin components to integrate as modules
-operators_modules: Optional[List[Any]] = None
-sensors_modules: Optional[List[Any]] = None
 hooks_modules: Optional[List[Any]] = None
 macros_modules: Optional[List[Any]] = None
 executors_modules: Optional[List[Any]] = None
@@ -106,8 +104,6 @@ class AirflowPlugin:
 
     name: Optional[str] = None
     source: Optional[AirflowPluginSource] = None
-    operators: List[Any] = []
-    sensors: List[Any] = []
     hooks: List[Any] = []
     executors: List[Any] = []
     macros: List[Any] = []
@@ -382,18 +378,11 @@ def integrate_dag_plugins() -> None:
     """Integrates operator, sensor, hook, macro plugins."""
     # pylint: disable=global-statement
     global plugins
-    global operators_modules
-    global sensors_modules
     global hooks_modules
     global macros_modules
     # pylint: enable=global-statement
 
-    if (
-        operators_modules is not None
-        and sensors_modules is not None
-        and hooks_modules is not None
-        and macros_modules is not None
-    ):
+    if hooks_modules is not None and macros_modules is not None:
         return
 
     ensure_plugins_loaded()
@@ -403,8 +392,6 @@ def integrate_dag_plugins() -> None:
 
     log.debug("Integrate DAG plugins")
 
-    operators_modules = []
-    sensors_modules = []
     hooks_modules = []
     macros_modules = []
 
@@ -412,18 +399,8 @@ def integrate_dag_plugins() -> None:
         if plugin.name is None:
             raise AirflowPluginException("Invalid plugin name")
 
-        operators_module = make_module(f'airflow.operators.{plugin.name}', plugin.operators + plugin.sensors)
-        sensors_module = make_module(f'airflow.sensors.{plugin.name}', plugin.sensors)
         hooks_module = make_module(f'airflow.hooks.{plugin.name}', plugin.hooks)
         macros_module = make_module(f'airflow.macros.{plugin.name}', plugin.macros)
-
-        if operators_module:
-            operators_modules.append(operators_module)
-            sys.modules[operators_module.__name__] = operators_module  # pylint: disable=no-member
-
-        if sensors_module:
-            sensors_modules.append(sensors_module)
-            sys.modules[sensors_module.__name__] = sensors_module  # pylint: disable=no-member
 
         if hooks_module:
             hooks_modules.append(hooks_module)

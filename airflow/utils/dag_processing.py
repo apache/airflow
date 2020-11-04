@@ -697,7 +697,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
 
             if max_runs_reached:
                 self.log.info(
-                    "Exiting dag parsing loop as all files " "have been processed %s times", self._max_runs
+                    "Exiting dag parsing loop as all files have been processed %s times", self._max_runs
                 )
                 break
 
@@ -1097,7 +1097,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             duration = now - processor.start_time
             if duration > self._processor_timeout:
                 self.log.error(
-                    "Processor for %s with PID %s started at %s has timed out, " "killing it.",
+                    "Processor for %s with PID %s started at %s has timed out, killing it.",
                     file_path,
                     processor.pid,
                     processor.start_time.isoformat(),

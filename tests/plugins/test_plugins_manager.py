@@ -108,18 +108,11 @@ class TestPluginsManager(unittest.TestCase):
             name = "test_property_plugin"
 
             @property
-            def operators(self):
-                from airflow.models.baseoperator import BaseOperator
-
-                class PluginPropertyOperator(BaseOperator):
+            def hooks(self):
+                class TestPropertyHook(BaseHook):
                     pass
 
-                return [PluginPropertyOperator]
-
-            class TestNonPropertyHook(BaseHook):
-                pass
-
-            hooks = [TestNonPropertyHook]
+                return [TestPropertyHook]
 
         with mock_plugin_manager(plugins=[AirflowTestPropertyPlugin()]):
             from airflow import plugins_manager
@@ -127,8 +120,7 @@ class TestPluginsManager(unittest.TestCase):
             plugins_manager.integrate_dag_plugins()
 
             self.assertIn('AirflowTestPropertyPlugin', str(plugins_manager.plugins))
-            self.assertIn('PluginPropertyOperator', str(plugins_manager.operators_modules[0].__dict__))
-            self.assertIn("TestNonPropertyHook", str(plugins_manager.hooks_modules[0].__dict__))
+            self.assertIn("TestPropertyHook", str(plugins_manager.hooks_modules[0].__dict__))
 
     def test_should_warning_about_incompatible_plugins(self):
         class AirflowAdminViewsPlugin(AirflowPlugin):

@@ -155,7 +155,7 @@ class SerializedDagModel(Base):
                 dags[row.dag_id] = dag
             else:
                 log.warning(
-                    "dag_id Mismatch in DB: Row with dag_id '%s' has Serialised DAG " "with '%s' dag_id",
+                    "dag_id Mismatch in DB: Row with dag_id '%s' has Serialised DAG with '%s' dag_id",
                     row.dag_id,
                     dag.dag_id,
                 )
@@ -192,7 +192,7 @@ class SerializedDagModel(Base):
         alive_fileloc_hashes = [DagCode.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
 
         log.debug(
-            "Deleting Serialized DAGs (for which DAG files are deleted) " "from %s table ", cls.__tablename__
+            "Deleting Serialized DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__
         )
 
         # pylint: disable=no-member

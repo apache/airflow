@@ -731,7 +731,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             try:
                 response = describe_function(job_name)
                 status = response[key]
-                self.log.info('Job still running for %s seconds... ' 'current status is %s', sec, status)
+                self.log.info('Job still running for %s seconds... current status is %s', sec, status)
             except KeyError:
                 raise AirflowException('Could not get status of the SageMaker job')
             except ClientError:

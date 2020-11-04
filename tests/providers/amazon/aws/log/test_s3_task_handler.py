@@ -131,7 +131,7 @@ class TestS3TaskHandler(unittest.TestCase):
         log, metadata = self.s3_task_handler.read(self.ti)
         self.assertEqual(
             log[0][0][-1],
-            '*** Reading remote log from s3://bucket/remote/log/location/1.log.\n' 'Log line\n\n',
+            '*** Reading remote log from s3://bucket/remote/log/location/1.log.\nLog line\n\n',
         )
         self.assertEqual(metadata, [{'end_of_log': True}])
 

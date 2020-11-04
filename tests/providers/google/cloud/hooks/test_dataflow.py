@@ -19,6 +19,7 @@
 
 import copy
 import shlex
+import subprocess
 import unittest
 from typing import Any, Dict
 from unittest import mock
@@ -90,6 +91,23 @@ TEST_FLEX_PARAMETERS = {
     },
 }
 TEST_PROJECT_ID = 'test-project-id'
+TEST_SQL_JOB_NAME = 'test-sql-job-name'
+TEST_DATASET = 'test-dataset'
+TEST_SQL_OPTIONS = {
+    "bigquery-project": TEST_PROJECT,
+    "bigquery-dataset": TEST_DATASET,
+    "bigquery-table": "beam_output",
+    'bigquery-write-disposition': "write-truncate",
+}
+TEST_SQL_QUERY = """
+SELECT
+    sales_region as sales_region,
+    count(state_id) as count_state
+FROM
+    bigquery.table.test-project.beam_samples.beam_table
+GROUP BY sales_region;
+"""
+TEST_SQL_JOB_ID = 'test-job-id'
 
 
 class TestFallbackToVariables(unittest.TestCase):
@@ -873,9 +891,79 @@ class TestDataflowTemplateHook(unittest.TestCase):
             name=UNIQUE_JOB_NAME,
             poll_sleep=10,
             project_number=TEST_PROJECT,
+            num_retries=5,
             drain_pipeline=False,
         )
         jobs_controller.cancel()
+
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.provide_authorized_gcloud'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    @mock.patch(DATAFLOW_STRING.format('subprocess.run'))
+    def test_start_sql_job_failed_to_run(
+        self, mock_run, mock_get_conn, mock_provide_authorized_gcloud, mock_controller
+    ):
+        test_job = {'id': "TEST_JOB_ID"}
+        mock_controller.return_value.get_jobs.return_value = [test_job]
+        mock_run.return_value = mock.MagicMock(
+            stdout=f"{TEST_JOB_ID}\n".encode(), stderr=f"{TEST_JOB_ID}\n".encode(), returncode=0
+        )
+        on_new_job_id_callback = mock.MagicMock()
+        result = self.dataflow_hook.start_sql_job(
+            job_name=TEST_SQL_JOB_NAME,
+            query=TEST_SQL_QUERY,
+            options=TEST_SQL_OPTIONS,
+            location=TEST_LOCATION,
+            project_id=TEST_PROJECT,
+            on_new_job_id_callback=on_new_job_id_callback,
+        )
+        mock_run.assert_called_once_with(
+            [
+                'gcloud',
+                'dataflow',
+                'sql',
+                'query',
+                TEST_SQL_QUERY,
+                '--project=test-project',
+                '--format=value(job.id)',
+                '--job-name=test-sql-job-name',
+                '--region=custom-location',
+                '--bigquery-project=test-project',
+                '--bigquery-dataset=test-dataset',
+                '--bigquery-table=beam_output',
+                '--bigquery-write-disposition=write-truncate',
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        mock_controller.assert_called_once_with(
+            dataflow=mock_get_conn.return_value,
+            job_id=TEST_JOB_ID,
+            location=TEST_LOCATION,
+            poll_sleep=10,
+            project_number=TEST_PROJECT,
+            num_retries=5,
+            drain_pipeline=False,
+        )
+        mock_controller.return_value.wait_for_done.assert_called_once()
+        self.assertEqual(result, test_job)
+
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.provide_authorized_gcloud'))
+    @mock.patch(DATAFLOW_STRING.format('subprocess.run'))
+    def test_start_sql_job(self, mock_run, mock_provide_authorized_gcloud, mock_get_conn):
+        mock_run.return_value = mock.MagicMock(
+            stdout=f"{TEST_JOB_ID}\n".encode(), stderr=f"{TEST_JOB_ID}\n".encode(), returncode=1
+        )
+        with self.assertRaises(AirflowException):
+            self.dataflow_hook.start_sql_job(
+                job_name=TEST_SQL_JOB_NAME,
+                query=TEST_SQL_QUERY,
+                options=TEST_SQL_OPTIONS,
+                location=TEST_LOCATION,
+                project_id=TEST_PROJECT,
+                on_new_job_id_callback=mock.MagicMock(),
+            )
 
 
 class TestDataflowJob(unittest.TestCase):

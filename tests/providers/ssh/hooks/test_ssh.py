@@ -82,7 +82,7 @@ class TestSSHHook(unittest.TestCase):
                 conn_id=cls.CONN_SSH_WITH_EXTRA,
                 host='localhost',
                 conn_type='ssh',
-                extra='{"compress" : true, "no_host_key_check" : "true", ' '"allow_host_key_change": false}',
+                extra='{"compress" : true, "no_host_key_check" : "true", "allow_host_key_change": false}',
             )
         )
         db.merge_conn(

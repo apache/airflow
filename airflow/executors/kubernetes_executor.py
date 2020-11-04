@@ -170,7 +170,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 )
             except ReadTimeoutError:
                 self.log.warning(
-                    "There was a timeout error accessing the Kube API. " "Retrying request.", exc_info=True
+                    "There was a timeout error accessing the Kube API. Retrying request.", exc_info=True
                 )
                 time.sleep(1)
             except Exception:
@@ -736,7 +736,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         pod_id = create_pod_id(dag_id=dag_id, task_id=task_id)
         if pod_id not in pod_ids:
             self.log.error(
-                "attempting to adopt task %s in dag %s" " which was not specified by database",
+                "attempting to adopt task %s in dag %s which was not specified by database",
                 task_id,
                 dag_id,
             )
