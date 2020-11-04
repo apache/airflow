@@ -78,6 +78,25 @@ class TestCliPools(unittest.TestCase):
         pool_command.pool_delete(self.parser.parse_args(['pools', 'delete', 'foo']))
         self.assertEqual(self.session.query(Pool).count(), 1)
 
+    def test_pool_import_nonexistent(self):
+        with self.assertRaises(SystemExit):
+            pool_command.pool_import(self.parser.parse_args(['pools', 'import', 'nonexistent.json']))
+
+    def test_pool_import_invalid_json(self):
+        with open('pools_import_invalid.json', mode='w') as file:
+            file.write("not valid json")
+
+        with self.assertRaises(SystemExit):
+            pool_command.pool_import(self.parser.parse_args(['pools', 'import', 'pools_import_invalid.json']))
+
+    def test_pool_import_invalid_pools(self):
+        pool_config_input = {"foo": {"description": "foo_test"}}
+        with open('pools_import_invalid.json', mode='w') as file:
+            json.dump(pool_config_input, file)
+
+        with self.assertRaises(SystemExit):
+            pool_command.pool_import(self.parser.parse_args(['pools', 'import', 'pools_import_invalid.json']))
+
     def test_pool_import_export(self):
         # Create two pools first
         pool_config_input = {
