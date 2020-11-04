@@ -17,9 +17,10 @@
 # under the License.
 """Transfers data from Snowflake into a S3 Bucket."""
 from typing import List, Optional
+
 from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from airflow.utils.decorators import apply_defaults
 
 
 class SnowflakeToS3Operator(BaseOperator):
@@ -40,7 +41,8 @@ class SnowflakeToS3Operator(BaseOperator):
     :param file_format: can be either a previous file format created in Snowflake
         or hardcoded one like ``type = csv field_delimiter = ',' skip_header = 1``
     :type file_format: str
-    :param query_or_table: query or full table to unload. If table, it must include the schema like ``schema.table``
+    :param query_or_table: query or full table to unload. If table, it must include the schema like
+        ``schema.table`
     :type query_or_table: str
     :param snowflake_conn_id: reference to a specific snowflake database
     :type snowflake_conn_id: str`
