@@ -1315,6 +1315,12 @@ These integrations allow you to perform various operations within various servic
      - :mod:`airflow.providers.jenkins.operators.jenkins_job_trigger`
      -
 
+   * - `MySql <https://www.mysql.com/>`__
+     - :doc:`How to use <howto/operator/mysql>`
+     - :mod:`airflow.providers.snowflake.hooks.mysql`
+     - :mod:`airflow.providers.snowflake.operators.mysql`
+     -
+
    * - `Opsgenie <https://www.opsgenie.com/>`__
      -
      - :mod:`airflow.providers.opsgenie.hooks.opsgenie_alert`
