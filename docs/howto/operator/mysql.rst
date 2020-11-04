@@ -56,7 +56,7 @@ An example usage of the MySqlOperator is as follows:
     :start-after: [START howto_operator_mysql]
     :end-before: [END howto_operator_mysql]
 
-You can also use an external file to execute the Sql commands. Script folder must be at the same level as DAG .py file.
+You can also use an external file to execute the SQL commands. Script folder must be at the same level as DAG.py file.
 
 .. exampleinclude:: /../airflow/providers/mysql/example_dags/example_mysql.py
     :language: python
