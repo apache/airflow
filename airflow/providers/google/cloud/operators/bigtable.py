@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Cloud Bigtable operators.
-"""
+"""This module contains Google Cloud Bigtable operators."""
 import enum
 from typing import Dict, Iterable, List, Optional, Sequence, Union
 
@@ -32,16 +30,14 @@ from airflow.utils.decorators import apply_defaults
 
 
 class BigtableValidationMixin:
-    """
-    Common class for Cloud Bigtable operators for validating required fields.
-    """
+    """Common class for Cloud Bigtable operators for validating required fields."""
 
     REQUIRED_ATTRIBUTES = []  # type: Iterable[str]
 
     def _validate_inputs(self):
         for attr_name in self.REQUIRED_ATTRIBUTES:
             if not getattr(self, attr_name):
-                raise AirflowException('Empty parameter: {}'.format(attr_name))
+                raise AirflowException(f'Empty parameter: {attr_name}')
 
 
 class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
@@ -466,7 +462,7 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
         except google.api_core.exceptions.AlreadyExists:
             if not self._compare_column_families(hook, instance):
                 raise AirflowException(
-                    "Table '{}' already exists with different Column Families.".format(self.table_id)
+                    f"Table '{self.table_id}' already exists with different Column Families."
                 )
             self.log.info("The table '%s' already exists. Consider it as created", self.table_id)
 
@@ -540,7 +536,7 @@ class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
         )
         instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
         if not instance:
-            raise AirflowException("Dependency: instance '{}' does not exist.".format(self.instance_id))
+            raise AirflowException(f"Dependency: instance '{self.instance_id}' does not exist.")
 
         try:
             hook.delete_table(
@@ -626,7 +622,7 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
         )
         instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
         if not instance:
-            raise AirflowException("Dependency: instance '{}' does not exist.".format(self.instance_id))
+            raise AirflowException(f"Dependency: instance '{self.instance_id}' does not exist.")
 
         try:
             hook.update_cluster(instance=instance, cluster_id=self.cluster_id, nodes=self.nodes)

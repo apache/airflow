@@ -34,12 +34,6 @@ function initialization::create_directories() {
     export FILES_DIR="${AIRFLOW_SOURCES}/files"
     readonly FILES_DIR
 
-    # Create an empty .pypirc file that you can customise. It is .gitignored so it will never
-    # land in the repository - it is only added to the "build image" of production image
-    # So you can keep your credentials safe as long as you do not push the build image.
-    # The final image does not contain it.
-    touch "${AIRFLOW_SOURCES}/.pypirc"
-
     # Directory where all the build cache is stored - we keep there status of all the docker images
     # As well as hashes of the important files, but also we generate build scripts there that are
     # Used to execute the commands for breeze
@@ -78,6 +72,8 @@ function initialization::initialize_base_variables() {
     export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="28080"}
     export POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:="25433"}
     export MYSQL_HOST_PORT=${MYSQL_HOST_PORT:="23306"}
+    export FLOWER_HOST_PORT=${FLOWER_HOST_PORT:="25555"}
+    export REDIS_HOST_PORT=${REDIS_HOST_PORT:="26379"}
 
     # The SQLite URL used for sqlite runs
     export SQLITE_URL="sqlite:////root/airflow/airflow.db"
@@ -98,7 +94,7 @@ function initialization::initialize_base_variables() {
     export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported versions of Postgres
-    CURRENT_POSTGRES_VERSIONS+=("9.6" "10")
+    CURRENT_POSTGRES_VERSIONS+=("9.6" "13")
     export CURRENT_POSTGRES_VERSIONS
 
     # Currently supported versions of MySQL
@@ -123,6 +119,10 @@ function initialization::initialize_base_variables() {
     # If set to true, the test connections will be created
     export LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS:="false"}
 
+    # If set to true, Breeze db volumes will be persisted when breeze is stopped and reused next time
+    # Which means that you do not have to start from scratch
+    export PRESERVE_VOLUMES="false"
+
     # If set to true, RBAC UI will not be used for 1.10 version
     export DISABLE_RBAC=${DISABLE_RBAC:="false"}
 
@@ -130,7 +130,7 @@ function initialization::initialize_base_variables() {
     # during entering the container
     export INSTALL_WHEELS=${INSTALL_WHEELS:="false"}
 
-    # If set the specified file will be used to initialized Airflow after the environment is created,
+    # If set the specified file will be used to initialize Airflow after the environment is created,
     # otherwise it will use files/airflow-breeze-config/init.sh
     export INIT_SCRIPT_FILE=${INIT_SCRIPT_FILE:=""}
 
@@ -144,6 +144,9 @@ function initialization::initialize_base_variables() {
     # If no Airflow Home defined - fallback to ${HOME}/airflow
     AIRFLOW_HOME_DIR=${AIRFLOW_HOME:=${HOME}/airflow}
     export AIRFLOW_HOME_DIR
+
+    INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES:="true"}
+    export INSTALL_PROVIDERS_FROM_SOURCES
 }
 
 # Determine current branch
@@ -358,6 +361,10 @@ function initialization::initialize_image_build_variables() {
     # additional tag for the image
     export IMAGE_TAG=${IMAGE_TAG:=""}
 
+    # whether installation of Airflow should be done via PIP. You can set it to false if you have
+    # all the binary packages (including airflow) in the docker-context-files folder and use
+    # AIRFLOW_LOCAL_PIP_WHEELS="true" to install it from there.
+    export INSTALL_AIRFLOW_VIA_PIP="${INSTALL_AIRFLOW_VIA_PIP:="true"}"
     # whether installation should be performed from the local wheel packages in "docker-context-files" folder
     export AIRFLOW_LOCAL_PIP_WHEELS="${AIRFLOW_LOCAL_PIP_WHEELS:="false"}"
     # reference to CONSTRAINTS. they can be overwritten manually or replaced with AIRFLOW_CONSTRAINTS_LOCATION
@@ -368,11 +375,14 @@ function initialization::initialize_image_build_variables() {
 }
 
 # Determine version suffixes used to build provider packages
-function initialization::initialize_version_suffixes_for_package_building() {
+function initialization::initialize_provider_package_building() {
     # Version suffix for PyPI packaging
     export VERSION_SUFFIX_FOR_PYPI=""
     # Artifact name suffix for SVN packaging
     export VERSION_SUFFIX_FOR_SVN=""
+    # If set to true, the backport provider packages will be built (false will build regular provider packages)
+    export BACKPORT_PACKAGES=${BACKPORT_PACKAGES:="false"}
+
 }
 
 # Determine versions of kubernetes cluster and tools used
@@ -445,7 +455,7 @@ function initialization::initialize_github_variables() {
 }
 
 function initialization::initialize_test_variables() {
-    export TEST_TYPE=${TEST_TYPE:="All"}
+    export TEST_TYPE=${TEST_TYPE:=""}
 }
 
 # Common environment that is initialized by both Breeze and CI scripts
@@ -460,7 +470,7 @@ function initialization::initialize_common_environment() {
     initialization::initialize_force_variables
     initialization::initialize_host_variables
     initialization::initialize_image_build_variables
-    initialization::initialize_version_suffixes_for_package_building
+    initialization::initialize_provider_package_building
     initialization::initialize_kubernetes_variables
     initialization::initialize_git_variables
     initialization::initialize_github_variables
@@ -548,7 +558,7 @@ Detected GitHub environment:
     GITHUB_REGISTRY_WAIT_FOR_IMAGE=${GITHUB_REGISTRY_WAIT_FOR_IMAGE}
     GITHUB_REGISTRY_PULL_IMAGE_TAG=${GITHUB_REGISTRY_PULL_IMAGE_TAG}
     GITHUB_REGISTRY_PUSH_IMAGE_TAG=${GITHUB_REGISTRY_PUSH_IMAGE_TAG}
-    GITHUB_ACTIONS=${GITHUB_ACTIONS}
+    GITHUB_ACTIONS=${GITHUB_ACTIONS=}
 
 Detected CI build environment:
 
@@ -686,6 +696,7 @@ function initialization::make_constants_read_only() {
     readonly IMAGE_TAG
 
     readonly AIRFLOW_PRE_CACHED_PIP_PACKAGES
+    readonly INSTALL_AIRFLOW_VIA_PIP
     readonly AIRFLOW_LOCAL_PIP_WHEELS
     readonly AIRFLOW_CONSTRAINTS_REFERENCE
     readonly AIRFLOW_CONSTRAINTS_LOCATION
@@ -763,4 +774,8 @@ function initialization::parameters_to_json() {
 function initialization::ga_output() {
     echo "::set-output name=${1}::${2}"
     echo "${1}=${2}"
+}
+
+function initialization::ga_env() {
+    echo "${1}=${2}" >> "${GITHUB_ENV}"
 }

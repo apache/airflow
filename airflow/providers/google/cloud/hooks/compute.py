@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Compute Engine Hook.
-"""
+"""This module contains a Google Compute Engine Hook."""
 
 import time
 from typing import Any, Optional, Sequence, Union
@@ -32,9 +30,7 @@ TIME_TO_SLEEP_IN_SECONDS = 1
 
 
 class GceOperationStatus:
-    """
-    Class with GCE operations statuses.
-    """
+    """Class with GCE operations statuses."""
 
     PENDING = "PENDING"
     RUNNING = "RUNNING"
@@ -359,7 +355,7 @@ class ComputeEngineHook(GoogleBaseHook):
                     msg = operation_response.get("httpErrorMessage")
                     # Extracting the errors list as string and trimming square braces
                     error_msg = str(error.get("errors"))[1:-1]
-                    raise AirflowException("{} {}: ".format(code, msg) + error_msg)
+                    raise AirflowException(f"{code} {msg}: " + error_msg)
                 break
             time.sleep(TIME_TO_SLEEP_IN_SECONDS)
 

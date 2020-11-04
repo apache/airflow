@@ -22,6 +22,7 @@ from airflow import DAG
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import Log, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.www import app
@@ -37,7 +38,10 @@ class TestEventLogEndpoint(unittest.TestCase):
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
         create_user(
-            cls.app, username="test", role_name="Test", permissions=[("can_read", "Log")]  # type: ignore
+            cls.app,  # type:ignore
+            username="test",
+            role_name="Test",
+            permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG)],  # type: ignore
         )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
@@ -72,7 +76,7 @@ class TestEventLogEndpoint(unittest.TestCase):
 
 class TestGetEventLog(TestEventLogEndpoint):
     @provide_session
-    def test_should_response_200(self, session):
+    def test_should_respond_200(self, session):
         log_model = Log(
             event='TEST_EVENT',
             task_instance=self._create_task_instance(),
@@ -99,7 +103,7 @@ class TestGetEventLog(TestEventLogEndpoint):
             },
         )
 
-    def test_should_response_404(self):
+    def test_should_respond_404(self):
         response = self.client.get("/api/v1/eventLogs/1", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
         self.assertEqual(
@@ -131,7 +135,7 @@ class TestGetEventLog(TestEventLogEndpoint):
 
 class TestGetEventLogs(TestEventLogEndpoint):
     @provide_session
-    def test_should_response_200(self, session):
+    def test_should_respond_200(self, session):
         log_model_1 = Log(
             event='TEST_EVENT_1',
             task_instance=self._create_task_instance(),

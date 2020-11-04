@@ -16,36 +16,38 @@
 # under the License.
 from typing import Any, List, Optional, Tuple
 
-from flask import request, current_app
+from flask import current_app, request
 from marshmallow import ValidationError
 from sqlalchemy import and_, func
 
 from airflow.api.common.experimental.mark_tasks import set_state
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import NotFound, BadRequest
+from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import format_datetime, format_parameters
 from airflow.api_connexion.schemas.task_instance_schema import (
-    clear_task_instance_form,
     TaskInstanceCollection,
-    task_instance_collection_schema,
-    task_instance_schema,
-    task_instance_batch_form,
-    task_instance_reference_collection_schema,
     TaskInstanceReferenceCollection,
+    clear_task_instance_form,
     set_task_instance_state_form,
+    task_instance_batch_form,
+    task_instance_collection_schema,
+    task_instance_reference_collection_schema,
+    task_instance_schema,
 )
-from airflow.models.dagrun import DagRun as DR
-from airflow.models.taskinstance import clear_task_instances, TaskInstance as TI
+from airflow.exceptions import SerializedDagNotFound
 from airflow.models import SlaMiss
-from airflow.utils.state import State
+from airflow.models.dagrun import DagRun as DR
+from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
+from airflow.security import permissions
 from airflow.utils.session import provide_session
+from airflow.utils.state import State
 
 
 @security.requires_access(
     [
-        ("can_read", "Dag"),
-        ("can_read", "DagRun"),
-        ("can_read", "Task"),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
     ]
 )
 @provide_session
@@ -101,9 +103,9 @@ def _apply_range_filter(query, key, value_range: Tuple[Any, Any]):
 )
 @security.requires_access(
     [
-        ("can_read", "Dag"),
-        ("can_read", "DagRun"),
-        ("can_read", "Task"),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
     ]
 )
 @provide_session
@@ -125,9 +127,7 @@ def get_task_instances(
     offset: Optional[int] = None,
     session=None,
 ):  # pylint: disable=too-many-arguments
-    """
-    Get list of task instances.
-    """
+    """Get list of task instances."""
     base_query = session.query(TI)
 
     if dag_id != "~":
@@ -169,12 +169,16 @@ def get_task_instances(
     )
 
 
-@security.requires_access([("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "Task")])
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+    ]
+)
 @provide_session
 def get_task_instances_batch(session=None):
-    """
-    Get list of task instances.
-    """
+    """Get list of task instances."""
     body = request.get_json()
     try:
         data = task_instance_batch_form.load(body)
@@ -223,12 +227,16 @@ def get_task_instances_batch(session=None):
     )
 
 
-@security.requires_access([("can_read", "Dag"), ("can_read", "DagRun"), ("can_edit", "Task")])
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
+    ]
+)
 @provide_session
 def post_clear_task_instances(dag_id: str, session=None):
-    """
-    Clear task instances.
-    """
+    """Clear task instances."""
     body = request.get_json()
     try:
         data = clear_task_instance_form.load(body)
@@ -237,7 +245,7 @@ def post_clear_task_instances(dag_id: str, session=None):
 
     dag = current_app.dag_bag.get_dag(dag_id)
     if not dag:
-        error_message = "Dag id {} not found".format(dag_id)
+        error_message = f"Dag id {dag_id} not found"
         raise NotFound(error_message)
     reset_dag_runs = data.pop('reset_dag_runs')
     task_instances = dag.clear(get_tis=True, **data)
@@ -263,7 +271,13 @@ def post_clear_task_instances(dag_id: str, session=None):
     )
 
 
-@security.requires_access([("can_read", "Dag"), ("can_read", "DagRun"), ("can_edit", "Task")])
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
+    ]
+)
 @provide_session
 def post_set_task_instances_state(dag_id, session):
     """Set a state of task instances."""
@@ -273,16 +287,20 @@ def post_set_task_instances_state(dag_id, session):
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
 
-    dag = current_app.dag_bag.get_dag(dag_id)
-    if not dag:
-        error_message = "Dag ID {} not found".format(dag_id)
+    error_message = f"Dag ID {dag_id} not found"
+    try:
+        dag = current_app.dag_bag.get_dag(dag_id)
+        if not dag:
+            raise NotFound(error_message)
+    except SerializedDagNotFound:
+        # If DAG is not found in serialized_dag table
         raise NotFound(error_message)
 
     task_id = data['task_id']
     task = dag.task_dict.get(task_id)
 
     if not task:
-        error_message = "Task ID {} not found".format(task_id)
+        error_message = f"Task ID {task_id} not found"
         raise NotFound(error_message)
 
     tis = set_state(

@@ -60,6 +60,43 @@ during deserialization
 """
 
 
+class AirflowPluginSource:
+    """Class used to define an AirflowPluginSource."""
+
+    def __str__(self):
+        raise NotImplementedError
+
+    def __html__(self):
+        raise NotImplementedError
+
+
+class PluginsDirectorySource(AirflowPluginSource):
+    """Class used to define Plugins loaded from Plugins Directory."""
+
+    def __init__(self, path):
+        self.path = os.path.relpath(path, settings.PLUGINS_FOLDER)
+
+    def __str__(self):
+        return f"$PLUGINS_FOLDER/{self.path}"
+
+    def __html__(self):
+        return f"<em>$PLUGINS_FOLDER/</em>{self.path}"
+
+
+class EntryPointSource(AirflowPluginSource):
+    """Class used to define Plugins loaded from entrypoint."""
+
+    def __init__(self, entrypoint):
+        self.dist = str(entrypoint.dist)
+        self.entrypoint = str(entrypoint)
+
+    def __str__(self):
+        return f"{self.dist}: {self.entrypoint}"
+
+    def __html__(self):
+        return f"<em>{self.dist}:</em> {self.entrypoint}"
+
+
 class AirflowPluginException(Exception):
     """Exception when loading plugin."""
 
@@ -68,6 +105,7 @@ class AirflowPlugin:
     """Class used to define AirflowPlugin."""
 
     name: Optional[str] = None
+    source: Optional[AirflowPluginSource] = None
     operators: List[Any] = []
     sensors: List[Any] = []
     hooks: List[Any] = []
@@ -122,9 +160,9 @@ def is_valid_plugin(plugin_obj):
     global plugins  # pylint: disable=global-statement
 
     if (
-        inspect.isclass(plugin_obj) and
-        issubclass(plugin_obj, AirflowPlugin) and
-        (plugin_obj is not AirflowPlugin)
+        inspect.isclass(plugin_obj)
+        and issubclass(plugin_obj, AirflowPlugin)
+        and (plugin_obj is not AirflowPlugin)
     ):
         plugin_obj.validate()
         return plugin_obj not in plugins
@@ -151,6 +189,7 @@ def load_entrypoint_plugins():
                 plugin_instance = plugin_class()
                 if callable(getattr(plugin_instance, 'on_load', None)):
                     plugin_instance.on_load()
+                    plugin_instance.source = EntryPointSource(entry_point)
                     plugins.append(plugin_instance)
         except Exception as e:  # pylint: disable=broad-except
             log.exception("Failed to import plugin %s", entry_point.name)
@@ -158,15 +197,12 @@ def load_entrypoint_plugins():
 
 
 def load_plugins_from_plugin_directory():
-    """
-    Load and register Airflow Plugins from plugins directory
-    """
+    """Load and register Airflow Plugins from plugins directory"""
     global import_errors  # pylint: disable=global-statement
     global plugins  # pylint: disable=global-statement
     log.debug("Loading plugins from directory: %s", settings.PLUGINS_FOLDER)
 
-    for file_path in find_path_from_directory(
-            settings.PLUGINS_FOLDER, ".airflowignore"):
+    for file_path in find_path_from_directory(settings.PLUGINS_FOLDER, ".airflowignore"):
 
         if not os.path.isfile(file_path):
             continue
@@ -184,6 +220,7 @@ def load_plugins_from_plugin_directory():
 
             for mod_attr_value in (m for m in mod.__dict__.values() if is_valid_plugin(m)):
                 plugin_instance = mod_attr_value()
+                plugin_instance.source = PluginsDirectorySource(file_path)
                 plugins.append(plugin_instance)
 
         except Exception as e:  # pylint: disable=broad-except
@@ -201,9 +238,11 @@ def make_module(name: str, objects: List[Any]):
     name = name.lower()
     module = types.ModuleType(name)
     module._name = name.split('.')[-1]  # type: ignore
-    module._objects = objects           # type: ignore
+    module._objects = objects  # type: ignore
     module.__dict__.update((o.__name__, o) for o in objects)
     return module
+
+
 # pylint: enable=protected-access
 
 
@@ -234,19 +273,16 @@ def initialize_web_ui_plugins():
     """Collect extension points for WEB UI"""
     # pylint: disable=global-statement
     global plugins
-
-    global admin_views
     global flask_blueprints
-    global menu_links
     global flask_appbuilder_views
     global flask_appbuilder_menu_links
     # pylint: enable=global-statement
 
-    if admin_views is not None and \
-            flask_blueprints is not None and \
-            menu_links is not None and \
-            flask_appbuilder_views is not None and \
-            flask_appbuilder_menu_links is not None:
+    if (
+        flask_blueprints is not None
+        and flask_appbuilder_views is not None
+        and flask_appbuilder_menu_links is not None
+    ):
         return
 
     ensure_plugins_loaded()
@@ -256,27 +292,22 @@ def initialize_web_ui_plugins():
 
     log.debug("Initialize Web UI plugin")
 
-    admin_views = []
     flask_blueprints = []
-    menu_links = []
     flask_appbuilder_views = []
     flask_appbuilder_menu_links = []
 
     for plugin in plugins:
-        admin_views.extend(plugin.admin_views)
-        menu_links.extend(plugin.menu_links)
         flask_appbuilder_views.extend(plugin.appbuilder_views)
         flask_appbuilder_menu_links.extend(plugin.appbuilder_menu_items)
-        flask_blueprints.extend([{
-            'name': plugin.name,
-            'blueprint': bp
-        } for bp in plugin.flask_blueprints])
+        flask_blueprints.extend([{'name': plugin.name, 'blueprint': bp} for bp in plugin.flask_blueprints])
 
-        if (admin_views and not flask_appbuilder_views) or (menu_links and not flask_appbuilder_menu_links):
+        if (plugin.admin_views and not plugin.appbuilder_views) or (
+            plugin.menu_links and not plugin.appbuilder_menu_items
+        ):
             log.warning(
                 "Plugin \'%s\' may not be compatible with the current Airflow version. "
                 "Please contact the author of the plugin.",
-                plugin.name
+                plugin.name,
             )
 
 
@@ -288,9 +319,11 @@ def initialize_extra_operators_links_plugins():
     global registered_operator_link_classes
     # pylint: enable=global-statement
 
-    if global_operator_extra_links is not None and \
-            operator_extra_links is not None and \
-            registered_operator_link_classes is not None:
+    if (
+        global_operator_extra_links is not None
+        and operator_extra_links is not None
+        and registered_operator_link_classes is not None
+    ):
         return
 
     ensure_plugins_loaded()
@@ -308,11 +341,12 @@ def initialize_extra_operators_links_plugins():
         global_operator_extra_links.extend(plugin.global_operator_extra_links)
         operator_extra_links.extend(list(plugin.operator_extra_links))
 
-        registered_operator_link_classes.update({
-            "{}.{}".format(link.__class__.__module__,
-                           link.__class__.__name__): link.__class__
-            for link in plugin.operator_extra_links
-        })
+        registered_operator_link_classes.update(
+            {
+                f"{link.__class__.__module__}.{link.__class__.__name__}": link.__class__
+                for link in plugin.operator_extra_links
+            }
+        )
 
 
 def integrate_executor_plugins() -> None:
@@ -354,10 +388,12 @@ def integrate_dag_plugins() -> None:
     global macros_modules
     # pylint: enable=global-statement
 
-    if operators_modules is not None and \
-            sensors_modules is not None and \
-            hooks_modules is not None and \
-            macros_modules is not None:
+    if (
+        operators_modules is not None
+        and sensors_modules is not None
+        and hooks_modules is not None
+        and macros_modules is not None
+    ):
         return
 
     ensure_plugins_loaded()

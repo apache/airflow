@@ -408,7 +408,7 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
 
         metastore = self.hook.metastore.__enter__()
 
-        partition = "{p_by}='{date}'".format(date=DEFAULT_DATE_DS, p_by=self.partition_by)
+        partition = f"{self.partition_by}='{DEFAULT_DATE_DS}'"
 
         metastore.get_partitions_by_filter = mock.MagicMock(return_value=[fake_partition])
 
@@ -417,7 +417,7 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         metastore.get_partitions_by_filter(self.database, self.table, partition, 1)
 
         # Check for non-existent partition.
-        missing_partition = "{p_by}='{date}'".format(date=self.next_day, p_by=self.partition_by)
+        missing_partition = f"{self.partition_by}='{self.next_day}'"
         metastore.get_partitions_by_filter = mock.MagicMock(return_value=[])
 
         self.assertFalse(self.hook.check_for_partition(self.database, self.table, missing_partition))
@@ -428,7 +428,7 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
 
         # Check for existing partition.
 
-        partition = "{p_by}={date}".format(date=DEFAULT_DATE_DS, p_by=self.partition_by)
+        partition = f"{self.partition_by}={DEFAULT_DATE_DS}"
 
         self.hook.metastore.__enter__().check_for_named_partition = mock.MagicMock(return_value=True)
 
@@ -439,7 +439,7 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         )
 
         # Check for non-existent partition
-        missing_partition = "{p_by}={date}".format(date=self.next_day, p_by=self.partition_by)
+        missing_partition = f"{self.partition_by}={self.next_day}"
 
         self.hook.metastore.__enter__().check_for_named_partition = mock.MagicMock(return_value=False)
 
@@ -574,7 +574,7 @@ class TestHiveServer2Hook(unittest.TestCase):
         LOAD DATA LOCAL INPATH '{{ params.csv_path }}'
         OVERWRITE INTO TABLE {{ params.table }};
         """
-        self.columns = ['{}.a'.format(self.table), '{}.b'.format(self.table)]
+        self.columns = [f'{self.table}.a', f'{self.table}.b']
 
         with mock.patch(
             'airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_metastore_client'
@@ -609,7 +609,7 @@ class TestHiveServer2Hook(unittest.TestCase):
 
     def test_get_records(self):
         hook = MockHiveServer2Hook()
-        query = "SELECT * FROM {}".format(self.table)
+        query = f"SELECT * FROM {self.table}"
 
         with mock.patch.dict(
             'os.environ',
@@ -636,7 +636,7 @@ class TestHiveServer2Hook(unittest.TestCase):
 
     def test_get_pandas_df(self):
         hook = MockHiveServer2Hook()
-        query = "SELECT * FROM {}".format(self.table)
+        query = f"SELECT * FROM {self.table}"
 
         with mock.patch.dict(
             'os.environ',
@@ -665,7 +665,7 @@ class TestHiveServer2Hook(unittest.TestCase):
     def test_get_results_header(self):
         hook = MockHiveServer2Hook()
 
-        query = "SELECT * FROM {}".format(self.table)
+        query = f"SELECT * FROM {self.table}"
         results = hook.get_results(query, schema=self.database)
 
         self.assertListEqual([col[0] for col in results['header']], self.columns)
@@ -673,7 +673,7 @@ class TestHiveServer2Hook(unittest.TestCase):
     def test_get_results_data(self):
         hook = MockHiveServer2Hook()
 
-        query = "SELECT * FROM {}".format(self.table)
+        query = f"SELECT * FROM {self.table}"
         results = hook.get_results(query, schema=self.database)
 
         self.assertListEqual(results['data'], [(1, 1), (2, 2)])
@@ -692,7 +692,7 @@ class TestHiveServer2Hook(unittest.TestCase):
                 ]
             )
         )
-        query = "SELECT * FROM {}".format(self.table)
+        query = f"SELECT * FROM {self.table}"
         csv_filepath = 'query_results.csv'
         hook.to_csv(
             query,
@@ -711,7 +711,7 @@ class TestHiveServer2Hook(unittest.TestCase):
     def test_multi_statements(self):
         sqls = [
             "CREATE TABLE IF NOT EXISTS test_multi_statements (i INT)",
-            "SELECT * FROM {}".format(self.table),
+            f"SELECT * FROM {self.table}",
             "DROP TABLE test_multi_statements",
         ]
 
@@ -737,7 +737,7 @@ class TestHiveServer2Hook(unittest.TestCase):
 
         hook.get_conn.assert_called_with(self.database)
         hook.mock_cursor.execute.assert_any_call('CREATE TABLE IF NOT EXISTS test_multi_statements (i INT)')
-        hook.mock_cursor.execute.assert_any_call('SELECT * FROM {}'.format(self.table))
+        hook.mock_cursor.execute.assert_any_call(f'SELECT * FROM {self.table}')
         hook.mock_cursor.execute.assert_any_call('DROP TABLE test_multi_statements')
         hook.mock_cursor.execute.assert_any_call('set airflow.ctx.dag_id=test_dag_id')
         hook.mock_cursor.execute.assert_any_call('set airflow.ctx.task_id=HiveHook_3835')

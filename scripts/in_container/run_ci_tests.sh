@@ -98,7 +98,12 @@ if [[ ${TEST_TYPE:=} == "Quarantined" ]]; then
 fi
 
 if [[ ${CI:=} == "true" ]]; then
-    dump_airflow_logs
+    if [[ ${RES} != "0" ]]; then
+        echo
+        echo "Dumping logs on error"
+        echo
+        dump_airflow_logs
+    fi
 fi
 
 exit "${RES}"

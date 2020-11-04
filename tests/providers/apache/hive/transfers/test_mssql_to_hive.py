@@ -114,7 +114,7 @@ class TestMsSqlToHiveTransfer(unittest.TestCase):
         col_count = 0
         for field in mock_mssql_hook_cursor.return_value.description:
             col_count += 1
-            col_position = "Column{position}".format(position=col_count)
+            col_position = f"Column{col_count}"
             field_dict[col_position] = mssql_to_hive_transfer.type_map(field[1])
         mock_hive_hook.return_value.load_file.assert_called_once_with(
             mock_tmp_file.name,

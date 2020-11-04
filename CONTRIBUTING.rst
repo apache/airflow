@@ -252,7 +252,7 @@ Step 4: Prepare PR
 
    * Read about `email configuration in Airflow <https://airflow.readthedocs.io/en/latest/howto/email-config.html>`__.
 
-   * Find the class you should modify. For the example github issue,
+   * Find the class you should modify. For the example GitHub issue,
      this is `email.py <https://github.com/apache/airflow/blob/master/airflow/utils/email.py>`__.
 
    * Find the test class where you should add tests. For the example ticket,
@@ -291,10 +291,38 @@ Step 4: Prepare PR
 
 3. Re-run static code checks again.
 
-4. Create a pull request with the following title for the sample ticket:
-   ``[AIRFLOW-5934] Added extra CC: field to the Airflow emails.``
+4. Make sure your commit has a good title and description of the context of your change, enough
+   for the committer reviewing it to understand why you are proposing a change. Make sure to follow other
+   PR guidelines described in `pull request guidelines <#pull-request-guidelines>`_.
+   Create Pull Request! Make yourself ready for the discussion!
 
-Make sure to follow other PR guidelines described in `this document <#pull-request-guidelines>`_.
+5. Depending on "scope" of your changes, your Pull Request might go through one of few paths after approval.
+   We run some non-standard workflow with high degree of automation that allows us to optimize the usage
+   of queue slots in Github Actions. Our automated workflows determine the "scope" of changes in your PR
+   and send it through the right path:
+
+   * In case of a "no-code" change, approval will generate a comment that the PR can be merged and no
+     tests are needed. This is usually when the change modifies some non-documentation related rst
+     files (such as this file). No python tests are run and no CI images are built for such PR. Usually
+     it can be approved and merged few minutes after it is submitted (unless there is a big queue of jobs).
+
+   * In case of change involving python code changes or documentation changes, a subset of full test matrix
+     will be executed. This subset of tests perform relevant tests for single combination of python, backend
+     version and only builds one CI image and one PROD image. Here the scope of tests depends on the
+     scope of your changes:
+
+     * when your change does not change "core" of Airflow (Providers, CLI, WWW, Helm Chart) you will get the
+       comment that PR is likely ok to be merged without running "full matrix" of tests. However decision
+       for that is left to committer who approves your change. The committer might set a "full tests needed"
+       label for your PR and ask you to rebase your request or re-run all jobs. PRs with "full tests needed"
+       run full matrix of tests.
+
+     * when your change changes the "core" of Airflow you will get the comment that PR needs full tests and
+       the "full tests needed" label is set for your PR. Additional check is set that prevents from
+       accidental merging of the request until full matrix of tests succeeds for the PR.
+
+   More details about the PR workflow be found in `PULL_REQUEST_WORKFLOW.rst <PULL_REQUEST_WORKFLOW.rst>`_.
+
 
 Step 5: Pass PR Review
 ----------------------
@@ -370,6 +398,13 @@ usually these are developers with the release manager permissions.
 
 Once the branch is stable, the ``v1-10-stable`` branch is synchronized with ``v1-10-test``.
 The ``v1-10-stable`` branch is used to release ``1.10.x`` releases.
+
+The general approach is that cherry-picking a commit that has already had a PR and unit tests run
+against main is done to ``v1-10-test`` branch, but PRs from contributors towards 1.10 should target
+``v1-10-stable`` branch.
+
+The ``v1-10-test`` branch and ``v1-10-stable`` ones are merged just before the release and that's the
+time when they converge.
 
 Development Environments
 ========================
@@ -488,6 +523,10 @@ Limitations:
 They are optimized for repeatability of tests, maintainability and speed of building rather
 than production performance. The production images are not yet officially published.
 
+
+Airflow dependencies
+====================
+
 Extras
 ------
 
@@ -502,20 +541,105 @@ This is the full list of those extras:
   .. START EXTRAS HERE
 
 all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.druid, apache.hdfs,
-apache.hive, apache.kylin, apache.pinot, apache.webhdfs, async, atlas, aws, azure, cassandra,
-celery, cgroups, cloudant, cncf.kubernetes, dask, databricks, datadog, devel, devel_hadoop, doc,
-docker, druid, elasticsearch, exasol, facebook, gcp, gcp_api, github_enterprise, google,
-google_auth, grpc, hashicorp, hdfs, hive, jdbc, jira, kerberos, kubernetes, ldap, microsoft.azure,
-microsoft.mssql, microsoft.winrm, mongo, mssql, mysql, odbc, oracle, pagerduty, papermill, password,
-pinot, plexus, postgres, presto, qds, rabbitmq, redis, salesforce, samba, segment, sendgrid, sentry,
-singularity, slack, snowflake, spark, ssh, statsd, tableau, vertica, virtualenv, webhdfs, winrm,
-yandexcloud, all, devel_ci
+apache.hive, apache.kylin, apache.pinot, apache.presto, apache.spark, apache.webhdfs, async, atlas,
+aws, azure, cassandra, celery, cgroups, cloudant, cncf.kubernetes, dask, databricks, datadog, devel,
+devel_hadoop, doc, docker, druid, elasticsearch, exasol, facebook, gcp, gcp_api, github_enterprise,
+google, google_auth, grpc, hashicorp, hdfs, hive, jdbc, jira, kerberos, kubernetes, ldap,
+microsoft.azure, microsoft.mssql, microsoft.winrm, mongo, mssql, mysql, odbc, oracle, pagerduty,
+papermill, password, pinot, plexus, postgres, presto, qds, rabbitmq, redis, salesforce, samba,
+segment, sendgrid, sentry, singularity, slack, snowflake, spark, ssh, statsd, tableau, vertica,
+virtualenv, webhdfs, winrm, yandexcloud, all, devel_ci
 
   .. END EXTRAS HERE
 
+Provider packages
+-----------------
 
-Airflow dependencies
---------------------
+Airflow 2.0 is split into core and providers. They are delivered as separate packages:
+
+* ``apache-airflow`` - core of Apache Airflow
+* ``apache-airflow-providers-*`` - More than 50 provider packages to communicate with external services
+
+In Airflow 1.10 all those providers were installed together within one single package and when you installed
+airflow locally, from sources, they were also installed. In Airflow 2.0, providers are separated out,
+and not installed together with the core, unless you set ``INSTALL_PROVIDERS_FROM_SOURCES`` environment
+variable to ``true``.
+
+In Breeze - which is a development environment, ``INSTALL_PROVIDERS_FROM_SOURCES`` variable is set to true,
+but you can add ``--skip-installing-airflow-providers`` flag to Breeze to skip installing providers when
+building the images.
+
+One watch-out - providers are still always installed (or rather available) if you install airflow from
+sources using ``-e`` (or ``--editable``) flag. In such case airflow is read directly from the sources
+without copying airflow packages to the usual installation location, and since 'providers' folder is
+in this airflow folder - the providers package is importable.
+
+Some of the packages have cross-dependencies with other providers packages. This typically happens for
+transfer operators where operators use hooks from the other providers in case they are transferring
+data between the providers. The list of dependencies is maintained (automatically with pre-commits)
+in the ``airflow/providers/dependencies.json``. Pre-commits are also used to generate dependencies.
+The dependency list is automatically used during pypi packages generation.
+
+Cross-dependencies between provider packages are converted into extras - if you need functionality from
+the other provider package you can install it adding [extra] after the
+``apache-airflow-backport-providers-PROVIDER`` for example:
+``pip install apache-airflow-backport-providers-google[amazon]`` in case you want to use GCP
+transfer operators from Amazon ECS.
+
+If you add a new dependency between different providers packages, it will be detected automatically during
+pre-commit phase and pre-commit will fail - and add entry in dependencies.json so that the package extra
+dependencies are properly added when package is installed.
+
+You can regenerate the whole list of provider dependencies by running this command (you need to have
+``pre-commits`` installed).
+
+.. code-block:: bash
+
+  pre-commit run build-providers-dependencies
+
+
+Here is the list of packages and their extras:
+
+
+  .. START PACKAGE DEPENDENCIES HERE
+
+========================== ===========================
+Package                    Extras
+========================== ===========================
+amazon                     apache.hive,google,imap,mongo,mysql,postgres,ssh
+apache.druid               apache.hive
+apache.hive                amazon,microsoft.mssql,mysql,presto,samba,vertica
+apache.livy                http
+dingding                   http
+discord                    http
+google                     amazon,apache.cassandra,cncf.kubernetes,facebook,microsoft.azure,microsoft.mssql,mysql,postgres,presto,salesforce,sftp
+hashicorp                  google
+microsoft.azure            google,oracle
+microsoft.mssql            odbc
+mysql                      amazon,presto,vertica
+opsgenie                   http
+postgres                   amazon
+sftp                       ssh
+slack                      http
+snowflake                  slack
+========================== ===========================
+
+  .. END PACKAGE DEPENDENCIES HERE
+
+Backport providers
+------------------
+
+You can also build backport provider packages for Airflow 1.10. They aim to provide a bridge when users
+of Airflow 1.10 want to migrate to Airflow 2.0. The backport packages are named similarly to the
+provider packages, but with "backport" added:
+
+* ``apache-airflow-backport-provider-*``
+
+Those backport providers are automatically refactored to work with Airflow 1.10.* and have a few
+limitations described in those packages.
+
+Dependency management
+=====================
 
 Airflow is not a standard python project. Most of the python projects fall into one of two types -
 application or library. As described in
@@ -534,7 +658,7 @@ This - seemingly unsolvable - puzzle is solved by having pinned constraints file
 as of airflow 1.10.10 and further improved with 1.10.12 (moved to separate orphan branches)
 
 Pinned constraint files
------------------------
+=======================
 
 By default when you install ``apache-airflow`` package - the dependencies are as open as possible while
 still allowing the apache-airflow package to install. This means that ``apache-airflow`` package might fail to
@@ -570,7 +694,7 @@ This works also with extras - for example:
     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
 
 
-As of apache-airflow 1.10.12 it is also possible to use constraints directly from github using specific
+As of apache-airflow 1.10.12 it is also possible to use constraints directly from GitHub using specific
 tag/hash name. We tag commits working for particular release with constraints-<version> tag. So for example
 fixed valid constraints 1.10.12 can be used by using ``constraints-1.10.12`` tag:
 
@@ -585,70 +709,6 @@ use the right file for the right python version.
 The ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` will be automatically regenerated by CI cron job
 every time after the ``setup.py`` is updated and pushed if the tests are successful. There are separate
 jobs for each python version.
-
-Backport providers packages
----------------------------
-
-**NOTE:** In case of problems with installation / development of provider packages
-check `troubleshooting installing provider packages <https://github
-.com/apache/airflow#troubleshooting-installing-backport-packages>`_.
-
-Since we are developing new operators in the master branch, we prepared provider packages ready to be
-installed for Airflow 1.10.* series. Those backport operators (the tested ones) are going to be released
-in PyPi and we are going to maintain the list at
-`Backported providers package page <https://cwiki.apache.org/confluence/display/AIRFLOW/Backported+providers+packages+for+Airflow+1.10.*+series>`_
-
-Some of the packages have cross-dependencies with other providers packages. This typically happens for
-transfer operators where operators use hooks from the other providers in case they are transferring
-data between the providers. The list of dependencies is maintained (automatically with pre-commits)
-in the ``airflow/providers/dependencies.json``. Pre-commits are also used to generate dependencies.
-The dependency list is automatically used during pypi packages generation.
-
-Cross-dependencies between provider packages are converted into extras - if you need functionality from
-the other provider package you can install it adding [extra] after the
-apache-airflow-backport-providers-PROVIDER for example ``pip install
-apache-airflow-backport-providers-google[amazon]`` in case you want to use GCP
-transfer operators from Amazon ECS.
-
-If you add a new dependency between different providers packages, it will be detected automatically during
-pre-commit phase and pre-commit will fail - and add entry in dependencies.json so that the package extra
-dependencies are properly added when package is installed.
-
-You can regenerate the whole list of provider dependencies by running this command (you need to have
-``pre-commits`` installed).
-
-.. code-block:: bash
-
-  pre-commit run build-providers-dependencies
-
-
-Here is the list of packages and their extras:
-
-
-  .. START PACKAGE DEPENDENCIES HERE
-
-========================== ===========================
-Package                    Extras
-========================== ===========================
-amazon                     apache.hive,google,imap,mongo,mysql,postgres,ssh
-apache.druid               apache.hive
-apache.hive                amazon,microsoft.mssql,mysql,presto,samba,vertica
-apache.livy                http
-dingding                   http
-discord                    http
-google                     amazon,apache.cassandra,cncf.kubernetes,facebook,microsoft.azure,microsoft.mssql,mysql,postgres,presto,sftp
-hashicorp                  google
-microsoft.azure            google,oracle
-microsoft.mssql            odbc
-mysql                      amazon,presto,vertica
-opsgenie                   http
-postgres                   amazon
-sftp                       ssh
-slack                      http
-snowflake                  slack
-========================== ===========================
-
-  .. END PACKAGE DEPENDENCIES HERE
 
 Documentation
 =============
@@ -1167,7 +1227,7 @@ This means that committers should:
 
 * Review PRs in a timely and reliable fashion
 * They should also help to actively whittle down the PR backlog
-* Answer questions (i.e. on the dev list, in PRs, in Github Issues, slack, etc...)
+* Answer questions (i.e. on the dev list, in PRs, in GitHub Issues, slack, etc...)
 * Take on core changes/bugs/feature requests
 * Some changes are important enough that a committer needs to ensure it gets done. This is especially
   the case if no one from the community is taking it on.

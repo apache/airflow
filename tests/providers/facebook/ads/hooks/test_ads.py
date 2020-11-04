@@ -15,7 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import mock
+from unittest import mock
+
 import pytest
 
 from airflow.providers.facebook.ads.hooks.ads import FacebookAdsReportingHook

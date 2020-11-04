@@ -125,24 +125,6 @@ if [[ ${ENVIRONMENT_EXIT_CODE} != 0 ]]; then
     exit ${ENVIRONMENT_EXIT_CODE}
 fi
 
-
-if [[ ${INTEGRATION_KERBEROS:="false"} == "true" ]]; then
-    set +e
-    setup_kerberos
-    RES=$?
-    set -e
-
-    if [[ ${RES} != 0 ]]; then
-        echo
-        echo "ERROR !!!!Kerberos initialisation requested, but failed"
-        echo
-        echo "I will exit now, and you need to run 'breeze --integration kerberos restart'"
-        echo "to re-enter breeze and restart kerberos."
-        echo
-        exit 1
-    fi
-fi
-
 # Create symbolic link to fix possible issues with kubectl config cmd-path
 mkdir -p /usr/lib/google-cloud-sdk/bin
 touch /usr/lib/google-cloud-sdk/bin/gcloud
@@ -207,14 +189,19 @@ if [[ "${GITHUB_ACTIONS}" == "true" ]]; then
         # Only display summary for non-expected case
         # f - failed
         # E - error
-        # X - xpessed (passed even if expected to fail)
+        # X - xpassed (passed even if expected to fail)
         # The following cases are not displayed:
         # s - skipped
         # x - xfailed (expected to fail and failed)
         # p - passed
         # P - passed with output
         "-rfEX"
+    )
+    if [[ "${TEST_TYPE}" != "Helm" ]]; then
+        EXTRA_PYTEST_ARGS+=(
+        "--with-db-init"
         )
+    fi
 else
     EXTRA_PYTEST_ARGS=(
         "-rfEX"
@@ -249,6 +236,7 @@ else
     CLI_TESTS=("tests/cli")
     API_TESTS=("tests/api" "tests/api_connexion")
     PROVIDERS_TESTS=("tests/providers")
+    ALWAYS_TESTS=("tests/always")
     CORE_TESTS=(
         "tests/core"
         "tests/executors"
@@ -259,12 +247,14 @@ else
         "tests/utils"
     )
     WWW_TESTS=("tests/www")
+    HELM_CHART_TESTS=("chart/tests")
     ALL_TESTS=("tests")
     ALL_PRESELECTED_TESTS=(
         "${CLI_TESTS[@]}"
         "${API_TESTS[@]}"
         "${PROVIDERS_TESTS[@]}"
         "${CORE_TESTS[@]}"
+        "${ALWAYS_TESTS[@]}"
         "${WWW_TESTS[@]}"
     )
 
@@ -276,12 +266,17 @@ else
         SELECTED_TESTS=("${PROVIDERS_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Core" ]]; then
         SELECTED_TESTS=("${CORE_TESTS[@]}")
+    elif [[ ${TEST_TYPE:=""} == "Always" ]]; then
+        SELECTED_TESTS=("${ALWAYS_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "WWW" ]]; then
         SELECTED_TESTS=("${WWW_TESTS[@]}")
+    elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
+        SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Other" ]]; then
         find_all_other_tests
         SELECTED_TESTS=("${ALL_OTHER_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "All" || ${TEST_TYPE} == "Quarantined" || \
+            ${TEST_TYPE} == "Always" || \
             ${TEST_TYPE} == "Postgres" || ${TEST_TYPE} == "MySQL" || \
             ${TEST_TYPE} == "Heisentests" || ${TEST_TYPE} == "Long" || \
             ${TEST_TYPE} == "Integration" ]]; then

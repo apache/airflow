@@ -18,8 +18,6 @@
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-add_trap "in_container_fix_ownership" EXIT HUP INT TERM
-
 sudo rm -rf "${AIRFLOW_SOURCES}/docs/_build/*"
 sudo rm -rf "${AIRFLOW_SOURCES}/docs/_api/*"
 

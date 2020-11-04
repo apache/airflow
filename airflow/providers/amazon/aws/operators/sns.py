@@ -17,6 +17,7 @@
 # under the License.
 
 """Publish message to SNS queue"""
+from typing import Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sns import AwsSnsHook
@@ -47,11 +48,11 @@ class SnsPublishOperator(BaseOperator):
     def __init__(
         self,
         *,
-        target_arn,
-        message,
-        aws_conn_id='aws_default',
-        subject=None,
-        message_attributes=None,
+        target_arn: str,
+        message: str,
+        aws_conn_id: str = 'aws_default',
+        subject: Optional[str] = None,
+        message_attributes: Optional[dict] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)

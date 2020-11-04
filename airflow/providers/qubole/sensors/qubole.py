@@ -26,9 +26,7 @@ from airflow.utils.decorators import apply_defaults
 
 
 class QuboleSensor(BaseSensorOperator):
-    """
-    Base class for all Qubole Sensors
-    """
+    """Base class for all Qubole Sensors"""
 
     template_fields = ('data', 'qubole_conn_id')
 
@@ -42,7 +40,7 @@ class QuboleSensor(BaseSensorOperator):
         if 'poke_interval' in kwargs and kwargs['poke_interval'] < 5:
             raise AirflowException(
                 "Sorry, poke_interval can't be less than 5 sec for "
-                "task '{0}' in dag '{1}'.".format(kwargs['task_id'], kwargs['dag'].dag_id)
+                "task '{}' in dag '{}'.".format(kwargs['task_id'], kwargs['dag'].dag_id)
             )
 
         super().__init__(**kwargs)

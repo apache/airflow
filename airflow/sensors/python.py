@@ -50,12 +50,14 @@ class PythonSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(
-            self, *,
-            python_callable: Callable,
-            op_args: Optional[List] = None,
-            op_kwargs: Optional[Dict] = None,
-            templates_dict: Optional[Dict] = None,
-            **kwargs):
+        self,
+        *,
+        python_callable: Callable,
+        op_args: Optional[List] = None,
+        op_kwargs: Optional[Dict] = None,
+        templates_dict: Optional[Dict] = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.python_callable = python_callable
         self.op_args = op_args or []

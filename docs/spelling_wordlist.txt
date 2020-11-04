@@ -196,7 +196,6 @@ JobRunning
 JobTrigger
 Json
 Jupyter
-jupytercmd
 KYLIN
 Kalibrr
 Kamil
@@ -265,6 +264,7 @@ Parallelize
 Parameterizing
 Paramiko
 Params
+Paxos
 Pem
 Pinot
 Popen
@@ -356,6 +356,7 @@ ToC
 Tomasz
 Tooltip
 Tsai
+Tuneables
 UA
 Uellendall
 Umask
@@ -665,6 +666,7 @@ dsn
 dttm
 dtypes
 durations
+dylib
 dynamodb
 dynload
 eRevalue
@@ -677,6 +679,7 @@ emr
 enableAutoScale
 encryptor
 enqueue
+enqueued
 entrypoint
 enum
 env
@@ -782,6 +785,7 @@ hiveconfs
 hivemeta
 hiveserver
 hmsclient
+homebrew
 honoured
 hostPath
 hostname
@@ -863,6 +867,7 @@ js
 json
 jthomas
 jupyter
+jupytercmd
 kaxilnaik
 keepalive
 keepalives
@@ -994,6 +999,7 @@ os
 ot
 overridable
 oversubscription
+pagerduty
 pageviews
 paginator
 papermill
@@ -1104,8 +1110,8 @@ repos
 reqs
 resetdb
 resourceVersion
-resumable
 resultset
+resumable
 retransmits
 rfc
 ricard
@@ -1121,6 +1127,7 @@ ru
 runAsUser
 runnable
 runtime
+ryanahamilton
 ryw
 sagemaker
 saguziel
@@ -1133,6 +1140,7 @@ savedModel
 scalability
 scalable
 sched
+schedulable
 schedulername
 schemas
 sdk
@@ -1224,10 +1232,12 @@ subtask
 subtasks
 sudo
 sudoers
+summarization
 superclass
 svg
 swp
 symlink
+symlinks
 symlinking
 sync'ed
 sys
@@ -1238,6 +1248,7 @@ tablefmt
 tagKey
 tagValue
 tao
+taskflow
 taskinstance
 tblproperties
 tcp

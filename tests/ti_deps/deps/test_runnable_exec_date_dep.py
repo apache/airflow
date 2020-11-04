@@ -30,13 +30,16 @@ from airflow.utils.timezone import datetime
 
 
 @freeze_time('2016-11-01')
-@pytest.mark.parametrize("allow_trigger_in_future,schedule_interval,execution_date,is_met", [
-    (True, None, datetime(2016, 11, 3), True),
-    (True, "@daily", datetime(2016, 11, 3), False),
-    (False, None, datetime(2016, 11, 3), False),
-    (False, "@daily", datetime(2016, 11, 3), False),
-    (False, "@daily", datetime(2016, 11, 1), True),
-    (False, None, datetime(2016, 11, 1), True)]
+@pytest.mark.parametrize(
+    "allow_trigger_in_future,schedule_interval,execution_date,is_met",
+    [
+        (True, None, datetime(2016, 11, 3), True),
+        (True, "@daily", datetime(2016, 11, 3), False),
+        (False, None, datetime(2016, 11, 3), False),
+        (False, "@daily", datetime(2016, 11, 3), False),
+        (False, "@daily", datetime(2016, 11, 1), True),
+        (False, None, datetime(2016, 11, 1), True),
+    ],
 )
 def test_exec_date_dep(allow_trigger_in_future, schedule_interval, execution_date, is_met):
     """
@@ -49,7 +52,8 @@ def test_exec_date_dep(allow_trigger_in_future, schedule_interval, execution_dat
             'test_localtaskjob_heartbeat',
             start_date=datetime(2015, 1, 1),
             end_date=datetime(2016, 11, 5),
-            schedule_interval=schedule_interval)
+            schedule_interval=schedule_interval,
+        )
 
         with dag:
             op1 = DummyOperator(task_id='op1')
@@ -59,7 +63,6 @@ def test_exec_date_dep(allow_trigger_in_future, schedule_interval, execution_dat
 
 
 class TestRunnableExecDateDep(unittest.TestCase):
-
     def _get_task_instance(self, execution_date, dag_end_date=None, task_end_date=None):
         dag = Mock(end_date=dag_end_date)
         task = Mock(dag=dag, end_date=task_end_date)
@@ -74,7 +77,8 @@ class TestRunnableExecDateDep(unittest.TestCase):
             'test_localtaskjob_heartbeat',
             start_date=datetime(2015, 1, 1),
             end_date=datetime(2016, 11, 5),
-            schedule_interval=None)
+            schedule_interval=None,
+        )
 
         with dag:
             op1 = DummyOperator(task_id='op1')

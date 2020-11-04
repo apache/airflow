@@ -69,9 +69,7 @@ def spark_write_to_jdbc(
     num_partitions: int,
     create_table_column_types: str,
 ) -> None:
-    """
-    Transfer data from Spark to JDBC source
-    """
+    """Transfer data from Spark to JDBC source"""
     writer = spark_session.table(metastore_table).write
     # first set common options
     writer = set_common_options(writer, url, jdbc_table, user, password, driver)
@@ -106,9 +104,7 @@ def spark_read_from_jdbc(
     lower_bound: str,
     upper_bound: str,
 ) -> None:
-    """
-    Transfer data from JDBC source to Spark
-    """
+    """Transfer data from JDBC source to Spark"""
     # first set common options
     reader = set_common_options(spark_session.read, url, jdbc_table, user, password, driver)
 

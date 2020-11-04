@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Cloud MLEngine operators.
-"""
+"""This module contains Google Cloud MLEngine operators."""
 import logging
 import re
 import warnings
@@ -47,7 +45,7 @@ def _normalize_mlengine_job_id(job_id: str) -> str:
     # Add a prefix when a job_id starts with a digit or a template
     match = re.search(r'\d|\{{2}', job_id)
     if match and match.start() == 0:
-        job = 'z_{}'.format(job_id)
+        job = f'z_{job_id}'
     else:
         job = job_id
 
@@ -259,7 +257,7 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         if self._uri:
             prediction_request['predictionInput']['uri'] = self._uri
         elif self._model_name:
-            origin_name = 'projects/{}/models/{}'.format(self._project_id, self._model_name)
+            origin_name = f'projects/{self._project_id}/models/{self._model_name}'
             if not self._version_name:
                 prediction_request['predictionInput']['modelName'] = origin_name
             else:
@@ -382,7 +380,7 @@ class MLEngineManageModelOperator(BaseOperator):
         elif self._operation == 'get':
             return hook.get_model(project_id=self._project_id, model_name=self._model['name'])
         else:
-            raise ValueError('Unknown operation: {}'.format(self._operation))
+            raise ValueError(f'Unknown operation: {self._operation}')
 
 
 class MLEngineCreateModelOperator(BaseOperator):
@@ -724,7 +722,7 @@ class MLEngineManageVersionOperator(BaseOperator):
                 project_id=self._project_id, model_name=self._model_name, version_name=self._version['name']
             )
         else:
-            raise ValueError('Unknown operation: {}'.format(self._operation))
+            raise ValueError(f'Unknown operation: {self._operation}')
 
 
 class MLEngineCreateVersionOperator(BaseOperator):
@@ -1057,9 +1055,7 @@ class MLEngineDeleteVersionOperator(BaseOperator):
 
 
 class AIPlatformConsoleLink(BaseOperatorLink):
-    """
-    Helper class for constructing AI Platform Console link.
-    """
+    """Helper class for constructing AI Platform Console link."""
 
     name = "AI Platform Console"
 
@@ -1115,6 +1111,13 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
     :param job_dir: A Google Cloud Storage path in which to store training
         outputs and other data needed for training. (templated)
     :type job_dir: str
+    :param service_account: Optional service account to use when running the training application.
+        (templated)
+        The specified service account must have the `iam.serviceAccounts.actAs` role. The
+        Google-managed Cloud ML Engine service account must have the `iam.serviceAccountAdmin` role
+        for the specified service account.
+        If set to None or missing, the Google-managed Cloud ML Engine service account will be used.
+    :type service_account: str
     :param project_id: The Google Cloud project name within which MLEngine training job should run.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
         (templated)
@@ -1156,6 +1159,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         '_runtime_version',
         '_python_version',
         '_job_dir',
+        '_service_account',
         '_impersonation_chain',
     ]
 
@@ -1176,6 +1180,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         runtime_version: Optional[str] = None,
         python_version: Optional[str] = None,
         job_dir: Optional[str] = None,
+        service_account: Optional[str] = None,
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
@@ -1197,6 +1202,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         self._runtime_version = runtime_version
         self._python_version = python_version
         self._job_dir = job_dir
+        self._service_account = service_account
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
         self._mode = mode
@@ -1243,6 +1249,9 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
 
         if self._job_dir:
             training_request['trainingInput']['jobDir'] = self._job_dir
+
+        if self._service_account:
+            training_request['trainingInput']['serviceAccount'] = self._service_account
 
         if self._scale_tier is not None and self._scale_tier.upper() == "CUSTOM":
             training_request['trainingInput']['masterType'] = self._master_type

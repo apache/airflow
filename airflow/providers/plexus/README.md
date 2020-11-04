@@ -18,13 +18,13 @@
  -->
 
 
-# Package apache-airflow-backport-providers-plexus
+# Package apache-airflow-providers-plexus
 
-Release: 2020.10.5
+Release: 0.0.2a1
 
 **Table of contents**
 
-- [Backport package](#backport-package)
+- [Provider package](#provider-package)
 - [Installation](#installation)
 - [PIP requirements](#pip-requirements)
 - [Provider class summary](#provider-classes-summary)
@@ -33,24 +33,20 @@ Release: 2020.10.5
     - [Hooks](#hooks)
         - [New hooks](#new-hooks)
 - [Releases](#releases)
-    - [Release 2020.10.5](#release-2020105)
+    - [Release 0.0.2a1](#release-002a1)
+    - [Release 0.0.1](#release-001)
 
-## Backport package
+## Provider package
 
-This is a backport providers package for `plexus` provider. All classes for this provider package
+This is a provider package for `plexus` provider. All classes for this provider package
 are in `airflow.providers.plexus` python package.
-
-**Only Python 3.6+ is supported for this backport package.**
-
-While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
-want to use this backport package.
 
 
 
 ## Installation
 
-You can install this package on top of an existing airflow 1.10.* installation via
-`pip install apache-airflow-backport-providers-plexus`
+You can install this package on top of an existing airflow 2.* installation via
+`pip install apache-airflow-providers-plexus`
 
 ## PIP requirements
 
@@ -90,11 +86,21 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ## Releases
 
-### Release 2020.10.5
+### Release 0.0.2a1
 
-| Commit                                                                                         | Committed   | Subject                                                 |
-|:-----------------------------------------------------------------------------------------------|:------------|:--------------------------------------------------------|
-| [ca4238eb4](https://github.com/apache/airflow/commit/ca4238eb4d9a2aef70eb641343f59ee706d27d13) | 2020-10-02  | Fixed month in backport packages to October (#11242)    |
-| [5220e4c38](https://github.com/apache/airflow/commit/5220e4c3848a2d2c81c266ef939709df9ce581c5) | 2020-10-02  | Prepare Backport release 2020.09.07 (#11238)            |
-| [0161b5ea2](https://github.com/apache/airflow/commit/0161b5ea2b805d62a0317e5cab6f797b92c8abf1) | 2020-09-26  | Increasing type coverage for multiple provider (#11159) |
-| [b9dc3c51b](https://github.com/apache/airflow/commit/b9dc3c51ba2cba1c61d327488cecf2623d6445b3) | 2020-09-10  | Added Plexus as an Airflow provider (#10591)            |
+| Commit                                                                                         | Committed   | Subject                                                            |
+|:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------|
+| [872b1566a](https://github.com/apache/airflow/commit/872b1566a11cb73297e657ff325161721b296574) | 2020-10-25  | Generated backport providers readmes/setup for 2020.10.29 (#11826) |
+| [56d72e3ff](https://github.com/apache/airflow/commit/56d72e3ff8798a2662847355d1b73b2c1f57b31f) | 2020-10-24  | Replace non-empty sets with set literals (#11810)                  |
+| [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)       |
+
+
+### Release 0.0.1
+
+| Commit                                                                                         | Committed   | Subject                                                    |
+|:-----------------------------------------------------------------------------------------------|:------------|:-----------------------------------------------------------|
+| [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249) |
+| [ca4238eb4](https://github.com/apache/airflow/commit/ca4238eb4d9a2aef70eb641343f59ee706d27d13) | 2020-10-02  | Fixed month in backport packages to October (#11242)       |
+| [5220e4c38](https://github.com/apache/airflow/commit/5220e4c3848a2d2c81c266ef939709df9ce581c5) | 2020-10-02  | Prepare Backport release 2020.09.07 (#11238)               |
+| [0161b5ea2](https://github.com/apache/airflow/commit/0161b5ea2b805d62a0317e5cab6f797b92c8abf1) | 2020-09-26  | Increasing type coverage for multiple provider (#11159)    |
+| [b9dc3c51b](https://github.com/apache/airflow/commit/b9dc3c51ba2cba1c61d327488cecf2623d6445b3) | 2020-09-10  | Added Plexus as an Airflow provider (#10591)               |

@@ -16,39 +16,31 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+import json
+import re
 import unittest
 from unittest import mock
 from unittest.mock import patch
 
+import pytest
+from parameterized import parameterized
 from prestodb.transaction import IsolationLevel
 
+from airflow import AirflowException
 from airflow.models import Connection
 from airflow.providers.presto.hooks.presto import PrestoHook
 
 
 class TestPrestoHookConn(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
-        self.connection = Connection(
-            login='login',
-            password='password',
-            host='host',
-            schema='hive',
-        )
-
-        class UnitTestPrestoHook(PrestoHook):
-            conn_name_attr = 'presto_conn_id'
-
-        self.db_hook = UnitTestPrestoHook()
-        self.db_hook.get_connection = mock.Mock()
-        self.db_hook.get_connection.return_value = self.connection
-
     @patch('airflow.providers.presto.hooks.presto.prestodb.auth.BasicAuthentication')
     @patch('airflow.providers.presto.hooks.presto.prestodb.dbapi.connect')
-    def test_get_conn(self, mock_connect, mock_basic_auth):
-        self.db_hook.get_conn()
+    @patch('airflow.providers.presto.hooks.presto.PrestoHook.get_connection')
+    def test_get_conn_basic_auth(self, mock_get_connection, mock_connect, mock_basic_auth):
+        mock_get_connection.return_value = Connection(
+            login='login', password='password', host='host', schema='hive'
+        )
+
+        conn = PrestoHook().get_conn()
         mock_connect.assert_called_once_with(
             catalog='hive',
             host='host',
@@ -58,8 +50,97 @@ class TestPrestoHookConn(unittest.TestCase):
             source='airflow',
             user='login',
             isolation_level=0,
-            auth=mock_basic_auth('login', 'password'),
+            auth=mock_basic_auth.return_value,
         )
+        mock_basic_auth.assert_called_once_with('login', 'password')
+        self.assertEqual(mock_connect.return_value, conn)
+
+    @patch('airflow.providers.presto.hooks.presto.PrestoHook.get_connection')
+    def test_get_conn_invalid_auth(self, mock_get_connection):
+        mock_get_connection.return_value = Connection(
+            login='login',
+            password='password',
+            host='host',
+            schema='hive',
+            extra=json.dumps({'auth': 'kerberos'}),
+        )
+        with self.assertRaisesRegex(
+            AirflowException, re.escape("Kerberos authorization doesn't support password.")
+        ):
+            PrestoHook().get_conn()
+
+    @patch('airflow.providers.presto.hooks.presto.prestodb.auth.KerberosAuthentication')
+    @patch('airflow.providers.presto.hooks.presto.prestodb.dbapi.connect')
+    @patch('airflow.providers.presto.hooks.presto.PrestoHook.get_connection')
+    def test_get_conn_kerberos_auth(self, mock_get_connection, mock_connect, mock_auth):
+        mock_get_connection.return_value = Connection(
+            login='login',
+            host='host',
+            schema='hive',
+            extra=json.dumps(
+                {
+                    'auth': 'kerberos',
+                    'kerberos__config': 'TEST_KERBEROS_CONFIG',
+                    'kerberos__service_name': 'TEST_SERVICE_NAME',
+                    'kerberos__mutual_authentication': 'TEST_MUTUAL_AUTHENTICATION',
+                    'kerberos__force_preemptive': True,
+                    'kerberos__hostname_override': 'TEST_HOSTNAME_OVERRIDE',
+                    'kerberos__sanitize_mutual_error_response': True,
+                    'kerberos__principal': 'TEST_PRINCIPAL',
+                    'kerberos__delegate': 'TEST_DELEGATE',
+                    'kerberos__ca_bundle': 'TEST_CA_BUNDLE',
+                }
+            ),
+        )
+
+        conn = PrestoHook().get_conn()
+        mock_connect.assert_called_once_with(
+            catalog='hive',
+            host='host',
+            port=None,
+            http_scheme='http',
+            schema='hive',
+            source='airflow',
+            user='login',
+            isolation_level=0,
+            auth=mock_auth.return_value,
+        )
+        mock_auth.assert_called_once_with(
+            ca_bundle='TEST_CA_BUNDLE',
+            config='TEST_KERBEROS_CONFIG',
+            delegate='TEST_DELEGATE',
+            force_preemptive=True,
+            hostname_override='TEST_HOSTNAME_OVERRIDE',
+            mutual_authentication='TEST_MUTUAL_AUTHENTICATION',
+            principal='TEST_PRINCIPAL',
+            sanitize_mutual_error_response=True,
+            service_name='TEST_SERVICE_NAME',
+        )
+        self.assertEqual(mock_connect.return_value, conn)
+
+    @parameterized.expand(
+        [
+            ('False', False),
+            ('false', False),
+            ('true', True),
+            ('true', True),
+            ('/tmp/cert.crt', '/tmp/cert.crt'),
+        ]
+    )
+    def test_get_conn_verify(self, current_verify, expected_verify):
+        patcher_connect = patch('airflow.providers.presto.hooks.presto.prestodb.dbapi.connect')
+        patcher_get_connections = patch('airflow.providers.presto.hooks.presto.PrestoHook.get_connection')
+
+        with patcher_connect as mock_connect, patcher_get_connections as mock_get_connection:
+            mock_get_connection.return_value = Connection(
+                login='login', host='host', schema='hive', extra=json.dumps({'verify': current_verify})
+            )
+            mock_verify = mock.PropertyMock()
+            type(mock_connect.return_value._http_session).verify = mock_verify
+
+            conn = PrestoHook().get_conn()
+            mock_verify.assert_called_once_with(expected_verify)
+            self.assertEqual(mock_connect.return_value, conn)
 
 
 class TestPrestoHook(unittest.TestCase):
@@ -125,3 +206,30 @@ class TestPrestoHook(unittest.TestCase):
         self.assertEqual(result_sets[1][0], df.values.tolist()[1][0])
 
         self.cur.execute.assert_called_once_with(statement, None)
+
+
+class TestPrestoHookIntegration(unittest.TestCase):
+    @pytest.mark.integration("presto")
+    @mock.patch.dict('os.environ', AIRFLOW_CONN_PRESTO_DEFAULT="presto://airflow@presto:8080/")
+    def test_should_record_records(self):
+        hook = PrestoHook()
+        sql = "SELECT name FROM tpch.sf1.customer ORDER BY custkey ASC LIMIT 3"
+        records = hook.get_records(sql)
+        self.assertEqual([['Customer#000000001'], ['Customer#000000002'], ['Customer#000000003']], records)
+
+    @pytest.mark.integration("presto")
+    @pytest.mark.integration("kerberos")
+    def test_should_record_records_with_kerberos_auth(self):
+        conn_url = (
+            'presto://airflow@presto:7778/?'
+            'auth=kerberos&kerberos__service_name=HTTP&'
+            'verify=False&'
+            'protocol=https'
+        )
+        with mock.patch.dict('os.environ', AIRFLOW_CONN_PRESTO_DEFAULT=conn_url):
+            hook = PrestoHook()
+            sql = "SELECT name FROM tpch.sf1.customer ORDER BY custkey ASC LIMIT 3"
+            records = hook.get_records(sql)
+            self.assertEqual(
+                [['Customer#000000001'], ['Customer#000000002'], ['Customer#000000003']], records
+            )

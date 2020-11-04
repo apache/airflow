@@ -60,13 +60,7 @@ Viewer
     :start-after: [START security_viewer_perms]
     :end-before: [END security_viewer_perms]
 
-on limited web views
-
-.. exampleinclude:: /../airflow/www/security.py
-    :language: python
-    :start-after: [START security_viewer_vms]
-    :end-before: [END security_viewer_vms]
-
+on limited web views.
 
 User
 ^^^^
@@ -88,12 +82,7 @@ Op
     :start-after: [START security_op_perms]
     :end-before: [END security_op_perms]
 
-on ``User`` web views plus these additional op web views
-
-.. exampleinclude:: /../airflow/www/security.py
-    :language: python
-    :start-after: [START security_op_vms]
-    :end-before: [END security_op_vms]
+on ``User`` web views.
 
 
 Custom Roles
@@ -134,51 +123,117 @@ Permissions (each consistent of a resource + action pair) are then added to role
 
 **To access an endpoint, the user needs all permissions assigned to that endpoint**
 
-================================================================================== ====== ====================================================================================
+There are five default roles: Public, Viewer, User, Op, and Admin. Each one has the permissions of the preceding role, as well as additional permissions.
+
+DAG-level permissions
+^^^^^^^^^^^^^^^^^^^^^
+
+For DAG-level permissions exclusively, access can be controlled at the level of all DAGs or individual DAG objects. This includes ``DAGs.can_create``, ``DAGs.can_read``, ``DAGs.can_edit``, and ``DAGs.can_delete``. When these permissions are listed, access is granted to users who either have the listed permission or the same permission for the specific DAG being acted upon. For individual DAGs, the resource name is ``DAG:`` + the DAG ID.
+
+For example, if a user is trying to view DAG information for the ``example_dag_id``, and the endpoint requires ``DAGs.can_read`` access, access will be granted if the user has either ``DAGs.can_read`` or ``DAG:example_dag_id.can_read`` access.
+
+================================================================================== ====== ================================================================= ============
 Stable API Permissions
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-Endpoint                                                                           Method Permissions
-================================================================================== ====== ====================================================================================
-/config                                                                            GET    Config.can_read
-/connections                                                                       GET    Connection.can_read
-/connections                                                                       POST   Connection.can_create
-/connections/{connection_id}                                                       DELETE Connection.can_delete
-/connections/{connection_id}                                                       GET    Connection.can_read
-/connections/{connection_id}                                                       PATCH  Connection.can_edit
-/dagSources/{file_token}                                                           GET    DagCode.can_read
-/dags                                                                              GET    Dag.can_read
-/dags/{dag_id}                                                                     GET    Dag.can_read
-/dags/{dag_id}                                                                     PATCH  Dag.can_edit
-/dags/{dag_id}/clearTaskInstances                                                  POST   Dag.can_read, DagRun.can_read, Task.can_edit
-/dags/{dag_id}/details                                                             GET    Dag.can_read
-/dags/{dag_id}/tasks                                                               GET    Dag.can_read, Task.can_read
-/dags/{dag_id}/tasks/{task_id}                                                     GET    Dag.can_read, Task.can_read
-/dags/{dag_id}/dagRuns                                                             GET    Dag.can_read, DagRun.can_read
-/dags/{dag_id}/dagRuns                                                             POST   Dag.can_read, DagRun.can_create
-/dags/{dag_id}/dagRuns/{dag_run_id}                                                DELETE Dag.can_read, DagRun.can_delete
-/dags/{dag_id}/dagRuns/{dag_run_id}                                                GET    Dag.can_read, DagRun.can_read
-/dags/~/dagRuns/list                                                               POST   Dag.can_read, DagRun.can_read
-/eventLogs                                                                         GET    Log.can_read
-/eventLogs/{event_log_id}                                                          GET    Log.can_read
-/importErrors                                                                      GET    ImportError.can_read
-/importErrors/{import_error_id}                                                    GET    ImportError.can_read
-/health                                                                            GET    None
-/version                                                                           GET    None
-/pools                                                                             GET    Pool.can_read
-/pools                                                                             POST   Pool.can_create
-/pools/{pool_name}                                                                 DELETE Pool.can_delete
-/pools/{pool_name}                                                                 GET    Pool.can_read
-/pools/{pool_name}                                                                 PATCH  Pool.can_edit
-/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances                                  GET    Dag.can_read, DagRun.can_read, Task.can_read
-/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}                        GET    Dag.can_read, DagRun.can_read, Task.can_read
-/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links                  GET    Dag.can_read, DagRun.can_read, Task.can_read
-/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number} GET    Dag.can_read, DagRun.can_read, Task.can_read
-/dags/~/dagRuns/~/taskInstances/list                                               POST   Dag.can_read, DagRun.can_read, Task.can_read
-/variables                                                                         GET    Variable.can_read
-/variables                                                                         POST   Variable.can_create
-/variables/{variable_key}                                                          DELETE Variable.can_delete
-/variables/{variable_key}                                                          GET    Variable.can_read
-/variables/{variable_key}                                                          PATCH  Variable.can_edit
-/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries            GET    Dag.can_read, DagRun.can_read, Task.can_read, XCom.can_read
-/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key} GET    Dag.can_read, DagRun.can_read, Task.can_read, XCom.can_read
-================================================================================== ====== ====================================================================================
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Endpoint                                                                           Method Permissions                                                       Minimum Role
+================================================================================== ====== ================================================================= ============
+/config                                                                            GET    Configurations.can_read                                           Viewer
+/connections                                                                       GET    Connections.can_read                                              Op
+/connections                                                                       POST   Connections.can_create                                            Op
+/connections/{connection_id}                                                       DELETE Connections.can_delete                                            Op
+/connections/{connection_id}                                                       PATCH  Connections.can_edit                                              Op
+/connections/{connection_id}                                                       GET    Connections.can_read                                              Op
+/dagSources/{file_token}                                                           GET    DAG Code.can_read                                                 Viewer
+/dags                                                                              GET    DAGs.can_read                                                     Viewer
+/dags/{dag_id}                                                                     GET    DAGs.can_read                                                     Viewer
+/dags/{dag_id}                                                                     PATCH  DAGs.can_edit                                                     User
+/dags/{dag_id}/clearTaskInstances                                                  POST   DAGs.can_read, DAG Runs.can_read, Task Instances.can_edit         User
+/dags/{dag_id}/details                                                             GET    DAGs.can_read                                                     Viewer
+/dags/{dag_id}/tasks                                                               GET    DAGs.can_read, Task Instances.can_read                            Viewer
+/dags/{dag_id}/tasks/{task_id}                                                     GET    DAGs.can_read, Task Instances.can_read                            Viewer
+/dags/{dag_id}/dagRuns                                                             GET    DAGs.can_read, DAG Runs.can_read                                  Viewer
+/dags/{dag_id}/dagRuns                                                             POST   DAGs.can_read, DAG Runs.can_create                                User
+/dags/{dag_id}/dagRuns/{dag_run_id}                                                DELETE DAGs.can_read, DAG Runs.can_delete                                User
+/dags/{dag_id}/dagRuns/{dag_run_id}                                                GET    DAGs.can_read, DAG Runs.can_read                                  Viewer
+/dags/~/dagRuns/list                                                               POST   DAGs.can_read, DAG Runs.can_read                                  Viewer
+/eventLogs                                                                         GET    Audit Logs.can_read                                               Viewer
+/eventLogs/{event_log_id}                                                          GET    Audit Logs.can_read                                               Viewer
+/importErrors                                                                      GET    ImportError.can_read                                              Viewer
+/importErrors/{import_error_id}                                                    GET    ImportError.can_read                                              Viewer
+/health                                                                            GET    None                                                              Public
+/version                                                                           GET    None                                                              Public
+/pools                                                                             GET    Pool.can_read                                                     Op
+/pools                                                                             POST   Pool.can_create                                                   Op
+/pools/{pool_name}                                                                 DELETE Pool.can_delete                                                   Op
+/pools/{pool_name}                                                                 GET    Pool.can_read                                                     Op
+/pools/{pool_name}                                                                 PATCH  Pool.can_edit                                                     Op
+/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances                                  GET    DAGs.can_read, DAG Runs.can_read, Task Instances.can_read         Viewer
+/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}                        GET    DAGs.can_read, DAG Runs.can_read, Task Instances.can_read         Viewer
+/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links                  GET    DAGs.can_read, DAG Runs.can_read, Task Instances.can_read         Viewer
+/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number} GET    DAGs.can_read, DAG Runs.can_read, Task Instances.can_read         Viewer
+/dags/~/dagRuns/~/taskInstances/list                                               POST   DAGs.can_read, DAG Runs.can_read, Task Instances.can_read         Viewer
+/variables                                                                         GET    Variables.can_read                                                Op
+/variables                                                                         POST   Variables.can_create                                              Op
+/variables/{variable_key}                                                          DELETE Variables.can_delete                                              Op
+/variables/{variable_key}                                                          GET    Variables.can_read                                                Op
+/variables/{variable_key}                                                          PATCH  Variables.can_edit                                                Op
+/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries            GET    DAGs.can_read, DAG Runs.can_read,                                 Viewer
+                                                                                          Task Instances.can_read, XComs.can_read
+/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key} GET    DAGs.can_read, DAG Runs.can_read,                                 Viewer
+                                                                                          Task Instances.can_read, XComs.can_read
+================================================================================== ====== ================================================================= ============
+
+
+====================================== ======================================================================= ============
+Website Permissions
+-------------------------------------- ------------------------------------------------------------------------------------
+Action                                 Permissions                                                             Minimum Role
+====================================== ======================================================================= ============
+Access homepage                        Website.can_read                                                        Viewer
+Get DAG stats                          Dags.can_read, DAG Runs.can_read                                        Viewer
+Get Task stats                         Dags.can_read, DAG Runs.can_read, Task Instances.can_read               Viewer
+Get last DAG runs                      Dags.can_read, DAG Runs.can_read                                        Viewer
+Get DAG code                           Dags.can_read, DAG Code.can_read                                        Viewer
+Get DAG details                        Dags.can_read, DAG Runs.can_read                                        Viewer
+Get rendered DAG                       DAGs.can_read, Task Instances.can_read                                  Viewer
+Get Logs with metadata                 DAGs.can_read, Task Instances.can_read, Task Logs.can_read              Viewer
+Get Log                                DAGs.can_read, Task Instances.can_read, Task Logs.can_read              Viewer
+Redirect to external Log               DAGs.can_read, Task Instances.can_read, Task Logs.can_read              Viewer
+Get Task                               DAGs.can_read, Task Instances.can_read                                  Viewer
+Get XCom                               DAGs.can_read, Task Instances.can_read, XComs.can_read                  Viewer
+Triggers Task Instance                 DAGs.can_read, Task Instances.can_create                                User
+Delete DAG                             DAGs.can_delete                                                         User
+Trigger DAG run                        Dags.can_read, DAG Runs.can_create                                      User
+Clear DAG                              DAGs.can_read, Task Instances.can_delete                                User
+Clear DAG Run                          DAGs.can_read, Task Instances.can_delete                                User
+Mark DAG as blocked                    Dags.can_read, DAG Runs.can_read                                        User
+Mark DAG Run as failed                 Dags.can_read, DAG Runs.can_edit                                        User
+Mark DAG Run as success                Dags.can_read, DAG Runs.can_edit                                        User
+Mark Task as failed                    DAGs.can_read, Task Instances.can_edit                                  User
+Mark Task as success                   DAGs.can_read, Task Instances.can_edit                                  User
+Get DAG as tree                        DAGs.can_read, Task Instances.can_read,                                 Viewer
+                                       Task Logs.can_read
+Get DAG as graph                       DAGs.can_read, Task Instances.can_read,                                 Viewer
+                                       Task Logs.can_read
+Get DAG as duration graph              DAGs.can_read, Task Instances.can_read                                  Viewer
+Show all tries                         DAGs.can_read, Task Instances.can_read                                  Viewer
+Show landing times                     DAGs.can_read, Task Instances.can_read                                  Viewer
+Toggle DAG paused status               DAGs.can_edit                                                           User
+Refresh DAG                            DAGs.can_edit                                                           User
+Refresh all DAGs                       DAGs.can_edit                                                           User
+Show Gantt Chart                       DAGs.can_read, Task Instances.can_read                                  Viewer
+Get external links                     DAGs.can_read, Task Instances.can_read                                  Viewer
+Show Task Instances                    DAGs.can_read, Task Instances.can_read                                  Viewer
+Show Configs                           Configurations.can_read                                                 Viewer
+Delete multiple records                DAGs.can_edit                                                           User
+Set Task Instance as running           DAGs.can_edit                                                           User
+Set Task Instance as failed            DAGs.can_edit                                                           User
+Set Task Instance as success           DAGs.can_edit                                                           User
+Set Task Instance as up_for_retry      DAGs.can_edit                                                           User
+Autocomplete                           DAGs.can_read                                                           Viewer
+List Logs                              Audit Logs.can_read                                                     Viewer
+List Jobs                              Jobs.can_read                                                           Viewer
+List SLA Misses                        SLA Misses.can_read                                                     Viewer
+List Plugins                           Plugins.can_read                                                        Viewer
+List Task Reschedules                  Task Reschedules.can_read                                               Admin
+====================================== ======================================================================= ============

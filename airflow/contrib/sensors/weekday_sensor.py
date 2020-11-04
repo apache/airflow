@@ -24,5 +24,6 @@ from airflow.sensors.weekday_sensor import DayOfWeekSensor  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.sensors.weekday_sensor`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

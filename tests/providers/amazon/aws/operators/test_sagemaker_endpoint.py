@@ -17,8 +17,8 @@
 # under the License.
 
 import unittest
+from unittest import mock
 
-import mock
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
@@ -28,7 +28,7 @@ from airflow.providers.amazon.aws.operators.sagemaker_endpoint import SageMakerE
 role = 'arn:aws:iam:role/test-role'
 bucket = 'test-bucket'
 image = 'test-image'
-output_url = 's3://{}/test/output'.format(bucket)
+output_url = f's3://{bucket}/test/output'
 model_name = 'test-model-name'
 config_name = 'test-endpoint-config-name'
 endpoint_name = 'test-endpoint-name'

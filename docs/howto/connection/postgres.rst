@@ -17,7 +17,7 @@
 
 
 
-PostgresSQL Connection
+PostgreSQL Connection
 ======================
 The Postgres connection type provides connection to a Postgres database.
 

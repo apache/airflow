@@ -18,7 +18,7 @@
 import os
 
 from airflow.models import DagBag
-from airflow.settings import DAGS_FOLDER, STORE_SERIALIZED_DAGS
+from airflow.settings import DAGS_FOLDER
 
 
 def init_dagbag(app):
@@ -29,4 +29,4 @@ def init_dagbag(app):
     if os.environ.get('SKIP_DAGS_PARSING') == 'True':
         app.dag_bag = DagBag(os.devnull, include_examples=False)
     else:
-        app.dag_bag = DagBag(DAGS_FOLDER, read_dags_from_db=STORE_SERIALIZED_DAGS)
+        app.dag_bag = DagBag(DAGS_FOLDER, read_dags_from_db=True)

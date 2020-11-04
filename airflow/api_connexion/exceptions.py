@@ -78,7 +78,7 @@ class NotFound(ProblemException):
     def __init__(
         self, title: str = 'Not Found', detail: Optional[str] = None, headers: Optional[Dict] = None, **kwargs
     ):
-        super(NotFound, self).__init__(
+        super().__init__(
             status=404, type=EXCEPTIONS_LINK_MAP[404], title=title, detail=detail, headers=headers, **kwargs
         )
 
@@ -93,7 +93,7 @@ class BadRequest(ProblemException):
         headers: Optional[Dict] = None,
         **kwargs,
     ):
-        super(BadRequest, self).__init__(
+        super().__init__(
             status=400, type=EXCEPTIONS_LINK_MAP[400], title=title, detail=detail, headers=headers, **kwargs
         )
 
@@ -108,7 +108,7 @@ class Unauthenticated(ProblemException):
         headers: Optional[Dict] = None,
         **kwargs,
     ):
-        super(Unauthenticated, self).__init__(
+        super().__init__(
             status=401, type=EXCEPTIONS_LINK_MAP[401], title=title, detail=detail, headers=headers, **kwargs
         )
 
@@ -119,7 +119,7 @@ class PermissionDenied(ProblemException):
     def __init__(
         self, title: str = 'Forbidden', detail: Optional[str] = None, headers: Optional[Dict] = None, **kwargs
     ):
-        super(PermissionDenied, self).__init__(
+        super().__init__(
             status=403, type=EXCEPTIONS_LINK_MAP[403], title=title, detail=detail, headers=headers, **kwargs
         )
 
@@ -130,7 +130,7 @@ class AlreadyExists(ProblemException):
     def __init__(
         self, title='Conflict', detail: Optional[str] = None, headers: Optional[Dict] = None, **kwargs
     ):
-        super(AlreadyExists, self).__init__(
+        super().__init__(
             status=409, type=EXCEPTIONS_LINK_MAP[409], title=title, detail=detail, headers=headers, **kwargs
         )
 
@@ -145,6 +145,6 @@ class Unknown(ProblemException):
         headers: Optional[Dict] = None,
         **kwargs,
     ):
-        super(Unknown, self).__init__(
+        super().__init__(
             status=500, type=EXCEPTIONS_LINK_MAP[500], title=title, detail=detail, headers=headers, **kwargs
         )

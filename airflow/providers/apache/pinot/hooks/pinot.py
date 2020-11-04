@@ -129,9 +129,7 @@ class PinotAdminHook(BaseHook):
         post_creation_verification: Optional[str] = None,
         retry: Optional[str] = None,
     ) -> Any:
-        """
-        Create Pinot segment by run CreateSegment command
-        """
+        """Create Pinot segment by run CreateSegment command"""
         cmd = ["CreateSegment"]
 
         if generator_config_file:
@@ -252,18 +250,14 @@ class PinotAdminHook(BaseHook):
 
 
 class PinotDbApiHook(DbApiHook):
-    """
-    Connect to pinot db (https://github.com/apache/incubator-pinot) to issue pql
-    """
+    """Connect to pinot db (https://github.com/apache/incubator-pinot) to issue pql"""
 
     conn_name_attr = 'pinot_broker_conn_id'
     default_conn_name = 'pinot_broker_default'
     supports_autocommit = False
 
     def get_conn(self) -> Any:
-        """
-        Establish a connection to pinot broker through pinot dbapi.
-        """
+        """Establish a connection to pinot broker through pinot dbapi."""
         # pylint: disable=no-member
         conn = self.get_connection(self.pinot_broker_conn_id)  # type: ignore
         # pylint: enable=no-member
@@ -285,10 +279,10 @@ class PinotDbApiHook(DbApiHook):
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         host = conn.host
         if conn.port is not None:
-            host += ':{port}'.format(port=conn.port)
+            host += f':{conn.port}'
         conn_type = 'http' if not conn.conn_type else conn.conn_type
         endpoint = conn.extra_dejson.get('endpoint', 'pql')
-        return '{conn_type}://{host}/{endpoint}'.format(conn_type=conn_type, host=host, endpoint=endpoint)
+        return f'{conn_type}://{host}/{endpoint}'
 
     def get_records(self, sql: str, parameters: Optional[Union[Dict[str, Any], Iterable[Any]]] = None) -> Any:
         """

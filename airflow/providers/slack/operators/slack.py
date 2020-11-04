@@ -17,7 +17,7 @@
 # under the License.
 
 import json
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack import SlackHook
@@ -206,7 +206,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         self.filename = filename
         self.filetype = filetype
         self.content = content
-        super(SlackAPIFileOperator, self).__init__(method=self.method, **kwargs)
+        super().__init__(method=self.method, **kwargs)
 
     def construct_api_call_params(self) -> Any:
         self.api_params = {

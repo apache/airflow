@@ -64,7 +64,7 @@ def init_jinja_globals(app):
             'log_animation_speed': conf.getint('webserver', 'log_animation_speed', fallback=1000),
             'state_color_mapping': STATE_COLORS,
             'airflow_version': airflow_version,
-            'git_version': git_version
+            'git_version': git_version,
         }
 
         if 'analytics_tool' in conf.getsection('webserver'):

@@ -21,8 +21,7 @@ Tests for Google Cloud Build Hook
 import unittest
 from typing import Optional
 from unittest import mock
-
-from mock import PropertyMock
+from unittest.mock import PropertyMock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook

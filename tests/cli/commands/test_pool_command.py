@@ -81,18 +81,9 @@ class TestCliPools(unittest.TestCase):
     def test_pool_import_export(self):
         # Create two pools first
         pool_config_input = {
-            "foo": {
-                "description": "foo_test",
-                "slots": 1
-            },
-            'default_pool': {
-                'description': 'Default pool',
-                'slots': 128
-            },
-            "baz": {
-                "description": "baz_test",
-                "slots": 2
-            }
+            "foo": {"description": "foo_test", "slots": 1},
+            'default_pool': {'description': 'Default pool', 'slots': 128},
+            "baz": {"description": "baz_test", "slots": 2},
         }
         with open('pools_import.json', mode='w') as file:
             json.dump(pool_config_input, file)
@@ -106,8 +97,7 @@ class TestCliPools(unittest.TestCase):
         with open('pools_export.json', mode='r') as file:
             pool_config_output = json.load(file)
             self.assertEqual(
-                pool_config_input,
-                pool_config_output,
-                "Input and output pool files are not same")
+                pool_config_input, pool_config_output, "Input and output pool files are not same"
+            )
         os.remove('pools_import.json')
         os.remove('pools_export.json')

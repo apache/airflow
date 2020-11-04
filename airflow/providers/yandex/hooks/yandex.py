@@ -16,7 +16,7 @@
 # under the License.
 
 import json
-from typing import Optional, Dict, Any, Union
+from typing import Any, Dict, Optional, Union
 
 import yandexcloud
 
@@ -67,9 +67,7 @@ class YandexCloudBaseHook(BaseHook):
             return {'token': oauth_token}
 
     def _get_field(self, field_name: str, default: Any = None) -> Any:
-        """
-        Fetches a field from extras, and returns it.
-        """
+        """Fetches a field from extras, and returns it."""
         long_f = f'extra__yandexcloud__{field_name}'
         if hasattr(self, 'extras') and long_f in self.extras:
             return self.extras[long_f]

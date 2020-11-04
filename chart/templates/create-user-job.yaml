@@ -34,6 +34,7 @@ metadata:
 {{- end }}
   annotations:
     "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "2"
     "helm.sh/hook-delete-policy": hook-succeeded
 spec:
   template:
@@ -57,14 +58,6 @@ spec:
         - name: {{ template "registry_secret" . }}
       {{- end }}
       containers:
-        - name: run-airflow-migrations
-          image: {{ template "airflow_image" . }}
-          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          # Support running against 1.10.x and 2.0.0dev/master
-          args: ["bash", "-c", "airflow upgradedb || airflow db upgrade"]
-          env:
-          {{- include "custom_airflow_environment" . | indent 10 }}
-          {{- include "standard_airflow_environment" . | indent 10 }}
         - name: create-user
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}

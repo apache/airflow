@@ -24,7 +24,6 @@ function sanity_checks::sanitize_file() {
         rm -rf "${1}"
     fi
     touch "${1}"
-
 }
 
 # Those files are mounted into container when run locally
@@ -85,19 +84,19 @@ function sanity_checks::check_if_coreutils_installed() {
             echo >&2
             echo >&2 "Then link the gnu-getopt to become default as suggested by brew."
             echo >&2
-            echo >&2 "If you use bash, you should run this command:"
+            echo >&2 "If you use bash, you should run these commands:"
             echo >&2
             echo >&2 "echo 'export PATH=\"/usr/local/opt/gnu-getopt/bin:\$PATH\"' >> ~/.bash_profile"
             echo >&2 ". ~/.bash_profile"
             echo >&2
-            echo >&2 "If you use zsh, you should run this command:"
+            echo >&2 "If you use zsh, you should run these commands:"
             echo >&2
             echo >&2 "echo 'export PATH=\"/usr/local/opt/gnu-getopt/bin:\$PATH\"' >> ~/.zprofile"
             echo >&2 ". ~/.zprofile"
             echo >&2
-            echo >&2 "Login and logout afterwards !!"
+            echo >&2 "Either source the profile file as shown above, or re-login afterwards."
             echo >&2
-            echo >&2 "After re-login, your PATH variable should start with \"/usr/local/opt/gnu-getopt/bin\""
+            echo >&2 "After that, your PATH variable should start with \"/usr/local/opt/gnu-getopt/bin\""
             echo >&2 "Your current path is ${PATH}"
             echo >&2
         else

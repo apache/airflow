@@ -137,7 +137,7 @@ class SparkSqlHook(BaseHook):
         elif isinstance(cmd, list):
             connection_cmd += cmd
         else:
-            raise AirflowException("Invalid additional command: {}".format(cmd))
+            raise AirflowException(f"Invalid additional command: {cmd}")
 
         self.log.debug("Spark-Sql cmd: %s", connection_cmd)
 
@@ -168,9 +168,7 @@ class SparkSqlHook(BaseHook):
             )
 
     def kill(self) -> None:
-        """
-        Kill Spark job
-        """
+        """Kill Spark job"""
         if self._sp and self._sp.poll() is None:
             self.log.info("Killing the Spark-Sql job")
             self._sp.kill()

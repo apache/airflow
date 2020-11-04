@@ -26,13 +26,15 @@ try:
     from kubernetes.client.rest import ApiException  # pylint: disable=unused-import
 
     from airflow.kubernetes.refresh_config import (  # pylint: disable=ungrouped-imports
-        RefreshConfiguration, load_kube_config,
+        RefreshConfiguration,
+        load_kube_config,
     )
+
     has_kubernetes = True
 
-    def _get_kube_config(in_cluster: bool,
-                         cluster_context: Optional[str],
-                         config_file: Optional[str]) -> Optional[Configuration]:
+    def _get_kube_config(
+        in_cluster: bool, cluster_context: Optional[str], config_file: Optional[str]
+    ) -> Optional[Configuration]:
         if in_cluster:
             # load_incluster_config set default configuration with config populated by k8s
             config.load_incluster_config()
@@ -41,8 +43,7 @@ try:
             # this block can be replaced with just config.load_kube_config once
             # refresh_config module is replaced with upstream fix
             cfg = RefreshConfiguration()
-            load_kube_config(
-                client_configuration=cfg, config_file=config_file, context=cluster_context)
+            load_kube_config(client_configuration=cfg, config_file=config_file, context=cluster_context)
             return cfg
 
     def _get_client_with_patched_configuration(cfg: Optional[Configuration]) -> client.CoreV1Api:
@@ -56,6 +57,7 @@ try:
             return client.CoreV1Api(api_client=ApiClient(configuration=cfg))
         else:
             return client.CoreV1Api()
+
 
 except ImportError as e:
     # We need an exception class to be able to use it in ``except`` elsewhere
@@ -78,9 +80,9 @@ def _enable_tcp_keepalive() -> None:
 
     from urllib3.connection import HTTPConnection, HTTPSConnection
 
-    tcp_keep_idle = conf.get('kubernetes', 'tcp_keep_idle', fallback=120)
-    tcp_keep_intvl = conf.get('kubernetes', 'tcp_keep_intvl', fallback=30)
-    tcp_keep_cnt = conf.get('kubernetes', 'tcp_keep_cnt', fallback=6)
+    tcp_keep_idle = conf.getint('kubernetes', 'tcp_keep_idle', fallback=120)
+    tcp_keep_intvl = conf.getint('kubernetes', 'tcp_keep_intvl', fallback=30)
+    tcp_keep_cnt = conf.getint('kubernetes', 'tcp_keep_cnt', fallback=6)
 
     socket_options = [
         (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1),
@@ -92,9 +94,11 @@ def _enable_tcp_keepalive() -> None:
     HTTPConnection.default_socket_options = HTTPConnection.default_socket_options + socket_options
 
 
-def get_kube_client(in_cluster: bool = conf.getboolean('kubernetes', 'in_cluster'),
-                    cluster_context: Optional[str] = None,
-                    config_file: Optional[str] = None) -> client.CoreV1Api:
+def get_kube_client(
+    in_cluster: bool = conf.getboolean('kubernetes', 'in_cluster'),
+    cluster_context: Optional[str] = None,
+    config_file: Optional[str] = None,
+) -> client.CoreV1Api:
     """
     Retrieves Kubernetes client
 

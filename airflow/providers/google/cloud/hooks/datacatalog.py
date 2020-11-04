@@ -68,9 +68,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         self._client: Optional[DataCatalogClient] = None
 
     def get_conn(self) -> DataCatalogClient:
-        """
-        Retrieves client library object that allow access to Cloud Data Catalog service.
-        """
+        """Retrieves client library object that allow access to Cloud Data Catalog service."""
         if not self._client:
             self._client = DataCatalogClient(
                 credentials=self._get_credentials(), client_info=self.client_info

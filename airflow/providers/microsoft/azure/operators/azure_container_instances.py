@@ -19,17 +19,17 @@
 import re
 from collections import namedtuple
 from time import sleep
-from typing import Any, List, Optional, Sequence, Union, Dict
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from azure.mgmt.containerinstance.models import (
     Container,
     ContainerGroup,
+    ContainerPort,
     EnvironmentVariable,
+    IpAddress,
     ResourceRequests,
     ResourceRequirements,
     VolumeMount,
-    IpAddress,
-    ContainerPort,
 )
 from msrestazure.azure_exceptions import CloudError
 

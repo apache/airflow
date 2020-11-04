@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Objects relating to retrieving connections and variables from local file
-"""
+"""Objects relating to retrieving connections and variables from local file"""
 import json
 import logging
 import os
@@ -30,7 +28,10 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 import yaml
 
 from airflow.exceptions import (
-    AirflowException, AirflowFileParseException, ConnectionNotUnique, FileSyntaxError,
+    AirflowException,
+    AirflowFileParseException,
+    ConnectionNotUnique,
+    FileSyntaxError,
 )
 from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.utils.file import COMMENT_PATTERN
@@ -48,7 +49,7 @@ def get_connection_parameter_names() -> Set[str]:
 
 def _parse_env_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSyntaxError]]:
     """
-    Parse a file in the ``.env '' format.
+    Parse a file in the ``.env`` format.
 
     .. code-block:: text
 
@@ -84,7 +85,12 @@ def _parse_env_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSynt
 
         key, value = var_parts
         if not key:
-            errors.append(FileSyntaxError(line_no=line_no, message="Invalid line format. Key is empty.",))
+            errors.append(
+                FileSyntaxError(
+                    line_no=line_no,
+                    message="Invalid line format. Key is empty.",
+                )
+            )
         secrets[key].append(value)
     return secrets, errors
 
@@ -176,9 +182,7 @@ def _parse_secret_file(file_path: str) -> Dict[str, Any]:
 
 
 def _create_connection(conn_id: str, value: Any):
-    """
-    Creates a connection based on a URL or JSON object.
-    """
+    """Creates a connection based on a URL or JSON object."""
     from airflow.models.connection import Connection
 
     if isinstance(value, str):
@@ -237,12 +241,11 @@ def load_variables(file_path: str) -> Dict[str, str]:
 
 
 def load_connections(file_path) -> Dict[str, List[Any]]:
-    """
-    This function is deprecated. Please use `airflow.secrets.local_filesystem.load_connections_dict`.",
-    """
+    """This function is deprecated. Please use `airflow.secrets.local_filesystem.load_connections_dict`.","""
     warnings.warn(
         "This function is deprecated. Please use `airflow.secrets.local_filesystem.load_connections_dict`.",
-        DeprecationWarning, stacklevel=2
+        DeprecationWarning,
+        stacklevel=2,
     )
     return {k: [v] for k, v in load_connections_dict(file_path).values()}
 

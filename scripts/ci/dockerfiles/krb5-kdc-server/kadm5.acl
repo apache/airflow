@@ -1,0 +1,8 @@
+# /var/kerberos/krb5kdc/kadm5.acl -- Kerberos V5 general configuration.
+#
+# This file is the access control list for krb5 administration.
+# When this file is edited run /etc/init.d/krb5-admin-server restart to activate
+# One common way to set up Kerberos administration is to allow any principal
+# ending in /admin  is given full administrative rights.
+# To enable this, uncomment the following line:
+*/admin@EXAMPLE.COM   *

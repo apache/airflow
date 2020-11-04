@@ -19,10 +19,10 @@
 import os
 import unittest
 from tempfile import TemporaryDirectory
+from unittest import mock
+from unittest.mock import MagicMock
 
-import mock
 import unicodecsv as csv
-from mock import MagicMock
 
 from airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake import (
     OracleToAzureDataLakeOperator,

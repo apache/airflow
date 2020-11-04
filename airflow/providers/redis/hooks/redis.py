@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-RedisHook module
-"""
+"""RedisHook module"""
 from redis import Redis
 
 from airflow.hooks.base_hook import BaseHook
@@ -49,9 +47,7 @@ class RedisHook(BaseHook):
         self.db = None
 
     def get_conn(self):
-        """
-        Returns a Redis connection.
-        """
+        """Returns a Redis connection."""
         conn = self.get_connection(self.redis_conn_id)
         self.host = conn.host
         self.port = conn.port

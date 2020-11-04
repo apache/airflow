@@ -1510,7 +1510,7 @@ components:
           nullable: true
         state:
           $ref: '#/components/schemas/DagState'
-          readOnly: True
+          readOnly: true
         external_trigger:
           type: boolean
           default: true
@@ -1724,6 +1724,7 @@ components:
           format: datetime
         duration:
           type: number
+          nullable: true
         state:
           $ref: '#/components/schemas/TaskState'
         try_number:
@@ -1746,9 +1747,10 @@ components:
           type: string
         queued_when:
           type: string
-          nullable: True
+          nullable: true
         pid:
           type: integer
+          nullable: true
         executor_config:
           type: string
         sla_miss:
@@ -2372,6 +2374,7 @@ components:
       properties:
         __type: {type: string}
         value: {type: string}
+      nullable: true
 
     Timezone:
       type: string

@@ -27,6 +27,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.xcom import XCom
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.google.cloud.operators.bigquery import BigQueryExecuteQueryOperator
+from airflow.security import permissions
 from airflow.utils.dates import days_ago
 from airflow.utils.session import provide_session
 from airflow.utils.timezone import datetime
@@ -51,10 +52,9 @@ class TestGetExtraLinks(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                ('can_read', 'Dag'),
-                ('can_read', 'DagRun'),
-                ('can_read', 'Task'),
-                ('can_read', 'TaskInstance'),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             ],
         )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
@@ -79,7 +79,7 @@ class TestGetExtraLinks(unittest.TestCase):
             dag_id=self.dag.dag_id,
             run_id="TEST_DAG_RUN_ID",
             execution_date=self.default_time,
-            run_type=DagRunType.MANUAL.value,
+            run_type=DagRunType.MANUAL,
         )
         session.add(dr)
         session.commit()
@@ -125,7 +125,7 @@ class TestGetExtraLinks(unittest.TestCase):
             ),
         ]
     )
-    def test_should_response_404(self, name, url, expected_title, expected_detail):
+    def test_should_respond_404(self, name, url, expected_title, expected_detail):
         del name
         response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
 
@@ -148,7 +148,7 @@ class TestGetExtraLinks(unittest.TestCase):
         assert response.status_code == 403
 
     @mock_plugin_manager(plugins=[])
-    def test_should_response_200(self):
+    def test_should_respond_200(self):
         XCom.set(
             key="job_id",
             value="TEST_JOB_ID",
@@ -167,7 +167,7 @@ class TestGetExtraLinks(unittest.TestCase):
         )
 
     @mock_plugin_manager(plugins=[])
-    def test_should_response_200_missing_xcom(self):
+    def test_should_respond_200_missing_xcom(self):
         response = self.client.get(
             "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
             environ_overrides={'REMOTE_USER': "test"},
@@ -180,7 +180,7 @@ class TestGetExtraLinks(unittest.TestCase):
         )
 
     @mock_plugin_manager(plugins=[])
-    def test_should_response_200_multiple_links(self):
+    def test_should_respond_200_multiple_links(self):
         XCom.set(
             key="job_id",
             value=["TEST_JOB_ID_1", "TEST_JOB_ID_2"],
@@ -203,7 +203,7 @@ class TestGetExtraLinks(unittest.TestCase):
         )
 
     @mock_plugin_manager(plugins=[])
-    def test_should_response_200_multiple_links_missing_xcom(self):
+    def test_should_respond_200_multiple_links_missing_xcom(self):
         response = self.client.get(
             "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_MULTIPLE_QUERY/links",
             environ_overrides={'REMOTE_USER': "test"},
@@ -215,7 +215,7 @@ class TestGetExtraLinks(unittest.TestCase):
             response.json,
         )
 
-    def test_should_response_200_support_plugins(self):
+    def test_should_respond_200_support_plugins(self):
         class GoogleLink(BaseOperatorLink):
             name = "Google"
 

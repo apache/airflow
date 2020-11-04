@@ -18,9 +18,9 @@
 
 from unittest import mock
 from unittest.case import TestCase
+from unittest.mock import mock_open, patch
 
 from hvac.exceptions import InvalidPath, VaultError
-from mock import mock_open, patch
 
 from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient  # noqa
 

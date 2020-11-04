@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Facebook Ads Reporting hooks
-"""
+"""This module contains Facebook Ads Reporting hooks"""
 import time
 from enum import Enum
 from typing import Any, Dict, List
@@ -33,9 +31,7 @@ from airflow.hooks.base_hook import BaseHook
 
 
 class JobStatus(Enum):
-    """
-    Available options for facebook async task status
-    """
+    """Available options for facebook async task status"""
 
     COMPLETED = 'Job Completed'
     STARTED = 'Job Started'
@@ -91,7 +87,7 @@ class FacebookAdsReportingHook(BaseHook):
         config = conn.extra_dejson
         missing_keys = self.client_required_fields - config.keys()
         if missing_keys:
-            message = "{missing_keys} fields are missing".format(missing_keys=missing_keys)
+            message = f"{missing_keys} fields are missing"
             raise AirflowException(message)
         return config
 
@@ -128,7 +124,7 @@ class FacebookAdsReportingHook(BaseHook):
                 self.log.info("Job run completed")
                 break
             if async_status in [JobStatus.SKIPPED.value, JobStatus.FAILED.value]:
-                message = "{async_status}. Please retry.".format(async_status=async_status)
+                message = f"{async_status}. Please retry."
                 raise AirflowException(message)
             time.sleep(sleep_time)
         report_run_id = _async.api_get()["report_run_id"]

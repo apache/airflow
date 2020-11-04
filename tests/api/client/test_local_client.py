@@ -38,7 +38,6 @@ EXECDATE_ISO = EXECDATE_NOFRACTIONS.isoformat()
 
 
 class TestLocalClient(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -67,44 +66,52 @@ class TestLocalClient(unittest.TestCase):
         with freeze_time(EXECDATE):
             # no execution date, execution date should be set automatically
             self.client.trigger_dag(dag_id=test_dag_id)
-            mock.assert_called_once_with(run_id=run_id,
-                                         execution_date=EXECDATE_NOFRACTIONS,
-                                         state=State.RUNNING,
-                                         conf=None,
-                                         external_trigger=True,
-                                         dag_hash=ANY)
+            mock.assert_called_once_with(
+                run_id=run_id,
+                execution_date=EXECDATE_NOFRACTIONS,
+                state=State.RUNNING,
+                conf=None,
+                external_trigger=True,
+                dag_hash=ANY,
+            )
             mock.reset_mock()
 
             # execution date with microseconds cutoff
             self.client.trigger_dag(dag_id=test_dag_id, execution_date=EXECDATE)
-            mock.assert_called_once_with(run_id=run_id,
-                                         execution_date=EXECDATE_NOFRACTIONS,
-                                         state=State.RUNNING,
-                                         conf=None,
-                                         external_trigger=True,
-                                         dag_hash=ANY)
+            mock.assert_called_once_with(
+                run_id=run_id,
+                execution_date=EXECDATE_NOFRACTIONS,
+                state=State.RUNNING,
+                conf=None,
+                external_trigger=True,
+                dag_hash=ANY,
+            )
             mock.reset_mock()
 
             # run id
             custom_run_id = "my_run_id"
             self.client.trigger_dag(dag_id=test_dag_id, run_id=custom_run_id)
-            mock.assert_called_once_with(run_id=custom_run_id,
-                                         execution_date=EXECDATE_NOFRACTIONS,
-                                         state=State.RUNNING,
-                                         conf=None,
-                                         external_trigger=True,
-                                         dag_hash=ANY)
+            mock.assert_called_once_with(
+                run_id=custom_run_id,
+                execution_date=EXECDATE_NOFRACTIONS,
+                state=State.RUNNING,
+                conf=None,
+                external_trigger=True,
+                dag_hash=ANY,
+            )
             mock.reset_mock()
 
             # test conf
             conf = '{"name": "John"}'
             self.client.trigger_dag(dag_id=test_dag_id, conf=conf)
-            mock.assert_called_once_with(run_id=run_id,
-                                         execution_date=EXECDATE_NOFRACTIONS,
-                                         state=State.RUNNING,
-                                         conf=json.loads(conf),
-                                         external_trigger=True,
-                                         dag_hash=ANY)
+            mock.assert_called_once_with(
+                run_id=run_id,
+                execution_date=EXECDATE_NOFRACTIONS,
+                state=State.RUNNING,
+                conf=json.loads(conf),
+                external_trigger=True,
+                dag_hash=ANY,
+            )
             mock.reset_mock()
 
     def test_delete_dag(self):
@@ -129,8 +136,7 @@ class TestLocalClient(unittest.TestCase):
         self.client.create_pool(name='foo1', slots=1, description='')
         self.client.create_pool(name='foo2', slots=2, description='')
         pools = sorted(self.client.get_pools(), key=lambda p: p[0])
-        self.assertEqual(pools, [('default_pool', 128, 'Default pool'),
-                                 ('foo1', 1, ''), ('foo2', 2, '')])
+        self.assertEqual(pools, [('default_pool', 128, 'Default pool'), ('foo1', 1, ''), ('foo2', 2, '')])
 
     def test_create_pool(self):
         pool = self.client.create_pool(name='foo', slots=1, description='')

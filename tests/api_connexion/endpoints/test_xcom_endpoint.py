@@ -15,10 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from datetime import timedelta
 
 from parameterized import parameterized
 
 from airflow.models import DagModel, DagRun as DR, XCom
+from airflow.security import permissions
 from airflow.utils.dates import parse_execution_date
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
@@ -40,20 +42,25 @@ class TestXComEndpoint(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                ("can_read", "Dag"),
-                ("can_read", "DagRun"),
-                ("can_read", "Task"),
-                ("can_read", "XCom"),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
             ],
         )
         create_user(
             cls.app,  # type: ignore
             username="test_granular_permissions",
             role_name="TestGranularDag",
-            permissions=[("can_read", "DagRun"), ("can_read", "Task"), ("can_read", "XCom")],
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
+            ],
         )
         cls.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
-            "test-dag-id-1", access_control={'TestGranularDag': ['can_edit', 'can_read']}
+            "test-dag-id-1",
+            access_control={'TestGranularDag': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
         )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
@@ -84,7 +91,7 @@ class TestXComEndpoint(unittest.TestCase):
 
 
 class TestGetXComEntry(TestXComEndpoint):
-    def test_should_response_200(self):
+    def test_should_respond_200(self):
         dag_id = 'test-dag-id'
         task_id = 'test-task-id'
         execution_date = '2005-04-02T00:00:00+00:00'
@@ -119,7 +126,6 @@ class TestGetXComEntry(TestXComEndpoint):
         execution_date_parsed = parse_execution_date(execution_date)
         dag_run_id = DR.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
         self._create_xcom_entry(dag_id, dag_run_id, execution_date_parsed, task_id, xcom_key)
-
         response = self.client.get(
             f"/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}"
         )
@@ -155,13 +161,13 @@ class TestGetXComEntry(TestXComEndpoint):
             run_id=dag_run_id,
             execution_date=execution_date,
             start_date=execution_date,
-            run_type=DagRunType.MANUAL.value,
+            run_type=DagRunType.MANUAL,
         )
         session.add(dagrun)
 
 
 class TestGetXComEntries(TestXComEndpoint):
-    def test_should_response_200(self):
+    def test_should_respond_200(self):
         dag_id = 'test-dag-id'
         task_id = 'test-task-id'
         execution_date = '2005-04-02T00:00:00+00:00'
@@ -201,7 +207,7 @@ class TestGetXComEntries(TestXComEndpoint):
             },
         )
 
-    def test_should_response_200_with_tilde_and_access_to_all_dags(self):
+    def test_should_respond_200_with_tilde_and_access_to_all_dags(self):
         dag_id_1 = 'test-dag-id-1'
         task_id_1 = 'test-task-id-1'
         execution_date = '2005-04-02T00:00:00+00:00'
@@ -213,6 +219,7 @@ class TestGetXComEntries(TestXComEndpoint):
         task_id_2 = 'test-task-id-2'
         dag_run_id_2 = DR.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
         self._create_xcom_entries(dag_id_2, dag_run_id_2, execution_date_parsed, task_id_2)
+        self._create_invalid_xcom_entries(execution_date_parsed)
 
         response = self.client.get(
             "/api/v1/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
@@ -260,7 +267,7 @@ class TestGetXComEntries(TestXComEndpoint):
             },
         )
 
-    def test_should_response_200_with_tilde_and_granular_dag_access(self):
+    def test_should_respond_200_with_tilde_and_granular_dag_access(self):
         dag_id_1 = 'test-dag-id-1'
         task_id_1 = 'test-task-id-1'
         execution_date = '2005-04-02T00:00:00+00:00'
@@ -272,7 +279,7 @@ class TestGetXComEntries(TestXComEndpoint):
         task_id_2 = 'test-task-id-2'
         dag_run_id_2 = DR.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
         self._create_xcom_entries(dag_id_2, dag_run_id_2, execution_date_parsed, task_id_2)
-
+        self._create_invalid_xcom_entries(execution_date_parsed)
         response = self.client.get(
             "/api/v1/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
             environ_overrides={'REMOTE_USER': "test_granular_permissions"},
@@ -338,9 +345,42 @@ class TestGetXComEntries(TestXComEndpoint):
             run_id=dag_run_id,
             execution_date=execution_date,
             start_date=execution_date,
-            run_type=DagRunType.MANUAL.value,
+            run_type=DagRunType.MANUAL,
         )
         session.add(dagrun)
+
+    @provide_session
+    def _create_invalid_xcom_entries(self, execution_date, session=None):
+        """
+        Invalid XCom entries to test join query
+        """
+        for i in [1, 2]:
+            XCom.set(
+                key=f'invalid-xcom-key-{i}',
+                value="TEST",
+                execution_date=execution_date,
+                task_id="invalid_task",
+                dag_id="invalid_dag",
+            )
+
+        dag = DagModel(dag_id="invalid_dag")
+        session.add(dag)
+        dagrun = DR(
+            dag_id="invalid_dag",
+            run_id="invalid_run_id",
+            execution_date=execution_date + timedelta(days=1),
+            start_date=execution_date,
+            run_type=DagRunType.MANUAL,
+        )
+        session.add(dagrun)
+        dagrun = DR(
+            dag_id="invalid_dag_1",
+            run_id="invalid_run_id",
+            execution_date=execution_date,
+            start_date=execution_date,
+            run_type=DagRunType.MANUAL,
+        )
+        session.commit()
 
 
 class TestPaginationGetXComEntries(TestXComEndpoint):
@@ -412,7 +452,7 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
             run_id=self.dag_run_id,
             execution_date=self.execution_date_parsed,
             start_date=self.execution_date_parsed,
-            run_type=DagRunType.MANUAL.value,
+            run_type=DagRunType.MANUAL,
         )
         xcom_models = self._create_xcoms(10)
         session.add_all(xcom_models)

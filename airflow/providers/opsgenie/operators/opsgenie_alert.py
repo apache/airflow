@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.opsgenie.hooks.opsgenie_alert import OpsgenieAlertHook
@@ -138,8 +138,6 @@ class OpsgenieAlertOperator(BaseOperator):
         return payload
 
     def execute(self, context) -> None:
-        """
-        Call the OpsgenieAlertHook to post message
-        """
+        """Call the OpsgenieAlertHook to post message"""
         self.hook = OpsgenieAlertHook(self.opsgenie_conn_id)
         self.hook.execute(self._build_opsgenie_payload())

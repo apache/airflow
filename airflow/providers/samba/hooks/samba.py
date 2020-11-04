@@ -24,9 +24,7 @@ from airflow.hooks.base_hook import BaseHook
 
 
 class SambaHook(BaseHook):
-    """
-    Allows for interaction with an samba server.
-    """
+    """Allows for interaction with an samba server."""
 
     def __init__(self, samba_conn_id: str) -> None:
         super().__init__()
@@ -43,9 +41,7 @@ class SambaHook(BaseHook):
         return samba
 
     def push_from_local(self, destination_filepath: str, local_filepath: str) -> None:
-        """
-        Push local file to samba server
-        """
+        """Push local file to samba server"""
         samba = self.get_conn()
         if samba.exists(destination_filepath):
             if samba.isfile(destination_filepath):

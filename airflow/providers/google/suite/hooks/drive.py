@@ -84,8 +84,8 @@ class GoogleDriveHook(GoogleBaseHook):
             self.log.debug("Looking for %s directory with %s parent", current_folder, current_parent)
             conditions = [
                 "mimeType = 'application/vnd.google-apps.folder'",
-                "name='{}'".format(current_folder),
-                "'{}' in parents".format(current_parent),
+                f"name='{current_folder}'",
+                f"'{current_parent}' in parents",
             ]
             result = (
                 service.files()  # pylint: disable=no-member

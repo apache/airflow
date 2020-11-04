@@ -17,7 +17,7 @@
 # under the License.
 
 from datetime import datetime
-from typing import Optional, List
+from typing import List, Optional
 
 import cx_Oracle
 import numpy
@@ -26,9 +26,7 @@ from airflow.hooks.dbapi_hook import DbApiHook
 
 
 class OracleHook(DbApiHook):
-    """
-    Interact with Oracle SQL.
-    """
+    """Interact with Oracle SQL."""
 
     conn_name_attr = 'oracle_conn_id'
     default_conn_name = 'oracle_default'
@@ -149,7 +147,7 @@ class OracleHook(DbApiHook):
         """
         if target_fields:
             target_fields = ', '.join(target_fields)
-            target_fields = '({})'.format(target_fields)
+            target_fields = f'({target_fields})'
         else:
             target_fields = ''
         conn = self.get_conn()
@@ -177,7 +175,7 @@ class OracleHook(DbApiHook):
                 else:
                     lst.append(str(cell))
             values = tuple(lst)
-            sql = 'INSERT /*+ APPEND */ ' 'INTO {0} {1} VALUES ({2})'.format(
+            sql = 'INSERT /*+ APPEND */ ' 'INTO {} {} VALUES ({})'.format(
                 table, target_fields, ','.join(values)
             )
             cur.execute(sql)

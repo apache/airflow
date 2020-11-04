@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Speech to Text operator.
-"""
+"""This module contains a Google Speech to Text operator."""
 from typing import Optional, Sequence, Union
 
 from google.api_core.retry import Retry

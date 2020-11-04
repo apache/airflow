@@ -25,6 +25,7 @@ from parameterized import parameterized
 from airflow import DAG
 from airflow.configuration import conf
 from airflow.models import DagBag
+from airflow.security import permissions
 from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
@@ -41,7 +42,10 @@ class TestGetSource(unittest.TestCase):
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
         create_user(
-            cls.app, username="test", role_name="Test", permissions=[("can_read", "DagCode")]  # type: ignore
+            cls.app,  # type:ignore
+            username="test",
+            role_name="Test",
+            permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE)],  # type: ignore
         )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
@@ -72,7 +76,7 @@ class TestGetSource(unittest.TestCase):
         return docstring
 
     @parameterized.expand([(True,), (False,)])
-    def test_should_response_200_text(self, store_dag_code):
+    def test_should_respond_200_text(self, store_dag_code):
         serializer = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))
         with mock.patch("airflow.models.dag.settings.STORE_DAG_CODE", store_dag_code), mock.patch(
             "airflow.models.dagcode.STORE_DAG_CODE", store_dag_code
@@ -92,7 +96,7 @@ class TestGetSource(unittest.TestCase):
             self.assertEqual('text/plain', response.headers['Content-Type'])
 
     @parameterized.expand([(True,), (False,)])
-    def test_should_response_200_json(self, store_dag_code):
+    def test_should_respond_200_json(self, store_dag_code):
         serializer = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))
         with mock.patch("airflow.models.dag.settings.STORE_DAG_CODE", store_dag_code), mock.patch(
             "airflow.models.dagcode.STORE_DAG_CODE", store_dag_code
@@ -112,7 +116,7 @@ class TestGetSource(unittest.TestCase):
             self.assertEqual('application/json', response.headers['Content-Type'])
 
     @parameterized.expand([(True,), (False,)])
-    def test_should_response_406(self, store_dag_code):
+    def test_should_respond_406(self, store_dag_code):
         serializer = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))
         with mock.patch("airflow.models.dag.settings.STORE_DAG_CODE", store_dag_code), mock.patch(
             "airflow.models.dagcode.STORE_DAG_CODE", store_dag_code
@@ -129,7 +133,7 @@ class TestGetSource(unittest.TestCase):
             self.assertEqual(406, response.status_code)
 
     @parameterized.expand([(True,), (False,)])
-    def test_should_response_404(self, store_dag_code):
+    def test_should_respond_404(self, store_dag_code):
         with mock.patch("airflow.models.dag.settings.STORE_DAG_CODE", store_dag_code), mock.patch(
             "airflow.models.dagcode.STORE_DAG_CODE", store_dag_code
         ):

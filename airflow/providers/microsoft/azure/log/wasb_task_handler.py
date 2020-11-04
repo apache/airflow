@@ -17,7 +17,7 @@
 # under the License.
 import os
 import shutil
-from typing import Optional, Tuple, Dict
+from typing import Dict, Optional, Tuple
 
 from azure.common import AzureHttpError
 from cached_property import cached_property
@@ -53,9 +53,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
 
     @cached_property
     def hook(self):
-        """
-        Returns WasbHook.
-        """
+        """Returns WasbHook."""
         remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
@@ -77,9 +75,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         self.upload_on_close = not ti.raw
 
     def close(self) -> None:
-        """
-        Close and upload local log file to remote storage Wasb.
-        """
+        """Close and upload local log file to remote storage Wasb."""
         # When application exit, system shuts down all handlers by
         # calling close method. Here we check if logger is already
         # closed to prevent uploading the log to remote storage multiple
@@ -96,7 +92,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         remote_loc = os.path.join(self.remote_base, self.log_relative_path)
         if os.path.exists(local_loc):
             # read log and remove old logs to get just the latest additions
-            with open(local_loc, 'r') as logfile:
+            with open(local_loc) as logfile:
                 log = logfile.read()
             self.wasb_write(log, remote_loc, append=True)
 
@@ -126,7 +122,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             # local machine even if there are errors reading remote logs, as
             # returned remote_log will contain error messages.
             remote_log = self.wasb_read(remote_loc, return_error=True)
-            log = '*** Reading remote log from {}.\n{}\n'.format(remote_loc, remote_log)
+            log = f'*** Reading remote log from {remote_loc}.\n{remote_log}\n'
             return log, {'end_of_log': True}
         else:
             return super()._read(ti, try_number)
@@ -158,7 +154,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         try:
             return self.hook.read_file(self.wasb_container, remote_log_location)
         except AzureHttpError:
-            msg = 'Could not read logs from {}'.format(remote_log_location)
+            msg = f'Could not read logs from {remote_log_location}'
             self.log.exception(msg)
             # return error if needed
             if return_error:

@@ -14,9 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Custom logging formatter for Airflow
-"""
+"""Custom logging formatter for Airflow"""
 
 import logging
 from logging import StreamHandler
@@ -26,9 +24,7 @@ from airflow.utils.helpers import parse_template_string
 
 
 class TaskHandlerWithCustomFormatter(StreamHandler):
-    """
-    Custom implementation of StreamHandler, a class which writes logging records for Airflow
-    """
+    """Custom implementation of StreamHandler, a class which writes logging records for Airflow"""
 
     def __init__(self, stream):
         super().__init__()

@@ -26,7 +26,7 @@ from time import sleep
 from urllib.parse import urlparse
 
 import requests
-from requests import exceptions as requests_exceptions, PreparedRequest
+from requests import PreparedRequest, exceptions as requests_exceptions
 from requests.auth import AuthBase
 
 from airflow import __version__
@@ -41,13 +41,11 @@ RUN_NOW_ENDPOINT = ('POST', 'api/2.0/jobs/run-now')
 SUBMIT_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/submit')
 GET_RUN_ENDPOINT = ('GET', 'api/2.0/jobs/runs/get')
 CANCEL_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/cancel')
-USER_AGENT_HEADER = {'user-agent': 'airflow-{v}'.format(v=__version__)}
+USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
 
 
 class RunState:
-    """
-    Utility class for the run state concept of Databricks runs.
-    """
+    """Utility class for the run state concept of Databricks runs."""
 
     def __init__(self, life_cycle_state: str, result_state: str, state_message: str) -> None:
         self.life_cycle_state = life_cycle_state
@@ -201,7 +199,7 @@ class DatabricksHook(BaseHook):  # noqa
                     # In this case, the user probably made a mistake.
                     # Don't retry.
                     raise AirflowException(
-                        'Response: {0}, Status Code: {1}'.format(e.response.content, e.response.status_code)
+                        f'Response: {e.response.content}, Status Code: {e.response.status_code}'
                     )
 
                 self._log_request_error(attempt_num, e)

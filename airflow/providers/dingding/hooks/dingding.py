@@ -17,7 +17,7 @@
 # under the License.
 
 import json
-from typing import Union, Optional, List
+from typing import List, Optional, Union
 
 import requests
 from requests import Session
@@ -65,16 +65,14 @@ class DingdingHook(HttpHook):
         self.at_all = at_all
 
     def _get_endpoint(self) -> str:
-        """
-        Get Dingding endpoint for sending message.
-        """
+        """Get Dingding endpoint for sending message."""
         conn = self.get_connection(self.http_conn_id)
         token = conn.password
         if not token:
             raise AirflowException(
                 'Dingding token is requests but get nothing, ' 'check you conn_id configuration.'
             )
-        return 'robot/send?access_token={}'.format(token)
+        return f'robot/send?access_token={token}'
 
     def _build_message(self) -> str:
         """
@@ -108,9 +106,7 @@ class DingdingHook(HttpHook):
         return session
 
     def send(self) -> None:
-        """
-        Send Dingding message
-        """
+        """Send Dingding message"""
         support_type = ['text', 'link', 'markdown', 'actionCard', 'feedCard']
         if self.message_type not in support_type:
             raise ValueError(

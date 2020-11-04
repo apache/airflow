@@ -31,11 +31,12 @@
   - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Vote and verify the Apache Airflow release candidate](#vote-and-verify-the-apache-airflow-release-candidate)
   - [Publish the final Apache Airflow release](#publish-the-final-apache-airflow-release)
-- [Backport Provider Packages](#backport-provider-packages)
+- [Provider Packages](#provider-packages)
   - [Decide when to release](#decide-when-to-release)
   - [Prepare the Backport Provider Packages RC](#prepare-the-backport-provider-packages-rc)
   - [Vote and verify the Backport Providers release candidate](#vote-and-verify-the-backport-providers-release-candidate)
   - [Publish the final releases of backport packages](#publish-the-final-releases-of-backport-packages)
+  - [Prepare the Regular Provider Packages Alpha](#prepare-the-regular-provider-packages-alpha)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -155,9 +156,9 @@ You can add and copy the tokens here:
 * [Prod PyPI](https://pypi.org/manage/account/token/)
 
 
-Create a ~/.pypirc file:
+Create a `~/.pypirc` file:
 
-```shell script
+```ini
 [distutils]
 index-servers =
   pypi
@@ -171,7 +172,6 @@ password=<API Upload Token>
 repository=https://test.pypi.org/legacy/
 username=__token__
 password=<API Upload Token>
-
 ```
 
 Set proper permissions for the pypirc file:
@@ -192,7 +192,7 @@ pip install twine
 - Set proper permissions for the pypirc file:
 `$ chmod 600 ~/.pypirc`
 
-- Confirm that airflow/version.py is set properly.
+- Confirm that `airflow/version.py` is set properly.
 
 
 ## Hardware used to prepare and verify the packages
@@ -212,55 +212,73 @@ prepared using such hardware. More information can be found in this
 The Release Candidate artifacts we vote upon should be the exact ones we vote against, without any modification than renaming – i.e. the contents of the files must be the same between voted release canidate and final release. Because of this the version in the built artifacts that will become the official Apache releases must not include the rcN suffix.
 
 - Set environment variables
-```
-# Set Version
-export VERSION=1.10.2rc3
+
+    ```shell script
+    # Set Version
+    export VERSION=1.10.2rc3
 
 
-# Set AIRFLOW_REPO_ROOT to the path of your git repo
-export AIRFLOW_REPO_ROOT=$(pwd)
+    # Set AIRFLOW_REPO_ROOT to the path of your git repo
+    export AIRFLOW_REPO_ROOT=$(pwd)
 
 
-# Example after cloning
-git clone https://github.com/apache/airflow.git airflow
-cd airflow
-export AIRFLOW_REPO_ROOT=$(pwd)
-```
+    # Example after cloning
+    git clone https://github.com/apache/airflow.git airflow
+    cd airflow
+    export AIRFLOW_REPO_ROOT=$(pwd)
+    ```
 
-- set your version to 1.10.2 in airflow/version.py (without the RC tag)
+- Set your version to 1.10.2 in `airflow/version.py` (without the RC tag)
 - Commit the version change.
 
 - Tag your release
 
-`git tag ${VERSION}`
+    ```shell script
+    git tag -s ${VERSION}
+    ```
 
 - Clean the checkout: the sdist step below will
-`git clean -fxd`
+
+    ```shell script
+    git clean -fxd
+    ```
 
 - Tarball the repo
-`git archive --format=tar.gz ${VERSION} --prefix=apache-airflow-${VERSION}/ -o apache-airflow-${VERSION}-source.tar.gz`
+
+    ```shell script
+    git archive --format=tar.gz ${VERSION} --prefix=apache-airflow-${VERSION}/ -o apache-airflow-${VERSION}-source.tar.gz`
+    ```
+
 
 - Generate sdist
 
-NOTE: Make sure your checkout is clean at this stage - any untracked or changed files will otherwise be included in the file produced.
+    NOTE: Make sure your checkout is clean at this stage - any untracked or changed files will otherwise be included
+     in the file produced.
 
-`python setup.py compile_assets sdist bdist_wheel`
+    ```shell script
+    python setup.py compile_assets sdist bdist_wheel
+    ```
 
 - Rename the sdist
-```
-mv dist/apache-airflow-${VERSION%rc?}.tar.gz apache-airflow-${VERSION}-bin.tar.gz
-mv dist/apache_airflow-${VERSION%rc?}-py2.py3-none-any.whl apache_airflow-${VERSION}-py2.py3-none-any.whl
-```
+
+    ```shell script
+    mv dist/apache-airflow-${VERSION%rc?}.tar.gz apache-airflow-${VERSION}-bin.tar.gz
+    mv dist/apache_airflow-${VERSION%rc?}-py2.py3-none-any.whl apache_airflow-${VERSION}-py2.py3-none-any.whl
+    ```
 
 - Generate SHA512/ASC (If you have not generated a key yet, generate it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
-```
-${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-source.tar.gz
-${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-bin.tar.gz
-${AIRFLOW_REPO_ROOT}/dev/sign.sh apache_airflow-${VERSION}-py2.py3-none-any.whl
-```
+
+    ```shell script
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-source.tar.gz
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-bin.tar.gz
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache_airflow-${VERSION}-py2.py3-none-any.whl
+    ```
 
 - Push Tags
-`git push --tags`
+
+    ```shell script
+    git push origin ${VERSION}
+    ```
 
 - Push the artifacts to ASF dev dist repo
 ```
@@ -283,16 +301,25 @@ svn commit -m "Add artifacts for Airflow ${VERSION}"
 At this point we have the artefact that we vote on, but as a convenience to developers we also want to
 publish "snapshots" of the RC builds to pypi for installing via pip. To do this we need to
 
-- Edit the airflow/version.py to include the RC suffix.
+- Edit the `airflow/version.py` to include the RC suffix.
 
 - Build the package:
-`python setup.py compile_assets sdist bdist_wheel`
+
+    ```shell script
+    python setup.py compile_assets sdist bdist_wheel
+    ```
 
 - Verify the artifacts that would be uploaded:
-`twine check dist/*`
+
+    ```shell script
+    twine check dist/*
+    ```
 
 - Upload the package to PyPi's test environment:
-`twine upload -r pypitest dist/*`
+
+    ```shell script
+    twine upload -r pypitest dist/*
+    ```
 
 - Verify that the test package looks good by downloading it and installing it into a virtual environment. The package download link is available at:
 https://test.pypi.org/project/apache-airflow/#files
@@ -548,13 +575,13 @@ downloaded from the SVN).
 There is also an easy way of installation with Breeze if you have the latest sources of Apache Airflow.
 Running the following command will use tmux inside breeze, create `admin` user and run Webserver & Scheduler:
 
-```
+```shell script
 ./breeze start-airflow --install-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres
 ```
 
 For 1.10 releases you can also use `--no-rbac-ui` flag disable RBAC UI of Airflow:
 
-```
+```shell script
 ./breeze start-airflow --install-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres --no-rbac-ui
 ```
 
@@ -641,27 +668,41 @@ Verify that the packages appear in [airflow](https://dist.apache.org/repos/dist/
 At this point we release an official package:
 
 - Build the package:
-`python setup.py compile_assets sdist bdist_wheel`
+
+    ```shell script
+    python setup.py compile_assets sdist bdist_wheel`
+    ```
 
 - Verify the artifacts that would be uploaded:
-`twine check dist/*`
+
+    ```shell script
+    twine check dist/*`
+    ```
 
 - Upload the package to PyPi's test environment:
-`twine upload -r pypitest dist/*`
+
+    ```shell script
+    twine upload -r pypitest dist/*
+    ```
 
 - Verify that the test package looks good by downloading it and installing it into a virtual environment.
-The package download link is available at: https://test.pypi.org/project/apache-airflow/#files
+    The package download link is available at: https://test.pypi.org/project/apache-airflow/#files
 
 - Upload the package to PyPi's production environment:
-`twine upload -r pypi dist/*`
 
-- Again, confirm that the package is available here:
-https://pypi.python.org/pypi/apache-airflow
+    ```shell script
+    twine upload -r pypi dist/*
+    ```
+
+- Again, confirm that the package is available here: https://pypi.python.org/pypi/apache-airflow
 
 ### Update CHANGELOG.md
 
 - Get a diff between the last version and the current version:
-`$ git log 1.8.0..1.9.0 --pretty=oneline`
+
+    ```shell script
+    $ git log 1.8.0..1.9.0 --pretty=oneline
+    ```
 - Update CHANGELOG.md with the details, and commit it.
 
 ### Notify developers of release
@@ -715,20 +756,35 @@ Update "Announcements" page at the [Official Airflow website](https://airflow.ap
 -----------------------------------------------------------------------------------------------------------
 
 
-# Backport Provider Packages
+# Provider Packages
 
-You can read more about the command line tools used to generate backport packages in
-[Backport Providers README](../provider_packages/README.md).
+You can read more about the command line tools used to generate the packages and the two types of
+packages we have (Backport and Regular Provider Packages) in [Provider packages](PROVIDER_PACKAGES.md).
 
 ## Decide when to release
 
-You can release backport packages separately on an ad-hoc basis, whenever we find that a given provider needs
-to be released - due to new features or due to bug fixes. You can release each backport package
-separately.
+You can release provider packages separately from the main Airflow on an ad-hoc basis, whenever we find that
+a given provider needs to be released - due to new features or due to bug fixes.
+You can release each provider package separately, but due to voting and release overhead we try to group
+releases of provider packages together.
+
+### Backport provider packages versioning
 
 We are using the [CALVER](https://calver.org/) versioning scheme for the backport packages. We also have an
 automated way to prepare and build the packages, so it should be very easy to release the packages often and
-separately.
+separately. Backport packages will be maintained for three months after 2.0.0 version of Airflow, and it is
+really a bridge, allowing people to migrate to Airflow 2.0 in stages, so the overhead of maintaining
+semver versioning does not apply there - subsequent releases might be backward-incompatible, and it is
+not indicated by the version of the packages.
+
+### Regular provider packages versioning
+
+We are using the [SEMVER](https://semver.org/) versioning scheme for the regular packages. This is in order
+to give the users confidence about maintaining backwards compatibility in the new releases of those
+packages.
+
+Details about maintaining the SEMVER version are going to be discussed and implemented in
+[the related issue](https://github.com/apache/airflow/issues/11425)
 
 ## Prepare the Backport Provider Packages RC
 
@@ -737,15 +793,15 @@ separately.
 Prepare release notes for all the packages you plan to release. Where YYYY.MM.DD is the CALVER
 date for the packages.
 
-```
-./breeze prepare-provider-readme YYYY.MM.DD [packages]
+```shell script
+./breeze --backports prepare-provider-readme YYYY.MM.DD [packages]
 ```
 
 If you iterate with merges and release candidates you can update the release date without providing
 the date (to update the existing release notes)
 
-```
-./breeze prepare-provider-readme google
+```shell script
+./breeze --backports prepare-provider-readme google
 ```
 
 Generated readme files should be eventually committed to the repository.
@@ -772,9 +828,8 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 
 * Build the source package:
 
-```
-./provider_packages/build_source_package.sh
-
+```shell script
+./provider_packages/build_source_package.sh --backports
 ```
 
 It will generate `apache-airflow-backport-providers-${VERSION}-source.tar.gz`
@@ -784,13 +839,13 @@ It will generate `apache-airflow-backport-providers-${VERSION}-source.tar.gz`
   you intended to build.
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-svn rc1
+./breeze --backports prepare-provider-packages --version-suffix-for-svn rc1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-svn rc1 PACKAGE PACKAGE ....
+./breeze --backports prepare-provider-packages --version-suffix-for-svn rc1 PACKAGE PACKAGE ....
 ```
 
 * Move the source tarball to dist folder
@@ -853,13 +908,13 @@ though they should be generated from the same sources.
 this will clean up dist folder before generating the packages, so you will only have the right packages there.
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-pypi rc1
+./breeze --backports prepare-provider-packages --version-suffix-for-pypi rc1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-pypi rc1 PACKAGE PACKAGE ....
+./breeze --backports prepare-provider-packages --version-suffix-for-pypi rc1 PACKAGE PACKAGE ....
 ```
 
 * Verify the artifacts that would be uploaded:
@@ -947,7 +1002,7 @@ the artifact checksums when we actually release.
 Each of the packages contains detailed changelog. Here is the list of links to
 the released packages and changelogs:
 
-TODO: Paste the result of twine upload
+<PASTE TWINE UPLOAD LINKS HERE. SORT THEM BEFORE!>
 
 Cheers,
 <TODO: Your Name>
@@ -1121,7 +1176,7 @@ First copy all the provider packages .whl files to the `dist` folder.
 
 ```shell script
 ./breeze start-airflow --install-airflow-version <VERSION>rc<X> \
-    --python 3.7 --backend postgres --instal-wheels
+    --python 3.7 --backend postgres --install-wheels
 ```
 
 For 1.10 releases you can also use `--no-rbac-ui` flag disable RBAC UI of Airflow:
@@ -1138,7 +1193,7 @@ backport packages. This is especially helpful when you want to test integrations
 additional tools. Below is an example Dockerfile, which installs backport providers for Google and
 an additional third-party tools:
 
-```
+```dockerfile
 FROM apache/airflow:1.10.12
 
 RUN pip install --user apache-airflow-backport-providers-google==2020.10.5.rc1
@@ -1158,7 +1213,7 @@ USER ${AIRFLOW_UID}
 
 To build an image build and run a shell, run:
 
-```
+```shell script
 docker build . -t my-airflow
 docker run  -ti \
     --rm \
@@ -1300,16 +1355,16 @@ In order to publish to PyPI you just need to build and release packages.
 * Generate the packages.
 
 ```shell script
-./breeze prepare-provider-packages
+./breeze --backports prepare-provider-packages
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze prepare-provider-packages
+./breeze --backports prepare-provider-packages <PACKAGE> ...
 ```
 
-In case you decided to remove some of the packages. Remove them from dist folder now:
+In case you decided to remove some of the packages. remove them from dist folder now:
 
 ```shell script
 ls dist/*<provider>*
@@ -1343,11 +1398,6 @@ twine upload -r pypi dist/*
 - Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org and announce@apache.org) that
 the artifacts have been published:
 
-### Notify developers of release
-
-- Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org and announce@apache.org) that
-the artifacts have been published:
-
 Subject:
 ```shell script
 cat <<EOF
@@ -1372,8 +1422,207 @@ https://pypi.org/search/?q=apache-airflow-backport-providers
 
 The documentation and changelogs are available in the PyPI packages:
 
-<PASTE TWINE UPLOAD LINKS HERE>
+<PASTE TWINE UPLOAD LINKS HERE. SORT THEM BEFORE!>
 
+
+Cheers,
+<your name>
+EOF
+```
+
+
+### Update Announcements page
+
+Update "Announcements" page at the [Official Airflow website](https://airflow.apache.org/announcements/)
+
+----------------------------------------------------------------------------------------------------------------------
+
+## Prepare the Regular Provider Packages Alpha
+
+### Generate release notes
+
+Prepare release notes for all the packages you plan to release. Note that for now version number is
+hard-coded to 0.0.1 for all packages. Later on we are going to update the versions according
+to SEMVER versioning.
+
+Details about maintaining the SEMVER version are going to be discussed and implemented in
+[the related issue](https://github.com/apache/airflow/issues/11425)
+
+
+```shell script
+./breeze prepare-provider-readme [packages]
+```
+
+You can iterate and re-generate the same readme content as many times as you want.
+Generated readme files should be eventually committed to the repository.
+
+### Build regular provider packages for SVN apache upload
+
+There is a slightly different procedure if you build pre-release (alpha/beta) packages and the
+release candidates. For the Alpha artifacts there is no voting and signature/checksum check, so
+we do not need to care about this part. For release candidates - those packages might get promoted
+to "final" packages by just renaming the files, so internally they should keep the final version
+number without the rc suffix, even if they are rc1/rc2/... candidates.
+
+They also need to be signed and have checksum files. You can generate the checksum/signature files by running
+the "dev/sign.sh" script (assuming you have the right PGP key set-up for signing). The script
+generates corresponding .asc and .sha512 files for each file to sign.
+
+#### Build and sign the source and convenience packages
+
+Currently, we are releasing alpha provider packages together with the main sources of Airflow. In the future
+we are going to add procedure to release the sources of released provider packages separately.
+Details are in [the related issue](https://github.com/apache/airflow/issues/11425)
+
+For alpha/beta releases you need to specify both - svn and pyp i - suffixes, and they have to match. This is
+verified by the breeze script. Note that the script will clean up dist folder before generating the
+packages, so it will only contain the packages you intended to build.
+
+* Pre-release packages:
+
+```shell script
+export VERSION=0.0.1alpha1
+
+./breeze prepare-provider-packages --version-suffix-for-svn a1 --version-suffix-for-pypi a1
+```
+
+if you ony build few packages, run:
+
+```shell script
+./breeze prepare-provider-packages --version-suffix-for-svn a1 --version-suffix-for-pypi a1 \
+    PACKAGE PACKAGE ....
+```
+
+* Release candidate packages:
+
+```shell script
+export VERSION=0.0.1alpha1
+
+./breeze prepare-provider-packages --version-suffix-for-svn rc1
+```
+
+if you ony build few packages, run:
+
+```shell script
+./breeze prepare-provider-packages --version-suffix-for-svn rc1 PACKAGE PACKAGE ....
+```
+
+* Sign all your packages
+
+```shell script
+pushd dist
+../dev/sign.sh *
+popd
+```
+
+#### Commit the source packages to Apache SVN repo
+
+* Push the artifacts to ASF dev dist repo
+
+```shell script
+# First clone the repo if you do not have it
+svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
+
+# update the repo in case you have it already
+cd airflow-dev
+svn update
+
+# Create a new folder for the release.
+cd airflow-dev/providers
+svn mkdir ${VERSION}
+
+# Move the artifacts to svn folder
+mv ${AIRFLOW_REPO_ROOT}/dist/* ${VERSION}/
+
+# Add and commit
+svn add ${VERSION}/*
+svn commit -m "Add artifacts for Airflow Providers ${VERSION}"
+
+cd ${AIRFLOW_REPO_ROOT}
+```
+
+Verify that the files are available at
+[backport-providers](https://dist.apache.org/repos/dist/dev/airflow/backport-providers/)
+
+### Publish the Regular convenience package to PyPI
+
+
+In case of pre-release versions you build the same packages for both PyPI and SVN so you can simply use
+packages generated in the previous step and you can skip the "prepare" step below.
+
+In order to publish release candidate to PyPI you just need to build and release packages.
+The packages should however contain the rcN suffix in the version file name but not internally in the package,
+so you need to use `--version-suffix-for-pypi` switch to prepare those packages.
+Note that these are different packages than the ones used for SVN upload
+though they should be generated from the same sources.
+
+* Generate the packages with the right RC version (specify the version suffix with PyPI switch). Note that
+this will clean up dist folder before generating the packages, so you will only have the right packages there.
+
+```shell script
+./breeze prepare-provider-packages --version-suffix-for-pypi a1 --version-suffix-for-SVN a1
+```
+
+if you ony build few packages, run:
+
+```shell script
+./breeze prepare-provider-packages --version-suffix-for-pypi a1 \
+    PACKAGE PACKAGE ....
+```
+
+* Verify the artifacts that would be uploaded:
+
+```shell script
+twine check dist/*
+```
+
+* Upload the package to PyPi's test environment:
+
+```shell script
+twine upload -r pypitest dist/*
+```
+
+* Verify that the test packages look good by downloading it and installing them into a virtual environment.
+Twine prints the package links as output - separately for each package.
+
+* Upload the package to PyPi's production environment:
+
+```shell script
+twine upload -r pypi dist/*
+```
+
+* Again, confirm that the packages are available under the links printed.
+
+### Notify developers of release
+
+- Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org and announce@apache.org) that
+the artifacts have been published:
+
+Subject:
+```shell script
+cat <<EOF
+Airflow Providers are released
+EOF
+```
+
+Body:
+```shell script
+cat <<EOF
+Dear Airflow community,
+
+I'm happy to announce that new version of Airflow Providers packages were just released.
+
+The source release, as well as the binary releases, are available here:
+
+https://dist.apache.org/repos/dist/release/airflow/providers/
+
+We also made those versions available on PyPi for convenience ('pip install apache-airflow-providers-*'):
+
+https://pypi.org/search/?q=apache-airflow-providers
+
+The documentation and changelogs are available in the PyPI packages:
+
+<PASTE TWINE UPLOAD LINKS HERE. SORT THEM BEFORE!>
 
 Cheers,
 <your name>

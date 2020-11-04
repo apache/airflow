@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Ad hook.
-"""
+"""This module contains Google Ad hook."""
 from tempfile import NamedTemporaryFile
 from typing import IO, Any, Dict, Generator, List
 
@@ -88,9 +86,7 @@ class GoogleAdsHook(BaseHook):
 
     @cached_property
     def _get_service(self) -> Resource:
-        """
-        Connects and authenticates with the Google Ads API using a service account
-        """
+        """Connects and authenticates with the Google Ads API using a service account"""
         with NamedTemporaryFile("w", suffix=".json") as secrets_temp:
             self._get_config()
             self._update_config_with_secret(secrets_temp)
@@ -103,9 +99,7 @@ class GoogleAdsHook(BaseHook):
 
     @cached_property
     def _get_customer_service(self) -> Resource:
-        """
-        Connects and authenticates with the Google Ads API using a service account
-        """
+        """Connects and authenticates with the Google Ads API using a service account"""
         with NamedTemporaryFile("w", suffix=".json") as secrets_temp:
             self._get_config()
             self._update_config_with_secret(secrets_temp)
@@ -118,7 +112,8 @@ class GoogleAdsHook(BaseHook):
 
     def _get_config(self) -> None:
         """
-        Gets google ads connection from meta db and sets google_ads_config attribute with returned config file
+        Gets google ads connection from meta db and sets google_ads_config attribute with returned config
+        file
         """
         conn = self.get_connection(self.google_ads_conn_id)
         if "google_ads_client" not in conn.extra_dejson:

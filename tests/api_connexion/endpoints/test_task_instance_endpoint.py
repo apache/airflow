@@ -14,20 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
 import datetime as dt
+import getpass
+import unittest
 from unittest import mock
 
 from parameterized import parameterized
 
-from airflow.models import DagBag, DagRun, TaskInstance, SlaMiss
-from airflow.utils.types import DagRunType
+from airflow.models import DagBag, DagRun, SlaMiss, TaskInstance
+from airflow.security import permissions
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
+from airflow.utils.types import DagRunType
 from airflow.www import app
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
-from tests.test_utils.api_connexion_utils import create_user, delete_user, assert_401
 from tests.test_utils.db import clear_db_runs, clear_db_sla_miss
 
 DEFAULT_DATETIME_1 = datetime(2020, 1, 1)
@@ -46,10 +48,10 @@ class TestTaskInstanceEndpoint(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                ('can_read', 'Dag'),
-                ('can_read', 'DagRun'),
-                ('can_read', 'Task'),
-                ('can_edit', 'Task'),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
             ],
         )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
@@ -77,7 +79,8 @@ class TestTaskInstanceEndpoint(unittest.TestCase):
         self.client = self.app.test_client()  # type:ignore
         clear_db_runs()
         clear_db_sla_miss()
-        self.dagbag = DagBag(include_examples=True)
+        DagBag(include_examples=True, read_dags_from_db=False).sync_to_db()
+        self.dagbag = DagBag(include_examples=True, read_dags_from_db=True)
 
     def create_task_instances(
         self,
@@ -90,7 +93,7 @@ class TestTaskInstanceEndpoint(unittest.TestCase):
     ):
         """Method to create task instances using kwargs and default arguments"""
 
-        dag = self.dagbag.dags[dag_id]
+        dag = self.dagbag.get_dag(dag_id)
         tasks = dag.tasks
         counter = len(tasks)
         if task_instances is not None:
@@ -133,7 +136,7 @@ class TestTaskInstanceEndpoint(unittest.TestCase):
 
 class TestGetTaskInstance(TestTaskInstanceEndpoint):
     @provide_session
-    def test_should_response_200(self, session):
+    def test_should_respond_200(self, session):
         self.create_task_instances(session)
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
@@ -162,12 +165,12 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "state": "running",
                 "task_id": "print_the_context",
                 "try_number": 0,
-                "unixname": "root",
+                "unixname": getpass.getuser(),
             },
         )
 
     @provide_session
-    def test_should_response_200_task_instance_with_sla(self, session):
+    def test_should_respond_200_task_instance_with_sla(self, session):
         self.create_task_instances(session)
         session.query()
         sla_miss = SlaMiss(
@@ -214,7 +217,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "state": "running",
                 "task_id": "print_the_context",
                 "try_number": 0,
-                "unixname": "root",
+                "unixname": getpass.getuser(),
             },
         )
 
@@ -397,7 +400,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         ]
     )
     @provide_session
-    def test_should_response_200(self, _, task_instances, update_extras, url, expected_ti, session):
+    def test_should_respond_200(self, _, task_instances, update_extras, url, expected_ti, session):
         self.create_task_instances(
             session,
             update_extras=update_extras,
@@ -409,7 +412,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         self.assertEqual(len(response.json["task_instances"]), expected_ti)
 
     @provide_session
-    def test_should_response_200_for_dag_id_filter(self, session):
+    def test_should_respond_200_for_dag_id_filter(self, session):
         self.create_task_instances(session)
         self.create_task_instances(session, dag_id="example_skip_dag")
         response = self.client.get(
@@ -538,7 +541,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         ]
     )
     @provide_session
-    def test_should_response_200(
+    def test_should_respond_200(
         self, _, task_instances, update_extras, single_dag_run, payload, expected_ti_count, session
     ):
         self.create_task_instances(
@@ -567,7 +570,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         ],
     )
     @provide_session
-    def test_should_response_200_dag_ids_filter(self, _, payload, expected_ti, total_ti, session):
+    def test_should_respond_200_dag_ids_filter(self, _, payload, expected_ti, total_ti, session):
         self.create_task_instances(session)
         self.create_task_instances(session, dag_id="example_skip_dag")
         response = self.client.post(
@@ -735,7 +738,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         ]
     )
     @provide_session
-    def test_should_response_200(
+    def test_should_respond_200(
         self, _, main_dag, task_instances, request_dag, payload, expected_ti, session
     ):
         self.create_task_instances(
@@ -755,7 +758,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         self.assertEqual(len(response.json["task_instances"]), expected_ti)
 
     @provide_session
-    def test_should_response_200_with_reset_dag_run(self, session):
+    def test_should_respond_200_with_reset_dag_run(self, session):
         dag_id = "example_python_operator"
         payload = {
             "dry_run": False,
@@ -834,7 +837,8 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 'task_id': 'sleep_for_3',
             },
         ]
-        self.assertEqual(expected_response, response.json["task_instances"])
+        for task_instance in expected_response:
+            self.assertIn(task_instance, response.json["task_instances"])
         self.assertEqual(5, len(response.json["task_instances"]))
         self.assertEqual(0, failed_dag_runs, 0)
 

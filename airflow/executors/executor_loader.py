@@ -27,9 +27,7 @@ log = logging.getLogger(__name__)
 
 
 class ExecutorLoader:
-    """
-    Keeps constants for all the currently available executors.
-    """
+    """Keeps constants for all the currently available executors."""
 
     LOCAL_EXECUTOR = "LocalExecutor"
     SEQUENTIAL_EXECUTOR = "SequentialExecutor"
@@ -47,7 +45,7 @@ class ExecutorLoader:
         CELERY_KUBERNETES_EXECUTOR: 'airflow.executors.celery_kubernetes_executor.CeleryKubernetesExecutor',
         DASK_EXECUTOR: 'airflow.executors.dask_executor.DaskExecutor',
         KUBERNETES_EXECUTOR: 'airflow.executors.kubernetes_executor.KubernetesExecutor',
-        DEBUG_EXECUTOR: 'airflow.executors.debug_executor.DebugExecutor'
+        DEBUG_EXECUTOR: 'airflow.executors.debug_executor.DebugExecutor',
     }
 
     @classmethod
@@ -57,6 +55,7 @@ class ExecutorLoader:
             return cls._default_executor
 
         from airflow.configuration import conf
+
         executor_name = conf.get('core', 'EXECUTOR')
 
         cls._default_executor = cls.load_executor(executor_name)
@@ -85,12 +84,14 @@ class ExecutorLoader:
         if executor_name.count(".") == 1:
             log.debug(
                 "The executor name looks like the plugin path (executor_name=%s). Trying to load a "
-                "executor from a plugin", executor_name
+                "executor from a plugin",
+                executor_name,
             )
             with suppress(ImportError), suppress(AttributeError):
                 # Load plugins here for executors as at that time the plugins might not have been
                 # initialized yet
                 from airflow import plugins_manager
+
                 plugins_manager.integrate_executor_plugins()
                 return import_string(f"airflow.executors.{executor_name}")()
 
@@ -109,9 +110,7 @@ class ExecutorLoader:
 
     @classmethod
     def __load_celery_kubernetes_executor(cls) -> BaseExecutor:
-        """
-        :return: an instance of CeleryKubernetesExecutor
-        """
+        """:return: an instance of CeleryKubernetesExecutor"""
         celery_executor = import_string(cls.executors[cls.CELERY_EXECUTOR])()
         kubernetes_executor = import_string(cls.executors[cls.KUBERNETES_EXECUTOR])()
 
@@ -122,5 +121,5 @@ class ExecutorLoader:
 UNPICKLEABLE_EXECUTORS = (
     ExecutorLoader.LOCAL_EXECUTOR,
     ExecutorLoader.SEQUENTIAL_EXECUTOR,
-    ExecutorLoader.DASK_EXECUTOR
+    ExecutorLoader.DASK_EXECUTOR,
 )

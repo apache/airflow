@@ -30,9 +30,7 @@ except ImportError:
 
 
 class AirflowJsonEncoder(json.JSONEncoder):
-    """
-    Custom Airflow json encoder implementation.
-    """
+    """Custom Airflow json encoder implementation."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -40,24 +38,37 @@ class AirflowJsonEncoder(json.JSONEncoder):
 
     @staticmethod
     def _default(obj):
-        """
-        Convert dates and numpy objects in a json serializable format.
-        """
+        """Convert dates and numpy objects in a json serializable format."""
         if isinstance(obj, datetime):
             return obj.strftime('%Y-%m-%dT%H:%M:%SZ')
         elif isinstance(obj, date):
             return obj.strftime('%Y-%m-%d')
-        elif isinstance(obj, (np.int_, np.intc, np.intp, np.int8, np.int16,
-                              np.int32, np.int64, np.uint8, np.uint16,
-                              np.uint32, np.uint64)):
+        elif isinstance(
+            obj,
+            (
+                np.int_,
+                np.intc,
+                np.intp,
+                np.int8,
+                np.int16,
+                np.int32,
+                np.int64,
+                np.uint8,
+                np.uint16,
+                np.uint32,
+                np.uint64,
+            ),
+        ):
             return int(obj)
         elif isinstance(obj, np.bool_):
             return bool(obj)
-        elif isinstance(obj, (np.float_, np.float16, np.float32, np.float64,
-                              np.complex_, np.complex64, np.complex128)):
+        elif isinstance(
+            obj, (np.float_, np.float16, np.float32, np.float64, np.complex_, np.complex64, np.complex128)
+        ):
             return float(obj)
         elif k8s is not None and isinstance(obj, k8s.V1Pod):
             from airflow.kubernetes.pod_generator import PodGenerator
-            PodGenerator.serialize_pod(obj)
+
+            return PodGenerator.serialize_pod(obj)
 
         raise TypeError(f"Object of type '{obj.__class__.__name__}' is not JSON serializable")

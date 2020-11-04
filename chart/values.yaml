@@ -112,7 +112,7 @@ rbacEnabled: true
 # Options: SequentialExecutor, LocalExecutor, CeleryExecutor, KubernetesExecutor
 executor: "KubernetesExecutor"
 
-# If this is true and using LocalExecutor/SequentialExecutor/KubernetesExecutor, the scheudler's
+# If this is true and using LocalExecutor/SequentialExecutor/KubernetesExecutor, the scheduler's
 # service account will have access to communicate with the api-server and launch pods.
 # If this is true and using the CeleryExecutor, the workers will be able to launch pods.
 allowPodLaunching: true
@@ -120,6 +120,10 @@ allowPodLaunching: true
 # Images
 images:
   airflow:
+    repository: ~
+    tag: ~
+    pullPolicy: IfNotPresent
+  pod_template:
     repository: ~
     tag: ~
     pullPolicy: IfNotPresent
@@ -142,6 +146,10 @@ images:
   pgbouncerExporter:
     repository: apache/airflow
     tag: airflow-pgbouncer-exporter-2020.09.25-0.5.0
+    pullPolicy: IfNotPresent
+  gitSync:
+    repository: k8s.gcr.io/git-sync
+    tag: v3.1.6
     pullPolicy: IfNotPresent
 
 # Environment variables for all airflow containers
@@ -401,6 +409,13 @@ flower:
   #     cpu: 100m
   #     memory: 128Mi
 
+  # A secret containing the connection
+  secretName: ~
+
+  # Else, if username and password are set, create secret from username and password
+  username: ~
+  password: ~
+
   service:
     type: ClusterIP
 
@@ -442,13 +457,21 @@ pgbouncer:
     config:
       maxUnavailable: 1
 
+  # Limit the resources to pgbouncerExported.
+  # When you specify the resource request the scheduler uses this information to decide which node to place
+  # the Pod on. When you specify a resource limit for a Container, the kubelet enforces those limits so
+  # that the running container is not allowed to use more of that resource than the limit you set.
+  # See: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+  # Example:
+  #
+  # resource:
+  #   limits:
+  #     cpu: 100m
+  #     memory: 128Mi
+  #   requests:
+  #     cpu: 100m
+  #     memory: 128Mi
   resources: {}
-    # limits:
-    #   cpu: 100m
-    #   memory: 128Mi
-    # requests:
-    #   cpu: 100m
-    #   memory: 128Mi
 
   service:
     extraAnnotations: {}
@@ -502,11 +525,13 @@ redis:
 registry:
   secretName: ~
 
+  # Example:
+  # connection:
+  #   user: ~
+  #   pass: ~
+  #   host: ~
+  #   email: ~
   connection: {}
-    # user: ~
-    # pass: ~
-    # host: ~
-    # email: ~
 
 # Elasticsearch logging configuration
 elasticsearch:
@@ -515,11 +540,14 @@ elasticsearch:
   # A secret containing the connection
   secretName: ~
   # Or an object representing the connection
+  # Example:
+  # connection:
+  #   user: ~
+  #   pass: ~
+  #   host: ~
+  #   port: ~
   connection: {}
-    # user: ~
-    # pass: ~
-    # host: ~
-    # port: ~
+
 
 # All ports used by chart
 ports:
@@ -538,27 +566,6 @@ quotas: {}
 # Define default/max/min values for pods and containers in namespace
 limits: []
 
-# Config Settings for pod_mutation_hook
-podMutation:
-  # Tolerations provided here would be applied using pod_mutation_hook
-  # So any pods spun up using KubernetesExecutor or KubernetesPodOperator will contain these tolerations.
-  tolerations: []
-  #  - key: "dynamic-pods"
-  #    operator: "Equal"
-  #    value: "true"
-  #    effect: "NoSchedule"
-
-  # Pods spun up would land in the node that matches the affinity
-  affinity: {}
-  #   nodeAffinity:
-  #     requiredDuringSchedulingIgnoredDuringExecution:
-  #       nodeSelectorTerms:
-  #       - matchExpressions:
-  #         - key: "company.io/dynamic-pods"
-  #           operator: In
-  #           values:
-  #           - "true"
-
 # This runs as a CronJob to cleanup old pods.
 cleanup:
   enabled: false
@@ -576,7 +583,7 @@ postgresql:
 #
 # Please note that these values are passed through the `tpl` function, so are
 # all subject to being rendered as go templates. If you need to include a
-# litera `{{` in a value, it must be expessed like this:
+# literal `{{` in a value, it must be expressed like this:
 #
 #    a: '{{ "{{ not a template }}" }}'
 #
@@ -633,10 +640,10 @@ config:
     worker_container_repository: '{{ .Values.images.airflow.repository | default .Values.defaultAirflowRepository }}'
     worker_container_tag: '{{ .Values.images.airflow.tag | default .Values.defaultAirflowTag }}'
     delete_worker_pods: 'True'
-    multi_namespace_mode: '{{ .Values.multiNamespaceMode }}'
+    multi_namespace_mode: '{{ if .Values.multiNamespaceMode }}True{{ else }}False{{ end }}'
 # yamllint enable rule:line-length
 
-multiNamespaceMode: 'False'
+multiNamespaceMode: false
 
 podTemplate: ~
 
@@ -681,7 +688,8 @@ dags:
     #     GIT_SYNC_USERNAME: <base64_encoded_git_username>
     #     GIT_SYNC_PASSWORD: <base64_encoded_git_password>
     # and specify the name of the secret below
-    #credentialsSecret: git-credentials
+    #
+    # credentialsSecret: git-credentials
     #
     #
     # If you are using an ssh clone url, you can load
@@ -695,16 +703,15 @@ dags:
     #     # key needs to be gitSshKey
     #     gitSshKey: <base64_encoded_data>
     # and specify the name of the secret below
-    #sshKeySecret: airflow-ssh-secret
+    # sshKeySecret: airflow-ssh-secret
+    #
     # If you are using an ssh private key, you can additionally
     # specify the content of your known_hosts file, example:
-    #knownHosts: |
+    #
+    # knownHosts: |
     #    <host1>,<ip1> <key1>
     #    <host2>,<ip2> <key2>
     # interval between git sync attempts in seconds
     wait: 60
-    # git sync image details
-    containerRepository: k8s.gcr.io/git-sync
-    containerTag: v3.1.6
     containerName: git-sync
     uid: 65533

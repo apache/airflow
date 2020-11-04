@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, Optional, Tuple, Any
+from typing import Any, Dict, Optional, Tuple
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -103,9 +103,7 @@ class SnowflakeHook(DbApiHook):
         return conn_config
 
     def get_uri(self) -> str:
-        """
-        Override DbApiHook get_uri method for get_sqlalchemy_engine()
-        """
+        """Override DbApiHook get_uri method for get_sqlalchemy_engine()"""
         conn_config = self._get_conn_params()
         uri = (
             'snowflake://{user}:{password}@{account}/{database}/{schema}'
@@ -114,9 +112,7 @@ class SnowflakeHook(DbApiHook):
         return uri.format(**conn_config)
 
     def get_conn(self) -> SnowflakeConnection:
-        """
-        Returns a snowflake.connection object
-        """
+        """Returns a snowflake.connection object"""
         conn_config = self._get_conn_params()
         conn = connector.connect(**conn_config)
         return conn
@@ -139,3 +135,7 @@ class SnowflakeHook(DbApiHook):
 
     def set_autocommit(self, conn, autocommit: Any) -> None:
         conn.autocommit(autocommit)
+        conn.autocommit_mode = autocommit
+
+    def get_autocommit(self, conn):
+        return getattr(conn, 'autocommit_mode', False)

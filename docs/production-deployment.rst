@@ -116,7 +116,7 @@ suited to prepare optimized production images.
 The advantage of this method is that it produces optimized image even if you need some compile-time
 dependencies that are not needed in the final image. You need to use Airflow Sources to build such images
 from the `official distribution folder of Apache Airflow <https://downloads.apache.org/airflow/>`_ for the
-released versions, or checked out from the Github project if you happen to do it from git sources.
+released versions, or checked out from the GitHub project if you happen to do it from git sources.
 
 The easiest way to build the image image is to use ``breeze`` script, but you can also build such customized
 image by running appropriately crafted docker build in which you specify all the ``build-args``
@@ -125,7 +125,7 @@ in the `<#production-image-build-arguments>`_ chapter below.
 
 Here just a few examples are presented which should give you general understanding of what you can customize.
 
-This builds the production image in version 3.7 with additional airflow extras from 1.10.10 Pypi package and
+This builds the production image in version 3.7 with additional airflow extras from 1.10.12 Pypi package and
 additional apt dev and runtime dependencies.
 
 .. code-block:: bash
@@ -138,10 +138,10 @@ additional apt dev and runtime dependencies.
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
-    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc"
-    --build-arg ADDITIONAL_PYTHON_DEPS="pandas"
-    --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++"
-    --build-arg ADDITIONAL_RUNTIME_APT_DEPS="default-jre-headless"
+    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \
+    --build-arg ADDITIONAL_PYTHON_DEPS="pandas" \
+    --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++" \
+    --build-arg ADDITIONAL_RUNTIME_APT_DEPS="default-jre-headless" \
     --tag my-image
 
 
@@ -234,7 +234,7 @@ Building the image (after copying the files downloaded to the "docker-context-fi
 
   ./breeze build-image \
       --production-image --python 3.7 --install-airflow-version=1.10.12 \
-      --disable-mysql-client-installation --disable-pip-cache --install-local-pip-wheels \
+      --disable-mysql-client-installation --disable-pip-cache --add-local-pip-wheels \
       --constraints-location="/docker-context-files/constraints-1-10.txt"
 
 or
@@ -265,10 +265,9 @@ the resulting image using ``FROM`` any dependencies you want.
 Customizing PYPI installation
 .............................
 
-You can customize PYPI sources used during image build by modifying .pypirc file that should be
-placed in the root of Airflow Directory. This .pypirc will never be committed to the repository
-and will not be present in the final production image. It is added and used only in the build
-segment of the image so it is never copied to the final image.
+You can customize PYPI sources used during image build by adding a docker-context-files/.pypirc file
+This .pypirc will never be committed to the repository and will not be present in the final production image.
+It is added and used only in the build segment of the image so it is never copied to the final image.
 
 External sources for dependencies
 ---------------------------------
@@ -387,6 +386,14 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``AIRFLOW_BRANCH``                       | ``master``                               | the branch from which PIP dependencies   |
 |                                          |                                          | are pre-installed initially              |
 +------------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_CONSTRAINTS_LOCATION``         |                                          | If not empty, it will override the       |
+|                                          |                                          | source of the constraints with the       |
+|                                          |                                          | specified URL or file. Note that the     |
+|                                          |                                          | file has to be in docker context so      |
+|                                          |                                          | it's best to place such file in          |
+|                                          |                                          | one of the folders included in           |
+|                                          |                                          | .dockerignore                            |
++------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_CONSTRAINTS_REFERENCE``        | ``constraints-master``                   | reference (branch or tag) from GitHub    |
 |                                          |                                          | repository from which constraints are    |
 |                                          |                                          | used. By default it is set to            |
@@ -395,8 +402,25 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | or it could point to specific version    |
 |                                          |                                          | for example ``constraints-1.10.12``      |
 +------------------------------------------+------------------------------------------+------------------------------------------+
+| ``INSTALL_PROVIDERS_FROM_SOURCES``       | ``true``                                 | If set to false and image is built from  |
+|                                          |                                          | sources, all provider packages are not   |
+|                                          |                                          | installed. By default when building from |
+|                                          |                                          | sources, all provider packages are also  |
+|                                          |                                          | installed together with the core airflow |
+|                                          |                                          | package. It has no effect when           |
+|                                          |                                          | installing from PyPI or GitHub repo.     |
++------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_EXTRAS``                       | (see Dockerfile)                         | Default extras with which airflow is     |
 |                                          |                                          | installed                                |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``INSTALL_AIRFLOW_VIA_PIP``              | ``false``                                | If set to true, Airflow is installed via |
+|                                          |                                          | pip install. if you want to install      |
+|                                          |                                          | Airflow from externally provided binary  |
+|                                          |                                          | package you can set it to false, place   |
+|                                          |                                          | the package in ``docker-context-files``  |
+|                                          |                                          | and set ``AIRFLOW_LOCAL_PIP_WHEELS`` to  |
+|                                          |                                          | true. You have to also set to true the   |
+|                                          |                                          | ``AIRFLOW_PRE_CACHED_PIP_PACKAGES`` flag |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_PRE_CACHED_PIP_PACKAGES``      | ``true``                                 | Allows to pre-cache airflow PIP packages |
 |                                          |                                          | from the GitHub of Apache Airflow        |
@@ -405,6 +429,12 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | But in some corporate environments it    |
 |                                          |                                          | might be forbidden to download anything  |
 |                                          |                                          | from public repositories.                |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_LOCAL_PIP_WHEELS``             | ``false``                                | If set to true, Airflow and it's         |
+|                                          |                                          | dependencies are installed during build  |
+|                                          |                                          | from locally downloaded .whl             |
+|                                          |                                          | files placed in the                      |
+|                                          |                                          | ``docker-context-files``.                |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_AIRFLOW_EXTRAS``            |                                          | Optional additional extras with which    |
 |                                          |                                          | airflow is installed                     |
@@ -576,7 +606,7 @@ additional python dependencies and pre-installed pip dependencies from 1.10.12 t
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1.10.12" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
-    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="mssql,hdfs"
+    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="mssql,hdfs" \
     --build-arg ADDITIONAL_PYTHON_DEPS="sshtunnel oauth2client"
 
 This builds the production image in version 3.7 with additional airflow extras from 1.10.12 Pypi package and
@@ -592,8 +622,8 @@ additional apt dev and runtime dependencies.
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
-    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc"
-    --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++"
+    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \
+    --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++" \
     --build-arg ADDITIONAL_RUNTIME_APT_DEPS="default-jre-headless"
 
 
@@ -635,3 +665,4 @@ This concept is implemented in the development version of the Helm Chart that is
 .. spelling::
 
    pypirc
+   dockerignore

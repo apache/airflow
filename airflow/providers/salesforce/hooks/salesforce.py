@@ -25,7 +25,7 @@ retrieve data from it, and write that data to a file for other uses.
 """
 import logging
 import time
-from typing import Optional, List, Iterable
+from typing import Iterable, List, Optional
 
 import pandas as pd
 from simple_salesforce import Salesforce, api
@@ -61,9 +61,7 @@ class SalesforceHook(BaseHook):
         self.conn = None
 
     def get_conn(self) -> api.Salesforce:
-        """
-        Sign into Salesforce, only if we are not already signed in.
-        """
+        """Sign into Salesforce, only if we are not already signed in."""
         if not self.conn:
             connection = self.get_connection(self.conn_id)
             extras = connection.extra_dejson
@@ -242,7 +240,7 @@ class SalesforceHook(BaseHook):
         """
         fmt = fmt.lower()
         if fmt not in ['csv', 'json', 'ndjson']:
-            raise ValueError("Format value is not recognized: {}".format(fmt))
+            raise ValueError(f"Format value is not recognized: {fmt}")
 
         df = self.object_to_df(
             query_results=query_results,

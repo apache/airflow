@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Translate Speech operator.
-"""
+"""This module contains a Google Cloud Translate Speech operator."""
 from typing import Optional, Sequence, Union
 
 from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
@@ -170,7 +168,7 @@ class CloudTranslateSpeechOperator(BaseOperator):
             transcript = recognize_dict['results'][0]['alternatives'][0]['transcript']
         except KeyError as key:
             raise AirflowException(
-                "Wrong response '{}' returned - it should contain {} field".format(recognize_dict, key)
+                f"Wrong response '{recognize_dict}' returned - it should contain {key} field"
             )
 
         try:

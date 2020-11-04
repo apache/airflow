@@ -20,6 +20,7 @@ from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import Variable
+from airflow.security import permissions
 from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
@@ -38,10 +39,10 @@ class TestVariableEndpoint(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                ("can_create", "Variable"),
-                ("can_read", "Variable"),
-                ("can_edit", "Variable"),
-                ("can_delete", "Variable"),
+                (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE),
+                (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE),
             ],
         )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
@@ -75,7 +76,7 @@ class TestDeleteVariable(TestVariableEndpoint):
         response = self.client.get("/api/v1/variables/delete_var1", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
 
-    def test_should_response_404_if_key_does_not_exist(self):
+    def test_should_respond_404_if_key_does_not_exist(self):
         response = self.client.delete(
             "/api/v1/variables/NONEXIST_VARIABLE_KEY", environ_overrides={'REMOTE_USER': "test"}
         )
@@ -102,7 +103,7 @@ class TestDeleteVariable(TestVariableEndpoint):
 
 
 class TestGetVariable(TestVariableEndpoint):
-    def test_should_response_200(self):
+    def test_should_respond_200(self):
         expected_value = '{"foo": 1}'
         Variable.set("TEST_VARIABLE_KEY", expected_value)
         response = self.client.get(
@@ -111,7 +112,7 @@ class TestGetVariable(TestVariableEndpoint):
         assert response.status_code == 200
         assert response.json == {"key": "TEST_VARIABLE_KEY", "value": expected_value}
 
-    def test_should_response_404_if_not_found(self):
+    def test_should_respond_404_if_not_found(self):
         response = self.client.get(
             "/api/v1/variables/NONEXIST_VARIABLE_KEY", environ_overrides={'REMOTE_USER': "test"}
         )

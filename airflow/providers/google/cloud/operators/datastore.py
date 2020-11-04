@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains Google Datastore operators.
-"""
+"""This module contains Google Datastore operators."""
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
@@ -139,7 +137,7 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
 
         state = result['metadata']['common']['state']
         if state != 'SUCCESSFUL':
-            raise AirflowException('Operation failed: result={}'.format(result))
+            raise AirflowException(f'Operation failed: result={result}')
         return result
 
 
@@ -244,7 +242,7 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
 
         state = result['metadata']['common']['state']
         if state != 'SUCCESSFUL':
-            raise AirflowException('Operation failed: result={}'.format(result))
+            raise AirflowException(f'Operation failed: result={result}')
 
         return result
 

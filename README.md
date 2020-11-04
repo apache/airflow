@@ -40,13 +40,13 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Project Focus](#project-focus)
+- [Principles](#principles)
 - [Requirements](#requirements)
 - [Getting started](#getting-started)
 - [Installing from PyPI](#installing-from-pypi)
 - [Official source code](#official-source-code)
 - [Convenience packages](#convenience-packages)
-- [Project Focus](#project-focus)
-- [Principles](#principles)
 - [User Interface](#user-interface)
 - [Contributing](#contributing)
 - [Who uses Apache Airflow?](#who-uses-apache-airflow)
@@ -57,6 +57,21 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
+## Project Focus
+
+Airflow works best with workflows that are mostly static and slowly changing. When DAG structure is similar from one run to the next, it allows for clarity around unit of work and continuity. Other similar projects include [Luigi](https://github.com/spotify/luigi), [Oozie](https://oozie.apache.org/) and [Azkaban](https://azkaban.github.io/).
+
+Airflow is commonly used to process data, but has the opinion that tasks should ideally be idempotent (i.e. results of the task will be the same, and will not create duplicated data in a destination system), and should not pass large quantities of data from one task to the next (though tasks can pass metadata using Airflow's [Xcom feature](https://airflow.apache.org/docs/stable/concepts.html#xcoms)). For high-volume, data-intensive tasks, a best practice is to delegate to external services that specialize on that type of work.
+
+Airflow is not a streaming solution, but it is often used to process real-time data, pulling data off streams in batches.
+
+## Principles
+
+- **Dynamic**:  Airflow pipelines are configuration as code (Python), allowing for dynamic pipeline generation. This allows for writing code that instantiates pipelines dynamically.
+- **Extensible**:  Easily define your own operators, executors and extend the library so that it fits the level of abstraction that suits your environment.
+- **Elegant**:  Airflow pipelines are lean and explicit. Parameterizing your scripts is built into the core of Airflow using the powerful **Jinja** templating engine.
+- **Scalable**:  Airflow has a modular architecture and uses a message queue to orchestrate an arbitrary number of workers.
+
 ## Requirements
 
 Apache Airflow is tested with:
@@ -64,12 +79,16 @@ Apache Airflow is tested with:
 |              | Master version (2.0.0dev) | Stable version (1.10.12) |
 | ------------ | ------------------------- | ------------------------ |
 | Python       | 3.6, 3.7, 3.8             | 2.7, 3.5, 3.6, 3.7, 3.8  |
-| PostgreSQL   | 9.6, 10                   | 9.6, 10                  |
+| PostgreSQL   | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      |
 | MySQL        | 5.7, 8                    | 5.6, 5.7                 |
 | SQLite       | latest stable             | latest stable            |
 | Kubernetes   | 1.16.2, 1.17.0            | 1.16.2, 1.17.0           |
 
-> Note: SQLite is used primarily for development purpose.
+**Note:** MariaDB and MySQL 5.x will work fine for a single scheduler, but don't work or have limitations
+running more than a single scheduler -- please see the "Scheduler" docs.
+
+**Note:** SQLite is used primarily for development purpose.
+
 
 ### Additional notes on Python version requirements
 
@@ -151,21 +170,6 @@ All those artifacts are not official releases, but they are prepared using offic
 Some of those artifacts are "development" or "pre-release" ones, and they are clearly marked as such
 following the ASF Policy.
 
-## Project Focus
-
-Airflow works best with workflows that are mostly static and slowly changing. When the structure is similar from one run to the next, it allows for clarity around unit of work and continuity. Other similar projects include [Luigi](https://github.com/spotify/luigi), [Oozie](http://oozie.apache.org/) and [Azkaban](https://azkaban.github.io/).
-
-Airflow is commonly used to process data, but has the opinion that tasks should ideally be idempotent, and should not pass large quantities of data from one task to the next (though tasks can pass metadata using Airflow's [Xcom feature](https://airflow.apache.org/docs/stable/concepts.html#xcoms)). For high-volume, data-intensive tasks, a best practice is to delegate to external services that specialize on that type of work.
-
-Airflow **is not** a streaming solution. Airflow is not in the [Spark Streaming](http://spark.apache.org/streaming/) or [Storm](https://storm.apache.org/) space.
-
-## Principles
-
-- **Dynamic**:  Airflow pipelines are configuration as code (Python), allowing for dynamic pipeline generation. This allows for writing code that instantiates pipelines dynamically.
-- **Extensible**:  Easily define your own operators, executors and extend the library so that it fits the level of abstraction that suits your environment.
-- **Elegant**:  Airflow pipelines are lean and explicit. Parameterizing your scripts is built into the core of Airflow using the powerful **Jinja** templating engine.
-- **Scalable**:  Airflow has a modular architecture and uses a message queue to orchestrate an arbitrary number of workers.
-
 ## User Interface
 
 - **DAGs**: Overview of all DAGs in your environment.
@@ -207,7 +211,7 @@ Airflow is the work of the [community](https://github.com/apache/airflow/graphs/
 but the [core committers/maintainers](https://people.apache.org/committers-by-project.html#airflow)
 are responsible for reviewing and merging PRs as well as steering conversation around new feature requests.
 If you would like to become a maintainer, please review the Apache Airflow
-[committer requirements](https://cwiki.apache.org/confluence/display/AIRFLOW/Committers).
+[committer requirements](https://airflow.apache.org/docs/stable/project.html#committers).
 
 ## Can I use the Apache Airflow logo in my presentation?
 
@@ -222,4 +226,3 @@ If you would love to have Apache Airflow stickers, t-shirt etc. then check out
 
 - [Documentation](https://airflow.apache.org/docs/stable/)
 - [Chat](https://s.apache.org/airflow-slack)
-- [More](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links)

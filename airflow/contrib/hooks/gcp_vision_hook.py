@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module is deprecated. Please use `airflow.providers.google.cloud.hooks.vision`.
-"""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.hooks.vision`."""
 
 import warnings
 
@@ -26,5 +24,6 @@ from airflow.providers.google.cloud.hooks.vision import CloudVisionHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.vision`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

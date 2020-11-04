@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains SFTP operator.
-"""
+"""This module contains SFTP operator."""
 import os
 from pathlib import Path
 from typing import Any
@@ -29,9 +27,7 @@ from airflow.utils.decorators import apply_defaults
 
 
 class SFTPOperation:
-    """
-    Operation that can be used with SFTP/
-    """
+    """Operation that can be used with SFTP/"""
 
     PUT = 'put'
     GET = 'get'
@@ -109,7 +105,7 @@ class SFTPOperator(BaseOperator):
         self.create_intermediate_dirs = create_intermediate_dirs
         if not (self.operation.lower() == SFTPOperation.GET or self.operation.lower() == SFTPOperation.PUT):
             raise TypeError(
-                "unsupported operation value {0}, expected {1} or {2}".format(
+                "unsupported operation value {}, expected {} or {}".format(
                     self.operation, SFTPOperation.GET, SFTPOperation.PUT
                 )
             )
@@ -143,7 +139,7 @@ class SFTPOperator(BaseOperator):
                     local_folder = os.path.dirname(self.local_filepath)
                     if self.create_intermediate_dirs:
                         Path(local_folder).mkdir(parents=True, exist_ok=True)
-                    file_msg = "from {0} to {1}".format(self.remote_filepath, self.local_filepath)
+                    file_msg = f"from {self.remote_filepath} to {self.local_filepath}"
                     self.log.info("Starting to transfer %s", file_msg)
                     sftp_client.get(self.remote_filepath, self.local_filepath)
                 else:
@@ -153,12 +149,12 @@ class SFTPOperator(BaseOperator):
                             sftp_client=sftp_client,
                             remote_directory=remote_folder,
                         )
-                    file_msg = "from {0} to {1}".format(self.local_filepath, self.remote_filepath)
+                    file_msg = f"from {self.local_filepath} to {self.remote_filepath}"
                     self.log.info("Starting to transfer file %s", file_msg)
                     sftp_client.put(self.local_filepath, self.remote_filepath, confirm=self.confirm)
 
         except Exception as e:
-            raise AirflowException("Error while transferring {0}, error: {1}".format(file_msg, str(e)))
+            raise AirflowException("Error while transferring {}, error: {}".format(file_msg, str(e)))
 
         return self.local_filepath
 

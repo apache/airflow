@@ -152,6 +152,7 @@ spec:
 {{- if $persistence }}
         - name: worker-gc
           image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           args: ["bash", "/clean-logs"]
           volumeMounts:
             - name: logs
@@ -206,9 +207,11 @@ spec:
 {{- if .Values.workers.extraVolumes }}
 {{ toYaml .Values.workers.extraVolumes | indent 8 }}
 {{- end }}
+        {{- if .Values.kerberos.enabled }}
         - name: kerberos-keytab
           secret:
             secretName: {{ include "kerberos_keytab_secret" . | quote }}
+        {{- end }}
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}

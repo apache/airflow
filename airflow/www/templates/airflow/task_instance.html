@@ -34,16 +34,16 @@
     </form>
   </h4>
   <ul class="nav nav-pills">
-    <li><a href="{{ url_for("Airflow.task", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
+    <li><a href="{{ url_for('Airflow.task', dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
         <span class="material-icons" aria-hidden="true">details</span>
       Task Instance Details</a></li>
-    <li><a href="{{ url_for("Airflow.rendered", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
+    <li><a href="{{ url_for('Airflow.rendered', dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
         <span class="material-icons" aria-hidden="true">code</span>
       Rendered Template</a></li>
-    <li><a href="{{ url_for("Airflow.log", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
+    <li><a href="{{ url_for('Airflow.log', dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
         <span class="material-icons" aria-hidden="true">reorder</span>
       Log</a></li>
-    <li><a href="{{ url_for("Airflow.xcom", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
+    <li><a href="{{ url_for('Airflow.xcom', dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
         <span class="material-icons" aria-hidden="true">sync_alt</span>
       XCom</a></li>
   </ul>

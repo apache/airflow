@@ -79,6 +79,7 @@ Content
     start
     installation
     tutorial
+    tutorial_taskflow_api
     howto/index
     ui
     concepts

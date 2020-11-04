@@ -212,7 +212,7 @@ class GcpBodyFieldValidator(LoggingMixin):
     ) -> None:
         if value is None and field_type != 'union':
             raise GcpFieldValidationException(
-                "The required body field '{}' is missing. Please add it.".format(full_field_path)
+                f"The required body field '{full_field_path}' is missing. Please add it."
             )
         if regexp and field_type:
             raise GcpValidationSpecificationException(
@@ -252,7 +252,7 @@ class GcpBodyFieldValidator(LoggingMixin):
     def _validate_is_empty(full_field_path: str, value: str) -> None:
         if not value:
             raise GcpFieldValidationException(
-                "The body field '{}' can't be empty. Please provide a value.".format(full_field_path)
+                f"The body field '{full_field_path}' can't be empty. Please provide a value."
             )
 
     def _validate_dict(self, children_validation_specs: Dict, full_field_path: str, value: Dict) -> None:
@@ -421,7 +421,7 @@ class GcpBodyFieldValidator(LoggingMixin):
             )
         return True
 
-    def validate(self, body_to_validate):
+    def validate(self, body_to_validate: dict) -> None:
         """
         Validates if the body (dictionary) follows specification that the validator was
         instantiated with. Raises ValidationSpecificationException or
@@ -437,7 +437,7 @@ class GcpBodyFieldValidator(LoggingMixin):
                 self._validate_field(validation_spec=validation_spec, dictionary_to_validate=body_to_validate)
         except GcpFieldValidationException as e:
             raise GcpFieldValidationException(
-                "There was an error when validating: body '{}': '{}'".format(body_to_validate, e)
+                f"There was an error when validating: body '{body_to_validate}': '{e}'"
             )
         all_field_names = [
             spec['name']

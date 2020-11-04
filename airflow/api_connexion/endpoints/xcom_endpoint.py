@@ -31,11 +31,17 @@ from airflow.api_connexion.schemas.xcom_schema import (
     xcom_collection_schema,
 )
 from airflow.models import DagRun as DR, XCom
+from airflow.security import permissions
 from airflow.utils.session import provide_session
 
 
 @security.requires_access(
-    [("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "Task"), ("can_read", "XCom")]
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
+    ]
 )
 @format_parameters({'limit': check_limit})
 @provide_session
@@ -47,9 +53,7 @@ def get_xcom_entries(
     limit: Optional[int],
     offset: Optional[int] = None,
 ) -> XComCollectionSchema:
-    """
-    Get all XCom values
-    """
+    """Get all XCom values"""
     query = session.query(XCom)
     if dag_id == '~':
         appbuilder = current_app.appbuilder
@@ -71,15 +75,18 @@ def get_xcom_entries(
 
 
 @security.requires_access(
-    [("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "Task"), ("can_read", "XCom")]
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
+    ]
 )
 @provide_session
 def get_xcom_entry(
     dag_id: str, task_id: str, dag_run_id: str, xcom_key: str, session: Session
 ) -> XComCollectionItemSchema:
-    """
-    Get an XCom entry
-    """
+    """Get an XCom entry"""
     query = session.query(XCom).filter(XCom.dag_id == dag_id, XCom.task_id == task_id, XCom.key == xcom_key)
     query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.execution_date == DR.execution_date))
     query = query.filter(DR.run_id == dag_run_id)

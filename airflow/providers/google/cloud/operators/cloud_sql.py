@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Cloud SQL operators.
-"""
+"""This module contains Google Cloud SQL operators."""
 from typing import Dict, Iterable, List, Optional, Sequence, Union
 
 from googleapiclient.errors import HttpError
@@ -520,7 +518,7 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         if not self._check_if_instance_exists(self.instance, hook):
-            print("Cloud SQL instance with ID {} does not exist. Aborting delete.".format(self.instance))
+            print(f"Cloud SQL instance with ID {self.instance} does not exist. Aborting delete.")
             return True
         else:
             return hook.delete_instance(project_id=self.project_id, instance=self.instance)

@@ -32,6 +32,69 @@ However part of the philosophy we have is that we are not tightly coupled with a
 environments we use. Most of our CI jobs are written as bash scripts which are executed as steps in
 the CI jobs. And we have  a number of variables determine build behaviour.
 
+
+
+
+GitHub Actions runs
+-------------------
+
+Our builds on CI are highly optimized. They utilise some of the latest features provided by GitHub Actions
+environment that make it possible to reuse parts of the build process across different Jobs.
+
+Big part of our CI runs use Container Images. Airflow has a lot of dependencies and in order to make
+sure that we are running tests in a well configured and repeatable environment, most of the tests,
+documentation building, and some more sophisticated static checks are run inside a docker container
+environment. This environment consist of two types of images: CI images and PROD images. CI Images
+are used for most of the tests and checks where PROD images are used in the Kubernetes tests.
+
+In order to run the tests, we need to make sure tha the images are built using latest sources and that it
+is done quickly (full rebuild of such image from scratch might take ~15 minutes). Therefore optimisation
+techniques have been implemented that use efficiently cache from the GitHub Docker registry - in most cases
+this brings down the time needed to rebuild the image to ~4 minutes. In some cases (when dependencies change)
+it can be ~6-7 minutes and in case base image of Python releases new patch-level, it can be ~12 minutes.
+
+Currently in master version of Airflow we run tests in 3 different versions of Python (3.6, 3.7, 3.8)
+which means that we have to build 6 images (3 CI ones and 3 PROD ones). Yet we run around 12 jobs
+with each of the CI images. That is a lot of time to just build the environment to run. Therefore
+we are utilising ``workflow_run`` feature of GitHub Actions. This feature allows to run a separate,
+independent workflow, when the main workflow is run - this separate workflow is different than the main
+one, because by default it runs using ``master`` version of the sources but also - and most of all - that
+it has WRITE access to the repository. This is especially important in our case where Pull Requests to
+Airflow might come from any repository, and it would be a huge security issue if anyone from outside could
+utilise the WRITE access to Apache Airflow repository via an external Pull Request.
+
+Thanks to the WRITE access and fact that the 'workflow_run' by default uses the 'master' version of the
+sources, we can safely run some logic there will checkout the incoming Pull Request, build the container
+image from the sources from the incoming PR and push such image to an GitHub Docker Registry - so that
+this image can be built only once and used by all the jobs running tests. The image is tagged with unique
+``RUN_ID`` of the incoming Pull Request and the tests run in the Pull Request can simply pull such image
+rather than build it from the scratch. Pulling such image takes ~ 1 minute, thanks to that we are saving
+a lot of precious time for jobs.
+
+
+Local runs
+----------
+
+The main goal of the CI philosophy we have that no matter how complex the test and integration
+infrastructure, as a developer you should be able to reproduce and re-run any of the failed checks
+locally. One part of it are pre-commit checks, that allow you to run the same static checks in CI
+and locally, but another part is the CI environment which is replicated locally with Breeze.
+
+You can read more about Breeze in `BREEZE.rst <BREEZE.rst>`_ but in essence it is a script that allows
+you to re-create CI environment in your local development instance and interact with it. In its basic
+form, when you do development you can run all the same tests that will be run in CI - but locally,
+before you submit them as PR. Another use case where Breeze is useful is when tests fail on CI. You can
+take the ``RUN_ID`` of failed build pass it as ``--github-image-id`` parameter of Breeze and it will
+download the very same version of image that was used in CI and run it locally. This way, you can very
+easily reproduce any failed test that happens in CI - even if you do not check out the sources
+connected with the run.
+
+You can read more about it in `BREEZE.rst <BREEZE.rst>`_ and `TESTING.rst <TESTING.rst>`_
+
+
+Difference between local runs and GitHub Action workflows
+---------------------------------------------------------
+
 Depending whether the scripts are run locally (most often via `Breeze <BREEZE.rst>`_) or whether they
 are run in "CI Build" or "Build Image" workflows they can take different values.
 
@@ -68,7 +131,7 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | the container. We mount only selected,          |
 |                                         |             |             |            | important folders. We do not mount the whole    |
 |                                         |             |             |            | project folder in order to avoid accidental     |
-|                                         |             |             |            | use of artifacts (such ass ``.egginfo``         |
+|                                         |             |             |            | use of artifacts (such as ``egg-info``          |
 |                                         |             |             |            | directories) generated locally on the           |
 |                                         |             |             |            | host during development.                        |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
@@ -363,14 +426,13 @@ that to your own repository by setting those environment variables:
 CI Architecture
 ===============
 
-.. image:: images/ci/CI.png
-    :align: center
-    :alt: CI architecture of Apache Airflow
-
  .. This image is an export from the 'draw.io' graph available in
     https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-23+Migrate+out+of+Travis+CI
     You can edit it there and re-export.
 
+.. image:: images/ci/CI.png
+    :align: center
+    :alt: CI architecture of Apache Airflow
 
 The following components are part of the CI infrastructure
 
@@ -408,7 +470,13 @@ The main purpose of those jobs is to check if PR builds cleanly, if the test run
 the PR is ready to review and merge. The runs are using cached images from the Private GitHub registry -
 CI, Production Images as well as base Python images that are also cached in the Private GitHub registry.
 Also for those builds we only execute Python tests if important files changed (so for example if it is
-doc-only change, no tests will be executed.
+"no-code" change, no tests will be executed.
+
+The workflow involved in Pull Requests review and approval is a bit more complex than simple workflows
+in most of other projects because we've implemented some optimizations related to efficient use
+of queue slots we share with other Apache Software Foundation projects. More details about it
+can be found in `PULL_REQUEST_WORKFLOW.rst <PULL_REQUEST_WORKFLOW.rst>`_.
+
 
 Direct Push/Merge Run
 ---------------------
@@ -579,7 +647,7 @@ Comments:
 
  (1) CRON jobs builds images from scratch - to test if everything works properly for clean builds
  (2) The tests are run when the Trigger Tests job determine that important files change (this allows
-     for example doc-only changes to build much faster)
+     for example "no-code" changes to build much faster)
  (3) The jobs wait for CI images if ``GITHUB_REGISTRY_WAIT_FOR_IMAGE`` variable is set to "true".
      You can set it to "false" to disable using shared images - this is slower though as the images
      are rebuilt in every job that needs them. You can also set your own fork's secret
@@ -623,12 +691,17 @@ way to sync your fork master to the Apache Airflow's one.
 Delete old artifacts
 --------------------
 
-This workflow is introduced, to delete old artifacts from the Github Actions build. We set it to
+This workflow is introduced, to delete old artifacts from the GitHub Actions build. We set it to
 delete old artifacts that are > 7 days old. It only runs for the 'apache/airflow' repository.
 
 We also have a script that can help to clean-up the old artifacts:
 `remove_artifacts.sh <dev/remove_artifacts.sh>`_
 
+CodeQL scan
+-----------
+
+The CodeQL security scan uses GitHub security scan framework to scan our code for security violations.
+It is run for JavaScript and python code.
 
 Naming conventions for stored images
 ====================================

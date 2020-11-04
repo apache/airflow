@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Cloud Functions operators.
-"""
+"""This module contains Google Cloud Functions operators."""
 
 import re
 from typing import Any, Dict, List, Optional, Sequence, Union
@@ -387,7 +385,7 @@ class CloudFunctionDeleteFunctionOperator(BaseOperator):
         else:
             pattern = FUNCTION_NAME_COMPILED_PATTERN
             if not pattern.match(self.name):
-                raise AttributeError('Parameter name must match pattern: {}'.format(FUNCTION_NAME_PATTERN))
+                raise AttributeError(f'Parameter name must match pattern: {FUNCTION_NAME_PATTERN}')
 
     def execute(self, context):
         hook = CloudFunctionsHook(

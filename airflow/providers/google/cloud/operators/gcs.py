@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Storage Bucket operator.
-"""
+"""This module contains a Google Cloud Storage Bucket operator."""
 import subprocess
 import sys
 import warnings
@@ -646,7 +644,7 @@ class GCSFileTransformOperator(BaseOperator):
 
             process.wait()
             if process.returncode:
-                raise AirflowException("Transform script failed: {0}".format(process.returncode))
+                raise AirflowException(f"Transform script failed: {process.returncode}")
 
             self.log.info("Transformation succeeded. Output temporarily located at %s", destination_file.name)
 

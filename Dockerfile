@@ -164,10 +164,12 @@ RUN mkdir -p /root/.local/bin
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
 ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES}
 
-COPY .pypirc /root/.pypirc
+RUN if [[ -f /docker-context-files/.pypirc ]]; then \
+        cp /docker-context-files/.pypirc /root/.pypirc; \
+    fi
 
 # In case of Production build image segment we want to pre-install master version of airflow
-# dependencies from github so that we do not have to always reinstall it from the scratch.
+# dependencies from GitHub so that we do not have to always reinstall it from the scratch.
 RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
        if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then \
           AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}; \
@@ -203,8 +205,14 @@ ENV AIRFLOW_INSTALL_VERSION=${AIRFLOW_INSTALL_VERSION}
 ARG AIRFLOW_LOCAL_PIP_WHEELS=""
 ENV AIRFLOW_LOCAL_PIP_WHEELS=${AIRFLOW_LOCAL_PIP_WHEELS}
 
+ARG INSTALL_AIRFLOW_VIA_PIP="true"
+ENV INSTALL_AIRFLOW_VIA_PIP=${INSTALL_AIRFLOW_VIA_PIP}
+
 ARG SLUGIFY_USES_TEXT_UNIDECODE=""
 ENV SLUGIFY_USES_TEXT_UNIDECODE=${SLUGIFY_USES_TEXT_UNIDECODE}
+
+ARG INSTALL_PROVIDERS_FROM_SOURCES="true"
+ENV INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES}
 
 WORKDIR /opt/airflow
 
@@ -212,17 +220,20 @@ WORKDIR /opt/airflow
 RUN if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then \
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}; \
     fi; \
-    if [[ ${AIRFLOW_LOCAL_PIP_WHEELS} != "true" ]]; then \
+    if [[ ${INSTALL_AIRFLOW_VIA_PIP} == "true" ]]; then \
         pip install --user "${AIRFLOW_INSTALL_SOURCES}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
             --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
-        if [ -n "${ADDITIONAL_PYTHON_DEPS}" ]; then \
-            pip install --user ${ADDITIONAL_PYTHON_DEPS} --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
-        fi; \
-    else \
-        pip install --user /docker-context-files/*.whl; \
-    fi \
-    && find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r \
-    && find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r
+    fi; \
+    if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
+        pip install --user ${ADDITIONAL_PYTHON_DEPS} --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+    fi; \
+    if [[ ${AIRFLOW_LOCAL_PIP_WHEELS} == "true" ]]; then \
+        if ls /docker-context-files/*.whl 1> /dev/null 2>&1; then \
+            pip install --user --no-deps /docker-context-files/*.whl; \
+        fi ; \
+    fi; \
+    find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r || true ; \
+    find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r || true
 
 RUN AIRFLOW_SITE_PACKAGE="/root/.local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow"; \
     if [[ -f "${AIRFLOW_SITE_PACKAGE}/www_rbac/package.json" ]]; then \
@@ -386,8 +397,6 @@ RUN chmod a+x /entrypoint /clean-logs
 # Make /etc/passwd root-group-writeable so that user can be dynamically added by OpenShift
 # See https://github.com/apache/airflow/issues/9248
 RUN chmod g=u /etc/passwd
-
-COPY .pypirc ${AIRFLOW_USER_HOME_DIR}/.pypirc
 
 ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:${PATH}"
 ENV GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm"

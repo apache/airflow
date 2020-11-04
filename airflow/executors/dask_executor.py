@@ -35,9 +35,7 @@ from airflow.models.taskinstance import TaskInstanceKey
 
 
 class DaskExecutor(BaseExecutor):
-    """
-    DaskExecutor submits tasks to a Dask Distributed cluster.
-    """
+    """DaskExecutor submits tasks to a Dask Distributed cluster."""
 
     def __init__(self, cluster_address=None):
         super().__init__(parallelism=0)
@@ -67,11 +65,13 @@ class DaskExecutor(BaseExecutor):
         self.client = Client(self.cluster_address, security=security)
         self.futures = {}
 
-    def execute_async(self,
-                      key: TaskInstanceKey,
-                      command: CommandType,
-                      queue: Optional[str] = None,
-                      executor_config: Optional[Any] = None) -> None:
+    def execute_async(
+        self,
+        key: TaskInstanceKey,
+        command: CommandType,
+        queue: Optional[str] = None,
+        executor_config: Optional[Any] = None,
+    ) -> None:
 
         self.validate_command(command)
 

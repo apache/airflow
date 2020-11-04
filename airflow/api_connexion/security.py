@@ -18,7 +18,7 @@
 from functools import wraps
 from typing import Callable, Optional, Sequence, Tuple, TypeVar, cast
 
-from flask import Response, current_app, g
+from flask import Response, current_app
 
 from airflow.api_connexion.exceptions import PermissionDenied, Unauthenticated
 
@@ -34,56 +34,18 @@ def check_authentication() -> None:
         raise Unauthenticated(headers=response.headers)
 
 
-def can_access_any_dags(action: str, dag_id: Optional[int] = None) -> bool:
-    """Checks if user has read or write access to some dags."""
-    appbuilder = current_app.appbuilder
-    if dag_id and dag_id != '~':
-        return appbuilder.sm.has_access(action, dag_id)
-
-    user = g.user
-    if action == 'can_read':
-        return any(appbuilder.sm.get_readable_dags(user))
-    return any(appbuilder.sm.get_editable_dags(user))
-
-
-def check_authorization(
-    permissions: Optional[Sequence[Tuple[str, str]]] = None, dag_id: Optional[int] = None
-) -> None:
-    """Checks that the logged in user has the specified permissions."""
-    if not permissions:
-        return
-    appbuilder = current_app.appbuilder
-    for permission in permissions:
-        if permission in (('can_read', 'Dag'), ('can_edit', 'Dag')):
-            can_access_all_dags = appbuilder.sm.has_access(*permission)
-            if can_access_all_dags:
-                continue
-
-            action = permission[0]
-            if can_access_any_dags(action, dag_id):
-                continue
-
-            raise PermissionDenied()
-
-        elif not appbuilder.sm.has_access(*permission):
-            raise PermissionDenied()
-
-
 def requires_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Callable[[T], T]:
-    """
-    Factory for decorator that checks current user's permissions against required permissions.
-    """
+    """Factory for decorator that checks current user's permissions against required permissions."""
     appbuilder = current_app.appbuilder
     appbuilder.sm.sync_resource_permissions(permissions)
 
     def requires_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
-
             check_authentication()
-            check_authorization(permissions, kwargs.get('dag_id'))
-
-            return func(*args, **kwargs)
+            if appbuilder.sm.check_authorization(permissions, kwargs.get('dag_id')):
+                return func(*args, **kwargs)
+            raise PermissionDenied()
 
         return cast(T, decorated)
 

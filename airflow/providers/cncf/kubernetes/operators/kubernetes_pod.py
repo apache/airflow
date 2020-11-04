@@ -16,21 +16,20 @@
 # under the License.
 """Executes task in a Kubernetes POD"""
 import re
-from typing import Dict, Iterable, List, Optional, Tuple, Any
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import yaml
-from kubernetes.client import CoreV1Api
-from kubernetes.client import models as k8s
+from kubernetes.client import CoreV1Api, models as k8s
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import kube_client, pod_generator, pod_launcher
+from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.helpers import validate_key
 from airflow.utils.state import State
 from airflow.version import version as airflow_version
-from airflow.kubernetes.pod_generator import PodGenerator
 
 
 class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
@@ -297,10 +296,10 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             if final_state != State.SUCCESS:
                 status = self.client.read_namespaced_pod(self.name, self.namespace)
                 raise AirflowException(
-                    'Pod returned a failure: {state}'.format(state=status))
+                    f'Pod returned a failure: {status}')
             return result
         except AirflowException as ex:
-            raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
+            raise AirflowException(f'Pod Launching failed: {ex}')
 
     def handle_pod_overlap(
         self, labels: dict, try_numbers_match: bool, launcher: Any, pod: k8s.V1Pod
@@ -319,9 +318,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         :param pod_list: list of pods found
         """
         if try_numbers_match:
-            log_line = "found a running pod with labels {} and the same try_number.".format(labels)
+            log_line = f"found a running pod with labels {labels} and the same try_number."
         else:
-            log_line = "found a running pod with labels {} but a different try_number.".format(labels)
+            log_line = f"found a running pod with labels {labels} but a different try_number."
 
         # In case of failed pods, should reattach the first time, but only once
         # as the task will have already failed.
@@ -331,7 +330,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             self.pod = pod
             final_state, result = self.monitor_launched_pod(launcher, pod)
         else:
-            log_line += "creating pod with labels {} and launcher {}".format(labels, launcher)
+            log_line += f"creating pod with labels {labels} and launcher {launcher}"
             self.log.info(log_line)
             final_state, _, result = self.create_new_pod_for_operator(labels, launcher)
         return final_state, result
@@ -357,7 +356,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         will supersede all other values.
 
         """
+        self.log.debug("Creating pod for K8sPodOperator task %s", self.task_id)
         if self.pod_template_file:
+            self.log.debug("Pod template file found, will parse for base pod")
             pod_template = pod_generator.PodGenerator.deserialize_model_file(self.pod_template_file)
         else:
             pod_template = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="name"))
@@ -405,8 +406,10 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         pod = PodGenerator.reconcile_pods(pod_template, pod)
 
         for secret in self.secrets:
+            self.log.debug("Adding secret to task %s", self.task_id)
             pod = secret.attach_to_pod(pod)
         if self.do_xcom_push:
+            self.log.debug("Adding xcom sidecar to task %s", self.task_id)
             pod = PodGenerator.add_xcom_sidecar(pod)
         return pod
 
@@ -421,6 +424,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         if not (self.full_pod_spec or self.pod_template_file):
             # Add Airflow Version to the label
             # And a label to identify that pod is launched by KubernetesPodOperator
+            self.log.debug("Adding k8spodoperator labels to pod before launch for task %s", self.task_id)
             self.labels.update(
                 {
                     'airflow_version': airflow_version.replace('+', '-'),
@@ -442,13 +446,12 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             raise
         finally:
             if self.is_delete_operator_pod:
+                self.log.debug("Deleting pod for task %s", self.task_id)
                 launcher.delete_pod(self.pod)
         return final_state, self.pod, result
 
     def patch_already_checked(self, pod: k8s.V1Pod):
-        """
-        Add an "already tried annotation to ensure we only retry once
-        """
+        """Add an "already tried annotation to ensure we only retry once"""
         pod.metadata.labels["already_checked"] = "True"
         body = PodGenerator.serialize_pod(pod)
         self.client.patch_namespaced_pod(pod.metadata.name, pod.metadata.namespace, body)
@@ -472,7 +475,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                     self.log.error("Pod Event: %s - %s", event.reason, event.message)
             self.patch_already_checked(self.pod)
             raise AirflowException(
-                'Pod returned a failure: {state}'.format(state=final_state)
+                f'Pod returned a failure: {final_state}'
             )
         return final_state, result
 

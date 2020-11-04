@@ -110,9 +110,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         self.upload_on_close = not ti.raw
 
     def close(self):
-        """
-        Close and upload local log file to remote storage GCS.
-        """
+        """Close and upload local log file to remote storage GCS."""
         # When application exit, system shuts down all handlers by
         # calling close method. Here we check if logger is already
         # closed to prevent uploading the log to remote storage multiple
@@ -129,7 +127,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         remote_loc = os.path.join(self.remote_base, self.log_relative_path)
         if os.path.exists(local_loc):
             # read log and remove old logs to get just the latest additions
-            with open(local_loc, 'r') as logfile:
+            with open(local_loc) as logfile:
                 log = logfile.read()
             self.gcs_write(log, remote_loc)
 
@@ -155,7 +153,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         try:
             blob = storage.Blob.from_string(remote_loc, self.client)
             remote_log = blob.download_as_string()
-            log = '*** Reading remote log from {}.\n{}\n'.format(remote_loc, remote_log)
+            log = f'*** Reading remote log from {remote_loc}.\n{remote_log}\n'
             return log, {'end_of_log': True}
         except Exception as e:  # pylint: disable=broad-except
             log = '*** Unable to read remote log from {}\n*** {}\n\n'.format(remote_loc, str(e))

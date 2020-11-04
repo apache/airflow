@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 from airflow.providers.http.operators.http import SimpleHttpOperator
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
@@ -103,9 +103,7 @@ class SlackWebhookOperator(SimpleHttpOperator):
         self.hook: Optional[SlackWebhookHook] = None
 
     def execute(self, context: Dict[str, Any]) -> None:
-        """
-        Call the SlackWebhookHook to post the provided Slack message
-        """
+        """Call the SlackWebhookHook to post the provided Slack message"""
         self.hook = SlackWebhookHook(
             self.http_conn_id,
             self.webhook_token,

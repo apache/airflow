@@ -17,9 +17,7 @@
 # under the License.
 
 # pylint: disable=too-many-lines
-"""
-This module contains Google BigQuery operators.
-"""
+"""This module contains Google BigQuery operators."""
 import enum
 import hashlib
 import json
@@ -58,9 +56,7 @@ class BigQueryUIColors(enum.Enum):
 
 
 class BigQueryConsoleLink(BaseOperatorLink):
-    """
-    Helper class for constructing BigQuery link.
-    """
+    """Helper class for constructing BigQuery link."""
 
     name = 'BigQuery Console'
 
@@ -72,9 +68,7 @@ class BigQueryConsoleLink(BaseOperatorLink):
 
 @attr.s(auto_attribs=True)
 class BigQueryConsoleIndexableLink(BaseOperatorLink):
-    """
-    Helper class for constructing BigQuery link.
-    """
+    """Helper class for constructing BigQuery link."""
 
     index: int = attr.ib()
 
@@ -570,8 +564,8 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         partition by field, type and expiration as per API specifications.
     :type time_partitioning: dict
     :param cluster_fields: Request that the result of this query be stored sorted
-        by one or more columns. This is only available in conjunction with
-        time_partitioning. The order of columns given determines the sort order.
+        by one or more columns. BigQuery supports clustering for both partitioned and
+        non-partitioned tables. The order of columns given determines the sort order.
     :type cluster_fields: list[str]
     :param location: The geographic location of the job. Required except for
         US and EU. See details at
@@ -607,9 +601,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
 
     @property
     def operator_extra_links(self):
-        """
-        Return operator extra links
-        """
+        """Return operator extra links"""
         if isinstance(self.sql, str):
             return (BigQueryConsoleLink(),)
         return (BigQueryConsoleIndexableLink(i) for i, _ in enumerate(self.sql))
@@ -861,8 +853,8 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     :param location: The location used for the operation.
     :type location: str
     :param cluster_fields: [Optional] The fields used for clustering.
-            Must be specified with time_partitioning, data in the table will be first
-            partitioned and subsequently clustered.
+            BigQuery supports clustering for both partitioned and
+            non-partitioned tables.
 
             .. seealso::
                 https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#clustering.fields
@@ -947,9 +939,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 delegate_to=self.delegate_to,
                 impersonation_chain=self.impersonation_chain,
             )
-            schema_fields = json.loads(
-                gcs_hook.download(gcs_bucket, gcs_object).decode("utf-8")  # type: ignore[attr-defined]
-            )  # type: ignore[attr-defined]
+            schema_fields = json.loads(gcs_hook.download(gcs_bucket, gcs_object))
         else:
             schema_fields = self.schema_fields
 
@@ -1189,8 +1179,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                 delegate_to=self.delegate_to,
                 impersonation_chain=self.impersonation_chain,
             )
-            schema_object = gcs_hook.download(self.bucket, self.schema_object)
-            schema_fields = json.loads(schema_object.decode("utf-8"))  # type: ignore[attr-defined]
+            schema_fields = json.loads(gcs_hook.download(self.bucket, self.schema_object))
         else:
             schema_fields = self.schema_fields
 
@@ -1673,7 +1662,7 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
     This operator is used to update dataset for your Project in BigQuery.
     Use ``fields`` to specify which fields of dataset to update. If a field
     is listed in ``fields`` and is ``None`` in dataset, it will be deleted.
-    If no ``fields`` are provided then all fields of provided ``dataset_reources``
+    If no ``fields`` are provided then all fields of provided ``dataset_resource``
     will be used.
 
     .. seealso::
@@ -2036,7 +2025,7 @@ class BigQueryInsertJobOperator(BaseOperator):
     def prepare_template(self) -> None:
         # If .json is passed then we have to read the file
         if isinstance(self.configuration, str) and self.configuration.endswith('.json'):
-            with open(self.configuration, 'r') as file:
+            with open(self.configuration) as file:
                 self.configuration = json.loads(file.read())
 
     def _submit_job(
@@ -2073,7 +2062,7 @@ class BigQueryInsertJobOperator(BaseOperator):
 
         exec_date = context['execution_date'].isoformat()
         job_id = f"airflow_{self.dag_id}_{self.task_id}_{exec_date}_{uniqueness_suffix}"
-        return re.sub(r"\:|-|\+\.", "_", job_id)
+        return re.sub(r"[:\-+.]", "_", job_id)
 
     def execute(self, context: Any):
         hook = BigQueryHook(

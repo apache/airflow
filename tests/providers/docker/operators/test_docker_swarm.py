@@ -17,8 +17,8 @@
 # under the License.
 
 import unittest
+from unittest import mock
 
-import mock
 import requests
 from docker import APIClient
 

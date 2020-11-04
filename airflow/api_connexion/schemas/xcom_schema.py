@@ -23,9 +23,7 @@ from airflow.models import XCom
 
 
 class XComCollectionItemSchema(SQLAlchemySchema):
-    """
-    Schema for a xcom item
-    """
+    """Schema for a xcom item"""
 
     class Meta:
         """Meta"""
@@ -40,9 +38,7 @@ class XComCollectionItemSchema(SQLAlchemySchema):
 
 
 class XComSchema(XComCollectionItemSchema):
-    """
-    XCom schema
-    """
+    """XCom schema"""
 
     value = auto_field()
 

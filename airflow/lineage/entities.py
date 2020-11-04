@@ -27,9 +27,7 @@ import attr
 
 @attr.s(auto_attribs=True)
 class File:
-    """
-    File entity. Refers to a file
-    """
+    """File entity. Refers to a file"""
 
     url: str = attr.ib()
     type_hint: Optional[str] = None
@@ -37,9 +35,7 @@ class File:
 
 @attr.s(auto_attribs=True, kw_only=True)
 class User:
-    """
-    User entity. Identifies a user
-    """
+    """User entity. Identifies a user"""
 
     email: str = attr.ib()
     first_name: Optional[str] = None
@@ -48,18 +44,14 @@ class User:
 
 @attr.s(auto_attribs=True, kw_only=True)
 class Tag:
-    """
-    Tag or classification entity.
-    """
+    """Tag or classification entity."""
 
     tag_name: str = attr.ib()
 
 
 @attr.s(auto_attribs=True, kw_only=True)
 class Column:
-    """
-    Column of a Table
-    """
+    """Column of a Table"""
 
     name: str = attr.ib()
     description: Optional[str] = None
@@ -71,15 +63,13 @@ class Column:
 # https://github.com/python/mypy/issues/6136 is resolved, use
 # `attr.converters.default_if_none(default=False)`
 # pylint: disable=missing-docstring
-def default_if_none(arg: Optional[bool]) -> bool:   # noqa: D103
+def default_if_none(arg: Optional[bool]) -> bool:  # noqa: D103
     return arg or False
 
 
 @attr.s(auto_attribs=True, kw_only=True)
 class Table:
-    """
-    Table entity
-    """
+    """Table entity"""
 
     database: str = attr.ib()
     cluster: str = attr.ib()

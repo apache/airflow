@@ -76,7 +76,7 @@ function loop_through_artifacts_and_delete() {
             size=$(($(jq <<<"${json}" -r ".artifacts[$i].size_in_bytes?")))
             printf "Deleting '%s': [%s] : %'d bytes\n" "${name}" "${id}" "${size}"
             github_api_call -X DELETE "${GITHUB_REPO}/actions/artifacts/${id}"
-            sleep 1 # There is a Github API limit of 5000 calls/hr. This is to limit the API calls below that
+            sleep 1 # There is a GitHub API limit of 5000 calls/hr. This is to limit the API calls below that
         done
     done
 }

@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Text to Speech operator.
-"""
+"""This module contains a Google Text to Speech operator."""
 
 from tempfile import NamedTemporaryFile
 from typing import Dict, Optional, Sequence, Union
@@ -128,7 +126,7 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
             "target_filename",
         ]:
             if getattr(self, parameter) == "":
-                raise AirflowException("The required parameter '{}' is empty".format(parameter))
+                raise AirflowException(f"The required parameter '{parameter}' is empty")
 
     def execute(self, context) -> None:
         hook = CloudTextToSpeechHook(

@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains a Google Cloud Storage hook.
-"""
+"""This module contains a Google Cloud Storage hook."""
 import functools
 import gzip as gz
 import os
@@ -29,7 +27,7 @@ from datetime import datetime
 from io import BytesIO
 from os import path
 from tempfile import NamedTemporaryFile
-from typing import Callable, Optional, Sequence, Set, Tuple, TypeVar, Union, cast, List
+from typing import Callable, List, Optional, Sequence, Set, Tuple, TypeVar, Union, cast
 from urllib.parse import urlparse
 
 from google.api_core.exceptions import NotFound
@@ -140,9 +138,7 @@ class GCSHook(GoogleBaseHook):
         )
 
     def get_conn(self) -> storage.Client:
-        """
-        Returns a Google Cloud Storage service object.
-        """
+        """Returns a Google Cloud Storage service object."""
         if not self._conn:
             self._conn = storage.Client(
                 credentials=self._get_credentials(), client_info=self.client_info, project=self.project_id
@@ -260,7 +256,9 @@ class GCSHook(GoogleBaseHook):
             destination_bucket.name,  # type: ignore[attr-defined]
         )
 
-    def download(self, object_name: str, bucket_name: Optional[str], filename: Optional[str] = None) -> str:
+    def download(
+        self, object_name: str, bucket_name: Optional[str], filename: Optional[str] = None
+    ) -> Union[str, bytes]:
         """
         Downloads a file from Google Cloud Storage.
 
@@ -416,7 +414,7 @@ class GCSHook(GoogleBaseHook):
         bucket = client.bucket(bucket_name)
         blob = bucket.get_blob(blob_name=object_name)
         if blob is None:
-            raise ValueError("Object ({}) not found in Bucket ({})".format(object_name, bucket_name))
+            raise ValueError(f"Object ({object_name}) not found in Bucket ({bucket_name})")
         return blob.updated
 
     def is_updated_after(self, bucket_name: str, object_name: str, ts: datetime) -> bool:

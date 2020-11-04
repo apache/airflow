@@ -31,6 +31,7 @@
 !common
 !dags
 !dev
+!chart
 !docs
 !licenses
 !metastore_browser
@@ -58,7 +59,6 @@
 !NOTICE
 !.github
 !empty
-!.pypirc
 
 # This folder is for you if you want to add any files to the docker context when you build your own
 # docker image. most of other files and any new folder you add will be excluded by default

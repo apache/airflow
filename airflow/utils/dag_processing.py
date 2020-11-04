@@ -38,9 +38,10 @@ from tabulate import tabulate
 
 import airflow.models
 from airflow.configuration import conf
-from airflow.models import errors
+from airflow.models import DagModel, errors
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance
-from airflow.settings import STORE_DAG_CODE, STORE_SERIALIZED_DAGS
+from airflow.settings import STORE_DAG_CODE
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.callback_requests import CallbackRequest, SlaCallbackRequest, TaskCallbackRequest
@@ -53,37 +54,27 @@ from airflow.utils.state import State
 
 
 class AbstractDagFileProcessorProcess(metaclass=ABCMeta):
-    """
-    Processes a DAG file. See SchedulerJob.process_file() for more details.
-    """
+    """Processes a DAG file. See SchedulerJob.process_file() for more details."""
 
     @abstractmethod
     def start(self) -> None:
-        """
-        Launch the process to process the file
-        """
+        """Launch the process to process the file"""
         raise NotImplementedError()
 
     @abstractmethod
     def terminate(self, sigkill: bool = False):
-        """
-        Terminate (and then kill) the process launched to process the file
-        """
+        """Terminate (and then kill) the process launched to process the file"""
         raise NotImplementedError()
 
     @abstractmethod
     def kill(self) -> None:
-        """
-        Kill the process launched to process the file, and ensure consistent state.
-        """
+        """Kill the process launched to process the file, and ensure consistent state."""
         raise NotImplementedError()
 
     @property
     @abstractmethod
     def pid(self) -> int:
-        """
-        :return: the PID of the process launched to process the given file
-        """
+        """:return: the PID of the process launched to process the given file"""
         raise NotImplementedError()
 
     @property
@@ -138,9 +129,7 @@ class AbstractDagFileProcessorProcess(metaclass=ABCMeta):
     @property
     @abstractmethod
     def waitable_handle(self):
-        """
-        A "waitable" handle that can be passed to ``multiprocessing.connection.wait()``
-        """
+        """A "waitable" handle that can be passed to ``multiprocessing.connection.wait()``"""
         raise NotImplementedError()
 
 
@@ -205,13 +194,12 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         dag_directory: str,
         max_runs: int,
         processor_factory: Callable[
-            [str, List[CallbackRequest], Optional[List[str]], bool],
-            AbstractDagFileProcessorProcess
+            [str, List[CallbackRequest], Optional[List[str]], bool], AbstractDagFileProcessorProcess
         ],
         processor_timeout: timedelta,
         dag_ids: Optional[List[str]],
         pickle_dags: bool,
-        async_mode: bool
+        async_mode: bool,
     ):
         super().__init__()
         self._file_path_queue: List[str] = []
@@ -235,9 +223,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         self._last_parsing_stat_received_at: float = time.monotonic()
 
     def start(self) -> None:
-        """
-        Launch DagFileProcessorManager processor and start DAG parsing loop in manager.
-        """
+        """Launch DagFileProcessorManager processor and start DAG parsing loop in manager."""
         mp_start_method = self._get_multiprocessing_start_method()
         context = multiprocessing.get_context(mp_start_method)
         self._last_parsing_stat_received_at = time.monotonic()
@@ -254,8 +240,8 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
                 child_signal_conn,
                 self._dag_ids,
                 self._pickle_dags,
-                self._async_mode
-            )
+                self._async_mode,
+            ),
         )
         self._process = process
 
@@ -339,15 +325,12 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
     def _run_processor_manager(
         dag_directory: str,
         max_runs: int,
-        processor_factory: Callable[
-            [str, List[CallbackRequest]],
-            AbstractDagFileProcessorProcess
-        ],
+        processor_factory: Callable[[str, List[CallbackRequest]], AbstractDagFileProcessorProcess],
         processor_timeout: timedelta,
         signal_conn: MultiprocessingConnection,
         dag_ids: Optional[List[str]],
         pickle_dags: bool,
-        async_mode: bool
+        async_mode: bool,
     ) -> None:
 
         # Make this process start as a new process group - that makes it easy
@@ -368,21 +351,21 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         importlib.reload(airflow.settings)
         airflow.settings.initialize()
         del os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER']
-        processor_manager = DagFileProcessorManager(dag_directory,
-                                                    max_runs,
-                                                    processor_factory,
-                                                    processor_timeout,
-                                                    signal_conn,
-                                                    dag_ids,
-                                                    pickle_dags,
-                                                    async_mode)
+        processor_manager = DagFileProcessorManager(
+            dag_directory,
+            max_runs,
+            processor_factory,
+            processor_timeout,
+            signal_conn,
+            dag_ids,
+            pickle_dags,
+            async_mode,
+        )
 
         processor_manager.start()
 
     def heartbeat(self) -> None:
-        """
-        Check if the DagFileProcessorManager process is alive, and process any pending messages
-        """
+        """Check if the DagFileProcessorManager process is alive, and process any pending messages"""
         if not self._parent_signal_conn:
             raise ValueError("Process not started.")
         # Receive any pending messages before checking if the process has exited.
@@ -404,9 +387,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
             raise RuntimeError(f"Unexpected message received of type {type(message).__name__}")
 
     def _heartbeat_manager(self):
-        """
-        Heartbeat DAG file processor and restart it if we are not done.
-        """
+        """Heartbeat DAG file processor and restart it if we are not done."""
         if not self._parent_signal_conn:
             raise ValueError("Process not started.")
         if self._process and not self._process.is_alive():
@@ -414,7 +395,8 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
             if not self.done:
                 self.log.warning(
                     "DagFileProcessorManager (PID=%d) exited with exit code %d - re-launching",
-                    self._process.pid, self._process.exitcode
+                    self._process.pid,
+                    self._process.exitcode,
                 )
                 self.start()
 
@@ -426,30 +408,26 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
             Stats.incr('dag_processing.manager_stalls')
             self.log.error(
                 "DagFileProcessorManager (PID=%d) last sent a heartbeat %.2f seconds ago! Restarting it",
-                self._process.pid, parsing_stat_age)
+                self._process.pid,
+                parsing_stat_age,
+            )
             reap_process_group(self._process.pid, logger=self.log)
             self.start()
 
     def _sync_metadata(self, stat):
-        """
-        Sync metadata from stat queue and only keep the latest stat.
-        """
+        """Sync metadata from stat queue and only keep the latest stat."""
         self._done = stat.done
         self._all_files_processed = stat.all_files_processed
         self._last_parsing_stat_received_at = time.monotonic()
 
     @property
     def done(self) -> bool:
-        """
-        Has DagFileProcessorManager ended?
-        """
+        """Has DagFileProcessorManager ended?"""
         return self._done
 
     @property
     def all_files_processed(self):
-        """
-        Have all files been processed at least once?
-        """
+        """Have all files been processed at least once?"""
         return self._all_files_processed
 
     def terminate(self):
@@ -509,18 +487,17 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
     :type async_mode: bool
     """
 
-    def __init__(self,
-                 dag_directory: str,
-                 max_runs: int,
-                 processor_factory: Callable[
-                     [str, List[CallbackRequest]],
-                     AbstractDagFileProcessorProcess
-                 ],
-                 processor_timeout: timedelta,
-                 signal_conn: MultiprocessingConnection,
-                 dag_ids: Optional[List[str]],
-                 pickle_dags: bool,
-                 async_mode: bool = True):
+    def __init__(
+        self,
+        dag_directory: str,
+        max_runs: int,
+        processor_factory: Callable[[str, List[CallbackRequest]], AbstractDagFileProcessorProcess],
+        processor_timeout: timedelta,
+        signal_conn: MultiprocessingConnection,
+        dag_ids: Optional[List[str]],
+        pickle_dags: bool,
+        async_mode: bool = True,
+    ):
         super().__init__()
         self._file_paths: List[str] = []
         self._file_path_queue: List[str] = []
@@ -537,20 +514,18 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         if 'sqlite' in conf.get('core', 'sql_alchemy_conn') and self._parallelism > 1:
             self.log.warning(
                 "Because we cannot use more than 1 thread (max_threads = "
-                "%d ) when using sqlite. So we set parallelism to 1.", self._parallelism
+                "%d ) when using sqlite. So we set parallelism to 1.",
+                self._parallelism,
             )
             self._parallelism = 1
 
         # Parse and schedule each file no faster than this interval.
-        self._file_process_interval = conf.getint('scheduler',
-                                                  'min_file_process_interval')
+        self._file_process_interval = conf.getint('scheduler', 'min_file_process_interval')
         # How often to print out DAG file processing stats to the log. Default to
         # 30 seconds.
-        self.print_stats_interval = conf.getint('scheduler',
-                                                'print_stats_interval')
+        self.print_stats_interval = conf.getint('scheduler', 'print_stats_interval')
         # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
-        self._zombie_threshold_secs = (
-            conf.getint('scheduler', 'scheduler_zombie_task_threshold'))
+        self._zombie_threshold_secs = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
         # Should store dag file source in a database?
         self.store_dag_code = STORE_DAG_CODE
@@ -585,16 +560,12 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         }
 
     def register_exit_signals(self):
-        """
-        Register signals that stop child processes
-        """
+        """Register signals that stop child processes"""
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
 
     def _exit_gracefully(self, signum, frame):  # pylint: disable=unused-argument
-        """
-        Helper method to clean up DAG file processors to avoid leaving orphan processes.
-        """
+        """Helper method to clean up DAG file processors to avoid leaving orphan processes."""
         self.log.info("Exiting gracefully upon receiving signal %s", signum)
         self.log.debug("Current Stacktrace is: %s", '\n'.join(map(str, inspect.stack())))
         self.terminate()
@@ -668,8 +639,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 # This shouldn't happen, as in sync mode poll should block for
                 # ever. Lets be defensive about that.
                 self.log.warning(
-                    "wait() unexpectedly returned nothing ready after infinite timeout (%r)!",
-                    poll_time
+                    "wait() unexpectedly returned nothing ready after infinite timeout (%r)!", poll_time
                 )
 
                 continue
@@ -703,8 +673,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             self._num_run += 1
 
             if not self._async_mode:
-                self.log.debug(
-                    "Waiting for processors to finish since we're using sqlite")
+                self.log.debug("Waiting for processors to finish since we're using sqlite")
                 # Wait until the running DAG processors are finished before
                 # sending a DagParsingStat message back. This means the Agent
                 # can tell we've got to the end of this iteration when it sees
@@ -719,15 +688,17 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             all_files_processed = all(self.get_last_finish_time(x) is not None for x in self.file_paths)
             max_runs_reached = self.max_runs_reached()
 
-            dag_parsing_stat = DagParsingStat(self._file_paths,
-                                              max_runs_reached,
-                                              all_files_processed,
-                                              )
+            dag_parsing_stat = DagParsingStat(
+                self._file_paths,
+                max_runs_reached,
+                all_files_processed,
+            )
             self._signal_conn.send(dag_parsing_stat)
 
             if max_runs_reached:
-                self.log.info("Exiting dag parsing loop as all files "
-                              "have been processed %s times", self._max_runs)
+                self.log.info(
+                    "Exiting dag parsing loop as all files " "have been processed %s times", self._max_runs
+                )
                 break
 
             if self._async_mode:
@@ -745,9 +716,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         self._file_path_queue.insert(0, request.full_filepath)
 
     def _refresh_dag_dir(self):
-        """
-        Refresh file paths from dag dir if we haven't done it for too long.
-        """
+        """Refresh file paths from dag dir if we haven't done it for too long."""
         now = timezone.utcnow()
         elapsed_time_since_refresh = (now - self.last_dag_dir_refresh_time).total_seconds()
         if elapsed_time_since_refresh > self.dag_dir_list_interval:
@@ -764,22 +733,17 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             except Exception:  # noqa pylint: disable=broad-except
                 self.log.exception("Error removing old import errors")
 
-            if STORE_SERIALIZED_DAGS:
-                from airflow.models.dag import DagModel
-                from airflow.models.serialized_dag import SerializedDagModel
-                SerializedDagModel.remove_deleted_dags(self._file_paths)
-                DagModel.deactivate_deleted_dags(self._file_paths)
+            SerializedDagModel.remove_deleted_dags(self._file_paths)
+            DagModel.deactivate_deleted_dags(self._file_paths)
 
             if self.store_dag_code:
                 from airflow.models.dagcode import DagCode
+
                 DagCode.remove_deleted_code(self._file_paths)
 
     def _print_stat(self):
-        """
-        Occasionally print out stats about how fast the files are getting processed
-        """
-        if 0 < self.print_stats_interval < (
-                timezone.utcnow() - self.last_stat_print_time).total_seconds():
+        """Occasionally print out stats about how fast the files are getting processed"""
+        if 0 < self.print_stats_interval < (timezone.utcnow() - self.last_stat_print_time).total_seconds():
             if self._file_paths:
                 self._log_file_processing_stats(self._file_paths)
             self.last_stat_print_time = timezone.utcnow()
@@ -794,9 +758,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         """
         query = session.query(errors.ImportError)
         if self._file_paths:
-            query = query.filter(
-                ~errors.ImportError.filename.in_(self._file_paths)
-            )
+            query = query.filter(~errors.ImportError.filename.in_(self._file_paths))
         query.delete(synchronize_session='fetch')
         session.commit()
 
@@ -817,13 +779,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         # Last Runtime: If the process ran before, how long did it take to
         # finish in seconds
         # Last Run: When the file finished processing in the previous run.
-        headers = ["File Path",
-                   "PID",
-                   "Runtime",
-                   "# DAGs",
-                   "# Errors",
-                   "Last Runtime",
-                   "Last Run"]
+        headers = ["File Path", "PID", "Runtime", "# DAGs", "# Errors", "Last Runtime", "Last Run"]
 
         rows = []
         now = timezone.utcnow()
@@ -836,44 +792,43 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
 
             processor_pid = self.get_pid(file_path)
             processor_start_time = self.get_start_time(file_path)
-            runtime = ((now - processor_start_time) if processor_start_time else None)
+            runtime = (now - processor_start_time) if processor_start_time else None
             last_run = self.get_last_finish_time(file_path)
             if last_run:
                 seconds_ago = (now - last_run).total_seconds()
-                Stats.gauge('dag_processing.last_run.seconds_ago.{}'.format(file_name), seconds_ago)
+                Stats.gauge(f'dag_processing.last_run.seconds_ago.{file_name}', seconds_ago)
             if runtime:
-                Stats.timing('dag_processing.last_duration.{}'.format(file_name), runtime)
+                Stats.timing(f'dag_processing.last_duration.{file_name}', runtime)
                 # TODO: Remove before Airflow 2.0
-                Stats.timing('dag_processing.last_runtime.{}'.format(file_name), runtime)
+                Stats.timing(f'dag_processing.last_runtime.{file_name}', runtime)
 
-            rows.append((file_path,
-                         processor_pid,
-                         runtime,
-                         num_dags,
-                         num_errors,
-                         last_runtime,
-                         last_run))
+            rows.append((file_path, processor_pid, runtime, num_dags, num_errors, last_runtime, last_run))
 
         # Sort by longest last runtime. (Can't sort None values in python3)
         rows = sorted(rows, key=lambda x: x[3] or 0.0)
 
         formatted_rows = []
         for file_path, pid, runtime, num_dags, num_errors, last_runtime, last_run in rows:
-            formatted_rows.append((file_path,
-                                   pid,
-                                   "{:.2f}s".format(runtime.total_seconds()) if runtime else None,
-                                   num_dags,
-                                   num_errors,
-                                   "{:.2f}s".format(last_runtime) if last_runtime else None,
-                                   last_run.strftime("%Y-%m-%dT%H:%M:%S") if last_run else None
-                                   ))
-        log_str = ("\n" +
-                   "=" * 80 +
-                   "\n" +
-                   "DAG File Processing Stats\n\n" +
-                   tabulate(formatted_rows, headers=headers) +
-                   "\n" +
-                   "=" * 80)
+            formatted_rows.append(
+                (
+                    file_path,
+                    pid,
+                    f"{runtime.total_seconds():.2f}s" if runtime else None,
+                    num_dags,
+                    num_errors,
+                    f"{last_runtime:.2f}s" if last_runtime else None,
+                    last_run.strftime("%Y-%m-%dT%H:%M:%S") if last_run else None,
+                )
+            )
+        log_str = (
+            "\n"
+            + "=" * 80
+            + "\n"
+            + "DAG File Processing Stats\n\n"
+            + tabulate(formatted_rows, headers=headers)
+            + "\n"
+            + "=" * 80
+        )
 
         self.log.info(log_str)
 
@@ -971,8 +926,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         :return: None
         """
         self._file_paths = new_file_paths
-        self._file_path_queue = [x for x in self._file_path_queue
-                                 if x in new_file_paths]
+        self._file_path_queue = [x for x in self._file_path_queue if x in new_file_paths]
         # Stop processors that are working on deleted files
         filtered_processors = {}
         for file_path, processor in self._processors.items():
@@ -986,9 +940,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         self._processors = filtered_processors
 
     def wait_until_finished(self):
-        """
-        Sleeps until all the processors are done.
-        """
+        """Sleeps until all the processors are done."""
         for processor in self._processors.values():
             while not processor.done:
                 time.sleep(0.1)
@@ -1002,8 +954,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             num_dags, count_import_errors = processor.result
         else:
             self.log.error(
-                "Processor for %s exited with return code %s.",
-                processor.file_path, processor.exit_code
+                "Processor for %s exited with return code %s.", processor.file_path, processor.exit_code
             )
             count_import_errors = -1
             num_dags = 0
@@ -1018,9 +969,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         self._file_stats[processor.file_path] = stat
 
     def collect_results(self) -> None:
-        """
-        Collect the result from any finished DAG processors
-        """
+        """Collect the result from any finished DAG processors"""
         ready = multiprocessing.connection.wait(self.waitables.keys() - [self._signal_conn], timeout=0)
 
         for sentinel in ready:
@@ -1031,40 +980,29 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             self._processors.pop(processor.file_path)
             self._collect_results_from_processor(processor)
 
-        self.log.debug("%s/%s DAG parsing processes running",
-                       len(self._processors), self._parallelism)
+        self.log.debug("%s/%s DAG parsing processes running", len(self._processors), self._parallelism)
 
-        self.log.debug("%s file paths queued for processing",
-                       len(self._file_path_queue))
+        self.log.debug("%s file paths queued for processing", len(self._file_path_queue))
 
     def start_new_processes(self):
-        """
-        Start more processors if we have enough slots and files to process
-        """
+        """Start more processors if we have enough slots and files to process"""
         while self._parallelism - len(self._processors) > 0 and self._file_path_queue:
             file_path = self._file_path_queue.pop(0)
             callback_to_execute_for_file = self._callback_to_execute[file_path]
             processor = self._processor_factory(
-                file_path,
-                callback_to_execute_for_file,
-                self._dag_ids,
-                self._pickle_dags)
+                file_path, callback_to_execute_for_file, self._dag_ids, self._pickle_dags
+            )
 
             del self._callback_to_execute[file_path]
             Stats.incr('dag_processing.processes')
 
             processor.start()
-            self.log.debug(
-                "Started a process (PID: %s) to generate tasks for %s",
-                processor.pid, file_path
-            )
+            self.log.debug("Started a process (PID: %s) to generate tasks for %s", processor.pid, file_path)
             self._processors[file_path] = processor
             self.waitables[processor.waitable_handle] = processor
 
     def prepare_file_path_queue(self):
-        """
-        Generate more file paths to process. Result are saved in _file_path_queue.
-        """
+        """Generate more file paths to process. Result are saved in _file_path_queue."""
         self._parsing_start_time = timezone.utcnow()
         # If the file path is already being processed, or if a file was
         # processed recently, wait until the next batch
@@ -1073,39 +1011,36 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         file_paths_recently_processed = []
         for file_path in self._file_paths:
             last_finish_time = self.get_last_finish_time(file_path)
-            if (last_finish_time is not None and
-                (now - last_finish_time).total_seconds() <
-                    self._file_process_interval):
+            if (
+                last_finish_time is not None
+                and (now - last_finish_time).total_seconds() < self._file_process_interval
+            ):
                 file_paths_recently_processed.append(file_path)
 
-        files_paths_at_run_limit = [file_path
-                                    for file_path, stat in self._file_stats.items()
-                                    if stat.run_count == self._max_runs]
+        files_paths_at_run_limit = [
+            file_path for file_path, stat in self._file_stats.items() if stat.run_count == self._max_runs
+        ]
 
-        files_paths_to_queue = list(set(self._file_paths) -
-                                    set(file_paths_in_progress) -
-                                    set(file_paths_recently_processed) -
-                                    set(files_paths_at_run_limit))
+        files_paths_to_queue = list(
+            set(self._file_paths)
+            - set(file_paths_in_progress)
+            - set(file_paths_recently_processed)
+            - set(files_paths_at_run_limit)
+        )
 
         for file_path, processor in self._processors.items():
             self.log.debug(
                 "File path %s is still being processed (started: %s)",
-                processor.file_path, processor.start_time.isoformat()
+                processor.file_path,
+                processor.start_time.isoformat(),
             )
 
-        self.log.debug(
-            "Queuing the following files for processing:\n\t%s",
-            "\n\t".join(files_paths_to_queue)
-        )
+        self.log.debug("Queuing the following files for processing:\n\t%s", "\n\t".join(files_paths_to_queue))
 
         for file_path in files_paths_to_queue:
             if file_path not in self._file_stats:
                 self._file_stats[file_path] = DagFileStat(
-                    num_dags=0,
-                    import_errors=0,
-                    last_finish_time=None,
-                    last_duration=None,
-                    run_count=0
+                    num_dags=0, import_errors=0, last_finish_time=None, last_duration=None, run_count=0
                 )
 
         self._file_path_queue.extend(files_paths_to_queue)
@@ -1117,10 +1052,13 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         and update the current zombie list.
         """
         now = timezone.utcnow()
-        if not self._last_zombie_query_time or \
-                (now - self._last_zombie_query_time).total_seconds() > self._zombie_query_interval:
+        if (
+            not self._last_zombie_query_time
+            or (now - self._last_zombie_query_time).total_seconds() > self._zombie_query_interval
+        ):
             # to avoid circular imports
             from airflow.jobs.local_task_job import LocalTaskJob as LJ
+
             self.log.info("Finding 'running' jobs without a recent heartbeat")
             TI = airflow.models.TaskInstance
             DM = airflow.models.DagModel
@@ -1137,7 +1075,8 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                         LJ.state != State.RUNNING,
                         LJ.latest_heartbeat < limit_dttm,
                     )
-                ).all()
+                )
+                .all()
             )
 
             self._last_zombie_query_time = timezone.utcnow()
@@ -1152,17 +1091,17 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 Stats.incr('zombies_killed')
 
     def _kill_timed_out_processors(self):
-        """
-        Kill any file processors that timeout to defend against process hangs.
-        """
+        """Kill any file processors that timeout to defend against process hangs."""
         now = timezone.utcnow()
         for file_path, processor in self._processors.items():
             duration = now - processor.start_time
             if duration > self._processor_timeout:
                 self.log.error(
-                    "Processor for %s with PID %s started at %s has timed out, "
-                    "killing it.",
-                    file_path, processor.pid, processor.start_time.isoformat())
+                    "Processor for %s with PID %s started at %s has timed out, " "killing it.",
+                    file_path,
+                    processor.pid,
+                    processor.start_time.isoformat(),
+                )
                 Stats.decr('dag_processing.processes')
                 Stats.incr('dag_processing.processor_timeouts')
                 # TODO: Remove after Airflow 2.0
@@ -1170,9 +1109,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 processor.kill()
 
     def max_runs_reached(self):
-        """
-        :return: whether all file paths have been processed max_runs times
-        """
+        """:return: whether all file paths have been processed max_runs times"""
         if self._max_runs == -1:  # Unlimited runs.
             return False
         for stat in self._file_stats.values():
@@ -1210,8 +1147,9 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         parse_time = (timezone.utcnow() - self._parsing_start_time).total_seconds()
         Stats.gauge('dag_processing.total_parse_time', parse_time)
         Stats.gauge('dagbag_size', sum(stat.num_dags for stat in self._file_stats.values()))
-        Stats.gauge('dag_processing.import_errors',
-                    sum(stat.import_errors for stat in self._file_stats.values()))
+        Stats.gauge(
+            'dag_processing.import_errors', sum(stat.import_errors for stat in self._file_stats.values())
+        )
 
         # TODO: Remove before Airflow 2.0
         Stats.gauge('collect_dags', parse_time)

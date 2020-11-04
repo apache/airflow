@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Functions Hook.
-"""
+"""This module contains a Google Cloud Functions Hook."""
 import time
 from typing import Any, Dict, List, Optional, Sequence, Union
 
@@ -67,7 +65,7 @@ class CloudFunctionsHook(GoogleBaseHook):
         :type location: str
         :return:
         """
-        return 'projects/{}/locations/{}'.format(project_id, location)
+        return f'projects/{project_id}/locations/{location}'
 
     def get_conn(self) -> build:
         """

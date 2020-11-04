@@ -20,6 +20,7 @@
 import json
 import os
 import unittest
+import uuid
 from unittest import mock
 
 import MySQLdb.cursors
@@ -332,10 +333,10 @@ class MySqlContext:
         self.init_client = self.connection.extra_dejson.get('client', 'mysqlclient')
 
     def __enter__(self):
-        self.connection.set_extra('{{"client": "{}"}}'.format(self.client))
+        self.connection.set_extra(f'{{"client": "{self.client}"}}')
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.connection.set_extra('{{"client": "{}"}}'.format(self.init_client))
+        self.connection.set_extra(f'{{"client": "{self.init_client}"}}')
 
 
 @pytest.mark.backend("mysql")
@@ -349,7 +350,7 @@ class TestMySql(unittest.TestCase):
         drop_tables = {'test_mysql_to_mysql', 'test_airflow'}
         with MySqlHook().get_conn() as conn:
             for table in drop_tables:
-                conn.execute("DROP TABLE IF EXISTS {}".format(table))
+                conn.execute(f"DROP TABLE IF EXISTS {table}")
 
     @parameterized.expand(
         [
@@ -398,11 +399,15 @@ class TestMySql(unittest.TestCase):
         with MySqlContext(client):
             hook = MySqlHook('airflow_db')
             priv = hook.get_first("SELECT @@global.secure_file_priv")
+            # Use random names to allow re-running
             if priv and priv[0]:
                 # Confirm that no error occurs
-                hook.bulk_dump("INFORMATION_SCHEMA.TABLES", os.path.join(priv[0], "TABLES_{}".format(client)))
+                hook.bulk_dump(
+                    "INFORMATION_SCHEMA.TABLES",
+                    os.path.join(priv[0], f"TABLES_{client}-{uuid.uuid1()}"),
+                )
             elif priv == ("",):
-                hook.bulk_dump("INFORMATION_SCHEMA.TABLES", "TABLES_{}".format(client))
+                hook.bulk_dump("INFORMATION_SCHEMA.TABLES", f"TABLES_{client}_{uuid.uuid1()}")
             else:
                 self.skipTest("Skip test_mysql_hook_test_bulk_load " "since file output is not permitted")
 

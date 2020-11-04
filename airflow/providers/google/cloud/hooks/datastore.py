@@ -16,15 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains Google Datastore hook.
-"""
+"""This module contains Google Datastore hook."""
+
 
 import time
 import warnings
 from typing import Any, Dict, Optional, Sequence, Union
 
-from googleapiclient.discovery import build, Resource
+from googleapiclient.discovery import Resource, build
 
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 

@@ -39,6 +39,7 @@ def upgrade():
     """Apply Add scheduling_decision to DagRun and DAG"""
     conn = op.get_bind()  # pylint: disable=no-member
     is_mysql = bool(conn.dialect.name == "mysql")
+    is_sqlite = bool(conn.dialect.name == "sqlite")
     timestamp = sa.TIMESTAMP(timezone=True) if not is_mysql else mysql.TIMESTAMP(fsp=6, timezone=True)
 
     with op.batch_alter_table('dag_run', schema=None) as batch_op:
@@ -57,6 +58,7 @@ def upgrade():
 
     try:
         from airflow.configuration import conf
+
         concurrency = conf.getint('core', 'dag_concurrency', fallback=16)
     except:  # noqa
         concurrency = 16
@@ -64,8 +66,8 @@ def upgrade():
     # Set it to true here as it makes us take the slow/more complete path, and when it's next parsed by the
     # DagParser it will get set to correct value.
     op.execute(
-        "UPDATE dag SET concurrency={}, has_task_concurrency_limits=true where concurrency IS NULL".format(
-            concurrency
+        "UPDATE dag SET concurrency={}, has_task_concurrency_limits={} where concurrency IS NULL".format(
+            concurrency, 1 if is_sqlite else sa.true()
         )
     )
     with op.batch_alter_table('dag', schema=None) as batch_op:
