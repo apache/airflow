@@ -96,6 +96,10 @@ class GoogleAuthBackend(object):
             consumer_secret=get_config_param('client_secret'),
             request_token_params={'scope': [
                 'https://www.googleapis.com/auth/userinfo.profile',
+                'https://www.googleapis.com/auth/userinfo.email'],
+                'prompt': get_config_param('prompt')
+            } if get_config_param('prompt') else {'scope': [
+                'https://www.googleapis.com/auth/userinfo.profile',
                 'https://www.googleapis.com/auth/userinfo.email']},
             base_url='https://www.google.com/accounts/',
             request_token_url=None,
