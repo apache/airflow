@@ -58,7 +58,7 @@ class S3ToFTPOperator(BaseOperator):
         ftp_conn_id='ftp_default',
         **kwargs,
     ) -> None:
-        super(self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
         self.ftp_path = ftp_path
@@ -74,4 +74,3 @@ class S3ToFTPOperator(BaseOperator):
         with NamedTemporaryFile() as local_tmp_file:
             s3_obj.download_fileobj(local_tmp_file)
             ftp_hook.store_file(self.ftp_path, local_tmp_file.name)
-

@@ -32,12 +32,7 @@ class TestS3ToSFTPOperator(unittest.TestCase):
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook")
     @mock.patch("airflow.providers.ftp.hooks.ftp.FTPHook")
     def test_execute(self, ftp_hook, s3_hook):
-        operator = S3ToFTPOperator(
-            task_id=TASK_ID,
-            s3_bucket=BUCKET,
-            s3_key=S3_KEY,
-            ftp_path=FTP_PATH
-        )
+        operator = S3ToFTPOperator(task_id=TASK_ID, s3_bucket=BUCKET, s3_key=S3_KEY, ftp_path=FTP_PATH)
         operator.execute(None)
 
         s3_hook.assert_called_once_with(AWS_CONN_ID)
