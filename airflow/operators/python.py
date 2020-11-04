@@ -344,7 +344,7 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
 
 class ShortCircuitOperator(PythonOperator, SkipMixin):
     """
-    The workflow "short-circuits" and downstream tasks are skipped if a contidition is not met.
+    The workflow "short-circuits" and downstream tasks are skipped if a condition is not met.
 
     The ShortCircuitOperator is derived from the PythonOperator. It evaluates a
     condition and short-circuits the workflow if the condition is False. Any

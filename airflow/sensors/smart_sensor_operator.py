@@ -255,7 +255,7 @@ class SensorExceptionInfo:
 
     def should_fail_current_run(self):
         """
-        shouldfail_current_run.
+        Return should the sensor fail.
 
         :return: Should the sensor fail
         :type: boolean

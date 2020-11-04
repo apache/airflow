@@ -29,7 +29,7 @@ from airflow.utils.operator_helpers import context_to_airflow_vars
 
 class HiveToMySqlOperator(BaseOperator):
     """
-    Class for moveing data from Hive to MySQL.
+    Class for moving data from Hive to MySQL.
 
     Moves data from Hive to MySQL, note that for now the data is loaded
     into memory before being pushed to MySQL, so this operator should
