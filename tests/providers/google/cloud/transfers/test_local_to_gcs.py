@@ -21,8 +21,8 @@ import datetime
 import os
 import unittest
 from glob import glob
-
 from unittest import mock
+
 import pytest
 
 from airflow.models.dag import DAG

@@ -40,24 +40,16 @@ LOGGING_CONFIG = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
-        'airflow.task': {
-            'format': '[%(asctime)s] {{%(filename)s:%(lineno)d}} %(levelname)s - %(message)s'
-        },
+        'airflow.task': {'format': '[%(asctime)s] {{%(filename)s:%(lineno)d}} %(levelname)s - %(message)s'},
     },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'airflow.task',
-            'stream': 'ext://sys.stdout'
+            'stream': 'ext://sys.stdout',
         }
     },
-    'loggers': {
-        'airflow': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False
-        }
-    }
+    'loggers': {'airflow': {'handlers': ['console'], 'level': 'INFO', 'propagate': False}},
 }
 
 
@@ -79,7 +71,12 @@ class TestStandardTaskRunner(unittest.TestCase):
         local_task_job.task_instance = mock.MagicMock()
         local_task_job.task_instance.run_as_user = None
         local_task_job.task_instance.command_as_list.return_value = [
-            'airflow', 'tasks', 'test', 'test_on_kill', 'task1', '2016-01-01'
+            'airflow',
+            'tasks',
+            'test',
+            'test_on_kill',
+            'task1',
+            '2016-01-01',
         ]
 
         runner = StandardTaskRunner(local_task_job)
@@ -95,7 +92,7 @@ class TestStandardTaskRunner(unittest.TestCase):
         runner.terminate()
 
         for process in processes:
-            self.assertFalse(psutil.pid_exists(process.pid), "{} is still alive".format(process))
+            self.assertFalse(psutil.pid_exists(process.pid), f"{process} is still alive")
 
         self.assertIsNotNone(runner.return_code())
 
@@ -104,7 +101,12 @@ class TestStandardTaskRunner(unittest.TestCase):
         local_task_job.task_instance = mock.MagicMock()
         local_task_job.task_instance.run_as_user = getpass.getuser()
         local_task_job.task_instance.command_as_list.return_value = [
-            'airflow', 'tasks', 'test', 'test_on_kill', 'task1', '2016-01-01'
+            'airflow',
+            'tasks',
+            'test',
+            'test_on_kill',
+            'task1',
+            '2016-01-01',
         ]
 
         runner = StandardTaskRunner(local_task_job)
@@ -121,7 +123,7 @@ class TestStandardTaskRunner(unittest.TestCase):
         runner.terminate()
 
         for process in processes:
-            self.assertFalse(psutil.pid_exists(process.pid), "{} is still alive".format(process))
+            self.assertFalse(psutil.pid_exists(process.pid), f"{process} is still alive")
 
         self.assertIsNotNone(runner.return_code())
 
@@ -146,11 +148,13 @@ class TestStandardTaskRunner(unittest.TestCase):
         session = settings.Session()
 
         dag.clear()
-        dag.create_dagrun(run_id="test",
-                          state=State.RUNNING,
-                          execution_date=DEFAULT_DATE,
-                          start_date=DEFAULT_DATE,
-                          session=session)
+        dag.create_dagrun(
+            run_id="test",
+            state=State.RUNNING,
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            session=session,
+        )
         ti = TI(task=task, execution_date=DEFAULT_DATE)
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
         session.commit()
@@ -175,11 +179,11 @@ class TestStandardTaskRunner(unittest.TestCase):
                 break
             time.sleep(2)
 
-        with open(path, "r") as f:
+        with open(path) as f:
             self.assertEqual("ON_KILL_TEST", f.readline())
 
         for process in processes:
-            self.assertFalse(psutil.pid_exists(process.pid), "{} is still alive".format(process))
+            self.assertFalse(psutil.pid_exists(process.pid), f"{process} is still alive")
 
     @staticmethod
     def _procs_in_pgroup(pgid):

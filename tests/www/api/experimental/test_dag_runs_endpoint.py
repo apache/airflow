@@ -26,7 +26,6 @@ from airflow.www import app as application
 
 
 class TestDagRunsEndpoint(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -55,8 +54,7 @@ class TestDagRunsEndpoint(unittest.TestCase):
         url_template = '/api/experimental/dags/{}/dag_runs'
         dag_id = 'example_bash_operator'
         # Create DagRun
-        dag_run = trigger_dag(
-            dag_id=dag_id, run_id='test_get_dag_runs_success')
+        dag_run = trigger_dag(dag_id=dag_id, run_id='test_get_dag_runs_success')
 
         response = self.app.get(url_template.format(dag_id))
         self.assertEqual(200, response.status_code)
@@ -71,8 +69,7 @@ class TestDagRunsEndpoint(unittest.TestCase):
         url_template = '/api/experimental/dags/{}/dag_runs?state=running'
         dag_id = 'example_bash_operator'
         # Create DagRun
-        dag_run = trigger_dag(
-            dag_id=dag_id, run_id='test_get_dag_runs_success')
+        dag_run = trigger_dag(dag_id=dag_id, run_id='test_get_dag_runs_success')
 
         response = self.app.get(url_template.format(dag_id))
         self.assertEqual(200, response.status_code)
@@ -87,8 +84,7 @@ class TestDagRunsEndpoint(unittest.TestCase):
         url_template = '/api/experimental/dags/{}/dag_runs?state=RUNNING'
         dag_id = 'example_bash_operator'
         # Create DagRun
-        dag_run = trigger_dag(
-            dag_id=dag_id, run_id='test_get_dag_runs_success')
+        dag_run = trigger_dag(dag_id=dag_id, run_id='test_get_dag_runs_success')
 
         response = self.app.get(url_template.format(dag_id))
         self.assertEqual(200, response.status_code)

@@ -46,9 +46,7 @@ class LoggingMixin:
             # FIXME: LoggingMixin should have a default _log field.
             return self._log  # type: ignore
         except AttributeError:
-            self._log = logging.getLogger(
-                self.__class__.__module__ + '.' + self.__class__.__name__
-            )
+            self._log = logging.getLogger(self.__class__.__module__ + '.' + self.__class__.__name__)
             return self._log
 
     def _set_context(self, context):
@@ -91,7 +89,7 @@ class StreamLogWriter:
         """
 
     @property
-    def closed(self):   # noqa: D402
+    def closed(self):  # noqa: D402
         """
         Returns False to indicate that the stream is not closed (as it will be
         open for the duration of Airflow's lifecycle).
@@ -141,8 +139,9 @@ class RedirectStdHandler(StreamHandler):
     # pylint: disable=super-init-not-called
     def __init__(self, stream):
         if not isinstance(stream, str):
-            raise Exception("Cannot use file like objects. Use 'stdout' or 'stderr'"
-                            " as a str and without 'ext://'.")
+            raise Exception(
+                "Cannot use file like objects. Use 'stdout' or 'stderr'" " as a str and without 'ext://'."
+            )
 
         self._use_stderr = True
         if 'stdout' in stream:

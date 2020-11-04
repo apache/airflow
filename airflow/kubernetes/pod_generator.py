@@ -50,14 +50,8 @@ class PodDefaults:
     XCOM_MOUNT_PATH = '/airflow/xcom'
     SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
     XCOM_CMD = 'trap "exit 0" INT; while true; do sleep 30; done;'
-    VOLUME_MOUNT = k8s.V1VolumeMount(
-        name='xcom',
-        mount_path=XCOM_MOUNT_PATH
-    )
-    VOLUME = k8s.V1Volume(
-        name='xcom',
-        empty_dir=k8s.V1EmptyDirVolumeSource()
-    )
+    VOLUME_MOUNT = k8s.V1VolumeMount(name='xcom', mount_path=XCOM_MOUNT_PATH)
+    VOLUME = k8s.V1Volume(name='xcom', empty_dir=k8s.V1EmptyDirVolumeSource())
     SIDECAR_CONTAINER = k8s.V1Container(
         name=SIDECAR_CONTAINER_NAME,
         command=['sh', '-c', XCOM_CMD],
@@ -85,7 +79,7 @@ def make_safe_label_value(string):
 
     if len(safe_label) > MAX_LABEL_LEN or string != safe_label:
         safe_hash = hashlib.md5(string.encode()).hexdigest()[:9]
-        safe_label = safe_label[:MAX_LABEL_LEN - len(safe_hash) - 1] + "-" + safe_hash
+        safe_label = safe_label[: MAX_LABEL_LEN - len(safe_hash) - 1] + "-" + safe_hash
 
     return safe_label
 
@@ -134,14 +128,14 @@ class PodGenerator:
         self,
         pod: Optional[k8s.V1Pod] = None,
         pod_template_file: Optional[str] = None,
-        extract_xcom: bool = True
+        extract_xcom: bool = True,
     ):
         if not pod_template_file and not pod:
-            raise AirflowConfigException("Podgenerator requires either a "
-                                         "`pod` or a `pod_template_file` argument")
+            raise AirflowConfigException(
+                "Podgenerator requires either a " "`pod` or a `pod_template_file` argument"
+            )
         if pod_template_file and pod:
-            raise AirflowConfigException("Cannot pass both `pod` "
-                                         "and `pod_template_file` arguments")
+            raise AirflowConfigException("Cannot pass both `pod` " "and `pod_template_file` arguments")
 
         if pod_template_file:
             self.ud_pod = self.deserialize_model_file(pod_template_file)
@@ -184,25 +178,29 @@ class PodGenerator:
         k8s_object = obj.get("pod_override", None)
 
         if k8s_legacy_object and k8s_object:
-            raise AirflowConfigException("Can not have both a legacy and new"
-                                         "executor_config object. Please delete the KubernetesExecutor"
-                                         "dict and only use the pod_override kubernetes.client.models.V1Pod"
-                                         "object.")
+            raise AirflowConfigException(
+                "Can not have both a legacy and new"
+                "executor_config object. Please delete the KubernetesExecutor"
+                "dict and only use the pod_override kubernetes.client.models.V1Pod"
+                "object."
+            )
         if not k8s_object and not k8s_legacy_object:
             return None
 
         if isinstance(k8s_object, k8s.V1Pod):
             return k8s_object
         elif isinstance(k8s_legacy_object, dict):
-            warnings.warn('Using a dictionary for the executor_config is deprecated and will soon be removed.'
-                          'please use a `kubernetes.client.models.V1Pod` class with a "pod_override" key'
-                          ' instead. ',
-                          category=DeprecationWarning)
+            warnings.warn(
+                'Using a dictionary for the executor_config is deprecated and will soon be removed.'
+                'please use a `kubernetes.client.models.V1Pod` class with a "pod_override" key'
+                ' instead. ',
+                category=DeprecationWarning,
+            )
             return PodGenerator.from_legacy_obj(obj)
         else:
             raise TypeError(
-                'Cannot convert a non-kubernetes.client.models.V1Pod'
-                'object into a KubernetesExecutorConfig')
+                'Cannot convert a non-kubernetes.client.models.V1Pod' 'object into a KubernetesExecutorConfig'
+            )
 
     @staticmethod
     def from_legacy_obj(obj) -> Optional[k8s.V1Pod]:
@@ -223,12 +221,12 @@ class PodGenerator:
             requests = {
                 'cpu': namespaced.pop('request_cpu', None),
                 'memory': namespaced.pop('request_memory', None),
-                'ephemeral-storage': namespaced.get('ephemeral-storage')    # We pop this one in limits
+                'ephemeral-storage': namespaced.get('ephemeral-storage'),  # We pop this one in limits
             }
             limits = {
                 'cpu': namespaced.pop('limit_cpu', None),
                 'memory': namespaced.pop('limit_memory', None),
-                'ephemeral-storage': namespaced.pop('ephemeral-storage', None)
+                'ephemeral-storage': namespaced.pop('ephemeral-storage', None),
             }
             all_resources = list(requests.values()) + list(limits.values())
             if all(r is None for r in all_resources):
@@ -237,10 +235,7 @@ class PodGenerator:
                 # remove None's so they don't become 0's
                 requests = {k: v for k, v in requests.items() if v is not None}
                 limits = {k: v for k, v in limits.items() if v is not None}
-                resources = k8s.V1ResourceRequirements(
-                    requests=requests,
-                    limits=limits
-                )
+                resources = k8s.V1ResourceRequirements(requests=requests, limits=limits)
         namespaced['resources'] = resources
         return PodGeneratorDeprecated(**namespaced).gen_pod()
 
@@ -292,8 +287,9 @@ class PodGenerator:
         return None
 
     @staticmethod
-    def reconcile_specs(base_spec: Optional[k8s.V1PodSpec],
-                        client_spec: Optional[k8s.V1PodSpec]) -> Optional[k8s.V1PodSpec]:
+    def reconcile_specs(
+        base_spec: Optional[k8s.V1PodSpec], client_spec: Optional[k8s.V1PodSpec]
+    ) -> Optional[k8s.V1PodSpec]:
         """
         :param base_spec: has the base attributes which are overwritten if they exist
             in the client_spec and remain if they do not exist in the client_spec
@@ -316,8 +312,9 @@ class PodGenerator:
         return None
 
     @staticmethod
-    def reconcile_containers(base_containers: List[k8s.V1Container],
-                             client_containers: List[k8s.V1Container]) -> List[k8s.V1Container]:
+    def reconcile_containers(
+        base_containers: List[k8s.V1Container], client_containers: List[k8s.V1Container]
+    ) -> List[k8s.V1Container]:
         """
         :param base_containers: has the base attributes which are overwritten if they exist
             in the client_containers and remain if they do not exist in the client_containers
@@ -358,7 +355,7 @@ class PodGenerator:
         pod_override_object: Optional[k8s.V1Pod],
         base_worker_pod: k8s.V1Pod,
         namespace: str,
-        scheduler_job_id: str
+        scheduler_job_id: str,
     ) -> k8s.V1Pod:
         """
         Construct a pod by gathering and consolidating the configuration from 3 places:
@@ -391,7 +388,7 @@ class PodGenerator:
                     'try_number': str(try_number),
                     'airflow_version': airflow_version.replace('+', '-'),
                     'kubernetes_executor': 'True',
-                }
+                },
             ),
             spec=k8s.V1PodSpec(
                 containers=[
@@ -401,7 +398,7 @@ class PodGenerator:
                         image=image,
                     )
                 ]
-            )
+            ),
         )
 
         # Reconcile the pods starting with the first chronologically,
@@ -449,8 +446,7 @@ class PodGenerator:
         @return:
         """
         api_client = ApiClient()
-        return api_client._ApiClient__deserialize_model(  # pylint: disable=W0212
-            pod_dict, k8s.V1Pod)
+        return api_client._ApiClient__deserialize_model(pod_dict, k8s.V1Pod)  # pylint: disable=W0212
 
     @staticmethod
     def make_unique_pod_id(pod_id):
@@ -466,7 +462,7 @@ class PodGenerator:
             return None
 
         safe_uuid = uuid.uuid4().hex
-        safe_pod_id = pod_id[:MAX_POD_ID_LEN - len(safe_uuid) - 1] + "-" + safe_uuid
+        safe_pod_id = pod_id[: MAX_POD_ID_LEN - len(safe_uuid) - 1] + "-" + safe_uuid
 
         return safe_pod_id
 
@@ -513,8 +509,9 @@ def extend_object_field(base_obj, client_obj, field_name):
     base_obj_field = getattr(base_obj, field_name, None)
     client_obj_field = getattr(client_obj, field_name, None)
 
-    if (not isinstance(base_obj_field, list) and base_obj_field is not None) or \
-       (not isinstance(client_obj_field, list) and client_obj_field is not None):
+    if (not isinstance(base_obj_field, list) and base_obj_field is not None) or (
+        not isinstance(client_obj_field, list) and client_obj_field is not None
+    ):
         raise ValueError("The chosen field must be a list.")
 
     if not base_obj_field:

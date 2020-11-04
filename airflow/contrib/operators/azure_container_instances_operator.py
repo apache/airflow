@@ -29,5 +29,6 @@ from airflow.providers.microsoft.azure.operators.azure_container_instances impor
 warnings.warn(
     "This module is deprecated. "
     "Please use `airflow.providers.microsoft.azure.operators.azure_container_instances`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

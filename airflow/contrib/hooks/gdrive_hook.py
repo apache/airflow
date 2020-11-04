@@ -24,5 +24,6 @@ from airflow.providers.google.suite.hooks.drive import GoogleDriveHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.suite.hooks.drive`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

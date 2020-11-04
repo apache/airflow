@@ -129,7 +129,7 @@ class WinRMOperator(BaseOperator):
             self.winrm_hook.winrm_protocol.close_shell(winrm_client)  # type: ignore[attr-defined]
 
         except Exception as e:
-            raise AirflowException("WinRM operator error: {0}".format(str(e)))
+            raise AirflowException("WinRM operator error: {}".format(str(e)))
 
         if return_code == 0:
             # returning output if do_xcom_push is set
@@ -139,7 +139,7 @@ class WinRMOperator(BaseOperator):
             else:
                 return b64encode(b''.join(stdout_buffer)).decode('utf-8')
         else:
-            error_msg = "Error running cmd: {0}, return code: {1}, error: {2}".format(
+            error_msg = "Error running cmd: {}, return code: {}, error: {}".format(
                 self.command, return_code, b''.join(stderr_buffer).decode('utf-8')
             )
             raise AirflowException(error_msg)

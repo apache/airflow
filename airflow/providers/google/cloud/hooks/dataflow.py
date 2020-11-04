@@ -418,7 +418,7 @@ class _DataflowRunner(LoggingMixin):
         self.log.info("Process exited with return code: %s", self._proc.returncode)
 
         if self._proc.returncode != 0:
-            raise Exception("DataFlow failed with return code {}".format(self._proc.returncode))
+            raise Exception(f"DataFlow failed with return code {self._proc.returncode}")
         return self.job_id
 
 
@@ -757,7 +757,7 @@ class DataflowHook(GoogleBaseHook):
         variables['region'] = location
 
         def label_formatter(labels_dict):
-            return ['--labels={}={}'.format(key, value) for key, value in labels_dict.items()]
+            return [f'--labels={key}={value}' for key, value in labels_dict.items()]
 
         if py_requirements is not None:
             if not py_requirements and not py_system_site_packages:
@@ -826,7 +826,7 @@ class DataflowHook(GoogleBaseHook):
     def _build_cmd(variables: dict, label_formatter: Callable, project_id: str) -> List[str]:
         command = [
             "--runner=DataflowRunner",
-            "--project={}".format(project_id),
+            f"--project={project_id}",
         ]
         if variables is None:
             return command

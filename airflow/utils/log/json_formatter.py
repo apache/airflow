@@ -42,7 +42,6 @@ class JSONFormatter(logging.Formatter):
 
     def format(self, record):
         super().format(record)
-        record_dict = {label: getattr(record, label, None)
-                       for label in self.json_fields}
+        record_dict = {label: getattr(record, label, None) for label in self.json_fields}
         merged_record = merge_dicts(record_dict, self.extras)
         return json.dumps(merged_record)

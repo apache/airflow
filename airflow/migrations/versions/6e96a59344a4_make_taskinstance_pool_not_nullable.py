@@ -84,10 +84,9 @@ class TaskInstance(Base):  # type: ignore
 def upgrade():
     """Make TaskInstance.pool field not nullable."""
     with create_session() as session:
-        session.query(TaskInstance) \
-            .filter(TaskInstance.pool.is_(None)) \
-            .update({TaskInstance.pool: 'default_pool'},
-                    synchronize_session=False)  # Avoid select updated rows
+        session.query(TaskInstance).filter(TaskInstance.pool.is_(None)).update(
+            {TaskInstance.pool: 'default_pool'}, synchronize_session=False
+        )  # Avoid select updated rows
         session.commit()
 
     conn = op.get_bind()
@@ -124,8 +123,7 @@ def downgrade():
         op.create_index('ti_pool', 'task_instance', ['pool', 'state', 'priority_weight'])
 
     with create_session() as session:
-        session.query(TaskInstance) \
-            .filter(TaskInstance.pool == 'default_pool') \
-            .update({TaskInstance.pool: None},
-                    synchronize_session=False)  # Avoid select updated rows
+        session.query(TaskInstance).filter(TaskInstance.pool == 'default_pool').update(
+            {TaskInstance.pool: None}, synchronize_session=False
+        )  # Avoid select updated rows
         session.commit()

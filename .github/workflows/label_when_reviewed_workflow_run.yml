@@ -72,7 +72,7 @@ jobs:
             ./scripts/ci/selective_ci_checks.sh
           fi
       - name: "Label when approved by committers for PRs that require full tests"
-        uses: TobKed/label-when-approved-action@7872312da76508d29f98d4fa68843ea91754cc59  # v1.2
+        uses: TobKed/label-when-approved-action@4c5190fec5661e98d83f50bbd4ef9ebb48bd1194  # v1.3
         id: label-full-test-prs-when-approved-by-commiters
         if: >
           steps.selective-checks.outputs.run-tests == 'true' &&
@@ -101,7 +101,7 @@ jobs:
             [the run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
             "}
       - name: "Label when approved by committers for PRs that do not require full tests"
-        uses: TobKed/label-when-approved-action@7872312da76508d29f98d4fa68843ea91754cc59  # v1.2
+        uses: TobKed/label-when-approved-action@4c5190fec5661e98d83f50bbd4ef9ebb48bd1194  # v1.3
         id: label-simple-test-prs-when-approved-by-commiters
         if: >
           steps.selective-checks.outputs.run-tests == 'true' &&
@@ -116,7 +116,7 @@ jobs:
             Airflow. The committers might merge it or can add a label 'full tests needed' and re-run it
             to run all tests if they see it is needed!
       - name: "Label when approved by committers for PRs that do not require tests at all"
-        uses: TobKed/label-when-approved-action@7872312da76508d29f98d4fa68843ea91754cc59  # v1.2
+        uses: TobKed/label-when-approved-action@4c5190fec5661e98d83f50bbd4ef9ebb48bd1194  # v1.3
         id: label-no-test-prs-when-approved-by-commiters
         if: steps.selective-checks.outputs.run-tests != 'true'
         with:

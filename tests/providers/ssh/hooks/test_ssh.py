@@ -16,13 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 import json
-import unittest
-from io import StringIO
-
-from typing import Optional
 import random
 import string
+import unittest
+from io import StringIO
+from typing import Optional
 from unittest import mock
+
 import paramiko
 
 from airflow.models import Connection

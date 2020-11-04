@@ -42,11 +42,7 @@ class PodRuntimeInfoEnv(K8SModel):
         """:return: kubernetes.client.models.V1EnvVar"""
         return k8s.V1EnvVar(
             name=self.name,
-            value_from=k8s.V1EnvVarSource(
-                field_ref=k8s.V1ObjectFieldSelector(
-                    field_path=self.field_path
-                )
-            )
+            value_from=k8s.V1EnvVarSource(field_ref=k8s.V1ObjectFieldSelector(field_path=self.field_path)),
         )
 
     def attach_to_pod(self, pod: k8s.V1Pod) -> k8s.V1Pod:

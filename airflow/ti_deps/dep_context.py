@@ -64,16 +64,17 @@ class DepContext:
     """
 
     def __init__(
-            self,
-            deps=None,
-            flag_upstream_failed: bool = False,
-            ignore_all_deps: bool = False,
-            ignore_depends_on_past: bool = False,
-            ignore_in_retry_period: bool = False,
-            ignore_in_reschedule_period: bool = False,
-            ignore_task_deps: bool = False,
-            ignore_ti_state: bool = False,
-            finished_tasks=None):
+        self,
+        deps=None,
+        flag_upstream_failed: bool = False,
+        ignore_all_deps: bool = False,
+        ignore_depends_on_past: bool = False,
+        ignore_in_retry_period: bool = False,
+        ignore_in_reschedule_period: bool = False,
+        ignore_task_deps: bool = False,
+        ignore_ti_state: bool = False,
+        finished_tasks=None,
+    ):
         self.deps = deps or set()
         self.flag_upstream_failed = flag_upstream_failed
         self.ignore_all_deps = ignore_all_deps

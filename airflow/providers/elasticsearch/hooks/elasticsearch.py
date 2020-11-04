@@ -67,7 +67,7 @@ class ElasticsearchHook(DbApiHook):
             login = '{conn.login}:{conn.password}@'.format(conn=conn)
         host = conn.host
         if conn.port is not None:
-            host += ':{port}'.format(port=conn.port)
+            host += f':{conn.port}'
         uri = '{conn.conn_type}+{conn.schema}://{login}{host}/'.format(conn=conn, login=login, host=host)
 
         extras_length = len(conn.extra_dejson)
@@ -78,7 +78,7 @@ class ElasticsearchHook(DbApiHook):
 
         for arg_key, arg_value in conn.extra_dejson.items():
             extras_length -= 1
-            uri += "{arg_key}={arg_value}".format(arg_key=arg_key, arg_value=arg_value)
+            uri += f"{arg_key}={arg_value}"
 
             if extras_length:
                 uri += '&'

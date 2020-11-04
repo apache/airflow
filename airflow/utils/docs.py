@@ -25,7 +25,7 @@ def get_docs_url(page: Optional[str] = None) -> str:
     if "dev" in version.version:
         result = "https://airflow.readthedocs.io/en/latest/"
     else:
-        result = 'https://airflow.apache.org/docs/{}/'.format(version.version)
+        result = f'https://airflow.apache.org/docs/{version.version}/'
     if page:
         result = result + page
     return result

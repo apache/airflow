@@ -19,7 +19,7 @@
 """This module contains operator to move data from Hive to DynamoDB."""
 
 import json
-from typing import Optional, Callable
+from typing import Callable, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.dynamodb import AwsDynamoDBHook

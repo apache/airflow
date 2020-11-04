@@ -130,8 +130,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     ROLE_CONFIGS = [
         {'role': 'Viewer', 'perms': VIEWER_PERMISSIONS},
-        {'role': 'User', 'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS,},
-        {'role': 'Op', 'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS + OP_PERMISSIONS,},
+        {
+            'role': 'User',
+            'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS,
+        },
+        {
+            'role': 'Op',
+            'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS + OP_PERMISSIONS,
+        },
         {
             'role': 'Admin',
             'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS + OP_PERMISSIONS + ADMIN_PERMISSIONS,
@@ -186,7 +192,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             session.delete(role)
             session.commit()
         else:
-            raise AirflowException("Role named '{}' does not exist".format(role_name))
+            raise AirflowException(f"Role named '{role_name}' does not exist")
 
     @staticmethod
     def get_user_roles(user=None):

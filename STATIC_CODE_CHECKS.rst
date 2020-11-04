@@ -94,6 +94,8 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``fix-encoding-pragma``               Removes encoding header from python files.
 ----------------------------------- ---------------------------------------------------------------- ------------
+``pyupgrade``                         Runs PyUpgrade
+----------------------------------- ---------------------------------------------------------------- ------------
 ``flake8``                            Runs flake8.                                                         *
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``forbid-tabs``                       Fails if tabs are used in the project.
@@ -137,6 +139,8 @@ require Breeze Docker images to be installed locally:
 ``rst-backticks``                     Checks if RST files use double backticks for code.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``setup-order``                       Checks for an order of dependencies in setup.py
+----------------------------------- ---------------------------------------------------------------- ------------
+``setup-installation``                Checks if all the libraries in setup.py are listed in docs
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``shellcheck``                        Checks shell files with shellcheck.
 ----------------------------------- ---------------------------------------------------------------- ------------

@@ -23,7 +23,8 @@ from airflow.providers.google.cloud.operators.datastore import CloudDatastoreImp
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.datastore`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 
@@ -38,6 +39,7 @@ class DatastoreImportOperator(CloudDatastoreImportEntitiesOperator):
             """This class is deprecated.
             Please use
             `airflow.providers.google.cloud.operators.datastore.CloudDatastoreImportEntitiesOperator`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)

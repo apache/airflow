@@ -35,7 +35,7 @@ SIMPLE_ACTION_PIEPELINE = {
             {"imageUri": "bash", "commands": ["-c", "echo Hello, world"]},
         ],
         "resources": {
-            "regions": ["{}".format(LOCATION)],
+            "regions": [f"{LOCATION}"],
             "virtualMachine": {
                 "machineType": "n1-standard-1",
             },
@@ -50,7 +50,7 @@ MULTI_ACTION_PIPELINE = {
         "actions": [
             {
                 "imageUri": "google/cloud-sdk",
-                "commands": ["gsutil", "cp", "gs://{}/{}".format(BUCKET, FILENAME), "/tmp"],
+                "commands": ["gsutil", "cp", f"gs://{BUCKET}/{FILENAME}", "/tmp"],
             },
             {"imageUri": "bash", "commands": ["-c", "echo Hello, world"]},
             {
@@ -58,13 +58,13 @@ MULTI_ACTION_PIPELINE = {
                 "commands": [
                     "gsutil",
                     "cp",
-                    "gs://{}/{}".format(BUCKET, FILENAME),
-                    "gs://{}/output.in".format(BUCKET),
+                    f"gs://{BUCKET}/{FILENAME}",
+                    f"gs://{BUCKET}/output.in",
                 ],
             },
         ],
         "resources": {
-            "regions": ["{}".format(LOCATION)],
+            "regions": [f"{LOCATION}"],
             "virtualMachine": {
                 "machineType": "n1-standard-1",
             },

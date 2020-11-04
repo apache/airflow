@@ -302,7 +302,7 @@ class TestTransfer(unittest.TestCase):
 
         try:
             with hook.get_conn() as conn:
-                conn.execute("DROP TABLE IF EXISTS {}".format(mysql_table))
+                conn.execute(f"DROP TABLE IF EXISTS {mysql_table}")
                 conn.execute(
                     """
                     CREATE TABLE {} (
@@ -321,7 +321,7 @@ class TestTransfer(unittest.TestCase):
             op = MySqlToHiveOperator(
                 task_id='test_m2h',
                 hive_cli_conn_id='hive_cli_default',
-                sql="SELECT * FROM {}".format(mysql_table),
+                sql=f"SELECT * FROM {mysql_table}",
                 hive_table='test_mysql_to_hive',
                 dag=self.dag,
             )
@@ -338,7 +338,7 @@ class TestTransfer(unittest.TestCase):
             self.assertEqual(mock_load_file.call_args[1]["field_dict"], ordered_dict)
         finally:
             with hook.get_conn() as conn:
-                conn.execute("DROP TABLE IF EXISTS {}".format(mysql_table))
+                conn.execute(f"DROP TABLE IF EXISTS {mysql_table}")
 
     @mock.patch('tempfile.tempdir', '/tmp/')
     @mock.patch('tempfile._RandomNameSequence.__next__')
@@ -356,7 +356,7 @@ class TestTransfer(unittest.TestCase):
         try:
             db_record = ('c0', '["true"]')
             with hook.get_conn() as conn:
-                conn.execute("DROP TABLE IF EXISTS {}".format(mysql_table))
+                conn.execute(f"DROP TABLE IF EXISTS {mysql_table}")
                 conn.execute(
                     """
                     CREATE TABLE {} (
@@ -383,7 +383,7 @@ class TestTransfer(unittest.TestCase):
                 op = MySqlToHiveOperator(
                     task_id='test_m2h',
                     hive_cli_conn_id='hive_cli_default',
-                    sql="SELECT * FROM {}".format(mysql_table),
+                    sql=f"SELECT * FROM {mysql_table}",
                     hive_table=hive_table,
                     recreate=True,
                     delimiter=",",
@@ -398,7 +398,7 @@ class TestTransfer(unittest.TestCase):
                 mock_cursor.iterable = [('c0', '["true"]'), (2, 2)]
                 hive_hook = MockHiveServer2Hook(connection_cursor=mock_cursor)
 
-                result = hive_hook.get_records("SELECT * FROM {}".format(hive_table))
+                result = hive_hook.get_records(f"SELECT * FROM {hive_table}")
             self.assertEqual(result[0], db_record)
 
             hive_cmd = [
@@ -436,7 +436,7 @@ class TestTransfer(unittest.TestCase):
             )
         finally:
             with hook.get_conn() as conn:
-                conn.execute("DROP TABLE IF EXISTS {}".format(mysql_table))
+                conn.execute(f"DROP TABLE IF EXISTS {mysql_table}")
 
     @mock.patch('tempfile.tempdir', '/tmp/')
     @mock.patch('tempfile._RandomNameSequence.__next__')
@@ -466,7 +466,7 @@ class TestTransfer(unittest.TestCase):
             )
 
             with hook.get_conn() as conn:
-                conn.execute("DROP TABLE IF EXISTS {}".format(mysql_table))
+                conn.execute(f"DROP TABLE IF EXISTS {mysql_table}")
                 conn.execute(
                     """
                     CREATE TABLE {} (
@@ -499,7 +499,7 @@ class TestTransfer(unittest.TestCase):
                 op = MySqlToHiveOperator(
                     task_id='test_m2h',
                     hive_cli_conn_id='hive_cli_default',
-                    sql="SELECT * FROM {}".format(mysql_table),
+                    sql=f"SELECT * FROM {mysql_table}",
                     hive_table=hive_table,
                     recreate=True,
                     delimiter=",",
@@ -511,7 +511,7 @@ class TestTransfer(unittest.TestCase):
                 mock_cursor.iterable = [minmax]
                 hive_hook = MockHiveServer2Hook(connection_cursor=mock_cursor)
 
-                result = hive_hook.get_records("SELECT * FROM {}".format(hive_table))
+                result = hive_hook.get_records(f"SELECT * FROM {hive_table}")
                 self.assertEqual(result[0], minmax)
 
                 hive_cmd = [
@@ -550,4 +550,4 @@ class TestTransfer(unittest.TestCase):
 
         finally:
             with hook.get_conn() as conn:
-                conn.execute("DROP TABLE IF EXISTS {}".format(mysql_table))
+                conn.execute(f"DROP TABLE IF EXISTS {mysql_table}")

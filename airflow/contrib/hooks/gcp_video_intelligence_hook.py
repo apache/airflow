@@ -24,5 +24,6 @@ from airflow.providers.google.cloud.hooks.video_intelligence import CloudVideoIn
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.video_intelligence`",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

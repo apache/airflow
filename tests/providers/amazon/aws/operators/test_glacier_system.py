@@ -18,7 +18,6 @@
 from tests.test_utils.amazon_system_helpers import AWS_DAG_FOLDER, AmazonSystemTest
 from tests.test_utils.gcp_system_helpers import GoogleSystemTest
 
-
 BUCKET = "data_from_glacier"
 
 

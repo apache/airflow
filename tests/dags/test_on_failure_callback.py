@@ -37,7 +37,5 @@ def write_data_to_callback(*arg, **kwargs):  # pylint: disable=unused-argument
 
 
 task = DummyOperator(
-    task_id='test_om_failure_callback_task',
-    dag=dag,
-    on_failure_callback=write_data_to_callback
+    task_id='test_om_failure_callback_task', dag=dag, on_failure_callback=write_data_to_callback
 )

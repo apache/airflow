@@ -26,7 +26,7 @@ An Airflow operator for AWS Batch services
     - http://boto3.readthedocs.io/en/latest/reference/services/batch.html
     - https://docs.aws.amazon.com/batch/latest/APIReference/Welcome.html
 """
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator

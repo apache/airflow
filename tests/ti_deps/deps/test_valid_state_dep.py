@@ -26,7 +26,6 @@ from airflow.utils.state import State
 
 
 class TestValidStateDep(unittest.TestCase):
-
     def test_valid_state(self):
         """
         Valid state should pass this dep

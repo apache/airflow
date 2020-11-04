@@ -37,9 +37,7 @@ class Log(Base):
     owner = Column(String(500))
     extra = Column(Text)
 
-    __table_args__ = (
-        Index('idx_log_dag', dag_id),
-    )
+    __table_args__ = (Index('idx_log_dag', dag_id),)
 
     def __init__(self, event, task_instance, owner=None, extra=None, **kwargs):
         self.dttm = timezone.utcnow()

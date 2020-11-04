@@ -59,7 +59,7 @@ class TestSecretsManagerHook(unittest.TestCase):
     def test_get_existing_key(self, mock_get_credentials, mock_client):
         mock_client.secret_version_path.return_value = "full-path"
         test_response = AccessSecretVersionResponse()
-        test_response.payload.data = "result".encode()
+        test_response.payload.data = b"result"
         mock_client.access_secret_version.return_value = test_response
         secrets_manager_hook = SecretsManagerHook(gcp_conn_id='test')
         mock_get_credentials.assert_called_once_with()

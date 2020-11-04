@@ -173,7 +173,7 @@ spec:
         - name: scheduler-logs
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          args: ["airflow", "serve_logs"]
+          args: ["serve_logs"]
           ports:
             - name: worker-logs
               containerPort: {{ .Values.ports.workerLogs }}

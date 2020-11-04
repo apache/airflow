@@ -65,15 +65,14 @@ class TestCliTasks(unittest.TestCase):
             args = self.parser.parse_args(['tasks', 'list', dag_id])
             task_command.task_list(args)
 
-        args = self.parser.parse_args([
-            'tasks', 'list', 'example_bash_operator', '--tree'])
+        args = self.parser.parse_args(['tasks', 'list', 'example_bash_operator', '--tree'])
         task_command.task_list(args)
 
     def test_test(self):
         """Test the `airflow test` command"""
-        args = self.parser.parse_args([
-            "tasks", "test", "example_python_operator", 'print_the_context', '2018-01-01'
-        ])
+        args = self.parser.parse_args(
+            ["tasks", "test", "example_python_operator", 'print_the_context', '2018-01-01']
+        )
 
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_test(args)
@@ -91,13 +90,15 @@ class TestCliTasks(unittest.TestCase):
         dag = self.dagbag.get_dag('test_run_ignores_all_dependencies')
 
         task0_id = 'test_run_dependent_task'
-        args0 = ['tasks',
-                 'run',
-                 '--ignore-all-dependencies',
-                 '--local',
-                 dag_id,
-                 task0_id,
-                 naive_date.isoformat()]
+        args0 = [
+            'tasks',
+            'run',
+            '--ignore-all-dependencies',
+            '--local',
+            dag_id,
+            task0_id,
+            naive_date.isoformat(),
+        ]
 
         task_command.task_run(self.parser.parse_args(args0), dag=dag)
         mock_local_job.assert_called_once_with(
@@ -112,67 +113,119 @@ class TestCliTasks(unittest.TestCase):
         )
 
     def test_cli_test(self):
-        task_command.task_test(self.parser.parse_args([
-            'tasks', 'test', 'example_bash_operator', 'runme_0',
-            DEFAULT_DATE.isoformat()]))
-        task_command.task_test(self.parser.parse_args([
-            'tasks', 'test', 'example_bash_operator', 'runme_0', '--dry-run',
-            DEFAULT_DATE.isoformat()]))
+        task_command.task_test(
+            self.parser.parse_args(
+                ['tasks', 'test', 'example_bash_operator', 'runme_0', DEFAULT_DATE.isoformat()]
+            )
+        )
+        task_command.task_test(
+            self.parser.parse_args(
+                ['tasks', 'test', 'example_bash_operator', 'runme_0', '--dry-run', DEFAULT_DATE.isoformat()]
+            )
+        )
 
     def test_cli_test_with_params(self):
-        task_command.task_test(self.parser.parse_args([
-            'tasks', 'test', 'example_passing_params_via_test_command', 'run_this',
-            '--task-params', '{"foo":"bar"}', DEFAULT_DATE.isoformat()]))
-        task_command.task_test(self.parser.parse_args([
-            'tasks', 'test', 'example_passing_params_via_test_command', 'also_run_this',
-            '--task-params', '{"foo":"bar"}', DEFAULT_DATE.isoformat()]))
+        task_command.task_test(
+            self.parser.parse_args(
+                [
+                    'tasks',
+                    'test',
+                    'example_passing_params_via_test_command',
+                    'run_this',
+                    '--task-params',
+                    '{"foo":"bar"}',
+                    DEFAULT_DATE.isoformat(),
+                ]
+            )
+        )
+        task_command.task_test(
+            self.parser.parse_args(
+                [
+                    'tasks',
+                    'test',
+                    'example_passing_params_via_test_command',
+                    'also_run_this',
+                    '--task-params',
+                    '{"foo":"bar"}',
+                    DEFAULT_DATE.isoformat(),
+                ]
+            )
+        )
 
     def test_cli_test_with_env_vars(self):
         with redirect_stdout(io.StringIO()) as stdout:
-            task_command.task_test(self.parser.parse_args([
-                'tasks', 'test', 'example_passing_params_via_test_command', 'env_var_test_task',
-                '--env-vars', '{"foo":"bar"}', DEFAULT_DATE.isoformat()]))
+            task_command.task_test(
+                self.parser.parse_args(
+                    [
+                        'tasks',
+                        'test',
+                        'example_passing_params_via_test_command',
+                        'env_var_test_task',
+                        '--env-vars',
+                        '{"foo":"bar"}',
+                        DEFAULT_DATE.isoformat(),
+                    ]
+                )
+            )
         output = stdout.getvalue()
         self.assertIn('foo=bar', output)
         self.assertIn('AIRFLOW_TEST_MODE=True', output)
 
     def test_cli_run(self):
-        task_command.task_run(self.parser.parse_args([
-            'tasks', 'run', 'example_bash_operator', 'runme_0', '--local',
-            DEFAULT_DATE.isoformat()]))
+        task_command.task_run(
+            self.parser.parse_args(
+                ['tasks', 'run', 'example_bash_operator', 'runme_0', '--local', DEFAULT_DATE.isoformat()]
+            )
+        )
 
     @parameterized.expand(
         [
-            ("--ignore-all-dependencies", ),
-            ("--ignore-depends-on-past", ),
+            ("--ignore-all-dependencies",),
+            ("--ignore-depends-on-past",),
             ("--ignore-dependencies",),
             ("--force",),
         ],
-
     )
     def test_cli_run_invalid_raw_option(self, option: str):
         with self.assertRaisesRegex(
-            AirflowException,
-            "Option --raw does not work with some of the other options on this command."
+            AirflowException, "Option --raw does not work with some of the other options on this command."
         ):
-            task_command.task_run(self.parser.parse_args([  # type: ignore
-                'tasks', 'run', 'example_bash_operator', 'runme_0', DEFAULT_DATE.isoformat(), '--raw', option
-            ]))
+            task_command.task_run(
+                self.parser.parse_args(
+                    [  # type: ignore
+                        'tasks',
+                        'run',
+                        'example_bash_operator',
+                        'runme_0',
+                        DEFAULT_DATE.isoformat(),
+                        '--raw',
+                        option,
+                    ]
+                )
+            )
 
     def test_cli_run_mutually_exclusive(self):
-        with self.assertRaisesRegex(
-            AirflowException,
-            "Option --raw and --local are mutually exclusive."
-        ):
-            task_command.task_run(self.parser.parse_args([
-                'tasks', 'run', 'example_bash_operator', 'runme_0', DEFAULT_DATE.isoformat(), '--raw',
-                '--local'
-            ]))
+        with self.assertRaisesRegex(AirflowException, "Option --raw and --local are mutually exclusive."):
+            task_command.task_run(
+                self.parser.parse_args(
+                    [
+                        'tasks',
+                        'run',
+                        'example_bash_operator',
+                        'runme_0',
+                        DEFAULT_DATE.isoformat(),
+                        '--raw',
+                        '--local',
+                    ]
+                )
+            )
 
     def test_task_state(self):
-        task_command.task_state(self.parser.parse_args([
-            'tasks', 'state', 'example_bash_operator', 'runme_0',
-            DEFAULT_DATE.isoformat()]))
+        task_command.task_state(
+            self.parser.parse_args(
+                ['tasks', 'state', 'example_bash_operator', 'runme_0', DEFAULT_DATE.isoformat()]
+            )
+        )
 
     def test_task_states_for_dag_run(self):
 
@@ -188,58 +241,61 @@ class TestCliTasks(unittest.TestCase):
         ti_end = ti2.end_date
 
         with redirect_stdout(io.StringIO()) as stdout:
-            task_command.task_states_for_dag_run(self.parser.parse_args([
-                'tasks', 'states-for-dag-run', 'example_python_operator', defaut_date2.isoformat()]))
+            task_command.task_states_for_dag_run(
+                self.parser.parse_args(
+                    ['tasks', 'states-for-dag-run', 'example_python_operator', defaut_date2.isoformat()]
+                )
+            )
         actual_out = stdout.getvalue()
 
-        formatted_rows = [('example_python_operator',
-                           '2016-01-09 00:00:00+00:00',
-                           'print_the_context',
-                           'success',
-                           ti_start,
-                           ti_end)]
+        formatted_rows = [
+            (
+                'example_python_operator',
+                '2016-01-09 00:00:00+00:00',
+                'print_the_context',
+                'success',
+                ti_start,
+                ti_end,
+            )
+        ]
 
-        expected = tabulate(formatted_rows,
-                            ['dag',
-                             'exec_date',
-                             'task',
-                             'state',
-                             'start_date',
-                             'end_date'],
-                            tablefmt="plain")
+        expected = tabulate(
+            formatted_rows, ['dag', 'exec_date', 'task', 'state', 'start_date', 'end_date'], tablefmt="plain"
+        )
 
         # Check that prints, and log messages, are shown
         self.assertIn(expected.replace("\n", ""), actual_out.replace("\n", ""))
 
     def test_subdag_clear(self):
-        args = self.parser.parse_args([
-            'tasks', 'clear', 'example_subdag_operator', '--yes'])
+        args = self.parser.parse_args(['tasks', 'clear', 'example_subdag_operator', '--yes'])
         task_command.task_clear(args)
-        args = self.parser.parse_args([
-            'tasks', 'clear', 'example_subdag_operator', '--yes', '--exclude-subdags'])
+        args = self.parser.parse_args(
+            ['tasks', 'clear', 'example_subdag_operator', '--yes', '--exclude-subdags']
+        )
         task_command.task_clear(args)
 
     def test_parentdag_downstream_clear(self):
-        args = self.parser.parse_args([
-            'tasks', 'clear', 'example_subdag_operator.section-1', '--yes'])
+        args = self.parser.parse_args(['tasks', 'clear', 'example_subdag_operator.section-1', '--yes'])
         task_command.task_clear(args)
-        args = self.parser.parse_args([
-            'tasks', 'clear', 'example_subdag_operator.section-1', '--yes',
-            '--exclude-parentdag'])
+        args = self.parser.parse_args(
+            ['tasks', 'clear', 'example_subdag_operator.section-1', '--yes', '--exclude-parentdag']
+        )
         task_command.task_clear(args)
 
     @pytest.mark.quarantined
     def test_local_run(self):
-        args = self.parser.parse_args([
-            'tasks',
-            'run',
-            'example_python_operator',
-            'print_the_context',
-            '2018-04-27T08:39:51.298439+00:00',
-            '--interactive',
-            '--subdir',
-            '/root/dags/example_python_operator.py'
-        ])
+        args = self.parser.parse_args(
+            [
+                'tasks',
+                'run',
+                'example_python_operator',
+                'print_the_context',
+                '2018-04-27T08:39:51.298439+00:00',
+                '--interactive',
+                '--subdir',
+                '/root/dags/example_python_operator.py',
+            ]
+        )
 
         dag = get_dag(args.subdir, args.dag_id)
         reset(dag.dag_id)
@@ -253,7 +309,6 @@ class TestCliTasks(unittest.TestCase):
 
 
 class TestLogsfromTaskRunCommand(unittest.TestCase):
-
     def setUp(self) -> None:
         self.dag_id = "test_logging_dag"
         self.task_id = "test_task"
@@ -299,40 +354,52 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         # as that is what gets displayed
 
         with conf_vars({('core', 'dags_folder'): self.dag_path}):
-            task_command.task_run(self.parser.parse_args([
-                'tasks', 'run', self.dag_id, self.task_id, '--local', self.execution_date_str]))
+            task_command.task_run(
+                self.parser.parse_args(
+                    ['tasks', 'run', self.dag_id, self.task_id, '--local', self.execution_date_str]
+                )
+            )
 
         with open(self.ti_log_file_path) as l_file:
             logs = l_file.read()
 
-        print(logs)     # In case of a test failures this line would show detailed log
+        print(logs)  # In case of a test failures this line would show detailed log
         logs_list = logs.splitlines()
 
         self.assertIn("INFO - Started process", logs)
         self.assertIn(f"Subtask {self.task_id}", logs)
         self.assertIn("standard_task_runner.py", logs)
-        self.assertIn(f"INFO - Running: ['airflow', 'tasks', 'run', '{self.dag_id}', "
-                      f"'{self.task_id}', '{self.execution_date_str}',", logs)
+        self.assertIn(
+            f"INFO - Running: ['airflow', 'tasks', 'run', '{self.dag_id}', "
+            f"'{self.task_id}', '{self.execution_date_str}',",
+            logs,
+        )
 
         self.assert_log_line("Log from DAG Logger", logs_list)
         self.assert_log_line("Log from TI Logger", logs_list)
         self.assert_log_line("Log from Print statement", logs_list, expect_from_logging_mixin=True)
 
-        self.assertIn(f"INFO - Marking task as SUCCESS. dag_id={self.dag_id}, "
-                      f"task_id={self.task_id}, execution_date=20170101T000000", logs)
+        self.assertIn(
+            f"INFO - Marking task as SUCCESS. dag_id={self.dag_id}, "
+            f"task_id={self.task_id}, execution_date=20170101T000000",
+            logs,
+        )
 
     @mock.patch("airflow.task.task_runner.standard_task_runner.CAN_FORK", False)
     def test_logging_with_run_task_subprocess(self):
         # We are not using self.assertLogs as we want to verify what actually is stored in the Log file
         # as that is what gets displayed
         with conf_vars({('core', 'dags_folder'): self.dag_path}):
-            task_command.task_run(self.parser.parse_args([
-                'tasks', 'run', self.dag_id, self.task_id, '--local', self.execution_date_str]))
+            task_command.task_run(
+                self.parser.parse_args(
+                    ['tasks', 'run', self.dag_id, self.task_id, '--local', self.execution_date_str]
+                )
+            )
 
         with open(self.ti_log_file_path) as l_file:
             logs = l_file.read()
 
-        print(logs)     # In case of a test failures this line would show detailed log
+        print(logs)  # In case of a test failures this line would show detailed log
         logs_list = logs.splitlines()
 
         self.assertIn(f"Subtask {self.task_id}", logs)
@@ -341,10 +408,16 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         self.assert_log_line("Log from TI Logger", logs_list)
         self.assert_log_line("Log from Print statement", logs_list, expect_from_logging_mixin=True)
 
-        self.assertIn(f"INFO - Running: ['airflow', 'tasks', 'run', '{self.dag_id}', "
-                      f"'{self.task_id}', '{self.execution_date_str}',", logs)
-        self.assertIn(f"INFO - Marking task as SUCCESS. dag_id={self.dag_id}, "
-                      f"task_id={self.task_id}, execution_date=20170101T000000", logs)
+        self.assertIn(
+            f"INFO - Running: ['airflow', 'tasks', 'run', '{self.dag_id}', "
+            f"'{self.task_id}', '{self.execution_date_str}',",
+            logs,
+        )
+        self.assertIn(
+            f"INFO - Marking task as SUCCESS. dag_id={self.dag_id}, "
+            f"task_id={self.task_id}, execution_date=20170101T000000",
+            logs,
+        )
 
     def test_log_file_template_with_run_task(self):
         """Verify that the taskinstance has the right context for log_filename_template"""
@@ -405,46 +478,43 @@ class TestCliTaskBackfill(unittest.TestCase):
         dag.clear()
 
         task0_id = 'test_run_dependent_task'
-        args0 = ['tasks',
-                 'run',
-                 '--ignore-all-dependencies',
-                 dag_id,
-                 task0_id,
-                 DEFAULT_DATE.isoformat()]
+        args0 = ['tasks', 'run', '--ignore-all-dependencies', dag_id, task0_id, DEFAULT_DATE.isoformat()]
         task_command.task_run(self.parser.parse_args(args0))
-        ti_dependent0 = TaskInstance(
-            task=dag.get_task(task0_id),
-            execution_date=DEFAULT_DATE)
+        ti_dependent0 = TaskInstance(task=dag.get_task(task0_id), execution_date=DEFAULT_DATE)
 
         ti_dependent0.refresh_from_db()
         self.assertEqual(ti_dependent0.state, State.FAILED)
 
         task1_id = 'test_run_dependency_task'
-        args1 = ['tasks',
-                 'run',
-                 '--ignore-all-dependencies',
-                 dag_id,
-                 task1_id,
-                 (DEFAULT_DATE + timedelta(days=1)).isoformat()]
+        args1 = [
+            'tasks',
+            'run',
+            '--ignore-all-dependencies',
+            dag_id,
+            task1_id,
+            (DEFAULT_DATE + timedelta(days=1)).isoformat(),
+        ]
         task_command.task_run(self.parser.parse_args(args1))
 
         ti_dependency = TaskInstance(
-            task=dag.get_task(task1_id),
-            execution_date=DEFAULT_DATE + timedelta(days=1))
+            task=dag.get_task(task1_id), execution_date=DEFAULT_DATE + timedelta(days=1)
+        )
         ti_dependency.refresh_from_db()
         self.assertEqual(ti_dependency.state, State.FAILED)
 
         task2_id = 'test_run_dependent_task'
-        args2 = ['tasks',
-                 'run',
-                 '--ignore-all-dependencies',
-                 dag_id,
-                 task2_id,
-                 (DEFAULT_DATE + timedelta(days=1)).isoformat()]
+        args2 = [
+            'tasks',
+            'run',
+            '--ignore-all-dependencies',
+            dag_id,
+            task2_id,
+            (DEFAULT_DATE + timedelta(days=1)).isoformat(),
+        ]
         task_command.task_run(self.parser.parse_args(args2))
 
         ti_dependent = TaskInstance(
-            task=dag.get_task(task2_id),
-            execution_date=DEFAULT_DATE + timedelta(days=1))
+            task=dag.get_task(task2_id), execution_date=DEFAULT_DATE + timedelta(days=1)
+        )
         ti_dependent.refresh_from_db()
         self.assertEqual(ti_dependent.state, State.SUCCESS)

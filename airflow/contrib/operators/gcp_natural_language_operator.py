@@ -20,15 +20,18 @@
 import warnings
 
 from airflow.providers.google.cloud.operators.natural_language import (
-    CloudNaturalLanguageAnalyzeEntitiesOperator, CloudNaturalLanguageAnalyzeEntitySentimentOperator,
-    CloudNaturalLanguageAnalyzeSentimentOperator, CloudNaturalLanguageClassifyTextOperator,
+    CloudNaturalLanguageAnalyzeEntitiesOperator,
+    CloudNaturalLanguageAnalyzeEntitySentimentOperator,
+    CloudNaturalLanguageAnalyzeSentimentOperator,
+    CloudNaturalLanguageClassifyTextOperator,
 )
 
 warnings.warn(
     """This module is deprecated.
     Please use `airflow.providers.google.cloud.operators.natural_language`
     """,
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 
@@ -46,7 +49,8 @@ class CloudLanguageAnalyzeEntitiesOperator(CloudNaturalLanguageAnalyzeEntitiesOp
             `airflow.providers.google.cloud.operators.natural_language
             .CloudNaturalLanguageAnalyzeEntitiesOperator`.
             """,
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)
 
@@ -66,7 +70,8 @@ class CloudLanguageAnalyzeEntitySentimentOperator(CloudNaturalLanguageAnalyzeEnt
             `airflow.providers.google.cloud.operators.natural_language
             .CloudNaturalLanguageAnalyzeEntitySentimentOperator`.
             """,
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)
 
@@ -84,7 +89,8 @@ class CloudLanguageAnalyzeSentimentOperator(CloudNaturalLanguageAnalyzeSentiment
             Please use `airflow.providers.google.cloud.operators.natural_language
             .CloudNaturalLanguageAnalyzeSentimentOperator`.
             """,
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)
 
@@ -102,6 +108,7 @@ class CloudLanguageClassifyTextOperator(CloudNaturalLanguageClassifyTextOperator
             Please use `airflow.providers.google.cloud.operators.natural_language
             .CloudNaturalLanguageClassifyTextOperator`.
             """,
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)

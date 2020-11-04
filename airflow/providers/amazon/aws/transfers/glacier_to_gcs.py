@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import tempfile
-from typing import Optional, Union, Sequence
+from typing import Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glacier import GlacierHook

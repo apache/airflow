@@ -24,6 +24,7 @@ import time
 
 class TimingResult:
     """Timing result."""
+
     def __init__(self):
         self.start_time = 0
         self.end_time = 0
@@ -86,6 +87,7 @@ def timeout(seconds=1):
 
     :param seconds: Number of seconds
     """
+
     def handle_timeout(signum, frame):
         raise TimeoutException("Process timed out.")
 

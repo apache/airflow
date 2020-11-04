@@ -65,7 +65,7 @@ class CloudFunctionsHook(GoogleBaseHook):
         :type location: str
         :return:
         """
-        return 'projects/{}/locations/{}'.format(project_id, location)
+        return f'projects/{project_id}/locations/{location}'
 
     def get_conn(self) -> build:
         """

@@ -36,7 +36,8 @@ from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, PARALLELISM, BaseExecutor, CommandType
 from airflow.models.taskinstance import (  # pylint: disable=unused-import # noqa: F401
-    TaskInstanceKey, TaskInstanceStateType,
+    TaskInstanceKey,
+    TaskInstanceStateType,
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
@@ -100,6 +101,7 @@ class LocalWorkerBase(Process, LoggingMixin):
             return State.SUCCESS if ret == 0 else State.FAILED
 
         from airflow.sentry import Sentry
+
         ret = 1
         try:
             import signal
@@ -140,10 +142,9 @@ class LocalWorker(LocalWorkerBase):
     :param command: Command to execute
     """
 
-    def __init__(self,
-                 result_queue: 'Queue[TaskInstanceStateType]',
-                 key: TaskInstanceKey,
-                 command: CommandType):
+    def __init__(
+        self, result_queue: 'Queue[TaskInstanceStateType]', key: TaskInstanceKey, command: CommandType
+    ):
         super().__init__(result_queue)
         self.key: TaskInstanceKey = key
         self.command: CommandType = command
@@ -162,9 +163,7 @@ class QueuedLocalWorker(LocalWorkerBase):
     :param result_queue: queue where worker puts results after finishing tasks
     """
 
-    def __init__(self,
-                 task_queue: 'Queue[ExecutorWorkType]',
-                 result_queue: 'Queue[TaskInstanceStateType]'):
+    def __init__(self, task_queue: 'Queue[ExecutorWorkType]', result_queue: 'Queue[TaskInstanceStateType]'):
         super().__init__(result_queue=result_queue)
         self.task_queue = task_queue
 
@@ -196,8 +195,9 @@ class LocalExecutor(BaseExecutor):
         self.workers: List[QueuedLocalWorker] = []
         self.workers_used: int = 0
         self.workers_active: int = 0
-        self.impl: Optional[Union['LocalExecutor.UnlimitedParallelism',
-                                  'LocalExecutor.LimitedParallelism']] = None
+        self.impl: Optional[
+            Union['LocalExecutor.UnlimitedParallelism', 'LocalExecutor.LimitedParallelism']
+        ] = None
 
     class UnlimitedParallelism:
         """
@@ -216,11 +216,13 @@ class LocalExecutor(BaseExecutor):
             self.executor.workers_active = 0
 
         # pylint: disable=unused-argument # pragma: no cover
-        def execute_async(self,
-                          key: TaskInstanceKey,
-                          command: CommandType,
-                          queue: Optional[str] = None,
-                          executor_config: Optional[Any] = None) -> None:
+        def execute_async(
+            self,
+            key: TaskInstanceKey,
+            command: CommandType,
+            queue: Optional[str] = None,
+            executor_config: Optional[Any] = None,
+        ) -> None:
             """
             Executes task asynchronously.
 
@@ -289,7 +291,7 @@ class LocalExecutor(BaseExecutor):
             key: TaskInstanceKey,
             command: CommandType,
             queue: Optional[str] = None,  # pylint: disable=unused-argument
-            executor_config: Optional[Any] = None  # pylint: disable=unused-argument
+            executor_config: Optional[Any] = None,  # pylint: disable=unused-argument
         ) -> None:
             """
             Executes task asynchronously.
@@ -331,15 +333,21 @@ class LocalExecutor(BaseExecutor):
         self.workers = []
         self.workers_used = 0
         self.workers_active = 0
-        self.impl = (LocalExecutor.UnlimitedParallelism(self) if self.parallelism == 0
-                     else LocalExecutor.LimitedParallelism(self))
+        self.impl = (
+            LocalExecutor.UnlimitedParallelism(self)
+            if self.parallelism == 0
+            else LocalExecutor.LimitedParallelism(self)
+        )
 
         self.impl.start()
 
-    def execute_async(self, key: TaskInstanceKey,
-                      command: CommandType,
-                      queue: Optional[str] = None,
-                      executor_config: Optional[Any] = None) -> None:
+    def execute_async(
+        self,
+        key: TaskInstanceKey,
+        command: CommandType,
+        queue: Optional[str] = None,
+        executor_config: Optional[Any] = None,
+    ) -> None:
         """Execute asynchronously."""
         if not self.impl:
             raise AirflowException(NOT_STARTED_MESSAGE)

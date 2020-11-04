@@ -21,12 +21,21 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.providers.databricks.hooks.databricks import (  # noqa
-    CANCEL_RUN_ENDPOINT, GET_RUN_ENDPOINT, RESTART_CLUSTER_ENDPOINT, RUN_LIFE_CYCLE_STATES, RUN_NOW_ENDPOINT,
-    START_CLUSTER_ENDPOINT, SUBMIT_RUN_ENDPOINT, TERMINATE_CLUSTER_ENDPOINT, USER_AGENT_HEADER,
-    DatabricksHook, RunState,
+    CANCEL_RUN_ENDPOINT,
+    GET_RUN_ENDPOINT,
+    RESTART_CLUSTER_ENDPOINT,
+    RUN_LIFE_CYCLE_STATES,
+    RUN_NOW_ENDPOINT,
+    START_CLUSTER_ENDPOINT,
+    SUBMIT_RUN_ENDPOINT,
+    TERMINATE_CLUSTER_ENDPOINT,
+    USER_AGENT_HEADER,
+    DatabricksHook,
+    RunState,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.databricks.hooks.databricks`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

@@ -43,12 +43,12 @@ class GcsToSftpExampleDagsSystemTest(GoogleSystemTest):
         for bucket_src, object_source in product(
             (
                 BUCKET_SRC,
-                "{}/subdir-1".format(BUCKET_SRC),
-                "{}/subdir-2".format(BUCKET_SRC),
+                f"{BUCKET_SRC}/subdir-1",
+                f"{BUCKET_SRC}/subdir-2",
             ),
             (OBJECT_SRC_1, OBJECT_SRC_2),
         ):
-            source_path = "gs://{}/{}".format(bucket_src, object_source)
+            source_path = f"gs://{bucket_src}/{object_source}"
             self.upload_content_to_gcs(
                 lines=f"{os.urandom(1 * 1024 * 1024)}", bucket=source_path, filename=object_source
             )

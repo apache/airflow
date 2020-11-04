@@ -34,18 +34,16 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():   # noqa: D103
+def upgrade():  # noqa: D103
     permissions = ['can_dag_read', 'can_dag_edit']
     view_menus = cached_app().appbuilder.sm.get_all_view_menu()
     convert_permissions(permissions, view_menus, upgrade_action, upgrade_dag_id)
 
 
-def downgrade():   # noqa: D103
+def downgrade():  # noqa: D103
     permissions = ['can_read', 'can_edit']
     vms = cached_app().appbuilder.sm.get_all_view_menu()
-    view_menus = [
-        vm for vm in vms if (vm.name == permissions.RESOURCE_DAGS or vm.name.startswith('DAG:'))
-    ]
+    view_menus = [vm for vm in vms if (vm.name == permissions.RESOURCE_DAGS or vm.name.startswith('DAG:'))]
     convert_permissions(permissions, view_menus, downgrade_action, downgrade_dag_id)
 
 
@@ -63,7 +61,7 @@ def downgrade_dag_id(dag_id):
     if dag_id == permissions.RESOURCE_DAGS:
         return 'all_dags'
     if dag_id.startswith("DAG:"):
-        return dag_id[len("DAG:"):]
+        return dag_id[len("DAG:") :]
     return dag_id
 
 

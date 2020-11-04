@@ -17,7 +17,6 @@
 # under the License.
 
 import unittest
-
 from unittest import mock
 
 from airflow.exceptions import AirflowException
@@ -32,7 +31,7 @@ model_name = 'test-model-name'
 
 image = 'test-image'
 
-output_url = 's3://{}/test/output'.format(bucket)
+output_url = f's3://{bucket}/test/output'
 create_model_params = {
     'ModelName': model_name,
     'PrimaryContainer': {

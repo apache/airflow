@@ -28,9 +28,7 @@ from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.test_utils.logging_command_executor import get_executor
 from tests.test_utils.system_tests_class import SystemTest
 
-AWS_DAG_FOLDER = os.path.join(
-    AIRFLOW_MAIN_FOLDER, "airflow", "providers", "amazon", "aws", "example_dags"
-)
+AWS_DAG_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "providers", "amazon", "aws", "example_dags")
 
 
 @contextmanager
@@ -53,7 +51,6 @@ def provide_aws_s3_bucket(name):
 
 @pytest.mark.system("amazon")
 class AmazonSystemTest(SystemTest):
-
     @staticmethod
     def _region_name():
         return os.environ.get("REGION_NAME")
@@ -85,8 +82,7 @@ class AmazonSystemTest(SystemTest):
             executor.execute_cmd(cmd=cmd)
 
     @staticmethod
-    def create_connection(aws_conn_id: str,
-                          region: str) -> None:
+    def create_connection(aws_conn_id: str, region: str) -> None:
         """
         Create aws connection with region
 
@@ -137,8 +133,7 @@ class AmazonSystemTest(SystemTest):
         cls.execute_with_ctx(cmd)
 
     @staticmethod
-    def create_ecs_cluster(aws_conn_id: str,
-                           cluster_name: str) -> None:
+    def create_ecs_cluster(aws_conn_id: str, cluster_name: str) -> None:
         """
         Create ecs cluster with given name
 
@@ -174,8 +169,7 @@ class AmazonSystemTest(SystemTest):
         )
 
     @staticmethod
-    def delete_ecs_cluster(aws_conn_id: str,
-                           cluster_name: str) -> None:
+    def delete_ecs_cluster(aws_conn_id: str, cluster_name: str) -> None:
         """
         Delete ecs cluster with given short name or full Amazon Resource Name (ARN)
 
@@ -193,14 +187,16 @@ class AmazonSystemTest(SystemTest):
         )
 
     @staticmethod
-    def create_ecs_task_definition(aws_conn_id: str,
-                                   task_definition: str,
-                                   container: str,
-                                   image: str,
-                                   execution_role_arn: str,
-                                   awslogs_group: str,
-                                   awslogs_region: str,
-                                   awslogs_stream_prefix: str) -> None:
+    def create_ecs_task_definition(
+        aws_conn_id: str,
+        task_definition: str,
+        container: str,
+        image: str,
+        execution_role_arn: str,
+        awslogs_group: str,
+        awslogs_region: str,
+        awslogs_stream_prefix: str,
+    ) -> None:
         """
         Create ecs task definition with given name
 
@@ -256,8 +252,7 @@ class AmazonSystemTest(SystemTest):
         )
 
     @staticmethod
-    def delete_ecs_task_definition(aws_conn_id: str,
-                                   task_definition: str) -> None:
+    def delete_ecs_task_definition(aws_conn_id: str, task_definition: str) -> None:
         """
         Delete all revisions of given ecs task definition
 
@@ -283,8 +278,7 @@ class AmazonSystemTest(SystemTest):
             )
 
     @staticmethod
-    def is_ecs_task_definition_exists(aws_conn_id: str,
-                                      task_definition: str) -> bool:
+    def is_ecs_task_definition_exists(aws_conn_id: str, task_definition: str) -> bool:
         """
         Check whether given task definition exits in ecs
 

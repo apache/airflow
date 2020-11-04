@@ -18,7 +18,6 @@
 
 import json
 import unittest
-
 from unittest import mock
 
 from airflow.providers.slack.operators.slack import SlackAPIFileOperator, SlackAPIPostOperator

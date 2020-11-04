@@ -17,8 +17,10 @@
 
 from unittest import mock
 from unittest.mock import Mock
+
 import pytest
 from requests.exceptions import Timeout
+
 from airflow.exceptions import AirflowException
 from airflow.providers.plexus.operators.job import PlexusJobOperator
 

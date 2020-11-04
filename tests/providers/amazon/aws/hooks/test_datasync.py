@@ -93,7 +93,7 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
             AgentArns=["stuff"],
         )["LocationArn"]
         self.destination_location_arn = self.client.create_location_s3(
-            S3BucketArn="arn:aws:s3:::{0}".format(self.destination_bucket_name),
+            S3BucketArn=f"arn:aws:s3:::{self.destination_bucket_name}",
             Subdirectory=self.destination_bucket_dir,
             S3Config={"BucketAccessRoleArn": "role"},
         )["LocationArn"]
@@ -138,7 +138,7 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         domain = "COMPANY.DOMAIN"
         mount_options = {"Version": "SMB2"}
 
-        location_uri = "smb://{0}/{1}".format(server_hostname, subdirectory)
+        location_uri = f"smb://{server_hostname}/{subdirectory}"
 
         create_location_kwargs = {
             "ServerHostname": server_hostname,
@@ -175,7 +175,7 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         subdirectory = "my_subdir"
         s3_config = {"BucketAccessRoleArn": "myrole"}
 
-        location_uri = "s3://{0}/{1}".format(s3_bucket_arn, subdirectory)
+        location_uri = f"s3://{s3_bucket_arn}/{subdirectory}"
 
         create_location_kwargs = {
             "S3BucketArn": s3_bucket_arn,
@@ -268,7 +268,7 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         # ### Begin tests:
 
         # Get true location_arn from boto/moto self.client
-        location_uri = "smb://{0}/{1}".format(self.source_server_hostname, self.source_subdirectory)
+        location_uri = f"smb://{self.source_server_hostname}/{self.source_subdirectory}"
         locations = self.client.list_locations()
         for location in locations["Locations"]:
             if location["LocationUri"] == location_uri:
@@ -286,7 +286,7 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         # ### Begin tests:
 
         # Get true location_arn from boto/moto self.client
-        location_uri = "smb://{0}/{1}".format(self.source_server_hostname.upper(), self.source_subdirectory)
+        location_uri = f"smb://{self.source_server_hostname.upper()}/{self.source_subdirectory}"
         locations = self.client.list_locations()
         for location in locations["Locations"]:
             if location["LocationUri"] == location_uri.lower():
@@ -305,7 +305,7 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         # ### Begin tests:
 
         # Get true location_arn from boto/moto self.client
-        location_uri = "smb://{0}/{1}/".format(self.source_server_hostname, self.source_subdirectory)
+        location_uri = f"smb://{self.source_server_hostname}/{self.source_subdirectory}/"
         locations = self.client.list_locations()
         for location in locations["Locations"]:
             if location["LocationUri"] == location_uri[:-1]:

@@ -19,9 +19,7 @@ import os
 
 from airflow import DAG
 from airflow.providers.microsoft.azure.sensors.wasb import WasbBlobSensor
-from airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs import (
-    AzureBlobStorageToGCSOperator,
-)
+from airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs import AzureBlobStorageToGCSOperator
 from airflow.utils.dates import days_ago
 
 BLOB_NAME = os.environ.get("AZURE_BLOB_NAME", "file.txt")

@@ -67,12 +67,9 @@ with DAG(
     start_task = PythonOperator(
         task_id="start_task",
         python_callable=print_stuff,
-        executor_config={"pod_override": k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(
-                annotations={"test": "annotation"}
-            )
-        )
-        }
+        executor_config={
+            "pod_override": k8s.V1Pod(metadata=k8s.V1ObjectMeta(annotations={"test": "annotation"}))
+        },
     )
 
     # [START task_with_volume]
@@ -86,24 +83,19 @@ with DAG(
                         k8s.V1Container(
                             name="base",
                             volume_mounts=[
-                                k8s.V1VolumeMount(
-                                    mount_path="/foo/",
-                                    name="example-kubernetes-test-volume"
-                                )
-                            ]
+                                k8s.V1VolumeMount(mount_path="/foo/", name="example-kubernetes-test-volume")
+                            ],
                         )
                     ],
                     volumes=[
                         k8s.V1Volume(
                             name="example-kubernetes-test-volume",
-                            host_path=k8s.V1HostPathVolumeSource(
-                                path="/tmp/"
-                            )
+                            host_path=k8s.V1HostPathVolumeSource(path="/tmp/"),
                         )
-                    ]
+                    ],
                 )
             ),
-        }
+        },
     )
     # [END task_with_volume]
 
@@ -117,31 +109,22 @@ with DAG(
                     containers=[
                         k8s.V1Container(
                             name="base",
-                            volume_mounts=[k8s.V1VolumeMount(
-                                mount_path="/shared/",
-                                name="shared-empty-dir"
-                            )]
+                            volume_mounts=[k8s.V1VolumeMount(mount_path="/shared/", name="shared-empty-dir")],
                         ),
                         k8s.V1Container(
                             name="sidecar",
                             image="ubuntu",
                             args=["echo \"retrieved from mount\" > /shared/test.txt"],
                             command=["bash", "-cx"],
-                            volume_mounts=[k8s.V1VolumeMount(
-                                mount_path="/shared/",
-                                name="shared-empty-dir"
-                            )]
-                        )
+                            volume_mounts=[k8s.V1VolumeMount(mount_path="/shared/", name="shared-empty-dir")],
+                        ),
                     ],
                     volumes=[
-                        k8s.V1Volume(
-                            name="shared-empty-dir",
-                            empty_dir=k8s.V1EmptyDirVolumeSource()
-                        ),
-                    ]
+                        k8s.V1Volume(name="shared-empty-dir", empty_dir=k8s.V1EmptyDirVolumeSource()),
+                    ],
                 )
             ),
-        }
+        },
     )
     # [END task_with_sidecar]
 
@@ -149,27 +132,15 @@ with DAG(
     third_task = PythonOperator(
         task_id="non_root_task",
         python_callable=print_stuff,
-        executor_config={"pod_override": k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(
-                labels={
-                    "release": "stable"
-                }
-            )
-        )
-        }
+        executor_config={"pod_override": k8s.V1Pod(metadata=k8s.V1ObjectMeta(labels={"release": "stable"}))},
     )
 
     other_ns_task = PythonOperator(
         task_id="other_namespace_task",
         python_callable=print_stuff,
         executor_config={
-            "KubernetesExecutor": {
-                "namespace": "test-namespace",
-                "labels": {
-                    "release": "stable"
-                }
-            }
-        }
+            "KubernetesExecutor": {"namespace": "test-namespace", "labels": {"release": "stable"}}
+        },
     )
 
     start_task >> volume_task >> third_task

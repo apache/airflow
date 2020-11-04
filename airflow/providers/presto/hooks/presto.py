@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional, Any, Iterable
 import os
+from typing import Any, Iterable, Optional
 
 import prestodb
 from prestodb.exceptions import DatabaseError
