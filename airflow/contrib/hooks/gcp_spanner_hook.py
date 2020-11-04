@@ -29,9 +29,7 @@ warnings.warn(
 
 
 class CloudSpannerHook(SpannerHook):
-    """
-    This class is deprecated. Please use `airflow.providers.google.cloud.hooks.spanner.SpannerHook`.
-    """
+    """This class is deprecated. Please use `airflow.providers.google.cloud.hooks.spanner.SpannerHook`."""
 
     def __init__(self, *args, **kwargs):
         warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2)

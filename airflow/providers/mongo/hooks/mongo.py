@@ -55,11 +55,9 @@ class MongoHook(BaseHook):
 
         self.uri = '{scheme}://{creds}{host}{port}/{database}'.format(
             scheme=scheme,
-            creds='{}:{}@'.format(self.connection.login, self.connection.password)
-            if self.connection.login
-            else '',
+            creds=f'{self.connection.login}:{self.connection.password}@' if self.connection.login else '',
             host=self.connection.host,
-            port='' if self.connection.port is None else ':{}'.format(self.connection.port),
+            port='' if self.connection.port is None else f':{self.connection.port}',
             database=self.connection.schema,
         )
 
@@ -76,9 +74,7 @@ class MongoHook(BaseHook):
             self.close_conn()
 
     def get_conn(self) -> MongoClient:
-        """
-        Fetches PyMongo Client
-        """
+        """Fetches PyMongo Client"""
         if self.client is not None:
             return self.client
 

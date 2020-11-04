@@ -115,7 +115,7 @@ class KylinCubeOperator(BaseOperator):
     def __init__(
         self,
         *,
-        kylin_conn_id: Optional[str] = 'kylin_default',
+        kylin_conn_id: str = 'kylin_default',
         project: Optional[str] = None,
         cube: Optional[str] = None,
         dsn: Optional[str] = None,
@@ -125,7 +125,7 @@ class KylinCubeOperator(BaseOperator):
         offset_start: Optional[str] = None,
         offset_end: Optional[str] = None,
         segment_name: Optional[str] = None,
-        is_track_job: Optional[bool] = False,
+        is_track_job: bool = False,
         interval: int = 60,
         timeout: int = 60 * 60 * 24,
         eager_error_status=("ERROR", "DISCARDED", "KILLED", "SUICIDAL", "STOPPED"),
@@ -178,13 +178,13 @@ class KylinCubeOperator(BaseOperator):
             job_status = None
             while job_status not in self.jobs_end_status:
                 if (timezone.utcnow() - started_at).total_seconds() > self.timeout:
-                    raise AirflowException('kylin job {} timeout'.format(job_id))
+                    raise AirflowException(f'kylin job {job_id} timeout')
                 time.sleep(self.interval)
 
                 job_status = _hook.get_job_status(job_id)
                 self.log.info('Kylin job status is %s ', job_status)
                 if job_status in self.jobs_error_status:
-                    raise AirflowException('Kylin job {} status {} is error '.format(job_id, job_status))
+                    raise AirflowException(f'Kylin job {job_id} status {job_status} is error ')
 
         if self.do_xcom_push:
             return rsp_data

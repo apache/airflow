@@ -31,7 +31,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
     uploads to and reads from S3 remote storage.
     """
 
-    def __init__(self, base_log_folder, s3_log_folder, filename_template):
+    def __init__(self, base_log_folder: str, s3_log_folder: str, filename_template: str):
         super().__init__(base_log_folder, filename_template)
         self.remote_base = s3_log_folder
         self.log_relative_path = ''
@@ -41,9 +41,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
 
     @cached_property
     def hook(self):
-        """
-        Returns S3Hook.
-        """
+        """Returns S3Hook."""
         remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -71,9 +69,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                 pass
 
     def close(self):
-        """
-        Close and upload local log file to remote storage S3.
-        """
+        """Close and upload local log file to remote storage S3."""
         # When application exit, system shuts down all handlers by
         # calling close method. Here we check if logger is already
         # closed to prevent uploading the log to remote storage multiple
@@ -90,7 +86,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         remote_loc = os.path.join(self.remote_base, self.log_relative_path)
         if os.path.exists(local_loc):
             # read log and remove old logs to get just the latest additions
-            with open(local_loc, 'r') as logfile:
+            with open(local_loc) as logfile:
                 log = logfile.read()
             self.s3_write(log, remote_loc)
 
@@ -118,16 +114,17 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             # local machine even if there are errors reading remote logs, as
             # returned remote_log will contain error messages.
             remote_log = self.s3_read(remote_loc, return_error=True)
-            log = '*** Reading remote log from {}.\n{}\n'.format(remote_loc, remote_log)
+            log = f'*** Reading remote log from {remote_loc}.\n{remote_log}\n'
             return log, {'end_of_log': True}
         else:
             return super()._read(ti, try_number)
 
-    def s3_log_exists(self, remote_log_location):
+    def s3_log_exists(self, remote_log_location: str) -> bool:
         """
         Check if remote_log_location exists in remote storage
 
         :param remote_log_location: log's location in remote storage
+        :type remote_log_location: str
         :return: True if location exists else False
         """
         try:
@@ -136,7 +133,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             pass
         return False
 
-    def s3_read(self, remote_log_location, return_error=False):
+    def s3_read(self, remote_log_location: str, return_error: bool = False) -> str:
         """
         Returns the log found at the remote_log_location. Returns '' if no
         logs are found or there is an error.
@@ -146,17 +143,19 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         :param return_error: if True, returns a string error message if an
             error occurs. Otherwise returns '' when an error occurs.
         :type return_error: bool
+        :return: the log found at the remote_log_location
         """
         try:
             return self.hook.read_key(remote_log_location)
         except Exception:  # pylint: disable=broad-except
-            msg = 'Could not read logs from {}'.format(remote_log_location)
+            msg = f'Could not read logs from {remote_log_location}'
             self.log.exception(msg)
             # return error if needed
             if return_error:
                 return msg
+        return ''
 
-    def s3_write(self, log, remote_log_location, append=True):
+    def s3_write(self, log: str, remote_log_location: str, append: bool = True):
         """
         Writes the log to the remote_log_location. Fails silently if no hook
         was created.

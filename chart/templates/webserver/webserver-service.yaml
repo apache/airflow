@@ -31,8 +31,8 @@ metadata:
 {{- with .Values.labels }}
 {{ toYaml . | indent 4 }}
 {{- end }}
-  annotations:
 {{- with .Values.webserver.service.annotations }}
+  annotations:
 {{- toYaml . | nindent 4 }}
 {{- end }}
 spec:

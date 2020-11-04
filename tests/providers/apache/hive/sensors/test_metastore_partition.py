@@ -33,7 +33,7 @@ class TestHivePartitionSensor(TestHiveEnvironment):
             conn_id='test_connection_id',
             sql='test_sql',
             table='airflow.static_babynames_partitioned',
-            partition_name='ds={}'.format(DEFAULT_DATE_DS),
+            partition_name=f'ds={DEFAULT_DATE_DS}',
             dag=self.dag,
         )
         op._get_hook = mock.MagicMock(return_value=MockDBConnection({}))

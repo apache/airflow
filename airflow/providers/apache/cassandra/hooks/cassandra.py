@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains hook to integrate with Apache Cassandra.
-"""
+"""This module contains hook to integrate with Apache Cassandra."""
 
 from typing import Any, Dict, Union
 
@@ -113,29 +111,27 @@ class CassandraHook(BaseHook, LoggingMixin):
         if ssl_options:
             conn_config['ssl_options'] = ssl_options
 
+        protocol_version = conn.extra_dejson.get('protocol_version', None)
+        if protocol_version:
+            conn_config['protocol_version'] = protocol_version
+
         self.cluster = Cluster(**conn_config)
         self.keyspace = conn.schema
         self.session = None
 
     def get_conn(self) -> Session:
-        """
-        Returns a cassandra Session object
-        """
+        """Returns a cassandra Session object"""
         if self.session and not self.session.is_shutdown:
             return self.session
         self.session = self.cluster.connect(self.keyspace)
         return self.session
 
     def get_cluster(self) -> Cluster:
-        """
-        Returns Cassandra cluster.
-        """
+        """Returns Cassandra cluster."""
         return self.cluster
 
     def shutdown_cluster(self) -> None:
-        """
-        Closes all sessions and connections associated with this Cluster.
-        """
+        """Closes all sessions and connections associated with this Cluster."""
         if not self.cluster.is_shutdown:
             self.cluster.shutdown()
 

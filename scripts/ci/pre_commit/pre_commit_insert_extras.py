@@ -38,7 +38,7 @@ INSTALL_FOOTER = '# END EXTRAS HERE'
 
 
 def insert_documentation(file_path: str, content: List[str], header: str, footer: str):
-    with open(file_path, "r") as documentation_file:
+    with open(file_path) as documentation_file:
         replacing = False
         result: List[str] = []
         text = documentation_file.readlines()

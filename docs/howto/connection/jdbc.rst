@@ -15,6 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
+.. _howto/connection:jdbc:
+
 JDBC connection
 ===============
 

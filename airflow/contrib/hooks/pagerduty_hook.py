@@ -24,5 +24,6 @@ from airflow.providers.pagerduty.hooks.pagerduty import PagerdutyHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.pagerduty.hooks.pagerduty`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

@@ -57,9 +57,7 @@ class DateTimeSensor(BaseSensorOperator):
     template_fields = ("target_time",)
 
     @apply_defaults
-    def __init__(
-        self, *, target_time: Union[str, datetime.datetime], **kwargs
-    ) -> None:
+    def __init__(self, *, target_time: Union[str, datetime.datetime], **kwargs) -> None:
         super().__init__(**kwargs)
         if isinstance(target_time, datetime.datetime):
             self.target_time = target_time.isoformat()
@@ -67,9 +65,7 @@ class DateTimeSensor(BaseSensorOperator):
             self.target_time = target_time
         else:
             raise TypeError(
-                "Expected str or datetime.datetime type for target_time. Got {}".format(
-                    type(target_time)
-                )
+                "Expected str or datetime.datetime type for target_time. Got {}".format(type(target_time))
             )
 
     def poke(self, context: Dict) -> bool:

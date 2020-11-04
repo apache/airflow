@@ -14,9 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Handler that integrates with Stackdriver
-"""
+"""Handler that integrates with Stackdriver"""
 import logging
 from typing import Collection, Dict, List, Optional, Tuple, Type
 from urllib.parse import urlencode
@@ -166,7 +164,7 @@ class StackdriverTaskHandler(logging.Handler):
         :rtype: Tuple[List[str], List[Dict]]
         """
         if try_number is not None and try_number < 1:
-            logs = ["Error fetching the logs. Try number {} is invalid.".format(try_number)]
+            logs = [f"Error fetching the logs. Try number {try_number} is invalid."]
             return logs, [{"end_of_log": "true"}]
 
         if not metadata:

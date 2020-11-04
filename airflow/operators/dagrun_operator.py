@@ -18,12 +18,26 @@
 
 import datetime
 from typing import Dict, Optional, Union
+from urllib.parse import quote
 
 from airflow.api.common.experimental.trigger_dag import trigger_dag
-from airflow.models import BaseOperator, DagRun
+from airflow.exceptions import DagNotFound, DagRunAlreadyExists
+from airflow.models import BaseOperator, BaseOperatorLink, DagBag, DagModel, DagRun
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.types import DagRunType
+
+
+class TriggerDagRunLink(BaseOperatorLink):
+    """
+    Operator link for TriggerDagRunOperator. It allows users to access
+    DAG triggered by task using TriggerDagRunOperator.
+    """
+
+    name = 'Triggered DAG'
+
+    def get_link(self, operator, dttm):
+        return f"/graph?dag_id={operator.trigger_dag_id}&root=&execution_date={quote(dttm.isoformat())}"
 
 
 class TriggerDagRunOperator(BaseOperator):
@@ -36,10 +50,20 @@ class TriggerDagRunOperator(BaseOperator):
     :type conf: dict
     :param execution_date: Execution date for the dag (templated)
     :type execution_date: str or datetime.datetime
+    :param reset_dag_run: Whether or not clear existing dag run if already exists.
+        This is useful when backfill or rerun an existing dag run.
+        When reset_dag_run=False and dag run exists, DagRunAlreadyExists will be raised.
+        When reset_dag_run=True and dag run exists, existing dag run will be cleared to rerun.
+    :type reset_dag_run: bool
     """
 
     template_fields = ("trigger_dag_id", "execution_date", "conf")
     ui_color = "#ffefeb"
+
+    @property
+    def operator_extra_links(self):
+        """Return operator extra links"""
+        return [TriggerDagRunLink()]
 
     @apply_defaults
     def __init__(
@@ -48,11 +72,13 @@ class TriggerDagRunOperator(BaseOperator):
         trigger_dag_id: str,
         conf: Optional[Dict] = None,
         execution_date: Optional[Union[str, datetime.datetime]] = None,
-        **kwargs
+        reset_dag_run: bool = False,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.trigger_dag_id = trigger_dag_id
         self.conf = conf
+        self.reset_dag_run = reset_dag_run
 
         if not isinstance(execution_date, (str, datetime.datetime, type(None))):
             raise TypeError(
@@ -72,11 +98,31 @@ class TriggerDagRunOperator(BaseOperator):
             execution_date = timezone.utcnow()
 
         run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date)
-        # Ignore MyPy type for self.execution_date because it doesn't pick up the timezone.parse() for strings
-        trigger_dag(
-            dag_id=self.trigger_dag_id,
-            run_id=run_id,
-            conf=self.conf,
-            execution_date=self.execution_date,
-            replace_microseconds=False,
-        )
+        try:
+            # Ignore MyPy type for self.execution_date
+            # because it doesn't pick up the timezone.parse() for strings
+            trigger_dag(
+                dag_id=self.trigger_dag_id,
+                run_id=run_id,
+                conf=self.conf,
+                execution_date=self.execution_date,
+                replace_microseconds=False,
+            )
+
+        except DagRunAlreadyExists as e:
+            if self.reset_dag_run:
+                self.log.info("Clearing %s on %s", self.trigger_dag_id, self.execution_date)
+
+                # Get target dag object and call clear()
+
+                dag_model = DagModel.get_current(self.trigger_dag_id)
+                if dag_model is None:
+                    raise DagNotFound(f"Dag id {self.trigger_dag_id} not found in DagModel")
+
+                dag_bag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
+
+                dag = dag_bag.get_dag(self.trigger_dag_id)
+
+                dag.clear(start_date=self.execution_date, end_date=self.execution_date)
+            else:
+                raise e

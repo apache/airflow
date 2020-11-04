@@ -50,7 +50,7 @@ class TestPoolSchema(unittest.TestCase):
         )
 
     @provide_session
-    def test_desearialize(self, session):
+    def test_deserialize(self, session):
         pool_dict = {"name": "test_pool", "slots": 3}
         deserialized_pool = pool_schema.load(pool_dict, session=session)
         self.assertNotIsInstance(deserialized_pool, Pool)  # Checks if load_instance is set to True

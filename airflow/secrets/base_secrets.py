@@ -23,9 +23,7 @@ if TYPE_CHECKING:
 
 
 class BaseSecretsBackend(ABC):
-    """
-    Abstract base class to retrieve secrets given a conn_id and construct a Connection object
-    """
+    """Abstract base class to retrieve secrets given a conn_id and construct a Connection object"""
 
     def __init__(self, **kwargs):
         pass
@@ -61,6 +59,7 @@ class BaseSecretsBackend(ABC):
         :type conn_id: str
         """
         from airflow.models.connection import Connection
+
         conn_uri = self.get_conn_uri(conn_id=conn_id)
         if not conn_uri:
             return []
@@ -76,7 +75,7 @@ class BaseSecretsBackend(ABC):
         """
         raise NotImplementedError()
 
-    def get_config(self, key: str) -> Optional[str]:    # pylint: disable=unused-argument
+    def get_config(self, key: str) -> Optional[str]:  # pylint: disable=unused-argument
         """
         Return value for Airflow Config Key
 

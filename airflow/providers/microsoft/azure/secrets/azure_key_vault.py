@@ -62,7 +62,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         vault_url: str = '',
         sep: str = '-',
         **kwargs,
-    ):
+    ) -> None:
         super().__init__()
         self.vault_url = vault_url
         self.connections_prefix = connections_prefix.rstrip(sep)
@@ -72,10 +72,8 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         self.kwargs = kwargs
 
     @cached_property
-    def client(self):
-        """
-        Create a Azure Key Vault client.
-        """
+    def client(self) -> SecretClient:
+        """Create a Azure Key Vault client."""
         credential = DefaultAzureCredential()
         client = SecretClient(vault_url=self.vault_url, credential=credential, **self.kwargs)
         return client

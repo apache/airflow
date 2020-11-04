@@ -63,7 +63,7 @@ ENV PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION}
 ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
 
-# Install curl and gnupg2 - needed to download nodejs in the next step
+# Install curl and gnupg2 - needed for many other installation steps
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
            curl \
@@ -72,78 +72,77 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-ARG ADDITIONAL_DEV_DEPS=""
-ENV ADDITIONAL_DEV_DEPS=${ADDITIONAL_DEV_DEPS}
+ARG DEV_APT_DEPS="\
+     apt-transport-https \
+     apt-utils \
+     build-essential \
+     ca-certificates \
+     gnupg \
+     dirmngr \
+     freetds-bin \
+     freetds-dev \
+     gosu \
+     krb5-user \
+     ldap-utils \
+     libffi-dev \
+     libkrb5-dev \
+     libpq-dev \
+     libsasl2-2 \
+     libsasl2-dev \
+     libsasl2-modules \
+     libssl-dev \
+     locales  \
+     lsb-release \
+     nodejs \
+     openssh-client \
+     postgresql-client \
+     python-selinux \
+     sasl2-bin \
+     software-properties-common \
+     sqlite3 \
+     sudo \
+     unixodbc \
+     unixodbc-dev \
+     yarn"
+ENV DEV_APT_DEPS=${DEV_APT_DEPS}
 
-# Install basic and additional apt dependencies
-RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
+ARG ADDITIONAL_DEV_APT_DEPS=""
+ENV ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS}
+
+ARG DEV_APT_COMMAND="\
+    curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
     && curl https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - > /dev/null \
-    && echo "deb https://dl.yarnpkg.com/debian/ stable main" > /etc/apt/sources.list.d/yarn.list \
-    # Note missing man directories on debian-buster
-    # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
-    && mkdir -pv /usr/share/man/man1 \
+    && echo 'deb https://dl.yarnpkg.com/debian/ stable main' > /etc/apt/sources.list.d/yarn.list"
+ENV DEV_APT_COMMAND=${DEV_APT_COMMAND}
+
+ARG ADDITIONAL_DEV_APT_COMMAND="echo"
+ENV ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND}
+
+ARG ADDITIONAL_DEV_ENV_VARS=""
+
+# Note missing man directories on debian-buster
+# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
+# Install basic and additional apt dependencies
+RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
+    && export ${ADDITIONAL_DEV_ENV_VARS?} \
+    && bash -o pipefail -e -u -x -c "${DEV_APT_COMMAND}" \
+    && bash -o pipefail -e -u -x -c "${ADDITIONAL_DEV_APT_COMMAND}" \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-           apt-transport-https \
-           apt-utils \
-           build-essential \
-           ca-certificates \
-           gnupg \
-           dirmngr \
-           freetds-bin \
-           freetds-dev \
-           gosu \
-           krb5-user \
-           ldap-utils \
-           libffi-dev \
-           libkrb5-dev \
-           libpq-dev \
-           libsasl2-2 \
-           libsasl2-dev \
-           libsasl2-modules \
-           libssl-dev \
-           locales  \
-           lsb-release \
-           nodejs \
-           openssh-client \
-           postgresql-client \
-           python-selinux \
-           sasl2-bin \
-           software-properties-common \
-           sqlite3 \
-           sudo \
-           unixodbc \
-           unixodbc-dev \
-           yarn \
-           ${ADDITIONAL_DEV_DEPS} \
+           ${DEV_APT_DEPS} \
+           ${ADDITIONAL_DEV_APT_DEPS} \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install MySQL client from Oracle repositories (Debian installs mariadb)
-RUN KEY="A4A9406876FCBD3C456770C88C718D3B5072E1F5" \
-    && GNUPGHOME="$(mktemp -d)" \
-    && export GNUPGHOME \
-    && for KEYSERVER in $(shuf -e \
-            ha.pool.sks-keyservers.net \
-            hkp://p80.pool.sks-keyservers.net:80 \
-            keyserver.ubuntu.com \
-            hkp://keyserver.ubuntu.com:80 \
-            pgp.mit.edu) ; do \
-          gpg --keyserver "${KEYSERVER}" --recv-keys "${KEY}" && break || true ; \
-       done \
-    && gpg --export "${KEY}" | apt-key add - \
-    && gpgconf --kill all \
-    rm -rf "${GNUPGHOME}"; \
-    apt-key list > /dev/null \
-    && echo "deb http://repo.mysql.com/apt/debian/ stretch mysql-5.7" | tee -a /etc/apt/sources.list.d/mysql.list \
-    && apt-get update \
-    && apt-get install --no-install-recommends -y \
-        libmysqlclient-dev \
-        mysql-client \
-    && apt-get autoremove -yqq --purge \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+ARG INSTALL_MYSQL_CLIENT="true"
+ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT}
+
+COPY scripts/docker scripts/docker
+COPY docker-context-files /docker-context-files
+
+RUN ./scripts/docker/install_mysql.sh dev
 
 ARG AIRFLOW_REPO=apache/airflow
 ENV AIRFLOW_REPO=${AIRFLOW_REPO}
@@ -156,17 +155,29 @@ ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ENV AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}${ADDITIONAL_AIRFLOW_EXTRAS:+,}${ADDITIONAL_AIRFLOW_EXTRAS}
 
 ARG AIRFLOW_CONSTRAINTS_REFERENCE="constraints-master"
-ARG AIRFLOW_CONSTRAINTS_URL="https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_CONSTRAINTS_REFERENCE}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
-ENV AIRFLOW_CONSTRAINTS_URL=${AIRFLOW_CONSTRAINTS_URL}
+ARG AIRFLOW_CONSTRAINTS_LOCATION="https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_CONSTRAINTS_REFERENCE}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+ENV AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}
 
 ENV PATH=${PATH}:/root/.local/bin
 RUN mkdir -p /root/.local/bin
 
+ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
+ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES}
+
+RUN if [[ -f /docker-context-files/.pypirc ]]; then \
+        cp /docker-context-files/.pypirc /root/.pypirc; \
+    fi
+
 # In case of Production build image segment we want to pre-install master version of airflow
-# dependencies from github so that we do not have to always reinstall it from the scratch.
-RUN pip install --user \
-    "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
-        --constraint "${AIRFLOW_CONSTRAINTS_URL}" && pip uninstall --yes apache-airflow;
+# dependencies from GitHub so that we do not have to always reinstall it from the scratch.
+RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
+       if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then \
+          AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}; \
+       fi; \
+       pip install --user \
+          "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
+          --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" && pip uninstall --yes apache-airflow; \
+    fi
 
 ARG AIRFLOW_SOURCES_FROM="."
 ENV AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM}
@@ -191,14 +202,38 @@ ENV AIRFLOW_INSTALL_SOURCES=${AIRFLOW_INSTALL_SOURCES}
 ARG AIRFLOW_INSTALL_VERSION=""
 ENV AIRFLOW_INSTALL_VERSION=${AIRFLOW_INSTALL_VERSION}
 
+ARG AIRFLOW_LOCAL_PIP_WHEELS=""
+ENV AIRFLOW_LOCAL_PIP_WHEELS=${AIRFLOW_LOCAL_PIP_WHEELS}
+
+ARG INSTALL_AIRFLOW_VIA_PIP="true"
+ENV INSTALL_AIRFLOW_VIA_PIP=${INSTALL_AIRFLOW_VIA_PIP}
+
+ARG SLUGIFY_USES_TEXT_UNIDECODE=""
+ENV SLUGIFY_USES_TEXT_UNIDECODE=${SLUGIFY_USES_TEXT_UNIDECODE}
+
+ARG INSTALL_PROVIDERS_FROM_SOURCES="true"
+ENV INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES}
+
 WORKDIR /opt/airflow
 
-RUN pip install --user "${AIRFLOW_INSTALL_SOURCES}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
-    --constraint "${AIRFLOW_CONSTRAINTS_URL}" && \
-    if [ -n "${ADDITIONAL_PYTHON_DEPS}" ]; then pip install --user ${ADDITIONAL_PYTHON_DEPS} \
-    --constraint "${AIRFLOW_CONSTRAINTS_URL}"; fi && \
-    find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r && \
-    find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r
+# remove mysql from extras if client is not installed
+RUN if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then \
+        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}; \
+    fi; \
+    if [[ ${INSTALL_AIRFLOW_VIA_PIP} == "true" ]]; then \
+        pip install --user "${AIRFLOW_INSTALL_SOURCES}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
+            --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+    fi; \
+    if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
+        pip install --user ${ADDITIONAL_PYTHON_DEPS} --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+    fi; \
+    if [[ ${AIRFLOW_LOCAL_PIP_WHEELS} == "true" ]]; then \
+        if ls /docker-context-files/*.whl 1> /dev/null 2>&1; then \
+            pip install --user --no-deps /docker-context-files/*.whl; \
+        fi ; \
+    fi; \
+    find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r || true ; \
+    find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r || true
 
 RUN AIRFLOW_SITE_PACKAGE="/root/.local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow"; \
     if [[ -f "${AIRFLOW_SITE_PACKAGE}/www_rbac/package.json" ]]; then \
@@ -255,72 +290,78 @@ ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE}
 ARG AIRFLOW_VERSION
 ENV AIRFLOW_VERSION=${AIRFLOW_VERSION}
 
-ARG ADDITIONAL_RUNTIME_DEPS=""
-ENV ADDITIONAL_RUNTIME_DEPS=${ADDITIONAL_RUNTIME_DEPS}
-
 # Make sure noninteractive debian install is used and language variables set
 ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
+
+# Install curl and gnupg2 - needed for many other installation steps
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+           curl \
+           gnupg2 \
+    && apt-get autoremove -yqq --purge \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG RUNTIME_APT_DEPS="\
+       apt-transport-https \
+       apt-utils \
+       ca-certificates \
+       curl \
+       dumb-init \
+       freetds-bin \
+       gnupg \
+       gosu \
+       krb5-user \
+       ldap-utils \
+       libffi6 \
+       libsasl2-2 \
+       libsasl2-modules \
+       libssl1.1 \
+       locales  \
+       lsb-release \
+       netcat \
+       openssh-client \
+       postgresql-client \
+       rsync \
+       sasl2-bin \
+       sqlite3 \
+       sudo \
+       unixodbc"
+ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS}
+
+ARG ADDITIONAL_RUNTIME_APT_DEPS=""
+ENV ADDITIONAL_RUNTIME_APT_DEPS=${ADDITIONAL_RUNTIME_APT_DEPS}
+
+ARG RUNTIME_APT_COMMAND="echo"
+ENV RUNTIME_APT_COMMAND=${RUNTIME_APT_COMMAND}
+
+ARG ADDITIONAL_RUNTIME_APT_COMMAND=""
+ENV ADDITIONAL_RUNTIME_APT_COMMAND=${ADDITIONAL_RUNTIME_APT_COMMAND}
+
+ARG ADDITIONAL_RUNTIME_ENV_VARS=""
 
 # Note missing man directories on debian-buster
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 # Install basic and additional apt dependencies
 RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
+    && export ${ADDITIONAL_RUNTIME_ENV_VARS?} \
+    && bash -o pipefail -e -u -x -c "${RUNTIME_APT_COMMAND}" \
+    && bash -o pipefail -e -u -x -c "${ADDITIONAL_RUNTIME_APT_COMMAND}" \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-           apt-transport-https \
-           apt-utils \
-           ca-certificates \
-           curl \
-           dumb-init \
-           freetds-bin \
-           gnupg \
-           gosu \
-           krb5-user \
-           ldap-utils \
-           libffi6 \
-           libsasl2-2 \
-           libsasl2-modules \
-           libssl1.1 \
-           locales  \
-           lsb-release \
-           netcat \
-           openssh-client \
-           postgresql-client \
-           rsync \
-           sasl2-bin \
-           sqlite3 \
-           sudo \
-           unixodbc \
-           ${ADDITIONAL_RUNTIME_DEPS} \
+           ${RUNTIME_APT_DEPS} \
+           ${ADDITIONAL_RUNTIME_APT_DEPS} \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install MySQL client from Oracle repositories (Debian installs mariadb)
-RUN KEY="A4A9406876FCBD3C456770C88C718D3B5072E1F5" \
-    && GNUPGHOME="$(mktemp -d)" \
-    && export GNUPGHOME \
-    && for KEYSERVER in $(shuf -e \
-            ha.pool.sks-keyservers.net \
-            hkp://p80.pool.sks-keyservers.net:80 \
-            keyserver.ubuntu.com \
-            hkp://keyserver.ubuntu.com:80 \
-            pgp.mit.edu) ; do \
-          gpg --keyserver "${KEYSERVER}" --recv-keys "${KEY}" && break || true ; \
-       done \
-    && gpg --export "${KEY}" | apt-key add - \
-    && gpgconf --kill all \
-    rm -rf "${GNUPGHOME}"; \
-    apt-key list > /dev/null \
-    && echo "deb http://repo.mysql.com/apt/debian/ stretch mysql-5.7" | tee -a /etc/apt/sources.list.d/mysql.list \
-    && apt-get update \
-    && apt-get install --no-install-recommends -y \
-        libmysqlclient20 \
-        mysql-client \
-    && apt-get autoremove -yqq --purge \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+ARG INSTALL_MYSQL_CLIENT="true"
+ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT}
+
+COPY scripts/docker scripts/docker
+RUN ./scripts/docker/install_mysql.sh prod
 
 ENV AIRFLOW_UID=${AIRFLOW_UID}
 ENV AIRFLOW_GID=${AIRFLOW_GID}

@@ -71,7 +71,7 @@ MOCK_COMMANDS: List[CLICommand] = [
         help='Help text D',
         func=noop,
         args=(),
-    )
+    ),
 ]
 
 EXPECTED_OUTPUT = """\
@@ -92,13 +92,12 @@ Help text E
 
 
 class TestCheatSheetCommand(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         cls.parser = cli_parser.get_parser()
 
     @mock.patch('airflow.cli.cli_parser.airflow_commands', MOCK_COMMANDS)
-    def test_should_displaay_index(self):
+    def test_should_display_index(self):
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             args = self.parser.parse_args(['cheat-sheet'])
             args.func(args)

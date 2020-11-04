@@ -24,5 +24,6 @@ from airflow.providers.apache.pig.operators.pig import PigOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.pig.operators.pig`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

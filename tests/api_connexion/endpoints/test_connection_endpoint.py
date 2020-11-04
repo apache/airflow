@@ -20,6 +20,7 @@ from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import Connection
+from airflow.security import permissions
 from airflow.utils.session import provide_session
 from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
@@ -33,12 +34,23 @@ class TestConnectionEndpoint(unittest.TestCase):
         super().setUpClass()
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
-        # TODO: Add new role for each view to test permission.
-        create_user(cls.app, username="test", role="Admin")  # type: ignore
+        create_user(
+            cls.app,  # type: ignore
+            username="test",
+            role_name="Test",
+            permissions=[
+                (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_CONNECTION),
+                (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_CONNECTION),
+            ],
+        )
+        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
+        delete_user(cls.app, username="test_no_permissions")  # type: ignore
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
@@ -56,7 +68,7 @@ class TestConnectionEndpoint(unittest.TestCase):
 
 class TestDeleteConnection(TestConnectionEndpoint):
     @provide_session
-    def test_delete_should_response_204(self, session):
+    def test_delete_should_respond_204(self, session):
         connection_model = Connection(conn_id='test-connection', conn_type='test_type')
 
         session.add(connection_model)
@@ -70,7 +82,7 @@ class TestDeleteConnection(TestConnectionEndpoint):
         connection = session.query(Connection).all()
         assert len(connection) == 0
 
-    def test_delete_should_response_404(self):
+    def test_delete_should_respond_404(self):
         response = self.client.delete(
             "/api/v1/connections/test-connection", environ_overrides={'REMOTE_USER': "test"}
         )
@@ -90,10 +102,16 @@ class TestDeleteConnection(TestConnectionEndpoint):
 
         assert_401(response)
 
+    def test_should_raise_403_forbidden(self):
+        response = self.client.get(
+            "/api/v1/connections/test-connection-id", environ_overrides={'REMOTE_USER': "test_no_permissions"}
+        )
+        assert response.status_code == 403
+
 
 class TestGetConnection(TestConnectionEndpoint):
     @provide_session
-    def test_should_response_200(self, session):
+    def test_should_respond_200(self, session):
         connection_model = Connection(
             conn_id='test-connection-id',
             conn_type='mysql',
@@ -122,7 +140,7 @@ class TestGetConnection(TestConnectionEndpoint):
             },
         )
 
-    def test_should_response_404(self):
+    def test_should_respond_404(self):
         response = self.client.get(
             "/api/v1/connections/invalid-connection", environ_overrides={'REMOTE_USER': "test"}
         )
@@ -145,7 +163,7 @@ class TestGetConnection(TestConnectionEndpoint):
 
 class TestGetConnections(TestConnectionEndpoint):
     @provide_session
-    def test_should_response_200(self, session):
+    def test_should_respond_200(self, session):
         connection_model_1 = Connection(conn_id='test-connection-id-1', conn_type='test_type')
         connection_model_2 = Connection(conn_id='test-connection-id-2', conn_type='test_type')
         connections = [connection_model_1, connection_model_2]
@@ -285,7 +303,7 @@ class TestPatchConnection(TestConnectionEndpoint):
         ]
     )
     @provide_session
-    def test_patch_should_response_200(self, payload, session):
+    def test_patch_should_respond_200(self, payload, session):
         self._create_connection(session)
 
         response = self.client.patch(
@@ -294,7 +312,7 @@ class TestPatchConnection(TestConnectionEndpoint):
         assert response.status_code == 200
 
     @provide_session
-    def test_patch_should_response_200_with_update_mask(self, session):
+    def test_patch_should_respond_200_with_update_mask(self, session):
         self._create_connection(session)
         test_connection = "test-connection-id"
         payload = {
@@ -372,7 +390,7 @@ class TestPatchConnection(TestConnectionEndpoint):
         ]
     )
     @provide_session
-    def test_patch_should_response_400_for_invalid_fields_in_update_mask(
+    def test_patch_should_respond_400_for_invalid_fields_in_update_mask(
         self, payload, update_mask, error_message, session
     ):
         self._create_connection(session)
@@ -414,7 +432,7 @@ class TestPatchConnection(TestConnectionEndpoint):
         ]
     )
     @provide_session
-    def test_patch_should_response_400_for_invalid_update(self, payload, error_message, session):
+    def test_patch_should_respond_400_for_invalid_update(self, payload, error_message, session):
         self._create_connection(session)
         response = self.client.patch(
             "/api/v1/connections/test-connection-id", json=payload, environ_overrides={'REMOTE_USER': "test"}
@@ -422,7 +440,7 @@ class TestPatchConnection(TestConnectionEndpoint):
         assert response.status_code == 400
         self.assertIn(error_message, response.json['detail'])
 
-    def test_patch_should_response_404_not_found(self):
+    def test_patch_should_respond_404_not_found(self):
         payload = {"connection_id": "test-connection-id", "conn_type": "test-type", "port": 90}
         response = self.client.patch(
             "/api/v1/connections/test-connection-id", json=payload, environ_overrides={'REMOTE_USER': "test"}
@@ -452,7 +470,7 @@ class TestPatchConnection(TestConnectionEndpoint):
 
 class TestPostConnection(TestConnectionEndpoint):
     @provide_session
-    def test_post_should_response_200(self, session):
+    def test_post_should_respond_200(self, session):
         payload = {"connection_id": "test-connection-id", "conn_type": 'test_type'}
         response = self.client.post(
             "/api/v1/connections", json=payload, environ_overrides={'REMOTE_USER': "test"}
@@ -462,7 +480,7 @@ class TestPostConnection(TestConnectionEndpoint):
         assert len(connection) == 1
         self.assertEqual(connection[0].conn_id, 'test-connection-id')
 
-    def test_post_should_response_400_for_invalid_payload(self):
+    def test_post_should_respond_400_for_invalid_payload(self):
         payload = {
             "connection_id": "test-connection-id",
         }  # conn_type missing
@@ -480,7 +498,7 @@ class TestPostConnection(TestConnectionEndpoint):
             },
         )
 
-    def test_post_should_response_409_already_exist(self):
+    def test_post_should_respond_409_already_exist(self):
         payload = {"connection_id": "test-connection-id", "conn_type": 'test_type'}
         response = self.client.post(
             "/api/v1/connections", json=payload, environ_overrides={'REMOTE_USER': "test"}

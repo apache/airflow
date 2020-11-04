@@ -43,7 +43,7 @@ PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 BQ_LOCATION = "europe-north1"
 
 DATASET_NAME = os.environ.get("GCP_BIGQUERY_DATASET_NAME", "test_dataset_operations")
-LOCATION_DATASET_NAME = "{}_location".format(DATASET_NAME)
+LOCATION_DATASET_NAME = f"{DATASET_NAME}_location"
 DATA_SAMPLE_GCS_URL = os.environ.get(
     "GCP_BIGQUERY_DATA_GCS_URL",
     "gs://cloud-samples-data/bigquery/us-states/us-states.csv",

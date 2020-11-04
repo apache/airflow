@@ -33,4 +33,5 @@ task = DummyOperator(
     dag=dag,
     pool='test_backfill_pooled_task_pool',
     owner='airflow',
-    start_date=datetime(2016, 2, 1))
+    start_date=datetime(2016, 2, 1),
+)

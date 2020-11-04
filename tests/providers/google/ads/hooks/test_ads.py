@@ -15,7 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import mock
+from unittest import mock
+
 import pytest
 
 from airflow.providers.google.ads.hooks.ads import GoogleAdsHook

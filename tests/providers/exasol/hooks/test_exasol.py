@@ -19,8 +19,7 @@
 
 import json
 import unittest
-
-import mock
+from unittest import mock
 
 from airflow import models
 from airflow.providers.exasol.hooks.exasol import ExasolHook
@@ -28,7 +27,7 @@ from airflow.providers.exasol.hooks.exasol import ExasolHook
 
 class TestExasolHookConn(unittest.TestCase):
     def setUp(self):
-        super(TestExasolHookConn, self).setUp()
+        super().setUp()
 
         self.connection = models.Connection(
             login='login',
@@ -67,7 +66,7 @@ class TestExasolHookConn(unittest.TestCase):
 
 class TestExasolHook(unittest.TestCase):
     def setUp(self):
-        super(TestExasolHook, self).setUp()
+        super().setUp()
 
         self.cur = mock.MagicMock()
         self.conn = mock.MagicMock()

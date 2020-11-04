@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Pub/Sub Hook.
-"""
+"""This module contains a Google Pub/Sub Hook."""
 import warnings
 from base64 import b64decode
 from typing import Dict, List, Optional, Sequence, Tuple, Union
@@ -44,9 +42,7 @@ from airflow.version import version
 
 
 class PubSubException(Exception):
-    """
-    Alias for Exception.
-    """
+    """Alias for Exception."""
 
 
 class PubSubHook(GoogleBaseHook):
@@ -95,7 +91,7 @@ class PubSubHook(GoogleBaseHook):
     def publish(
         self,
         topic: str,
-        messages: List[Dict],
+        messages: List[dict],
         project_id: str,
     ) -> None:
         """
@@ -231,9 +227,9 @@ class PubSubHook(GoogleBaseHook):
         except AlreadyExists:
             self.log.warning('Topic already exists: %s', topic)
             if fail_if_exists:
-                raise PubSubException('Topic already exists: {}'.format(topic))
+                raise PubSubException(f'Topic already exists: {topic}')
         except GoogleAPICallError as e:
-            raise PubSubException('Error creating topic {}'.format(topic), e)
+            raise PubSubException(f'Error creating topic {topic}', e)
 
         self.log.info("Created topic (path) %s", topic_path)
 
@@ -284,9 +280,9 @@ class PubSubHook(GoogleBaseHook):
         except NotFound:
             self.log.warning('Topic does not exist: %s', topic_path)
             if fail_if_not_exists:
-                raise PubSubException('Topic does not exist: {}'.format(topic_path))
+                raise PubSubException(f'Topic does not exist: {topic_path}')
         except GoogleAPICallError as e:
-            raise PubSubException('Error deleting topic {}'.format(topic), e)
+            raise PubSubException(f'Error deleting topic {topic}', e)
         self.log.info("Deleted topic (path) %s", topic_path)
 
     # pylint: disable=too-many-arguments
@@ -299,15 +295,15 @@ class PubSubHook(GoogleBaseHook):
         subscription_project_id: Optional[str] = None,
         ack_deadline_secs: int = 10,
         fail_if_exists: bool = False,
-        push_config: Optional[Union[Dict, PushConfig]] = None,
+        push_config: Optional[Union[dict, PushConfig]] = None,
         retain_acked_messages: Optional[bool] = None,
-        message_retention_duration: Optional[Union[Dict, Duration]] = None,
+        message_retention_duration: Optional[Union[dict, Duration]] = None,
         labels: Optional[Dict[str, str]] = None,
         enable_message_ordering: bool = False,
-        expiration_policy: Optional[Union[Dict, ExpirationPolicy]] = None,
+        expiration_policy: Optional[Union[dict, ExpirationPolicy]] = None,
         filter_: Optional[str] = None,
-        dead_letter_policy: Optional[Union[Dict, DeadLetterPolicy]] = None,
-        retry_policy: Optional[Union[Dict, RetryPolicy]] = None,
+        dead_letter_policy: Optional[Union[dict, DeadLetterPolicy]] = None,
+        retry_policy: Optional[Union[dict, RetryPolicy]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -396,7 +392,7 @@ class PubSubHook(GoogleBaseHook):
         subscriber = self.subscriber_client
 
         if not subscription:
-            subscription = 'sub-{}'.format(uuid4())
+            subscription = f'sub-{uuid4()}'
         if not subscription_project_id:
             subscription_project_id = project_id
 
@@ -430,9 +426,9 @@ class PubSubHook(GoogleBaseHook):
         except AlreadyExists:
             self.log.warning('Subscription already exists: %s', subscription_path)
             if fail_if_exists:
-                raise PubSubException('Subscription already exists: {}'.format(subscription_path))
+                raise PubSubException(f'Subscription already exists: {subscription_path}')
         except GoogleAPICallError as e:
-            raise PubSubException('Error creating subscription {}'.format(subscription_path), e)
+            raise PubSubException(f'Error creating subscription {subscription_path}', e)
 
         self.log.info("Created subscription (path) %s for topic (path) %s", subscription_path, topic_path)
         return subscription
@@ -482,9 +478,9 @@ class PubSubHook(GoogleBaseHook):
         except NotFound:
             self.log.warning('Subscription does not exist: %s', subscription_path)
             if fail_if_not_exists:
-                raise PubSubException('Subscription does not exist: {}'.format(subscription_path))
+                raise PubSubException(f'Subscription does not exist: {subscription_path}')
         except GoogleAPICallError as e:
-            raise PubSubException('Error deleting subscription {}'.format(subscription_path), e)
+            raise PubSubException(f'Error deleting subscription {subscription_path}', e)
 
         self.log.info("Deleted subscription (path) %s", subscription_path)
 
@@ -548,7 +544,7 @@ class PubSubHook(GoogleBaseHook):
             self.log.info("Pulled %d messages from subscription (path) %s", len(result), subscription_path)
             return result
         except (HttpError, GoogleAPICallError) as e:
-            raise PubSubException('Error pulling messages from subscription {}'.format(subscription_path), e)
+            raise PubSubException(f'Error pulling messages from subscription {subscription_path}', e)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def acknowledge(

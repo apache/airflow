@@ -65,3 +65,99 @@ If you want to use 'external trigger' to run future-dated execution dates, set `
 This only has effect if your DAG has no ``schedule_interval``.
 If you keep default ``allow_trigger_in_future = False`` and try 'external trigger' to run future-dated execution dates,
 the scheduler won't execute it now but the scheduler will execute it in the future once the current date rolls over to the execution date.
+
+Running More Than One Scheduler
+-------------------------------
+
+.. versionadded: 2.0.0
+
+Airflow supports running more than one scheduler concurrently -- both for performance reasons and for
+resiliency.
+
+Overview
+""""""""
+
+The :abbr:`HA (highly available)` scheduler is designed to take advantage of the existing metadata database.
+This was primarily done for operational simplicity: every component already has to speak to this DB, and by
+not using direct communication or consensus algorithm between schedulers (Raft, Paxos, etc.) nor another
+consensus tool (Apache Zookeeper, or Consul for instance) we have kept the "operational surface area" to a
+minimum.
+
+The scheduler now uses the serialized DAG representation to make its scheduling decisions and the rough
+outline of the scheduling loop is:
+
+- Check for any DAGs needing a new DagRun, and create them
+- Examine a batch of DagRuns for schedulable TaskInstances or complete DagRuns
+- Select schedulable TaskInstances, and whilst respecting Pool limits and other concurrency limits, enqueue
+  them for execution
+
+This does however place some requirements on the Database.
+
+.. _scheduler:ha:db_requirements:
+
+Database Requirements
+"""""""""""""""""""""
+
+The short version is that users of PostgreSQL 9.6+ or MySQL 8+ are all ready to go -- you can start running as
+many copies of the scheduler as you like -- there is no further set up or config options needed. If you are
+using a different database please read on.
+
+To maintain performance and throughput there is one part of the scheduling loop that does a number of
+calculations in memory (because having to round-trip to the DB for each TaskInstance would be too slow) so we
+need to ensure that only a single scheduler is in this critical section at once - otherwise limits would not
+be correctly respected. To achieve this we use database row-level locks (using ``SELECT ... FOR UPDATE``).
+
+This critical section is where TaskInstances go from scheduled state and are enqueued to the executor, whilst
+ensuring the various concurrency and pool limits are respected. The critical section is obtained by asking for
+a row-level write lock on every row of the Pool table (roughly equivalent to ``SELECT * FROM slot_pool FOR
+UPDATE NOWAIT`` but the exact query is slightly different).
+
+The following databases are fully supported and provide an "optimal" experience:
+
+- PostgreSQL 9.6+
+- MySQL 8+
+
+.. warning::
+
+  MariaDB does not implement the ``SKIP LOCKED`` or ``NOWAIT`` SQL clauses (see `MDEV-13115
+  <https://jira.mariadb.org/browse/MDEV-13115>`_). Without these features running multiple schedulers is not
+  supported and deadlock errors have been reported.
+
+.. warning::
+
+  MySQL 5.x also does not support ``SKIP LOCKED`` or ``NOWAIT``, and additionally is more prone to deciding
+  queries are deadlocked, so running with more than a single scheduler on MySQL 5.x is not supported or
+  recommended.
+
+.. note::
+
+  Microsoft SQLServer has not been tested with HA.
+
+.. _scheduler:ha:tunables:
+
+Scheduler Tuneables
+"""""""""""""""""""
+
+The following config settings can be used to control aspects of the Scheduler HA loop.
+
+- :ref:`config:scheduler__max_dagruns_to_create_per_loop`
+
+  This changes the number of dags that are locked by each scheduler when
+  creating dag runs. One possible reason for setting this lower is if you
+  have huge dags and are running multiple schedules, you won't want one
+  scheduler to do all the work.
+
+- :ref:`config:scheduler__max_dagruns_per_loop_to_schedule`
+
+  How many DagRuns should a scheduler examine (and lock) when scheduling
+  and queuing tasks. Increasing this limit will allow more throughput for
+  smaller DAGs but will likely slow down throughput for larger (>500
+  tasks for example) DAGs. Setting this too high when using multiple
+  schedulers could also lead to one scheduler taking all the dag runs
+  leaving no work for the others.
+
+- :ref:`config:scheduler__use_row_level_locking`
+
+  Should the scheduler issue ``SELECT ... FOR UPDATE`` in relevant queries.
+  If this is set to False then you should not run more than a single
+  scheduler at once

@@ -42,6 +42,7 @@ class PostgresOperator(BaseOperator):
     """
 
     template_fields = ('sql',)
+    template_fields_renderers = {'sql': 'sql'}
     template_ext = ('.sql',)
     ui_color = '#ededed'
 

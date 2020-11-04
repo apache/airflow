@@ -203,15 +203,15 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             # k8s://https://<HOST>:<PORT>
             conn = self.get_connection(self._conn_id)
             if conn.port:
-                conn_data['master'] = "{}:{}".format(conn.host, conn.port)
+                conn_data['master'] = f"{conn.host}:{conn.port}"
             else:
                 conn_data['master'] = conn.host
 
             # Determine optional yarn queue from the extra field
             extra = conn.extra_dejson
-            conn_data['queue'] = extra.get('queue', None)
-            conn_data['deploy_mode'] = extra.get('deploy-mode', None)
-            conn_data['spark_home'] = extra.get('spark-home', None)
+            conn_data['queue'] = extra.get('queue')
+            conn_data['deploy_mode'] = extra.get('deploy-mode')
+            conn_data['spark_home'] = extra.get('spark-home')
             conn_data['spark_binary'] = self._spark_binary or extra.get('spark-binary', "spark-submit")
             conn_data['namespace'] = extra.get('namespace')
         except AirflowException:
@@ -561,7 +561,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             Unable to run or restart due to an unrecoverable error
             (e.g. missing jar file)
         """
-
         # When your Spark Standalone cluster is not performing well
         # due to misconfiguration or heavy loads.
         # it is possible that the polling request will timeout.
@@ -604,7 +603,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         Construct the spark-submit command to kill a driver.
         :return: full command to kill a driver
         """
-
         # If the spark_home is passed then build the spark-submit executable path using
         # the spark_home; otherwise assume that spark-submit is present in the path to
         # the executing user
@@ -627,10 +625,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         return connection_cmd
 
     def on_kill(self) -> None:
-        """
-        Kill Spark submit command
-        """
-
+        """Kill Spark submit command"""
         self.log.debug("Kill Command is being called")
 
         if self._should_track_driver_status:
@@ -649,7 +644,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             self._submit_sp.kill()
 
             if self._yarn_application_id:
-                kill_cmd = "yarn application -kill {}".format(self._yarn_application_id).split()
+                kill_cmd = f"yarn application -kill {self._yarn_application_id}".split()
                 env = None
                 if self._keytab is not None and self._principal is not None:
                     # we are ignoring renewal failures from renew_from_kt

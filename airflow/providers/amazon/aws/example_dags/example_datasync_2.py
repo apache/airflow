@@ -19,7 +19,7 @@ This is an example dag for using `AWSDataSyncOperator` in a more complex manner.
 
 - Try to get a TaskArn. If one exists, update it.
 - If no tasks exist, try to create a new DataSync Task.
-    - If source and destination locations dont exist for the new task, create them first
+    - If source and destination locations don't exist for the new task, create them first
 - If many tasks exist, raise an Exception
 - After getting or creating a DataSync Task, run it
 

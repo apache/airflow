@@ -1,4 +1,3 @@
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -29,6 +28,7 @@ import sys
 import warnings
 from base64 import b64encode
 from collections import OrderedDict
+
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
 from json.decoder import JSONDecodeError
@@ -68,9 +68,7 @@ def expand_env_var(env_var):
 
 
 def run_command(command):
-    """
-    Runs command and returns stdout
-    """
+    """Runs command and returns stdout"""
     process = subprocess.Popen(
         shlex.split(command),
         stdout=subprocess.PIPE,
@@ -178,6 +176,9 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
             'task_runner': (re.compile(r'\ABashTaskRunner\Z'), r'StandardTaskRunner', '2.0'),
             'hostname_callable': (re.compile(r':'), r'.', '2.0'),
         },
+        'webserver': {
+            'navbar_color': (re.compile(r'\A#007A87\Z', re.IGNORECASE), '#fff', '2.1'),
+        },
         'email': {
             'email_backend': (
                 re.compile(r'^airflow\.contrib\.utils\.sendgrid\.send_email$'),
@@ -228,7 +229,6 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
         Validate that config values aren't invalid given other config values
         or system-level limitations and requirements.
         """
-
         if (
                 self.get("core", "executor") not in ('DebugExecutor', 'SequentialExecutor') and
                 "sqlite" in self.get('core', 'sql_alchemy_conn')):
@@ -269,7 +269,7 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
 
     @staticmethod
     def _env_var_name(section, key):
-        return 'AIRFLOW__{S}__{K}'.format(S=section.upper(), K=key.upper())
+        return f'AIRFLOW__{section.upper()}__{key.upper()}'
 
     def _get_env_var_option(self, section, key):
         # must have format AIRFLOW__{SECTION}__{KEY} (note double underscore)
@@ -507,7 +507,7 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
         if section in self._sections:  # type: ignore
             _section.update(copy.deepcopy(self._sections[section]))  # type: ignore
 
-        section_prefix = 'AIRFLOW__{S}__'.format(S=section.upper())
+        section_prefix = f'AIRFLOW__{section.upper()}__'
         for env_var in sorted(os.environ.keys()):
             if env_var.startswith(section_prefix):
                 key = env_var.replace(section_prefix, '')

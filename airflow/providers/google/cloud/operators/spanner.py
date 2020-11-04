@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Spanner operators.
-"""
+"""This module contains Google Spanner operators."""
 from typing import List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
@@ -98,13 +96,13 @@ class SpannerDeployInstanceOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def _validate_inputs(self):
+    def _validate_inputs(self) -> None:
         if self.project_id == '':
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance_id:
             raise AirflowException("The required parameter 'instance_id' " "is empty or None")
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = SpannerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -177,13 +175,13 @@ class SpannerDeleteInstanceOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def _validate_inputs(self):
+    def _validate_inputs(self) -> None:
         if self.project_id == '':
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance_id:
             raise AirflowException("The required parameter 'instance_id' " "is empty or None")
 
-    def execute(self, context):
+    def execute(self, context) -> Optional[bool]:
         hook = SpannerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -263,7 +261,7 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def _validate_inputs(self):
+    def _validate_inputs(self) -> None:
         if self.project_id == '':
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance_id:
@@ -297,7 +295,7 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
         )
 
     @staticmethod
-    def sanitize_queries(queries):
+    def sanitize_queries(queries: List[str]) -> None:
         """
         Drops empty query in queries.
 
@@ -373,7 +371,7 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def _validate_inputs(self):
+    def _validate_inputs(self) -> None:
         if self.project_id == '':
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance_id:
@@ -381,7 +379,7 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
         if not self.database_id:
             raise AirflowException("The required parameter 'database_id' is empty" " or None")
 
-    def execute(self, context):
+    def execute(self, context) -> Optional[bool]:
         hook = SpannerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -480,7 +478,7 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def _validate_inputs(self):
+    def _validate_inputs(self) -> None:
         if self.project_id == '':
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance_id:
@@ -490,7 +488,7 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
         if not self.ddl_statements:
             raise AirflowException("The required parameter 'ddl_statements' is empty" " or None")
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = SpannerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -570,7 +568,7 @@ class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def _validate_inputs(self):
+    def _validate_inputs(self) -> None:
         if self.project_id == '':
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance_id:
@@ -578,7 +576,7 @@ class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
         if not self.database_id:
             raise AirflowException("The required parameter 'database_id' is empty" " or None")
 
-    def execute(self, context):
+    def execute(self, context) -> bool:
         hook = SpannerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

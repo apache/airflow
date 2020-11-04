@@ -34,6 +34,8 @@ class WasbHook(BaseHook):
     """
     Interacts with Azure Blob Storage through the ``wasb://`` protocol.
 
+    These parameters have to be passed in Airflow Data Base: account_name and account_key.
+
     Additional options passed in the 'extra' field of the connection will be
     passed to the `BlockBlockService()` constructor. For example, authenticate
     using a SAS token by adding {"sas_token": "YOUR_TOKEN"}.
@@ -42,12 +44,12 @@ class WasbHook(BaseHook):
     :type wasb_conn_id: str
     """
 
-    def __init__(self, wasb_conn_id='wasb_default'):
+    def __init__(self, wasb_conn_id: str = 'wasb_default') -> None:
         super().__init__()
         self.conn_id = wasb_conn_id
         self.connection = self.get_conn()
 
-    def get_conn(self):
+    def get_conn(self) -> BlockBlobService:
         """Return the BlockBlobService object."""
         conn = self.get_connection(self.conn_id)
         service_options = conn.extra_dejson
@@ -69,7 +71,7 @@ class WasbHook(BaseHook):
         """
         return self.connection.exists(container_name, blob_name, **kwargs)
 
-    def check_for_prefix(self, container_name, prefix, **kwargs):
+    def check_for_prefix(self, container_name: str, prefix: str, **kwargs) -> bool:
         """
         Check if a prefix exists on Azure Blob storage.
 
@@ -86,7 +88,7 @@ class WasbHook(BaseHook):
         matches = self.connection.list_blobs(container_name, prefix, num_results=1, **kwargs)
         return len(list(matches)) > 0
 
-    def get_blobs_list(self, container_name: str, prefix: str, **kwargs):
+    def get_blobs_list(self, container_name: str, prefix: str, **kwargs) -> list:
         """
         Return a list of blobs from path defined in prefix param
 
@@ -103,7 +105,7 @@ class WasbHook(BaseHook):
         """
         return self.connection.list_blobs(container_name, prefix, **kwargs)
 
-    def load_file(self, file_path, container_name, blob_name, **kwargs):
+    def load_file(self, file_path: str, container_name: str, blob_name: str, **kwargs) -> None:
         """
         Upload a file to Azure Blob Storage.
 
@@ -120,7 +122,7 @@ class WasbHook(BaseHook):
         # Reorder the argument order from airflow.providers.amazon.aws.hooks.s3.load_file.
         self.connection.create_blob_from_path(container_name, blob_name, file_path, **kwargs)
 
-    def load_string(self, string_data, container_name, blob_name, **kwargs):
+    def load_string(self, string_data: str, container_name: str, blob_name: str, **kwargs) -> None:
         """
         Upload a string to Azure Blob Storage.
 
@@ -137,7 +139,7 @@ class WasbHook(BaseHook):
         # Reorder the argument order from airflow.providers.amazon.aws.hooks.s3.load_string.
         self.connection.create_blob_from_text(container_name, blob_name, string_data, **kwargs)
 
-    def get_file(self, file_path, container_name, blob_name, **kwargs):
+    def get_file(self, file_path: str, container_name: str, blob_name: str, **kwargs):
         """
         Download a file from Azure Blob Storage.
 
@@ -153,7 +155,7 @@ class WasbHook(BaseHook):
         """
         return self.connection.get_blob_to_path(container_name, blob_name, file_path, **kwargs)
 
-    def read_file(self, container_name, blob_name, **kwargs):
+    def read_file(self, container_name: str, blob_name: str, **kwargs):
         """
         Read a file from Azure Blob Storage and return as a string.
 
@@ -167,7 +169,14 @@ class WasbHook(BaseHook):
         """
         return self.connection.get_blob_to_text(container_name, blob_name, **kwargs).content
 
-    def delete_file(self, container_name, blob_name, is_prefix=False, ignore_if_missing=False, **kwargs):
+    def delete_file(
+        self,
+        container_name: str,
+        blob_name: str,
+        is_prefix: bool = False,
+        ignore_if_missing: bool = False,
+        **kwargs,
+    ) -> None:
         """
         Delete a file from Azure Blob Storage.
 
@@ -184,7 +193,6 @@ class WasbHook(BaseHook):
             `BlockBlobService.create_blob_from_path()` takes.
         :type kwargs: object
         """
-
         if is_prefix:
             blobs_to_delete = [
                 blob.name for blob in self.connection.list_blobs(container_name, prefix=blob_name, **kwargs)
@@ -195,7 +203,7 @@ class WasbHook(BaseHook):
             blobs_to_delete = []
 
         if not ignore_if_missing and len(blobs_to_delete) == 0:
-            raise AirflowException('Blob(s) not found: {}'.format(blob_name))
+            raise AirflowException(f'Blob(s) not found: {blob_name}')
 
         for blob_uri in blobs_to_delete:
             self.log.info("Deleting blob: %s", blob_uri)

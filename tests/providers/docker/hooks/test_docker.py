@@ -17,8 +17,7 @@
 # under the License.
 
 import unittest
-
-import mock
+from unittest import mock
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection

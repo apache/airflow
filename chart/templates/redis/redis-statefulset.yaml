@@ -18,7 +18,7 @@
 ################################
 ## Airflow Redis StatefulSet
 #################################
-{{- if eq .Values.executor "CeleryExecutor" }}
+{{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
 kind: StatefulSet
 apiVersion: apps/v1
 metadata:
@@ -48,10 +48,10 @@ spec:
 {{- with .Values.labels }}
 {{ toYaml . | indent 8 }}
 {{- end }}
+      {{- if .Values.redis.safeToEvict }}
       annotations:
-        {{- if .Values.redis.safeToEvict }}
         cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
-        {{- end }}
+      {{- end }}
     spec:
       nodeSelector:
 {{ toYaml .Values.nodeSelector | indent 8 }}
@@ -59,9 +59,13 @@ spec:
 {{ toYaml .Values.affinity | indent 8 }}
       tolerations:
 {{ toYaml .Values.tolerations | indent 8 }}
+      {{- if or .Values.registry.secretName .Values.registry.connection }}
+      imagePullSecrets:
+        - name: {{ template "registry_secret" . }}
+      {{- end }}
       containers:
         - name: redis
-          image: {{- include "redis_image" . | indent 1 }}
+          image: {{ template "redis_image" . }}
           imagePullPolicy: {{ .Values.images.redis.pullPolicy }}
           command: ["/bin/sh"]
           resources:

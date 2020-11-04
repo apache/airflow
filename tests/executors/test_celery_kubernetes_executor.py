@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import mock
+from unittest import mock
 
 from airflow.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
 
@@ -74,7 +74,8 @@ class TestCeleryKubernetesExecutor:
             cke.queue_command(simple_task_instance, command, priority, queue)
 
             k8s_executor_mock.queue_command.assert_called_once_with(
-                simple_task_instance, command, priority, queue)
+                simple_task_instance, command, priority, queue
+            )
             celery_executor_mock.queue_command.assert_not_called()
 
         def when_using_celery_executor():
@@ -88,7 +89,8 @@ class TestCeleryKubernetesExecutor:
             cke.queue_command(simple_task_instance, command, priority, queue)
 
             celery_executor_mock.queue_command.assert_called_once_with(
-                simple_task_instance, command, priority, queue)
+                simple_task_instance, command, priority, queue
+            )
             k8s_executor_mock.queue_command.assert_not_called()
 
         when_using_k8s_executor()
@@ -121,7 +123,7 @@ class TestCeleryKubernetesExecutor:
                 ignore_task_deps,
                 ignore_ti_state,
                 pool,
-                cfg_path
+                cfg_path,
             )
 
             k8s_executor_mock.queue_task_instance.assert_called_once_with(
@@ -133,7 +135,7 @@ class TestCeleryKubernetesExecutor:
                 ignore_task_deps,
                 ignore_ti_state,
                 pool,
-                cfg_path
+                cfg_path,
             )
             celery_executor_mock.queue_task_instance.assert_not_called()
 
@@ -154,7 +156,7 @@ class TestCeleryKubernetesExecutor:
                 ignore_task_deps,
                 ignore_ti_state,
                 pool,
-                cfg_path
+                cfg_path,
             )
 
             k8s_executor_mock.queue_task_instance.assert_not_called()
@@ -167,7 +169,7 @@ class TestCeleryKubernetesExecutor:
                 ignore_task_deps,
                 ignore_ti_state,
                 pool,
-                cfg_path
+                cfg_path,
             )
 
         when_using_k8s_executor()
@@ -197,6 +199,38 @@ class TestCeleryKubernetesExecutor:
 
             assert cke.has_task(ti)
             celery_executor_mock.has_task.assert_called_once_with(ti)
+
+        when_ti_in_k8s_executor()
+        when_ti_in_celery_executor()
+
+    def test_adopt_tasks(self):
+        ti = mock.MagicMock
+
+        def when_ti_in_k8s_executor():
+            celery_executor_mock = mock.MagicMock()
+            k8s_executor_mock = mock.MagicMock()
+            ti.queue = "kubernetes"
+            cke = CeleryKubernetesExecutor(celery_executor_mock, k8s_executor_mock)
+
+            celery_executor_mock.try_adopt_task_instances.return_value = []
+            k8s_executor_mock.try_adopt_task_instances.return_value = []
+
+            cke.try_adopt_task_instances([ti])
+            celery_executor_mock.try_adopt_task_instances.assert_called_once_with([])
+            k8s_executor_mock.try_adopt_task_instances.assert_called_once_with([ti])
+
+        def when_ti_in_celery_executor():
+            celery_executor_mock = mock.MagicMock()
+            k8s_executor_mock = mock.MagicMock()
+            ti.queue = "default"
+            cke = CeleryKubernetesExecutor(celery_executor_mock, k8s_executor_mock)
+
+            celery_executor_mock.try_adopt_task_instances.return_value = []
+            k8s_executor_mock.try_adopt_task_instances.return_value = []
+
+            cke.try_adopt_task_instances([ti])
+            celery_executor_mock.try_adopt_task_instances.assert_called_once_with([ti])
+            k8s_executor_mock.try_adopt_task_instances.assert_called_once_with([])
 
         when_ti_in_k8s_executor()
         when_ti_in_celery_executor()

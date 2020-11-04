@@ -21,8 +21,11 @@ services:
     image: cassandra:3.0
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
+      - cassandra-db-volume:/var/lib/cassandra
   airflow:
     environment:
       - INTEGRATION_CASSANDRA=true
     depends_on:
       - cassandra
+volumes:
+  cassandra-db-volume:

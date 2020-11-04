@@ -103,12 +103,12 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
         metadata: Optional[str] = None,
-        gcp_conn_id: Optional[str] = 'google_cloud_default',
+        gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.format_ = format_
         self.filter_ = filter_
@@ -207,12 +207,12 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
         metadata: Optional[str] = None,
-        gcp_conn_id: Optional[str] = 'google_cloud_default',
+        gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
@@ -298,12 +298,12 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
         metadata: Optional[str] = None,
-        gcp_conn_id: Optional[str] = 'google_cloud_default',
+        gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
@@ -391,12 +391,12 @@ class StackdriverUpsertAlertOperator(BaseOperator):
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
         metadata: Optional[str] = None,
-        gcp_conn_id: Optional[str] = 'google_cloud_default',
+        gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.alerts = alerts
         self.retry = retry
@@ -480,12 +480,12 @@ class StackdriverDeleteAlertOperator(BaseOperator):
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
         metadata: Optional[str] = None,
-        gcp_conn_id: Optional[str] = 'google_cloud_default',
+        gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.name = name
         self.retry = retry
@@ -592,12 +592,12 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
         metadata: Optional[str] = None,
-        gcp_conn_id: Optional[str] = 'google_cloud_default',
+        gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.format_ = format_
         self.filter_ = filter_
@@ -696,12 +696,12 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
         metadata: Optional[str] = None,
-        gcp_conn_id: Optional[str] = 'google_cloud_default',
+        gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.filter_ = filter_
         self.retry = retry
@@ -789,12 +789,12 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
         metadata: Optional[str] = None,
-        gcp_conn_id: Optional[str] = 'google_cloud_default',
+        gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.filter_ = filter_
         self.retry = retry
@@ -884,12 +884,12 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
         retry: Optional[str] = DEFAULT,
         timeout: Optional[str] = DEFAULT,
         metadata: Optional[str] = None,
-        gcp_conn_id: Optional[str] = 'google_cloud_default',
+        gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.channels = channels
         self.retry = retry
@@ -975,12 +975,12 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
         metadata: Optional[str] = None,
-        gcp_conn_id: Optional[str] = 'google_cloud_default',
+        gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.name = name
         self.retry = retry

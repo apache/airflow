@@ -196,7 +196,6 @@ JobRunning
 JobTrigger
 Json
 Jupyter
-jupytercmd
 KYLIN
 Kalibrr
 Kamil
@@ -265,6 +264,7 @@ Parallelize
 Parameterizing
 Paramiko
 Params
+Paxos
 Pem
 Pinot
 Popen
@@ -356,6 +356,7 @@ ToC
 Tomasz
 Tooltip
 Tsai
+Tuneables
 UA
 Uellendall
 Umask
@@ -472,6 +473,7 @@ backreference
 backtick
 backticks
 balancer
+balancers
 baseOperator
 basedn
 basestring
@@ -532,11 +534,13 @@ cloudant
 cloudml
 cloudsqldatabehook
 cloudwatch
+cmake
 cmd
 cmdline
 cmds
 cname
 cnf
+cnt
 codebase
 codecov
 colour
@@ -662,6 +666,7 @@ dsn
 dttm
 dtypes
 durations
+dylib
 dynamodb
 dynload
 eRevalue
@@ -674,6 +679,7 @@ emr
 enableAutoScale
 encryptor
 enqueue
+enqueued
 entrypoint
 enum
 env
@@ -735,6 +741,7 @@ gRPC
 ga
 gantt
 gbq
+gcc
 gcloud
 gcp
 gcpcloudsql
@@ -778,6 +785,7 @@ hiveconfs
 hivemeta
 hiveserver
 hmsclient
+homebrew
 honoured
 hostPath
 hostname
@@ -827,6 +835,7 @@ integrations
 interdependencies
 internalIpOnly
 ints
+intvl
 io
 ip
 isfile
@@ -858,6 +867,7 @@ js
 json
 jthomas
 jupyter
+jupytercmd
 kaxilnaik
 keepalive
 keepalives
@@ -989,6 +999,7 @@ os
 ot
 overridable
 oversubscription
+pagerduty
 pageviews
 paginator
 papermill
@@ -1099,7 +1110,9 @@ repos
 reqs
 resetdb
 resourceVersion
+resultset
 resumable
+retransmits
 rfc
 ricard
 rideable
@@ -1114,6 +1127,7 @@ ru
 runAsUser
 runnable
 runtime
+ryanahamilton
 ryw
 sagemaker
 saguziel
@@ -1126,6 +1140,7 @@ savedModel
 scalability
 scalable
 sched
+schedulable
 schedulername
 schemas
 sdk
@@ -1217,10 +1232,12 @@ subtask
 subtasks
 sudo
 sudoers
+summarization
 superclass
 svg
 swp
 symlink
+symlinks
 symlinking
 sync'ed
 sys
@@ -1231,8 +1248,10 @@ tablefmt
 tagKey
 tagValue
 tao
+taskflow
 taskinstance
 tblproperties
+tcp
 templatable
 templateable
 templated
@@ -1260,6 +1279,8 @@ tokopedia
 tolerations
 tooltip
 tooltips
+traceback
+tracebacks
 travis
 trojan
 tsv

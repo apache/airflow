@@ -18,7 +18,7 @@
 ################################
 ## Airflow Flower Ingress
 #################################
-{{- if and .Values.ingress.enabled (eq .Values.executor "CeleryExecutor") }}
+{{- if and .Values.ingress.enabled (or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor")) }}
 apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:

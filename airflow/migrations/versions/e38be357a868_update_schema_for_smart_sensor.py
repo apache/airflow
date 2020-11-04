@@ -35,15 +35,15 @@ branch_labels = None
 depends_on = None
 
 
-def mssql_timestamp():   # noqa: D103
+def mssql_timestamp():  # noqa: D103
     return sa.DateTime()
 
 
-def mysql_timestamp():   # noqa: D103
+def mysql_timestamp():  # noqa: D103
     return mysql.TIMESTAMP(fsp=6)
 
 
-def sa_timestamp():   # noqa: D103
+def sa_timestamp():  # noqa: D103
     return sa.TIMESTAMP(timezone=True)
 
 
@@ -74,14 +74,9 @@ def upgrade():  # noqa: D103
         sa.Column('execution_context', sa.Text(), nullable=True),
         sa.Column('created_at', timestamp(), default=func.now(), nullable=False),
         sa.Column('updated_at', timestamp(), default=func.now(), nullable=False),
-        sa.PrimaryKeyConstraint('id')
+        sa.PrimaryKeyConstraint('id'),
     )
-    op.create_index(
-        'ti_primary_key',
-        'sensor_instance',
-        ['dag_id', 'task_id', 'execution_date'],
-        unique=True
-    )
+    op.create_index('ti_primary_key', 'sensor_instance', ['dag_id', 'task_id', 'execution_date'], unique=True)
     op.create_index('si_hashcode', 'sensor_instance', ['hashcode'], unique=False)
     op.create_index('si_shardcode', 'sensor_instance', ['shardcode'], unique=False)
     op.create_index('si_state_shard', 'sensor_instance', ['state', 'shardcode'], unique=False)

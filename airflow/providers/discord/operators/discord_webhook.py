@@ -84,9 +84,7 @@ class DiscordWebhookOperator(SimpleHttpOperator):
         self.hook: Optional[DiscordWebhookHook] = None
 
     def execute(self, context: Dict) -> None:
-        """
-        Call the DiscordWebhookHook to post message
-        """
+        """Call the DiscordWebhookHook to post message"""
         self.hook = DiscordWebhookHook(
             self.http_conn_id,
             self.webhook_endpoint,

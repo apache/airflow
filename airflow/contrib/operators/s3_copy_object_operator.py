@@ -24,5 +24,6 @@ from airflow.providers.amazon.aws.operators.s3_copy_object import S3CopyObjectOp
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.s3_copy_object`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

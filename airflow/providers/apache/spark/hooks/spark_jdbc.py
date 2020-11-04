@@ -182,7 +182,7 @@ class SparkJDBCHook(SparkSubmitHook):
         try:
             conn = self.get_connection(self._jdbc_conn_id)
             if conn.port:
-                conn_data['url'] = "{}:{}".format(conn.host, conn.port)
+                conn_data['url'] = f"{conn.host}:{conn.port}"
             else:
                 conn_data['url'] = conn.host
             conn_data['schema'] = conn.schema
@@ -202,7 +202,7 @@ class SparkJDBCHook(SparkSubmitHook):
         if self._jdbc_connection['url']:
             arguments += [
                 '-url',
-                "{0}{1}/{2}".format(jdbc_conn['conn_prefix'], jdbc_conn['url'], jdbc_conn['schema']),
+                "{}{}/{}".format(jdbc_conn['conn_prefix'], jdbc_conn['url'], jdbc_conn['schema']),
             ]
         if self._jdbc_connection['user']:
             arguments += ['-user', self._jdbc_connection['user']]
@@ -241,9 +241,7 @@ class SparkJDBCHook(SparkSubmitHook):
         return arguments
 
     def submit_jdbc_job(self) -> None:
-        """
-        Submit Spark JDBC job
-        """
+        """Submit Spark JDBC job"""
         self._application_args = self._build_jdbc_application_arguments(self._jdbc_connection)
         self.submit(application=os.path.dirname(os.path.abspath(__file__)) + "/spark_jdbc_script.py")
 

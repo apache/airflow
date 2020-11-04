@@ -21,8 +21,7 @@
 import json
 import unittest
 from collections import namedtuple
-
-import mock
+from unittest import mock
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection

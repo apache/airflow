@@ -29,6 +29,7 @@ log = logging.getLogger(__name__)
 
 class FernetProtocol(Protocol):
     """This class is only used for TypeChecking (for IDEs, mypy, pylint, etc)"""
+
     def decrypt(self, b):
         """Decrypt with Fernet"""
 
@@ -45,6 +46,7 @@ class NullFernet:
     difference, and to only display the message once, not 20 times when
     `airflow db init` is ran.
     """
+
     is_encrypted = False
 
     def decrypt(self, b):
@@ -77,17 +79,14 @@ def get_fernet():
     try:
         fernet_key = conf.get('core', 'FERNET_KEY')
         if not fernet_key:
-            log.warning(
-                "empty cryptography key - values will not be stored encrypted."
-            )
+            log.warning("empty cryptography key - values will not be stored encrypted.")
             _fernet = NullFernet()
         else:
-            _fernet = MultiFernet([
-                Fernet(fernet_part.encode('utf-8'))
-                for fernet_part in fernet_key.split(',')
-            ])
+            _fernet = MultiFernet(
+                [Fernet(fernet_part.encode('utf-8')) for fernet_part in fernet_key.split(',')]
+            )
             _fernet.is_encrypted = True
     except (ValueError, TypeError) as value_error:
-        raise AirflowException("Could not create Fernet object: {}".format(value_error))
+        raise AirflowException(f"Could not create Fernet object: {value_error}")
 
     return _fernet

@@ -67,7 +67,7 @@ class StepFunctionHook(AwsBaseHook):
         self.log.info('Executing Step Function State Machine: %s', state_machine_arn)
 
         response = self.conn.start_execution(**execution_args)
-        return response.get('executionArn', None)
+        return response.get('executionArn')
 
     def describe_execution(self, execution_arn: str) -> dict:
         """

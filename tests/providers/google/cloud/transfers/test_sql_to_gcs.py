@@ -17,9 +17,9 @@
 
 import json
 import unittest
+from unittest import mock
 from unittest.mock import Mock
 
-import mock
 import unicodecsv as csv
 
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -159,3 +159,26 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
         mock_flush.assert_called_once()
         mock_upload.assert_called_once_with(BUCKET, FILENAME, TMP_FILE_NAME, mime_type=APP_JSON, gzip=False)
         mock_close.assert_called_once()
+
+        # Test null marker
+        cursor_mock.__iter__ = Mock(return_value=iter(INPUT_DATA))
+        mock_convert_type.return_value = None
+
+        operator = DummySQLToGCSOperator(
+            sql=SQL,
+            bucket=BUCKET,
+            filename=FILENAME,
+            task_id=TASK_ID,
+            export_format="csv",
+            null_marker="NULL",
+        )
+        operator.execute(context=dict())
+
+        mock_writerow.assert_has_calls(
+            [
+                mock.call(COLUMNS),
+                mock.call(["NULL", "NULL", "NULL"]),
+                mock.call(["NULL", "NULL", "NULL"]),
+                mock.call(["NULL", "NULL", "NULL"]),
+            ]
+        )

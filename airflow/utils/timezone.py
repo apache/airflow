@@ -55,7 +55,6 @@ def utcnow() -> dt.datetime:
 
     :return:
     """
-
     # pendulum utcnow() is not used as that sets a TimezoneInfo object
     # instead of a Timezone. This is not pickable and also creates issues
     # when using replace()
@@ -71,7 +70,6 @@ def utc_epoch() -> dt.datetime:
 
     :return:
     """
-
     # pendulum utcnow() is not used as that sets a TimezoneInfo object
     # instead of a Timezone. This is not pickable and also creates issues
     # when using replace()
@@ -111,8 +109,7 @@ def make_aware(value, timezone=None):
 
     # Check that we won't overwrite the timezone of an aware datetime.
     if is_localized(value):
-        raise ValueError(
-            "make_aware expects a naive datetime, got %s" % value)
+        raise ValueError("make_aware expects a naive datetime, got %s" % value)
     if hasattr(value, 'fold'):
         # In case of python 3.6 we want to do the same that pendulum does for python3.5
         # i.e in case we move clock back we want to schedule the run at the time of the second
@@ -148,13 +145,9 @@ def make_naive(value, timezone=None):
     date = value.astimezone(timezone)
 
     # cross library compatibility
-    naive = dt.datetime(date.year,
-                        date.month,
-                        date.day,
-                        date.hour,
-                        date.minute,
-                        date.second,
-                        date.microsecond)
+    naive = dt.datetime(
+        date.year, date.month, date.day, date.hour, date.minute, date.second, date.microsecond
+    )
 
     return naive
 

@@ -43,19 +43,12 @@ def configure_logging():
             if not isinstance(logging_config, dict):
                 raise ValueError("Logging Config should be of dict type")
 
-            log.info(
-                'Successfully imported user-defined logging config from %s',
-                logging_class_path
-            )
+            log.info('Successfully imported user-defined logging config from %s', logging_class_path)
         except Exception as err:
             # Import default logging configurations.
-            raise ImportError(
-                'Unable to load custom logging from {} due to {}'
-                .format(logging_class_path, err)
-            )
+            raise ImportError(f'Unable to load custom logging from {logging_class_path} due to {err}')
     else:
-        logging_class_path = 'airflow.config_templates.' \
-                             'airflow_local_settings.DEFAULT_LOGGING_CONFIG'
+        logging_class_path = 'airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG'
         logging_config = import_string(logging_class_path)
         log.debug('Unable to load custom logging, using default config instead')
 
@@ -73,7 +66,7 @@ def configure_logging():
     return logging_class_path
 
 
-def validate_logging_config(logging_config):    # pylint: disable=unused-argument
+def validate_logging_config(logging_config):  # pylint: disable=unused-argument
     """Validate the provided Logging Config"""
     # Now lets validate the other logging-related settings
     task_log_reader = conf.get('logging', 'task_log_reader')

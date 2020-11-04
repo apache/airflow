@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-RedisHook module
-"""
+"""RedisHook module"""
 from redis import Redis
 
 from airflow.hooks.base_hook import BaseHook
@@ -49,14 +47,12 @@ class RedisHook(BaseHook):
         self.db = None
 
     def get_conn(self):
-        """
-        Returns a Redis connection.
-        """
+        """Returns a Redis connection."""
         conn = self.get_connection(self.redis_conn_id)
         self.host = conn.host
         self.port = conn.port
         self.password = None if str(conn.password).lower() in ['none', 'false', ''] else conn.password
-        self.db = conn.extra_dejson.get('db', None)
+        self.db = conn.extra_dejson.get('db')
 
         # check for ssl parameters in conn.extra
         ssl_arg_names = [

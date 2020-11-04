@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Transfers data from AWS Redshift into a S3 Bucket.
-"""
+"""Transfers data from AWS Redshift into a S3 Bucket."""
 from typing import List, Optional, Union
 
 from airflow.models import BaseOperator
@@ -65,7 +63,7 @@ class RedshiftToS3Operator(BaseOperator):
     :type table_as_file_name: bool
     """
 
-    template_fields = ()
+    template_fields = ('s3_bucket', 's3_key', 'schema', 'table', 'unload_options')
     template_ext = ()
     ui_color = '#ededed'
 
@@ -104,14 +102,14 @@ class RedshiftToS3Operator(BaseOperator):
                 'HEADER',
             ]
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         credentials = s3_hook.get_credentials()
         unload_options = '\n\t\t\t'.join(self.unload_options)
-        s3_key = '{}/{}_'.format(self.s3_key, self.table) if self.table_as_file_name else self.s3_key
-        select_query = "SELECT * FROM {schema}.{table}".format(schema=self.schema, table=self.table)
+        s3_key = f'{self.s3_key}/{self.table}_' if self.table_as_file_name else self.s3_key
+        select_query = f"SELECT * FROM {self.schema}.{self.table}"
         unload_query = """
                     UNLOAD ('{select_query}')
                     TO 's3://{s3_bucket}/{s3_key}'

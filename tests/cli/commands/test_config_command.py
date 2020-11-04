@@ -35,9 +35,7 @@ class TestCliConfigList(unittest.TestCase):
         config_command.show_config(self.parser.parse_args(['config', 'list', '--color', 'off']))
         mock_conf.write.assert_called_once_with(mock_stringio.return_value.__enter__.return_value)
 
-    @conf_vars({
-        ('core', 'testkey'): 'test_value'
-    })
+    @conf_vars({('core', 'testkey'): 'test_value'})
     def test_cli_show_config_should_display_key(self):
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             config_command.show_config(self.parser.parse_args(['config', 'list', '--color', 'off']))
@@ -50,9 +48,7 @@ class TestCliConfigGetValue(unittest.TestCase):
     def setUpClass(cls):
         cls.parser = cli_parser.get_parser()
 
-    @conf_vars({
-        ('core', 'test_key'): 'test_value'
-    })
+    @conf_vars({('core', 'test_key'): 'test_value'})
     def test_should_display_value(self):
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             config_command.get_value(self.parser.parse_args(['config', 'get-value', 'core', 'test_key']))
@@ -65,9 +61,9 @@ class TestCliConfigGetValue(unittest.TestCase):
         mock_conf.has_option.return_value = True
 
         with contextlib.redirect_stderr(io.StringIO()) as temp_stderr, self.assertRaises(SystemExit) as cm:
-            config_command.get_value(self.parser.parse_args(
-                ['config', 'get-value', 'missing-section', 'dags_folder']
-            ))
+            config_command.get_value(
+                self.parser.parse_args(['config', 'get-value', 'missing-section', 'dags_folder'])
+            )
         self.assertEqual(1, cm.exception.code)
         self.assertEqual(
             "The section [missing-section] is not found in config.", temp_stderr.getvalue().strip()
@@ -79,9 +75,9 @@ class TestCliConfigGetValue(unittest.TestCase):
         mock_conf.has_option.return_value = False
 
         with contextlib.redirect_stderr(io.StringIO()) as temp_stderr, self.assertRaises(SystemExit) as cm:
-            config_command.get_value(self.parser.parse_args(
-                ['config', 'get-value', 'missing-section', 'dags_folder']
-            ))
+            config_command.get_value(
+                self.parser.parse_args(['config', 'get-value', 'missing-section', 'dags_folder'])
+            )
         self.assertEqual(1, cm.exception.code)
         self.assertEqual(
             "The option [missing-section/dags_folder] is not found in config.", temp_stderr.getvalue().strip()

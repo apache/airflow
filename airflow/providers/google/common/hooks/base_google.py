@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains a Google Cloud API base hook.
-"""
+"""This module contains a Google Cloud API base hook."""
 import functools
 import json
 import logging
@@ -86,7 +84,7 @@ def is_soft_quota_exception(exception: Exception):
     return False
 
 
-def is_operation_in_progress_exception(exception: Exception):
+def is_operation_in_progress_exception(exception: Exception) -> bool:
     """
     Some of the calls return 429 (too many requests!) or 409 errors (Conflict)
     in case of operation in progress.
@@ -172,9 +170,7 @@ class GoogleBaseHook(BaseHook):
         self._cached_project_id: Optional[str] = None
 
     def _get_credentials_and_project_id(self) -> Tuple[google.auth.credentials.Credentials, Optional[str]]:
-        """
-        Returns the Credentials object for Google API and the associated project_id
-        """
+        """Returns the Credentials object for Google API and the associated project_id"""
         if self._cached_credentials is not None:
             return self._cached_credentials, self._cached_project_id
 
@@ -208,16 +204,12 @@ class GoogleBaseHook(BaseHook):
         return credentials, project_id
 
     def _get_credentials(self) -> google.auth.credentials.Credentials:
-        """
-        Returns the Credentials object for Google API
-        """
+        """Returns the Credentials object for Google API"""
         credentials, _ = self._get_credentials_and_project_id()
         return credentials
 
     def _get_access_token(self) -> str:
-        """
-        Returns a valid access token from Google API Credentials
-        """
+        """Returns a valid access token from Google API Credentials"""
         return self._get_credentials().token
 
     def _authorize(self) -> google_auth_httplib2.AuthorizedHttp:
@@ -238,7 +230,7 @@ class GoogleBaseHook(BaseHook):
         to the hook page, which allow admins to specify service_account,
         key_path, etc. They get formatted as shown below.
         """
-        long_f = 'extra__google_cloud_platform__{}'.format(f)
+        long_f = f'extra__google_cloud_platform__{f}'
         if hasattr(self, 'extras') and long_f in self.extras:
             return self.extras[long_f]
         else:
@@ -479,7 +471,7 @@ class GoogleBaseHook(BaseHook):
             yield
 
     @staticmethod
-    def download_content_from_request(file_handle, request, chunk_size):
+    def download_content_from_request(file_handle, request: dict, chunk_size: int) -> None:
         """
         Download media resources.
         Note that  the Python file object is compatible with io.Base and can be used with this class also.

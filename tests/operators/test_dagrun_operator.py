@@ -21,7 +21,9 @@ import tempfile
 from datetime import datetime
 from unittest import TestCase
 
-from airflow.models import DAG, DagModel, DagRun, Log, TaskInstance
+from airflow.exceptions import DagRunAlreadyExists
+from airflow.models import DAG, DagBag, DagModel, DagRun, Log, TaskInstance
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -56,13 +58,16 @@ class TestDagRunOperator(TestCase):
             session.commit()
 
         self.dag = DAG(TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        dagbag = DagBag(f.name, read_dags_from_db=False, include_examples=False)
+        dagbag.bag_dag(self.dag, root_dag=self.dag)
+        dagbag.sync_to_db()
 
     def tearDown(self):
         """Cleanup state after testing in DB."""
         with create_session() as session:
             session.query(Log).filter(Log.dag_id == TEST_DAG_ID).delete(synchronize_session=False)
-            for dbmodel in [DagModel, DagRun, TaskInstance]:
-                session.query(dbmodel).filter(dbmodel.dag_id == TRIGGERED_DAG_ID).delete(
+            for dbmodel in [DagModel, DagRun, TaskInstance, SerializedDagModel]:
+                session.query(dbmodel).filter(dbmodel.dag_id.in_([TRIGGERED_DAG_ID, TEST_DAG_ID])).delete(
                     synchronize_session=False
                 )
 
@@ -140,3 +145,36 @@ class TestDagRunOperator(TestCase):
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
             self.assertEqual(len(dagruns), 1)
             self.assertTrue(dagruns[0].conf, {"foo": TEST_DAG_ID})
+
+    def test_trigger_dagrun_with_reset_dag_run_false(self):
+        """Test TriggerDagRunOperator with reset_dag_run."""
+        execution_date = DEFAULT_DATE
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            execution_date=execution_date,
+            reset_dag_run=False,
+            dag=self.dag,
+        )
+        task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
+
+        with self.assertRaises(DagRunAlreadyExists):
+            task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
+
+    def test_trigger_dagrun_with_reset_dag_run_true(self):
+        """Test TriggerDagRunOperator with reset_dag_run."""
+        execution_date = DEFAULT_DATE
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            execution_date=execution_date,
+            reset_dag_run=True,
+            dag=self.dag,
+        )
+        task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
+        task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
+
+        with create_session() as session:
+            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            self.assertEqual(len(dagruns), 1)
+            self.assertTrue(dagruns[0].external_trigger)

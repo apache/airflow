@@ -1,4 +1,4 @@
-/**
+/*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,7 @@ svg {
 }
 
 .node rect {
-  stroke: #333;
+  stroke: #51504f;
   stroke-width: 1px;
   fill: #fff;
 }
@@ -32,12 +32,26 @@ svg {
 }
 
 .edgePath {
-  stroke: #333;
+  stroke: #51504f;
   stroke-width: 1px;
+}
+
+g.cluster rect {
+  stroke: #fff;
+  stroke-dasharray: 5;
+  rx: 5;
+  ry: 5;
+  opacity: 0.5;
 }
 
 g.node rect {
   stroke: #fff;
+  stroke-width: 3px;
+  cursor: pointer;
+}
+
+g.node circle {
+  stroke: #51504f;
   stroke-width: 3px;
   cursor: pointer;
 }
@@ -91,22 +105,29 @@ g.node.skipped rect {
   stroke: pink;
 }
 
-div#svg_container {
-  border: 1px solid #000;
-  background-color: #eee;
+g.node.removed rect {
+  stroke: black;
+}
+
+.svg-wrapper {
+  border-radius: 4px;
+  background-color: #f0f0f0;
   cursor: move;
 }
 
-#refresh_button {
-  top: 15px;
-  right: 15px;
+.refresh-actions {
+  float: right;
+  display: inline-flex;
+  align-items: center;
+  top: 10px;
+  right: 10px;
   position: relative;
 }
 
-#loading {
-  margin: auto;
+.refresh-actions > .switch-label {
+  margin: 0 10px 0 20px;
+}
+
+.loading-dots.refresh-loading {
   display: none;
-  position: relative;
-  width: 100px;
-  top: -550px;
 }

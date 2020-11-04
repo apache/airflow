@@ -24,5 +24,6 @@ from airflow.providers.google.cloud.transfers.s3_to_gcs import S3ToGCSOperator  
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.transfers.s3_to_gcs`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

@@ -25,14 +25,10 @@ from airflow import plugins_manager
 PLUGINS_MANAGER_ATTRIBUTES_TO_DUMP = [
     "plugins",
     "import_errors",
-    "operators_modules",
-    "sensors_modules",
     "hooks_modules",
     "macros_modules",
     "executors_modules",
-    "admin_views",
     "flask_blueprints",
-    "menu_links",
     "flask_appbuilder_views",
     "flask_appbuilder_menu_links",
     "global_operator_extra_links",
@@ -41,18 +37,15 @@ PLUGINS_MANAGER_ATTRIBUTES_TO_DUMP = [
 ]
 # list to maintain the order of items.
 PLUGINS_ATTRIBUTES_TO_DUMP = [
-    "operators",
-    "sensors",
     "hooks",
     "executors",
     "macros",
-    "admin_views",
     "flask_blueprints",
-    "menu_links",
     "appbuilder_views",
     "appbuilder_menu_items",
     "global_operator_extra_links",
     "operator_extra_links",
+    "source",
 ]
 
 

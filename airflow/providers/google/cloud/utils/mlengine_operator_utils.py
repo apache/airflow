@@ -16,9 +16,7 @@
 # under the License.
 
 #
-"""
-This module contains helper functions for MLEngine operators.
-"""
+"""This module contains helper functions for MLEngine operators."""
 
 import base64
 import json
@@ -80,6 +78,7 @@ def create_evaluate_ops(  # pylint: disable=too-many-arguments
 
     Callers will provide two python callables, metric_fn and validate_fn, in
     order to customize the evaluation behavior as they wish.
+
     - metric_fn receives a dictionary per instance derived from json in the
       batch prediction result. The keys might vary depending on the model.
       It should return a tuple of metrics.
@@ -95,24 +94,26 @@ def create_evaluate_ops(  # pylint: disable=too-many-arguments
 
     Typical examples are like this:
 
-    def get_metric_fn_and_keys():
-        import math  # imports should be outside of the metric_fn below.
-        def error_and_squared_error(inst):
-            label = float(inst['input_label'])
-            classes = float(inst['classes'])  # 0 or 1
-            err = abs(classes-label)
-            squared_err = math.pow(classes-label, 2)
-            return (err, squared_err)  # returns a tuple.
-        return error_and_squared_error, ['err', 'mse']  # key order must match.
+    .. code-block:: python
 
-    def validate_err_and_count(summary):
-        if summary['err'] > 0.2:
-            raise ValueError('Too high err>0.2; summary=%s' % summary)
-        if summary['mse'] > 0.05:
-            raise ValueError('Too high mse>0.05; summary=%s' % summary)
-        if summary['count'] < 1000:
-            raise ValueError('Too few instances<1000; summary=%s' % summary)
-        return summary
+        def get_metric_fn_and_keys():
+            import math  # imports should be outside of the metric_fn below.
+            def error_and_squared_error(inst):
+                label = float(inst['input_label'])
+                classes = float(inst['classes'])  # 0 or 1
+                err = abs(classes-label)
+                squared_err = math.pow(classes-label, 2)
+                return (err, squared_err)  # returns a tuple.
+            return error_and_squared_error, ['err', 'mse']  # key order must match.
+
+        def validate_err_and_count(summary):
+            if summary['err'] > 0.2:
+                raise ValueError('Too high err>0.2; summary=%s' % summary)
+            if summary['mse'] > 0.05:
+                raise ValueError('Too high mse>0.05; summary=%s' % summary)
+            if summary['count'] < 1000:
+                raise ValueError('Too few instances<1000; summary=%s' % summary)
+            return summary
 
     For the details on the other BatchPrediction-related arguments (project_id,
     job_id, region, data_format, input_paths, prediction_path, model_uri),
@@ -133,8 +134,10 @@ def create_evaluate_ops(  # pylint: disable=too-many-arguments
     :type prediction_path: str
 
     :param metric_fn_and_keys: a tuple of metric_fn and metric_keys:
+
         - metric_fn is a function that accepts a dictionary (for an instance),
           and returns a tuple of metric(s) that it calculates.
+
         - metric_keys is a list of strings to denote the key of each metric.
     :type metric_fn_and_keys: tuple of a function and a list[str]
 
@@ -252,7 +255,7 @@ def create_evaluate_ops(  # pylint: disable=too-many-arguments
         prediction_path = templates_dict["prediction_path"]
         scheme, bucket, obj, _, _ = urlsplit(prediction_path)
         if scheme != "gs" or not bucket or not obj:
-            raise ValueError("Wrong format prediction_path: {}".format(prediction_path))
+            raise ValueError(f"Wrong format prediction_path: {prediction_path}")
         summary = os.path.join(obj.strip("/"), "prediction.summary.json")
         gcs_hook = GCSHook()
         summary = json.loads(gcs_hook.download(bucket, summary))

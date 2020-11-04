@@ -303,19 +303,17 @@ class ConfigInfo:
     @property
     def task_logging_handler(self):
         """Returns task logging handler."""
+
         def get_fullname(o):
             module = o.__class__.__module__
             if module is None or module == str.__class__.__module__:
                 return o.__class__.__name__  # Avoid reporting __builtin__
             else:
                 return module + '.' + o.__class__.__name__
+
         try:
-            handler_names = [
-                get_fullname(handler) for handler in logging.getLogger('airflow.task').handlers
-            ]
-            return ", ".join(
-                handler_names
-            )
+            handler_names = [get_fullname(handler) for handler in logging.getLogger('airflow.task').handlers]
+            return ", ".join(handler_names)
         except Exception:  # noqa pylint: disable=broad-except
             return "NOT AVAILABLE"
 
@@ -436,9 +434,7 @@ def _send_report_to_fileio(info):
 
 
 def show_info(args):
-    """
-    Show information related to Airflow, system and other.
-    """
+    """Show information related to Airflow, system and other."""
     # Enforce anonymization, when file_io upload is tuned on.
     anonymizer = PiiAnonymizer() if args.anonymize or args.file_io else NullAnonymizer()
     info = AirflowInfo(anonymizer)

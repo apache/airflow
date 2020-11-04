@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains SFTP sensor.
-"""
+"""This module contains SFTP sensor."""
+from typing import Optional
+
 from paramiko import SFTP_NO_SUCH_FILE
 
 from airflow.providers.sftp.hooks.sftp import SFTPHook
@@ -38,13 +38,13 @@ class SFTPSensor(BaseSensorOperator):
     template_fields = ('path',)
 
     @apply_defaults
-    def __init__(self, *, path, sftp_conn_id='sftp_default', **kwargs):
+    def __init__(self, *, path: str, sftp_conn_id: str = 'sftp_default', **kwargs) -> None:
         super().__init__(**kwargs)
         self.path = path
-        self.hook = None
+        self.hook: Optional[SFTPHook] = None
         self.sftp_conn_id = sftp_conn_id
 
-    def poke(self, context):
+    def poke(self, context: dict) -> bool:
         self.hook = SFTPHook(self.sftp_conn_id)
         self.log.info('Poking for %s', self.path)
         try:

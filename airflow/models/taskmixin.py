@@ -33,44 +33,43 @@ class TaskMixin:
         """Should return list of root operator List[BaseOperator]"""
         raise NotImplementedError()
 
+    @property
+    def leaves(self):
+        """Should return list of leaf operator List[BaseOperator]"""
+        raise NotImplementedError()
+
     @abstractmethod
     def set_upstream(self, other: Union["TaskMixin", Sequence["TaskMixin"]]):
-        """
-        Set a task or a task list to be directly upstream from the current task.
-        """
+        """Set a task or a task list to be directly upstream from the current task."""
         raise NotImplementedError()
 
     @abstractmethod
     def set_downstream(self, other: Union["TaskMixin", Sequence["TaskMixin"]]):
-        """
-        Set a task or a task list to be directly downstream from the current task.
-        """
+        """Set a task or a task list to be directly downstream from the current task."""
         raise NotImplementedError()
 
+    def update_relative(self, other: "TaskMixin", upstream=True) -> None:
+        """
+        Update relationship information about another TaskMixin. Default is no-op.
+        Override if necessary.
+        """
+
     def __lshift__(self, other: Union["TaskMixin", Sequence["TaskMixin"]]):
-        """
-        Implements Task << Task
-        """
+        """Implements Task << Task"""
         self.set_upstream(other)
         return other
 
     def __rshift__(self, other: Union["TaskMixin", Sequence["TaskMixin"]]):
-        """
-        Implements Task >> Task
-        """
+        """Implements Task >> Task"""
         self.set_downstream(other)
         return other
 
     def __rrshift__(self, other: Union["TaskMixin", Sequence["TaskMixin"]]):
-        """
-        Called for Task >> [Task] because list don't have __rshift__ operators.
-        """
+        """Called for Task >> [Task] because list don't have __rshift__ operators."""
         self.__lshift__(other)
         return self
 
     def __rlshift__(self, other: Union["TaskMixin", Sequence["TaskMixin"]]):
-        """
-        Called for Task << [Task] because list don't have __lshift__ operators.
-        """
+        """Called for Task << [Task] because list don't have __lshift__ operators."""
         self.__rshift__(other)
         return self

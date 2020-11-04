@@ -34,7 +34,7 @@ class XComArg(TaskMixin):
         op >> xcomarg   (by BaseOperator code)
         op << xcomarg   (by BaseOperator code)
 
-    **Example**: The moment you get a result from any operator (functional or regular) you can ::
+    **Example**: The moment you get a result from any operator (decorated or regular) you can ::
 
         any_op = AnyOperator()
         xcomarg = XComArg(any_op)
@@ -63,13 +63,10 @@ class XComArg(TaskMixin):
         self._key = key
 
     def __eq__(self, other):
-        return (self.operator == other.operator
-                and self.key == other.key)
+        return self.operator == other.operator and self.key == other.key
 
     def __getitem__(self, item):
-        """
-        Implements xcomresult['some_result_key']
-        """
+        """Implements xcomresult['some_result_key']"""
         return XComArg(operator=self.operator, key=item)
 
     def __str__(self):
@@ -82,9 +79,10 @@ class XComArg(TaskMixin):
 
         :return:
         """
-        xcom_pull_kwargs = [f"task_ids='{self.operator.task_id}'",
-                            f"dag_id='{self.operator.dag.dag_id}'",
-                            ]
+        xcom_pull_kwargs = [
+            f"task_ids='{self.operator.task_id}'",
+            f"dag_id='{self.operator.dag.dag_id}'",
+        ]
         if self.key is not None:
             xcom_pull_kwargs.append(f"key='{self.key}'")
 
@@ -103,20 +101,21 @@ class XComArg(TaskMixin):
         return [self._operator]
 
     @property
+    def leaves(self) -> List[BaseOperator]:
+        """Required by TaskMixin"""
+        return [self._operator]
+
+    @property
     def key(self) -> str:
         """Returns keys of this XComArg"""
         return self._key
 
     def set_upstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]):
-        """
-        Proxy to underlying operator set_upstream method. Required by TaskMixin.
-        """
+        """Proxy to underlying operator set_upstream method. Required by TaskMixin."""
         self.operator.set_upstream(task_or_task_list)
 
     def set_downstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]):
-        """
-        Proxy to underlying operator set_downstream method. Required by TaskMixin.
-        """
+        """Proxy to underlying operator set_downstream method. Required by TaskMixin."""
         self.operator.set_downstream(task_or_task_list)
 
     def resolve(self, context: Dict) -> Any:
@@ -133,7 +132,8 @@ class XComArg(TaskMixin):
         if not resolved_value:
             raise AirflowException(
                 f'XComArg result from {self.operator.task_id} at {self.operator.dag.dag_id} '
-                f'with key="{self.key}"" is not found!')
+                f'with key="{self.key}"" is not found!'
+            )
         resolved_value = resolved_value[0]
 
         return resolved_value

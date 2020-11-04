@@ -73,9 +73,7 @@ class DayOfWeekSensor(BaseSensorOperator):
     """
 
     @apply_defaults
-    def __init__(self, *, week_day,
-                 use_task_execution_day=False,
-                 **kwargs):
+    def __init__(self, *, week_day, use_task_execution_day=False, **kwargs):
         super().__init__(**kwargs)
         self.week_day = week_day
         self.use_task_execution_day = use_task_execution_day
@@ -91,12 +89,15 @@ class DayOfWeekSensor(BaseSensorOperator):
         else:
             raise TypeError(
                 'Unsupported Type for week_day parameter: {}. It should be one of str'
-                ', set or Weekday enum type'.format(type(week_day)))
+                ', set or Weekday enum type'.format(type(week_day))
+            )
 
     def poke(self, context):
-        self.log.info('Poking until weekday is in %s, Today is %s',
-                      self.week_day,
-                      WeekDay(timezone.utcnow().isoweekday()).name)
+        self.log.info(
+            'Poking until weekday is in %s, Today is %s',
+            self.week_day,
+            WeekDay(timezone.utcnow().isoweekday()).name,
+        )
         if self.use_task_execution_day:
             return context['execution_date'].isoweekday() in self._week_day_num
         else:

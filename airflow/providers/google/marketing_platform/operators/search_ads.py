@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Search Ads operators.
-"""
+"""This module contains Google Search Ads operators."""
 import json
 from tempfile import NamedTemporaryFile
 from typing import Any, Dict, Optional, Sequence, Union
@@ -78,7 +76,7 @@ class GoogleSearchAdsInsertReportOperator(BaseOperator):
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.report = report
         self.api_version = api_version
@@ -89,10 +87,10 @@ class GoogleSearchAdsInsertReportOperator(BaseOperator):
     def prepare_template(self) -> None:
         # If .json is passed then we have to read the file
         if isinstance(self.report, str) and self.report.endswith('.json'):
-            with open(self.report, 'r') as file:
+            with open(self.report) as file:
                 self.report = json.load(file)
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict):
         hook = GoogleSearchAdsHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -202,7 +200,7 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
             return fragment_records[1]
         return b""
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict):
         hook = GoogleSearchAdsHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -222,7 +220,7 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
 
         response = hook.get(report_id=self.report_id)
         if not response['isReportReady']:
-            raise AirflowException('Report {} is not ready yet'.format(self.report_id))
+            raise AirflowException(f'Report {self.report_id} is not ready yet')
 
         # Resolve report fragments
         fragments_count = len(response["files"])

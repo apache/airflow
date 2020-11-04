@@ -31,6 +31,9 @@ such as :ref:`Google Cloud Secret Manager<google_cloud_secret_manager_backend>`,
     The Airflow UI only shows connections and variables stored in the Metadata DB and not via any other method.
     If you use an alternative secrets backend, check inside your backend to view the values of your variables and connections.
 
+You can also get Airflow configurations with sensitive data from the Secrets Backend.
+See :doc:`../../../howto/set-config` for more details.
+
 Search path
 ^^^^^^^^^^^
 When looking up a connection/variable, by default Airflow will search environment variables first and metastore

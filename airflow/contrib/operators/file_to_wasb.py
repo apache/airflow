@@ -24,5 +24,6 @@ from airflow.providers.microsoft.azure.transfers.file_to_wasb import FileToWasbO
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.transfers.file_to_wasb`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

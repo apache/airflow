@@ -416,7 +416,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
     def test_run_extract(self, mock_insert):
-        source_project_dataset_table = "{}.{}.{}".format(PROJECT_ID, DATASET_ID, TABLE_ID)
+        source_project_dataset_table = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
         destination_cloud_storage_uris = ["gs://bucket/file.csv"]
         expected_configuration = {
             "extract": {
@@ -1658,7 +1658,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
     def test_deprecation_warning(self, func_name, mock_bq_hook):
         args, kwargs = [1], {"param1": "val1"}
         new_path = re.escape(f"`airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.{func_name}`")
-        message_pattern = r"This method is deprecated\.\s+Please use {}".format(new_path)
+        message_pattern = fr"This method is deprecated\.\s+Please use {new_path}"
         message_regex = re.compile(message_pattern, re.MULTILINE)
 
         mocked_func = getattr(mock_bq_hook, func_name)
@@ -1669,4 +1669,4 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
             _ = func(*args, **kwargs)
 
         mocked_func.assert_called_once_with(*args, **kwargs)
-        self.assertRegex(func.__doc__, ".*{}.*".format(new_path))
+        self.assertRegex(func.__doc__, f".*{new_path}.*")

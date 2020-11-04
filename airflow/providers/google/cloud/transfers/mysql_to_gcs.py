@@ -15,14 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-MySQL to GCS operator.
-"""
+"""MySQL to GCS operator."""
 
 import base64
 import calendar
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from typing import Dict
 
 from MySQLdb.constants import FIELD_TYPE
 
@@ -69,9 +68,7 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
         self.ensure_utc = ensure_utc
 
     def query(self):
-        """
-        Queries mysql and returns a cursor to the results.
-        """
+        """Queries mysql and returns a cursor to the results."""
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
         conn = mysql.get_conn()
         cursor = conn.cursor()
@@ -84,7 +81,7 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
         cursor.execute(self.sql)
         return cursor
 
-    def field_to_bigquery(self, field):
+    def field_to_bigquery(self, field) -> Dict[str, str]:
         field_type = self.type_map.get(field[1], "STRING")
         # Always allow TIMESTAMP to be nullable. MySQLdb returns None types
         # for required fields because some MySQL timestamps can't be
@@ -96,7 +93,7 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
             'mode': field_mode,
         }
 
-    def convert_type(self, value, schema_type):
+    def convert_type(self, value, schema_type: str):
         """
         Takes a value from MySQLdb, and converts it to a value that's safe for
         JSON/Google Cloud Storage/BigQuery.
