@@ -22,6 +22,5 @@ import warnings
 from airflow.operators.latest_only import LatestOnlyOperator  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.operators.latest_only`.",
-    DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.operators.latest_only`.", DeprecationWarning, stacklevel=2
 )

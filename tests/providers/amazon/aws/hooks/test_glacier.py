@@ -17,8 +17,8 @@
 # under the License.
 
 import unittest
-
 from unittest import mock
+
 from testfixtures import LogCapture
 
 from airflow.providers.amazon.aws.hooks.glacier import GlacierHook

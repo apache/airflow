@@ -34,9 +34,7 @@ os.environ["AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS"] = "True"
 LOG_LEVEL = "INFO"
 LOG_FILE = "/files/sql_stats.log"  # Default to run in Breeze
 
-os.environ[
-    "AIRFLOW__LOGGING__LOGGING_CONFIG_CLASS"
-] = "scripts.perf.sql_queries.DEBUG_LOGGING_CONFIG"
+os.environ["AIRFLOW__LOGGING__LOGGING_CONFIG_CLASS"] = "scripts.perf.sql_queries.DEBUG_LOGGING_CONFIG"
 
 DEBUG_LOGGING_CONFIG = {
     "version": 1,
@@ -76,6 +74,7 @@ class Query(NamedTuple):
     """
     Define attributes of the queries that will be picked up by the performance tests.
     """
+
     function: str
     file: str
     location: int
@@ -110,6 +109,7 @@ def reset_db():
     Wrapper function that calls the airflows resetdb function.
     """
     from airflow.utils.db import resetdb
+
     resetdb()
 
 

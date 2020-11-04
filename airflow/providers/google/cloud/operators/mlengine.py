@@ -45,7 +45,7 @@ def _normalize_mlengine_job_id(job_id: str) -> str:
     # Add a prefix when a job_id starts with a digit or a template
     match = re.search(r'\d|\{{2}', job_id)
     if match and match.start() == 0:
-        job = 'z_{}'.format(job_id)
+        job = f'z_{job_id}'
     else:
         job = job_id
 
@@ -257,7 +257,7 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         if self._uri:
             prediction_request['predictionInput']['uri'] = self._uri
         elif self._model_name:
-            origin_name = 'projects/{}/models/{}'.format(self._project_id, self._model_name)
+            origin_name = f'projects/{self._project_id}/models/{self._model_name}'
             if not self._version_name:
                 prediction_request['predictionInput']['modelName'] = origin_name
             else:
@@ -380,7 +380,7 @@ class MLEngineManageModelOperator(BaseOperator):
         elif self._operation == 'get':
             return hook.get_model(project_id=self._project_id, model_name=self._model['name'])
         else:
-            raise ValueError('Unknown operation: {}'.format(self._operation))
+            raise ValueError(f'Unknown operation: {self._operation}')
 
 
 class MLEngineCreateModelOperator(BaseOperator):
@@ -722,7 +722,7 @@ class MLEngineManageVersionOperator(BaseOperator):
                 project_id=self._project_id, model_name=self._model_name, version_name=self._version['name']
             )
         else:
-            raise ValueError('Unknown operation: {}'.format(self._operation))
+            raise ValueError(f'Unknown operation: {self._operation}')
 
 
 class MLEngineCreateVersionOperator(BaseOperator):

@@ -40,25 +40,20 @@ def example_dag_decorator(email: str = 'example@example.com'):
     :type email: str
     """
     # Using default connection as it's set to httpbin.org by default
-    get_ip = SimpleHttpOperator(
-        task_id='get_ip', endpoint='get', method='GET'
-    )
+    get_ip = SimpleHttpOperator(task_id='get_ip', endpoint='get', method='GET')
 
     @task(multiple_outputs=True)
     def prepare_email(raw_json: str) -> Dict[str, str]:
         external_ip = json.loads(raw_json)['origin']
         return {
             'subject': f'Server connected from {external_ip}',
-            'body': f'Seems like today your server executing Airflow is connected from IP {external_ip}<br>'
+            'body': f'Seems like today your server executing Airflow is connected from IP {external_ip}<br>',
         }
 
     email_info = prepare_email(get_ip.output)
 
     EmailOperator(
-        task_id='send_email',
-        to=email,
-        subject=email_info['subject'],
-        html_content=email_info['body']
+        task_id='send_email', to=email, subject=email_info['subject'], html_content=email_info['body']
     )
 
 

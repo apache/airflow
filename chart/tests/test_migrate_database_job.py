@@ -14,3 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+import unittest
+
+import jmespath
+
+from tests.helm_template_generator import render_chart
+
+
+class MigrateDatabaseJobTest(unittest.TestCase):
+    def test_should_run_by_default(self):
+        docs = render_chart(
+            values={},
+            show_only=["templates/migrate-database-job.yaml"],
+        )
+
+        self.assertRegex(docs[0]["kind"], "Job")
+        self.assertEqual(
+            "run-airflow-migrations", jmespath.search("spec.template.spec.containers[0].name", docs[0])
+        )

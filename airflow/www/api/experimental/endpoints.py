@@ -42,6 +42,7 @@ T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 def requires_authentication(function: T):
     """Decorator for functions that require authentication"""
+
     @wraps(function)
     def decorated(*args, **kwargs):
         return current_app.api_auth.requires_authentication(function)(*args, **kwargs)
@@ -98,15 +99,15 @@ def trigger_dag(dag_id):
         except ValueError:
             error_message = (
                 'Given execution date, {}, could not be identified '
-                'as a date. Example date format: 2015-11-16T14:34:15+00:00'
-                .format(execution_date))
+                'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(execution_date)
+            )
             log.error(error_message)
             response = jsonify({'error': error_message})
             response.status_code = 400
 
             return response
 
-    replace_microseconds = (execution_date is None)
+    replace_microseconds = execution_date is None
     if 'replace_microseconds' in data:
         replace_microseconds = to_boolean(data['replace_microseconds'])
 
@@ -114,7 +115,7 @@ def trigger_dag(dag_id):
         dr = trigger.trigger_dag(dag_id, run_id, conf, execution_date, replace_microseconds)
     except AirflowException as err:
         log.error(err)
-        response = jsonify(error="{}".format(err))
+        response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
 
@@ -122,9 +123,7 @@ def trigger_dag(dag_id):
         log.info("User %s created %s", g.user, dr)
 
     response = jsonify(
-        message="Created {}".format(dr),
-        execution_date=dr.execution_date.isoformat(),
-        run_id=dr.run_id
+        message=f"Created {dr}", execution_date=dr.execution_date.isoformat(), run_id=dr.run_id
     )
     return response
 
@@ -137,10 +136,10 @@ def delete_dag(dag_id):
         count = delete.delete_dag(dag_id)
     except AirflowException as err:
         log.error(err)
-        response = jsonify(error="{}".format(err))
+        response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
-    return jsonify(message="Removed {} record(s)".format(count), count=count)
+    return jsonify(message=f"Removed {count} record(s)", count=count)
 
 
 @api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['GET'])
@@ -159,7 +158,7 @@ def dag_runs(dag_id):
         dagruns = get_dag_runs(dag_id, state)
     except AirflowException as err:
         log.info(err)
-        response = jsonify(error="{}".format(err))
+        response = jsonify(error=f"{err}")
         response.status_code = 400
         return response
 
@@ -188,7 +187,7 @@ def get_dag_code(dag_id):
         return get_code(dag_id)
     except AirflowException as err:
         log.info(err)
-        response = jsonify(error="{}".format(err))
+        response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
 
@@ -201,14 +200,12 @@ def task_info(dag_id, task_id):
         t_info = get_task(dag_id, task_id)
     except AirflowException as err:
         log.info(err)
-        response = jsonify(error="{}".format(err))
+        response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
 
     # JSONify and return.
-    fields = {k: str(v)
-              for k, v in vars(t_info).items()
-              if not k.startswith('_')}
+    fields = {k: str(v) for k, v in vars(t_info).items() if not k.startswith('_')}
     return jsonify(fields)
 
 
@@ -236,8 +233,8 @@ def dag_is_paused(dag_id):
 
 
 @api_experimental.route(
-    '/dags/<string:dag_id>/dag_runs/<string:execution_date>/tasks/<string:task_id>',
-    methods=['GET'])
+    '/dags/<string:dag_id>/dag_runs/<string:execution_date>/tasks/<string:task_id>', methods=['GET']
+)
 @requires_authentication
 def task_instance_info(dag_id, execution_date, task_id):
     """
@@ -252,8 +249,8 @@ def task_instance_info(dag_id, execution_date, task_id):
     except ValueError:
         error_message = (
             'Given execution date, {}, could not be identified '
-            'as a date. Example date format: 2015-11-16T14:34:15+00:00'
-            .format(execution_date))
+            'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(execution_date)
+        )
         log.error(error_message)
         response = jsonify({'error': error_message})
         response.status_code = 400
@@ -264,20 +261,16 @@ def task_instance_info(dag_id, execution_date, task_id):
         ti_info = get_task_instance(dag_id, task_id, execution_date)
     except AirflowException as err:
         log.info(err)
-        response = jsonify(error="{}".format(err))
+        response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
 
     # JSONify and return.
-    fields = {k: str(v)
-              for k, v in vars(ti_info).items()
-              if not k.startswith('_')}
+    fields = {k: str(v) for k, v in vars(ti_info).items() if not k.startswith('_')}
     return jsonify(fields)
 
 
-@api_experimental.route(
-    '/dags/<string:dag_id>/dag_runs/<string:execution_date>',
-    methods=['GET'])
+@api_experimental.route('/dags/<string:dag_id>/dag_runs/<string:execution_date>', methods=['GET'])
 @requires_authentication
 def dag_run_status(dag_id, execution_date):
     """
@@ -292,8 +285,8 @@ def dag_run_status(dag_id, execution_date):
     except ValueError:
         error_message = (
             'Given execution date, {}, could not be identified '
-            'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(
-                execution_date))
+            'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(execution_date)
+        )
         log.error(error_message)
         response = jsonify({'error': error_message})
         response.status_code = 400
@@ -304,7 +297,7 @@ def dag_run_status(dag_id, execution_date):
         dr_info = get_dag_run_state(dag_id, execution_date)
     except AirflowException as err:
         log.info(err)
-        response = jsonify(error="{}".format(err))
+        response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
 
@@ -316,18 +309,21 @@ def dag_run_status(dag_id, execution_date):
 def latest_dag_runs():
     """Returns the latest DagRun for each DAG formatted for the UI"""
     from airflow.models import DagRun
+
     dagruns = DagRun.get_latest_runs()
     payload = []
     for dagrun in dagruns:
         if dagrun.execution_date:
-            payload.append({
-                'dag_id': dagrun.dag_id,
-                'execution_date': dagrun.execution_date.isoformat(),
-                'start_date': ((dagrun.start_date or '') and
-                               dagrun.start_date.isoformat()),
-                'dag_run_url': url_for('Airflow.graph', dag_id=dagrun.dag_id,
-                                       execution_date=dagrun.execution_date)
-            })
+            payload.append(
+                {
+                    'dag_id': dagrun.dag_id,
+                    'execution_date': dagrun.execution_date.isoformat(),
+                    'start_date': ((dagrun.start_date or '') and dagrun.start_date.isoformat()),
+                    'dag_run_url': url_for(
+                        'Airflow.graph', dag_id=dagrun.dag_id, execution_date=dagrun.execution_date
+                    ),
+                }
+            )
     return jsonify(items=payload)  # old flask versions don't support jsonifying arrays
 
 
@@ -339,7 +335,7 @@ def get_pool(name):
         pool = pool_api.get_pool(name=name)
     except AirflowException as err:
         log.error(err)
-        response = jsonify(error="{}".format(err))
+        response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
     else:
@@ -354,7 +350,7 @@ def get_pools():
         pools = pool_api.get_pools()
     except AirflowException as err:
         log.error(err)
-        response = jsonify(error="{}".format(err))
+        response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
     else:
@@ -370,7 +366,7 @@ def create_pool():
         pool = pool_api.create_pool(**params)
     except AirflowException as err:
         log.error(err)
-        response = jsonify(error="{}".format(err))
+        response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
     else:
@@ -385,15 +381,14 @@ def delete_pool(name):
         pool = pool_api.delete_pool(name=name)
     except AirflowException as err:
         log.error(err)
-        response = jsonify(error="{}".format(err))
+        response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
     else:
         return jsonify(pool.to_json())
 
 
-@api_experimental.route('/lineage/<string:dag_id>/<string:execution_date>',
-                        methods=['GET'])
+@api_experimental.route('/lineage/<string:dag_id>/<string:execution_date>', methods=['GET'])
 def get_lineage(dag_id: str, execution_date: str):
     """Get Lineage details for a DagRun"""
     # Convert string datetime into actual datetime
@@ -402,8 +397,8 @@ def get_lineage(dag_id: str, execution_date: str):
     except ValueError:
         error_message = (
             'Given execution date, {}, could not be identified '
-            'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(
-                execution_date))
+            'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(execution_date)
+        )
         log.error(error_message)
         response = jsonify({'error': error_message})
         response.status_code = 400

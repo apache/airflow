@@ -15,14 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
 import subprocess
 import sys
-import pytest
 
-# We should set these before loading _any_ of the rest of airflow so that the
-# unit test mode config is set as early as possible.
-tests_directory = os.path.dirname(os.path.realpath(__file__))
+import pytest
 
 
 @pytest.fixture(autouse=True, scope="session")

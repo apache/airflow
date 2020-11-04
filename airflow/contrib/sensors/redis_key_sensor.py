@@ -24,5 +24,6 @@ from airflow.providers.redis.sensors.redis_key import RedisKeySensor  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.redis.sensors.redis_key`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

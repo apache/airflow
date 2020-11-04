@@ -1210,13 +1210,13 @@ class TestSyncGcsHook(unittest.TestCase):
         mock_copy.assert_not_called()
 
     def _create_blob(self, name: str, crc32: str, bucket=None):
-        blob = mock.MagicMock(name="BLOB:{}".format(name))
+        blob = mock.MagicMock(name=f"BLOB:{name}")
         blob.name = name
         blob.crc32 = crc32
         blob.bucket = bucket
         return blob
 
     def _create_bucket(self, name: str):
-        bucket = mock.MagicMock(name="BUCKET:{}".format(name))
+        bucket = mock.MagicMock(name=f"BUCKET:{name}")
         bucket.name = name
         return bucket

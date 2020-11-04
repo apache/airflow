@@ -23,7 +23,6 @@ from airflow.www import validators
 
 
 class TestGreaterEqualThan(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
         self.form_field_mock = mock.MagicMock(data='2017-05-06')
@@ -39,8 +38,7 @@ class TestGreaterEqualThan(unittest.TestCase):
         if fieldname is None:
             fieldname = 'other_field'
 
-        validator = validators.GreaterEqualThan(fieldname=fieldname,
-                                                message=message)
+        validator = validators.GreaterEqualThan(fieldname=fieldname, message=message)
 
         return validator(self.form_mock, self.form_field_mock)
 
@@ -92,7 +90,6 @@ class TestGreaterEqualThan(unittest.TestCase):
 
 
 class TestValidJson(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
         self.form_field_mock = mock.MagicMock(data='{"valid":"True"}')

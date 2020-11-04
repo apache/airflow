@@ -20,8 +20,8 @@ import datetime
 
 
 def max_partition(
-        table, schema="default", field=None, filter_map=None,
-        metastore_conn_id='metastore_default'):
+    table, schema="default", field=None, filter_map=None, metastore_conn_id='metastore_default'
+):
     """
     Gets the max partition for a table.
 
@@ -47,11 +47,11 @@ def max_partition(
     '2015-01-01'
     """
     from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
+
     if '.' in table:
         schema, table = table.split('.')
     hive_hook = HiveMetastoreHook(metastore_conn_id=metastore_conn_id)
-    return hive_hook.max_partition(
-        schema=schema, table_name=table, field=field, filter_map=filter_map)
+    return hive_hook.max_partition(schema=schema, table_name=table, field=field, filter_map=filter_map)
 
 
 def _closest_date(target_dt, date_list, before_target=None):
@@ -79,9 +79,7 @@ def _closest_date(target_dt, date_list, before_target=None):
         return min(date_list, key=time_after).date()
 
 
-def closest_ds_partition(
-        table, ds, before=True, schema="default",
-        metastore_conn_id='metastore_default'):
+def closest_ds_partition(table, ds, before=True, schema="default", metastore_conn_id='metastore_default'):
     """
     This function finds the date in a list closest to the target date.
     An optional parameter can be given to get the closest before or after.
@@ -104,6 +102,7 @@ def closest_ds_partition(
     '2015-01-01'
     """
     from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
+
     if '.' in table:
         schema, table = table.split('.')
     hive_hook = HiveMetastoreHook(metastore_conn_id=metastore_conn_id)
@@ -114,8 +113,7 @@ def closest_ds_partition(
     if ds in part_vals:
         return ds
     else:
-        parts = [datetime.datetime.strptime(pv, '%Y-%m-%d')
-                 for pv in part_vals]
+        parts = [datetime.datetime.strptime(pv, '%Y-%m-%d') for pv in part_vals]
         target_dt = datetime.datetime.strptime(ds, '%Y-%m-%d')
         closest_ds = _closest_date(target_dt, parts, before_target=before)
         return closest_ds.isoformat()

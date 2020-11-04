@@ -1534,7 +1534,7 @@ A ``.airflowignore`` file specifies the directories or files in ``DAG_FOLDER``
 or ``PLUGINS_FOLDER`` that Airflow should intentionally ignore.
 Each line in ``.airflowignore`` specifies a regular expression pattern,
 and directories or files whose names (not DAG id) match any of the patterns
-would be ignored (under the hood,``re.findall()`` is used to match the pattern).
+would be ignored (under the hood,``Pattern.search()`` is used to match the pattern).
 Overall it works like a ``.gitignore`` file.
 Use the ``#`` character to indicate a comment; all characters
 on a line following a ``#`` will be ignored.

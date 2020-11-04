@@ -16,10 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 import pytest
-from psycopg2 import ProgrammingError, OperationalError
+from psycopg2 import OperationalError, ProgrammingError
 
-from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.google.cloud.example_dags.example_mysql_to_gcs import GCS_BUCKET
+from airflow.providers.mysql.hooks.mysql import MySqlHook
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 

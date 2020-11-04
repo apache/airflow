@@ -18,8 +18,8 @@
 
 import json
 import unittest
-
 from unittest import mock
+
 from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.providers.google.cloud.operators.stackdriver import (

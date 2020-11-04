@@ -42,11 +42,15 @@ class TestConnectionsFromSecrets(unittest.TestCase):
         mock_env_get.assert_called_once_with(conn_id="fake_conn_id")
         mock_meta_get.not_called()
 
-    @conf_vars({
-        ("secrets", "backend"):
-            "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
-        ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
-    })
+    @conf_vars(
+        {
+            (
+                "secrets",
+                "backend",
+            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+            ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
+        }
+    )
     def test_initialize_secrets_backends(self):
         backends = initialize_secrets_backends()
         backend_classes = [backend.__class__.__name__ for backend in backends]
@@ -54,30 +58,44 @@ class TestConnectionsFromSecrets(unittest.TestCase):
         self.assertEqual(3, len(backends))
         self.assertIn('SystemsManagerParameterStoreBackend', backend_classes)
 
-    @conf_vars({
-        ("secrets", "backend"):
-            "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
-        ("secrets", "backend_kwargs"): '{"use_ssl": false}',
-    })
+    @conf_vars(
+        {
+            (
+                "secrets",
+                "backend",
+            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+            ("secrets", "backend_kwargs"): '{"use_ssl": false}',
+        }
+    )
     def test_backends_kwargs(self):
         backends = initialize_secrets_backends()
         systems_manager = [
-            backend for backend in backends
+            backend
+            for backend in backends
             if backend.__class__.__name__ == 'SystemsManagerParameterStoreBackend'
         ][0]
 
         self.assertEqual(systems_manager.kwargs, {'use_ssl': False})
 
-    @conf_vars({
-        ("secrets", "backend"):
-            "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
-        ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
-    })
-    @mock.patch.dict('os.environ', {
-        'AIRFLOW_CONN_TEST_MYSQL': 'mysql://airflow:airflow@host:5432/airflow',
-    })
-    @mock.patch("airflow.providers.amazon.aws.secrets.systems_manager."
-                "SystemsManagerParameterStoreBackend.get_conn_uri")
+    @conf_vars(
+        {
+            (
+                "secrets",
+                "backend",
+            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+            ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
+        }
+    )
+    @mock.patch.dict(
+        'os.environ',
+        {
+            'AIRFLOW_CONN_TEST_MYSQL': 'mysql://airflow:airflow@host:5432/airflow',
+        },
+    )
+    @mock.patch(
+        "airflow.providers.amazon.aws.secrets.systems_manager."
+        "SystemsManagerParameterStoreBackend.get_conn_uri"
+    )
     def test_backend_fallback_to_env_var(self, mock_get_uri):
         mock_get_uri.return_value = None
 
@@ -94,7 +112,6 @@ class TestConnectionsFromSecrets(unittest.TestCase):
 
 
 class TestVariableFromSecrets(unittest.TestCase):
-
     def setUp(self) -> None:
         clear_db_variables()
 

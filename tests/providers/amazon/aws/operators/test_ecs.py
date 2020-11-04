@@ -20,8 +20,8 @@
 import sys
 import unittest
 from copy import deepcopy
-
 from unittest import mock
+
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException

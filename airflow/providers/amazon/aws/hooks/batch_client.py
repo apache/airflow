@@ -253,12 +253,12 @@ class AwsBatchClientHook(AwsBaseHook):
             return True
 
         if job_status == "FAILED":
-            raise AirflowException("AWS Batch job ({}) failed: {}".format(job_id, job))
+            raise AirflowException(f"AWS Batch job ({job_id}) failed: {job}")
 
         if job_status in ["SUBMITTED", "PENDING", "RUNNABLE", "STARTING", "RUNNING"]:
-            raise AirflowException("AWS Batch job ({}) is not complete: {}".format(job_id, job))
+            raise AirflowException(f"AWS Batch job ({job_id}) is not complete: {job}")
 
-        raise AirflowException("AWS Batch job ({}) has unknown status: {}".format(job_id, job))
+        raise AirflowException(f"AWS Batch job ({job_id}) has unknown status: {job}")
 
     def wait_for_job(self, job_id: str, delay: Union[int, float, None] = None) -> None:
         """
@@ -352,7 +352,7 @@ class AwsBatchClientHook(AwsBaseHook):
                 return True
 
             if retries >= self.max_retries:
-                raise AirflowException("AWS Batch job ({}) status checks exceed max_retries".format(job_id))
+                raise AirflowException(f"AWS Batch job ({job_id}) status checks exceed max_retries")
 
             retries += 1
             pause = self.exponential_delay(retries)
@@ -388,7 +388,7 @@ class AwsBatchClientHook(AwsBaseHook):
                 if error.get("Code") == "TooManyRequestsException":
                     pass  # allow it to retry, if possible
                 else:
-                    raise AirflowException("AWS Batch job ({}) description error: {}".format(job_id, err))
+                    raise AirflowException(f"AWS Batch job ({job_id}) description error: {err}")
 
             retries += 1
             if retries >= self.status_retries:
@@ -426,9 +426,7 @@ class AwsBatchClientHook(AwsBaseHook):
         jobs = response.get("jobs", [])
         matching_jobs = [job for job in jobs if job.get("jobId") == job_id]
         if len(matching_jobs) != 1:
-            raise AirflowException(
-                "AWS Batch job ({}) description error: response: {}".format(job_id, response)
-            )
+            raise AirflowException(f"AWS Batch job ({job_id}) description error: response: {response}")
 
         return matching_jobs[0]
 

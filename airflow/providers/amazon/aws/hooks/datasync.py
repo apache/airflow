@@ -79,7 +79,7 @@ class AWSDataSyncHook(AwsBaseHook):
         elif typ == "efs":
             location = self.get_conn().create_loction_efs(**create_location_kwargs)
         else:
-            raise AirflowException("Invalid location type: {0}".format(typ))
+            raise AirflowException(f"Invalid location type: {typ}")
         self._refresh_locations()
         return location["LocationArn"]
 

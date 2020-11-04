@@ -26,7 +26,7 @@ import logging
 import time
 import warnings
 from copy import deepcopy
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, Iterable, List, Mapping, NoReturn, Optional, Sequence, Tuple, Type, Union
 
 from google.api_core.retry import Retry
@@ -43,7 +43,7 @@ from google.cloud.bigquery import (
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem, DatasetReference
 from google.cloud.bigquery.table import EncryptionConfiguration, Row, Table, TableReference
 from google.cloud.exceptions import NotFound
-from googleapiclient.discovery import build, Resource
+from googleapiclient.discovery import Resource, build
 from pandas import DataFrame
 from pandas_gbq import read_gbq
 from pandas_gbq.gbq import (
@@ -1500,6 +1500,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if not job:
             raise AirflowException(f"Unknown job type. Supported types: {supported_jobs.keys()}")
         job = job.from_api_repr(job_data, client)
+        self.log.info("Inserting job %s", job.job_id)
         # Start the job and wait for it to complete and get the result.
         job.result()
         return job
@@ -1660,8 +1661,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         ]
         if source_format not in allowed_formats:
             raise ValueError(
-                "{0} is not a valid source format. "
-                "Please use one of the following types: {1}".format(source_format, allowed_formats)
+                "{} is not a valid source format. "
+                "Please use one of the following types: {}".format(source_format, allowed_formats)
             )
 
         # bigquery also allows you to define how you want a table's schema to change
@@ -1671,8 +1672,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         allowed_schema_update_options = ['ALLOW_FIELD_ADDITION', "ALLOW_FIELD_RELAXATION"]
         if not set(allowed_schema_update_options).issuperset(set(schema_update_options)):
             raise ValueError(
-                "{0} contains invalid schema update options."
-                "Please only use one or more of the following options: {1}".format(
+                "{} contains invalid schema update options."
+                "Please only use one or more of the following options: {}".format(
                     schema_update_options, allowed_schema_update_options
                 )
             )
@@ -2077,9 +2078,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         if not set(allowed_schema_update_options).issuperset(set(schema_update_options)):
             raise ValueError(
-                "{0} contains invalid schema update options. "
+                "{} contains invalid schema update options. "
                 "Please only use one or more of the following "
-                "options: {1}".format(schema_update_options, allowed_schema_update_options)
+                "options: {}".format(schema_update_options, allowed_schema_update_options)
             )
 
         if schema_update_options:
@@ -2789,7 +2790,7 @@ def _bq_cast(string_field: str, bq_type: str) -> Union[None, int, float, bool, s
         return float(string_field)
     elif bq_type == 'BOOLEAN':
         if string_field not in ['true', 'false']:
-            raise ValueError("{} must have value 'true' or 'false'".format(string_field))
+            raise ValueError(f"{string_field} must have value 'true' or 'false'")
         return string_field == 'true'
     else:
         return string_field
@@ -2811,7 +2812,7 @@ def _split_tablename(
         if var_name is None:
             return ""
         else:
-            return "Format exception for {var}: ".format(var=var_name)
+            return f"Format exception for {var_name}: "
 
     if table_input.count('.') + table_input.count(':') > 3:
         raise Exception(
@@ -2926,6 +2927,6 @@ def _validate_src_fmt_configs(
 
     for k, v in src_fmt_configs.items():
         if k not in valid_configs:
-            raise ValueError("{0} is not a valid src_fmt_configs for type {1}.".format(k, source_format))
+            raise ValueError(f"{k} is not a valid src_fmt_configs for type {source_format}.")
 
     return src_fmt_configs

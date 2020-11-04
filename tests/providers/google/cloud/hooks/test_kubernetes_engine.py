@@ -17,9 +17,9 @@
 # under the License.
 #
 import unittest
-
 from unittest import mock
 from unittest.mock import PropertyMock
+
 from google.cloud.container_v1.types import Cluster
 
 from airflow.exceptions import AirflowException

@@ -29,7 +29,8 @@ from airflow.providers.google.cloud.sensors.cloud_storage_transfer_service impor
 warnings.warn(
     "This module is deprecated. "
     "Please use `airflow.providers.google.cloud.sensors.cloud_storage_transfer_service`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 
@@ -44,6 +45,7 @@ class GCPTransferServiceWaitForJobStatusSensor(CloudDataTransferServiceJobStatus
             """This class is deprecated.
             Please use
             `airflow.providers.google.cloud.sensors.transfer.CloudDataTransferServiceJobStatusSensor`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)

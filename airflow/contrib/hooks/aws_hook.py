@@ -24,7 +24,8 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook, _parse_s3_c
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.base_aws`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 
@@ -34,6 +35,7 @@ class AwsHook(AwsBaseHook):
     def __init__(self, *args, **kwargs):
         warnings.warn(
             "This class is deprecated. Please use `airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`.",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

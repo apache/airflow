@@ -293,12 +293,17 @@ class TestPostPool(TestBasePoolEndpoints):
             (
                 "for missing pool name",
                 {"slots": 3},
-                "'name' is a required property",
+                "Missing required property(ies): ['name']",
             ),
             (
                 "for missing slots",
                 {"name": "invalid_pool"},
-                "'slots' is a required property",
+                "Missing required property(ies): ['slots']",
+            ),
+            (
+                "for missing pool name AND slots",
+                {},
+                "Missing required property(ies): ['name', 'slots']",
             ),
             (
                 "for extra fields",
@@ -356,8 +361,9 @@ class TestPatchPool(TestBasePoolEndpoints):
     @parameterized.expand(
         [
             # Missing properties
-            ("'name' is a required property", {"slots": 3}),
-            ("'slots' is a required property", {"name": "test_pool_a"}),
+            ("Missing required property(ies): ['name']", {"slots": 3}),
+            ("Missing required property(ies): ['slots']", {"name": "test_pool_a"}),
+            ("Missing required property(ies): ['name', 'slots']", {}),
             # Extra properties
             (
                 "{'extra_field': ['Unknown field.']}",

@@ -37,16 +37,20 @@ depends_on = None
 def upgrade():
     """Apply increase_length_for_connection_password"""
     with op.batch_alter_table('connection', schema=None) as batch_op:
-        batch_op.alter_column('password',
-                              existing_type=sa.VARCHAR(length=500),
-                              type_=sa.String(length=5000),
-                              existing_nullable=True)
+        batch_op.alter_column(
+            'password',
+            existing_type=sa.VARCHAR(length=500),
+            type_=sa.String(length=5000),
+            existing_nullable=True,
+        )
 
 
 def downgrade():
     """Unapply increase_length_for_connection_password"""
     with op.batch_alter_table('connection', schema=None) as batch_op:
-        batch_op.alter_column('password',
-                              existing_type=sa.String(length=5000),
-                              type_=sa.VARCHAR(length=500),
-                              existing_nullable=True)
+        batch_op.alter_column(
+            'password',
+            existing_type=sa.String(length=5000),
+            type_=sa.VARCHAR(length=500),
+            existing_nullable=True,
+        )

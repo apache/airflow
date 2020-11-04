@@ -88,7 +88,7 @@ with DAG(
             '-input',
             's3a://data-proc-public/jobs/sources/data/cities500.txt.bz2',
             '-output',
-            's3a://{bucket}/dataproc/job/results'.format(bucket=S3_BUCKET_NAME_FOR_JOB_LOGS),
+            f's3a://{S3_BUCKET_NAME_FOR_JOB_LOGS}/dataproc/job/results',
         ],
         properties={
             'yarn.app.mapreduce.am.resource.mb': '2048',
@@ -115,7 +115,7 @@ with DAG(
         ],
         args=[
             's3a://data-proc-public/jobs/sources/data/cities500.txt.bz2',
-            's3a://{bucket}/dataproc/job/results/${{JOB_ID}}'.format(bucket=S3_BUCKET_NAME_FOR_JOB_LOGS),
+            f's3a://{S3_BUCKET_NAME_FOR_JOB_LOGS}/dataproc/job/results/${{JOB_ID}}',
         ],
         properties={
             'spark.submit.deployMode': 'cluster',
@@ -136,7 +136,7 @@ with DAG(
         ],
         args=[
             's3a://data-proc-public/jobs/sources/data/cities500.txt.bz2',
-            's3a://{bucket}/jobs/results/${{JOB_ID}}'.format(bucket=S3_BUCKET_NAME_FOR_JOB_LOGS),
+            f's3a://{S3_BUCKET_NAME_FOR_JOB_LOGS}/jobs/results/${{JOB_ID}}',
         ],
         jar_file_uris=[
             's3a://data-proc-public/jobs/sources/java/dataproc-examples-1.0.jar',

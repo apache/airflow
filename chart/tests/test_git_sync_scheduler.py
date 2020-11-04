@@ -17,210 +17,144 @@
 
 import unittest
 
-import yaml
-from kubernetes.client import models as k8s
+import jmespath
 
-from .helm_template_generator import render_chart, render_k8s_object
-
-OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 22
-
-git_sync_basic = """
-dags:
-  gitSync:
-    enabled: true
-"""
-
-git_sync_existing_claim = """
-dags:
- persistence:
-  enabled: true
-  existingClaim: test-claim
-"""
-
-git_sync_ssh_params = """
-dags:
- gitSync:
-  enabled: true
-  containerName: git-sync-test
-  sshKeySecret: ssh-secret
-  knownHosts: ~
-  branch: test-branch
-"""
-
-git_sync_username = """
-dags:
- gitSync:
-  enabled: true
-  credentialsSecret: user-pass-secret
-  sshKeySecret: ~
-"""
-
-git_sync_container_spec = """
-images:
-  gitSync:
-    repository: test-registry/test-repo
-    tag: test-tag
-dags:
-  gitSync:
-    enabled: true
-    containerName: git-sync-test
-    wait: 66
-    maxFailures: 70
-    subPath: "path1/path2"
-    dest: "test-dest"
-    root: "/git-root"
-    rev: HEAD
-    depth: 1
-    repo: https://github.com/apache/airflow.git
-    branch: test-branch
-    sshKeySecret: ~
-    credentialsSecret: ~
-    knownHosts: ~
-  persistence:
-    enabled: true
-"""
+from tests.helm_template_generator import render_chart
 
 
-class TestGitSyncScheduler(unittest.TestCase):
-    def test_basic(self):
-        helm_settings = yaml.safe_load(git_sync_basic)
-        res = render_chart(
-            'GIT-SYNC', helm_settings, show_only=["templates/scheduler/scheduler-deployment.yaml"]
+class GitSyncSchedulerTest(unittest.TestCase):
+    def test_should_add_dags_volume(self):
+        docs = render_chart(
+            values={"dags": {"gitSync": {"enabled": True}}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        dep: k8s.V1Deployment = render_k8s_object(res[0], k8s.V1Deployment)
-        self.assertEqual("dags", dep.spec.template.spec.volumes[1].name)
 
-    def test_git_container_spec(self):
-        helm_settings = yaml.safe_load(git_sync_container_spec)
-        res = render_chart(
-            'GIT-SYNC', helm_settings, show_only=["templates/scheduler/scheduler-deployment.yaml"]
-        )
-        dep: k8s.V1Deployment = render_k8s_object(res[0], k8s.V1Deployment)
-        git_sync_container = dep.spec.template.spec.containers[1]
-        self.assertEqual(git_sync_container.image, "test-registry/test-repo:test-tag")
-        self.assertEqual(git_sync_container.name, "git-sync-test")
-        self.assertEqual(git_sync_container.security_context.run_as_user, 65533)
-        env_dict = [e.to_dict() for e in git_sync_container.env]
-        self.assertEqual(
-            env_dict,
-            [
-                {'name': 'GIT_SYNC_REV', 'value': 'HEAD', 'value_from': None},
-                {'name': 'GIT_SYNC_BRANCH', 'value': 'test-branch', 'value_from': None},
-                {
-                    'name': 'GIT_SYNC_REPO',
-                    'value': 'https://github.com/apache/airflow.git',
-                    'value_from': None,
+        self.assertEqual("dags", jmespath.search("spec.template.spec.volumes[1].name", docs[0]))
+
+    def test_validate_the_git_sync_container_spec(self):
+        docs = render_chart(
+            values={
+                "images": {
+                    "gitSync": {
+                        "repository": "test-registry/test-repo",
+                        "tag": "test-tag",
+                        "pullPolicy": "Allways",
+                    }
                 },
-                {'name': 'GIT_SYNC_DEPTH', 'value': '1', 'value_from': None},
-                {'name': 'GIT_SYNC_ROOT', 'value': '/git-root', 'value_from': None},
-                {'name': 'GIT_SYNC_DEST', 'value': 'test-dest', 'value_from': None},
-                {'name': 'GIT_SYNC_ADD_USER', 'value': 'true', 'value_from': None},
-                {'name': 'GIT_SYNC_WAIT', 'value': '66', 'value_from': None},
-                {'name': 'GIT_SYNC_MAX_SYNC_FAILURES', 'value': '70', 'value_from': None},
-            ],
-        )
-
-        self.assertEqual(
-            git_sync_container.volume_mounts, [k8s.V1VolumeMount(name="dags", mount_path="/git-root")]
-        )
-
-    def test_ssh_params_added(self):
-        helm_settings = yaml.safe_load(git_sync_ssh_params)
-        res = render_chart(
-            'GIT-SYNC', helm_settings, show_only=["templates/scheduler/scheduler-deployment.yaml"]
-        )
-        dep: k8s.V1Deployment = render_k8s_object(res[0], k8s.V1Deployment)
-        git_sync_container = dep.spec.template.spec.containers[1]
-        env_dict = [e.to_dict() for e in git_sync_container.env]
-        self.assertEqual(
-            env_dict,
-            [
-                {'name': 'GIT_SSH_KEY_FILE', 'value': '/etc/git-secret/ssh', 'value_from': None},
-                {'name': 'GIT_SYNC_SSH', 'value': 'true', 'value_from': None},
-                {'name': 'GIT_KNOWN_HOSTS', 'value': 'false', 'value_from': None},
-                {'name': 'GIT_SYNC_REV', 'value': 'HEAD', 'value_from': None},
-                {'name': 'GIT_SYNC_BRANCH', 'value': 'test-branch', 'value_from': None},
-                {
-                    'name': 'GIT_SYNC_REPO',
-                    'value': 'https://github.com/apache/airflow.git',
-                    'value_from': None,
-                },
-                {'name': 'GIT_SYNC_DEPTH', 'value': '1', 'value_from': None},
-                {'name': 'GIT_SYNC_ROOT', 'value': '/git', 'value_from': None},
-                {'name': 'GIT_SYNC_DEST', 'value': 'repo', 'value_from': None},
-                {'name': 'GIT_SYNC_ADD_USER', 'value': 'true', 'value_from': None},
-                {'name': 'GIT_SYNC_WAIT', 'value': '60', 'value_from': None},
-                {'name': 'GIT_SYNC_MAX_SYNC_FAILURES', 'value': '0', 'value_from': None},
-            ],
-        )
-
-    def test_adds_git_username(self):
-        helm_settings = yaml.safe_load(git_sync_username)
-        res = render_chart(
-            'GIT-SYNC', helm_settings, show_only=["templates/scheduler/scheduler-deployment.yaml"]
-        )
-        dep: k8s.V1Deployment = render_k8s_object(res[0], k8s.V1Deployment)
-        git_sync_container = dep.spec.template.spec.containers[1]
-        env_dict = [e.to_dict() for e in git_sync_container.env]
-        self.assertEqual(
-            env_dict,
-            [
-                {
-                    'name': 'GIT_SYNC_USERNAME',
-                    'value': None,
-                    'value_from': {
-                        'config_map_key_ref': None,
-                        'field_ref': None,
-                        'resource_field_ref': None,
-                        'secret_key_ref': {
-                            'key': 'GIT_SYNC_USERNAME',
-                            'name': 'user-pass-secret',
-                            'optional': None,
-                        },
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "containerName": "git-sync-test",
+                        "wait": 66,
+                        "maxFailures": 70,
+                        "subPath": "path1/path2",
+                        "dest": "test-dest",
+                        "root": "/git-root",
+                        "rev": "HEAD",
+                        "depth": 1,
+                        "repo": "https://github.com/apache/airflow.git",
+                        "branch": "test-branch",
+                        "sshKeySecret": None,
+                        "credentialsSecret": None,
+                        "knownHosts": None,
                     },
+                    "persistence": {"enabled": True},
                 },
-                {
-                    'name': 'GIT_SYNC_PASSWORD',
-                    'value': None,
-                    'value_from': {
-                        'config_map_key_ref': None,
-                        'field_ref': None,
-                        'resource_field_ref': None,
-                        'secret_key_ref': {
-                            'key': 'GIT_SYNC_PASSWORD',
-                            'name': 'user-pass-secret',
-                            'optional': None,
-                        },
-                    },
-                },
-                {'name': 'GIT_SYNC_REV', 'value': 'HEAD', 'value_from': None},
-                {'name': 'GIT_SYNC_BRANCH', 'value': 'v1-10-stable', 'value_from': None},
-                {
-                    'name': 'GIT_SYNC_REPO',
-                    'value': 'https://github.com/apache/airflow.git',
-                    'value_from': None,
-                },
-                {'name': 'GIT_SYNC_DEPTH', 'value': '1', 'value_from': None},
-                {'name': 'GIT_SYNC_ROOT', 'value': '/git', 'value_from': None},
-                {'name': 'GIT_SYNC_DEST', 'value': 'repo', 'value_from': None},
-                {'name': 'GIT_SYNC_ADD_USER', 'value': 'true', 'value_from': None},
-                {'name': 'GIT_SYNC_WAIT', 'value': '60', 'value_from': None},
-                {'name': 'GIT_SYNC_MAX_SYNC_FAILURES', 'value': '0', 'value_from': None},
-            ],
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-    def test_set_volume_claim_to_existing_claim(self):
-        helm_settings = yaml.safe_load(git_sync_existing_claim)
-        res = render_chart(
-            'GIT-SYNC', helm_settings, show_only=["templates/scheduler/scheduler-deployment.yaml"]
-        )
-        dep: k8s.V1Deployment = render_k8s_object(res[0], k8s.V1Deployment)
-        volume_map = {vol.name: vol for vol in dep.spec.template.spec.volumes}
-        dag_volume = volume_map['dags']
         self.assertEqual(
-            dag_volume,
-            k8s.V1Volume(
-                name="dags",
-                persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(claim_name='test-claim'),
-            ),
+            {
+                "name": "git-sync-test",
+                "securityContext": {"runAsUser": 65533},
+                "image": "test-registry/test-repo:test-tag",
+                "imagePullPolicy": "Allways",
+                "env": [
+                    {"name": "GIT_SYNC_REV", "value": "HEAD"},
+                    {"name": "GIT_SYNC_BRANCH", "value": "test-branch"},
+                    {"name": "GIT_SYNC_REPO", "value": "https://github.com/apache/airflow.git"},
+                    {"name": "GIT_SYNC_DEPTH", "value": "1"},
+                    {"name": "GIT_SYNC_ROOT", "value": "/git-root"},
+                    {"name": "GIT_SYNC_DEST", "value": "test-dest"},
+                    {"name": "GIT_SYNC_ADD_USER", "value": "true"},
+                    {"name": "GIT_SYNC_WAIT", "value": "66"},
+                    {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": "70"},
+                ],
+                "volumeMounts": [{"mountPath": "/git-root", "name": "dags"}],
+            },
+            jmespath.search("spec.template.spec.containers[1]", docs[0]),
+        )
+
+    def test_validate_if_ssh_params_are_added(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "containerName": "git-sync-test",
+                        "sshKeySecret": "ssh-secret",
+                        "knownHosts": None,
+                        "branch": "test-branch",
+                    }
+                }
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        self.assertIn(
+            {"name": "GIT_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"},
+            jmespath.search("spec.template.spec.containers[1].env", docs[0]),
+        )
+        self.assertIn(
+            {"name": "GIT_SYNC_SSH", "value": "true"},
+            jmespath.search("spec.template.spec.containers[1].env", docs[0]),
+        )
+        self.assertIn(
+            {"name": "GIT_KNOWN_HOSTS", "value": "false"},
+            jmespath.search("spec.template.spec.containers[1].env", docs[0]),
+        )
+        self.assertIn(
+            {"name": "git-sync-ssh-key", "secret": {"secretName": "ssh-secret", "defaultMode": 288}},
+            jmespath.search("spec.template.spec.volumes", docs[0]),
+        )
+
+    def test_should_set_username_and_pass_env_variables(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "credentialsSecret": "user-pass-secret",
+                        "sshKeySecret": None,
+                    }
+                }
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        self.assertIn(
+            {
+                "name": "GIT_SYNC_USERNAME",
+                "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_USERNAME"}},
+            },
+            jmespath.search("spec.template.spec.containers[1].env", docs[0]),
+        )
+        self.assertIn(
+            {
+                "name": "GIT_SYNC_PASSWORD",
+                "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}},
+            },
+            jmespath.search("spec.template.spec.containers[1].env", docs[0]),
+        )
+
+    def test_should_set_the_volume_claim_correctly_when_using_an_existing_claim(self):
+        docs = render_chart(
+            values={"dags": {"persistence": {"enabled": True, "existingClaim": "test-claim"}}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        self.assertIn(
+            {"name": "dags", "persistentVolumeClaim": {"claimName": "test-claim"}},
+            jmespath.search("spec.template.spec.volumes", docs[0]),
         )

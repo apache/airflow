@@ -51,11 +51,11 @@ class TestBranchOperator(unittest.TestCase):
             session.query(TI).delete()
 
     def setUp(self):
-        self.dag = DAG('branch_operator_test',
-                       default_args={
-                           'owner': 'airflow',
-                           'start_date': DEFAULT_DATE},
-                       schedule_interval=INTERVAL)
+        self.dag = DAG(
+            'branch_operator_test',
+            default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
+            schedule_interval=INTERVAL,
+        )
 
         self.branch_1 = DummyOperator(task_id='branch_1', dag=self.dag)
         self.branch_2 = DummyOperator(task_id='branch_2', dag=self.dag)
@@ -79,10 +79,7 @@ class TestBranchOperator(unittest.TestCase):
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         with create_session() as session:
-            tis = session.query(TI).filter(
-                TI.dag_id == self.dag.dag_id,
-                TI.execution_date == DEFAULT_DATE
-            )
+            tis = session.query(TI).filter(TI.dag_id == self.dag.dag_id, TI.execution_date == DEFAULT_DATE)
 
             for ti in tis:
                 if ti.task_id == 'make_choice':
@@ -107,10 +104,7 @@ class TestBranchOperator(unittest.TestCase):
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         with create_session() as session:
-            tis = session.query(TI).filter(
-                TI.dag_id == self.dag.dag_id,
-                TI.execution_date == DEFAULT_DATE
-            )
+            tis = session.query(TI).filter(TI.dag_id == self.dag.dag_id, TI.execution_date == DEFAULT_DATE)
 
             expected = {
                 "make_choice": State.SUCCESS,
@@ -135,7 +129,7 @@ class TestBranchOperator(unittest.TestCase):
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
-            state=State.RUNNING
+            state=State.RUNNING,
         )
 
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -161,7 +155,7 @@ class TestBranchOperator(unittest.TestCase):
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
-            state=State.RUNNING
+            state=State.RUNNING,
         )
 
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)

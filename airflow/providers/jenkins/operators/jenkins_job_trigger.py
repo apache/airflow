@@ -60,9 +60,7 @@ def jenkins_request_with_headers(jenkins_server: Jenkins, req: Request) -> Optio
     except HTTPError as e:
         # Jenkins's funky authentication means its nigh impossible to distinguish errors.
         if e.code in [401, 403, 500]:
-            raise JenkinsException(
-                'Error in request. Possibly authentication failed [%s]: %s' % (e.code, e.reason)
-            )
+            raise JenkinsException(f'Error in request. Possibly authentication failed [{e.code}]: {e.reason}')
         elif e.code == 404:
             raise jenkins.NotFoundException('Requested item could not be found')
         else:

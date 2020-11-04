@@ -205,7 +205,7 @@ class WinRMHook(BaseHook):
 
         # If endpoint is not set, then build a standard wsman endpoint from host and port.
         if not self.endpoint:
-            self.endpoint = 'http://{0}:{1}/wsman'.format(self.remote_host, self.remote_port)
+            self.endpoint = f'http://{self.remote_host}:{self.remote_port}/wsman'
 
         try:
             if self.password and self.password.strip():
@@ -233,7 +233,7 @@ class WinRMHook(BaseHook):
             self.client = self.winrm_protocol.open_shell()
 
         except Exception as error:
-            error_msg = "Error connecting to host: {0}, error: {1}".format(self.remote_host, error)
+            error_msg = f"Error connecting to host: {self.remote_host}, error: {error}"
             self.log.error(error_msg)
             raise AirflowException(error_msg)
 

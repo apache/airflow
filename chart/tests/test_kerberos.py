@@ -15,15 +15,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
----
-templates:
-  - workers/worker-deployment.yaml
-  - rbac/pod-launcher-rolebinding.yaml
-tests:
-  - it: should allow both scheduler pod launching and worker pod launching
-    set:
-      executor: CeleryKubernetesExecutor
-    asserts:
-      - matchRegex:
-          path: subjects[0].name
-          pattern: ^.*-worker$
+import json
+import unittest
+
+from tests.helm_template_generator import render_chart
+
+
+class KerberosTest(unittest.TestCase):
+    def test_kerberos_not_mentioned_in_render_if_disabled(self):
+        k8s_objects = render_chart(name="NO-KERBEROS", values={"kerberos": {'enabled': False}})
+        # ignore airflow config map
+        k8s_objects_to_consider = [
+            obj for obj in k8s_objects if obj["metadata"]["name"] != "NO-KERBEROS-airflow-config"
+        ]
+        k8s_objects_to_consider_str = json.dumps(k8s_objects_to_consider)
+        self.assertNotIn("kerberos", k8s_objects_to_consider_str)

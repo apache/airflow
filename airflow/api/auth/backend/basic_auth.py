@@ -53,13 +53,12 @@ def auth_current_user() -> Optional[User]:
 
 def requires_authentication(function: T):
     """Decorator for functions that require authentication"""
+
     @wraps(function)
     def decorated(*args, **kwargs):
         if auth_current_user() is not None:
             return function(*args, **kwargs)
         else:
-            return Response(
-                "Unauthorized", 401, {"WWW-Authenticate": "Basic"}
-            )
+            return Response("Unauthorized", 401, {"WWW-Authenticate": "Basic"})
 
     return cast(T, decorated)

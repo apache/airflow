@@ -18,4 +18,16 @@
 # Script to run mypy on all code. Can be started from any working directory
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
-mypy "$@"
+set -x
+
+packages=()
+
+# Mypy doesn't cope very well with namespace packages when give filenames (it gets confused about the lack of __init__.py in airflow.providers, and thinks airflow.providers.docker is the same as a "docker" top level module).
+#
+# So we instead need to convert the file names in to module names to check
+for package in $( filenames_to_python_module "$@");
+do
+  packages+=("-m" "$package")
+done
+
+mypy --namespace-packages "${packages[@]}"

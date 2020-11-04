@@ -57,7 +57,7 @@ class TestDagParamRuntime(unittest.TestCase):
             run_id=DagRunType.MANUAL.value,
             start_date=timezone.utcnow(),
             execution_date=self.DEFAULT_DATE,
-            state=State.RUNNING
+            state=State.RUNNING,
         )
 
         # pylint: disable=maybe-no-member
@@ -84,7 +84,7 @@ class TestDagParamRuntime(unittest.TestCase):
             start_date=timezone.utcnow(),
             execution_date=self.DEFAULT_DATE,
             state=State.RUNNING,
-            conf={'value': new_value}
+            conf={'value': new_value},
         )
 
         # pylint: disable=maybe-no-member

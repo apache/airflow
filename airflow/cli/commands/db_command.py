@@ -35,9 +35,7 @@ def initdb(args):
 def resetdb(args):
     """Resets the metadata database"""
     print("DB: " + repr(settings.engine.url))
-    if args.yes or input("This will drop existing tables "
-                         "if they exist. Proceed? "
-                         "(y/n)").upper() == "Y":
+    if args.yes or input("This will drop existing tables " "if they exist. Proceed? " "(y/n)").upper() == "Y":
         db.resetdb()
     else:
         print("Cancelled")
@@ -63,14 +61,16 @@ def shell(args):
 
     if url.get_backend_name() == 'mysql':
         with NamedTemporaryFile(suffix="my.cnf") as f:
-            content = textwrap.dedent(f"""
+            content = textwrap.dedent(
+                f"""
                 [client]
                 host     = {url.host}
                 user     = {url.username}
                 password = {url.password or ""}
                 port     = {url.port or ""}
                 database = {url.database}
-                """).strip()
+                """
+            ).strip()
             f.write(content.encode())
             f.flush()
             execute_interactive(["mysql", f"--defaults-extra-file={f.name}"])

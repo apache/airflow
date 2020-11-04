@@ -24,5 +24,6 @@ from airflow.providers.dingding.hooks.dingding import DingdingHook, requests  # 
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.dingding.hooks.dingding`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

@@ -42,7 +42,7 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
     log.info("Deleting DAG: %s", dag_id)
     dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
     if dag is None:
-        raise DagNotFound("Dag id {} not found".format(dag_id))
+        raise DagNotFound(f"Dag id {dag_id} not found")
 
     # Scheduler removes DAGs without files from serialized_dag table every dag_dir_list_interval.
     # There may be a lag, so explicitly removes serialized DAG here.
@@ -60,13 +60,14 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
     if dag.is_subdag:
         parent_dag_id, task_id = dag_id.rsplit(".", 1)
         for model in TaskFail, models.TaskInstance:
-            count += session.query(model).filter(model.dag_id == parent_dag_id,
-                                                 model.task_id == task_id).delete()
+            count += (
+                session.query(model).filter(model.dag_id == parent_dag_id, model.task_id == task_id).delete()
+            )
 
     # Delete entries in Import Errors table for a deleted DAG
     # This handles the case when the dag_id is changed in the file
-    session.query(models.ImportError).filter(
-        models.ImportError.filename == dag.fileloc
-    ).delete(synchronize_session='fetch')
+    session.query(models.ImportError).filter(models.ImportError.filename == dag.fileloc).delete(
+        synchronize_session='fetch'
+    )
 
     return count

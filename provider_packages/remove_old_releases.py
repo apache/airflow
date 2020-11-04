@@ -40,13 +40,15 @@ class VersionedFile(NamedTuple):
 
 
 def split_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
-    no_suffix_file = file_name[:-len(suffix)]
+    no_suffix_file = file_name[: -len(suffix)]
     no_version_file, version = no_suffix_file.rsplit("-", 1)
-    return VersionedFile(base=no_version_file + "-",
-                         version=version,
-                         suffix=suffix,
-                         type=no_version_file + "-" + suffix,
-                         comparable_version=LooseVersion(version))
+    return VersionedFile(
+        base=no_version_file + "-",
+        version=version,
+        suffix=suffix,
+        type=no_version_file + "-" + suffix,
+        comparable_version=LooseVersion(version),
+    )
 
 
 def process_all_files(directory: str, suffix: str, execute: bool):
@@ -63,8 +65,10 @@ def process_all_files(directory: str, suffix: str, execute: bool):
     for package_types in package_types_dicts.values():
         if len(package_types) == 1:
             versioned_file = package_types[0]
-            print("Leaving the only version: "
-                  f"${versioned_file.base + versioned_file.version + versioned_file.suffix}")
+            print(
+                "Leaving the only version: "
+                f"${versioned_file.base + versioned_file.version + versioned_file.suffix}"
+            )
         # Leave only last version from each type
         for versioned_file in package_types[:-1]:
             command = ["svn", "rm", versioned_file.base + versioned_file.version + versioned_file.suffix]
@@ -76,10 +80,16 @@ def process_all_files(directory: str, suffix: str, execute: bool):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Removes old releases.')
-    parser.add_argument('--directory', dest='directory', action='store', required=True,
-                        help='Directory to remove old releases in')
-    parser.add_argument('--execute', dest='execute', action='store_true',
-                        help='Execute the removal rather than dry run')
+    parser.add_argument(
+        '--directory',
+        dest='directory',
+        action='store',
+        required=True,
+        help='Directory to remove old releases in',
+    )
+    parser.add_argument(
+        '--execute', dest='execute', action='store_true', help='Execute the removal rather than dry run'
+    )
     return parser.parse_args()
 
 

@@ -15,24 +15,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
----
-templates:
-  - workers/worker-deployment.yaml
-tests:
-  - it: should add extraVolume and extraVolumeMount
-    set:
-      executor: CeleryExecutor
-      workers:
-        extraVolumes:
-          - name: test-volume
-            emptyDir: {}
-        extraVolumeMounts:
-          - name: test-volume
-            mountPath: /opt/test
-    asserts:
-      - equal:
-          path: spec.template.spec.volumes[0].name
-          value: test-volume
-      - equal:
-          path: spec.template.spec.containers[0].volumeMounts[0].name
-          value: test-volume
+import json
+import os
+import unittest
+
+import yaml
+from jsonschema import validate
+
+CHART_FOLDER = os.path.dirname(os.path.dirname(__file__))
+
+
+class ChartQualityTest(unittest.TestCase):
+    def test_values_validate_schema(self):
+        with open(os.path.join(CHART_FOLDER, "values.yaml")) as f:
+            values = yaml.safe_load(f)
+        with open(os.path.join(CHART_FOLDER, "values.schema.json")) as f:
+            schema = json.load(f)
+
+        # Add extra restrictions just for the tests to make sure
+        # we don't forget to update the schema if we add a new property
+        schema["additionalProperties"] = False
+        schema["minProperties"] = len(schema["properties"].keys())
+
+        # shouldn't raise
+        validate(instance=values, schema=schema)

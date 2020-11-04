@@ -23,6 +23,5 @@ import warnings
 from airflow.operators.bash import STDOUT, BashOperator, Popen, gettempdir  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.operators.bash`.",
-    DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.operators.bash`.", DeprecationWarning, stacklevel=2
 )

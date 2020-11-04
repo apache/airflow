@@ -203,7 +203,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             # k8s://https://<HOST>:<PORT>
             conn = self.get_connection(self._conn_id)
             if conn.port:
-                conn_data['master'] = "{}:{}".format(conn.host, conn.port)
+                conn_data['master'] = f"{conn.host}:{conn.port}"
             else:
                 conn_data['master'] = conn.host
 
@@ -644,7 +644,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             self._submit_sp.kill()
 
             if self._yarn_application_id:
-                kill_cmd = "yarn application -kill {}".format(self._yarn_application_id).split()
+                kill_cmd = f"yarn application -kill {self._yarn_application_id}".split()
                 env = None
                 if self._keytab is not None and self._principal is not None:
                     # we are ignoring renewal failures from renew_from_kt

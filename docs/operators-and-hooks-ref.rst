@@ -626,7 +626,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `Snowflake <https://snowflake.com/>`__
-     -
+     - :doc:`How to use <howto/operator/snowflake>`
      - :mod:`airflow.providers.snowflake.transfers.s3_to_snowflake`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
@@ -992,6 +992,11 @@ These integrations allow you to copy data from/to Google Cloud.
      - :doc:`How to use <howto/operator/google/transfer/facebook_ads_to_gcs>`
      - :mod:`airflow.providers.google.cloud.transfers.facebook_ads_to_gcs`
 
+   * - `Salesforce <https://www.salesforce.com/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - :doc:`How to use <howto/operator/google/transfer/salesforce_to_gcs>`
+     - :mod:`airflow.providers.google.cloud.transfers.salesforce_to_gcs`
+
 
    * - `Google Ads <https://ads.google.com/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
@@ -1352,7 +1357,7 @@ These integrations allow you to perform various operations within various servic
      -
 
    * - `Snowflake <https://www.snowflake.com/>`__
-     -
+     - :doc:`How to use <howto/operator/snowflake>`
      - :mod:`airflow.providers.snowflake.hooks.snowflake`
      - :mod:`airflow.providers.snowflake.operators.snowflake`,
        :mod:`airflow.providers.snowflake.transfers.snowflake_to_slack`

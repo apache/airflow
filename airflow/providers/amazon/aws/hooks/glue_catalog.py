@@ -17,7 +17,7 @@
 # under the License.
 
 """This module contains AWS Glue Catalog Hook"""
-from typing import Set, Optional
+from typing import Optional, Set
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 

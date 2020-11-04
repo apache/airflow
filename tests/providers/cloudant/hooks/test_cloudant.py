@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
-
 from unittest.mock import patch
 
 from airflow.exceptions import AirflowException

@@ -133,7 +133,7 @@ class HiveStatsCollectionOperator(BaseOperator):
         exprs = OrderedDict(exprs)
         exprs_str = ",\n        ".join([v + " AS " + k[0] + '__' + k[1] for k, v in exprs.items()])
 
-        where_clause_ = ["{} = '{}'".format(k, v) for k, v in self.partition.items()]
+        where_clause_ = [f"{k} = '{v}'" for k, v in self.partition.items()]
         where_clause = " AND\n        ".join(where_clause_)
         sql = "SELECT {exprs_str} FROM {table} WHERE {where_clause};".format(
             exprs_str=exprs_str, table=self.table, where_clause=where_clause

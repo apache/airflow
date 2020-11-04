@@ -19,7 +19,7 @@
 
 from typing import Any, Dict, List, Optional, Sequence, Union
 
-from googleapiclient.discovery import build, Resource
+from googleapiclient.discovery import Resource, build
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook

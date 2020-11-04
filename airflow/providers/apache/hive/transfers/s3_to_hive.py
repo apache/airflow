@@ -239,7 +239,7 @@ class S3ToHiveOperator(BaseOperator):  # pylint: disable=too-many-instance-attri
                 )
 
     def _get_top_row_as_list(self, file_name):
-        with open(file_name, 'rt') as file:
+        with open(file_name) as file:
             header_line = file.readline().strip()
             header_list = header_line.split(self.delimiter)
             return header_list

@@ -122,7 +122,7 @@ class BigQueryToMySqlOperator(BaseOperator):
         try:
             self.dataset_id, self.table_id = dataset_table.split('.')
         except ValueError:
-            raise ValueError('Could not parse {} as <dataset>.<table>'.format(dataset_table))
+            raise ValueError(f'Could not parse {dataset_table} as <dataset>.<table>')
 
     def _bq_get_data(self):
         self.log.info('Fetching Data from:')
