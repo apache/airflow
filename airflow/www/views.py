@@ -2131,18 +2131,17 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         cum_chart.create_y_axis('yAxis', format='.02f', custom_format=False, label=f'Duration ({cum_y_unit})')
         cum_chart.axislist['yAxis']['axisLabelDistance'] = '-15'
 
-        for task in dag.tasks:
-            if x_points[task.task_id]:
-                chart.add_serie(
-                    name=task.task_id,
-                    x=x_points[task.task_id],
-                    y=scale_time_units(y_points[task.task_id], y_unit),
-                )
-                cum_chart.add_serie(
-                    name=task.task_id,
-                    x=x_points[task.task_id],
-                    y=scale_time_units(cumulative_y[task.task_id], cum_y_unit),
-                )
+        for task_id in x_points:
+            chart.add_serie(
+                name=task_id,
+                x=x_points[task_id],
+                y=scale_time_units(y_points[task_id], y_unit),
+            )
+            cum_chart.add_serie(
+                name=task_id,
+                x=x_points[task_id],
+                y=scale_time_units(cumulative_y[task_id], cum_y_unit),
+            )
 
         dates = sorted(list({ti.execution_date for ti in task_instances}))
         max_date = max([ti.execution_date for ti in task_instances]) if dates else None
@@ -2291,13 +2290,13 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         # update the y Axis to have the correct time units
         chart.create_y_axis('yAxis', format='.02f', custom_format=False, label=f'Landing Time ({y_unit})')
         chart.axislist['yAxis']['axisLabelDistance'] = '-15'
-        for task in dag.tasks:
-            if x_points[task.task_id]:
-                chart.add_serie(
-                    name=task.task_id,
-                    x=x_points[task.task_id],
-                    y=scale_time_units(y_points[task.task_id], y_unit),
-                )
+
+        for task_id in x_points:
+            chart.add_serie(
+                name=task_id,
+                x=x_points[task_id],
+                y=scale_time_units(y_points[task_id], y_unit),
+            )
 
         tis = dag.get_task_instances(start_date=min_date, end_date=base_date)
         dates = sorted(list({ti.execution_date for ti in tis}))
