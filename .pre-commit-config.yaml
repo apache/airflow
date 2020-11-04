@@ -182,7 +182,7 @@ repos:
       - id: pyupgrade
         args: ["--py36-plus"]
   - repo: https://github.com/pre-commit/pygrep-hooks
-    rev: v1.6.0
+    rev: v1.7.0
     hooks:
       - id: rst-backticks
       - id: python-no-log-warn
@@ -200,7 +200,8 @@ repos:
     hooks:
       - id: isort
         name: Run isort to sort imports
-        types: [python]
+        args: [--filter-files, --profile, black]
+        files: \.py$
         # To keep consistent with the global isort skip config defined in setup.cfg
         exclude: ^build/.*$|^.tox/.*$|^venv/.*$
   - repo: https://github.com/pycqa/pydocstyle
@@ -336,7 +337,7 @@ repos:
           ^airflow/operators/.*$|
           ^airflow/sensors/.*$|
           ^airflow/providers/.*$|
-          ^provider_packages/.*$
+          ^dev/provider_packages/.*$
       - id: base-operator
         language: pygrep
         name: Make sure BaseOperator[Link] is imported from airflow.models outside of core

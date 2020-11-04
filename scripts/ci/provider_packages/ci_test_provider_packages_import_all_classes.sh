@@ -26,7 +26,7 @@ function run_test_package_import_all_classes() {
         -v "${AIRFLOW_SOURCES}/setup.cfg:/airflow_sources/setup.cfg:cached" \
         -v "${AIRFLOW_SOURCES}/airflow/__init__.py:/airflow_sources/airflow/__init__.py:cached" \
         -v "${AIRFLOW_SOURCES}/airflow/version.py:/airflow_sources/airflow/version.py:cached" \
-        -v "${AIRFLOW_SOURCES}/provider_packages/import_all_provider_classes.py:/import_all_provider_classes.py:cached" \
+        -v "${AIRFLOW_SOURCES}/dev/import_all_classes.py:/import_all_classes.py:cached" \
         "${AIRFLOW_CI_IMAGE}" \
         "--" "/opt/airflow/scripts/in_container/run_test_package_import_all_classes.sh"
 }

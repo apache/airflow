@@ -42,17 +42,19 @@ BACKPORT_PROVIDER_TEMPLATE_PREFIX = "BACKPORT_PROVIDER_"
 BACKPORT_PROVIDER_PREFIX = "backport_provider_"
 
 MY_DIR_PATH = os.path.dirname(__file__)
-SOURCE_DIR_PATH = os.path.abspath(os.path.join(MY_DIR_PATH, os.pardir))
+SOURCE_DIR_PATH = os.path.abspath(os.path.join(MY_DIR_PATH, os.pardir, os.pardir))
 AIRFLOW_PATH = os.path.join(SOURCE_DIR_PATH, "airflow")
 PROVIDERS_PATH = os.path.join(AIRFLOW_PATH, "providers")
-
+TARGET_PROVIDER_PACKAGES_PATH = os.path.join(SOURCE_DIR_PATH, "provider_packages")
+GENERATED_AIRFLOW_PATH = os.path.join(TARGET_PROVIDER_PACKAGES_PATH, "airflow")
+GENERATED_PROVIDERS_PATH = os.path.join(GENERATED_AIRFLOW_PATH, "providers")
 sys.path.insert(0, SOURCE_DIR_PATH)
 
 # those imports need to come after the above sys.path.insert to make sure that Airflow
 # sources are importable without having to add the airflow sources to the PYTHONPATH before
 # running the script
 import tests.deprecated_classes  # noqa # isort:skip
-from provider_packages.import_all_provider_classes import import_all_provider_classes  # noqa # isort:skip
+from dev.import_all_classes import import_all_classes  # noqa # isort:skip
 from setup import PROVIDERS_REQUIREMENTS  # noqa # isort:skip
 
 # Note - we do not test protocols as they are not really part of the official API of
@@ -133,7 +135,7 @@ def get_source_airflow_folder() -> str:
 
     :return: the folder path
     """
-    return os.path.abspath(os.path.join(dirname(__file__), os.pardir))
+    return os.path.abspath(SOURCE_DIR_PATH)
 
 
 def get_source_providers_folder() -> str:
@@ -151,7 +153,9 @@ def get_target_providers_folder() -> str:
 
     :return: the folder path
     """
-    return os.path.abspath(os.path.join(dirname(__file__), "airflow", "providers"))
+    return os.path.abspath(
+        os.path.join(dirname(__file__), os.pardir, os.pardir, "provider_packages", "airflow", "providers")
+    )
 
 
 def get_target_providers_package_folder(provider_package_id: str) -> str:
@@ -230,7 +234,8 @@ def get_package_release_version(
     """
     return (
         get_latest_release(
-            get_package_path(provider_package_id=provider_package_id), backport_packages=backport_packages
+            get_source_package_path(provider_package_id=provider_package_id),
+            backport_packages=backport_packages,
         ).release_version
         + version_suffix
     )
@@ -1013,13 +1018,23 @@ def store_current_changes(
         current_changes_file.write("\n")
 
 
-def get_package_path(provider_package_id: str) -> str:
+def get_source_package_path(provider_package_id: str) -> str:
     """
-    Retrieves package path from package id.
+    Retrieves source package path from package id.
     :param provider_package_id: id of the package
     :return: path of the providers folder
     """
     provider_package_path = os.path.join(PROVIDERS_PATH, *provider_package_id.split("."))
+    return provider_package_path
+
+
+def get_generated_package_path(provider_package_id: str) -> str:
+    """
+    Retrieves generated package path from package id.
+    :param provider_package_id: id of the package
+    :return: path of the providers folder
+    """
+    provider_package_path = os.path.join(GENERATED_PROVIDERS_PATH, *provider_package_id.split("."))
     return provider_package_path
 
 
@@ -1119,10 +1134,10 @@ def update_release_notes_for_package(
     """
     verify_provider_package(provider_package_id)
     full_package_name = f"airflow.providers.{provider_package_id}"
-    provider_package_path = get_package_path(provider_package_id)
+    source_provider_package_path = get_source_package_path(provider_package_id)
     entity_summaries = get_package_class_summary(full_package_name, imported_classes)
     past_releases = get_all_releases(
-        provider_package_path=provider_package_path, backport_packages=backport_packages
+        provider_package_path=source_provider_package_path, backport_packages=backport_packages
     )
     current_release_version, previous_release = check_if_release_version_ok(
         past_releases, current_release_version, backport_packages
@@ -1136,7 +1151,7 @@ def update_release_notes_for_package(
         current_release_version=current_release_version,
     )
     git_cmd = get_git_command(previous_release)
-    changes = subprocess.check_output(git_cmd, cwd=provider_package_path, universal_newlines=True)
+    changes = subprocess.check_output(git_cmd, cwd=source_provider_package_path, universal_newlines=True)
     changes_table = convert_git_changes_to_table(
         changes, base_url="https://github.com/apache/airflow/commit/"
     )
@@ -1161,7 +1176,7 @@ def update_release_notes_for_package(
         "RELEASE_NO_LEADING_ZEROS": release_version_no_leading_zeros,
         "VERSION_SUFFIX": version_suffix,
         "CURRENT_CHANGES_TABLE": changes_table,
-        "ADDITIONAL_INFO": get_additional_package_info(provider_package_path=provider_package_path),
+        "ADDITIONAL_INFO": get_additional_package_info(provider_package_path=source_provider_package_path),
         "CROSS_PROVIDERS_DEPENDENCIES": cross_providers_dependencies,
         "CROSS_PROVIDERS_DEPENDENCIES_TABLE": cross_providers_dependencies_table,
         "PIP_REQUIREMENTS": PROVIDERS_REQUIREMENTS[provider_package_id],
@@ -1182,10 +1197,10 @@ def update_release_notes_for_package(
         current_release_version,
         entity_summaries,
         provider_package_id,
-        provider_package_path,
+        source_provider_package_path,
     )
-    prepare_setup_py_file(context, provider_package_path)
-    prepare_setup_cfg_file(context, provider_package_path)
+    prepare_setup_py_file(context, source_provider_package_path)
+    prepare_setup_cfg_file(context, source_provider_package_path)
     total, bad = check_if_classes_are_properly_named(entity_summaries)
     bad = bad + sum([len(entity_summary.wrong_entities) for entity_summary in entity_summaries.values()])
     if bad != 0:
@@ -1297,9 +1312,14 @@ def update_release_notes_for_packages(
     :param backport_packages: whether to prepare regular (False) or backport (True) packages
     :return:
     """
-    imported_classes = import_all_provider_classes(
-        source_paths=[PROVIDERS_PATH], provider_ids=provider_ids, print_imports=False
+    imported_classes = import_all_classes(
+        provider_ids=provider_ids, print_imports=True, paths=[PROVIDERS_PATH], prefix="airflow.providers."
     )
+    if len(imported_classes) == 0:
+        raise Exception(
+            "There is something seriously wrong with importing all classes as "
+            "None of the classes were imported,"
+        )
     make_sure_remote_apache_exists_and_fetch()
     if len(provider_ids) == 0:
         if backport_packages:
@@ -1383,10 +1403,10 @@ def copy_setup_py(provider_package_id: str, backport_packages: bool) -> None:
     :return:
     """
     setup_source_prefix = BACKPORT_PROVIDER_PREFIX if backport_packages else ""
-    provider_package_path = get_package_path(provider_package_id)
+    source_provider_package_path = get_source_package_path(provider_package_id)
     copyfile(
-        os.path.join(provider_package_path, setup_source_prefix + "setup.py"),
-        os.path.join(MY_DIR_PATH, "setup.py"),
+        os.path.join(source_provider_package_path, setup_source_prefix + "setup.py"),
+        os.path.join(TARGET_PROVIDER_PACKAGES_PATH, "setup.py"),
     )
 
 
@@ -1398,10 +1418,10 @@ def copy_setup_cfg(provider_package_id: str, backport_packages: bool) -> None:
     :return:
     """
     setup_source_prefix = BACKPORT_PROVIDER_PREFIX if backport_packages else ""
-    provider_package_path = get_package_path(provider_package_id)
+    source_provider_package_path = get_source_package_path(provider_package_id)
     copyfile(
-        os.path.join(provider_package_path, setup_source_prefix + "setup.cfg"),
-        os.path.join(MY_DIR_PATH, "setup.cfg"),
+        os.path.join(source_provider_package_path, setup_source_prefix + "setup.cfg"),
+        os.path.join(TARGET_PROVIDER_PACKAGES_PATH, "setup.cfg"),
     )
 
 
@@ -1413,11 +1433,11 @@ def copy_readme_and_changelog(provider_package_id: str, backport_packages: bool)
     :return:
     """
     readme_source = "BACKPORT_PROVIDER_README.md" if backport_packages else "README.md"
-    provider_package_path = get_package_path(provider_package_id)
-    readme_source = os.path.join(provider_package_path, readme_source)
-    readme_target = os.path.join(MY_DIR_PATH, "README.md")
+    source_provider_package_path = get_source_package_path(provider_package_id)
+    readme_source = os.path.join(source_provider_package_path, readme_source)
+    readme_target = os.path.join(TARGET_PROVIDER_PACKAGES_PATH, "README.md")
     copyfile(readme_source, readme_target)
-    changelog_target = os.path.join(MY_DIR_PATH, "CHANGELOG.txt")
+    changelog_target = os.path.join(TARGET_PROVIDER_PACKAGES_PATH, "CHANGELOG.txt")
     with open(readme_source) as infile, open(changelog_target, 'wt') as outfile:
         copy = False
         for line in infile:

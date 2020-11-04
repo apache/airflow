@@ -830,7 +830,7 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 
 ```shell script
 ./provider_packages/build_source_package.sh --backports
-```
+`dev``
 
 It will generate `apache-airflow-backport-providers-${VERSION}-source.tar.gz`
 
@@ -1320,11 +1320,11 @@ ls *<provider>*
 svn rm *<provider>*
 
 # Check which old packages will be removed (you need python 3.6+)
-python ${AIRFLOW_REPO_ROOT}/provider_packages/remove_old_releases.py \
+python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py \
     --directory .
 
 # Remove those packages
-python ${AIRFLOW_REPO_ROOT}/provider_packages/remove_old_releases.py \
+python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py \
     --directory . --execute
 
 

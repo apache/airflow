@@ -26,7 +26,7 @@ from bowler import LN, TOKEN, Capture, Filename, Query
 from fissix.fixer_util import Comma, KeywordArg, Name
 from fissix.pytree import Leaf
 
-from provider_packages.prepare_provider_packages import (
+from dev.provider_packages.prepare_provider_packages import (
     get_source_airflow_folder,
     get_source_providers_folder,
     get_target_providers_folder,

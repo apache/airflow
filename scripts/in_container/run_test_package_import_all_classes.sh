@@ -78,7 +78,29 @@ echo
 echo  Importing all classes in Airflow 1.10
 echo
 
+unset PYTHONPATH
 # We need to make sure we are not in the airflow checkout, otherwise it will automatically be added to the
 # import path
 cd /
-python3 /import_all_provider_classes.py
+
+PATHS_TO_SEARCH_PROVIDERS_IN=$(python3 <<EOF 2>/dev/null
+import airflow.providers;
+path=airflow.providers.__path__
+for p in path._path:
+    print(p)
+EOF
+)
+
+readonly PATHS_TO_SEARCH_PROVIDERS_IN
+
+echo "Searching for providers packages in:"
+echo "${PATHS_TO_SEARCH_PROVIDERS_IN}"
+
+declare -a IMPORT_CLASS_PARAMETERS
+
+for path in ${PATHS_TO_SEARCH_PROVIDERS_IN}
+do
+    IMPORT_CLASS_PARAMETERS+=("--path" "${path}")
+done
+
+python3 /import_all_classes.py "${IMPORT_CLASS_PARAMETERS[@]}"

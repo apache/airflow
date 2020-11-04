@@ -31,7 +31,7 @@ import os
 import sys
 from os.path import dirname
 
-from setuptools import find_packages, setup
+from setuptools import find_namespace_packages, setup
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ def do_setup(version_suffix_for_pypi=''):
         long_description_content_type='text/markdown',
         license='Apache License 2.0',
         version=version + version_suffix_for_pypi,
-        packages=find_packages(include=['airflow.providers.jdbc*']),
+        packages=find_namespace_packages(include=['airflow.providers.jdbc', 'airflow.providers.jdbc.*']),
         zip_safe=False,
         install_requires=['apache-airflow~=1.10', 'jaydebeapi>=1.1.1'],
         setup_requires=['setuptools', 'wheel'],

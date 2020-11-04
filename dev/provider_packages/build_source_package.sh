@@ -24,7 +24,7 @@
 set -euo pipefail
 
 PROVIDER_ID_PACKAGES_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cd "${PROVIDER_ID_PACKAGES_DIR}"/..
+cd "${PROVIDER_ID_PACKAGES_DIR}"/../..
 
 function check_version() {
     : "${VERSION:?"Please export VERSION variable with the version of source package to prepare"}"
