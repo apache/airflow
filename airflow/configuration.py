@@ -74,9 +74,8 @@ def run_command(command):
 
     if process.returncode != 0:
         raise AirflowConfigException(
-            "Cannot execute {}. Error code is: {}. Output: {}, Stderr: {}".format(
-                command, process.returncode, output, stderr
-            )
+            f"Cannot execute {command}. Error code is: {process.returncode}. "
+            f"Output: {output}, Stderr: {stderr}"
         )
 
     return output
@@ -225,12 +224,12 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
         Validate that config values aren't invalid given other config values
         or system-level limitations and requirements.
         """
-        is_executor_without_sqlie_support = self.get("core", "executor") not in (
+        is_executor_without_sqlite_support = self.get("core", "executor") not in (
             'DebugExecutor',
             'SequentialExecutor',
         )
         is_sqlite = "sqlite" in self.get('core', 'sql_alchemy_conn')
-        if is_executor_without_sqlie_support and is_sqlite:
+        if is_executor_without_sqlite_support and is_sqlite:
             raise AirflowConfigException(
                 "error: cannot use sqlite with the {}".format(self.get('core', 'executor'))
             )
@@ -343,9 +342,7 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
         else:
             log.warning("section/key [%s/%s] not found in config", section, key)
 
-            raise AirflowConfigException(
-                "section/key [{section}/{key}] not found " "in config".format(section=section, key=key)
-            )
+            raise AirflowConfigException(f"section/key [{section}/{key}] not found in config")
 
     def _get_option_from_secrets(self, deprecated_key, deprecated_section, key, section):
         # ...then from secret backends
