@@ -273,7 +273,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
             return
 
         task_id = self.arn.split("/")[-1]
-        stream_name = "{}/{}".format(self.awslogs_stream_prefix, task_id)
+        stream_name = f"{self.awslogs_stream_prefix}/{task_id}"
 
         return self.get_logs_hook().get_log_events(self.awslogs_group, stream_name)
 
