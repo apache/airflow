@@ -43,7 +43,7 @@ class SnowflakeToS3Operator(BaseOperator):
     :param query_or_table: query or full table to unload. If table, it must include the schema like ``schema.table`
     :type query_or_table: str
     :param snowflake_conn_id: reference to a specific snowflake database
-    :type snowflake_conn_id: str
+    :type snowflake_conn_id: str`
     :param unload_options: reference to a list of UNLOAD options (SINGLE, MAX_FILE_SIZ`E,
         OVERWRITE etc). Each element of the list has to be a string
     :type unload_options: list
