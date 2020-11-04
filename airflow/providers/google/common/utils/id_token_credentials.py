@@ -30,10 +30,10 @@ import os
 from typing import Optional
 
 import google.auth.transport
+import google.oauth2
 from google.auth import credentials as google_auth_credentials, environment_vars, exceptions
 from google.auth._default import _AUTHORIZED_USER_TYPE, _HELP_MESSAGE, _SERVICE_ACCOUNT_TYPE, _VALID_TYPES
 from google.oauth2 import credentials as oauth2_credentials, service_account
-import google.oauth2
 
 
 class IDTokenCredentialsAdapter(google_auth_credentials.Credentials):

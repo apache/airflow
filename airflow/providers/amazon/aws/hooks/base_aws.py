@@ -32,7 +32,6 @@ from typing import Any, Dict, Optional, Tuple, Union
 import boto3
 import botocore
 import botocore.session
-from botocore.credentials import ReadOnlyCredentials
 from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
 from cached_property import cached_property
@@ -285,10 +284,11 @@ class _SessionFactory(LoggingMixin):
         return botocore_session
 
     def _get_google_identity_token_loader(self):
+        from google.auth.transport import requests as requests_transport
+
         from airflow.providers.google.common.utils.id_token_credentials import (
             get_default_id_token_credentials,
         )
-        from google.auth.transport import requests as requests_transport
 
         audience = self.extra_config.get('assume_role_with_web_identity_federation_audience')
 
