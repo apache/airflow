@@ -16,12 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
+from tempfile import NamedTemporaryFile
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.ftp.hooks.ftp import FTPHook
-from urllib.parse import urlparse
 from airflow.utils.decorators import apply_defaults
 
 
@@ -44,8 +43,6 @@ class S3ToFTPOperator(BaseOperator):
     :param s3_key: The targeted s3 key. This is the specified file path for
         downloading the file from S3.
     :type s3_key: str
-    :param local_file_path: The path to the file which is temporarily stored in the os
-    : type local_file_path: str
     """
 
     template_fields = ('s3_bucket', 's3_key')
@@ -57,26 +54,24 @@ class S3ToFTPOperator(BaseOperator):
         s3_bucket,
         s3_key,
         ftp_path,
-        local_file_path,
-        s3_conn_id='aws_default',
+        aws_conn_id='aws_default',
         ftp_conn_id='ftp_default',
         **kwargs,
     ) -> None:
-        super(S3ToFTPOperator, self).__init__(*args, **kwargs)
+        super(self).__init__(**kwargs)
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
         self.ftp_path = ftp_path
-        self.local_file_path = local_file_path
-        self.s3_conn_id = s3_conn_id
+        self.aws_conn_id = aws_conn_id
         self.ftp_conn_id = ftp_conn_id
 
     def execute(self, context):
-        s3_hook = S3Hook(self.s3_conn_id)
-        local_file_path = s3_hook.download_file(self.s3_bucket, self.s3_key)
-
+        s3_hook = S3Hook(self.aws_conn_id)
         ftp_hook = FTPHook(ftp_conn_id=self.ftp_conn_id)
 
-        try:
-            ftp_hook.store_file(self.ftp_path, local_file_path)
-        finally:
-            os.remove(local_file_path)
+        s3_obj = s3_hook.get_key(self.s3_key, self.s3_bucket)
+
+        with NamedTemporaryFile() as local_tmp_file:
+            s3_obj.download_fileobj(local_tmp_file)
+            ftp_hook.store_file(self.ftp_path, local_tmp_file.name)
+
