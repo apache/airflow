@@ -39,13 +39,17 @@ echo
 
 echo "DOCKER_TAG=${DOCKER_TAG}"
 
-
 [[ ${DOCKER_TAG:=} =~ .*-python([0-9.]*)(.*) ]] && export PYTHON_MAJOR_MINOR_VERSION=${BASH_REMATCH[1]}
 
 : "${PYTHON_MAJOR_MINOR_VERSION:?"The tag '${DOCKER_TAG}' should follow the pattern .*-pythonX.Y[-ci]"}"
 
 echo "Detected PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION}"
 echo
+
+FORCE_AIRFLOW_PROD_BASE_TAG="${DOCKER_TAG}"
+export FORCE_AIRFLOW_PROD_BASE_TAG
+
+readonly FORCE_AIRFLOW_PROD_BASE_TAG
 
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
