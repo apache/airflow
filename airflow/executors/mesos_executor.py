@@ -17,7 +17,6 @@
 # under the License.
 
 import threading
-from builtins import str
 from queue import Queue
 from typing import Any, Dict, Optional
 
@@ -53,12 +52,7 @@ class AirflowMesosScheduler(MesosClient):
     """
 
     # pylint: disable=super-init-not-called
-    def __init__(self,
-                 executor,
-                 task_queue,
-                 result_queue,
-                 task_cpu: int = 1,
-                 task_mem: int = 256):
+    def __init__(self, executor, task_queue, result_queue, task_cpu: int = 1, task_mem: int = 256):
         self.task_queue = task_queue
         self.result_queue = result_queue
         self.task_cpu = task_cpu
@@ -98,21 +92,13 @@ class AirflowMesosScheduler(MesosClient):
             self.log.error("Expecting docker sock path for mesos executor")
             raise AirflowException("mesos.docker_sock not provided for mesos executor")
 
-        self.mesos_slave_docker_image = conf.get(
-            'mesos', 'DOCKER_IMAGE_SLAVE'
-        ).replace('"', '')
-        self.mesos_docker_volume_driver = conf.get(
-            'mesos', 'DOCKER_VOLUME_DRIVER'
-        ).replace('"', '')
-        self.mesos_docker_volume_dag_name = conf.get(
-            'mesos', 'DOCKER_VOLUME_DAG_NAME'
-        ).replace('"', '')
+        self.mesos_slave_docker_image = conf.get('mesos', 'DOCKER_IMAGE_SLAVE').replace('"', '')
+        self.mesos_docker_volume_driver = conf.get('mesos', 'DOCKER_VOLUME_DRIVER').replace('"', '')
+        self.mesos_docker_volume_dag_name = conf.get('mesos', 'DOCKER_VOLUME_DAG_NAME').replace('"', '')
         self.mesos_docker_volume_dag_container_path = conf.get(
             'mesos', 'DOCKER_VOLUME_DAG_CONTAINER_PATH'
         ).replace('"', '')
-        self.mesos_docker_volume_logs_name = conf.get(
-            'mesos', 'DOCKER_VOLUME_LOGS_NAME'
-        ).replace('"', '')
+        self.mesos_docker_volume_logs_name = conf.get('mesos', 'DOCKER_VOLUME_LOGS_NAME').replace('"', '')
         self.mesos_docker_volume_logs_container_path = conf.get(
             'mesos', 'DOCKER_VOLUME_LOGS_CONTAINER_PATH'
         ).replace('"', '')
@@ -143,16 +129,17 @@ class AirflowMesosScheduler(MesosClient):
                 offer_mem += resource['scalar']['value']
 
         self.log.debug(
-            "Received offer %s with cpus: %s and mem: %s",
-            offer['id']['value'], offer_cpus, offer_mem
+            "Received offer %s with cpus: %s and mem: %s", offer['id']['value'], offer_cpus, offer_mem
         )
 
         remaining_cpus = offer_cpus
         remaining_mem = offer_mem
 
-        while (not self.task_queue.empty()) \
-                and remaining_cpus >= self.task_cpu \
-                and remaining_mem >= self.task_mem:
+        while (
+            (not self.task_queue.empty())
+            and remaining_cpus >= self.task_cpu
+            and remaining_mem >= self.task_mem
+        ):
 
             key, cmd, executor_config = self.task_queue.get()
             self.log.debug(executor_config)
@@ -163,105 +150,70 @@ class AirflowMesosScheduler(MesosClient):
             port_begin = 31000 + tid
             port_end = 31000 + tid
 
-            self.log.debug(
-                "Launching task %d using offer %s",
-                tid, offer['id']['value']
-            )
+            self.log.debug("Launching task %d using offer %s", tid, offer['id']['value'])
 
             task = {
                 'name': "AirflowTask %d" % tid,
                 'task_id': {'value': str(tid)},
                 'agent_id': {'value': offer['agent_id']['value']},
                 'resources': [
-                    {
-                        'name': 'cpus',
-                        'type': 'SCALAR',
-                        'scalar': {'value': self.task_cpu}
-                    },
-                    {
-                        'name': 'mem',
-                        'type': 'SCALAR',
-                        'scalar': {'value': self.task_mem}
-                    },
+                    {'name': 'cpus', 'type': 'SCALAR', 'scalar': {'value': self.task_cpu}},
+                    {'name': 'mem', 'type': 'SCALAR', 'scalar': {'value': self.task_mem}},
                     {
                         'name': 'ports',
                         'type': 'RANGES',
-                        'ranges':
-                        {
-                            'range': [
-                                {
-                                    'begin': port_begin,
-                                    'end': port_end
-                                }
-                            ]
-                        }
-                    }
+                        'ranges': {'range': [{'begin': port_begin, 'end': port_end}]},
+                    },
                 ],
                 'command': {
                     'shell': 'true',
                     'environment': {
                         'variables': [
-                            {
-                                'name':'AIRFLOW__CORE__SQL_ALCHEMY_CONN',
-                                'value': self.core_sql_alchemy_conn
-                            },
-                            {
-                                'name':'AIRFLOW__CORE__FERNET_KEY',
-                                'value': self.core_fernet_key
-                            },
-                            {
-                                'name':'AIRFLOW__CORE__LOGGING_LEVEL',
-                                'value': 'DEBUG'
-                            }
+                            {'name': 'AIRFLOW__CORE__SQL_ALCHEMY_CONN', 'value': self.core_sql_alchemy_conn},
+                            {'name': 'AIRFLOW__CORE__FERNET_KEY', 'value': self.core_fernet_key},
+                            {'name': 'AIRFLOW__CORE__LOGGING_LEVEL', 'value': 'DEBUG'},
                         ]
                     },
-                    'value': " ".join(cmd)
+                    'value': " ".join(cmd),
                 },
                 'container': {
                     'type': 'DOCKER',
-                    'volumes' : [
+                    'volumes': [
                         {
-                            'container_path' : self.mesos_docker_volume_dag_container_path,
-                            'mode' : 'RO',
-                            'source' : {
-                                'type' : 'DOCKER_VOLUME',
-                                'docker_volume' : {
+                            'container_path': self.mesos_docker_volume_dag_container_path,
+                            'mode': 'RO',
+                            'source': {
+                                'type': 'DOCKER_VOLUME',
+                                'docker_volume': {
                                     'driver': self.mesos_docker_volume_driver,
-                                    'name' : self.mesos_docker_volume_dag_name
-                                }
-                            }
+                                    'name': self.mesos_docker_volume_dag_name,
+                                },
+                            },
                         },
                         {
-                            'container_path' : self.mesos_docker_volume_logs_container_path,
-                            'mode' : 'RW',
-                            'source' : {
-                                'type' : 'DOCKER_VOLUME',
-                                'docker_volume' : {
+                            'container_path': self.mesos_docker_volume_logs_container_path,
+                            'mode': 'RW',
+                            'source': {
+                                'type': 'DOCKER_VOLUME',
+                                'docker_volume': {
                                     'driver': self.mesos_docker_volume_driver,
-                                    'name' : self.mesos_docker_volume_logs_name
-                                }
-                            }
-                        }
+                                    'name': self.mesos_docker_volume_logs_name,
+                                },
+                            },
+                        },
                     ],
                     'docker': {
                         'image': self.mesos_slave_docker_image,
                         'force_pull_image': 'true',
-                        'privileged' : 'true',
-                        'parameters' : [
-                            {
-                                'key' : 'volume',
-                                'value' : self.mesos_docker_sock + ':/var/run/docker.sock'
-                            }
-                        ]
-                    }
-                }
+                        'privileged': 'true',
+                        'parameters': [
+                            {'key': 'volume', 'value': self.mesos_docker_sock + ':/var/run/docker.sock'}
+                        ],
+                    },
+                },
             }
 
-            option = {
-                'Filters' : {
-                    'RefuseSeconds': '0.5'
-                }
-            }
+            option = {'Filters': {'RefuseSeconds': '0.5'}}
 
             tasks.append(task)
             remaining_cpus -= self.task_cpu
@@ -281,11 +233,7 @@ class AirflowMesosScheduler(MesosClient):
         conn_id = FRAMEWORK_CONNID_PREFIX + get_framework_name()
         connection = session.query(Connection).filter_by(conn_id=conn_id).first()
         if connection is None:
-            connection = Connection(
-                conn_id=conn_id,
-                conn_type='mesos_framework-id',
-                extra=driver.frameworkId
-            )
+            connection = Connection(conn_id=conn_id, conn_type='mesos_framework-id', extra=driver.frameworkId)
         else:
             connection.extra = driver.frameworkId
 
@@ -297,8 +245,7 @@ class AirflowMesosScheduler(MesosClient):
         task_id = update["status"]["task_id"]["value"]
         task_state = update["status"]["state"]
 
-        self.log.info(
-            "Task %s is in state %s", task_id, task_state)
+        self.log.info("Task %s is in state %s", task_id, task_state)
 
         try:
             key = self.task_key_map[task_id]
@@ -314,9 +261,7 @@ class AirflowMesosScheduler(MesosClient):
             self.result_queue.put((key, State.SUCCESS))
             return
 
-        if task_state == "TASK_LOST" or \
-           task_state == "TASK_KILLED" or \
-           task_state == "TASK_FAILED":
+        if task_state == "TASK_LOST" or task_state == "TASK_KILLED" or task_state == "TASK_FAILED":
             self.result_queue.put((key, State.FAILED))
             return
 
@@ -387,24 +332,25 @@ class MesosExecutor(BaseExecutor):
                     framework_id = connection.extra
 
                 # Set Timeout in the case of a mesos master leader change
-                framework_failover_timeout = conf.getint(
-                    'mesos', 'FAILOVER_TIMEOUT'
-                )
+                framework_failover_timeout = conf.getint('mesos', 'FAILOVER_TIMEOUT')
 
         else:
             framework_checkpoint = False
 
         self.log.info(
             'MesosFramework master : %s, name : %s, cpu : %d, mem : %d, checkpoint : %s, id : %s',
-            master, framework_name, task_cpu, task_memory, framework_checkpoint, framework_id
+            master,
+            framework_name,
+            task_cpu,
+            task_memory,
+            framework_checkpoint,
+            framework_id,
         )
 
         master_urls = "https://" + master
 
         self.client = MesosClient(
-            mesos_urls=master_urls.split(','),
-            frameworkName=framework_name,
-            frameworkId=None
+            mesos_urls=master_urls.split(','), frameworkName=framework_name, frameworkId=None
         )
 
         if framework_failover_timeout:
@@ -415,12 +361,10 @@ class MesosExecutor(BaseExecutor):
         if conf.getboolean('mesos', 'AUTHENTICATE'):
             if not conf.get('mesos', 'DEFAULT_PRINCIPAL'):
                 self.log.error("Expecting authentication principal in the environment")
-                raise AirflowException(
-                    "mesos.default_principal not provided in authenticated mode")
+                raise AirflowException("mesos.default_principal not provided in authenticated mode")
             if not conf.get('mesos', 'DEFAULT_SECRET'):
                 self.log.error("Expecting authentication secret in the environment")
-                raise AirflowException(
-                    "mesos.default_secret not provided in authenticated mode")
+                raise AirflowException("mesos.default_secret not provided in authenticated mode")
             self.client.principal = conf.get('mesos', 'DEFAULT_PRINCIPAL')
             self.client.secret = conf.get('mesos', 'DEFAULT_SECRET')
 
@@ -449,11 +393,13 @@ class MesosExecutor(BaseExecutor):
                 self.task_queue.task_done()
             self.change_state(*results)
 
-    def execute_async(self,
-                      key: TaskInstanceKey,
-                      command: CommandType,
-                      queue: Optional[str] = None,
-                      executor_config: Optional[Any] = None):
+    def execute_async(
+        self,
+        key: TaskInstanceKey,
+        command: CommandType,
+        queue: Optional[str] = None,
+        executor_config: Optional[Any] = None,
+    ):
         """Execute Tasks"""
         self.log.info('Add task %s with command %s with TaskInstance %s', key, command, executor_config)
         self.validate_command(command)

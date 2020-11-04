@@ -347,7 +347,7 @@ def create_default_connections(session=None):
             host="localhost",
             port=5050,
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(

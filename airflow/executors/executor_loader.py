@@ -47,7 +47,7 @@ class ExecutorLoader:
         DASK_EXECUTOR: 'airflow.executors.dask_executor.DaskExecutor',
         KUBERNETES_EXECUTOR: 'airflow.executors.kubernetes_executor.KubernetesExecutor',
         DEBUG_EXECUTOR: 'airflow.executors.debug_executor.DebugExecutor',
-        MESOS_EXECUTOR: 'airflow.executors.mesos_executor.MesosExecutor'
+        MESOS_EXECUTOR: 'airflow.executors.mesos_executor.MesosExecutor',
     }
 
     @classmethod

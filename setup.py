@@ -318,9 +318,7 @@ kylin = ['kylinpy>=2.6']
 ldap = [
     'ldap3>=2.5.1',
 ]
-mesos = [
-    'avmesos>=0.3.3'
-]
+mesos = ['avmesos>=0.3.3']
 mongo = [
     'dnspython>=1.13.0,<2.0.0',
     'pymongo>=3.6.0',

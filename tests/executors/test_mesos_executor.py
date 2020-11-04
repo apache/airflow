@@ -29,6 +29,7 @@ try:
     from avmesos.client import MesosClient
 
     from airflow.executors.mesos_executor import AirflowMesosScheduler, MesosExecutor
+
     mock_mesos = True
 except ImportError:
     mock_mesos = None  # type: ignore
@@ -47,15 +48,13 @@ class MesosExecutorTest(unittest.TestCase):
         # create task queue, empty result queue, task_cpu and task_memory
         mesos_executor = MesosExecutor()
         mesos_executor.client = MesosClient(
-            mesos_urls=self.master_urls.split(','),
-            frameworkName=self.fake_framework_name,
-            frameworkId=None
+            mesos_urls=self.master_urls.split(','), frameworkName=self.fake_framework_name, frameworkId=None
         )
         driver = AirflowMesosScheduler(mesos_executor, self.task_queue, self.task_cpu, self.task_memory)
         mesos_executor.driver = driver
-        mesos_executor.th = MesosExecutor.MesosFramework(mesos_executor.client)
-        mesos_executor.th.start()
-        mesos_executor.th.client.disconnect = True
+        mesos_executor.thread = MesosExecutor.MesosFramework(mesos_executor.client)
+        mesos_executor.thread.start()
+        mesos_executor.thread.client.disconnect = True
 
 
 if __name__ == '__main__':
