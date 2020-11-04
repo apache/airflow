@@ -34,7 +34,7 @@ Example "Taskflow API" ETL Pipeline
 Here is very simple ETL pipeline using the Taskflow API paradigm. A more detailed
 explanation is given below.
 
-.. exampleinclude:: /../airflow/example_dags/tutorial_decorated_etl_dag.py
+.. exampleinclude:: /../airflow/example_dags/tutorial_taskflow_api_etl.py
     :language: python
     :start-after: [START tutorial]
     :end-before: [END tutorial]
@@ -55,7 +55,7 @@ We are creating a DAG which is the collection of our tasks with dependencies bet
 the tasks. This is a very simple definition, since we just want the DAG to be run
 when we set this up with Airflow, without any retries or complex scheduling.
 
-.. exampleinclude:: /../airflow/example_dags/tutorial_decorated_etl_dag.py
+.. exampleinclude:: /../airflow/example_dags/tutorial_taskflow_api_etl.py
     :language: python
     :start-after: [START instantiate_dag]
     :end-before: [END instantiate_dag]
@@ -65,7 +65,7 @@ Tasks
 In this data pipeline, tasks are created based on Python functions using the decorator
 as shown below. The function name acts as a unique identifier for the task.
 
-.. exampleinclude:: /../airflow/example_dags/tutorial_decorated_etl_dag.py
+.. exampleinclude:: /../airflow/example_dags/tutorial_taskflow_api_etl.py
     :language: python
     :start-after: [START extract]
     :end-before: [END extract]
@@ -79,7 +79,7 @@ Main flow of the DAG
 Now that we have the Extract, Transform, and Load tasks defined based on the Python functions,
 we can move to the main part of the DAG.
 
-.. exampleinclude:: /../airflow/example_dags/tutorial_decorated_etl_dag.py
+.. exampleinclude:: /../airflow/example_dags/tutorial_taskflow_api_etl.py
     :language: python
     :start-after: [START main_flow]
     :end-before: [END main_flow]
@@ -117,7 +117,7 @@ into another Xcom variable which will then be used by the Load task.
 
 Contrasting that with Taskflow API in Airflow 2.0 as shown below.
 
-.. exampleinclude:: /../airflow/example_dags/tutorial_decorated_etl_dag.py
+.. exampleinclude:: /../airflow/example_dags/tutorial_taskflow_api_etl.py
     :language: python
     :start-after: [START transform]
     :end-before: [END transform]
@@ -138,7 +138,7 @@ dependencies specified as shown below.
 In contrast, with the Taskflow API in Airflow 2.0, the invocation itself automatically generates
 the dependencies as shown below.
 
-.. exampleinclude:: /../airflow/example_dags/tutorial_decorated_etl_dag.py
+.. exampleinclude:: /../airflow/example_dags/tutorial_taskflow_api_etl.py
     :language: python
     :start-after: [START main_flow]
     :end-before: [END main_flow]
