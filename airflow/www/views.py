@@ -1836,7 +1836,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             )
         dag_runs = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
 
-        dates = sorted(list(dag_runs.keys()))
+        dates = sorted(dag_runs.keys())
         max_date = max(dates) if dates else None
         min_date = min(dates) if dates else None
 
@@ -2143,7 +2143,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 y=scale_time_units(cumulative_y[task_id], cum_y_unit),
             )
 
-        dates = sorted(list({ti.execution_date for ti in task_instances}))
+        dates = sorted({ti.execution_date for ti in task_instances})
         max_date = max([ti.execution_date for ti in task_instances]) if dates else None
 
         session.commit()
@@ -2215,7 +2215,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 chart.add_serie(name=task.task_id, x=x_points, y=y_points)
 
         tis = dag.get_task_instances(start_date=min_date, end_date=base_date)
-        tries = sorted(list({ti.try_number for ti in tis}))
+        tries = sorted({ti.try_number for ti in tis})
         max_date = max([ti.execution_date for ti in tis]) if tries else None
         chart.create_y_axis('yAxis', format='.02f', custom_format=False, label='Tries')
         chart.axislist['yAxis']['axisLabelDistance'] = '-15'
@@ -2299,7 +2299,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             )
 
         tis = dag.get_task_instances(start_date=min_date, end_date=base_date)
-        dates = sorted(list({ti.execution_date for ti in tis}))
+        dates = sorted({ti.execution_date for ti in tis})
         max_date = max([ti.execution_date for ti in tis]) if dates else None
 
         session.commit()
