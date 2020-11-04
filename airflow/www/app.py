@@ -72,15 +72,18 @@ def create_app(config=None, testing=False, app_name="Airflow"):
 
     default_session_lifetime_minutes = 43200
     if conf.has_option('webserver', 'SESSION_LIFETIME_MINUTES'):
-        session_lifetime_minutes = conf.getint('webserver', 'SESSION_LIFETIME_MINUTES',
-                                               fallback=default_session_lifetime_minutes)
+        session_lifetime_minutes = conf.getint(
+            'webserver', 'SESSION_LIFETIME_MINUTES', fallback=default_session_lifetime_minutes
+        )
     else:
-        warnings.warn('`SESSION_LIFETIME_DAYS` option from `webserver` section has been '
-                      'renamed to `SESSION_LIFETIME_MINUTES`. New option allows to configure '
-                      'session lifetime in minutes. FORCE_LOG_OUT_AFTER option has been removed '
-                      'from `webserver` section.\nUsing default value for '
-                      '`SESSION_LIFETIME_MINUTES`: {}'.format(default_session_lifetime_minutes),
-                      DeprecationWarning)
+        warnings.warn(
+            '`SESSION_LIFETIME_DAYS` option from `webserver` section has been '
+            'renamed to `SESSION_LIFETIME_MINUTES`. New option allows to configure '
+            'session lifetime in minutes. FORCE_LOG_OUT_AFTER option has been removed '
+            'from `webserver` section.\nUsing default value for '
+            '`SESSION_LIFETIME_MINUTES`: {}'.format(default_session_lifetime_minutes),
+            DeprecationWarning,
+        )
         session_lifetime_minutes = default_session_lifetime_minutes
 
     flask_app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=session_lifetime_minutes)
