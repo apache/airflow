@@ -19,6 +19,7 @@ import re
 import sys
 from datetime import datetime
 from typing import Dict, Optional
+from collections import deque
 
 from botocore.waiter import Waiter
 
@@ -197,7 +198,11 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self._wait_for_task_ended()
 
         self._check_success_task()
+
         self.log.info('ECS Task has been successfully executed')
+
+        if self.do_xcom_push:
+            return self._last_log_event()
 
     def _start_task(self):
         run_opts = {
@@ -260,6 +265,24 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         waiter.config.max_attempts = sys.maxsize  # timeout is managed by airflow
         waiter.wait(cluster=self.cluster, tasks=[self.arn])
 
+    def _cloudwatch_log_events(self):
+        if not self.awslogs_group:
+            return
+
+        if not self.awslogs_stream_prefix:
+            return
+
+        task_id = self.arn.split("/")[-1]
+        stream_name = "{}/{}".format(self.awslogs_stream_prefix, task_id)
+
+        return self.get_logs_hook().get_log_events(self.awslogs_group, stream_name)
+
+    def _last_log_event(self):
+        log_events = self._cloudwatch_log_events()
+        if log_events is not None:
+            return deque(log_events, maxlen=1).pop()["message"]
+
+
     def _check_success_task(self) -> None:
         if not self.client or not self.arn:
             return
@@ -268,11 +291,9 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.log.info('ECS Task stopped, check status: %s', response)
 
         # Get logs from CloudWatch if the awslogs log driver was used
-        if self.awslogs_group and self.awslogs_stream_prefix:
-            self.log.info('ECS Task logs output:')
-            task_id = self.arn.split("/")[-1]
-            stream_name = f"{self.awslogs_stream_prefix}/{task_id}"
-            for event in self.get_logs_hook().get_log_events(self.awslogs_group, stream_name):
+        log_events = self._cloudwatch_log_events()
+        if log_events is not None:
+            for event in log_events:
                 event_dt = datetime.fromtimestamp(event['timestamp'] / 1000.0)
                 self.log.info("[%s] %s", event_dt.isoformat(), event['message'])
 
