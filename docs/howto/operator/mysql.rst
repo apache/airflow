@@ -22,7 +22,7 @@
 MySqlOperator
 =================
 
-Use the :class:`~airflow.operators.mysql_operator.MySqlOperator` to execute
+Use the :class:`~airflow.providers.mysql.operators.MySqlOperator` to execute
 SQL commands in a `MySql <https://dev.mysql.com/doc/>`__ database.
 
 
