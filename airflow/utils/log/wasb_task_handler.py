@@ -23,5 +23,6 @@ from airflow.providers.microsoft.azure.log.wasb_task_handler import WasbTaskHand
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.log.wasb_task_handler`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

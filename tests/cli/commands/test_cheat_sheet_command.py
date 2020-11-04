@@ -71,7 +71,7 @@ MOCK_COMMANDS: List[CLICommand] = [
         help='Help text D',
         func=noop,
         args=(),
-    )
+    ),
 ]
 
 EXPECTED_OUTPUT = """\
@@ -92,7 +92,6 @@ Help text E
 
 
 class TestCheatSheetCommand(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         cls.parser = cli_parser.get_parser()

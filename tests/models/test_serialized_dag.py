@@ -52,8 +52,7 @@ class SerializedDagModelTest(unittest.TestCase):
 
     def test_dag_fileloc_hash(self):
         """Verifies the correctness of hashing file path."""
-        self.assertEqual(DagCode.dag_fileloc_hash('/airflow/dags/test_dag.py'),
-                         33826252060516589)
+        self.assertEqual(DagCode.dag_fileloc_hash('/airflow/dags/test_dag.py'), 33826252060516589)
 
     def _write_example_dags(self):
         example_dags = make_example_dags(example_dags_module)
@@ -68,8 +67,7 @@ class SerializedDagModelTest(unittest.TestCase):
         with create_session() as session:
             for dag in example_dags.values():
                 self.assertTrue(SDM.has_dag(dag.dag_id))
-                result = session.query(
-                    SDM.fileloc, SDM.data).filter(SDM.dag_id == dag.dag_id).one()
+                result = session.query(SDM.fileloc, SDM.data).filter(SDM.dag_id == dag.dag_id).one()
 
                 self.assertTrue(result.fileloc == dag.full_filepath)
                 # Verifies JSON schema.
@@ -142,7 +140,9 @@ class SerializedDagModelTest(unittest.TestCase):
 
     def test_bulk_sync_to_db(self):
         dags = [
-            DAG("dag_1"), DAG("dag_2"), DAG("dag_3"),
+            DAG("dag_1"),
+            DAG("dag_2"),
+            DAG("dag_3"),
         ]
         with assert_queries_count(10):
             SDM.bulk_sync_to_db(dags)

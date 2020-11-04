@@ -60,14 +60,10 @@ class SensorInstance(Base):
     poke_context = Column(Text, nullable=False)
     execution_context = Column(Text)
     created_at = Column(UtcDateTime, default=timezone.utcnow(), nullable=False)
-    updated_at = Column(UtcDateTime,
-                        default=timezone.utcnow(),
-                        onupdate=timezone.utcnow(),
-                        nullable=False)
+    updated_at = Column(UtcDateTime, default=timezone.utcnow(), onupdate=timezone.utcnow(), nullable=False)
 
     __table_args__ = (
         Index('ti_primary_key', dag_id, task_id, execution_date, unique=True),
-
         Index('si_hashcode', hashcode),
         Index('si_shardcode', shardcode),
         Index('si_state_shard', state, shardcode),
@@ -118,11 +114,16 @@ class SensorInstance(Base):
         encoded_poke = json.dumps(poke_context)
         encoded_execution_context = json.dumps(execution_context)
 
-        sensor = session.query(SensorInstance).filter(
-            SensorInstance.dag_id == ti.dag_id,
-            SensorInstance.task_id == ti.task_id,
-            SensorInstance.execution_date == ti.execution_date
-        ).with_for_update().first()
+        sensor = (
+            session.query(SensorInstance)
+            .filter(
+                SensorInstance.dag_id == ti.dag_id,
+                SensorInstance.task_id == ti.task_id,
+                SensorInstance.execution_date == ti.execution_date,
+            )
+            .with_for_update()
+            .first()
+        )
 
         if sensor is None:
             sensor = SensorInstance(ti=ti)
@@ -161,6 +162,7 @@ class SensorInstance(Base):
         self._try_number = value
 
     def __repr__(self):
-        return "<{self.__class__.__name__}: id: {self.id} poke_context: {self.poke_context} " \
-               "execution_context: {self.execution_context} state: {self.state}>".format(
-                   self=self)
+        return (
+            "<{self.__class__.__name__}: id: {self.id} poke_context: {self.poke_context} "
+            "execution_context: {self.execution_context} state: {self.state}>".format(self=self)
+        )

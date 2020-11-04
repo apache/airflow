@@ -1476,7 +1476,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
             mime_type='application/x-python',
             filename=local_file,
         )
-        return "gs://{}/{}".format(bucket, temp_filename)
+        return f"gs://{bucket}/{temp_filename}"
 
     @apply_defaults
     def __init__(
@@ -1517,7 +1517,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
                 project_id=self.hook.project_id, region=self.region, cluster_name=self.cluster_name
             )
             bucket = cluster_info['config']['config_bucket']
-            self.main = "gs://{}/{}".format(bucket, self.main)
+            self.main = f"gs://{bucket}/{self.main}"
         self.job_template.set_python_main(self.main)
         self.job_template.add_args(self.arguments)
         self.job_template.add_archive_uris(self.archives)

@@ -113,14 +113,14 @@ class TestSecurity(unittest.TestCase):
         for perm in perms:
             self.assertTrue(
                 self._has_dag_perm(perm, dag_id, user),
-                "User should have '{}' on DAG '{}'".format(perm, dag_id),
+                f"User should have '{perm}' on DAG '{dag_id}'",
             )
 
     def assert_user_does_not_have_dag_perms(self, dag_id, perms, user=None):
         for perm in perms:
             self.assertFalse(
                 self._has_dag_perm(perm, dag_id, user),
-                "User should not have '{}' on DAG '{}'".format(perm, dag_id),
+                f"User should not have '{perm}' on DAG '{dag_id}'",
             )
 
     def _has_dag_perm(self, perm, dag_id, user):
@@ -187,7 +187,14 @@ class TestSecurity(unittest.TestCase):
         username = 'get_all_permissions_views'
 
         with self.app.app_context():
-            user = fab_utils.create_user(self.app, username, role_name, permissions=[(role_perm, role_vm),],)
+            user = fab_utils.create_user(
+                self.app,
+                username,
+                role_name,
+                permissions=[
+                    (role_perm, role_vm),
+                ],
+            )
             role = user.roles[0]
             mock_get_user_roles.return_value = [role]
 
@@ -281,9 +288,7 @@ class TestSecurity(unittest.TestCase):
             )
             self.assertFalse(
                 self.security_manager.has_access(
-                    permissions.ACTION_CAN_READ,
-                    permissions.RESOURCE_TASK_INSTANCE,
-                    user
+                    permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE, user
                 )
             )
 
@@ -293,7 +298,11 @@ class TestSecurity(unittest.TestCase):
             'can_eat_pudding',  # clearly not a real permission
         ]
         username = "LaUser"
-        user = fab_utils.create_user(self.app, username=username, role_name='team-a',)
+        user = fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='team-a',
+        )
         for permission in invalid_permissions:
             self.expect_user_is_in_role(user, rolename='team-a')
             with self.assertRaises(AirflowException) as context:
@@ -306,7 +315,12 @@ class TestSecurity(unittest.TestCase):
         username = 'access_control_is_set_on_init'
         role_name = 'team-a'
         with self.app.app_context():
-            user = fab_utils.create_user(self.app, username, role_name, permissions=[],)
+            user = fab_utils.create_user(
+                self.app,
+                username,
+                role_name,
+                permissions=[],
+            )
             self.expect_user_is_in_role(user, rolename='team-a')
             self.security_manager.sync_perm_for_dag(
                 'access_control_test',
@@ -329,7 +343,12 @@ class TestSecurity(unittest.TestCase):
         username = 'access_control_stale_perms_are_revoked'
         role_name = 'team-a'
         with self.app.app_context():
-            user = fab_utils.create_user(self.app, username, role_name, permissions=[],)
+            user = fab_utils.create_user(
+                self.app,
+                username,
+                role_name,
+                permissions=[],
+            )
             self.expect_user_is_in_role(user, rolename='team-a')
             self.security_manager.sync_perm_for_dag(
                 'access_control_test', access_control={'team-a': READ_WRITE}

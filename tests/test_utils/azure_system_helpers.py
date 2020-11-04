@@ -39,7 +39,6 @@ def provide_azure_fileshare(share_name: str, wasb_conn_id: str, file_name: str, 
 
 @pytest.mark.system("azure")
 class AzureSystemTest(SystemTest):
-
     @classmethod
     def create_share(cls, share_name: str, wasb_conn_id: str):
         hook = AzureFileShareHook(wasb_conn_id=wasb_conn_id)

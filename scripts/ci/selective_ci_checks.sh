@@ -555,7 +555,6 @@ if [[ ${image_build_needed} == "true" ]]; then
 else
     set_basic_checks_only "true"
 fi
-set_basic_checks_only "${image_build_needed}"
 set_docs_build "${docs_build_needed}"
 run_tests "${tests_needed}"
 run_kubernetes_tests "${kubernetes_tests_needed}"

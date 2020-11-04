@@ -127,7 +127,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         remote_loc = os.path.join(self.remote_base, self.log_relative_path)
         if os.path.exists(local_loc):
             # read log and remove old logs to get just the latest additions
-            with open(local_loc, 'r') as logfile:
+            with open(local_loc) as logfile:
                 log = logfile.read()
             self.gcs_write(log, remote_loc)
 
@@ -153,7 +153,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         try:
             blob = storage.Blob.from_string(remote_loc, self.client)
             remote_log = blob.download_as_string()
-            log = '*** Reading remote log from {}.\n{}\n'.format(remote_loc, remote_log)
+            log = f'*** Reading remote log from {remote_loc}.\n{remote_log}\n'
             return log, {'end_of_log': True}
         except Exception as e:  # pylint: disable=broad-except
             log = '*** Unable to read remote log from {}\n*** {}\n\n'.format(remote_loc, str(e))

@@ -69,7 +69,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         ).execute(None)
 
         unload_options = '\n\t\t\t'.join(unload_options)
-        select_query = "SELECT * FROM {schema}.{table}".format(schema=schema, table=table)
+        select_query = f"SELECT * FROM {schema}.{table}"
         unload_query = """
                     UNLOAD ('{select_query}')
                     TO 's3://{s3_bucket}/{s3_key}'

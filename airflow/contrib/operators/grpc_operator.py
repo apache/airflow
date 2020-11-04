@@ -24,5 +24,6 @@ from airflow.providers.grpc.operators.grpc import GrpcOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.grpc.operators.grpc`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

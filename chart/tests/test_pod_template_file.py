@@ -17,10 +17,11 @@
 
 import unittest
 from os import remove
-from os.path import realpath, dirname
+from os.path import dirname, realpath
 from shutil import copyfile
 
 import jmespath
+
 from tests.helm_template_generator import render_chart
 
 ROOT_FOLDER = realpath(dirname(realpath(__file__)) + "/..")

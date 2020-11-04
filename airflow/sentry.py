@@ -50,6 +50,7 @@ class DummySentry:
 Sentry: DummySentry = DummySentry()
 if conf.getboolean("sentry", 'sentry_on', fallback=False):
     import sentry_sdk
+
     # Verify blinker installation
     from blinker import signal  # noqa: F401 pylint: disable=unused-import
     from sentry_sdk.integrations.flask import FlaskIntegration
@@ -58,14 +59,19 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
     class ConfiguredSentry(DummySentry):
         """Configure Sentry SDK."""
 
-        SCOPE_TAGS = frozenset(
-            ("task_id", "dag_id", "execution_date", "operator", "try_number")
-        )
+        SCOPE_TAGS = frozenset(("task_id", "dag_id", "execution_date", "operator", "try_number"))
         SCOPE_CRUMBS = frozenset(("task_id", "state", "operator", "duration"))
 
         UNSUPPORTED_SENTRY_OPTIONS = frozenset(
-            ("integrations", "in_app_include", "in_app_exclude", "ignore_errors",
-             "before_breadcrumb", "before_send", "transport")
+            (
+                "integrations",
+                "in_app_include",
+                "in_app_exclude",
+                "ignore_errors",
+                "before_breadcrumb",
+                "before_send",
+                "transport",
+            )
         )
 
         def __init__(self):
@@ -94,12 +100,11 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
                 # supported backward compability with old way dsn option
                 dsn = old_way_dsn or new_way_dsn
 
-                unsupported_options = self.UNSUPPORTED_SENTRY_OPTIONS.intersection(
-                    sentry_config_opts.keys())
+                unsupported_options = self.UNSUPPORTED_SENTRY_OPTIONS.intersection(sentry_config_opts.keys())
                 if unsupported_options:
                     log.warning(
                         "There are unsupported options in [sentry] section: %s",
-                        ", ".join(unsupported_options)
+                        ", ".join(unsupported_options),
                     )
 
             if dsn:

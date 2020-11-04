@@ -29,9 +29,7 @@ def roles_list(args):
     roles = appbuilder.sm.get_all_roles()
     print("Existing roles:\n")
     role_names = sorted([[r.name] for r in roles])
-    msg = tabulate(role_names,
-                   headers=['Role'],
-                   tablefmt=args.output)
+    msg = tabulate(role_names, headers=['Role'], tablefmt=args.output)
     print(msg)
 
 

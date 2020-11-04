@@ -36,7 +36,11 @@ from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.utils import timezone
 from airflow.utils.callback_requests import TaskCallbackRequest
 from airflow.utils.dag_processing import (
-    DagFileProcessorAgent, DagFileProcessorManager, DagFileStat, DagParsingSignal, DagParsingStat,
+    DagFileProcessorAgent,
+    DagFileProcessorManager,
+    DagFileStat,
+    DagParsingSignal,
+    DagParsingStat,
 )
 from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped
 from airflow.utils.session import create_session
@@ -45,8 +49,7 @@ from tests.core.test_logging_config import SETTINGS_FILE_VALID, settings_context
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
-TEST_DAG_FOLDER = os.path.join(
-    os.path.dirname(os.path.realpath(__file__)), os.pardir, 'dags')
+TEST_DAG_FOLDER = os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, 'dags')
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
@@ -132,7 +135,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
                 signal_conn=child_pipe,
                 dag_ids=[],
                 pickle_dags=False,
-                async_mode=async_mode)
+                async_mode=async_mode,
+            )
 
             self.run_processor_manager_one_loop(manager, parent_pipe)
         child_pipe.close()
@@ -147,11 +151,11 @@ class TestDagFileProcessorManager(unittest.TestCase):
             signal_conn=MagicMock(),
             dag_ids=[],
             pickle_dags=False,
-            async_mode=True)
+            async_mode=True,
+        )
 
         mock_processor = MagicMock()
-        mock_processor.stop.side_effect = AttributeError(
-            'DagFileProcessor object has no attribute stop')
+        mock_processor.stop.side_effect = AttributeError('DagFileProcessor object has no attribute stop')
         mock_processor.terminate.side_effect = None
 
         manager._processors['missing_file.txt'] = mock_processor
@@ -169,11 +173,11 @@ class TestDagFileProcessorManager(unittest.TestCase):
             signal_conn=MagicMock(),
             dag_ids=[],
             pickle_dags=False,
-            async_mode=True)
+            async_mode=True,
+        )
 
         mock_processor = MagicMock()
-        mock_processor.stop.side_effect = AttributeError(
-            'DagFileProcessor object has no attribute stop')
+        mock_processor.stop.side_effect = AttributeError('DagFileProcessor object has no attribute stop')
         mock_processor.terminate.side_effect = None
 
         manager._processors['abc.txt'] = mock_processor
@@ -190,7 +194,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
             signal_conn=MagicMock(),
             dag_ids=[],
             pickle_dags=False,
-            async_mode=True)
+            async_mode=True,
+        )
 
         dagbag = DagBag(TEST_DAG_FOLDER, read_dags_from_db=False)
         with create_session() as session:
@@ -211,7 +216,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
             session.commit()
 
             manager._last_zombie_query_time = timezone.utcnow() - timedelta(
-                seconds=manager._zombie_threshold_secs + 1)
+                seconds=manager._zombie_threshold_secs + 1
+            )
             manager._find_zombies()  # pylint: disable=no-value-for-parameter
             requests = manager._callback_to_execute[dag.full_filepath]
             self.assertEqual(1, len(requests))
@@ -232,8 +238,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
         file processors until the next zombie detection logic is invoked.
         """
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_example_bash_operator.py')
-        with conf_vars({('scheduler', 'max_threads'): '1',
-                        ('core', 'load_examples'): 'False'}):
+        with conf_vars({('scheduler', 'max_threads'): '1', ('core', 'load_examples'): 'False'}):
             dagbag = DagBag(test_dag_path, read_dags_from_db=False)
             with create_session() as session:
                 session.query(LJ).delete()
@@ -257,7 +262,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
                     TaskCallbackRequest(
                         full_filepath=dag.full_filepath,
                         simple_task_instance=SimpleTaskInstance(ti),
-                        msg="Message"
+                        msg="Message",
                     )
                 ]
 
@@ -282,7 +287,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
                 signal_conn=child_pipe,
                 dag_ids=[],
                 pickle_dags=False,
-                async_mode=async_mode)
+                async_mode=async_mode,
+            )
 
             self.run_processor_manager_one_loop(manager, parent_pipe)
 
@@ -296,10 +302,9 @@ class TestDagFileProcessorManager(unittest.TestCase):
 
             assert fake_processors[-1]._file_path == test_dag_path
             callback_requests = fake_processors[-1]._callback_requests
-            assert (
-                {zombie.simple_task_instance.key for zombie in expected_failure_callback_requests} ==
-                {result.simple_task_instance.key for result in callback_requests}
-            )
+            assert {zombie.simple_task_instance.key for zombie in expected_failure_callback_requests} == {
+                result.simple_task_instance.key for result in callback_requests
+            }
 
             child_pipe.close()
             parent_pipe.close()
@@ -316,7 +321,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
             signal_conn=MagicMock(),
             dag_ids=[],
             pickle_dags=False,
-            async_mode=True)
+            async_mode=True,
+        )
 
         processor = DagFileProcessorProcess('abc.txt', False, [], [])
         processor._start_time = timezone.make_aware(datetime.min)
@@ -336,7 +342,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
             signal_conn=MagicMock(),
             dag_ids=[],
             pickle_dags=False,
-            async_mode=True)
+            async_mode=True,
+        )
 
         processor = DagFileProcessorProcess('abc.txt', False, [], [])
         processor._start_time = timezone.make_aware(datetime.max)
@@ -373,7 +380,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
             processor_timeout=timedelta(seconds=5),
             signal_conn=child_pipe,
             pickle_dags=False,
-            async_mode=True)
+            async_mode=True,
+        )
 
         manager._run_parsing_loop()
 
@@ -407,10 +415,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
 
     @staticmethod
     def _processor_factory(file_path, zombies, dag_ids, pickle_dags):
-        return DagFileProcessorProcess(file_path,
-                                       pickle_dags,
-                                       dag_ids,
-                                       zombies)
+        return DagFileProcessorProcess(file_path, pickle_dags, dag_ids, zombies)
 
     def test_reload_module(self):
         """
@@ -431,13 +436,9 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                 pass
 
             # Starting dag processing with 0 max_runs to avoid redundant operations.
-            processor_agent = DagFileProcessorAgent(test_dag_path,
-                                                    0,
-                                                    type(self)._processor_factory,
-                                                    timedelta.max,
-                                                    [],
-                                                    False,
-                                                    async_mode)
+            processor_agent = DagFileProcessorAgent(
+                test_dag_path, 0, type(self)._processor_factory, timedelta.max, [], False, async_mode
+            )
             processor_agent.start()
             if not async_mode:
                 processor_agent.run_single_parsing_loop()
@@ -455,13 +456,9 @@ class TestDagFileProcessorAgent(unittest.TestCase):
 
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
         async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
-        processor_agent = DagFileProcessorAgent(test_dag_path,
-                                                1,
-                                                type(self)._processor_factory,
-                                                timedelta.max,
-                                                [],
-                                                False,
-                                                async_mode)
+        processor_agent = DagFileProcessorAgent(
+            test_dag_path, 1, type(self)._processor_factory, timedelta.max, [], False, async_mode
+        )
         processor_agent.start()
         if not async_mode:
             processor_agent.run_single_parsing_loop()
@@ -491,13 +488,9 @@ class TestDagFileProcessorAgent(unittest.TestCase):
             pass
 
         # Starting dag processing with 0 max_runs to avoid redundant operations.
-        processor_agent = DagFileProcessorAgent(test_dag_path,
-                                                0,
-                                                type(self)._processor_factory,
-                                                timedelta.max,
-                                                [],
-                                                False,
-                                                async_mode)
+        processor_agent = DagFileProcessorAgent(
+            test_dag_path, 0, type(self)._processor_factory, timedelta.max, [], False, async_mode
+        )
         processor_agent.start()
         if not async_mode:
             processor_agent.run_single_parsing_loop()

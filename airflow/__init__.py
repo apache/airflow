@@ -55,15 +55,18 @@ def __getattr__(name):
     # PEP-562: Lazy loaded attributes on python modules
     if name == "DAG":
         from airflow.models.dag import DAG  # pylint: disable=redefined-outer-name
+
         return DAG
     if name == "AirflowException":
         from airflow.exceptions import AirflowException  # pylint: disable=redefined-outer-name
+
         return AirflowException
     raise AttributeError(f"module {__name__} has no attribute {name}")
 
 
 if not settings.LAZY_LOAD_PLUGINS:
     from airflow import plugins_manager
+
     plugins_manager.ensure_plugins_loaded()
 
 

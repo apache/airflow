@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import json
-from typing import Optional, Any, Iterable, Union, cast
+from typing import Any, Iterable, Optional, Union, cast
 
 from bson import json_util
 

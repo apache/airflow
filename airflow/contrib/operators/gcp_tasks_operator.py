@@ -21,14 +21,23 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.providers.google.cloud.operators.tasks import (  # noqa
-    CloudTasksQueueCreateOperator, CloudTasksQueueDeleteOperator, CloudTasksQueueGetOperator,
-    CloudTasksQueuePauseOperator, CloudTasksQueuePurgeOperator, CloudTasksQueueResumeOperator,
-    CloudTasksQueuesListOperator, CloudTasksQueueUpdateOperator, CloudTasksTaskCreateOperator,
-    CloudTasksTaskDeleteOperator, CloudTasksTaskGetOperator, CloudTasksTaskRunOperator,
+    CloudTasksQueueCreateOperator,
+    CloudTasksQueueDeleteOperator,
+    CloudTasksQueueGetOperator,
+    CloudTasksQueuePauseOperator,
+    CloudTasksQueuePurgeOperator,
+    CloudTasksQueueResumeOperator,
+    CloudTasksQueuesListOperator,
+    CloudTasksQueueUpdateOperator,
+    CloudTasksTaskCreateOperator,
+    CloudTasksTaskDeleteOperator,
+    CloudTasksTaskGetOperator,
+    CloudTasksTaskRunOperator,
     CloudTasksTasksListOperator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.tasks`",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

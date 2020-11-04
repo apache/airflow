@@ -24,7 +24,6 @@ from airflow.ti_deps.deps.dag_ti_slots_available_dep import DagTISlotsAvailableD
 
 
 class TestDagTISlotsAvailableDep(unittest.TestCase):
-
     def test_concurrency_reached(self):
         """
         Test concurrency reached should fail dep

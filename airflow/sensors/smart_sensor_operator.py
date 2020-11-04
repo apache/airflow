@@ -94,10 +94,12 @@ class SensorWork:
         if not isinstance(other, SensorWork):
             return NotImplemented
 
-        return self.dag_id == other.dag_id and \
-            self.task_id == other.task_id and \
-            self.execution_date == other.execution_date and \
-            self.try_number == other.try_number
+        return (
+            self.dag_id == other.dag_id
+            and self.task_id == other.task_id
+            and self.execution_date == other.execution_date
+            and self.try_number == other.try_number
+        )
 
     @staticmethod
     def create_new_task_handler():
@@ -117,10 +119,9 @@ class SensorWork:
         # The created log_id is used inside of smart sensor as the key to fetch
         # the corresponding in memory log handler.
         si.raw = False  # Otherwise set_context will fail
-        log_id = "-".join([si.dag_id,
-                           si.task_id,
-                           si.execution_date.strftime("%Y_%m_%dT%H_%M_%S_%f"),
-                           str(si.try_number)])
+        log_id = "-".join(
+            [si.dag_id, si.task_id, si.execution_date.strftime("%Y_%m_%dT%H_%M_%S_%f"), str(si.try_number)]
+        )
         logger = logging.getLogger('airflow.task' + '.' + log_id)
 
         if len(logger.handlers) == 0:
@@ -128,10 +129,11 @@ class SensorWork:
             logger.addHandler(handler)
             set_context(logger, si)
 
-            line_break = ("-" * 120)
+            line_break = "-" * 120
             logger.info(line_break)
-            logger.info("Processing sensor task %s in smart sensor service on host: %s",
-                        self.ti_key, get_hostname())
+            logger.info(
+                "Processing sensor task %s in smart sensor service on host: %s", self.ti_key, get_hostname()
+            )
             logger.info(line_break)
         return logger
 
@@ -200,10 +202,12 @@ class SensorExceptionInfo:
     infra failure, give the task more chance to retry before fail it.
     """
 
-    def __init__(self,
-                 exception_info,
-                 is_infra_failure=False,
-                 infra_failure_retry_window=datetime.timedelta(minutes=130)):
+    def __init__(
+        self,
+        exception_info,
+        is_infra_failure=False,
+        infra_failure_retry_window=datetime.timedelta(minutes=130),
+    ):
         self._exception_info = exception_info
         self._is_infra_failure = is_infra_failure
         self._infra_failure_retry_window = infra_failure_retry_window
@@ -302,15 +306,17 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
     ui_color = '#e6f1f2'
 
     @apply_defaults
-    def __init__(self,
-                 poke_interval=180,
-                 smart_sensor_timeout=60 * 60 * 24 * 7,
-                 soft_fail=False,
-                 shard_min=0,
-                 shard_max=100000,
-                 poke_timeout=6.0,
-                 *args,
-                 **kwargs):
+    def __init__(
+        self,
+        poke_interval=180,
+        smart_sensor_timeout=60 * 60 * 24 * 7,
+        soft_fail=False,
+        shard_min=0,
+        shard_max=100000,
+        poke_timeout=6.0,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         # super(SmartSensorOperator, self).__init__(*args, **kwargs)
         self.poke_interval = poke_interval
@@ -330,11 +336,9 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
 
     def _validate_input_values(self):
         if not isinstance(self.poke_interval, (int, float)) or self.poke_interval < 0:
-            raise AirflowException(
-                "The poke_interval must be a non-negative number")
+            raise AirflowException("The poke_interval must be a non-negative number")
         if not isinstance(self.timeout, (int, float)) or self.timeout < 0:
-            raise AirflowException(
-                "The timeout must be a non-negative number")
+            raise AirflowException("The timeout must be a non-negative number")
 
     @provide_session
     def _load_sensor_works(self, session=None):
@@ -345,10 +349,11 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
         """
         SI = SensorInstance
         start_query_time = time.time()
-        query = session.query(SI) \
-            .filter(SI.state == State.SENSING)\
-            .filter(SI.shardcode < self.shard_max,
-                    SI.shardcode >= self.shard_min)
+        query = (
+            session.query(SI)
+            .filter(SI.state == State.SENSING)
+            .filter(SI.shardcode < self.shard_max, SI.shardcode >= self.shard_min)
+        )
         tis = query.all()
 
         self.log.info("Performance query %s tis, time: %s", len(tis), time.time() - start_query_time)
@@ -387,10 +392,11 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
 
         def update_ti_hostname_with_count(count, ti_keys):
             # Using or_ instead of in_ here to prevent from full table scan.
-            tis = session.query(TI) \
-                .filter(or_(tuple_(TI.dag_id, TI.task_id, TI.execution_date) == ti_key
-                            for ti_key in ti_keys)) \
+            tis = (
+                session.query(TI)
+                .filter(or_(tuple_(TI.dag_id, TI.task_id, TI.execution_date) == ti_key for ti_key in ti_keys))
                 .all()
+            )
 
             for ti in tis:
                 ti.hostname = self.hostname
@@ -414,6 +420,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
         :param state: Set multiple sensor tasks to this state.
         :param session: The sqlalchemy session.
         """
+
         def mark_state(ti, sensor_instance):
             ti.state = state
             sensor_instance.state = state
@@ -426,14 +433,22 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
 
         count_marked = 0
         try:
-            query_result = session.query(TI, SI)\
-                .join(TI, and_(TI.dag_id == SI.dag_id,
-                               TI.task_id == SI.task_id,
-                               TI.execution_date == SI.execution_date)) \
-                .filter(SI.state == State.SENSING) \
-                .filter(SI.hashcode == poke_hash) \
-                .filter(SI.operator == operator) \
-                .with_for_update().all()
+            query_result = (
+                session.query(TI, SI)
+                .join(
+                    TI,
+                    and_(
+                        TI.dag_id == SI.dag_id,
+                        TI.task_id == SI.task_id,
+                        TI.execution_date == SI.execution_date,
+                    ),
+                )
+                .filter(SI.state == State.SENSING)
+                .filter(SI.hashcode == poke_hash)
+                .filter(SI.operator == operator)
+                .with_for_update()
+                .all()
+            )
 
             end_date = timezone.utcnow()
             for ti, sensor_instance in query_result:
@@ -451,8 +466,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
             session.commit()
 
         except Exception as e:  # pylint: disable=broad-except
-            self.log.warning("Exception _mark_multi_state in smart sensor for hashcode %s",
-                             str(poke_hash))
+            self.log.warning("Exception _mark_multi_state in smart sensor for hashcode %s", str(poke_hash))
             self.log.exception(e, exc_info=True)
         self.log.info("Marked %s tasks out of %s to state %s", count_marked, len(query_result), state)
 
@@ -469,6 +483,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
         :type error: str.
         :param session: The sqlalchemy session.
         """
+
         def email_alert(task_instance, error_info):
             try:
                 subject, html_content, _ = task_instance.get_email_subject_content(error_info)
@@ -480,18 +495,19 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
                 sensor_work.log.exception(e, exc_info=True)
 
         def handle_failure(sensor_work, ti):
-            if sensor_work.execution_context.get('retries') and \
-                    ti.try_number <= ti.max_tries:
+            if sensor_work.execution_context.get('retries') and ti.try_number <= ti.max_tries:
                 # retry
                 ti.state = State.UP_FOR_RETRY
-                if sensor_work.execution_context.get('email_on_retry') and \
-                        sensor_work.execution_context.get('email'):
+                if sensor_work.execution_context.get('email_on_retry') and sensor_work.execution_context.get(
+                    'email'
+                ):
                     sensor_work.log.info("%s sending email alert for retry", sensor_work.ti_key)
                     email_alert(ti, error)
             else:
                 ti.state = State.FAILED
-                if sensor_work.execution_context.get('email_on_failure') and \
-                        sensor_work.execution_context.get('email'):
+                if sensor_work.execution_context.get(
+                    'email_on_failure'
+                ) and sensor_work.execution_context.get('email'):
                     sensor_work.log.info("%s sending email alert for failure", sensor_work.ti_key)
                     email_alert(ti, error)
 
@@ -499,23 +515,23 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
             dag_id, task_id, execution_date = sensor_work.ti_key
             TI = TaskInstance
             SI = SensorInstance
-            sensor_instance = session.query(SI).filter(
-                SI.dag_id == dag_id,
-                SI.task_id == task_id,
-                SI.execution_date == execution_date) \
-                .with_for_update() \
+            sensor_instance = (
+                session.query(SI)
+                .filter(SI.dag_id == dag_id, SI.task_id == task_id, SI.execution_date == execution_date)
+                .with_for_update()
                 .first()
+            )
 
             if sensor_instance.hashcode != sensor_work.hashcode:
                 # Return without setting state
                 return
 
-            ti = session.query(TI).filter(
-                TI.dag_id == dag_id,
-                TI.task_id == task_id,
-                TI.execution_date == execution_date) \
-                .with_for_update() \
+            ti = (
+                session.query(TI)
+                .filter(TI.dag_id == dag_id, TI.task_id == task_id, TI.execution_date == execution_date)
+                .with_for_update()
                 .first()
+            )
 
             if ti:
                 if ti.state == State.SENSING:
@@ -531,8 +547,9 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
                 session.merge(ti)
                 session.commit()
 
-                sensor_work.log.info("Task %s got an error: %s. Set the state to failed. Exit.",
-                                     str(sensor_work.ti_key), error)
+                sensor_work.log.info(
+                    "Task %s got an error: %s. Set the state to failed. Exit.", str(sensor_work.ti_key), error
+                )
                 sensor_work.close_sensor_logger()
 
         except AirflowException as e:
@@ -568,8 +585,9 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
 
         if sensor_exception.fail_current_run:
             if sensor_exception.is_infra_failure:
-                sensor_work.log.exception("Task %s failed by infra failure in smart sensor.",
-                                          sensor_work.ti_key)
+                sensor_work.log.exception(
+                    "Task %s failed by infra failure in smart sensor.", sensor_work.ti_key
+                )
                 # There is a risk for sensor object cached in smart sensor keep throwing
                 # exception and cause an infra failure. To make sure the sensor tasks after
                 # retry will not fall into same object and have endless infra failure,
@@ -619,10 +637,12 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
                     # Got a landed signal, mark all tasks waiting for this partition
                     cached_work.set_state(PokeState.LANDED)
 
-                    self._mark_multi_state(sensor_work.operator,
-                                           sensor_work.hashcode,
-                                           sensor_work.encoded_poke_context,
-                                           State.SUCCESS)
+                    self._mark_multi_state(
+                        sensor_work.operator,
+                        sensor_work.hashcode,
+                        sensor_work.encoded_poke_context,
+                        State.SUCCESS,
+                    )
 
                     log.info("Task %s succeeded", str(ti_key))
                     sensor_work.close_sensor_logger()
@@ -642,12 +662,12 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
 
             if cache_key in self.cached_sensor_exceptions:
                 self.cached_sensor_exceptions[cache_key].set_latest_exception(
-                    exception_info,
-                    is_infra_failure=is_infra_failure)
+                    exception_info, is_infra_failure=is_infra_failure
+                )
             else:
                 self.cached_sensor_exceptions[cache_key] = SensorExceptionInfo(
-                    exception_info,
-                    is_infra_failure=is_infra_failure)
+                    exception_info, is_infra_failure=is_infra_failure
+                )
 
             self._handle_poke_exception(sensor_work)
 
@@ -671,8 +691,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
         """
         cached_work = self.cached_dedup_works[sensor_work.cache_key]
         if not cached_work.sensor_task:
-            init_args = dict(list(sensor_work.poke_context.items())
-                             + [('task_id', sensor_work.task_id)])
+            init_args = dict(list(sensor_work.poke_context.items()) + [('task_id', sensor_work.task_id)])
             operator_class = import_string(sensor_work.op_classpath)
             cached_work.sensor_task = operator_class(**init_args)
 

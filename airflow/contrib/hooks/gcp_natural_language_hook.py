@@ -24,5 +24,6 @@ from airflow.providers.google.cloud.hooks.natural_language import CloudNaturalLa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.natural_language`",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

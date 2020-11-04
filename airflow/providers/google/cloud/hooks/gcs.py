@@ -27,7 +27,7 @@ from datetime import datetime
 from io import BytesIO
 from os import path
 from tempfile import NamedTemporaryFile
-from typing import Callable, Optional, Sequence, Set, Tuple, TypeVar, Union, cast, List
+from typing import Callable, List, Optional, Sequence, Set, Tuple, TypeVar, Union, cast
 from urllib.parse import urlparse
 
 from google.api_core.exceptions import NotFound
@@ -414,7 +414,7 @@ class GCSHook(GoogleBaseHook):
         bucket = client.bucket(bucket_name)
         blob = bucket.get_blob(blob_name=object_name)
         if blob is None:
-            raise ValueError("Object ({}) not found in Bucket ({})".format(object_name, bucket_name))
+            raise ValueError(f"Object ({object_name}) not found in Bucket ({bucket_name})")
         return blob.updated
 
     def is_updated_after(self, bucket_name: str, object_name: str, ts: datetime) -> bool:

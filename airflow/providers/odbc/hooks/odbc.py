@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains ODBC hook."""
-from typing import Optional, Any
+from typing import Any, Optional
 from urllib.parse import quote_plus
 
 import pyodbc

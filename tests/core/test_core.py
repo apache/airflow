@@ -54,6 +54,7 @@ class OperatorSubclass(BaseOperator):
     """
     An operator to test template substitution
     """
+
     template_fields = ['some_templated_field']
 
     def __init__(self, some_templated_field, *args, **kwargs):
@@ -78,15 +79,11 @@ class TestCore(unittest.TestCase):
 
     def tearDown(self):
         session = Session()
-        session.query(DagRun).filter(
-            DagRun.dag_id == TEST_DAG_ID).delete(
-            synchronize_session=False)
-        session.query(TaskInstance).filter(
-            TaskInstance.dag_id == TEST_DAG_ID).delete(
-            synchronize_session=False)
-        session.query(TaskFail).filter(
-            TaskFail.dag_id == TEST_DAG_ID).delete(
-            synchronize_session=False)
+        session.query(DagRun).filter(DagRun.dag_id == TEST_DAG_ID).delete(synchronize_session=False)
+        session.query(TaskInstance).filter(TaskInstance.dag_id == TEST_DAG_ID).delete(
+            synchronize_session=False
+        )
+        session.query(TaskFail).filter(TaskFail.dag_id == TEST_DAG_ID).delete(synchronize_session=False)
         session.commit()
         session.close()
         clear_db_dags()
@@ -102,10 +99,8 @@ class TestCore(unittest.TestCase):
 
         self.dag.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=DEFAULT_DATE)
         op = CheckOperator(
-            task_id='check',
-            sql="select count(*) from operator_test_table",
-            conn_id=conn_id,
-            dag=self.dag)
+            task_id='check', sql="select count(*) from operator_test_table", conn_id=conn_id, dag=self.dag
+        )
 
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
@@ -115,16 +110,15 @@ class TestCore(unittest.TestCase):
             tolerance=0.1,
             conn_id=conn_id,
             sql="SELECT 100",
-            dag=self.dag)
+            dag=self.dag,
+        )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         captain_hook.run("drop table operator_test_table")
 
     def test_clear_api(self):
         task = self.dag_bash.tasks[0]
-        task.clear(
-            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-            upstream=True, downstream=True)
+        task.clear(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, upstream=True, downstream=True)
         ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.are_dependents_done()
 
@@ -139,7 +133,8 @@ class TestCore(unittest.TestCase):
                     task_id='test_illegal_args',
                     bash_command='echo success',
                     dag=self.dag,
-                    illegal_argument_1234='hello?')
+                    illegal_argument_1234='hello?',
+                )
                 assert any(msg in str(w) for w in warning.warnings)
 
     def test_illegal_args_forbidden(self):
@@ -152,17 +147,15 @@ class TestCore(unittest.TestCase):
                 task_id='test_illegal_args',
                 bash_command='echo success',
                 dag=self.dag,
-                illegal_argument_1234='hello?')
+                illegal_argument_1234='hello?',
+            )
         self.assertIn(
-            ('Invalid arguments were passed to BashOperator '
-             '(task_id: test_illegal_args).'),
-            str(ctx.exception))
+            ('Invalid arguments were passed to BashOperator ' '(task_id: test_illegal_args).'),
+            str(ctx.exception),
+        )
 
     def test_bash_operator(self):
-        op = BashOperator(
-            task_id='test_bash_operator',
-            bash_command="echo success",
-            dag=self.dag)
+        op = BashOperator(task_id='test_bash_operator', bash_command="echo success", dag=self.dag)
         self.dag.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=DEFAULT_DATE)
 
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
@@ -172,22 +165,22 @@ class TestCore(unittest.TestCase):
             task_id='test_multi_byte_bash_operator',
             bash_command="echo \u2600",
             dag=self.dag,
-            output_encoding='utf-8')
+            output_encoding='utf-8',
+        )
         self.dag.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=DEFAULT_DATE)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_bash_operator_kill(self):
         import psutil
+
         sleep_time = "100%d" % os.getpid()
         op = BashOperator(
             task_id='test_bash_operator_kill',
             execution_timeout=timedelta(seconds=1),
             bash_command="/bin/bash -c 'sleep %s'" % sleep_time,
-            dag=self.dag)
-        self.assertRaises(
-            AirflowTaskTimeout,
-            op.run,
-            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            dag=self.dag,
+        )
+        self.assertRaises(AirflowTaskTimeout, op.run, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         sleep(2)
         pid = -1
         for proc in psutil.process_iter():
@@ -210,26 +203,23 @@ class TestCore(unittest.TestCase):
             task_id='check_on_failure_callback',
             bash_command="exit 1",
             dag=self.dag,
-            on_failure_callback=check_failure)
+            on_failure_callback=check_failure,
+        )
         self.assertRaises(
-            AirflowException,
-            op.run,
-            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            AirflowException, op.run, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
+        )
         self.assertTrue(data['called'])
 
     def test_dryrun(self):
-        op = BashOperator(
-            task_id='test_dryrun',
-            bash_command="echo success",
-            dag=self.dag)
+        op = BashOperator(task_id='test_dryrun', bash_command="echo success", dag=self.dag)
         op.dry_run()
 
     def test_sqlite(self):
         import airflow.providers.sqlite.operators.sqlite
+
         op = airflow.providers.sqlite.operators.sqlite.SqliteOperator(
-            task_id='time_sqlite',
-            sql="CREATE TABLE IF NOT EXISTS unitest (dummy VARCHAR(20))",
-            dag=self.dag)
+            task_id='time_sqlite', sql="CREATE TABLE IF NOT EXISTS unitest (dummy VARCHAR(20))", dag=self.dag
+        )
         self.dag.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=DEFAULT_DATE)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
@@ -238,11 +228,11 @@ class TestCore(unittest.TestCase):
             task_id='test_timeout',
             execution_timeout=timedelta(seconds=1),
             python_callable=lambda: sleep(5),
-            dag=self.dag)
+            dag=self.dag,
+        )
         self.assertRaises(
-            AirflowTaskTimeout,
-            op.run,
-            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            AirflowTaskTimeout, op.run, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
+        )
 
     def test_python_op(self):
         def test_py_op(templates_dict, ds, **kwargs):
@@ -250,25 +240,20 @@ class TestCore(unittest.TestCase):
                 raise Exception("failure")
 
         op = PythonOperator(
-            task_id='test_py_op',
-            python_callable=test_py_op,
-            templates_dict={'ds': "{{ ds }}"},
-            dag=self.dag)
+            task_id='test_py_op', python_callable=test_py_op, templates_dict={'ds': "{{ ds }}"}, dag=self.dag
+        )
         self.dag.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=DEFAULT_DATE)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_complex_template(self):
         def verify_templated_field(context):
-            self.assertEqual(context['ti'].task.some_templated_field['bar'][1],
-                             context['ds'])
+            self.assertEqual(context['ti'].task.some_templated_field['bar'][1], context['ds'])
 
         op = OperatorSubclass(
             task_id='test_complex_template',
-            some_templated_field={
-                'foo': '123',
-                'bar': ['baz', '{{ ds }}']
-            },
-            dag=self.dag)
+            some_templated_field={'foo': '123', 'bar': ['baz', '{{ ds }}']},
+            dag=self.dag,
+        )
         op.execute = verify_templated_field
         self.dag.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=DEFAULT_DATE)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
@@ -286,20 +271,16 @@ class TestCore(unittest.TestCase):
                 return NotImplemented
 
         op = OperatorSubclass(
-            task_id='test_bad_template_obj',
-            some_templated_field=NonBoolObject(),
-            dag=self.dag)
+            task_id='test_bad_template_obj', some_templated_field=NonBoolObject(), dag=self.dag
+        )
         op.resolve_template_files()
 
     def test_task_get_template(self):
         TI = TaskInstance
-        ti = TI(
-            task=self.runme_0, execution_date=DEFAULT_DATE)
+        ti = TI(task=self.runme_0, execution_date=DEFAULT_DATE)
         ti.dag = self.dag_bash
         self.dag_bash.create_dagrun(
-            run_type=DagRunType.MANUAL,
-            state=State.RUNNING,
-            execution_date=DEFAULT_DATE
+            run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=DEFAULT_DATE
         )
         ti.run(ignore_ti_state=True)
         context = ti.get_template_context()
@@ -328,20 +309,16 @@ class TestCore(unittest.TestCase):
 
     def test_local_task_job(self):
         TI = TaskInstance
-        ti = TI(
-            task=self.runme_0, execution_date=DEFAULT_DATE)
+        ti = TI(task=self.runme_0, execution_date=DEFAULT_DATE)
         job = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
         job.run()
 
     def test_raw_job(self):
         TI = TaskInstance
-        ti = TI(
-            task=self.runme_0, execution_date=DEFAULT_DATE)
+        ti = TI(task=self.runme_0, execution_date=DEFAULT_DATE)
         ti.dag = self.dag_bash
         self.dag_bash.create_dagrun(
-            run_type=DagRunType.MANUAL,
-            state=State.RUNNING,
-            execution_date=DEFAULT_DATE
+            run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=DEFAULT_DATE
         )
         ti.run(ignore_ti_state=True)
 
@@ -353,20 +330,16 @@ class TestCore(unittest.TestCase):
         rt2 = round_time(datetime(2015, 1, 2), relativedelta(months=1))
         self.assertEqual(datetime(2015, 1, 1, 0, 0), rt2)
 
-        rt3 = round_time(datetime(2015, 9, 16, 0, 0), timedelta(1), datetime(
-            2015, 9, 14, 0, 0))
+        rt3 = round_time(datetime(2015, 9, 16, 0, 0), timedelta(1), datetime(2015, 9, 14, 0, 0))
         self.assertEqual(datetime(2015, 9, 16, 0, 0), rt3)
 
-        rt4 = round_time(datetime(2015, 9, 15, 0, 0), timedelta(1), datetime(
-            2015, 9, 14, 0, 0))
+        rt4 = round_time(datetime(2015, 9, 15, 0, 0), timedelta(1), datetime(2015, 9, 14, 0, 0))
         self.assertEqual(datetime(2015, 9, 15, 0, 0), rt4)
 
-        rt5 = round_time(datetime(2015, 9, 14, 0, 0), timedelta(1), datetime(
-            2015, 9, 14, 0, 0))
+        rt5 = round_time(datetime(2015, 9, 14, 0, 0), timedelta(1), datetime(2015, 9, 14, 0, 0))
         self.assertEqual(datetime(2015, 9, 14, 0, 0), rt5)
 
-        rt6 = round_time(datetime(2015, 9, 13, 0, 0), timedelta(1), datetime(
-            2015, 9, 14, 0, 0))
+        rt6 = round_time(datetime(2015, 9, 13, 0, 0), timedelta(1), datetime(2015, 9, 14, 0, 0))
         self.assertEqual(datetime(2015, 9, 14, 0, 0), rt6)
 
     def test_infer_time_unit(self):
@@ -390,29 +363,25 @@ class TestCore(unittest.TestCase):
         assert_array_almost_equal(arr2, [110.0, 50.0, 10.0, 100.0], decimal=3)
 
         arr3 = scale_time_units([100000, 50000, 10000, 20000], 'hours')
-        assert_array_almost_equal(arr3, [27.778, 13.889, 2.778, 5.556],
-                                  decimal=3)
+        assert_array_almost_equal(arr3, [27.778, 13.889, 2.778, 5.556], decimal=3)
 
         arr4 = scale_time_units([200000, 100000], 'days')
         assert_array_almost_equal(arr4, [2.315, 1.157], decimal=3)
 
     def test_bad_trigger_rule(self):
         with self.assertRaises(AirflowException):
-            DummyOperator(
-                task_id='test_bad_trigger',
-                trigger_rule="non_existent",
-                dag=self.dag)
+            DummyOperator(task_id='test_bad_trigger', trigger_rule="non_existent", dag=self.dag)
 
     def test_terminate_task(self):
         """If a task instance's db state get deleted, it should fail"""
         from airflow.executors.sequential_executor import SequentialExecutor
+
         TI = TaskInstance
         dag = self.dagbag.dags.get('test_utils')
         task = dag.task_dict.get('sleeps_forever')
 
         ti = TI(task=task, execution_date=DEFAULT_DATE)
-        job = LocalTaskJob(
-            task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
+        job = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
 
         # Running task instance asynchronously
         proc = multiprocessing.Process(target=job.run)
@@ -423,11 +392,11 @@ class TestCore(unittest.TestCase):
         ti.refresh_from_db(session=session)
         # making sure it's actually running
         self.assertEqual(State.RUNNING, ti.state)
-        ti = session.query(TI).filter_by(
-            dag_id=task.dag_id,
-            task_id=task.task_id,
-            execution_date=DEFAULT_DATE
-        ).one()
+        ti = (
+            session.query(TI)
+            .filter_by(dag_id=task.dag_id, task_id=task.task_id, execution_date=DEFAULT_DATE)
+            .one()
+        )
 
         # deleting the instance should result in a failure
         session.delete(ti)
@@ -443,16 +412,14 @@ class TestCore(unittest.TestCase):
     def test_task_fail_duration(self):
         """If a task fails, the duration should be recorded in TaskFail"""
 
-        op1 = BashOperator(
-            task_id='pass_sleepy',
-            bash_command='sleep 3',
-            dag=self.dag)
+        op1 = BashOperator(task_id='pass_sleepy', bash_command='sleep 3', dag=self.dag)
         op2 = BashOperator(
             task_id='fail_sleepy',
             bash_command='sleep 5',
             execution_timeout=timedelta(seconds=3),
             retry_delay=timedelta(seconds=0),
-            dag=self.dag)
+            dag=self.dag,
+        )
         session = settings.Session()
         try:
             op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
@@ -462,14 +429,16 @@ class TestCore(unittest.TestCase):
             op2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         except Exception:  # pylint: disable=broad-except
             pass
-        op1_fails = session.query(TaskFail).filter_by(
-            task_id='pass_sleepy',
-            dag_id=self.dag.dag_id,
-            execution_date=DEFAULT_DATE).all()
-        op2_fails = session.query(TaskFail).filter_by(
-            task_id='fail_sleepy',
-            dag_id=self.dag.dag_id,
-            execution_date=DEFAULT_DATE).all()
+        op1_fails = (
+            session.query(TaskFail)
+            .filter_by(task_id='pass_sleepy', dag_id=self.dag.dag_id, execution_date=DEFAULT_DATE)
+            .all()
+        )
+        op2_fails = (
+            session.query(TaskFail)
+            .filter_by(task_id='fail_sleepy', dag_id=self.dag.dag_id, execution_date=DEFAULT_DATE)
+            .all()
+        )
 
         self.assertEqual(0, len(op1_fails))
         self.assertEqual(1, len(op2_fails))
@@ -484,18 +453,16 @@ class TestCore(unittest.TestCase):
         execution_ds_nodash = execution_ds.replace('-', '')
 
         dag = DAG(
-            TEST_DAG_ID,
-            default_args=self.args,
-            schedule_interval=timedelta(weeks=1),
-            start_date=DEFAULT_DATE)
-        task = DummyOperator(task_id='test_externally_triggered_dag_context',
-                             dag=dag)
-        dag.create_dagrun(run_type=DagRunType.SCHEDULED,
-                          execution_date=execution_date,
-                          state=State.RUNNING,
-                          external_trigger=True)
-        task.run(
-            start_date=execution_date, end_date=execution_date)
+            TEST_DAG_ID, default_args=self.args, schedule_interval=timedelta(weeks=1), start_date=DEFAULT_DATE
+        )
+        task = DummyOperator(task_id='test_externally_triggered_dag_context', dag=dag)
+        dag.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=execution_date,
+            state=State.RUNNING,
+            external_trigger=True,
+        )
+        task.run(start_date=execution_date, end_date=execution_date)
 
         ti = TI(task=task, execution_date=execution_date)
         context = ti.get_template_context()

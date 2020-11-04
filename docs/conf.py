@@ -142,14 +142,9 @@ extensions = [
     "sphinxcontrib.spelling",
 ]
 
-autodoc_default_options = {
-    'show-inheritance': True,
-    'members': True
-}
+autodoc_default_options = {'show-inheritance': True, 'members': True}
 
-jinja_contexts = {
-    'config_ctx': {"configs": default_config_yaml()}
-}
+jinja_contexts = {'config_ctx': {"configs": default_config_yaml()}}
 
 viewcode_follow_imported_members = True
 
@@ -213,7 +208,7 @@ exclude_patterns: List[str] = [
     # Templates or partials
     'autoapi_templates',
     'howto/operator/google/_partials',
-    'howto/operator/microsoft/_partials'
+    'howto/operator/microsoft/_partials',
 ]
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
@@ -225,7 +220,9 @@ def _get_rst_filepath_from_path(filepath: str):
     elif os.path.isfile(filepath) and filepath.endswith('/__init__.py'):
         result = filepath.rpartition("/")[0]
     else:
-        result = filepath.rpartition(".",)[0]
+        result = filepath.rpartition(
+            ".",
+        )[0]
     result += "/index.rst"
 
     result = f"_api/{os.path.relpath(result, ROOT_DIR)}"
@@ -252,8 +249,7 @@ providers_packages_roots = {
 }
 
 providers_package_indexes = {
-    f"_api/{os.path.relpath(name, ROOT_DIR)}/index.rst"
-    for name in providers_packages_roots
+    f"_api/{os.path.relpath(name, ROOT_DIR)}/index.rst" for name in providers_packages_roots
 }
 
 exclude_patterns.extend(providers_package_indexes)
@@ -269,10 +265,7 @@ excluded_files_in_providers = {
     for p in excluded_packages_in_providers
     for path in glob(f"{p}/**/*", recursive=True)
 }
-excluded_files_in_providers |= {
-    _get_rst_filepath_from_path(name)
-    for name in excluded_packages_in_providers
-}
+excluded_files_in_providers |= {_get_rst_filepath_from_path(name) for name in excluded_packages_in_providers}
 
 exclude_patterns.extend(excluded_files_in_providers)
 
@@ -437,10 +430,8 @@ htmlhelp_basename = 'Airflowdoc'
 latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
     # 'papersize': 'letterpaper',
-
     # The font size ('10pt', '11pt' or '12pt').
     # 'pointsize': '10pt',
-
     # Additional stuff for the LaTeX preamble.
     # 'preamble': '',
 }  # type: Dict[str,str]
@@ -449,8 +440,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    ('index', 'Airflow.tex', 'Airflow Documentation',
-     'Apache Airflow', 'manual'),
+    ('index', 'Airflow.tex', 'Airflow Documentation', 'Apache Airflow', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -478,10 +468,7 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [
-    ('index', 'airflow', 'Airflow Documentation',
-     ['Apache Airflow'], 1)
-]
+man_pages = [('index', 'airflow', 'Airflow Documentation', ['Apache Airflow'], 1)]
 
 # If true, show URL addresses after external links.
 # man_show_urls = False
@@ -492,12 +479,17 @@ man_pages = [
 # Grouping the document tree into Texinfo files. List of tuples
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
-texinfo_documents = [(
-    'index', 'Airflow', 'Airflow Documentation',
-    'Apache Airflow', 'Airflow',
-    'Airflow is a system to programmatically author, schedule and monitor data pipelines.',
-    'Miscellaneous'
-), ]
+texinfo_documents = [
+    (
+        'index',
+        'Airflow',
+        'Airflow Documentation',
+        'Apache Airflow',
+        'Airflow',
+        'Airflow is a system to programmatically author, schedule and monitor data pipelines.',
+        'Miscellaneous',
+    ),
+]
 
 # Documents to append as an appendix to all manuals.
 # texinfo_appendices = []
@@ -546,10 +538,7 @@ exampleinclude_sourceroot = os.path.abspath('..')
 redirects_file = 'redirects.txt'
 
 # -- Options for redoc docs ----------------------------------
-OPENAPI_FILE = os.path.join(
-    os.path.dirname(__file__),
-    "..", "airflow", "api_connexion", "openapi", "v1.yaml"
-)
+OPENAPI_FILE = os.path.join(os.path.dirname(__file__), "..", "airflow", "api_connexion", "openapi", "v1.yaml")
 redoc = [
     {
         'name': 'Airflow REST API',
@@ -558,7 +547,7 @@ redoc = [
         'opts': {
             'hide-hostname': True,
             'no-auto-auth': True,
-        }
+        },
     },
 ]
 

@@ -26,9 +26,8 @@ def _pretty_format_sql(text: str):
     import pygments
     from pygments.formatters.terminal import TerminalFormatter
     from pygments.lexers.sql import SqlLexer
-    text = pygments.highlight(
-        code=text, formatter=TerminalFormatter(), lexer=SqlLexer()
-    ).rstrip()
+
+    text = pygments.highlight(code=text, formatter=TerminalFormatter(), lexer=SqlLexer()).rstrip()
     return text
 
 
@@ -43,6 +42,7 @@ class TraceQueries:
     :param display_parameters: If True, display SQL statement parameters
     :param print_fn: The function used to display the text. By default,``builtins.print``
     """
+
     def __init__(
         self,
         *,
@@ -51,7 +51,7 @@ class TraceQueries:
         display_trace: bool = True,
         display_sql: bool = False,
         display_parameters: bool = True,
-        print_fn: Callable[[str], None] = print
+        print_fn: Callable[[str], None] = print,
     ):
         self.display_num = display_num
         self.display_time = display_time
@@ -61,13 +61,15 @@ class TraceQueries:
         self.print_fn = print_fn
         self.query_count = 0
 
-    def before_cursor_execute(self,
-                              conn,
-                              cursor,  # pylint: disable=unused-argument
-                              statement,  # pylint: disable=unused-argument
-                              parameters,  # pylint: disable=unused-argument
-                              context,  # pylint: disable=unused-argument
-                              executemany):  # pylint: disable=unused-argument
+    def before_cursor_execute(
+        self,
+        conn,
+        cursor,  # pylint: disable=unused-argument
+        statement,  # pylint: disable=unused-argument
+        parameters,  # pylint: disable=unused-argument
+        context,  # pylint: disable=unused-argument
+        executemany,
+    ):  # pylint: disable=unused-argument
         """
         Executed before cursor.
 
@@ -83,13 +85,15 @@ class TraceQueries:
         conn.info.setdefault("query_start_time", []).append(time.monotonic())
         self.query_count += 1
 
-    def after_cursor_execute(self,
-                             conn,
-                             cursor,  # pylint: disable=unused-argument
-                             statement,
-                             parameters,
-                             context,  # pylint: disable=unused-argument
-                             executemany):  # pylint: disable=unused-argument
+    def after_cursor_execute(
+        self,
+        conn,
+        cursor,  # pylint: disable=unused-argument
+        statement,
+        parameters,
+        context,  # pylint: disable=unused-argument
+        executemany,
+    ):  # pylint: disable=unused-argument
         """
         Executed after cursor.
 
@@ -139,6 +143,7 @@ class TraceQueries:
 
     def __exit__(self, type_, value, traceback):  # noqa pylint: disable=redefined-outer-name
         import airflow.settings
+
         event.remove(airflow.settings.engine, "before_cursor_execute", self.before_cursor_execute)
         event.remove(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
 
@@ -150,6 +155,7 @@ class CountQueriesResult:
     """
     Counter for number of queries.
     """
+
     def __init__(self):
         self.count = 0
 
@@ -180,13 +186,15 @@ class CountQueries:
         event.remove(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
         self.print_fn(f"Count SQL queries: {self.result.count}")
 
-    def after_cursor_execute(self,
-                             conn,  # pylint: disable=unused-argument
-                             cursor,  # pylint: disable=unused-argument
-                             statement,  # pylint: disable=unused-argument
-                             parameters,  # pylint: disable=unused-argument
-                             context,  # pylint: disable=unused-argument
-                             executemany):  # pylint: disable=unused-argument
+    def after_cursor_execute(
+        self,
+        conn,  # pylint: disable=unused-argument
+        cursor,  # pylint: disable=unused-argument
+        statement,  # pylint: disable=unused-argument
+        parameters,  # pylint: disable=unused-argument
+        context,  # pylint: disable=unused-argument
+        executemany,
+    ):  # pylint: disable=unused-argument
         """
         Executed after cursor.
 
@@ -212,13 +220,16 @@ if __name__ == "__main__":
 
         from airflow.jobs.scheduler_job import DagFileProcessor
 
-        with mock.patch.dict("os.environ", {
-            "PERF_DAGS_COUNT": "200",
-            "PERF_TASKS_COUNT": "10",
-            "PERF_START_AGO": "2d",
-            "PERF_SCHEDULE_INTERVAL": "None",
-            "PERF_SHAPE": "no_structure",
-        }):
+        with mock.patch.dict(
+            "os.environ",
+            {
+                "PERF_DAGS_COUNT": "200",
+                "PERF_TASKS_COUNT": "10",
+                "PERF_START_AGO": "2d",
+                "PERF_SCHEDULE_INTERVAL": "None",
+                "PERF_SHAPE": "no_structure",
+            },
+        ):
             log = logging.getLogger(__name__)
             processor = DagFileProcessor(dag_ids=[], log=log)
             dag_file = os.path.join(os.path.dirname(__file__), os.path.pardir, "dags", "elastic_dag.py")

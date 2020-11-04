@@ -24,5 +24,6 @@ from airflow.providers.microsoft.azure.operators.azure_cosmos import AzureCosmos
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.operators.azure_cosmos`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

@@ -69,9 +69,7 @@ class SerializedDagModel(Base):
     last_updated = Column(UtcDateTime, nullable=False)
     dag_hash = Column(String(32), nullable=False)
 
-    __table_args__ = (
-        Index('idx_fileloc_hash', fileloc_hash, unique=False),
-    )
+    __table_args__ = (Index('idx_fileloc_hash', fileloc_hash, unique=False),)
 
     dag_runs = relationship(
         DagRun,
@@ -115,16 +113,19 @@ class SerializedDagModel(Base):
         # If Yes, does nothing
         # If No or the DAG does not exists, updates / writes Serialized DAG to DB
         if min_update_interval is not None:
-            if session.query(exists().where(
-                and_(cls.dag_id == dag.dag_id,
-                     (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.last_updated))
+            if session.query(
+                exists().where(
+                    and_(
+                        cls.dag_id == dag.dag_id,
+                        (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.last_updated,
+                    )
+                )
             ).scalar():
                 return
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
         new_serialized_dag = cls(dag)
-        serialized_dag_hash_from_db = session.query(
-            cls.dag_hash).filter(cls.dag_id == dag.dag_id).scalar()
+        serialized_dag_hash_from_db = session.query(cls.dag_hash).filter(cls.dag_id == dag.dag_id).scalar()
 
         if serialized_dag_hash_from_db == new_serialized_dag.dag_hash:
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
@@ -154,8 +155,10 @@ class SerializedDagModel(Base):
                 dags[row.dag_id] = dag
             else:
                 log.warning(
-                    "dag_id Mismatch in DB: Row with dag_id '%s' has Serialised DAG "
-                    "with '%s' dag_id", row.dag_id, dag.dag_id)
+                    "dag_id Mismatch in DB: Row with dag_id '%s' has Serialised DAG " "with '%s' dag_id",
+                    row.dag_id,
+                    dag.dag_id,
+                )
         return dags
 
     @property
@@ -186,16 +189,18 @@ class SerializedDagModel(Base):
         :param alive_dag_filelocs: file paths of alive DAGs
         :param session: ORM Session
         """
-        alive_fileloc_hashes = [
-            DagCode.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
+        alive_fileloc_hashes = [DagCode.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
 
-        log.debug("Deleting Serialized DAGs (for which DAG files are deleted) "
-                  "from %s table ", cls.__tablename__)
+        log.debug(
+            "Deleting Serialized DAGs (for which DAG files are deleted) " "from %s table ", cls.__tablename__
+        )
 
         # pylint: disable=no-member
-        session.execute(cls.__table__.delete().where(
-            and_(cls.fileloc_hash.notin_(alive_fileloc_hashes),
-                 cls.fileloc.notin_(alive_dag_filelocs))))
+        session.execute(
+            cls.__table__.delete().where(
+                and_(cls.fileloc_hash.notin_(alive_fileloc_hashes), cls.fileloc.notin_(alive_dag_filelocs))
+            )
+        )
 
     @classmethod
     @provide_session
@@ -224,8 +229,7 @@ class SerializedDagModel(Base):
 
         # If we didn't find a matching DAG id then ask the DAG table to find
         # out the root dag
-        root_dag_id = session.query(
-            DagModel.root_dag_id).filter(DagModel.dag_id == dag_id).scalar()
+        root_dag_id = session.query(DagModel.root_dag_id).filter(DagModel.dag_id == dag_id).scalar()
 
         return session.query(cls).filter(cls.dag_id == root_dag_id).one_or_none()
 
@@ -245,9 +249,7 @@ class SerializedDagModel(Base):
         for dag in dags:
             if not dag.is_subdag:
                 SerializedDagModel.write_dag(
-                    dag,
-                    min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
-                    session=session
+                    dag, min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL, session=session
                 )
 
     @classmethod

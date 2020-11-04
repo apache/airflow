@@ -672,7 +672,7 @@ class CloudVisionHook(GoogleBaseHook):
         try:
             name = response.name
         except AttributeError as e:
-            raise AirflowException('Unable to get name from response... [{}]\n{}'.format(response, e))
+            raise AirflowException(f'Unable to get name from response... [{response}]\n{e}')
         if '/' not in name:
-            raise AirflowException('Unable to get id from name... [{}]'.format(name))
+            raise AirflowException(f'Unable to get id from name... [{name}]')
         return name.rsplit('/', 1)[1]

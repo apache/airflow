@@ -31,11 +31,11 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():   # noqa: D103
-    op.create_index('idx_task_fail_dag_task_date',
-                    'task_fail',
-                    ['dag_id', 'task_id', 'execution_date'], unique=False)
+def upgrade():  # noqa: D103
+    op.create_index(
+        'idx_task_fail_dag_task_date', 'task_fail', ['dag_id', 'task_id', 'execution_date'], unique=False
+    )
 
 
-def downgrade():   # noqa: D103
+def downgrade():  # noqa: D103
     op.drop_index('idx_task_fail_dag_task_date', table_name='task_fail')

@@ -87,7 +87,7 @@ class GoogleSearchAdsInsertReportOperator(BaseOperator):
     def prepare_template(self) -> None:
         # If .json is passed then we have to read the file
         if isinstance(self.report, str) and self.report.endswith('.json'):
-            with open(self.report, 'r') as file:
+            with open(self.report) as file:
                 self.report = json.load(file)
 
     def execute(self, context: dict):
@@ -220,7 +220,7 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
 
         response = hook.get(report_id=self.report_id)
         if not response['isReportReady']:
-            raise AirflowException('Report {} is not ready yet'.format(self.report_id))
+            raise AirflowException(f'Report {self.report_id} is not ready yet')
 
         # Resolve report fragments
         fragments_count = len(response["files"])

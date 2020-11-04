@@ -24,5 +24,6 @@ from airflow.providers.mysql.operators.mysql import MySqlOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.mysql.operators.mysql`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

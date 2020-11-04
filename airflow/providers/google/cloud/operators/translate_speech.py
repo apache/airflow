@@ -168,7 +168,7 @@ class CloudTranslateSpeechOperator(BaseOperator):
             transcript = recognize_dict['results'][0]['alternatives'][0]['transcript']
         except KeyError as key:
             raise AirflowException(
-                "Wrong response '{}' returned - it should contain {} field".format(recognize_dict, key)
+                f"Wrong response '{recognize_dict}' returned - it should contain {key} field"
             )
 
         try:

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Iterable, Union, Optional
+from typing import Iterable, Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator

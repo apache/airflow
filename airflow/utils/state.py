@@ -95,20 +95,19 @@ class State:
             return 'white'
         return 'black'
 
-    running = frozenset([
-        RUNNING,
-        SENSING
-    ])
+    running = frozenset([RUNNING, SENSING])
     """
     A list of states indicating that a task is being executed.
     """
 
-    finished = frozenset([
-        SUCCESS,
-        FAILED,
-        SKIPPED,
-        UPSTREAM_FAILED,
-    ])
+    finished = frozenset(
+        [
+            SUCCESS,
+            FAILED,
+            SKIPPED,
+            UPSTREAM_FAILED,
+        ]
+    )
     """
     A list of states indicating a task has reached a terminal state (i.e. it has "finished") and needs no
     further action.
@@ -118,16 +117,18 @@ class State:
     case, it is no longer running.
     """
 
-    unfinished = frozenset([
-        NONE,
-        SCHEDULED,
-        QUEUED,
-        RUNNING,
-        SENSING,
-        SHUTDOWN,
-        UP_FOR_RETRY,
-        UP_FOR_RESCHEDULE,
-    ])
+    unfinished = frozenset(
+        [
+            NONE,
+            SCHEDULED,
+            QUEUED,
+            RUNNING,
+            SENSING,
+            SHUTDOWN,
+            UP_FOR_RETRY,
+            UP_FOR_RESCHEDULE,
+        ]
+    )
     """
     A list of states indicating that a task either has not completed
     a run or has not even started.

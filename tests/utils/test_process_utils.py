@@ -39,7 +39,6 @@ from airflow.utils.process_utils import check_if_pidfile_process_is_running, exe
 
 
 class TestReapProcessGroup(unittest.TestCase):
-
     @staticmethod
     def _ignores_sigterm(child_pid, child_setup_done):
         def signal_handler(unused_signum, unused_frame):
@@ -55,11 +54,13 @@ class TestReapProcessGroup(unittest.TestCase):
     def _parent_of_ignores_sigterm(parent_pid, child_pid, setup_done):
         def signal_handler(unused_signum, unused_frame):
             pass
+
         os.setsid()
         signal.signal(signal.SIGTERM, signal_handler)
         child_setup_done = multiprocessing.Semaphore(0)
-        child = multiprocessing.Process(target=TestReapProcessGroup._ignores_sigterm,
-                                        args=[child_pid, child_setup_done])
+        child = multiprocessing.Process(
+            target=TestReapProcessGroup._ignores_sigterm, args=[child_pid, child_setup_done]
+        )
         child.start()
         child_setup_done.acquire(timeout=5.0)
         parent_pid.value = os.getpid()
@@ -96,19 +97,13 @@ class TestReapProcessGroup(unittest.TestCase):
 
 
 class TestExecuteInSubProcess(unittest.TestCase):
-
     def test_should_print_all_messages1(self):
         with self.assertLogs(log) as logs:
             execute_in_subprocess(["bash", "-c", "echo CAT; echo KITTY;"])
 
         msgs = [record.getMessage() for record in logs.records]
 
-        self.assertEqual([
-            "Executing cmd: bash -c 'echo CAT; echo KITTY;'",
-            'Output:',
-            'CAT',
-            'KITTY'
-        ], msgs)
+        self.assertEqual(["Executing cmd: bash -c 'echo CAT; echo KITTY;'", 'Output:', 'CAT', 'KITTY'], msgs)
 
     def test_should_raise_exception(self):
         with self.assertRaises(CalledProcessError):

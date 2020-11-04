@@ -24,7 +24,7 @@ Cloud DLP.
 """
 from typing import Dict, Optional, Sequence, Tuple, Union
 
-from google.api_core.exceptions import AlreadyExists, NotFound, InvalidArgument
+from google.api_core.exceptions import AlreadyExists, InvalidArgument, NotFound
 from google.api_core.retry import Retry
 from google.cloud.dlp_v2.types import (
     ByteContentItem,

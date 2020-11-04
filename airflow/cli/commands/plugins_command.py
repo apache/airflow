@@ -25,8 +25,6 @@ from airflow import plugins_manager
 PLUGINS_MANAGER_ATTRIBUTES_TO_DUMP = [
     "plugins",
     "import_errors",
-    "operators_modules",
-    "sensors_modules",
     "hooks_modules",
     "macros_modules",
     "executors_modules",
@@ -39,8 +37,6 @@ PLUGINS_MANAGER_ATTRIBUTES_TO_DUMP = [
 ]
 # list to maintain the order of items.
 PLUGINS_ATTRIBUTES_TO_DUMP = [
-    "operators",
-    "sensors",
     "hooks",
     "executors",
     "macros",

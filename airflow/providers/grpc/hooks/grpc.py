@@ -135,5 +135,5 @@ class GrpcHook(BaseHook):
         to the hook page, which allow admins to specify scopes, credential pem files, etc.
         They get formatted as shown below.
         """
-        full_field_name = 'extra__grpc__{}'.format(field_name)
+        full_field_name = f'extra__grpc__{field_name}'
         return self.extras[full_field_name]

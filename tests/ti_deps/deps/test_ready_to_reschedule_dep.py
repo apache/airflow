@@ -28,7 +28,6 @@ from airflow.utils.timezone import utcnow
 
 
 class TestNotInReschedulePeriodDep(unittest.TestCase):
-
     def _get_task_instance(self, state):
         dag = DAG('test_dag')
         task = Mock(dag=dag)
@@ -37,9 +36,14 @@ class TestNotInReschedulePeriodDep(unittest.TestCase):
 
     def _get_task_reschedule(self, reschedule_date):
         task = Mock(dag_id='test_dag', task_id='test_task')
-        reschedule = TaskReschedule(task=task, execution_date=None, try_number=None,
-                                    start_date=reschedule_date, end_date=reschedule_date,
-                                    reschedule_date=reschedule_date)
+        reschedule = TaskReschedule(
+            task=task,
+            execution_date=None,
+            try_number=None,
+            start_date=reschedule_date,
+            end_date=reschedule_date,
+            reschedule_date=reschedule_date,
+        )
         return reschedule
 
     def test_should_pass_if_ignore_in_reschedule_period_is_set(self):
@@ -59,8 +63,9 @@ class TestNotInReschedulePeriodDep(unittest.TestCase):
 
     @patch('airflow.models.taskreschedule.TaskReschedule.query_for_task_instance')
     def test_should_pass_after_reschedule_date_one(self, mock_query_for_task_instance):
-        mock_query_for_task_instance.return_value.with_entities.return_value.first.return_value = \
+        mock_query_for_task_instance.return_value.with_entities.return_value.first.return_value = (
             self._get_task_reschedule(utcnow() - timedelta(minutes=1))
+        )
         ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)
         self.assertTrue(ReadyToRescheduleDep().is_met(ti=ti))
 
@@ -76,8 +81,9 @@ class TestNotInReschedulePeriodDep(unittest.TestCase):
 
     @patch('airflow.models.taskreschedule.TaskReschedule.query_for_task_instance')
     def test_should_fail_before_reschedule_date_one(self, mock_query_for_task_instance):
-        mock_query_for_task_instance.return_value.with_entities.return_value.first.return_value = \
+        mock_query_for_task_instance.return_value.with_entities.return_value.first.return_value = (
             self._get_task_reschedule(utcnow() + timedelta(minutes=1))
+        )
 
         ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)
         self.assertFalse(ReadyToRescheduleDep().is_met(ti=ti))

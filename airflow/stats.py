@@ -125,15 +125,26 @@ def stat_name_default_handler(stat_name, max_length=250) -> str:
     if not isinstance(stat_name, str):
         raise InvalidStatsNameException('The stat_name has to be a string')
     if len(stat_name) > max_length:
-        raise InvalidStatsNameException(textwrap.dedent("""\
+        raise InvalidStatsNameException(
+            textwrap.dedent(
+                """\
             The stat_name ({stat_name}) has to be less than {max_length} characters.
-        """.format(stat_name=stat_name, max_length=max_length)))
+        """.format(
+                    stat_name=stat_name, max_length=max_length
+                )
+            )
+        )
     if not all((c in ALLOWED_CHARACTERS) for c in stat_name):
-        raise InvalidStatsNameException(textwrap.dedent("""\
+        raise InvalidStatsNameException(
+            textwrap.dedent(
+                """\
             The stat name ({stat_name}) has to be composed with characters in
             {allowed_characters}.
-            """.format(stat_name=stat_name,
-                       allowed_characters=ALLOWED_CHARACTERS)))
+            """.format(
+                    stat_name=stat_name, allowed_characters=ALLOWED_CHARACTERS
+                )
+            )
+        )
     return stat_name
 
 
@@ -149,6 +160,7 @@ def validate_stat(fn: T) -> T:
     """Check if stat name contains invalid characters.
     Log and not emit stats if name is invalid
     """
+
     @wraps(fn)
     def wrapper(_self, stat, *args, **kwargs):
         try:
@@ -315,7 +327,8 @@ class _Stats(type):
         statsd = stats_class(
             host=conf.get('scheduler', 'statsd_host'),
             port=conf.getint('scheduler', 'statsd_port'),
-            prefix=conf.get('scheduler', 'statsd_prefix'))
+            prefix=conf.get('scheduler', 'statsd_prefix'),
+        )
         allow_list_validator = AllowListValidator(conf.get('scheduler', 'statsd_allow_list', fallback=None))
         return SafeStatsdLogger(statsd, allow_list_validator)
 
@@ -323,11 +336,13 @@ class _Stats(type):
     def get_dogstatsd_logger(cls):
         """Get DataDog statsd logger"""
         from datadog import DogStatsd
+
         dogstatsd = DogStatsd(
             host=conf.get('scheduler', 'statsd_host'),
             port=conf.getint('scheduler', 'statsd_port'),
             namespace=conf.get('scheduler', 'statsd_prefix'),
-            constant_tags=cls.get_constant_tags())
+            constant_tags=cls.get_constant_tags(),
+        )
         dogstatsd_allow_list = conf.get('scheduler', 'statsd_allow_list', fallback=None)
         allow_list_validator = AllowListValidator(dogstatsd_allow_list)
         return SafeDogStatsdLogger(dogstatsd, allow_list_validator)
@@ -348,5 +363,6 @@ class _Stats(type):
 if TYPE_CHECKING:
     Stats: StatsLogger
 else:
+
     class Stats(metaclass=_Stats):  # noqa: D101
         """Empty class for Stats - we use metaclass to inject the right one"""

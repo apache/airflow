@@ -23,6 +23,5 @@ import warnings
 from airflow.hooks.filesystem import FSHook  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.hooks.filesystem`.",
-    DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.hooks.filesystem`.", DeprecationWarning, stacklevel=2
 )

@@ -2025,7 +2025,7 @@ class BigQueryInsertJobOperator(BaseOperator):
     def prepare_template(self) -> None:
         # If .json is passed then we have to read the file
         if isinstance(self.configuration, str) and self.configuration.endswith('.json'):
-            with open(self.configuration, 'r') as file:
+            with open(self.configuration) as file:
                 self.configuration = json.loads(file.read())
 
     def _submit_job(

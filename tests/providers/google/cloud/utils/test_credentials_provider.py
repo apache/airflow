@@ -20,9 +20,9 @@ import os
 import re
 import unittest
 from io import StringIO
+from unittest import mock
 from uuid import uuid4
 
-from unittest import mock
 from google.auth.environment_vars import CREDENTIALS
 from parameterized import parameterized
 

@@ -154,7 +154,7 @@ class MySqlHook(DbApiHook):
         uri = super().get_uri()
         if conn.extra_dejson.get('charset', False):
             charset = conn.extra_dejson["charset"]
-            return "{uri}?charset={charset}".format(uri=uri, charset=charset)
+            return f"{uri}?charset={charset}"
         return uri
 
     def bulk_load(self, table: str, tmp_file: str) -> None:

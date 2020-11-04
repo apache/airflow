@@ -279,10 +279,10 @@ class PinotDbApiHook(DbApiHook):
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         host = conn.host
         if conn.port is not None:
-            host += ':{port}'.format(port=conn.port)
+            host += f':{conn.port}'
         conn_type = 'http' if not conn.conn_type else conn.conn_type
         endpoint = conn.extra_dejson.get('endpoint', 'pql')
-        return '{conn_type}://{host}/{endpoint}'.format(conn_type=conn_type, host=host, endpoint=endpoint)
+        return f'{conn_type}://{host}/{endpoint}'
 
     def get_records(self, sql: str, parameters: Optional[Union[Dict[str, Any], Iterable[Any]]] = None) -> Any:
         """

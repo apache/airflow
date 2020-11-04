@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from enum import Enum
-from typing import Optional, Any
+from typing import Any, Optional
 
 from tableauserverclient import Pager, PersonalAccessTokenAuth, Server, TableauAuth
 from tableauserverclient.server import Auth

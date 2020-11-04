@@ -24,5 +24,6 @@ from airflow.providers.apache.spark.operators.spark_jdbc import SparkJDBCOperato
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.spark.operators.spark_jdbc`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

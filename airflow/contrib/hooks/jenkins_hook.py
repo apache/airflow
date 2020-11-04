@@ -24,5 +24,6 @@ from airflow.providers.jenkins.hooks.jenkins import JenkinsHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.jenkins.hooks.jenkins`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

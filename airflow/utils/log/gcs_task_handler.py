@@ -23,5 +23,6 @@ from airflow.providers.google.cloud.log.gcs_task_handler import GCSTaskHandler  
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.log.gcs_task_handler`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

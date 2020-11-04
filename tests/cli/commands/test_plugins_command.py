@@ -59,4 +59,3 @@ class TestPluginsCommand(unittest.TestCase):
             stdout = temp_stdout.getvalue()
         self.assertIn('plugins = [<class ', stdout)
         self.assertIn('test-plugin-cli', stdout)
-        self.assertIn('test_plugins_command.PluginOperator', stdout)

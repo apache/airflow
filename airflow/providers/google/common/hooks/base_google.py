@@ -230,7 +230,7 @@ class GoogleBaseHook(BaseHook):
         to the hook page, which allow admins to specify service_account,
         key_path, etc. They get formatted as shown below.
         """
-        long_f = 'extra__google_cloud_platform__{}'.format(f)
+        long_f = f'extra__google_cloud_platform__{f}'
         if hasattr(self, 'extras') and long_f in self.extras:
             return self.extras[long_f]
         else:

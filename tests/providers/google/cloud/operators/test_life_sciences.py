@@ -18,7 +18,6 @@
 """Tests for Google Life Sciences Run Pipeline operator """
 
 import unittest
-
 from unittest import mock
 
 from airflow.providers.google.cloud.operators.life_sciences import LifeSciencesRunPipelineOperator

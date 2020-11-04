@@ -164,7 +164,7 @@ class StackdriverTaskHandler(logging.Handler):
         :rtype: Tuple[List[str], List[Dict]]
         """
         if try_number is not None and try_number < 1:
-            logs = ["Error fetching the logs. Try number {} is invalid.".format(try_number)]
+            logs = [f"Error fetching the logs. Try number {try_number} is invalid."]
             return logs, [{"end_of_log": "true"}]
 
         if not metadata:
