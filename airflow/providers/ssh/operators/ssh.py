@@ -87,7 +87,7 @@ class SSHOperator(BaseOperator):
                     self.log.info("ssh_conn_id is ignored when ssh_hook is provided.")
                 else:
                     self.log.info(
-                        "ssh_hook is not provided or invalid. " "Trying ssh_conn_id to create SSHHook."
+                        "ssh_hook is not provided or invalid. Trying ssh_conn_id to create SSHHook."
                     )
                     self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id, timeout=self.timeout)
 

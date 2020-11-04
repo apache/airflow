@@ -259,7 +259,7 @@ class ClusterGenerator:
 
         if self.internal_ip_only:
             if not self.subnetwork_uri:
-                raise AirflowException("Set internal_ip_only to true only when" " you pass a subnetwork_uri.")
+                raise AirflowException("Set internal_ip_only to true only when you pass a subnetwork_uri.")
             cluster_data['gce_cluster_config']['internal_ip_only'] = True
 
         if self.tags:

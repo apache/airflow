@@ -612,7 +612,7 @@ class TestGcfFunctionDelete(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.operators.functions.CloudFunctionsHook')
     def test_correct_name(self, mock_hook):
         op = CloudFunctionDeleteFunctionOperator(
-            name="projects/project_name/locations/project_location/functions" "/function_name", task_id="id"
+            name="projects/project_name/locations/project_location/functions/function_name", task_id="id"
         )
         op.execute(None)
         mock_hook.assert_called_once_with(

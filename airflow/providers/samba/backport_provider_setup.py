@@ -52,7 +52,7 @@ def do_setup(version_suffix_for_pypi=''):
     """Perform the package apache-airflow-backport-providers-samba setup."""
     setup(
         name='apache-airflow-backport-providers-samba',
-        description='Backport provider package ' 'apache-airflow-backport-providers-samba for Apache Airflow',
+        description='Backport provider package apache-airflow-backport-providers-samba for Apache Airflow',
         long_description=long_description,
         long_description_content_type='text/markdown',
         license='Apache License 2.0',

@@ -227,7 +227,7 @@ class _SessionFactory(LoggingMixin):
         log_idp_response = 'log_idp_response' in saml_config and saml_config['log_idp_response']
         if log_idp_response:
             self.log.warning(
-                'The IDP response contains sensitive information,' ' but log_idp_response is ON (%s).',
+                'The IDP response contains sensitive information, but log_idp_response is ON (%s).',
                 log_idp_response,
             )
             self.log.info('idp_response.content= %s', idp_response.content)

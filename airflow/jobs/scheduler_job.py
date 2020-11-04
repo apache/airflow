@@ -509,7 +509,7 @@ class DagFileProcessor(LoggingMixin):
                     notification_sent = True
                 except Exception:  # pylint: disable=broad-except
                     Stats.incr('sla_email_notification_failure')
-                    self.log.exception("Could not send SLA Miss email notification for" " DAG %s", dag.dag_id)
+                    self.log.exception("Could not send SLA Miss email notification for DAG %s", dag.dag_id)
             # If we sent any notification, update the sla_miss table
             if notification_sent:
                 for sla in slas:

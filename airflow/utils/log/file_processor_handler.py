@@ -126,7 +126,7 @@ class FileProcessorHandler(logging.Handler):
                 else:
                     os.symlink(log_directory, latest_log_directory_path)
             except OSError:
-                logging.warning("OSError while attempting to symlink " "the latest log directory")
+                logging.warning("OSError while attempting to symlink the latest log directory")
 
     def _init_file(self, filename):
         """

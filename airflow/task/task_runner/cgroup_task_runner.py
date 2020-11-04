@@ -125,7 +125,7 @@ class CgroupTaskRunner(BaseTaskRunner):
             cgroups.get("memory") and cgroups.get("memory") != "/"
         ):
             self.log.debug(
-                "Already running in a cgroup (cpu: %s memory: %s) so not " "creating another one",
+                "Already running in a cgroup (cpu: %s memory: %s) so not creating another one",
                 cgroups.get("cpu"),
                 cgroups.get("memory"),
             )

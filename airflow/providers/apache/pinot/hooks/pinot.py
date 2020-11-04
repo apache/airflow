@@ -267,7 +267,7 @@ class PinotDbApiHook(DbApiHook):
             path=conn.extra_dejson.get('endpoint', '/pql'),
             scheme=conn.extra_dejson.get('schema', 'http'),
         )
-        self.log.info('Get the connection to pinot ' 'broker on %s', conn.host)
+        self.log.info('Get the connection to pinot broker on %s', conn.host)
         return pinot_broker_conn
 
     def get_uri(self) -> str:

@@ -595,7 +595,7 @@ def check_migrations(timeout):
             if source_heads == db_heads:
                 break
             if ticker >= timeout:
-                raise TimeoutError("There are still unapplied migrations after {} " "seconds.".format(ticker))
+                raise TimeoutError(f"There are still unapplied migrations after {ticker} seconds.")
             ticker += 1
             time.sleep(1)
             log.info('Waiting for migrations... %s second(s)', ticker)

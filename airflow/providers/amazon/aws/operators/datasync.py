@@ -290,7 +290,7 @@ class AWSDataSyncOperator(BaseOperator):
             )
         if not self.source_location_arn:
             raise AirflowException(
-                "Unable to determine source LocationArn." " Does a suitable DataSync Location exist?"
+                "Unable to determine source LocationArn. Does a suitable DataSync Location exist?"
             )
 
         self.destination_location_arn = self.choose_location(self.candidate_destination_location_arns)
@@ -305,7 +305,7 @@ class AWSDataSyncOperator(BaseOperator):
             )
         if not self.destination_location_arn:
             raise AirflowException(
-                "Unable to determine destination LocationArn." " Does a suitable DataSync Location exist?"
+                "Unable to determine destination LocationArn. Does a suitable DataSync Location exist?"
             )
 
         self.log.info("Creating a Task.")
