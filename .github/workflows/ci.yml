@@ -378,10 +378,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-info, ci-images]
     env:
-      INSTALL_AIRFLOW_VERSION: "2.0.0-dev"   # Note that this causes local installation
+      INSTALL_AIRFLOW_VERSION: "wheel"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-      VERSION_SUFFIX_FOR_PYPI: "a0"
-      VERSION_SUFFIX_FOR_SVN: "a0"
+      VERSION_SUFFIX_FOR_PYPI: "a2"
+      VERSION_SUFFIX_FOR_SVN: "a2"
     if: needs.build-info.outputs.image-build == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"

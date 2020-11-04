@@ -2220,6 +2220,8 @@ function breeze::flag_choose_different_airflow_version() {
 
 ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
 
+        When 'wheel' is used, Airflow is installed from /dist/apache_airflow-*.whl file.
+
 -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
         If specified, installs Airflow directly from reference in GitHub. This happens at
         image building time in production image and at container entering time for CI image.

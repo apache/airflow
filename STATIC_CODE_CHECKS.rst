@@ -126,6 +126,8 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``provide-create-sessions``           Make sure provide-session and create-session imports are OK.
 ----------------------------------- ---------------------------------------------------------------- ------------
+``providers-init-file``               Check that provider's __init__.py file is removed
+----------------------------------- ---------------------------------------------------------------- ------------
 ``pydevd``                            Check for accidentally committed pydevd statements.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``pydocstyle``                        Runs pydocstyle.
@@ -156,9 +158,11 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``update-local-yml-file``             Updates mounts in local.yml file.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``update-setup-cfg-file``            Update setup.cfg file with all licenses.
+``update-setup-cfg-file``             Update setup.cfg file with all licenses.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``update-extras``                     Updates extras in the documentation.
+----------------------------------- ---------------------------------------------------------------- ------------
+``version-sync``                      Synchronizes versions setup.py <-> airflow/version.py.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``yamllint``                          Checks yaml files with yamllint.
 =================================== ================================================================ ============

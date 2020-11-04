@@ -15,24 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export MOUNT_LOCAL_SOURCES="false"
-
+set -euo pipefail
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-function run_test_package_install() {
-    docker run "${EXTRA_DOCKER_FLAGS[@]}" \
-        --entrypoint "/usr/local/bin/dumb-init"  \
-        -v "${AIRFLOW_SOURCES}/dist:/dist:cached" \
-        -v "${AIRFLOW_SOURCES}/empty:/opt/airflow/airflow:cached" \
-        -v "${AIRFLOW_SOURCES}/scripts/in_container:/opt/airflow/scripts/in_container:cached" \
-        "${AIRFLOW_CI_IMAGE}" \
-        "--" "/opt/airflow/scripts/in_container/run_test_package_install.sh" "${1}"
-}
-
-build_images::prepare_ci_build
-
-build_images::rebuild_ci_image_if_needed
-
-run_test_package_install whl
-run_test_package_install tar.gz
+if [[ -f "${AIRFLOW_SOURCES}/airflow/providers/__init__.py" ]]; then
+    >&2 echo
+    >&2 echo "The ${AIRFLOW_SOURCES}/airflow/providers/__init__.py file should not exist. Deleting it"
+    >&2 echo
+    rm "${AIRFLOW_SOURCES}/airflow/providers/__init__.py"
+    exit 1
+fi

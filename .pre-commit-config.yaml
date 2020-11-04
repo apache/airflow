@@ -199,7 +199,7 @@ repos:
     hooks:
       - id: isort
         name: Run isort to sort imports
-        types: [python]
+        files: \.py$
         # To keep consistent with the global isort skip config defined in setup.cfg
         exclude: ^build/.*$|^.tox/.*$|^venv/.*$
   - repo: https://github.com/pycqa/pydocstyle
@@ -335,7 +335,7 @@ repos:
           ^airflow/operators/.*$|
           ^airflow/sensors/.*$|
           ^airflow/providers/.*$|
-          ^provider_packages/.*$
+          ^dev/provider_packages/.*$
       - id: base-operator
         language: pygrep
         name: Make sure BaseOperator[Link] is imported from airflow.models outside of core
@@ -438,6 +438,17 @@ repos:
         files: ^airflow/www/.*\.(css|scss|sass)$
         # Keep dependency versions in sync w/ airflow/www/package.json
         additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0']
+      - id: version-sync
+        name: Version sync
+        files: ^airflow/version.py$|setup.py
+        entry: ./scripts/ci/pre_commit/pre_commit_sync_version.sh
+        language: system
+      - id: providers-init-file
+        name: Provider init file
+        pass_filenames: false
+        always_run: true
+        entry: ./scripts/ci/pre_commit/pre_commit_check_providers_init.sh
+        language: system
       - id: mermaid
         name: Generate mermaid images
         entry: ./scripts/ci/pre_commit/pre_commit_mermaid.sh

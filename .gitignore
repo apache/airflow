@@ -186,7 +186,10 @@ dmypy.json
 /.kube
 /.inputrc
 log.txt*
+
+# Provider-related ignores
 /provider_packages/CHANGELOG.txt
+/airflow/providers/__init__.py
 
 # Local .terraform directories
 **/.terraform/*

@@ -22,7 +22,6 @@ import os
 import subprocess
 import sys
 import unittest
-from importlib import util
 from os.path import dirname
 from textwrap import wrap
 from typing import Dict, Iterable, List
@@ -31,11 +30,8 @@ from setuptools import Command, find_packages, setup
 
 logger = logging.getLogger(__name__)
 
-# Kept manually in sync with airflow.__version__
-spec = util.spec_from_file_location("airflow.version", os.path.join('airflow', 'version.py'))  # noqa
-mod = util.module_from_spec(spec)
-spec.loader.exec_module(mod)  # type: ignore
-version = mod.version  # type: ignore
+# This is automatically maintained in sync via pre-commit from airflow/version.py
+version = '2.0.0a2'
 
 PY3 = sys.version_info[0] == 3
 
