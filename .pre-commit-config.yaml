@@ -159,7 +159,6 @@ repos:
     rev: 20.8b1
     hooks:
       - id: black
-        exclude: .*kubernetes_pod\.py|.*google/common/hooks/base_google\.py$|^airflow/configuration.py$
         args: [--config=./pyproject.toml]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v3.3.0
