@@ -35,7 +35,7 @@ for i in range(num_smart_sensor_shard):
     shard_min = (i * shard_code_upper_limit) / num_smart_sensor_shard
     shard_max = ((i + 1) * shard_code_upper_limit) / num_smart_sensor_shard
 
-    dag_id = 'smart_sensor_group_shard_{}'.format(i)
+    dag_id = f'smart_sensor_group_shard_{i}'
     dag = DAG(
         dag_id=dag_id,
         default_args=args,

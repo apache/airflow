@@ -43,9 +43,7 @@ GCP_PROJECT_ID = 'project-id'
 GCE_ZONE = 'zone'
 RESOURCE_ID = 'resource-id'
 GCE_SHORT_MACHINE_TYPE_NAME = 'n1-machine-type'
-SET_MACHINE_TYPE_BODY = {
-    'machineType': 'zones/{}/machineTypes/{}'.format(GCE_ZONE, GCE_SHORT_MACHINE_TYPE_NAME)
-}
+SET_MACHINE_TYPE_BODY = {'machineType': f'zones/{GCE_ZONE}/machineTypes/{GCE_SHORT_MACHINE_TYPE_NAME}'}
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 

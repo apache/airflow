@@ -24,5 +24,6 @@ from airflow.providers.amazon.aws.transfers.s3_to_sftp import S3ToSFTPOperator  
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.transfers.s3_to_sftp`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

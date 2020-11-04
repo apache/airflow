@@ -18,15 +18,14 @@
 #
 
 import unittest
-
 from unittest import mock
 
 from airflow.providers.google.cloud.operators.dataflow import (
     CheckJobRunning,
     DataflowCreateJavaJobOperator,
     DataflowCreatePythonJobOperator,
-    DataflowTemplatedJobStartOperator,
     DataflowStartFlexTemplateOperator,
+    DataflowTemplatedJobStartOperator,
 )
 from airflow.version import version
 

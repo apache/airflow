@@ -32,7 +32,7 @@ dag = DAG(
     default_args={"owner": "airflow"},
     start_date=days_ago(2),
     schedule_interval=None,
-    tags=['example']
+    tags=['example'],
 )
 
 

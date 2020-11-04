@@ -16,6 +16,7 @@
 # under the License.
 
 from unittest import mock
+
 import pytest
 
 from airflow.providers.google.ads.hooks.ads import GoogleAdsHook

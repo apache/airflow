@@ -1002,7 +1002,7 @@ the artifact checksums when we actually release.
 Each of the packages contains detailed changelog. Here is the list of links to
 the released packages and changelogs:
 
-TODO: Paste the result of twine upload
+<PASTE TWINE UPLOAD LINKS HERE. SORT THEM BEFORE!>
 
 Cheers,
 <TODO: Your Name>
@@ -1355,16 +1355,16 @@ In order to publish to PyPI you just need to build and release packages.
 * Generate the packages.
 
 ```shell script
-./breeze prepare-provider-packages
+./breeze --backports prepare-provider-packages
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze prepare-provider-packages
+./breeze --backports prepare-provider-packages <PACKAGE> ...
 ```
 
-In case you decided to remove some of the packages. Remove them from dist folder now:
+In case you decided to remove some of the packages. remove them from dist folder now:
 
 ```shell script
 ls dist/*<provider>*
@@ -1398,11 +1398,6 @@ twine upload -r pypi dist/*
 - Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org and announce@apache.org) that
 the artifacts have been published:
 
-### Notify developers of release
-
-- Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org and announce@apache.org) that
-the artifacts have been published:
-
 Subject:
 ```shell script
 cat <<EOF
@@ -1427,7 +1422,7 @@ https://pypi.org/search/?q=apache-airflow-backport-providers
 
 The documentation and changelogs are available in the PyPI packages:
 
-<PASTE TWINE UPLOAD LINKS HERE>
+<PASTE TWINE UPLOAD LINKS HERE. SORT THEM BEFORE!>
 
 
 Cheers,
@@ -1596,6 +1591,45 @@ Twine prints the package links as output - separately for each package.
 twine upload -r pypi dist/*
 ```
 
-* Copy the list of links to the uploaded packages - they will be useful in preparing VOTE email.
-
 * Again, confirm that the packages are available under the links printed.
+
+### Notify developers of release
+
+- Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org and announce@apache.org) that
+the artifacts have been published:
+
+Subject:
+```shell script
+cat <<EOF
+Airflow Providers are released
+EOF
+```
+
+Body:
+```shell script
+cat <<EOF
+Dear Airflow community,
+
+I'm happy to announce that new version of Airflow Providers packages were just released.
+
+The source release, as well as the binary releases, are available here:
+
+https://dist.apache.org/repos/dist/release/airflow/providers/
+
+We also made those versions available on PyPi for convenience ('pip install apache-airflow-providers-*'):
+
+https://pypi.org/search/?q=apache-airflow-providers
+
+The documentation and changelogs are available in the PyPI packages:
+
+<PASTE TWINE UPLOAD LINKS HERE. SORT THEM BEFORE!>
+
+Cheers,
+<your name>
+EOF
+```
+
+
+### Update Announcements page
+
+Update "Announcements" page at the [Official Airflow website](https://airflow.apache.org/announcements/)

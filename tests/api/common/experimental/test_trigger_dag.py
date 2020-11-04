@@ -29,7 +29,6 @@ from tests.test_utils import db
 
 
 class TestTriggerDag(unittest.TestCase):
-
     def setUp(self) -> None:
         db.clear_db_runs()
 
@@ -107,11 +106,13 @@ class TestTriggerDag(unittest.TestCase):
 
         assert len(triggers) == 1
 
-    @parameterized.expand([
-        (None, {}),
-        ({"foo": "bar"}, {"foo": "bar"}),
-        ('{"foo": "bar"}', {"foo": "bar"}),
-    ])
+    @parameterized.expand(
+        [
+            (None, {}),
+            ({"foo": "bar"}, {"foo": "bar"}),
+            ('{"foo": "bar"}', {"foo": "bar"}),
+        ]
+    )
     @mock.patch('airflow.models.DagBag')
     def test_trigger_dag_with_conf(self, conf, expected_conf, dag_bag_mock):
         dag_id = "trigger_dag_with_conf"

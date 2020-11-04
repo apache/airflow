@@ -102,7 +102,7 @@ class TestGetLog(unittest.TestCase):
         # Write the custom logging configuration to a file
         self.settings_folder = tempfile.mkdtemp()
         settings_file = os.path.join(self.settings_folder, "airflow_local_settings.py")
-        new_logging_file = "LOGGING_CONFIG = {}".format(logging_config)
+        new_logging_file = f"LOGGING_CONFIG = {logging_config}"
         with open(settings_file, 'w') as handle:
             handle.writelines(new_logging_file)
         sys.path.append(self.settings_folder)

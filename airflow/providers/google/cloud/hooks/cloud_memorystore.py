@@ -18,8 +18,8 @@
 """Hooks for Cloud Memorystore service"""
 from typing import Dict, Optional, Sequence, Tuple, Union
 
-from google.api_core.exceptions import NotFound
 from google.api_core import path_template
+from google.api_core.exceptions import NotFound
 from google.api_core.retry import Retry
 from google.cloud.memcache_v1beta2 import CloudMemcacheClient
 from google.cloud.memcache_v1beta2.types import cloud_memcache

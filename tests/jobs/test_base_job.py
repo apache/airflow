@@ -32,9 +32,7 @@ from tests.test_utils.config import conf_vars
 
 
 class MockJob(BaseJob):
-    __mapper_args__ = {
-        'polymorphic_identity': 'MockJob'
-    }
+    __mapper_args__ = {'polymorphic_identity': 'MockJob'}
 
     def __init__(self, func, **kwargs):
         self.func = func
@@ -54,6 +52,7 @@ class TestBaseJob:
 
     def test_state_sysexit(self):
         import sys
+
         job = MockJob(lambda: sys.exit(0))
         job.run()
 

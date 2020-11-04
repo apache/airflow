@@ -31,7 +31,6 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
 class TestPool(unittest.TestCase):
-
     def setUp(self):
         clear_db_runs()
         clear_db_pools()
@@ -44,7 +43,8 @@ class TestPool(unittest.TestCase):
         pool = Pool(pool='test_pool', slots=5)
         dag = DAG(
             dag_id='test_open_slots',
-            start_date=DEFAULT_DATE, )
+            start_date=DEFAULT_DATE,
+        )
         op1 = DummyOperator(task_id='dummy1', dag=dag, pool='test_pool')
         op2 = DummyOperator(task_id='dummy2', dag=dag, pool='test_pool')
         ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
@@ -63,26 +63,30 @@ class TestPool(unittest.TestCase):
         self.assertEqual(1, pool.running_slots())  # pylint: disable=no-value-for-parameter
         self.assertEqual(1, pool.queued_slots())  # pylint: disable=no-value-for-parameter
         self.assertEqual(2, pool.occupied_slots())  # pylint: disable=no-value-for-parameter
-        self.assertEqual({
-            "default_pool": {
-                "open": 128,
-                "queued": 0,
-                "total": 128,
-                "running": 0,
+        self.assertEqual(
+            {
+                "default_pool": {
+                    "open": 128,
+                    "queued": 0,
+                    "total": 128,
+                    "running": 0,
+                },
+                "test_pool": {
+                    "open": 3,
+                    "queued": 1,
+                    "running": 1,
+                    "total": 5,
+                },
             },
-            "test_pool": {
-                "open": 3,
-                "queued": 1,
-                "running": 1,
-                "total": 5,
-            },
-        }, pool.slots_stats())
+            pool.slots_stats(),
+        )
 
     def test_infinite_slots(self):
         pool = Pool(pool='test_pool', slots=-1)
         dag = DAG(
             dag_id='test_infinite_slots',
-            start_date=DEFAULT_DATE, )
+            start_date=DEFAULT_DATE,
+        )
         op1 = DummyOperator(task_id='dummy1', dag=dag, pool='test_pool')
         op2 = DummyOperator(task_id='dummy2', dag=dag, pool='test_pool')
         ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
@@ -108,7 +112,8 @@ class TestPool(unittest.TestCase):
 
         dag = DAG(
             dag_id='test_default_pool_open_slots',
-            start_date=DEFAULT_DATE, )
+            start_date=DEFAULT_DATE,
+        )
         op1 = DummyOperator(task_id='dummy1', dag=dag)
         op2 = DummyOperator(task_id='dummy2', dag=dag, pool_slots=2)
         ti1 = TI(task=op1, execution_date=DEFAULT_DATE)

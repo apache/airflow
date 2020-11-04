@@ -29,8 +29,8 @@ import logging
 from typing import Any, Dict, Optional, Tuple, Union
 
 import boto3
-from botocore.credentials import ReadOnlyCredentials
 from botocore.config import Config
+from botocore.credentials import ReadOnlyCredentials
 from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
@@ -439,7 +439,7 @@ def _parse_s3_config(
     if config.read(config_file_name):  # pragma: no cover
         sections = config.sections()
     else:
-        raise AirflowException("Couldn't read {0}".format(config_file_name))
+        raise AirflowException(f"Couldn't read {config_file_name}")
     # Setting option names depending on file format
     if config_format is None:
         config_format = "boto"

@@ -63,8 +63,7 @@ class XComArg(TaskMixin):
         self._key = key
 
     def __eq__(self, other):
-        return (self.operator == other.operator
-                and self.key == other.key)
+        return self.operator == other.operator and self.key == other.key
 
     def __getitem__(self, item):
         """Implements xcomresult['some_result_key']"""
@@ -80,9 +79,10 @@ class XComArg(TaskMixin):
 
         :return:
         """
-        xcom_pull_kwargs = [f"task_ids='{self.operator.task_id}'",
-                            f"dag_id='{self.operator.dag.dag_id}'",
-                            ]
+        xcom_pull_kwargs = [
+            f"task_ids='{self.operator.task_id}'",
+            f"dag_id='{self.operator.dag.dag_id}'",
+        ]
         if self.key is not None:
             xcom_pull_kwargs.append(f"key='{self.key}'")
 
@@ -132,7 +132,8 @@ class XComArg(TaskMixin):
         if not resolved_value:
             raise AirflowException(
                 f'XComArg result from {self.operator.task_id} at {self.operator.dag.dag_id} '
-                f'with key="{self.key}"" is not found!')
+                f'with key="{self.key}"" is not found!'
+            )
         resolved_value = resolved_value[0]
 
         return resolved_value

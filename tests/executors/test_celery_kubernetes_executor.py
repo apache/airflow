@@ -74,7 +74,8 @@ class TestCeleryKubernetesExecutor:
             cke.queue_command(simple_task_instance, command, priority, queue)
 
             k8s_executor_mock.queue_command.assert_called_once_with(
-                simple_task_instance, command, priority, queue)
+                simple_task_instance, command, priority, queue
+            )
             celery_executor_mock.queue_command.assert_not_called()
 
         def when_using_celery_executor():
@@ -88,7 +89,8 @@ class TestCeleryKubernetesExecutor:
             cke.queue_command(simple_task_instance, command, priority, queue)
 
             celery_executor_mock.queue_command.assert_called_once_with(
-                simple_task_instance, command, priority, queue)
+                simple_task_instance, command, priority, queue
+            )
             k8s_executor_mock.queue_command.assert_not_called()
 
         when_using_k8s_executor()
@@ -121,7 +123,7 @@ class TestCeleryKubernetesExecutor:
                 ignore_task_deps,
                 ignore_ti_state,
                 pool,
-                cfg_path
+                cfg_path,
             )
 
             k8s_executor_mock.queue_task_instance.assert_called_once_with(
@@ -133,7 +135,7 @@ class TestCeleryKubernetesExecutor:
                 ignore_task_deps,
                 ignore_ti_state,
                 pool,
-                cfg_path
+                cfg_path,
             )
             celery_executor_mock.queue_task_instance.assert_not_called()
 
@@ -154,7 +156,7 @@ class TestCeleryKubernetesExecutor:
                 ignore_task_deps,
                 ignore_ti_state,
                 pool,
-                cfg_path
+                cfg_path,
             )
 
             k8s_executor_mock.queue_task_instance.assert_not_called()
@@ -167,7 +169,7 @@ class TestCeleryKubernetesExecutor:
                 ignore_task_deps,
                 ignore_ti_state,
                 pool,
-                cfg_path
+                cfg_path,
             )
 
         when_using_k8s_executor()

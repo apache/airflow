@@ -43,8 +43,7 @@ class FileTaskHandler(logging.Handler):
         super().__init__()
         self.handler = None  # type: Optional[logging.FileHandler]
         self.local_base = base_log_folder
-        self.filename_template, self.filename_jinja_template = \
-            parse_template_string(filename_template)
+        self.filename_template, self.filename_jinja_template = parse_template_string(filename_template)
 
     def set_context(self, ti: TaskInstance):
         """
@@ -83,10 +82,12 @@ class FileTaskHandler(logging.Handler):
                 }
             return self.filename_jinja_template.render(**jinja_context)
 
-        return self.filename_template.format(dag_id=ti.dag_id,
-                                             task_id=ti.task_id,
-                                             execution_date=ti.execution_date.isoformat(),
-                                             try_number=try_number)
+        return self.filename_template.format(
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            execution_date=ti.execution_date.isoformat(),
+            try_number=try_number,
+        )
 
     def _read_grouped_logs(self):
         return False
@@ -113,12 +114,12 @@ class FileTaskHandler(logging.Handler):
         if os.path.exists(location):
             try:
                 with open(location) as file:
-                    log += "*** Reading local file: {}\n".format(location)
+                    log += f"*** Reading local file: {location}\n"
                     log += "".join(file.readlines())
             except Exception as e:  # pylint: disable=broad-except
-                log = "*** Failed to load local log file: {}\n".format(location)
+                log = f"*** Failed to load local log file: {location}\n"
                 log += "*** {}\n".format(str(e))
-        elif conf.get('core', 'executor') == 'KubernetesExecutor':   # pylint: disable=too-many-nested-blocks
+        elif conf.get('core', 'executor') == 'KubernetesExecutor':  # pylint: disable=too-many-nested-blocks
             try:
                 from airflow.kubernetes.kube_client import get_kube_client
 
@@ -129,14 +130,18 @@ class FileTaskHandler(logging.Handler):
                     # is returned for the fqdn to comply with the 63 character limit imposed by DNS standards
                     # on any label of a FQDN.
                     pod_list = kube_client.list_namespaced_pod(conf.get('kubernetes', 'namespace'))
-                    matches = [pod.metadata.name for pod in pod_list.items
-                               if pod.metadata.name.startswith(ti.hostname)]
+                    matches = [
+                        pod.metadata.name
+                        for pod in pod_list.items
+                        if pod.metadata.name.startswith(ti.hostname)
+                    ]
                     if len(matches) == 1:
                         if len(matches[0]) > len(ti.hostname):
                             ti.hostname = matches[0]
 
-                log += '*** Trying to get logs (last 100 lines) from worker pod {} ***\n\n'\
-                    .format(ti.hostname)
+                log += '*** Trying to get logs (last 100 lines) from worker pod {} ***\n\n'.format(
+                    ti.hostname
+                )
 
                 res = kube_client.read_namespaced_pod_log(
                     name=ti.hostname,
@@ -144,25 +149,20 @@ class FileTaskHandler(logging.Handler):
                     container='base',
                     follow=False,
                     tail_lines=100,
-                    _preload_content=False
+                    _preload_content=False,
                 )
 
                 for line in res:
                     log += line.decode()
 
             except Exception as f:  # pylint: disable=broad-except
-                log += '*** Unable to fetch logs from worker pod {} ***\n{}\n\n'.format(
-                    ti.hostname, str(f)
-                )
+                log += '*** Unable to fetch logs from worker pod {} ***\n{}\n\n'.format(ti.hostname, str(f))
         else:
-            url = os.path.join(
-                "http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path
-            ).format(
-                ti=ti,
-                worker_log_server_port=conf.get('celery', 'WORKER_LOG_SERVER_PORT')
+            url = os.path.join("http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path).format(
+                ti=ti, worker_log_server_port=conf.get('celery', 'WORKER_LOG_SERVER_PORT')
             )
-            log += "*** Log file does not exist: {}\n".format(location)
-            log += "*** Fetching from: {}\n".format(url)
+            log += f"*** Log file does not exist: {location}\n"
+            log += f"*** Fetching from: {url}\n"
             try:
                 timeout = None  # No timeout
                 try:
@@ -203,7 +203,7 @@ class FileTaskHandler(logging.Handler):
             try_numbers = list(range(1, next_try))
         elif try_number < 1:
             logs = [
-                [('default_host', 'Error fetching the logs. Try number {} is invalid.'.format(try_number))],
+                [('default_host', f'Error fetching the logs. Try number {try_number} is invalid.')],
             ]
             return logs
         else:

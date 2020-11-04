@@ -24,5 +24,6 @@ from airflow.providers.amazon.aws.transfers.imap_attachment_to_s3 import ImapAtt
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.transfers.imap_attachment_to_s3`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

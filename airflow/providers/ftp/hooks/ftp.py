@@ -20,7 +20,7 @@
 import datetime
 import ftplib
 import os.path
-from typing import List, Optional, Any
+from typing import Any, List, Optional
 
 from airflow.hooks.base_hook import BaseHook
 

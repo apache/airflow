@@ -18,8 +18,8 @@
 #
 import copy
 import unittest
-
 from unittest import mock
+
 from google.cloud.automl_v1beta1 import AutoMlClient, PredictionServiceClient
 
 from airflow.providers.google.cloud.operators.automl import (

@@ -14,3 +14,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+import json
+import os
+import unittest
+
+import yaml
+from jsonschema import validate
+
+CHART_FOLDER = os.path.dirname(os.path.dirname(__file__))
+
+
+class ChartQualityTest(unittest.TestCase):
+    def test_values_validate_schema(self):
+        with open(os.path.join(CHART_FOLDER, "values.yaml")) as f:
+            values = yaml.safe_load(f)
+        with open(os.path.join(CHART_FOLDER, "values.schema.json")) as f:
+            schema = json.load(f)
+
+        # Add extra restrictions just for the tests to make sure
+        # we don't forget to update the schema if we add a new property
+        schema["additionalProperties"] = False
+        schema["minProperties"] = len(schema["properties"].keys())
+
+        # shouldn't raise
+        validate(instance=values, schema=schema)

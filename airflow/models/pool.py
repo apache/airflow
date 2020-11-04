@@ -53,7 +53,7 @@ class Pool(Base):
     DEFAULT_POOL_NAME = 'default_pool'
 
     def __repr__(self):
-        return str(self.pool)    # pylint: disable=E0012
+        return str(self.pool)  # pylint: disable=E0012
 
     @staticmethod
     @provide_session
@@ -126,9 +126,7 @@ class Pool(Base):
             elif state == "queued":
                 stats_dict["queued"] = count
             else:
-                raise AirflowException(
-                    f"Unexpected state. Expected values: {EXECUTION_STATES}."
-                )
+                raise AirflowException(f"Unexpected state. Expected values: {EXECUTION_STATES}.")
 
         # calculate open metric
         for pool_name, stats_dict in pools.items():
@@ -162,9 +160,9 @@ class Pool(Base):
         :return: the used number of slots
         """
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
+
         return (
-            session
-            .query(func.sum(TaskInstance.pool_slots))
+            session.query(func.sum(TaskInstance.pool_slots))
             .filter(TaskInstance.pool == self.pool)
             .filter(TaskInstance.state.in_(list(EXECUTION_STATES)))
             .scalar()
@@ -181,8 +179,7 @@ class Pool(Base):
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
 
         return (
-            session
-            .query(func.sum(TaskInstance.pool_slots))
+            session.query(func.sum(TaskInstance.pool_slots))
             .filter(TaskInstance.pool == self.pool)
             .filter(TaskInstance.state == State.RUNNING)
             .scalar()
@@ -199,8 +196,7 @@ class Pool(Base):
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
 
         return (
-            session
-            .query(func.sum(TaskInstance.pool_slots))
+            session.query(func.sum(TaskInstance.pool_slots))
             .filter(TaskInstance.pool == self.pool)
             .filter(TaskInstance.state == State.QUEUED)
             .scalar()

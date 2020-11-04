@@ -22,7 +22,6 @@ This module contains various unit tests for Google Cloud DLP Operators
 """
 
 import unittest
-
 from unittest import mock
 
 from airflow.providers.google.cloud.operators.dlp import (

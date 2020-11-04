@@ -64,6 +64,7 @@ class TestSentryHook(unittest.TestCase):
     @conf_vars({('sentry', 'sentry_on'): 'True'})
     def setUp(self):
         from airflow import sentry
+
         importlib.reload(sentry)
         self.sentry = sentry.ConfiguredSentry()
 

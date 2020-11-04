@@ -35,10 +35,7 @@ class TaskFail(Base):
     end_date = Column(UtcDateTime)
     duration = Column(Integer)
 
-    __table_args__ = (
-        Index('idx_task_fail_dag_task_date', dag_id, task_id, execution_date,
-              unique=False),
-    )
+    __table_args__ = (Index('idx_task_fail_dag_task_date', dag_id, task_id, execution_date, unique=False),)
 
     def __init__(self, task, execution_date, start_date, end_date):
         self.dag_id = task.dag_id

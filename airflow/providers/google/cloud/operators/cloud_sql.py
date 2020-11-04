@@ -518,7 +518,7 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         if not self._check_if_instance_exists(self.instance, hook):
-            print("Cloud SQL instance with ID {} does not exist. Aborting delete.".format(self.instance))
+            print(f"Cloud SQL instance with ID {self.instance} does not exist. Aborting delete.")
             return True
         else:
             return hook.delete_instance(project_id=self.project_id, instance=self.instance)

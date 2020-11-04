@@ -67,7 +67,7 @@ class S3DeleteBucketOperator(BaseOperator):
     """
     This operator deletes an S3 bucket
 
-    :param bucket_name: This is bucket name you want to create
+    :param bucket_name: This is bucket name you want to delete
     :type bucket_name: str
     :param force_delete: Forcibly delete all objects in the bucket before deleting the bucket
     :type force_delete: bool

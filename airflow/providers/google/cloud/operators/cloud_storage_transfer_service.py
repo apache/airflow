@@ -19,7 +19,7 @@
 """This module contains Google Cloud Transfer operators."""
 from copy import deepcopy
 from datetime import date, time
-from typing import Dict, Optional, Sequence, Union, List
+from typing import Dict, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator

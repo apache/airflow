@@ -17,11 +17,11 @@
 # under the License.
 
 from tempfile import NamedTemporaryFile
-from typing import Optional, Union, Sequence, Iterable
+from typing import Iterable, Optional, Sequence, Union
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url, GCSHook, gcs_object_is_directory
+from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url, gcs_object_is_directory
 from airflow.providers.microsoft.azure.hooks.azure_fileshare import AzureFileShareHook
 from airflow.utils.decorators import apply_defaults
 

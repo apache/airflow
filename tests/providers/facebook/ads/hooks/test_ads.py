@@ -16,6 +16,7 @@
 # under the License.
 
 from unittest import mock
+
 import pytest
 
 from airflow.providers.facebook.ads.hooks.ads import FacebookAdsReportingHook

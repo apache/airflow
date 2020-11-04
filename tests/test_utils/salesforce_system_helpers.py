@@ -38,11 +38,11 @@ def provide_salesforce_connection(key_file_path: str):
     """
     if not key_file_path.endswith(".json"):
         raise AirflowException("Use a JSON key file.")
-    with open(key_file_path, 'r') as credentials:
+    with open(key_file_path) as credentials:
         creds = json.load(credentials)
     missing_keys = CONFIG_REQUIRED_FIELDS - creds.keys()
     if missing_keys:
-        message = "{missing_keys} fields are missing".format(missing_keys=missing_keys)
+        message = f"{missing_keys} fields are missing"
         raise AirflowException(message)
     conn = Connection(
         conn_id=SALESFORCE_CONNECTION_ID,

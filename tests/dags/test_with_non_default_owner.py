@@ -29,4 +29,7 @@ with DAG(
     dagrun_timeout=timedelta(minutes=60),
     tags=["example"],
 ) as dag:
-    run_this_last = DummyOperator(task_id="test_task", owner="John",)
+    run_this_last = DummyOperator(
+        task_id="test_task",
+        owner="John",
+    )

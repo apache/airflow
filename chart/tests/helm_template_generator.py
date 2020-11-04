@@ -17,12 +17,47 @@
 
 import subprocess
 import sys
+from functools import lru_cache
 from tempfile import NamedTemporaryFile
 
+import jmespath
+import jsonschema
+import requests
 import yaml
 from kubernetes.client.api_client import ApiClient
 
 api_client = ApiClient()
+
+BASE_URL_SPEC = "https://raw.githubusercontent.com/instrumenta/kubernetes-json-schema/master/v1.12.9"
+
+
+@lru_cache(maxsize=None)
+def create_validator(api_version, kind):
+    api_version = api_version.lower()
+    kind = kind.lower()
+
+    if '/' in api_version:
+        ext, _, api_version = api_version.partition("/")
+        ext = ext.split(".")[0]
+        url = f'{BASE_URL_SPEC}/{kind}-{ext}-{api_version}.json'
+    else:
+        url = f'{BASE_URL_SPEC}/{kind}-{api_version}.json'
+    request = requests.get(url)
+    request.raise_for_status()
+    schema = request.json()
+    jsonschema.Draft7Validator.check_schema(schema)
+    validator = jsonschema.Draft7Validator(schema)
+    return validator
+
+
+def validate_k8s_object(instance):
+    # Skip PostgresSQL chart
+    chart = jmespath.search("metadata.labels.chart", instance)
+    if chart and 'postgresql' in chart:
+        return
+
+    validate = create_validator(instance.get("apiVersion"), instance.get("kind"))
+    validate.validate(instance)
 
 
 def render_chart(name="RELEASE-NAME", values=None, show_only=None):
@@ -41,6 +76,8 @@ def render_chart(name="RELEASE-NAME", values=None, show_only=None):
         templates = subprocess.check_output(command)
         k8s_objects = yaml.load_all(templates)
         k8s_objects = [k8s_object for k8s_object in k8s_objects if k8s_object]  # type: ignore
+        for k8s_object in k8s_objects:
+            validate_k8s_object(k8s_object)
         return k8s_objects
 
 

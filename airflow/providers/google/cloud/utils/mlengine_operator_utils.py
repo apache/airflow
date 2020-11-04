@@ -255,7 +255,7 @@ def create_evaluate_ops(  # pylint: disable=too-many-arguments
         prediction_path = templates_dict["prediction_path"]
         scheme, bucket, obj, _, _ = urlsplit(prediction_path)
         if scheme != "gs" or not bucket or not obj:
-            raise ValueError("Wrong format prediction_path: {}".format(prediction_path))
+            raise ValueError(f"Wrong format prediction_path: {prediction_path}")
         summary = os.path.join(obj.strip("/"), "prediction.summary.json")
         gcs_hook = GCSHook()
         summary = json.loads(gcs_hook.download(bucket, summary))

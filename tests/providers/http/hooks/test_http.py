@@ -17,8 +17,8 @@
 # under the License.
 import json
 import unittest
-
 from unittest import mock
+
 import requests
 import requests_mock
 import tenacity

@@ -46,8 +46,7 @@ class DagCode(Base):
 
     __tablename__ = 'dag_code'
 
-    fileloc_hash = Column(
-        BigInteger, nullable=False, primary_key=True, autoincrement=False)
+    fileloc_hash = Column(BigInteger, nullable=False, primary_key=True, autoincrement=False)
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
     last_updated = Column(UtcDateTime, nullable=False)
@@ -76,12 +75,9 @@ class DagCode(Base):
         :param session: ORM Session
         """
         filelocs = set(filelocs)
-        filelocs_to_hashes = {
-            fileloc: DagCode.dag_fileloc_hash(fileloc) for fileloc in filelocs
-        }
+        filelocs_to_hashes = {fileloc: DagCode.dag_fileloc_hash(fileloc) for fileloc in filelocs}
         existing_orm_dag_codes = (
-            session
-            .query(DagCode)
+            session.query(DagCode)
             .filter(DagCode.fileloc_hash.in_(filelocs_to_hashes.values()))
             .with_for_update(of=DagCode)
             .all()
@@ -94,29 +90,20 @@ class DagCode(Base):
         else:
             existing_orm_dag_codes_map = {}
 
-        existing_orm_dag_codes_by_fileloc_hashes = {
-            orm.fileloc_hash: orm for orm in existing_orm_dag_codes
-        }
-        existing_orm_filelocs = {
-            orm.fileloc for orm in existing_orm_dag_codes_by_fileloc_hashes.values()
-        }
+        existing_orm_dag_codes_by_fileloc_hashes = {orm.fileloc_hash: orm for orm in existing_orm_dag_codes}
+        existing_orm_filelocs = {orm.fileloc for orm in existing_orm_dag_codes_by_fileloc_hashes.values()}
         if not existing_orm_filelocs.issubset(filelocs):
             conflicting_filelocs = existing_orm_filelocs.difference(filelocs)
-            hashes_to_filelocs = {
-                DagCode.dag_fileloc_hash(fileloc): fileloc for fileloc in filelocs
-            }
+            hashes_to_filelocs = {DagCode.dag_fileloc_hash(fileloc): fileloc for fileloc in filelocs}
             message = ""
             for fileloc in conflicting_filelocs:
-                message += ("Filename '{}' causes a hash collision in the " +
-                            "database with '{}'. Please rename the file.")\
-                    .format(
-                        hashes_to_filelocs[DagCode.dag_fileloc_hash(fileloc)],
-                        fileloc)
+                message += (
+                    "Filename '{}' causes a hash collision in the "
+                    + "database with '{}'. Please rename the file."
+                ).format(hashes_to_filelocs[DagCode.dag_fileloc_hash(fileloc)], fileloc)
             raise AirflowException(message)
 
-        existing_filelocs = {
-            dag_code.fileloc for dag_code in existing_orm_dag_codes
-        }
+        existing_filelocs = {dag_code.fileloc for dag_code in existing_orm_dag_codes}
         missing_filelocs = filelocs.difference(existing_filelocs)
 
         for fileloc in missing_filelocs:
@@ -143,14 +130,13 @@ class DagCode(Base):
         :param alive_dag_filelocs: file paths of alive DAGs
         :param session: ORM Session
         """
-        alive_fileloc_hashes = [
-            cls.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
+        alive_fileloc_hashes = [cls.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
 
         log.debug("Deleting code from %s table ", cls.__tablename__)
 
         session.query(cls).filter(
-            cls.fileloc_hash.notin_(alive_fileloc_hashes),
-            cls.fileloc.notin_(alive_dag_filelocs)).delete(synchronize_session='fetch')
+            cls.fileloc_hash.notin_(alive_fileloc_hashes), cls.fileloc.notin_(alive_dag_filelocs)
+        ).delete(synchronize_session='fetch')
 
     @classmethod
     @provide_session
@@ -161,8 +147,7 @@ class DagCode(Base):
         :param session: ORM Session
         """
         fileloc_hash = cls.dag_fileloc_hash(fileloc)
-        return session.query(exists().where(cls.fileloc_hash == fileloc_hash))\
-            .scalar()
+        return session.query(exists().where(cls.fileloc_hash == fileloc_hash)).scalar()
 
     @classmethod
     def get_code_by_fileloc(cls, fileloc: str) -> str:
@@ -193,9 +178,7 @@ class DagCode(Base):
     @classmethod
     @provide_session
     def _get_code_from_db(cls, fileloc, session=None):
-        dag_code = session.query(cls) \
-            .filter(cls.fileloc_hash == cls.dag_fileloc_hash(fileloc)) \
-            .first()
+        dag_code = session.query(cls).filter(cls.fileloc_hash == cls.dag_fileloc_hash(fileloc)).first()
         if not dag_code:
             raise DagCodeNotFound()
         else:
@@ -214,5 +197,4 @@ class DagCode(Base):
         import hashlib
 
         # Only 7 bytes because MySQL BigInteger can hold only 8 bytes (signed).
-        return struct.unpack('>Q', hashlib.sha1(
-            full_filepath.encode('utf-8')).digest()[-8:])[0] >> 8
+        return struct.unpack('>Q', hashlib.sha1(full_filepath.encode('utf-8')).digest()[-8:])[0] >> 8

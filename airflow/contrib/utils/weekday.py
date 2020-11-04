@@ -21,6 +21,5 @@ import warnings
 from airflow.utils.weekday import WeekDay  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.utils.weekday`.",
-    DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.utils.weekday`.", DeprecationWarning, stacklevel=2
 )

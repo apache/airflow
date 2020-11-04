@@ -110,7 +110,7 @@ class StackdriverHook(GoogleBaseHook):
         """
         client = self._get_policy_client()
         policies_ = client.list_alert_policies(
-            name='projects/{project_id}'.format(project_id=project_id),
+            name=f'projects/{project_id}',
             filter_=filter_,
             order_by=order_by,
             page_size=page_size,
@@ -288,7 +288,7 @@ class StackdriverHook(GoogleBaseHook):
                 old_name = channel.name
                 channel.ClearField('name')
                 new_channel = channel_client.create_notification_channel(
-                    name='projects/{project_id}'.format(project_id=project_id),
+                    name=f'projects/{project_id}',
                     notification_channel=channel,
                     retry=retry,
                     timeout=timeout,
@@ -317,7 +317,7 @@ class StackdriverHook(GoogleBaseHook):
                 for condition in policy.conditions:
                     condition.ClearField('name')
                 policy_client.create_alert_policy(
-                    name='projects/{project_id}'.format(project_id=project_id),
+                    name=f'projects/{project_id}',
                     alert_policy=policy,
                     retry=retry,
                     timeout=timeout,
@@ -351,7 +351,7 @@ class StackdriverHook(GoogleBaseHook):
         try:
             policy_client.delete_alert_policy(name=name, retry=retry, timeout=timeout, metadata=metadata)
         except HttpError as err:
-            raise AirflowException('Delete alerting policy failed. Error was {}'.format(err.content))
+            raise AirflowException(f'Delete alerting policy failed. Error was {err.content}')
 
     @GoogleBaseHook.fallback_to_default_project_id
     def list_notification_channels(
@@ -405,7 +405,7 @@ class StackdriverHook(GoogleBaseHook):
         """
         client = self._get_channel_client()
         channels = client.list_notification_channels(
-            name='projects/{project_id}'.format(project_id=project_id),
+            name=f'projects/{project_id}',
             filter_=filter_,
             order_by=order_by,
             page_size=page_size,
@@ -431,9 +431,7 @@ class StackdriverHook(GoogleBaseHook):
         metadata: Optional[str] = None,
     ) -> None:
         client = self._get_channel_client()
-        channels = client.list_notification_channels(
-            name='projects/{project_id}'.format(project_id=project_id), filter_=filter_
-        )
+        channels = client.list_notification_channels(name=f'projects/{project_id}', filter_=filter_)
         for channel in channels:
             if channel.enabled.value != bool(new_state):
                 channel.enabled.value = bool(new_state)
@@ -582,7 +580,7 @@ class StackdriverHook(GoogleBaseHook):
                 old_name = channel.name
                 channel.ClearField('name')
                 new_channel = channel_client.create_notification_channel(
-                    name='projects/{project_id}'.format(project_id=project_id),
+                    name=f'projects/{project_id}',
                     notification_channel=channel,
                     retry=retry,
                     timeout=timeout,
@@ -621,4 +619,4 @@ class StackdriverHook(GoogleBaseHook):
                 name=name, retry=retry, timeout=timeout, metadata=metadata
             )
         except HttpError as err:
-            raise AirflowException('Delete notification channel failed. Error was {}'.format(err.content))
+            raise AirflowException(f'Delete notification channel failed. Error was {err.content}')

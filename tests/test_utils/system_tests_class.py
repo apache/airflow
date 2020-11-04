@@ -115,7 +115,7 @@ class SystemTest(TestCase, LoggingMixin):
                     print()
                     print(f" ================ Content of {filepath} ===============================")
                     print()
-                    with open(filepath, "r") as f:
+                    with open(filepath) as f:
                         print(f.read())
 
     def run_dag(self, dag_id: str, dag_folder: str = DEFAULT_DAG_FOLDER) -> None:

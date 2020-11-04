@@ -20,8 +20,6 @@ from unittest import mock
 
 PLUGINS_MANAGER_NULLABLE_ATTRIBUTES = [
     "plugins",
-    "operators_modules",
-    "sensors_modules",
     "hooks_modules",
     "macros_modules",
     "executors_modules",

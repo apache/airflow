@@ -33,6 +33,7 @@ class ShortCircuitExecutorMixin:
     """
     Mixin class to manage the scheduler state during the performance test run.
     """
+
     def __init__(self, dag_ids_to_watch, num_runs):
         super().__init__()
         self.num_runs_per_dag = num_runs
@@ -48,8 +49,9 @@ class ShortCircuitExecutorMixin:
                 # A "cache" of DagRun row, so we don't have to look it up each
                 # time. This is to try and reduce the impact of our
                 # benchmarking code on runtime,
-                runs={}
-            ) for dag_id in dag_ids_to_watch
+                runs={},
+            )
+            for dag_id in dag_ids_to_watch
         }
 
     def change_state(self, key, state, info=None):
@@ -58,6 +60,7 @@ class ShortCircuitExecutorMixin:
         and then shut down the scheduler after the task is complete
         """
         from airflow.utils.state import State
+
         super().change_state(key, state, info=info)
 
         dag_id, _, execution_date, __ = key
@@ -87,8 +90,9 @@ class ShortCircuitExecutorMixin:
                 self.log.warning("STOPPING SCHEDULER -- all runs complete")
                 self.scheduler_job.processor_agent._done = True  # pylint: disable=protected-access
                 return
-        self.log.warning("WAITING ON %d RUNS",
-                         sum(map(attrgetter('waiting_for'), self.dags_to_watch.values())))
+        self.log.warning(
+            "WAITING ON %d RUNS", sum(map(attrgetter('waiting_for'), self.dags_to_watch.values()))
+        )
 
 
 def get_executor_under_test(dotted_path):
@@ -114,6 +118,7 @@ def get_executor_under_test(dotted_path):
         """
         Placeholder class that implements the inheritance hierarchy
         """
+
         scheduler_job = None
 
     return ShortCircuitExecutor
@@ -142,6 +147,7 @@ def pause_all_dags(session):
     Pause all Dags
     """
     from airflow.models.dag import DagModel
+
     session.query(DagModel).update({'is_paused': True})
 
 
@@ -154,9 +160,11 @@ def create_dag_runs(dag, num_runs, session):
 
     try:
         from airflow.utils.types import DagRunType
+
         id_prefix = f'{DagRunType.SCHEDULED.value}__'
     except ImportError:
         from airflow.models.dagrun import DagRun
+
         id_prefix = DagRun.ID_PREFIX  # pylint: disable=no-member
 
     next_run_date = dag.normalize_schedule(dag.start_date or min(t.start_date for t in dag.tasks))
@@ -176,18 +184,27 @@ def create_dag_runs(dag, num_runs, session):
 @click.command()
 @click.option('--num-runs', default=1, help='number of DagRun, to run for each DAG')
 @click.option('--repeat', default=3, help='number of times to run test, to reduce variance')
-@click.option('--pre-create-dag-runs', is_flag=True, default=False,
-              help='''Pre-create the dag runs and stop the scheduler creating more.
+@click.option(
+    '--pre-create-dag-runs',
+    is_flag=True,
+    default=False,
+    help='''Pre-create the dag runs and stop the scheduler creating more.
 
         Warning: this makes the scheduler do (slightly) less work so may skew your numbers. Use sparingly!
-        ''')
-@click.option('--executor-class', default='MockExecutor',
-              help=textwrap.dedent('''
+        ''',
+)
+@click.option(
+    '--executor-class',
+    default='MockExecutor',
+    help=textwrap.dedent(
+        '''
           Dotted path Executor class to test, for example
           'airflow.executors.local_executor.LocalExecutor'. Defaults to MockExecutor which doesn't run tasks.
-      '''))
+      '''
+    ),  # pylint: disable=too-many-locals
+)
 @click.argument('dag_ids', required=True, nargs=-1)
-def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):  # pylint: disable=too-many-locals
+def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
     """
     This script can be used to measure the total "scheduler overhead" of Airflow.
 
@@ -250,7 +267,8 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):  # pyl
                 message = (
                     f"DAG {dag_id} has incorrect end_date ({end_date}) for number of runs! "
                     f"It should be "
-                    f" {next_run_date}")
+                    f" {next_run_date}"
+                )
                 sys.exit(message)
 
             if pre_create_dag_runs:
@@ -298,13 +316,10 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):  # pyl
     msg = "Time for %d dag runs of %d dags with %d total tasks: %.4fs"
 
     if len(times) > 1:
-        print((msg + " (±%.3fs)") % (
-            num_runs,
-            len(dags),
-            total_tasks,
-            statistics.mean(times),
-            statistics.stdev(times)
-        ))
+        print(
+            (msg + " (±%.3fs)")
+            % (num_runs, len(dags), total_tasks, statistics.mean(times), statistics.stdev(times))
+        )
     else:
         print(msg % (num_runs, len(dags), total_tasks, times[0]))
 

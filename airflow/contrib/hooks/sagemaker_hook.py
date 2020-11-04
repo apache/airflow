@@ -21,11 +21,16 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.providers.amazon.aws.hooks.sagemaker import (  # noqa
-    LogState, Position, SageMakerHook, argmin, secondary_training_status_changed,
+    LogState,
+    Position,
+    SageMakerHook,
+    argmin,
+    secondary_training_status_changed,
     secondary_training_status_message,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.sagemaker`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

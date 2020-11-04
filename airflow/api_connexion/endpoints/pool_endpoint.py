@@ -99,9 +99,10 @@ def patch_pool(pool_name, session, update_mask=None):
         patch_body = _patch_body
 
     else:
-        for field in ["name", "slots"]:
-            if field not in request.json.keys():
-                raise BadRequest(detail=f"'{field}' is a required property")
+        required_fields = {"name", "slots"}
+        fields_diff = required_fields - set(request.json.keys())
+        if fields_diff:
+            raise BadRequest(detail=f"Missing required property(ies): {sorted(fields_diff)}")
 
     for key, value in patch_body.items():
         setattr(pool, key, value)
@@ -113,10 +114,10 @@ def patch_pool(pool_name, session, update_mask=None):
 @provide_session
 def post_pool(session):
     """Create a pool"""
-    required_fields = ["name", "slots"]  # Pool would require both fields in the post request
-    for field in required_fields:
-        if field not in request.json.keys():
-            raise BadRequest(detail=f"'{field}' is a required property")
+    required_fields = {"name", "slots"}  # Pool would require both fields in the post request
+    fields_diff = required_fields - set(request.json.keys())
+    if fields_diff:
+        raise BadRequest(detail=f"Missing required property(ies): {sorted(fields_diff)}")
 
     try:
         post_body = pool_schema.load(request.json, session=session)

@@ -16,6 +16,7 @@
 # under the License.
 
 import os
+
 import pytest
 
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY

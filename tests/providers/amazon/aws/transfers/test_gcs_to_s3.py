@@ -17,7 +17,6 @@
 # under the License.
 
 import unittest
-
 from unittest import mock
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook

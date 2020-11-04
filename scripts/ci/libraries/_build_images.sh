@@ -328,7 +328,6 @@ function build_images::get_docker_image_names() {
 
     # CI image base tag
     export AIRFLOW_CI_BASE_TAG="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci"
-
     # CI image to build
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}"
 
@@ -336,7 +335,11 @@ function build_images::get_docker_image_names() {
     export AIRFLOW_CI_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}-ci"
 
     # Base production image tag - used to build kubernetes tag as well
-    export AIRFLOW_PROD_BASE_TAG="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}"
+    if [[ ${FORCE_AIRFLOW_PROD_BASE_TAG=} == "" ]]; then
+        export AIRFLOW_PROD_BASE_TAG="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}"
+    else
+        export AIRFLOW_PROD_BASE_TAG="${FORCE_AIRFLOW_PROD_BASE_TAG}"
+    fi
 
     # PROD image to build
     export AIRFLOW_PROD_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_PROD_BASE_TAG}"

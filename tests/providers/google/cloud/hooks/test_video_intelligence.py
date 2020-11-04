@@ -17,8 +17,8 @@
 # under the License.
 #
 import unittest
-
 from unittest import mock
+
 from google.cloud.videointelligence_v1 import enums
 
 from airflow.providers.google.cloud.hooks.video_intelligence import CloudVideoIntelligenceHook

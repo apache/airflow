@@ -36,7 +36,7 @@ dag = DAG(
     schedule_interval='*/1 * * * *',
     start_date=days_ago(2),
     default_args=args,
-    tags=['example']
+    tags=['example'],
 )
 
 
@@ -48,8 +48,11 @@ def should_run(**kwargs):
     :return: Id of the task to run
     :rtype: str
     """
-    print('------------- exec dttm = {} and minute = {}'.
-          format(kwargs['execution_date'], kwargs['execution_date'].minute))
+    print(
+        '------------- exec dttm = {} and minute = {}'.format(
+            kwargs['execution_date'], kwargs['execution_date'].minute
+        )
+    )
     if kwargs['execution_date'].minute % 2 == 0:
         return "dummy_task_1"
     else:

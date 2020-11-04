@@ -25,6 +25,7 @@ T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 def has_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Callable[[T], T]:
     """Factory for decorator that checks current user's permissions against required permissions."""
+
     def requires_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
@@ -34,7 +35,12 @@ def has_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Calla
             else:
                 access_denied = "Access is Denied"
                 flash(access_denied, "danger")
-            return redirect(url_for(appbuilder.sm.auth_view.__class__.__name__ + ".login", next=request.url,))
+            return redirect(
+                url_for(
+                    appbuilder.sm.auth_view.__class__.__name__ + ".login",
+                    next=request.url,
+                )
+            )
 
         return cast(T, decorated)
 

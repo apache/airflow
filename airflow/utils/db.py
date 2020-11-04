@@ -25,14 +25,34 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.jobs.base_job import BaseJob  # noqa: F401 # pylint: disable=unused-import
 from airflow.models import (  # noqa: F401 # pylint: disable=unused-import
-    DAG, XCOM_RETURN_KEY, BaseOperator, BaseOperatorLink, Connection, DagBag, DagModel, DagPickle, DagRun,
-    DagTag, Log, Pool, SkipMixin, SlaMiss, TaskFail, TaskInstance, TaskReschedule, Variable, XCom,
+    DAG,
+    XCOM_RETURN_KEY,
+    BaseOperator,
+    BaseOperatorLink,
+    Connection,
+    DagBag,
+    DagModel,
+    DagPickle,
+    DagRun,
+    DagTag,
+    Log,
+    Pool,
+    SkipMixin,
+    SlaMiss,
+    TaskFail,
+    TaskInstance,
+    TaskReschedule,
+    Variable,
+    XCom,
 )
+
 # We need to add this model manually to get reset working well
 from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401  # pylint: disable=unused-import
+
 # TODO: remove create_session once we decide to break backward compatibility
 from airflow.utils.session import (  # noqa: F401 # pylint: disable=unused-import
-    create_session, provide_session,
+    create_session,
+    provide_session,
 )
 
 log = logging.getLogger(__name__)
@@ -52,8 +72,7 @@ def add_default_pool_if_not_exists(session=None):
     if not Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session):
         default_pool = Pool(
             pool=Pool.DEFAULT_POOL_NAME,
-            slots=conf.getint(section='core', key='non_pooled_task_slot_count',
-                              fallback=128),
+            slots=conf.getint(section='core', key='non_pooled_task_slot_count', fallback=128),
             description="Default pool",
         )
         session.add(default_pool)
@@ -72,14 +91,14 @@ def create_default_connections(session=None):
             password="",
             schema="airflow",
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
             conn_id="aws_default",
             conn_type="aws",
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -87,7 +106,7 @@ def create_default_connections(session=None):
             conn_type="azure_batch",
             login="<ACCOUNT_NAME>",
             password="",
-            extra='''{"account_url": "<ACCOUNT_URL>"}'''
+            extra='''{"account_url": "<ACCOUNT_URL>"}''',
         )
     )
     merge_conn(
@@ -96,7 +115,7 @@ def create_default_connections(session=None):
             conn_type="azure_container_instances",
             extra='{"tenantId": "<TENANT>", "subscriptionId": "<SUBSCRIPTION ID>" }',
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -104,15 +123,16 @@ def create_default_connections(session=None):
             conn_type="azure_cosmos",
             extra='{"database_name": "<DATABASE_NAME>", "collection_name": "<COLLECTION_NAME>" }',
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
-            conn_id='azure_data_explorer_default', conn_type='azure_data_explorer',
+            conn_id='azure_data_explorer_default',
+            conn_type='azure_data_explorer',
             host='https://<CLUSTER>.kusto.windows.net',
             extra='''{"auth_method": "<AAD_APP | AAD_APP_CERT | AAD_CREDS | AAD_DEVICE>",
                     "tenant": "<TENANT ID>", "certificate": "<APPLICATION PEM CERTIFICATE>",
-                    "thumbprint": "<APPLICATION CERTIFICATE THUMBPRINT>"}'''
+                    "thumbprint": "<APPLICATION CERTIFICATE THUMBPRINT>"}''',
         ),
         session,
     )
@@ -122,7 +142,7 @@ def create_default_connections(session=None):
             conn_type="azure_data_lake",
             extra='{"tenant": "<TENANT>", "account_name": "<ACCOUNTNAME>" }',
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -131,7 +151,7 @@ def create_default_connections(session=None):
             host="cassandra",
             port=9042,
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -139,7 +159,7 @@ def create_default_connections(session=None):
             conn_type="databricks",
             host="localhost",
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -148,7 +168,7 @@ def create_default_connections(session=None):
             host="",
             password="",
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -158,7 +178,7 @@ def create_default_connections(session=None):
             port=8082,
             extra='{"endpoint": "druid/v2/sql"}',
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -168,7 +188,7 @@ def create_default_connections(session=None):
             port=8081,
             extra='{"endpoint": "druid/indexer/v1/task"}',
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -176,9 +196,9 @@ def create_default_connections(session=None):
             conn_type="elasticsearch",
             host="localhost",
             schema="http",
-            port=9200
+            port=9200,
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -229,7 +249,7 @@ def create_default_connections(session=None):
                 }
             """,
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -243,7 +263,7 @@ def create_default_connections(session=None):
                 }
             """,
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -259,7 +279,7 @@ def create_default_connections(session=None):
             conn_type="google_cloud_platform",
             schema="default",
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -270,7 +290,7 @@ def create_default_connections(session=None):
             extra='{"use_beeline": true, "auth": ""}',
             schema="default",
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -280,7 +300,7 @@ def create_default_connections(session=None):
             schema="default",
             port=10000,
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -288,14 +308,14 @@ def create_default_connections(session=None):
             conn_type="http",
             host="https://www.httpbin.org/",
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
             conn_id='kubernetes_default',
             conn_type='kubernetes',
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -304,19 +324,11 @@ def create_default_connections(session=None):
             host='localhost',
             port=7070,
             login="ADMIN",
-            password="KYLIN"
+            password="KYLIN",
         ),
-        session
+        session,
     )
-    merge_conn(
-        Connection(
-            conn_id="livy_default",
-            conn_type="livy",
-            host="livy",
-            port=8998
-        ),
-        session
-    )
+    merge_conn(Connection(conn_id="livy_default", conn_type="livy", host="livy", port=8998), session)
     merge_conn(
         Connection(
             conn_id="local_mysql",
@@ -326,7 +338,7 @@ def create_default_connections(session=None):
             password="airflow",
             schema="airflow",
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -336,17 +348,9 @@ def create_default_connections(session=None):
             extra='{"authMechanism": "PLAIN"}',
             port=9083,
         ),
-        session
+        session,
     )
-    merge_conn(
-        Connection(
-            conn_id="mongo_default",
-            conn_type="mongo",
-            host="mongo",
-            port=27017
-        ),
-        session
-    )
+    merge_conn(Connection(conn_id="mongo_default", conn_type="mongo", host="mongo", port=27017), session)
     merge_conn(
         Connection(
             conn_id="mssql_default",
@@ -354,7 +358,7 @@ def create_default_connections(session=None):
             host="localhost",
             port=1433,
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -364,7 +368,7 @@ def create_default_connections(session=None):
             schema="airflow",
             host="mysql",
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -373,7 +377,7 @@ def create_default_connections(session=None):
             host="",
             password="",
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -381,7 +385,7 @@ def create_default_connections(session=None):
             conn_type="pig_cli",
             schema="default",
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -390,7 +394,7 @@ def create_default_connections(session=None):
             host="localhost",
             port=9000,
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -400,7 +404,7 @@ def create_default_connections(session=None):
             port=9000,
             extra='{"endpoint": "/query", "schema": "http"}',
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -411,7 +415,7 @@ def create_default_connections(session=None):
             schema="airflow",
             host="postgres",
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -421,7 +425,7 @@ def create_default_connections(session=None):
             schema="hive",
             port=3400,
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -429,7 +433,7 @@ def create_default_connections(session=None):
             conn_type="qubole",
             host="localhost",
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -439,7 +443,7 @@ def create_default_connections(session=None):
             port=6379,
             extra='{"db": 0}',
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -447,7 +451,7 @@ def create_default_connections(session=None):
             conn_type="segment",
             extra='{"write_key": "my-segment-write-key"}',
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -458,7 +462,7 @@ def create_default_connections(session=None):
             login="airflow",
             extra='{"key_file": "~/.ssh/id_rsa", "no_host_key_check": true}',
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -467,7 +471,7 @@ def create_default_connections(session=None):
             host="yarn",
             extra='{"queue": "root.default"}',
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -475,7 +479,7 @@ def create_default_connections(session=None):
             conn_type="sqlite",
             host="/tmp/sqlite_default.db",
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -483,7 +487,7 @@ def create_default_connections(session=None):
             conn_type="sqoop",
             host="rdbms",
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -491,7 +495,7 @@ def create_default_connections(session=None):
             conn_type="ssh",
             host="localhost",
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -502,7 +506,7 @@ def create_default_connections(session=None):
             password="password",
             extra='{"site_id": "my_site"}',
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -511,7 +515,7 @@ def create_default_connections(session=None):
             host="localhost",
             port=5433,
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -519,7 +523,7 @@ def create_default_connections(session=None):
             conn_type="wasb",
             extra='{"sas_token": null}',
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -528,7 +532,7 @@ def create_default_connections(session=None):
             host="localhost",
             port=50070,
         ),
-        session
+        session,
     )
     merge_conn(
         Connection(
@@ -536,7 +540,7 @@ def create_default_connections(session=None):
             conn_type='yandexcloud',
             schema='default',
         ),
-        session
+        session,
     )
 
 
@@ -555,6 +559,7 @@ def initdb():
     DAG.deactivate_unknown_dags(dagbag.dags.keys())
 
     from flask_appbuilder.models.sqla import Base
+
     Base.metadata.create_all(settings.engine)  # pylint: disable=no-member
 
 
@@ -590,8 +595,7 @@ def check_migrations(timeout):
             if source_heads == db_heads:
                 break
             if ticker >= timeout:
-                raise TimeoutError("There are still unapplied migrations after {} "
-                                   "seconds.".format(ticker))
+                raise TimeoutError("There are still unapplied migrations after {} " "seconds.".format(ticker))
             ticker += 1
             time.sleep(1)
             log.info('Waiting for migrations... %s second(s)', ticker)
@@ -649,6 +653,7 @@ def drop_airflow_models(connection):
     Base.metadata.remove(chart)
     # alembic adds significant import time, so we import it lazily
     from alembic.migration import MigrationContext  # noqa
+
     migration_ctx = MigrationContext.configure(connection)
     version = migration_ctx._version  # noqa pylint: disable=protected-access
     if version.exists(connection):
@@ -662,6 +667,7 @@ def drop_flask_models(connection):
     @return:
     """
     from flask_appbuilder.models.sqla import Base
+
     Base.metadata.drop_all(connection)  # pylint: disable=no-member
 
 

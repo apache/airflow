@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import tempfile
-from typing import Generator, Optional, Tuple, Union, Any
+from typing import Any, Generator, Optional, Tuple, Union
 
 import yaml
 from cached_property import cached_property

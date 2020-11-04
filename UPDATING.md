@@ -50,7 +50,46 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
-### The default `[webserver] cookie_samesite` has been changed to `Lax`
+### Adding Operators and Sensors via plugins is no longer supported
+
+Operators and Sensors should no longer be registered or imported via Airflow's plugin mechanism -- these types of classes are just treated as plain python classes by Airflow, so there is no need to register them with Airflow.
+
+If you previously had a `plugins/my_plugin.py` and you used it like this in a DAG:
+
+```
+from airflow.operators.my_plugin import MyOperator
+```
+
+You should instead import it as:
+
+```
+from my_plugin import MyOperator
+```
+
+The name under `airflow.operators.` was the plugin name, where as in the second example it is the python module name where the operator is defined.
+
+See http://airflow.apache.org/docs/stable/howto/custom-operator.html#define-an-operator-extra-link for more info.
+
+### The default value for `[core] enable_xcom_pickling` has been changed to `False`
+
+The pickle type for XCom messages has been replaced to JSON by default to prevent RCE attacks.
+Note that JSON serialization is stricter than pickling, so for example if you want to pass
+raw bytes through XCom you must encode them using an encoding like ``base64``.
+If you understand the risk and still want to use [pickling](https://docs.python.org/3/library/pickle.html),
+set `enable_xcom_pickling = False` in your Airflow config's `core` section.
+
+### Airflowignore of base path
+
+There was a bug fixed in https://github.com/apache/airflow/pull/11993 that the "airflowignore" checked
+the base path of the dag folder for forbidden dags, not only the relative part. This had the effect
+that if the base path contained the excluded word the whole dag folder could have been excluded. For
+example if the airflowignore file contained x, and the dags folder was '/var/x/dags', then all dags in
+the folder would be excluded. The fix only matches the relative path only now which means that if you
+previously used full path as ignored, you should change it to relative one. For example if your dag
+folder was '/var/dags/' and your airflowignore contained '/var/dag/excluded/', you should change it
+to 'excluded/'.
+
+### The default value for `[webserver] cookie_samesite` has been changed to `Lax`
 
 As [recommended](https://flask.palletsprojects.com/en/1.1.x/config/#SESSION_COOKIE_SAMESITE) by Flask, the
 `[webserver] cookie_samesite` has bee changed to `Lax` from `None`.
