@@ -114,7 +114,7 @@ class TestGrpcHook(unittest.TestCase):
         channel = hook.get_conn()
         expected_url = "test:8080"
 
-        mock_open.assert_called_once_with("pem")
+        mock_open.assert_called_once_with("pem", "rb")
         mock_channel_credentials.assert_called_once_with('credential')
         mock_secure_channel.assert_called_once_with(expected_url, mock_credential_object)
         self.assertEqual(channel, mocked_channel)
@@ -138,7 +138,7 @@ class TestGrpcHook(unittest.TestCase):
         channel = hook.get_conn()
         expected_url = "test:8080"
 
-        mock_open.assert_called_once_with("pem")
+        mock_open.assert_called_once_with("pem", "rb")
         mock_channel_credentials.assert_called_once_with('credential')
         mock_secure_channel.assert_called_once_with(expected_url, mock_credential_object)
         self.assertEqual(channel, mocked_channel)
