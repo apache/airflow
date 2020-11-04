@@ -16,7 +16,6 @@
 # under the License.
 
 import datetime
-import operator
 from typing import Dict, Iterable, Optional, Union
 
 from airflow.exceptions import AirflowException
