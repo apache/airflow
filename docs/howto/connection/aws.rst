@@ -261,7 +261,7 @@ After creating the role, you should configure the connection in Airflow.
 Terraform
 """""""""
 
-In order to quickly configure a new role, you can use the following terraform script, which configures
+In order to quickly configure a new role, you can use the following Terraform script, which configures
 AWS roles along with the assigned policy.
 Before using it, you need correct the variables in the ``locals`` section to suit your environment:
 
@@ -273,7 +273,7 @@ Before using it, you need correct the variables in the ``locals`` section to sui
 * ``aws_policy_name`` - The name of the new AWS policy.
 
 
-For more information on using terraform scripts, see:
+For more information on using Terraform scripts, see:
 `Terraform docs - Get started - AWS <https://learn.hashicorp.com/collections/terraform/aws-get-started>`__
 
 After executing the plan, you should configure the connection in Airflow.
