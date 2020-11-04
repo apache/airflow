@@ -463,7 +463,8 @@ ARG_ERROR_LOGFILE = Arg(
 ARG_ACCESS_LOGFORMAT = Arg(
     ("-L", "--access-logformat"),
     default=conf.get('webserver', 'ACCESS_LOGFORMAT'),
-    help="The access log format for gunicorn logs")
+    help="The access log format for gunicorn logs",
+)
 
 # scheduler
 ARG_NUM_RUNS = Arg(

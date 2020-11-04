@@ -385,21 +385,30 @@ class TestCliWebServer(unittest.TestCase):
     def test_cli_webserver_access_log_format(self):
 
         # json access log format
-        access_logformat = "{\"ts\":\"%(t)s\",\"remote_ip\":\"%(h)s\",\"request_id\":\"%({" \
-                           "X-Request-Id}i)s\",\"code\":\"%(s)s\",\"request_method\":\"%(m)s\"," \
-                           "\"request_path\":\"%(U)s\",\"agent\":\"%(a)s\",\"response_time\":\"%(D)s\"," \
-                           "\"response_length\":\"%(B)s\"} "
+        access_logformat = (
+            "{\"ts\":\"%(t)s\",\"remote_ip\":\"%(h)s\",\"request_id\":\"%({"
+            "X-Request-Id}i)s\",\"code\":\"%(s)s\",\"request_method\":\"%(m)s\","
+            "\"request_path\":\"%(U)s\",\"agent\":\"%(a)s\",\"response_time\":\"%(D)s\","
+            "\"response_length\":\"%(B)s\"} "
+        )
         with tempfile.TemporaryDirectory() as tmpdir, mock.patch.dict(
             "os.environ",
             AIRFLOW__CORE__DAGS_FOLDER="/dev/null",
             AIRFLOW__CORE__LOAD_EXAMPLES="False",
-            AIRFLOW__WEBSERVER__WORKERS="1"
+            AIRFLOW__WEBSERVER__WORKERS="1",
         ):
-            access_logfile = "{}/access.log".format(tmpdir)
+            access_logfile = f"{tmpdir}/access.log"
             # Run webserver in foreground and terminate it.
             proc = subprocess.Popen(
-                ["airflow", "webserver", "--access-logfile", access_logfile, "--access-logformat",
-                 access_logformat])
+                [
+                    "airflow",
+                    "webserver",
+                    "--access-logfile",
+                    access_logfile,
+                    "--access-logformat",
+                    access_logformat,
+                ]
+            )
             self.assertEqual(None, proc.poll())
 
             # Wait for webserver process
@@ -414,7 +423,7 @@ class TestCliWebServer(unittest.TestCase):
                 self.assertEqual(len(log), 9)
                 self.assertEqual('GET', log.get('request_method'))
 
-            except IOError:
+            except OSError:
                 print("access log file not found at " + access_logfile)
 
             # Terminate webserver

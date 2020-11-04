@@ -371,7 +371,7 @@ def webserver(args):
                     worker_timeout=worker_timeout,
                     access_logfile=access_logfile,
                     error_logfile=error_logfile,
-                    access_logformat=access_logformat
+                    access_logformat=access_logformat,
                 )
             )
         )
