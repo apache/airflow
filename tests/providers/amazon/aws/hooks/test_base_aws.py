@@ -209,7 +209,7 @@ class TestAwsBaseHook(unittest.TestCase):
             credentials_from_hook = hook.get_credentials()
             mock_get_credentials = mock_boto3.session.Session.return_value.get_credentials
             self.assertEqual(
-                (mock_get_credentials.return_value.get_frozen_credentials.return_value),
+                mock_get_credentials.return_value.get_frozen_credentials.return_value,
                 credentials_from_hook,
             )
 
@@ -241,7 +241,7 @@ class TestAwsBaseHook(unittest.TestCase):
                 ),
                 mock.call.credentials.DeferredRefreshableCredentials(
                     method='assume-role-with-web-identity',
-                    refresh_using=(mock_fetcher.return_value.fetch_credentials),
+                    refresh_using=mock_fetcher.return_value.fetch_credentials,
                     time_fetcher=mock.ANY,
                 ),
             ]
@@ -249,7 +249,7 @@ class TestAwsBaseHook(unittest.TestCase):
 
         mock_session.assert_has_calls([mock.call.Session()])
         mock_id_token_credentials.assert_has_calls(
-            [mock.call.get_default_id_token_credentials(target_audience=None)]
+            [mock.call.get_default_id_token_credentials(target_audience='aws-federation.airflow.apache.org')]
         )
 
     @unittest.skipIf(mock_iam is None, 'mock_iam package not present')

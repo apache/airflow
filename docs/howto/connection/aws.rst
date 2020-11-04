@@ -186,7 +186,7 @@ Google Cloud to AWS authentication using Web Identity Federation
 
 
 Thanks to `Web Identity Federation <https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_oidc.html>`__, you can use the credentials from the Google Cloud platform to authorize
-actions in the Amazon Web Service platform. If you additionally use authorizations with access token obtained
+access in the Amazon Web Service platform. If you additionally use authorizations with access token obtained
 from `metadata server <https://cloud.google.com/compute/docs/storing-retrieving-metadata>`__ or
 `Workfload Identity <https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity#gke_mds>`__,
 you can improve the security of your environment by eliminating long-lived credentials.
@@ -241,7 +241,7 @@ Finally, you should get a role that has a similar policy to the one below:
       ]
     }
 
-In order to protect against the use of the Google OpenID token in another service, you can also limit the scope of use by configuring
+In order to protect against the misuse of the Google OpenID token, you can also limit the scope of use by configuring
 restrictions per audience. You will need to configure the same value for the connection, and then this value also included in the ID Token. AWS will test if this value matches.
 For that, you can add a new condition to the policy.
 
@@ -382,7 +382,7 @@ Below is an example connection configuration.
     "assume_role_with_web_identity_federation_audience": "service_a.apache.com"
   }
 
-You can configure roles, also using environmental variable :envvar:`AIRFLOW_CONN_{CONN_ID}`.
+You can configure connection, also using environmental variable :envvar:`AIRFLOW_CONN_{CONN_ID}`.
 
 .. code-block:: bash
 
