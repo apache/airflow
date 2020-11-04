@@ -43,7 +43,7 @@ class TestDagRunEndpoint(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
                 (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
@@ -124,7 +124,7 @@ class TestDagRunEndpoint(unittest.TestCase):
 
 class TestDeleteDagRun(TestDagRunEndpoint):
     @provide_session
-    def test_should_response_204(self, session):
+    def test_should_respond_204(self, session):
         session.add_all(self._create_test_dag_run())
         session.commit()
         response = self.client.delete(
@@ -137,7 +137,7 @@ class TestDeleteDagRun(TestDagRunEndpoint):
         )
         self.assertEqual(response.status_code, 404)
 
-    def test_should_response_404(self):
+    def test_should_respond_404(self):
         response = self.client.delete(
             "api/v1/dags/INVALID_DAG_RUN/dagRuns/INVALID_DAG_RUN", environ_overrides={'REMOTE_USER': "test"}
         )
@@ -173,7 +173,7 @@ class TestDeleteDagRun(TestDagRunEndpoint):
 
 class TestGetDagRun(TestDagRunEndpoint):
     @provide_session
-    def test_should_response_200(self, session):
+    def test_should_respond_200(self, session):
         dagrun_model = DagRun(
             dag_id="TEST_DAG_ID",
             run_id="TEST_DAG_RUN_ID",
@@ -202,7 +202,7 @@ class TestGetDagRun(TestDagRunEndpoint):
         }
         assert response.json == expected_response
 
-    def test_should_response_404(self):
+    def test_should_respond_404(self):
         response = self.client.get(
             "api/v1/dags/invalid-id/dagRuns/invalid-id", environ_overrides={'REMOTE_USER': "test"}
         )
@@ -235,7 +235,7 @@ class TestGetDagRun(TestDagRunEndpoint):
 
 class TestGetDagRuns(TestDagRunEndpoint):
     @provide_session
-    def test_should_response_200(self, session):
+    def test_should_respond_200(self, session):
         self._create_test_dag_run()
         result = session.query(DagRun).all()
         assert len(result) == 2
@@ -431,7 +431,7 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
 
         response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
-        assert response.json["total_entries"] == 10
+        assert response.json["total_entries"] == len(expected_dag_run_ids)
         dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"]]
         assert dag_run_ids == expected_dag_run_ids
 
@@ -482,7 +482,7 @@ class TestGetDagRunsEndDateFilters(TestDagRunEndpoint):
         self._create_test_dag_run('success')  # state==success, then end date is today
         response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
-        assert response.json["total_entries"] == 2
+        assert response.json["total_entries"] == len(expected_dag_run_ids)
         dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"] if dag_run]
         assert dag_run_ids == expected_dag_run_ids
 
@@ -706,7 +706,7 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
             "api/v1/dags/~/dagRuns/list", json=payload, environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
-        assert response.json["total_entries"] == 10
+        assert response.json["total_entries"] == len(expected_dag_run_ids)
         dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"]]
         assert dag_run_ids == expected_dag_run_ids
 
@@ -760,7 +760,7 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
             "api/v1/dags/~/dagRuns/list", json=payload, environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
-        assert response.json["total_entries"] == 2
+        assert response.json["total_entries"] == len(expected_dag_run_ids)
         dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"] if dag_run]
         assert dag_run_ids == expected_dag_run_ids
 
@@ -780,7 +780,7 @@ class TestPostDagRun(TestDagRunEndpoint):
         ]
     )
     @provide_session
-    def test_should_response_200(self, name, request_json, session):
+    def test_should_respond_200(self, name, request_json, session):
         del name
         dag_instance = DagModel(dag_id="TEST_DAG_ID")
         session.add(dag_instance)

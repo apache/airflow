@@ -23,7 +23,7 @@ import json
 import logging
 import tempfile
 from contextlib import ExitStack, contextmanager
-from typing import Collection, Dict, Optional, Sequence, Tuple, Union, Generator
+from typing import Collection, Dict, Generator, Optional, Sequence, Tuple, Union
 from urllib.parse import urlencode
 
 import google.auth
@@ -64,12 +64,12 @@ def build_gcp_conn(
 
     query_params = {}
     if key_file_path:
-        query_params["{}__key_path".format(extras)] = key_file_path
+        query_params[f"{extras}__key_path"] = key_file_path
     if scopes:
         scopes_string = ",".join(scopes)
-        query_params["{}__scope".format(extras)] = scopes_string
+        query_params[f"{extras}__scope"] = scopes_string
     if project_id:
-        query_params["{}__projects".format(extras)] = project_id
+        query_params[f"{extras}__projects"] = project_id
 
     query = urlencode(query_params)
     return conn.format(query)
@@ -119,7 +119,7 @@ def provide_gcp_connection(
     connection. It build a new connection that includes path to provided service json,
     required scopes and project id.
 
-    :param key_file_path: Path to file with Gooogle Cloud Service Account .json file.
+    :param key_file_path: Path to file with Google Cloud Service Account .json file.
     :type key_file_path: str
     :param scopes: OAuth scopes for the connection
     :type scopes: Sequence

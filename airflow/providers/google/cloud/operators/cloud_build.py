@@ -222,7 +222,7 @@ class CloudBuildCreateBuildOperator(BaseOperator):
         # if no file is specified, skip
         if not isinstance(self.body_raw, str):
             return
-        with open(self.body_raw, 'r') as file:
+        with open(self.body_raw) as file:
             if any(self.body_raw.endswith(ext) for ext in ['.yaml', '.yml']):
                 self.body = yaml.load(file.read(), Loader=yaml.FullLoader)
             if self.body_raw.endswith('.json'):

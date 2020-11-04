@@ -180,8 +180,10 @@ class TaskGroup(TaskMixin):
             # Handles setting relationship between a TaskGroup and a task
             for task in other.roots:
                 if not isinstance(task, BaseOperator):
-                    raise AirflowException("Relationships can only be set between TaskGroup "
-                                           f"or operators; received {task.__class__.__name__}")
+                    raise AirflowException(
+                        "Relationships can only be set between TaskGroup "
+                        f"or operators; received {task.__class__.__name__}"
+                    )
 
                 if upstream:
                     self.upstream_task_ids.add(task.task_id)
@@ -189,9 +191,7 @@ class TaskGroup(TaskMixin):
                     self.downstream_task_ids.add(task.task_id)
 
     def _set_relative(
-            self,
-            task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
-            upstream: bool = False
+        self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]], upstream: bool = False
     ) -> None:
         """
         Call set_upstream/set_downstream for all root/leaf tasks within this TaskGroup.
@@ -210,15 +210,11 @@ class TaskGroup(TaskMixin):
         for task_like in task_or_task_list:
             self.update_relative(task_like, upstream)
 
-    def set_downstream(
-        self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]
-    ) -> None:
+    def set_downstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]) -> None:
         """Set a TaskGroup/task/list of task downstream of this TaskGroup."""
         self._set_relative(task_or_task_list, upstream=False)
 
-    def set_upstream(
-        self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]
-    ) -> None:
+    def set_upstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]) -> None:
         """Set a TaskGroup/task/list of task upstream of this TaskGroup."""
         self._set_relative(task_or_task_list, upstream=True)
 

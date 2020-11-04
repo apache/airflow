@@ -27,12 +27,8 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
 class TestLineage(unittest.TestCase):
-
     def test_lineage(self):
-        dag = DAG(
-            dag_id='test_prepare_lineage',
-            start_date=DEFAULT_DATE
-        )
+        dag = DAG(dag_id='test_prepare_lineage', start_date=DEFAULT_DATE)
 
         f1s = "/tmp/does_not_exist_1-{}"
         f2s = "/tmp/does_not_exist_2-{}"
@@ -42,16 +38,17 @@ class TestLineage(unittest.TestCase):
         file3 = File(f3s)
 
         with dag:
-            op1 = DummyOperator(task_id='leave1',
-                                inlets=file1,
-                                outlets=[file2, ])
+            op1 = DummyOperator(
+                task_id='leave1',
+                inlets=file1,
+                outlets=[
+                    file2,
+                ],
+            )
             op2 = DummyOperator(task_id='leave2')
-            op3 = DummyOperator(task_id='upstream_level_1',
-                                inlets=AUTO,
-                                outlets=file3)
+            op3 = DummyOperator(task_id='upstream_level_1', inlets=AUTO, outlets=file3)
             op4 = DummyOperator(task_id='upstream_level_2')
-            op5 = DummyOperator(task_id='upstream_level_3',
-                                inlets=["leave1", "upstream_level_1"])
+            op5 = DummyOperator(task_id='upstream_level_3', inlets=["leave1", "upstream_level_1"])
 
             op1.set_downstream(op3)
             op2.set_downstream(op3)
@@ -61,14 +58,10 @@ class TestLineage(unittest.TestCase):
         dag.clear()
 
         # execution_date is set in the context in order to avoid creating task instances
-        ctx1 = {"ti": TI(task=op1, execution_date=DEFAULT_DATE),
-                "execution_date": DEFAULT_DATE}
-        ctx2 = {"ti": TI(task=op2, execution_date=DEFAULT_DATE),
-                "execution_date": DEFAULT_DATE}
-        ctx3 = {"ti": TI(task=op3, execution_date=DEFAULT_DATE),
-                "execution_date": DEFAULT_DATE}
-        ctx5 = {"ti": TI(task=op5, execution_date=DEFAULT_DATE),
-                "execution_date": DEFAULT_DATE}
+        ctx1 = {"ti": TI(task=op1, execution_date=DEFAULT_DATE), "execution_date": DEFAULT_DATE}
+        ctx2 = {"ti": TI(task=op2, execution_date=DEFAULT_DATE), "execution_date": DEFAULT_DATE}
+        ctx3 = {"ti": TI(task=op3, execution_date=DEFAULT_DATE), "execution_date": DEFAULT_DATE}
+        ctx5 = {"ti": TI(task=op5, execution_date=DEFAULT_DATE), "execution_date": DEFAULT_DATE}
 
         # prepare with manual inlets and outlets
         op1.pre_execute(ctx1)
@@ -101,10 +94,7 @@ class TestLineage(unittest.TestCase):
     def test_lineage_render(self):
         # tests inlets / outlets are rendered if they are added
         # after initalization
-        dag = DAG(
-            dag_id='test_lineage_render',
-            start_date=DEFAULT_DATE
-        )
+        dag = DAG(dag_id='test_lineage_render', start_date=DEFAULT_DATE)
 
         with dag:
             op1 = DummyOperator(task_id='task1')
@@ -116,8 +106,7 @@ class TestLineage(unittest.TestCase):
         op1.outlets.append(file1)
 
         # execution_date is set in the context in order to avoid creating task instances
-        ctx1 = {"ti": TI(task=op1, execution_date=DEFAULT_DATE),
-                "execution_date": DEFAULT_DATE}
+        ctx1 = {"ti": TI(task=op1, execution_date=DEFAULT_DATE), "execution_date": DEFAULT_DATE}
 
         op1.pre_execute(ctx1)
         self.assertEqual(op1.inlets[0].url, f1s.format(DEFAULT_DATE))

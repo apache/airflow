@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
-
 from unittest import mock
 
 from airflow.providers.google.cloud.operators.bigquery_dts import (

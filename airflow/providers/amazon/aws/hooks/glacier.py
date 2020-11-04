@@ -18,6 +18,7 @@
 
 
 from typing import Any, Dict
+
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 

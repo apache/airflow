@@ -37,9 +37,11 @@ determine what actually executes when your DAG runs.
     dingding
     google/index
     http
+    jdbc
     kubernetes
     microsoft/index
     papermill
     python
+    snowflake
     external_task_sensor
     yandexcloud

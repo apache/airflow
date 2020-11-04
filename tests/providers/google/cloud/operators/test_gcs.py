@@ -17,7 +17,6 @@
 # under the License.
 
 import unittest
-
 from unittest import mock
 
 from airflow.providers.google.cloud.operators.gcs import (

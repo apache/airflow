@@ -23,5 +23,6 @@ from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchTas
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.elasticsearch.log.es_task_handler`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

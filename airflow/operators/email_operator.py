@@ -23,6 +23,5 @@ import warnings
 from airflow.operators.email import EmailOperator  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.operators.email`.",
-    DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.operators.email`.", DeprecationWarning, stacklevel=2
 )

@@ -16,7 +16,6 @@
 # under the License.
 
 import unittest
-
 from unittest import mock
 
 from airflow.providers.grpc.operators.grpc import GrpcOperator

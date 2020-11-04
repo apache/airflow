@@ -658,7 +658,7 @@ class DataprocScaleClusterOperator(BaseOperator):
     :type num_workers: int
     :param num_preemptible_workers: The new number of preemptible workers
     :type num_preemptible_workers: int
-    :param graceful_decommission_timeout: Timeout for graceful YARN decomissioning.
+    :param graceful_decommission_timeout: Timeout for graceful YARN decommissioning.
         Maximum value is 1d
     :type graceful_decommission_timeout: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
@@ -1476,7 +1476,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
             mime_type='application/x-python',
             filename=local_file,
         )
-        return "gs://{}/{}".format(bucket, temp_filename)
+        return f"gs://{bucket}/{temp_filename}"
 
     @apply_defaults
     def __init__(
@@ -1517,7 +1517,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
                 project_id=self.hook.project_id, region=self.region, cluster_name=self.cluster_name
             )
             bucket = cluster_info['config']['config_bucket']
-            self.main = "gs://{}/{}".format(bucket, self.main)
+            self.main = f"gs://{bucket}/{self.main}"
         self.job_template.set_python_main(self.main)
         self.job_template.add_args(self.arguments)
         self.job_template.add_archive_uris(self.archives)
@@ -1785,9 +1785,12 @@ class DataprocSubmitJobOperator(BaseOperator):
     :type asynchronous: bool
     :param cancel_on_kill: Flag which indicates whether cancel the hook's job or not, when on_kill is called
     :type cancel_on_kill: bool
+    :param wait_timeout: How many seconds wait for job to be ready. Used only if ``asynchronous`` is False
+    :type wait_timeout: int
     """
 
     template_fields = ('project_id', 'location', 'job', 'impersonation_chain')
+    template_fields_renderers = {"job": "json"}
 
     @apply_defaults
     def __init__(
@@ -1804,6 +1807,7 @@ class DataprocSubmitJobOperator(BaseOperator):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         asynchronous: bool = False,
         cancel_on_kill: bool = True,
+        wait_timeout: Optional[int] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1820,6 +1824,7 @@ class DataprocSubmitJobOperator(BaseOperator):
         self.cancel_on_kill = cancel_on_kill
         self.hook: Optional[DataprocHook] = None
         self.job_id: Optional[str] = None
+        self.wait_timeout = wait_timeout
 
     def execute(self, context: Dict):
         self.log.info("Submitting job")
@@ -1838,7 +1843,9 @@ class DataprocSubmitJobOperator(BaseOperator):
 
         if not self.asynchronous:
             self.log.info('Waiting for job %s to complete', job_id)
-            self.hook.wait_for_job(job_id=job_id, location=self.location, project_id=self.project_id)
+            self.hook.wait_for_job(
+                job_id=job_id, location=self.location, project_id=self.project_id, timeout=self.wait_timeout
+            )
             self.log.info('Job %s completed successfully.', job_id)
 
         self.job_id = job_id
@@ -1870,7 +1877,7 @@ class DataprocUpdateClusterOperator(BaseOperator):
         new value. If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.cloud.dataproc_v1beta2.types.FieldMask`
     :type update_mask: Union[Dict, google.cloud.dataproc_v1beta2.types.FieldMask]
-    :param graceful_decommission_timeout: Optional. Timeout for graceful YARN decomissioning. Graceful
+    :param graceful_decommission_timeout: Optional. Timeout for graceful YARN decommissioning. Graceful
         decommissioning allows removing nodes from the cluster without interrupting jobs in progress. Timeout
         specifies how long to wait for jobs in progress to finish before forcefully removing nodes (and
         potentially interrupting jobs). Default timeout is 0 (for forceful decommission), and the maximum

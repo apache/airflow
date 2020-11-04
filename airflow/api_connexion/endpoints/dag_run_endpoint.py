@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from connexion import NoContent
-from flask import g, request, current_app
+from flask import current_app, g, request
 from marshmallow import ValidationError
 
 from airflow.api_connexion import security
@@ -35,7 +35,7 @@ from airflow.utils.types import DagRunType
 
 @security.requires_access(
     [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
     ]
 )
@@ -49,7 +49,7 @@ def delete_dag_run(dag_id, dag_run_id, session):
 
 @security.requires_access(
     [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
     ]
 )
@@ -67,7 +67,7 @@ def get_dag_run(dag_id, dag_run_id, session):
 
 @security.requires_access(
     [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
     ]
 )
@@ -131,7 +131,6 @@ def _fetch_dag_runs(
     limit,
     offset,
 ):
-    total_entries = query.count()
     query = _apply_date_filters_to_query(
         query,
         end_date_gte,
@@ -141,6 +140,8 @@ def _fetch_dag_runs(
         start_date_gte,
         start_date_lte,
     )
+    # Count items
+    total_entries = query.count()
     # apply offset and limit
     dag_run = query.order_by(DagRun.id).offset(offset).limit(limit).all()
     return dag_run, total_entries
@@ -169,7 +170,7 @@ def _apply_date_filters_to_query(
 
 @security.requires_access(
     [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
     ]
 )
@@ -208,7 +209,7 @@ def get_dag_runs_batch(session):
 
 @security.requires_access(
     [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
     ]
 )

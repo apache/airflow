@@ -21,6 +21,7 @@ from unittest.mock import Mock
 import arrow
 import pytest
 from requests.exceptions import Timeout
+
 from airflow.exceptions import AirflowException
 from airflow.providers.plexus.hooks.plexus import PlexusHook
 

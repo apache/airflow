@@ -17,8 +17,8 @@
 # under the License.
 
 import unittest
-
 from unittest.mock import ANY, Mock, PropertyMock, patch
+
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException

@@ -57,5 +57,5 @@ with open(source, "r") as src, open(destination, "w+") as dest:
         os.remove(PATH_TO_TRANSFORM_SCRIPT)
 
     def remove_bucket(self):
-        self.execute_cmd(["gsutil", "rm", "-r", "gs://{bucket}".format(bucket=BUCKET_1)])
-        self.execute_cmd(["gsutil", "rm", "-r", "gs://{bucket}".format(bucket=BUCKET_2)])
+        self.execute_cmd(["gsutil", "rm", "-r", f"gs://{BUCKET_1}"])
+        self.execute_cmd(["gsutil", "rm", "-r", f"gs://{BUCKET_2}"])

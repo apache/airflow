@@ -61,7 +61,7 @@ Let's implement an example ``HelloOperator`` in a new file ``hello_operator.py``
     For imports to work, you should place the file in a directory that
     is present in the :envvar:`PYTHONPATH` env. Airflow adds ``dags/``, ``plugins/``, and ``config/`` directories
     in the Airflow home to :envvar:`PYTHONPATH` by default. e.g., In our example,
-    the file is placed in the ``custom_operator`` directory.
+    the file is placed in the ``custom_operator/`` directory.
     See :doc:`../modules_management` for details on how Python and Airflow manage modules.
 
 You can now use the derived custom operator as follows:

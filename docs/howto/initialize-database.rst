@@ -26,6 +26,9 @@ setting up a real database backend and switching to the LocalExecutor.
 Airflow was built to interact with its metadata using SqlAlchemy
 with **MySQL**,  **Postgres** and **SQLite** as supported backends (SQLite is used primarily for development purpose).
 
+.. seealso:: :ref:`Scheduler HA Database Requirements <scheduler:ha:db_requirements>` if you plan on running
+   more than one scheduler
+
 .. note:: We rely on more strict ANSI SQL settings for MySQL in order to have
    sane defaults. Make sure to have specified ``explicit_defaults_for_timestamp=1``
    in your my.cnf under ``[mysqld]``

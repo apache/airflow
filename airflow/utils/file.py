@@ -31,9 +31,11 @@ def TemporaryDirectory(*args, **kwargs):  # pylint: disable=invalid-name
     """This function is deprecated. Please use `tempfile.TemporaryDirectory`"""
     import warnings
     from tempfile import TemporaryDirectory as TmpDir
+
     warnings.warn(
         "This function is deprecated. Please use `tempfile.TemporaryDirectory`",
-        DeprecationWarning, stacklevel=2
+        DeprecationWarning,
+        stacklevel=2,
     )
     return TmpDir(*args, **kwargs)
 
@@ -49,9 +51,11 @@ def mkdirs(path, mode):
     :type mode: int
     """
     import warnings
+
     warnings.warn(
         f"This function is deprecated. Please use `pathlib.Path({path}).mkdir`",
-        DeprecationWarning, stacklevel=2
+        DeprecationWarning,
+        stacklevel=2,
     )
     Path(path).mkdir(mode=mode, parents=True, exist_ok=True)
 
@@ -85,9 +89,7 @@ def open_maybe_zipped(fileloc, mode='r'):
         return open(fileloc, mode=mode)
 
 
-def find_path_from_directory(
-        base_dir_path: str,
-        ignore_file_name: str) -> Generator[str, None, None]:
+def find_path_from_directory(base_dir_path: str, ignore_file_name: str) -> Generator[str, None, None]:
     """
     Search the file and return the path of the file that should not be ignored.
     :param base_dir_path: the base path to be searched for.
@@ -102,7 +104,7 @@ def find_path_from_directory(
 
         ignore_file_path = os.path.join(root, ignore_file_name)
         if os.path.isfile(ignore_file_path):
-            with open(ignore_file_path, 'r') as file:
+            with open(ignore_file_path) as file:
                 lines_no_comments = [re.sub(r"\s*#.*", "", line) for line in file.read().split("\n")]
                 patterns += [re.compile(line) for line in lines_no_comments if line]
                 patterns = list(set(patterns))
@@ -110,26 +112,29 @@ def find_path_from_directory(
         dirs[:] = [
             subdir
             for subdir in dirs
-            if not any(p.search(
-                os.path.join(os.path.relpath(root, str(base_dir_path)), subdir)) for p in patterns)
+            if not any(
+                p.search(os.path.join(os.path.relpath(root, str(base_dir_path)), subdir)) for p in patterns
+            )
         ]
 
-        patterns_by_dir = {os.path.join(root, sd): patterns.copy() for sd in dirs}
+        patterns_by_dir.update({os.path.join(root, sd): patterns.copy() for sd in dirs})
 
         for file in files:  # type: ignore
             if file == ignore_file_name:
                 continue
-            file_path = os.path.join(root, str(file))
-            if any(re.findall(p, file_path) for p in patterns):
+            abs_file_path = os.path.join(root, str(file))
+            rel_file_path = os.path.join(os.path.relpath(root, str(base_dir_path)), str(file))
+            if any(p.search(rel_file_path) for p in patterns):
                 continue
-            yield str(file_path)
+            yield str(abs_file_path)
 
 
-def list_py_file_paths(directory: str,
-                       safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE', fallback=True),
-                       include_examples: Optional[bool] = None,
-                       include_smart_sensor: Optional[bool] =
-                       conf.getboolean('smart_sensor', 'use_smart_sensor')):
+def list_py_file_paths(
+    directory: str,
+    safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE', fallback=True),
+    include_examples: Optional[bool] = None,
+    include_smart_sensor: Optional[bool] = conf.getboolean('smart_sensor', 'use_smart_sensor'),
+):
     """
     Traverse a directory and look for Python files.
 
@@ -158,10 +163,12 @@ def list_py_file_paths(directory: str,
         find_dag_file_paths(directory, file_paths, safe_mode)
     if include_examples:
         from airflow import example_dags
+
         example_dag_folder = example_dags.__path__[0]  # type: ignore
         file_paths.extend(list_py_file_paths(example_dag_folder, safe_mode, False, False))
     if include_smart_sensor:
         from airflow import smart_sensor_dags
+
         smart_sensor_dag_folder = smart_sensor_dags.__path__[0]  # type: ignore
         file_paths.extend(list_py_file_paths(smart_sensor_dag_folder, safe_mode, False, False))
     return file_paths
@@ -169,8 +176,7 @@ def list_py_file_paths(directory: str,
 
 def find_dag_file_paths(directory: str, file_paths: list, safe_mode: bool):
     """Finds file paths of all DAG files."""
-    for file_path in find_path_from_directory(
-            directory, ".airflowignore"):
+    for file_path in find_path_from_directory(directory, ".airflowignore"):
         try:
             if not os.path.isfile(file_path):
                 continue
@@ -207,4 +213,5 @@ def might_contain_dag(file_path: str, safe_mode: bool, zip_file: Optional[zipfil
             return True
         with open(file_path, 'rb') as dag_file:
             content = dag_file.read()
-    return all(s in content for s in (b'DAG', b'airflow'))
+    content = content.lower()
+    return all(s in content for s in (b'dag', b'airflow'))

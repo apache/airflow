@@ -31,7 +31,7 @@ class timeout(LoggingMixin):  # pylint: disable=invalid-name
         self.seconds = seconds
         self.error_message = error_message + ', PID: ' + str(os.getpid())
 
-    def handle_timeout(self, signum, frame):    # pylint: disable=unused-argument
+    def handle_timeout(self, signum, frame):  # pylint: disable=unused-argument
         """Logs information and raises AirflowTaskTimeout."""
         self.log.error("Process timed out, PID: %s", str(os.getpid()))
         raise AirflowTaskTimeout(self.error_message)
@@ -39,14 +39,14 @@ class timeout(LoggingMixin):  # pylint: disable=invalid-name
     def __enter__(self):
         try:
             signal.signal(signal.SIGALRM, self.handle_timeout)
-            signal.alarm(self.seconds)
+            signal.setitimer(signal.ITIMER_REAL, self.seconds)
         except ValueError as e:
             self.log.warning("timeout can't be used in the current context")
             self.log.exception(e)
 
     def __exit__(self, type_, value, traceback):
         try:
-            signal.alarm(0)
+            signal.setitimer(signal.ITIMER_REAL, 0)
         except ValueError as e:
             self.log.warning("timeout can't be used in the current context")
             self.log.exception(e)

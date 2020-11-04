@@ -101,7 +101,7 @@ class TestSecurity(unittest.TestCase):
             fab_utils.delete_role(cls.app, role_name)
 
     def expect_user_is_in_role(self, user, rolename):
-        self.security_manager.init_role(rolename, [], [])
+        self.security_manager.init_role(rolename, [])
         role = self.security_manager.find_role(rolename)
         if not role:
             self.security_manager.add_role(rolename)
@@ -113,14 +113,14 @@ class TestSecurity(unittest.TestCase):
         for perm in perms:
             self.assertTrue(
                 self._has_dag_perm(perm, dag_id, user),
-                "User should have '{}' on DAG '{}'".format(perm, dag_id),
+                f"User should have '{perm}' on DAG '{dag_id}'",
             )
 
     def assert_user_does_not_have_dag_perms(self, dag_id, perms, user=None):
         for perm in perms:
             self.assertFalse(
                 self._has_dag_perm(perm, dag_id, user),
-                "User should not have '{}' on DAG '{}'".format(perm, dag_id),
+                f"User should not have '{perm}' on DAG '{dag_id}'",
             )
 
     def _has_dag_perm(self, perm, dag_id, user):
@@ -138,9 +138,8 @@ class TestSecurity(unittest.TestCase):
 
     def test_init_role_baseview(self):
         role_name = 'MyRole3'
-        role_perms = ['can_some_action']
-        role_vms = ['SomeBaseView']
-        self.security_manager.init_role(role_name, role_vms, role_perms)
+        role_perms = [('can_some_action', 'SomeBaseView')]
+        self.security_manager.init_role(role_name, perms=role_perms)
         role = self.appbuilder.sm.find_role(role_name)
         self.assertIsNotNone(role)
         self.assertEqual(len(role_perms), len(role.permissions))
@@ -148,28 +147,27 @@ class TestSecurity(unittest.TestCase):
     def test_init_role_modelview(self):
         role_name = 'MyRole2'
         role_perms = [
-            'can_list',
-            'can_show',
-            'can_add',
-            permissions.ACTION_CAN_EDIT,
-            permissions.ACTION_CAN_DELETE,
+            ('can_list', 'SomeModelView'),
+            ('can_show', 'SomeModelView'),
+            ('can_add', 'SomeModelView'),
+            (permissions.ACTION_CAN_EDIT, 'SomeModelView'),
+            (permissions.ACTION_CAN_DELETE, 'SomeModelView'),
         ]
-        role_vms = ['SomeModelView']
-        self.security_manager.init_role(role_name, role_vms, role_perms)
+        self.security_manager.init_role(role_name, role_perms)
         role = self.appbuilder.sm.find_role(role_name)
         self.assertIsNotNone(role)
         self.assertEqual(len(role_perms), len(role.permissions))
 
     def test_update_and_verify_permission_role(self):
         role_name = 'Test_Role'
-        self.security_manager.init_role(role_name, [], [])
+        self.security_manager.init_role(role_name, [])
         role = self.security_manager.find_role(role_name)
 
         perm = self.security_manager.find_permission_view_menu(permissions.ACTION_CAN_EDIT, 'RoleModelView')
         self.security_manager.add_permission_role(role, perm)
         role_perms_len = len(role.permissions)
 
-        self.security_manager.init_role(role_name, [], [])
+        self.security_manager.init_role(role_name, [])
         new_role_perms_len = len(role.permissions)
 
         self.assertEqual(role_perms_len, new_role_perms_len)
@@ -189,7 +187,14 @@ class TestSecurity(unittest.TestCase):
         username = 'get_all_permissions_views'
 
         with self.app.app_context():
-            user = fab_utils.create_user(self.app, username, role_name, permissions=[(role_perm, role_vm),],)
+            user = fab_utils.create_user(
+                self.app,
+                username,
+                role_name,
+                permissions=[
+                    (role_perm, role_vm),
+                ],
+            )
             role = user.roles[0]
             mock_get_user_roles.return_value = [role]
 
@@ -209,8 +214,8 @@ class TestSecurity(unittest.TestCase):
             username,
             role_name,
             permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             ],
         )
 
@@ -274,15 +279,17 @@ class TestSecurity(unittest.TestCase):
                 username,
                 role_name,
                 permissions=[
-                    (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
-                    (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                    (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+                    (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 ],
             )
             self.assertTrue(
-                self.security_manager.has_access(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS, user)
+                self.security_manager.has_access(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG, user)
             )
             self.assertFalse(
-                self.security_manager.has_access(permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK, user)
+                self.security_manager.has_access(
+                    permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE, user
+                )
             )
 
     def test_access_control_with_invalid_permission(self):
@@ -291,7 +298,11 @@ class TestSecurity(unittest.TestCase):
             'can_eat_pudding',  # clearly not a real permission
         ]
         username = "LaUser"
-        user = fab_utils.create_user(self.app, username=username, role_name='team-a',)
+        user = fab_utils.create_user(
+            self.app,
+            username=username,
+            role_name='team-a',
+        )
         for permission in invalid_permissions:
             self.expect_user_is_in_role(user, rolename='team-a')
             with self.assertRaises(AirflowException) as context:
@@ -304,7 +315,12 @@ class TestSecurity(unittest.TestCase):
         username = 'access_control_is_set_on_init'
         role_name = 'team-a'
         with self.app.app_context():
-            user = fab_utils.create_user(self.app, username, role_name, permissions=[],)
+            user = fab_utils.create_user(
+                self.app,
+                username,
+                role_name,
+                permissions=[],
+            )
             self.expect_user_is_in_role(user, rolename='team-a')
             self.security_manager.sync_perm_for_dag(
                 'access_control_test',
@@ -327,7 +343,12 @@ class TestSecurity(unittest.TestCase):
         username = 'access_control_stale_perms_are_revoked'
         role_name = 'team-a'
         with self.app.app_context():
-            user = fab_utils.create_user(self.app, username, role_name, permissions=[],)
+            user = fab_utils.create_user(
+                self.app,
+                username,
+                role_name,
+                permissions=[],
+            )
             self.expect_user_is_in_role(user, rolename='team-a')
             self.security_manager.sync_perm_for_dag(
                 'access_control_test', access_control={'team-a': READ_WRITE}

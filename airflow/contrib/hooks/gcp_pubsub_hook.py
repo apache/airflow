@@ -24,5 +24,6 @@ from airflow.providers.google.cloud.hooks.pubsub import PubSubException, PubSubH
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.pubsub`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

@@ -87,7 +87,7 @@ For example, to print the ``example_complex`` DAG to the terminal:
 
 .. code-block:: bash
 
-  airflow dag show example_complex
+  airflow dags show example_complex
 
 This will print the rendered DAG structure (similar to :ref:`Graph View <ui:graph-view>`) to the screen in DOT format.
 
@@ -167,7 +167,7 @@ want to display ``example_bash_operator`` DAG  then you can use the following co
 
 .. code-block:: bash
 
-  airflow dag show example_bash_operator --imgcat
+  airflow dags show example_bash_operator --imgcat
 
 You will see a similar result as in the screenshot below.
 

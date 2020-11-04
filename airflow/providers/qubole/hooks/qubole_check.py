@@ -18,7 +18,7 @@
 #
 import logging
 from io import StringIO
-from typing import List, Union, Optional
+from typing import List, Optional, Union
 
 from qds_sdk.commands import Command
 

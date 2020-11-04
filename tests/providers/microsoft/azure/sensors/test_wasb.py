@@ -19,7 +19,6 @@
 
 import datetime
 import unittest
-
 from unittest import mock
 
 from airflow.models.dag import DAG

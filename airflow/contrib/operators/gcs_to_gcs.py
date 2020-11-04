@@ -23,7 +23,8 @@ from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.transfers.gcs_to_gcs`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 
@@ -37,6 +38,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(GCSToGCSOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSToGCSOperator`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)

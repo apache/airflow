@@ -28,10 +28,7 @@ from airflow.operators.python import BranchPythonOperator
 from airflow.utils.dates import days_ago
 
 with DAG(
-    dag_id="example_nested_branch_dag",
-    start_date=days_ago(2),
-    schedule_interval="@daily",
-    tags=["example"]
+    dag_id="example_nested_branch_dag", start_date=days_ago(2), schedule_interval="@daily", tags=["example"]
 ) as dag:
     branch_1 = BranchPythonOperator(task_id="branch_1", python_callable=lambda: "true_1")
     join_1 = DummyOperator(task_id="join_1", trigger_rule="none_failed_or_skipped")

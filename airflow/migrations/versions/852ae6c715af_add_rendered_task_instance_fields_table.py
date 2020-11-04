@@ -55,10 +55,10 @@ def upgrade():
         sa.Column('task_id', sa.String(length=250), nullable=False),
         sa.Column('execution_date', sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column('rendered_fields', json_type(), nullable=False),
-        sa.PrimaryKeyConstraint('dag_id', 'task_id', 'execution_date')
+        sa.PrimaryKeyConstraint('dag_id', 'task_id', 'execution_date'),
     )
 
 
 def downgrade():
     """Drop RenderedTaskInstanceFields table"""
-    op.drop_table(TABLE_NAME)   # pylint: disable=no-member
+    op.drop_table(TABLE_NAME)  # pylint: disable=no-member

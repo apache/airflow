@@ -20,7 +20,6 @@
 
 
 class FakeTI:
-
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
 
@@ -32,13 +31,11 @@ class FakeTI:
 
 
 class FakeTask:
-
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
 
 
 class FakeDag:
-
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
 
@@ -47,6 +44,5 @@ class FakeDag:
 
 
 class FakeContext:
-
     def __init__(self, **kwds):
         self.__dict__.update(kwds)

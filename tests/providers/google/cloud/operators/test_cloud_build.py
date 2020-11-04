@@ -20,9 +20,8 @@
 import tempfile
 from copy import deepcopy
 from datetime import datetime
-from unittest import TestCase
+from unittest import TestCase, mock
 
-from unittest import mock
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException

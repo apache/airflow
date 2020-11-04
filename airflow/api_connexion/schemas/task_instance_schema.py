@@ -15,14 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import List, NamedTuple, Tuple, Optional
+from typing import List, NamedTuple, Optional, Tuple
 
-from marshmallow import Schema, fields, ValidationError, validates_schema, validate
+from marshmallow import Schema, ValidationError, fields, validate, validates_schema
 from marshmallow.utils import get_value
 
 from airflow.api_connexion.schemas.enum_schemas import TaskInstanceStateField
 from airflow.api_connexion.schemas.sla_miss_schema import SlaMissSchema
-from airflow.models import TaskInstance, SlaMiss
+from airflow.models import SlaMiss, TaskInstance
 from airflow.utils.state import State
 
 

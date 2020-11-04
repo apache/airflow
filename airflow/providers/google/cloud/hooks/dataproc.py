@@ -24,6 +24,7 @@ import warnings
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 from cached_property import cached_property
+from google.api_core.exceptions import ServerError
 from google.api_core.retry import Retry
 from google.cloud.dataproc_v1beta2 import (  # pylint: disable=no-name-in-module
     ClusterControllerClient,
@@ -211,9 +212,7 @@ class DataprocHook(GoogleBaseHook):
 
     def get_cluster_client(self, location: Optional[str] = None) -> ClusterControllerClient:
         """Returns ClusterControllerClient."""
-        client_options = (
-            {'api_endpoint': '{}-dataproc.googleapis.com:443'.format(location)} if location else None
-        )
+        client_options = {'api_endpoint': f'{location}-dataproc.googleapis.com:443'} if location else None
 
         return ClusterControllerClient(
             credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
@@ -228,9 +227,7 @@ class DataprocHook(GoogleBaseHook):
 
     def get_job_client(self, location: Optional[str] = None) -> JobControllerClient:
         """Returns JobControllerClient."""
-        client_options = (
-            {'api_endpoint': '{}-dataproc.googleapis.com:443'.format(location)} if location else None
-        )
+        client_options = {'api_endpoint': f'{location}-dataproc.googleapis.com:443'} if location else None
 
         return JobControllerClient(
             credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
@@ -526,7 +523,7 @@ class DataprocHook(GoogleBaseHook):
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.cloud.dataproc_v1.types.FieldMask`
         :type update_mask: Union[Dict, google.cloud.dataproc_v1.types.FieldMask]
-        :param graceful_decommission_timeout: Optional. Timeout for graceful YARN decomissioning. Graceful
+        :param graceful_decommission_timeout: Optional. Timeout for graceful YARN decommissioning. Graceful
             decommissioning allows removing nodes from the cluster without interrupting jobs in progress.
             Timeout specifies how long to wait for jobs in progress to finish before forcefully removing nodes
             (and potentially interrupting jobs). Default timeout is 0 (for forceful decommission), and the
@@ -704,7 +701,9 @@ class DataprocHook(GoogleBaseHook):
         return operation
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def wait_for_job(self, job_id: str, location: str, project_id: str, wait_time: int = 10) -> None:
+    def wait_for_job(
+        self, job_id: str, location: str, project_id: str, wait_time: int = 10, timeout: Optional[int] = None
+    ) -> None:
         """
         Helper method which polls a job to check if it finishes.
 
@@ -716,16 +715,25 @@ class DataprocHook(GoogleBaseHook):
         :type location: str
         :param wait_time: Number of seconds between checks
         :type wait_time: int
+        :param timeout: How many seconds wait for job to be ready. Used only if ``asynchronous`` is False
+        :type timeout: int
         """
         state = None
+        start = time.monotonic()
         while state not in (JobStatus.ERROR, JobStatus.DONE, JobStatus.CANCELLED):
+            if timeout and start + timeout < time.monotonic():
+                raise AirflowException(f"Timeout: dataproc job {job_id} is not ready after {timeout}s")
             time.sleep(wait_time)
-            job = self.get_job(location=location, job_id=job_id, project_id=project_id)
-            state = job.status.state
+            try:
+                job = self.get_job(location=location, job_id=job_id, project_id=project_id)
+                state = job.status.state
+            except ServerError as err:
+                self.log.info("Retrying. Dataproc API returned server error when waiting for job: %s", err)
+
         if state == JobStatus.ERROR:
-            raise AirflowException('Job failed:\n{}'.format(job))
+            raise AirflowException(f'Job failed:\n{job}')
         if state == JobStatus.CANCELLED:
-            raise AirflowException('Job was cancelled:\n{}'.format(job))
+            raise AirflowException(f'Job was cancelled:\n{job}')
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_job(

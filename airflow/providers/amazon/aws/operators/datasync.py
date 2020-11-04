@@ -19,7 +19,7 @@
 
 import logging
 import random
-from typing import Optional, List
+from typing import List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -158,7 +158,7 @@ class AWSDataSyncOperator(BaseOperator):
         if not valid:
             raise AirflowException(
                 "Either specify task_arn or both source_location_uri and destination_location_uri. "
-                "task_arn={0} source_location_uri={1} destination_location_uri={2}".format(
+                "task_arn={} source_location_uri={} destination_location_uri={}".format(
                     task_arn, source_location_uri, destination_location_uri
                 )
             )
@@ -199,7 +199,7 @@ class AWSDataSyncOperator(BaseOperator):
         if self.candidate_task_arns:
             self.task_arn = self.choose_task(self.candidate_task_arns)
 
-        # If we couldnt find one then try create one
+        # If we could not find one then try to create one
         if not self.task_arn and self.create_task_kwargs:
             self._create_datasync_task()
 
@@ -259,7 +259,7 @@ class AWSDataSyncOperator(BaseOperator):
             # from AWS and might lead to confusion. Rather explicitly
             # choose a random one
             return random.choice(task_arn_list)
-        raise AirflowException("Unable to choose a Task from {}".format(task_arn_list))
+        raise AirflowException(f"Unable to choose a Task from {task_arn_list}")
 
     def choose_location(self, location_arn_list: List[str]) -> Optional[str]:
         """Select 1 DataSync LocationArn from a list"""
@@ -273,7 +273,7 @@ class AWSDataSyncOperator(BaseOperator):
             # from AWS and might lead to confusion. Rather explicitly
             # choose a random one
             return random.choice(location_arn_list)
-        raise AirflowException("Unable to choose a Location from {}".format(location_arn_list))
+        raise AirflowException(f"Unable to choose a Location from {location_arn_list}")
 
     def _create_datasync_task(self) -> None:
         """Create a AWS DataSyncTask."""

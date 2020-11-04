@@ -16,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Optional, List
+from typing import List, Optional
 
-from azure.storage.file import FileService, File
+from azure.storage.file import File, FileService
 
 from airflow.hooks.base_hook import BaseHook
 

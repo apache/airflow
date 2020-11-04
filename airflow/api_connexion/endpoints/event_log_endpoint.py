@@ -31,7 +31,7 @@ from airflow.security import permissions
 from airflow.utils.session import provide_session
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG)])
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG)])
 @provide_session
 def get_event_log(event_log_id, session):
     """Get a log entry"""
@@ -41,7 +41,7 @@ def get_event_log(event_log_id, session):
     return event_log_schema.dump(event_log)
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_LOG)])
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG)])
 @format_parameters({'limit': check_limit})
 @provide_session
 def get_event_logs(session, limit, offset=None):

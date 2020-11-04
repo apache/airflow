@@ -30,27 +30,66 @@
 #
 declare -a pattern_array
 
-function output_all_basic_variables() {
-    initialization::ga_output python-versions \
-        "$(initialization::parameters_to_json "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
-    initialization::ga_output default-python-version "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
-    initialization::ga_output all-python-versions \
-        "$(initialization::parameters_to_json "${ALL_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
+if [[ ${PR_LABELS=} == *"full tests needed"* ]]; then
+    echo
+    echo "Found the right PR labels in '${PR_LABELS=}': 'full tests needed''"
+    echo
+    FULL_TESTS_NEEDED="true"
+else
+    echo
+    echo "Did not find the right PR labels in '${PR_LABELS=}': 'full tests needed'"
+    echo
+    FULL_TESTS_NEEDED="false"
+fi
 
-    initialization::ga_output kubernetes-versions \
-        "$(initialization::parameters_to_json "${CURRENT_KUBERNETES_VERSIONS[@]}")"
+function output_all_basic_variables() {
+    if [[ ${FULL_TESTS_NEEDED} == "true" ]]; then
+        initialization::ga_output python-versions \
+            "$(initialization::parameters_to_json "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
+        initialization::ga_output all-python-versions \
+            "$(initialization::parameters_to_json "${ALL_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
+        initialization::ga_output python-versions-list-as-string "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[*]}"
+    else
+        initialization::ga_output python-versions \
+            "$(initialization::parameters_to_json "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}")"
+        # this will work as long as DEFAULT_PYTHON_MAJOR_VERSION is the same master/v1-10
+        # all-python-versions are used in BuildImage Workflow
+        initialization::ga_output all-python-versions \
+            "$(initialization::parameters_to_json "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}")"
+        initialization::ga_output python-versions-list-as-string "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
+    fi
+    initialization::ga_output default-python-version "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
+
+    if [[ ${FULL_TESTS_NEEDED} == "true" ]]; then
+        initialization::ga_output kubernetes-versions \
+            "$(initialization::parameters_to_json "${CURRENT_KUBERNETES_VERSIONS[@]}")"
+    else
+        initialization::ga_output kubernetes-versions \
+            "$(initialization::parameters_to_json "${KUBERNETES_VERSION}")"
+    fi
     initialization::ga_output default-kubernetes-version "${KUBERNETES_VERSION}"
 
     initialization::ga_output kubernetes-modes \
         "$(initialization::parameters_to_json "${CURRENT_KUBERNETES_MODES[@]}")"
     initialization::ga_output default-kubernetes-mode "${KUBERNETES_MODE}"
 
-    initialization::ga_output postgres-versions \
-        "$(initialization::parameters_to_json "${CURRENT_POSTGRES_VERSIONS[@]}")"
+    if [[ ${FULL_TESTS_NEEDED} == "true" ]]; then
+        initialization::ga_output postgres-versions \
+            "$(initialization::parameters_to_json "${CURRENT_POSTGRES_VERSIONS[@]}")"
+    else
+        initialization::ga_output postgres-versions \
+            "$(initialization::parameters_to_json "${POSTGRES_VERSION}")"
+    fi
     initialization::ga_output default-postgres-version "${POSTGRES_VERSION}"
 
-    initialization::ga_output mysql-versions \
-        "$(initialization::parameters_to_json "${CURRENT_MYSQL_VERSIONS[@]}")"
+    if [[ ${FULL_TESTS_NEEDED} == "true" ]]; then
+        initialization::ga_output mysql-versions \
+            "$(initialization::parameters_to_json "${CURRENT_MYSQL_VERSIONS[@]}")"
+    else
+        initialization::ga_output mysql-versions \
+            "$(initialization::parameters_to_json "${MYSQL_VERSION}")"
+    fi
+
     initialization::ga_output default-mysql-version "${MYSQL_VERSION}"
 
     initialization::ga_output kind-versions \
@@ -61,11 +100,15 @@ function output_all_basic_variables() {
         "$(initialization::parameters_to_json "${CURRENT_HELM_VERSIONS[@]}")"
     initialization::ga_output default-helm-version "${HELM_VERSION}"
 
-    initialization::ga_output postgres-exclude '[{ "python-version": "3.6" }]'
-
-    initialization::ga_output mysql-exclude '[{ "python-version": "3.7" }]'
-
-    initialization::ga_output sqlite-exclude '[{ "python-version": "3.8" }]'
+    if [[ ${FULL_TESTS_NEEDED} == "true" ]]; then
+        initialization::ga_output postgres-exclude '[{ "python-version": "3.6" }]'
+        initialization::ga_output mysql-exclude '[{ "python-version": "3.7" }]'
+        initialization::ga_output sqlite-exclude '[{ "python-version": "3.8" }]'
+    else
+        initialization::ga_output postgres-exclude '[]'
+        initialization::ga_output mysql-exclude '[]'
+        initialization::ga_output sqlite-exclude '[]'
+    fi
 
     initialization::ga_output kubernetes-exclude '[]'
 }
@@ -96,7 +139,6 @@ function get_changed_files() {
     readonly CHANGED_FILES
 }
 
-
 function run_tests() {
     initialization::ga_output run-tests "${@}"
 }
@@ -121,16 +163,23 @@ function needs_python_scans() {
     initialization::ga_output needs-python-scans "${@}"
 }
 
-
 function set_test_types() {
     initialization::ga_output test-types "${@}"
+}
+
+function set_docs_build() {
+    initialization::ga_output docs-build "${@}"
+}
+
+function set_image_build() {
+    initialization::ga_output image-build "${@}"
 }
 
 function set_basic_checks_only() {
     initialization::ga_output basic-checks-only "${@}"
 }
 
-ALL_TESTS="Core Other API CLI Providers WWW Integration Heisentests"
+ALL_TESTS="Always Core Other API CLI Providers WWW Integration Heisentests"
 readonly ALL_TESTS
 
 function set_outputs_run_everything_and_exit() {
@@ -142,6 +191,8 @@ function set_outputs_run_everything_and_exit() {
     run_kubernetes_tests "true"
     set_test_types "${ALL_TESTS}"
     set_basic_checks_only "false"
+    set_docs_build "true"
+    set_image_build "true"
     exit
 }
 
@@ -150,9 +201,10 @@ function set_outputs_run_all_tests() {
     run_kubernetes_tests "true"
     set_test_types "${ALL_TESTS}"
     set_basic_checks_only "false"
+    set_image_build "true"
 }
 
-function set_output_skip_all_tests_and_exit() {
+function set_output_skip_all_tests_and_docs_and_exit() {
     needs_api_tests "false"
     needs_helm_tests "false"
     needs_javascript_scans "false"
@@ -161,6 +213,22 @@ function set_output_skip_all_tests_and_exit() {
     run_kubernetes_tests "false"
     set_test_types ""
     set_basic_checks_only "true"
+    set_docs_build "false"
+    set_image_build "false"
+    exit
+}
+
+function set_output_skip_tests_but_build_images_and_exit() {
+    needs_api_tests "false"
+    needs_helm_tests "false"
+    needs_javascript_scans "false"
+    needs_python_scans "false"
+    run_tests "false"
+    run_kubernetes_tests "false"
+    set_test_types ""
+    set_basic_checks_only "true"
+    set_docs_build "true"
+    set_image_build "true"
     exit
 }
 
@@ -228,7 +296,6 @@ function check_if_javascript_security_scans_should_be_run() {
     fi
 }
 
-
 function check_if_api_tests_should_be_run() {
     local pattern_array=(
         "^airflow/api"
@@ -257,7 +324,7 @@ function check_if_helm_tests_should_be_run() {
 
 function check_if_docs_should_be_generated() {
     local pattern_array=(
-        "^docs$"
+        "^docs"
         "^airflow/.*\.py$"
         "^CHANGELOG\.txt"
     )
@@ -267,14 +334,15 @@ function check_if_docs_should_be_generated() {
         echo "None of the docs changed"
     else
         image_build_needed="true"
+        docs_build_needed="true"
     fi
 }
 
 AIRFLOW_SOURCES_TRIGGERING_TESTS=(
-        "^airflow"
-        "^chart"
-        "^tests"
-        "^kubernetes_tests"
+    "^airflow"
+    "^chart"
+    "^tests"
+    "^kubernetes_tests"
 )
 readonly AIRFLOW_SOURCES_TRIGGERING_TESTS
 
@@ -283,8 +351,13 @@ function check_if_tests_are_needed_at_all() {
     show_changed_files
 
     if [[ $(count_changed_files) == "0" ]]; then
-        echo "None of the important files changed, Skipping tests"
-        set_output_skip_all_tests_and_exit
+        if [[ ${image_build_needed} == "true" ]]; then
+            echo "No tests needed, Skipping tests but building images."
+            set_output_skip_tests_but_build_images_and_exit
+        else
+            echo "None of the important files changed, Skipping tests"
+            set_output_skip_all_tests_and_docs_and_exit
+        fi
     else
         image_build_needed="true"
         tests_needed="true"
@@ -437,20 +510,26 @@ function calculate_test_types_to_run() {
             echo
             SELECTED_TESTS="${SELECTED_TESTS} WWW"
         fi
-        initialization::ga_output test-types "Integration Heisentests ${SELECTED_TESTS}"
+        initialization::ga_output test-types "Always Integration Heisentests ${SELECTED_TESTS}"
     fi
 }
 
-output_all_basic_variables
-
 if (($# < 1)); then
     echo
-    echo "No Commit SHA - running all tests!"
+    echo "No Commit SHA - running all tests (likely direct master merge, or scheduled run)!"
     echo
+    # override FULL_TESTS_NEEDED in master/scheduled run
+    FULL_TESTS_NEEDED="true"
+    readonly FULL_TESTS_NEEDED
+    output_all_basic_variables
     set_outputs_run_everything_and_exit
 fi
 
+readonly FULL_TESTS_NEEDED
+output_all_basic_variables
+
 image_build_needed="false"
+docs_build_needed="false"
 tests_needed="false"
 kubernetes_tests_needed="false"
 
@@ -459,9 +538,9 @@ run_all_tests_if_environment_files_changed
 check_if_docs_should_be_generated
 check_if_helm_tests_should_be_run
 check_if_api_tests_should_be_run
-check_if_tests_are_needed_at_all
 check_if_javascript_security_scans_should_be_run
 check_if_python_security_scans_should_be_run
+check_if_tests_are_needed_at_all
 get_count_all_files
 get_count_api_files
 get_count_cli_files
@@ -470,20 +549,12 @@ get_count_www_files
 get_count_kubernetes_files
 calculate_test_types_to_run
 
+set_image_build "${image_build_needed}"
 if [[ ${image_build_needed} == "true" ]]; then
     set_basic_checks_only "false"
 else
     set_basic_checks_only "true"
 fi
-
-if [[ ${tests_needed} == "true" ]]; then
-    run_tests "true"
-else
-    run_tests "false"
-fi
-
-if [[ ${kubernetes_tests_needed} == "true" ]]; then
-    run_kubernetes_tests "true"
-else
-    run_kubernetes_tests "false"
-fi
+set_docs_build "${docs_build_needed}"
+run_tests "${tests_needed}"
+run_kubernetes_tests "${kubernetes_tests_needed}"

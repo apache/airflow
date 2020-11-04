@@ -50,9 +50,7 @@ class RenderedTaskInstanceFields(Base):
         if render_templates:
             ti.render_templates()
         self.rendered_fields = {
-            field: serialize_template_field(
-                getattr(self.task, field)
-            ) for field in self.task.template_fields
+            field: serialize_template_field(getattr(self.task, field)) for field in self.task.template_fields
         }
 
     def __repr__(self):
@@ -69,11 +67,13 @@ class RenderedTaskInstanceFields(Base):
         :param session: SqlAlchemy Session
         :return: Rendered Templated TI field
         """
-        result = session.query(cls.rendered_fields).filter(
-            cls.dag_id == ti.dag_id,
-            cls.task_id == ti.task_id,
-            cls.execution_date == ti.execution_date
-        ).one_or_none()
+        result = (
+            session.query(cls.rendered_fields)
+            .filter(
+                cls.dag_id == ti.dag_id, cls.task_id == ti.task_id, cls.execution_date == ti.execution_date
+            )
+            .one_or_none()
+        )
 
         if result:
             rendered_fields = result.rendered_fields
@@ -92,9 +92,11 @@ class RenderedTaskInstanceFields(Base):
     @classmethod
     @provide_session
     def delete_old_records(
-        cls, task_id: str, dag_id: str,
+        cls,
+        task_id: str,
+        dag_id: str,
         num_to_keep=conf.getint("core", "max_num_rendered_ti_fields_per_task", fallback=0),
-        session: Session = None
+        session: Session = None,
     ):
         """
         Keep only Last X (num_to_keep) number of records for a task by deleting others
@@ -107,22 +109,22 @@ class RenderedTaskInstanceFields(Base):
         if num_to_keep <= 0:
             return
 
-        tis_to_keep_query = session \
-            .query(cls.dag_id, cls.task_id, cls.execution_date) \
-            .filter(cls.dag_id == dag_id, cls.task_id == task_id) \
-            .order_by(cls.execution_date.desc()) \
+        tis_to_keep_query = (
+            session.query(cls.dag_id, cls.task_id, cls.execution_date)
+            .filter(cls.dag_id == dag_id, cls.task_id == task_id)
+            .order_by(cls.execution_date.desc())
             .limit(num_to_keep)
+        )
 
         if session.bind.dialect.name in ["postgresql", "sqlite"]:
             # Fetch Top X records given dag_id & task_id ordered by Execution Date
             subq1 = tis_to_keep_query.subquery('subq1')
 
-            session.query(cls) \
-                .filter(
-                    cls.dag_id == dag_id,
-                    cls.task_id == task_id,
-                    tuple_(cls.dag_id, cls.task_id, cls.execution_date).notin_(subq1)) \
-                .delete(synchronize_session=False)
+            session.query(cls).filter(
+                cls.dag_id == dag_id,
+                cls.task_id == task_id,
+                tuple_(cls.dag_id, cls.task_id, cls.execution_date).notin_(subq1),
+            ).delete(synchronize_session=False)
         elif session.bind.dialect.name in ["mysql"]:
             # Fetch Top X records given dag_id & task_id ordered by Execution Date
             subq1 = tis_to_keep_query.subquery('subq1')
@@ -131,28 +133,26 @@ class RenderedTaskInstanceFields(Base):
             # Workaround for MySQL Limitation (https://stackoverflow.com/a/19344141/5691525)
             # Limitation: This version of MySQL does not yet support
             # LIMIT & IN/ALL/ANY/SOME subquery
-            subq2 = (
-                session
-                .query(subq1.c.dag_id, subq1.c.task_id, subq1.c.execution_date)
-                .subquery('subq2')
-            )
+            subq2 = session.query(subq1.c.dag_id, subq1.c.task_id, subq1.c.execution_date).subquery('subq2')
 
-            session.query(cls) \
-                .filter(
-                    cls.dag_id == dag_id,
-                    cls.task_id == task_id,
-                    tuple_(cls.dag_id, cls.task_id, cls.execution_date).notin_(subq2)) \
-                .delete(synchronize_session=False)
+            session.query(cls).filter(
+                cls.dag_id == dag_id,
+                cls.task_id == task_id,
+                tuple_(cls.dag_id, cls.task_id, cls.execution_date).notin_(subq2),
+            ).delete(synchronize_session=False)
         else:
             # Fetch Top X records given dag_id & task_id ordered by Execution Date
             tis_to_keep = tis_to_keep_query.all()
 
-            filter_tis = [not_(and_(
-                cls.dag_id == ti.dag_id,
-                cls.task_id == ti.task_id,
-                cls.execution_date == ti.execution_date
-            )) for ti in tis_to_keep]
+            filter_tis = [
+                not_(
+                    and_(
+                        cls.dag_id == ti.dag_id,
+                        cls.task_id == ti.task_id,
+                        cls.execution_date == ti.execution_date,
+                    )
+                )
+                for ti in tis_to_keep
+            ]
 
-            session.query(cls) \
-                .filter(and_(*filter_tis)) \
-                .delete(synchronize_session=False)
+            session.query(cls).filter(and_(*filter_tis)).delete(synchronize_session=False)

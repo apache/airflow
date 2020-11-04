@@ -64,7 +64,6 @@ class TestWorkerPrecheck(unittest.TestCase):
 @pytest.mark.integration("rabbitmq")
 @pytest.mark.backend("mysql", "postgres")
 class TestWorkerServeLogs(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         cls.parser = cli_parser.get_parser()
@@ -123,10 +122,7 @@ class TestCeleryStopCommand(unittest.TestCase):
     @mock.patch("airflow.cli.commands.celery_command.setup_locations")
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_same_pid_file_is_used_in_start_and_stop(
-        self,
-        mock_setup_locations,
-        mock_celery_worker,
-        mock_read_pid_from_pidfile
+        self, mock_setup_locations, mock_celery_worker, mock_read_pid_from_pidfile
     ):
         pid_file = "test_pid_file"
         mock_setup_locations.return_value = (pid_file, None, None, None)
@@ -164,18 +160,20 @@ class TestWorkerStart(unittest.TestCase):
         celery_hostname = "celery_hostname"
         queues = "queue"
         autoscale = "2,5"
-        args = self.parser.parse_args([
-            'celery',
-            'worker',
-            '--autoscale',
-            autoscale,
-            '--concurrency',
-            concurrency,
-            '--celery-hostname',
-            celery_hostname,
-            '--queues',
-            queues
-        ])
+        args = self.parser.parse_args(
+            [
+                'celery',
+                'worker',
+                '--autoscale',
+                autoscale,
+                '--concurrency',
+                concurrency,
+                '--celery-hostname',
+                celery_hostname,
+                '--queues',
+                queues,
+            ]
+        )
 
         with mock.patch('celery.platforms.check_privileges') as mock_privil:
             mock_privil.return_value = 0

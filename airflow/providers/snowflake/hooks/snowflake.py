@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, Optional, Tuple, Any
+from typing import Any, Dict, Optional, Tuple
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -135,3 +135,7 @@ class SnowflakeHook(DbApiHook):
 
     def set_autocommit(self, conn, autocommit: Any) -> None:
         conn.autocommit(autocommit)
+        conn.autocommit_mode = autocommit
+
+    def get_autocommit(self, conn):
+        return getattr(conn, 'autocommit_mode', False)

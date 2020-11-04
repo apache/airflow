@@ -127,7 +127,7 @@ class DockerSwarmOperator(DockerOperator):
                 resources=types.Resources(mem_limit=self.mem_limit),
             ),
             name='airflow-%s' % get_random_string(),
-            labels={'name': 'airflow__%s__%s' % (self.dag_id, self.task_id)},
+            labels={'name': f'airflow__{self.dag_id}__{self.task_id}'},
         )
 
         self.log.info('Service started: %s', str(self.service))

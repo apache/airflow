@@ -2025,7 +2025,7 @@ class BigQueryInsertJobOperator(BaseOperator):
     def prepare_template(self) -> None:
         # If .json is passed then we have to read the file
         if isinstance(self.configuration, str) and self.configuration.endswith('.json'):
-            with open(self.configuration, 'r') as file:
+            with open(self.configuration) as file:
                 self.configuration = json.loads(file.read())
 
     def _submit_job(
@@ -2062,7 +2062,7 @@ class BigQueryInsertJobOperator(BaseOperator):
 
         exec_date = context['execution_date'].isoformat()
         job_id = f"airflow_{self.dag_id}_{self.task_id}_{exec_date}_{uniqueness_suffix}"
-        return re.sub(r"\:|-|\+\.", "_", job_id)
+        return re.sub(r"[:\-+.]", "_", job_id)
 
     def execute(self, context: Any):
         hook = BigQueryHook(

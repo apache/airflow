@@ -24,5 +24,6 @@ from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook  # 
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.cassandra.hooks.cassandra`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
