@@ -183,7 +183,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
 
     def execute(self, context):
         self.log.info(
-            f'Running ECS Task - Task definition: {self.task_definition} - on cluster {self.cluster}'
+             'Running ECS Task - Task definition: %s - on cluster %s', self.task_definition, self.cluster
         )
         self.log.info('ECSOperator overrides: %s', self.overrides)
 
@@ -204,7 +204,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         if self.do_xcom_push:
             return self._last_log_event()
 
-        return
+        return None
 
     def _start_task(self):
         run_opts = {
@@ -271,10 +271,10 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
 
     def _cloudwatch_log_events(self):
         if not self.awslogs_group:
-            return
+            return None
 
         if not self.awslogs_stream_prefix:
-            return
+            return None
 
         task_id = self.arn.split("/")[-1]
         stream_name = f"{self.awslogs_stream_prefix}/{task_id}"
@@ -284,7 +284,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     def _last_log_event(self):
         log_events = self._cloudwatch_log_events()
         if log_events is None:
-            return
+            return None
 
         return deque(log_events, maxlen=1).pop()["message"]
 
