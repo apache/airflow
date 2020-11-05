@@ -510,9 +510,9 @@ def get_base_pod_from_template(pod_template_file: Optional[str], kube_config: An
     """
     Reads either the pod_template_file set in the executor_config or the base pod_template_file
     set in the airflow.cfg to craft a "base pod" that will be used by the KubernetesExecutor
-    @param pod_template_file: absolute path to a pod_template_file.yaml or None
-    @param kube_config:
-    @return:
+    :param pod_template_file: absolute path to a pod_template_file.yaml or None
+    :param kube_config:
+    :return:
     """
     if pod_template_file:
         return PodGenerator.deserialize_model_file(pod_template_file)
