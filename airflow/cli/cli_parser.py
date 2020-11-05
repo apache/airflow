@@ -1367,7 +1367,7 @@ airflow_commands: List[CLICommand] = [
             '  - SIGUSR2: Dump a snapshot of task state being tracked by the executor.\n'
             '\n'
             '    Example:\n'
-            '        pkill --oldest -f -USR2 "airflow scheduler"'
+            '        pkill -f -USR2 "airflow scheduler"'
         ),
     ),
     ActionCommand(
