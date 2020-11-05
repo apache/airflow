@@ -474,7 +474,6 @@ function get_count_kubernetes_files() {
     echo "Count Kubernetes files"
     echo
     local pattern_array=(
-        "^airflow/executors/kubernetes_executor.py"
         "^chart"
         "^kubernetes_tests"
     )
