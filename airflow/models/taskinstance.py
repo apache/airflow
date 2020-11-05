@@ -1397,7 +1397,13 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         self.log.info('Rescheduling task, marking task as UP_FOR_RESCHEDULE')
 
     @provide_session
-    def handle_failure(self, error, test_mode=None, force_fail: bool = False, session=None) -> None:
+    def handle_failure(
+        self,
+        error: Union[str, Exception],
+        test_mode: Optional[bool] = None,
+        force_fail: bool = False,
+        session=None,
+    ) -> None:
         """Handle Failure for the TaskInstance"""
         if test_mode is None:
             test_mode = self.test_mode
@@ -1461,8 +1467,8 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
     @provide_session
     def handle_failure_with_callback(
         self,
-        error,
-        test_mode=None,
+        error: Union[str, Exception],
+        test_mode: Optional[bool] = None,
         force_fail: bool = False,
         session=None,
     ) -> None:
