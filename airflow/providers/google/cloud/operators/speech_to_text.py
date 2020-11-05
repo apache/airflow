@@ -34,7 +34,7 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudSpeechToTextRecognizeSpeechOperator`
+        :ref:`apache-airflow:howto/operator:CloudSpeechToTextRecognizeSpeechOperator`
 
     :param config: information to the recognizer that specifies how to process the request. See more:
         https://googleapis.github.io/google-cloud-python/latest/speech/gapic/v1/types.html#google.cloud.speech_v1.types.RecognitionConfig

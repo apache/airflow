@@ -35,9 +35,6 @@ def generate_redirects(app):
     in_suffix = next(iter(app.config.source_suffix.keys()))
 
     if not isinstance(app.builder, builders.StandaloneHTMLBuilder):
-        log.warning(
-            f"The plugin supports only 'html' builder, but you are using '{type(app.builder)}'. Skipping..."
-        )
         return
 
     with open(redirect_file_path) as redirects:

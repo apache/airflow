@@ -33,7 +33,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:LocalFilesystemToGCSOperator`
+        :ref:`apache-airflow:howto/operator:LocalFilesystemToGCSOperator`
 
     :param src: Path to the local file, or list of local files. Path can be either absolute
         (e.g. /path/to/file.ext) or relative (e.g. ../../foo/*/*.csv). (templated)

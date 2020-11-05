@@ -28,6 +28,10 @@ class JdbcOperator(BaseOperator):
 
     Requires jaydebeapi.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`apache-airflow:howto/operator:JdbcOperator`
+
     :param sql: the sql code to be executed. (templated)
     :type sql: Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.

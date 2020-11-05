@@ -41,7 +41,7 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudMemorystoreCreateInstanceOperator`
+        :ref:`apache-airflow:howto/operator:CloudMemorystoreCreateInstanceOperator`
 
     :param location: The location of the Cloud Memorystore instance (for example europe-west1)
     :type location: str
@@ -143,7 +143,7 @@ class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudMemorystoreDeleteInstanceOperator`
+        :ref:`apache-airflow:howto/operator:CloudMemorystoreDeleteInstanceOperator`
 
     :param location: The location of the Cloud Memorystore instance (for example europe-west1)
     :type location: str
@@ -230,7 +230,7 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudMemorystoreExportInstanceOperator`
+        :ref:`apache-airflow:howto/operator:CloudMemorystoreExportInstanceOperator`
 
     :param location: The location of the Cloud Memorystore instance (for example europe-west1)
     :type location: str
@@ -325,7 +325,7 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudMemorystoreFailoverInstanceOperator`
+        :ref:`apache-airflow:howto/operator:CloudMemorystoreFailoverInstanceOperator`
 
     :param location: The location of the Cloud Memorystore instance (for example europe-west1)
     :type location: str
@@ -416,7 +416,7 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudMemorystoreGetInstanceOperator`
+        :ref:`apache-airflow:howto/operator:CloudMemorystoreGetInstanceOperator`
 
     :param location: The location of the Cloud Memorystore instance (for example europe-west1)
     :type location: str
@@ -504,7 +504,7 @@ class CloudMemorystoreImportOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudMemorystoreImportOperator`
+        :ref:`apache-airflow:howto/operator:CloudMemorystoreImportOperator`
 
     :param location: The location of the Cloud Memorystore instance (for example europe-west1)
     :type location: str
@@ -597,7 +597,7 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudMemorystoreListInstancesOperator`
+        :ref:`apache-airflow:howto/operator:CloudMemorystoreListInstancesOperator`
 
     :param location: The location of the Cloud Memorystore instance (for example europe-west1)
         If it is specified as ``-`` (wildcard), then all regions available to the project are
@@ -698,7 +698,7 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudMemorystoreUpdateInstanceOperator`
+        :ref:`apache-airflow:howto/operator:CloudMemorystoreUpdateInstanceOperator`
 
     :type update_mask: Union[Dict, google.cloud.redis_v1.types.FieldMask]
     :param instance: Required. Update description. Only fields specified in update_mask are updated.
@@ -797,7 +797,7 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudMemorystoreScaleInstanceOperator`
+        :ref:`apache-airflow:howto/operator:CloudMemorystoreScaleInstanceOperator`
 
     :param memory_size_gb: Redis memory size in GiB.
     :type memory_size_gb: int
@@ -894,7 +894,7 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudMemorystoreCreateInstanceAndImportOperator`
+        :ref:`apache-airflow:howto/operator:CloudMemorystoreCreateInstanceAndImportOperator`
 
     :param location: The location of the Cloud Memorystore instance (for example europe-west1)
     :type location: str
@@ -1017,7 +1017,7 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudMemorystoreExportAndDeleteInstanceOperator`
+        :ref:`apache-airflow:howto/operator:CloudMemorystoreExportAndDeleteInstanceOperator`
 
     :param location: The location of the Cloud Memorystore instance (for example europe-west1)
     :type location: str
@@ -1120,7 +1120,7 @@ class CloudMemorystoreMemcachedApplyParametersOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudMemorystoreMemcachedApplyParametersOperator`
+        :ref:`apache-airflow:howto/operator:CloudMemorystoreMemcachedApplyParametersOperator`
 
     :param node_ids: Nodes to which we should apply the instance-level parameter group.
     :type node_ids: Sequence[str]
@@ -1211,7 +1211,7 @@ class CloudMemorystoreMemcachedCreateInstanceOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudMemorystoreMemcachedCreateInstanceOperator`
+        :ref:`apache-airflow:howto/operator:CloudMemorystoreMemcachedCreateInstanceOperator`
 
     :param location: The location of the Cloud Memorystore instance (for example europe-west1)
     :type location: str
@@ -1299,7 +1299,7 @@ class CloudMemorystoreMemcachedDeleteInstanceOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudMemorystoreMemcachedDeleteInstanceOperator`
+        :ref:`apache-airflow:howto/operator:CloudMemorystoreMemcachedDeleteInstanceOperator`
 
     :param location: The location of the Cloud Memorystore instance (for example europe-west1)
     :type location: str
@@ -1362,7 +1362,7 @@ class CloudMemorystoreMemcachedGetInstanceOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudMemorystoreMemcachedGetInstanceOperator`
+        :ref:`apache-airflow:howto/operator:CloudMemorystoreMemcachedGetInstanceOperator`
 
     :param location: The location of the Cloud Memorystore instance (for example europe-west1)
     :type location: str
@@ -1448,7 +1448,7 @@ class CloudMemorystoreMemcachedListInstancesOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudMemorystoreMemcachedListInstancesOperator`
+        :ref:`apache-airflow:howto/operator:CloudMemorystoreMemcachedListInstancesOperator`
 
     :param location: The location of the Cloud Memorystore instance (for example europe-west1)
         If it is specified as ``-`` (wildcard), then all regions available to the project are
@@ -1538,7 +1538,7 @@ class CloudMemorystoreMemcachedUpdateInstanceOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudMemorystoreMemcachedUpdateInstanceOperator`
+        :ref:`apache-airflow:howto/operator:CloudMemorystoreMemcachedUpdateInstanceOperator`
 
     :type update_mask: Union[Dict, google.cloud.memcache_v1beta2.types.cloud_memcache.field_mask.FieldMask]
     :param instance: Required. Update description. Only fields specified in update_mask are updated.
@@ -1639,7 +1639,7 @@ class CloudMemorystoreMemcachedUpdateParametersOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudMemorystoreMemcachedApplyParametersOperator`
+        :ref:`apache-airflow:howto/operator:CloudMemorystoreMemcachedApplyParametersOperator`
 
     :param update_mask: Required. Mask of fields to update.
         If a dict is provided, it must be of the same form as the protobuf message

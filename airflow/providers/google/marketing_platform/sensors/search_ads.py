@@ -33,7 +33,7 @@ class GoogleSearchAdsReportSensor(BaseSensorOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleSearchAdsReportSensor`
+        :ref:`apache-airflow:howto/operator:GoogleSearchAdsReportSensor`
 
     :param report_id: ID of the report request being polled.
     :type report_id: str

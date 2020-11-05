@@ -31,7 +31,7 @@ class LifeSciencesRunPipelineOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:LifeSciencesRunPipelineOperator`
+        :ref:`apache-airflow:howto/operator:LifeSciencesRunPipelineOperator`
 
     :param body: The request body
     :type body: dict

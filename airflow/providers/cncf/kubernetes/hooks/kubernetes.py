@@ -48,7 +48,7 @@ class KubernetesHook(BaseHook):
 
     .. seealso::
         For more information about Kubernetes connection:
-        :ref:`howto/connection:kubernetes`
+        :ref:`apache-airflow:howto/connection:kubernetes`
 
     :param conn_id: the connection to Kubernetes cluster
     :type conn_id: str

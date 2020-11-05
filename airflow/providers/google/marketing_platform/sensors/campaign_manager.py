@@ -33,7 +33,7 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleCampaignManagerReportSensor`
+        :ref:`apache-airflow:howto/operator:GoogleCampaignManagerReportSensor`
 
     :param profile_id: The DFA user profile ID.
     :type profile_id: str

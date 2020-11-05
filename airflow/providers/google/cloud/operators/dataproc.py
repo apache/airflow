@@ -405,7 +405,7 @@ class DataprocCreateClusterOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:DataprocCreateClusterOperator`
+        :ref:`apache-airflow:howto/operator:DataprocCreateClusterOperator`
 
     :param project_id: The ID of the google cloud project in which
         to create the cluster. (templated)

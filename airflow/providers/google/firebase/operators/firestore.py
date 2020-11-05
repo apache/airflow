@@ -30,7 +30,7 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudFirestoreExportDatabaseOperator`
+        :ref:`apache-airflow:howto/operator:CloudFirestoreExportDatabaseOperator`
 
     :param database_id: The Database ID.
     :type database_id: str

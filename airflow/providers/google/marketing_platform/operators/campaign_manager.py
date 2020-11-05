@@ -40,7 +40,7 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleCampaignManagerDeleteReportOperator`
+        :ref:`apache-airflow:howto/operator:GoogleCampaignManagerDeleteReportOperator`
 
     :param profile_id: The DFA user profile ID.
     :type profile_id: str
@@ -135,7 +135,7 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleCampaignManagerDownloadReportOperator`
+        :ref:`apache-airflow:howto/operator:GoogleCampaignManagerDownloadReportOperator`
 
     :param profile_id: The DFA user profile ID.
     :type profile_id: str
@@ -278,7 +278,7 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleCampaignManagerInsertReportOperator`
+        :ref:`apache-airflow:howto/operator:GoogleCampaignManagerInsertReportOperator`
 
     :param profile_id: The DFA user profile ID.
     :type profile_id: str
@@ -365,7 +365,7 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleCampaignManagerRunReportOperator`
+        :ref:`apache-airflow:howto/operator:GoogleCampaignManagerRunReportOperator`
 
     :param profile_id: The DFA profile ID.
     :type profile_id: str
@@ -453,7 +453,7 @@ class GoogleCampaignManagerBatchInsertConversionsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleCampaignManagerBatchInsertConversionsOperator`
+        :ref:`apache-airflow:howto/operator:GoogleCampaignManagerBatchInsertConversionsOperator`
 
     :param profile_id: User profile ID associated with this request.
     :type profile_id: str
@@ -555,7 +555,7 @@ class GoogleCampaignManagerBatchUpdateConversionsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleCampaignManagerBatchUpdateConversionsOperator`
+        :ref:`apache-airflow:howto/operator:GoogleCampaignManagerBatchUpdateConversionsOperator`
 
     :param profile_id: User profile ID associated with this request.
     :type profile_id: str

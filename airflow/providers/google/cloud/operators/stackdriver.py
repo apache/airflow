@@ -35,7 +35,7 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:StackdriverListAlertPoliciesOperator`
+        :ref:`apache-airflow:howto/operator:StackdriverListAlertPoliciesOperator`
 
     :param format_: (Optional) Desired output format of the result. The
         supported formats are "dict", "json" and None which returns
@@ -158,7 +158,7 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:StackdriverEnableAlertPoliciesOperator`
+        :ref:`apache-airflow:howto/operator:StackdriverEnableAlertPoliciesOperator`
 
     :param filter_:  If provided, this field specifies the criteria that
         must be met by alert policies to be enabled.
@@ -249,7 +249,7 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:StackdriverDisableAlertPoliciesOperator`
+        :ref:`apache-airflow:howto/operator:StackdriverDisableAlertPoliciesOperator`
 
     :param filter_:  If provided, this field specifies the criteria that
         must be met by alert policies to be disabled.
@@ -339,7 +339,7 @@ class StackdriverUpsertAlertOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:StackdriverUpsertAlertOperator`
+        :ref:`apache-airflow:howto/operator:StackdriverUpsertAlertOperator`
 
     :param alerts: A JSON string or file that specifies all the alerts that needs
         to be either created or updated. For more details, see
@@ -431,7 +431,7 @@ class StackdriverDeleteAlertOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:StackdriverDeleteAlertOperator`
+        :ref:`apache-airflow:howto/operator:StackdriverDeleteAlertOperator`
 
     :param name: The alerting policy to delete. The format is:
                      ``projects/[PROJECT_ID]/alertPolicies/[ALERT_POLICY_ID]``.
@@ -523,7 +523,7 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:StackdriverListNotificationChannelsOperator`
+        :ref:`apache-airflow:howto/operator:StackdriverListNotificationChannelsOperator`
 
     :param format_: (Optional) Desired output format of the result. The
         supported formats are "dict", "json" and None which returns
@@ -646,7 +646,7 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:StackdriverEnableNotificationChannelsOperator`
+        :ref:`apache-airflow:howto/operator:StackdriverEnableNotificationChannelsOperator`
 
     :param filter_:  If provided, this field specifies the criteria that
         must be met by notification channels to be enabled.
@@ -739,7 +739,7 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:StackdriverDisableNotificationChannelsOperator`
+        :ref:`apache-airflow:howto/operator:StackdriverDisableNotificationChannelsOperator`
 
     :param filter_:  If provided, this field specifies the criteria that
         must be met by alert policies to be disabled.
@@ -832,7 +832,7 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:StackdriverUpsertNotificationChannelOperator`
+        :ref:`apache-airflow:howto/operator:StackdriverUpsertNotificationChannelOperator`
 
     :param channels: A JSON string or file that specifies all the alerts that needs
         to be either created or updated. For more details, see
@@ -926,7 +926,7 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:StackdriverDeleteNotificationChannelOperator`
+        :ref:`apache-airflow:howto/operator:StackdriverDeleteNotificationChannelOperator`
 
     :param name: The alerting policy to delete. The format is:
                      ``projects/[PROJECT_ID]/notificationChannels/[CHANNEL_ID]``.

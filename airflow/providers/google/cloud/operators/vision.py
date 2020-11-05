@@ -44,7 +44,7 @@ class CloudVisionCreateProductSetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionCreateProductSetOperator`
+        :ref:`apache-airflow:howto/operator:CloudVisionCreateProductSetOperator`
 
     :param product_set: (Required) The ProductSet to create. If a dict is provided, it must be of the same
         form as the protobuf message `ProductSet`.
@@ -147,7 +147,7 @@ class CloudVisionGetProductSetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionGetProductSetOperator`
+        :ref:`apache-airflow:howto/operator:CloudVisionGetProductSetOperator`
 
     :param location: (Required) The region where the ProductSet is located. Valid regions (as of 2019-02-05)
         are: us-east1, us-west1, europe-west1, asia-east1
@@ -245,7 +245,7 @@ class CloudVisionUpdateProductSetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionUpdateProductSetOperator`
+        :ref:`apache-airflow:howto/operator:CloudVisionUpdateProductSetOperator`
 
     :param product_set: (Required) The ProductSet resource which replaces the one on the
         server. If a dict is provided, it must be of the same form as the protobuf
@@ -348,7 +348,7 @@ class CloudVisionDeleteProductSetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionDeleteProductSetOperator`
+        :ref:`apache-airflow:howto/operator:CloudVisionDeleteProductSetOperator`
 
     :param location: (Required) The region where the ProductSet is located. Valid regions (as of 2019-02-05)
         are: us-east1, us-west1, europe-west1, asia-east1
@@ -441,7 +441,7 @@ class CloudVisionCreateProductOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionCreateProductOperator`
+        :ref:`apache-airflow:howto/operator:CloudVisionCreateProductOperator`
 
     :param location: (Required) The region where the Product should be created. Valid regions
         (as of 2019-02-05) are: us-east1, us-west1, europe-west1, asia-east1
@@ -547,7 +547,7 @@ class CloudVisionGetProductOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionGetProductOperator`
+        :ref:`apache-airflow:howto/operator:CloudVisionGetProductOperator`
 
     :param location: (Required) The region where the Product is located. Valid regions (as of 2019-02-05) are:
         us-east1, us-west1, europe-west1, asia-east1
@@ -656,7 +656,7 @@ class CloudVisionUpdateProductOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionUpdateProductOperator`
+        :ref:`apache-airflow:howto/operator:CloudVisionUpdateProductOperator`
 
     :param product: (Required) The Product resource which replaces the one on the server. product.name is
         immutable. If a dict is provided, it must be of the same form as the protobuf message `Product`.
@@ -764,7 +764,7 @@ class CloudVisionDeleteProductOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionDeleteProductOperator`
+        :ref:`apache-airflow:howto/operator:CloudVisionDeleteProductOperator`
 
     :param location: (Required) The region where the Product is located. Valid regions (as of 2019-02-05) are:
         us-east1, us-west1, europe-west1, asia-east1
@@ -851,7 +851,7 @@ class CloudVisionImageAnnotateOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionImageAnnotateOperator`
+        :ref:`apache-airflow:howto/operator:CloudVisionImageAnnotateOperator`
 
     :param request: (Required) Annotation request for image or a batch.
         If a dict is provided, it must be of the same form as the protobuf
@@ -926,7 +926,7 @@ class CloudVisionCreateReferenceImageOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionCreateReferenceImageOperator`
+        :ref:`apache-airflow:howto/operator:CloudVisionCreateReferenceImageOperator`
 
     :param location: (Required) The region where the Product is located. Valid regions (as of 2019-02-05) are:
         us-east1, us-west1, europe-west1, asia-east1
@@ -1038,7 +1038,7 @@ class CloudVisionDeleteReferenceImageOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionDeleteReferenceImageOperator`
+        :ref:`apache-airflow:howto/operator:CloudVisionDeleteReferenceImageOperator`
 
     :param location: (Required) The region where the Product is located. Valid regions (as of 2019-02-05) are:
         us-east1, us-west1, europe-west1, asia-east1
@@ -1140,7 +1140,7 @@ class CloudVisionAddProductToProductSetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionAddProductToProductSetOperator`
+        :ref:`apache-airflow:howto/operator:CloudVisionAddProductToProductSetOperator`
 
     :param product_set_id: (Required) The resource id for the ProductSet to modify.
     :type product_set_id: str
@@ -1233,7 +1233,7 @@ class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionRemoveProductFromProductSetOperator`
+        :ref:`apache-airflow:howto/operator:CloudVisionRemoveProductFromProductSetOperator`
 
     :param product_set_id: (Required) The resource id for the ProductSet to modify.
     :type product_set_id: str
@@ -1326,7 +1326,7 @@ class CloudVisionDetectTextOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionDetectTextOperator`
+        :ref:`apache-airflow:howto/operator:CloudVisionDetectTextOperator`
 
     :param image: (Required) The image to analyze. See more:
         https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.Image
@@ -1417,7 +1417,7 @@ class CloudVisionTextDetectOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionTextDetectOperator`
+        :ref:`apache-airflow:howto/operator:CloudVisionTextDetectOperator`
 
     :param image: (Required) The image to analyze. See more:
         https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.Image
@@ -1507,7 +1507,7 @@ class CloudVisionDetectImageLabelsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionDetectImageLabelsOperator`
+        :ref:`apache-airflow:howto/operator:CloudVisionDetectImageLabelsOperator`
 
     :param image: (Required) The image to analyze. See more:
         https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.Image
@@ -1585,7 +1585,7 @@ class CloudVisionDetectImageSafeSearchOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionDetectImageSafeSearchOperator`
+        :ref:`apache-airflow:howto/operator:CloudVisionDetectImageSafeSearchOperator`
 
     :param image: (Required) The image to analyze. See more:
         https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.Image

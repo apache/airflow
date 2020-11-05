@@ -27,7 +27,7 @@ class DataprocCreateClusterOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:DataprocCreateClusterOperator`
+        :ref:`apache-airflow:howto/operator:DataprocCreateClusterOperator`
 
     :param folder_id: ID of the folder in which cluster should be created.
     :type folder_id: Optional[str]

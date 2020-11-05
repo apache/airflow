@@ -34,7 +34,7 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataFusionRestartInstanceOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataFusionRestartInstanceOperator`
 
     :param instance_name: The name of the instance to restart.
     :type instance_name: str
@@ -111,7 +111,7 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataFusionDeleteInstanceOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataFusionDeleteInstanceOperator`
 
     :param instance_name: The name of the instance to restart.
     :type instance_name: str
@@ -188,7 +188,7 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataFusionCreateInstanceOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataFusionCreateInstanceOperator`
 
     :param instance_name: The name of the instance to create.
     :type instance_name: str
@@ -289,7 +289,7 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataFusionUpdateInstanceOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataFusionUpdateInstanceOperator`
 
     :param instance_name: The name of the instance to create.
     :type instance_name: str
@@ -383,7 +383,7 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataFusionGetInstanceOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataFusionGetInstanceOperator`
 
     :param instance_name: The name of the instance.
     :type instance_name: str
@@ -459,7 +459,7 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataFusionCreatePipelineOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataFusionCreatePipelineOperator`
 
     :param pipeline_name: Your pipeline name.
     :type pipeline_name: str
@@ -556,7 +556,7 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataFusionDeletePipelineOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataFusionDeletePipelineOperator`
 
     :param pipeline_name: Your pipeline name.
     :type pipeline_name: str
@@ -653,7 +653,7 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataFusionListPipelinesOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataFusionListPipelinesOperator`
 
 
     :param instance_name: The name of the instance.
@@ -752,7 +752,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataFusionStartPipelineOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataFusionStartPipelineOperator`
 
     :param pipeline_name: Your pipeline name.
     :type pipeline_name: str
@@ -869,7 +869,7 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataFusionStopPipelineOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataFusionStopPipelineOperator`
 
     :param pipeline_name: Your pipeline name.
     :type pipeline_name: str

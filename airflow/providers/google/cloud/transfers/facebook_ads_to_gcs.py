@@ -42,7 +42,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:FacebookAdsReportToGcsOperator`
+        :ref:`apache-airflow:howto/operator:FacebookAdsReportToGcsOperator`
 
     :param bucket: The GCS bucket to upload to
     :type bucket: str

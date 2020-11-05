@@ -46,7 +46,7 @@ class CloudDataCatalogCreateEntryOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataCatalogCreateEntryOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataCatalogCreateEntryOperator`
 
     :param location: Required. The location of the entry to create.
     :type location: str
@@ -164,7 +164,7 @@ class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataCatalogCreateEntryGroupOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataCatalogCreateEntryGroupOperator`
 
     :param location: Required. The location of the entry group to create.
     :type location: str
@@ -279,7 +279,7 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataCatalogCreateTagOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataCatalogCreateTagOperator`
 
     :param location: Required. The location of the tag to create.
     :type location: str
@@ -415,7 +415,7 @@ class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataCatalogCreateTagTemplateOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataCatalogCreateTagTemplateOperator`
 
     :param location: Required. The location of the tag template to create.
     :type location: str
@@ -527,7 +527,7 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataCatalogCreateTagTemplateFieldOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataCatalogCreateTagTemplateFieldOperator`
 
     :param location: Required. The location of the tag template field to create.
     :type location: str
@@ -647,7 +647,7 @@ class CloudDataCatalogDeleteEntryOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataCatalogDeleteEntryOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataCatalogDeleteEntryOperator`
 
     :param location: Required. The location of the entry to delete.
     :type location: str
@@ -744,7 +744,7 @@ class CloudDataCatalogDeleteEntryGroupOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataCatalogDeleteEntryGroupOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataCatalogDeleteEntryGroupOperator`
 
     :param location: Required. The location of the entry group to delete.
     :type location: str
@@ -833,7 +833,7 @@ class CloudDataCatalogDeleteTagOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataCatalogDeleteTagOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataCatalogDeleteTagOperator`
 
     :param location: Required. The location of the tag to delete.
     :type location: str
@@ -934,7 +934,7 @@ class CloudDataCatalogDeleteTagTemplateOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataCatalogDeleteTagTemplateOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataCatalogDeleteTagTemplateOperator`
 
     :param location: Required. The location of the tag template to delete.
     :type location: str
@@ -1031,7 +1031,7 @@ class CloudDataCatalogDeleteTagTemplateFieldOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataCatalogDeleteTagTemplateFieldOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataCatalogDeleteTagTemplateFieldOperator`
 
     :param location: Required. The location of the tag template to delete.
     :type location: str
@@ -1132,7 +1132,7 @@ class CloudDataCatalogGetEntryOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataCatalogGetEntryOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataCatalogGetEntryOperator`
 
     :param location: Required. The location of the entry to get.
     :type location: str
@@ -1225,7 +1225,7 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataCatalogGetEntryGroupOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataCatalogGetEntryGroupOperator`
 
     :param location: Required. The location of the entry group to get.
     :type location: str
@@ -1321,7 +1321,7 @@ class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataCatalogGetTagTemplateOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataCatalogGetTagTemplateOperator`
 
     :param location: Required. The location of the tag template to get.
     :type location: str
@@ -1408,7 +1408,7 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataCatalogListTagsOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataCatalogListTagsOperator`
 
     :param location: Required. The location of the tags to get.
     :type location: str
@@ -1513,7 +1513,7 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataCatalogLookupEntryOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataCatalogLookupEntryOperator`
 
     :param linked_resource: The full name of the Google Cloud resource the Data Catalog entry
         represents. See: https://cloud.google.com/apis/design/resource\_names#full\_resource\_name. Full
@@ -1598,7 +1598,7 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataCatalogRenameTagTemplateFieldOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataCatalogRenameTagTemplateFieldOperator`
 
     :param location: Required. The location of the tag template field to rename.
     :type location: str
@@ -1705,7 +1705,7 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataCatalogSearchCatalogOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataCatalogSearchCatalogOperator`
 
     :param scope: Required. The scope of this search request.
 
@@ -1818,7 +1818,7 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataCatalogUpdateEntryOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataCatalogUpdateEntryOperator`
 
     :param entry: Required. The updated entry. The "name" field must be set.
 
@@ -1929,7 +1929,7 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataCatalogUpdateTagOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataCatalogUpdateTagOperator`
 
     :param tag: Required. The updated tag. The "name" field must be set.
 
@@ -2048,7 +2048,7 @@ class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataCatalogUpdateTagTemplateOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataCatalogUpdateTagTemplateOperator`
 
     :param tag_template: Required. The template to update. The "name" field must be set.
 
@@ -2154,7 +2154,7 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDataCatalogUpdateTagTemplateFieldOperator`
+        :ref:`apache-airflow:howto/operator:CloudDataCatalogUpdateTagTemplateFieldOperator`
 
     :param tag_template_field: Required. The template to update.
 

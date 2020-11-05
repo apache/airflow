@@ -38,7 +38,7 @@ class GoogleAdsToGcsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleAdsToGcsOperator`
+        :ref:`apache-airflow:howto/operator:GoogleAdsToGcsOperator`
 
     :param client_ids: Google Ads client IDs to query
     :type client_ids: List[str]

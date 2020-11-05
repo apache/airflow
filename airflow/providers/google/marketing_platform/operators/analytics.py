@@ -38,7 +38,7 @@ class GoogleAnalyticsListAccountsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleAnalyticsListAccountsOperator`
+        :ref:`apache-airflow:howto/operator:GoogleAnalyticsListAccountsOperator`
 
     :param api_version: The version of the api that will be requested for example 'v3'.
     :type api_version: str
@@ -96,7 +96,7 @@ class GoogleAnalyticsGetAdsLinkOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleAnalyticsGetAdsLinkOperator`
+        :ref:`apache-airflow:howto/operator:GoogleAnalyticsGetAdsLinkOperator`
 
     :param account_id: ID of the account which the given web property belongs to.
     :type account_id: str
@@ -169,7 +169,7 @@ class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleAnalyticsRetrieveAdsLinksListOperator`
+        :ref:`apache-airflow:howto/operator:GoogleAnalyticsRetrieveAdsLinksListOperator`
 
     :param account_id: ID of the account which the given web property belongs to.
     :type account_id: str

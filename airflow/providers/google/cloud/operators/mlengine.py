@@ -70,7 +70,7 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:MLEngineStartBatchPredictionJobOperator`
+        :ref:`apache-airflow:howto/operator:MLEngineStartBatchPredictionJobOperator`
 
     NOTE: For model origin, users should consider exactly one from the
     three options below:
@@ -389,7 +389,7 @@ class MLEngineCreateModelOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:MLEngineCreateModelOperator`
+        :ref:`apache-airflow:howto/operator:MLEngineCreateModelOperator`
 
     The model should be provided by the `model` parameter.
 
@@ -455,7 +455,7 @@ class MLEngineGetModelOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:MLEngineGetModelOperator`
+        :ref:`apache-airflow:howto/operator:MLEngineGetModelOperator`
 
     The name of model should be specified in `model_name`.
 
@@ -521,7 +521,7 @@ class MLEngineDeleteModelOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:MLEngineDeleteModelOperator`
+        :ref:`apache-airflow:howto/operator:MLEngineDeleteModelOperator`
 
     The model should be provided by the `model_name` parameter.
 
@@ -729,7 +729,7 @@ class MLEngineCreateVersionOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:MLEngineCreateVersionOperator`
+        :ref:`apache-airflow:howto/operator:MLEngineCreateVersionOperator`
 
     Model should be specified by `model_name`, in which case the `version` parameter should contain all the
     information to create that version
@@ -813,7 +813,7 @@ class MLEngineSetDefaultVersionOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:MLEngineSetDefaultVersionOperator`
+        :ref:`apache-airflow:howto/operator:MLEngineSetDefaultVersionOperator`
 
     The model should be specified by `model_name` to be the default. The name of the version should be
     specified in the `version_name` parameter.
@@ -897,7 +897,7 @@ class MLEngineListVersionsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:MLEngineListVersionsOperator`
+        :ref:`apache-airflow:howto/operator:MLEngineListVersionsOperator`
 
     The model should be specified by `model_name`.
 
@@ -974,7 +974,7 @@ class MLEngineDeleteVersionOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:MLEngineDeleteVersionOperator`
+        :ref:`apache-airflow:howto/operator:MLEngineDeleteVersionOperator`
 
     The name of the version should be specified in `version_name` parameter from the model specified
     by `model_name`.
@@ -1075,7 +1075,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:MLEngineStartTrainingJobOperator`
+        :ref:`apache-airflow:howto/operator:MLEngineStartTrainingJobOperator`
 
     :param job_id: A unique templated id for the submitted Google MLEngine
         training job. (templated)

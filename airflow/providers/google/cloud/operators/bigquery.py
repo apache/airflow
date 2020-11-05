@@ -96,7 +96,7 @@ class BigQueryCheckOperator(CheckOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigQueryCheckOperator`
+        :ref:`apache-airflow:howto/operator:BigQueryCheckOperator`
 
     Note that Python bool casting evals the following as ``False``:
 
@@ -189,7 +189,7 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigQueryValueCheckOperator`
+        :ref:`apache-airflow:howto/operator:BigQueryValueCheckOperator`
 
     :param sql: the sql to be executed
     :type sql: str
@@ -270,7 +270,7 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigQueryIntervalCheckOperator`
+        :ref:`apache-airflow:howto/operator:BigQueryIntervalCheckOperator`
 
     :param table: the table name
     :type table: str
@@ -364,7 +364,7 @@ class BigQueryGetDataOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigQueryGetDataOperator`
+        :ref:`apache-airflow:howto/operator:BigQueryGetDataOperator`
 
     .. note::
         If you pass fields to ``selected_fields`` which are in different order than the
@@ -754,7 +754,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigQueryCreateEmptyTableOperator`
+        :ref:`apache-airflow:howto/operator:BigQueryCreateEmptyTableOperator`
 
     :param project_id: The project to create the table into. (templated)
     :type project_id: str
@@ -978,7 +978,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigQueryCreateExternalTableOperator`
+        :ref:`apache-airflow:howto/operator:BigQueryCreateExternalTableOperator`
 
     :param bucket: The bucket to point the external table to. (templated)
     :type bucket: str
@@ -1223,7 +1223,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigQueryDeleteDatasetOperator`
+        :ref:`apache-airflow:howto/operator:BigQueryDeleteDatasetOperator`
 
     :param project_id: The project id of the dataset.
     :type project_id: str
@@ -1323,7 +1323,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigQueryCreateEmptyDatasetOperator`
+        :ref:`apache-airflow:howto/operator:BigQueryCreateEmptyDatasetOperator`
 
     :param project_id: The name of the project where we want to create the dataset.
     :type project_id: str
@@ -1434,7 +1434,7 @@ class BigQueryGetDatasetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigQueryGetDatasetOperator`
+        :ref:`apache-airflow:howto/operator:BigQueryGetDatasetOperator`
 
     :param dataset_id: The id of dataset. Don't need to provide,
         if datasetId in dataset_reference.
@@ -1507,7 +1507,7 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigQueryGetDatasetTablesOperator`
+        :ref:`apache-airflow:howto/operator:BigQueryGetDatasetTablesOperator`
 
     :param dataset_id: the dataset ID of the requested dataset.
     :type dataset_id: str
@@ -1581,7 +1581,7 @@ class BigQueryPatchDatasetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigQueryPatchDatasetOperator`
+        :ref:`apache-airflow:howto/operator:BigQueryPatchDatasetOperator`
 
     :param dataset_id: The id of dataset. Don't need to provide,
         if datasetId in dataset_reference.
@@ -1670,7 +1670,7 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigQueryUpdateDatasetOperator`
+        :ref:`apache-airflow:howto/operator:BigQueryUpdateDatasetOperator`
 
     :param dataset_id: The id of dataset. Don't need to provide,
         if datasetId in dataset_reference.
@@ -1756,7 +1756,7 @@ class BigQueryDeleteTableOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigQueryDeleteTableOperator`
+        :ref:`apache-airflow:howto/operator:BigQueryDeleteTableOperator`
 
     :param deletion_dataset_table: A dotted
         ``(<project>.|<project>:)<dataset>.<table>`` that indicates which table
@@ -1841,7 +1841,7 @@ class BigQueryUpsertTableOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigQueryUpsertTableOperator`
+        :ref:`apache-airflow:howto/operator:BigQueryUpsertTableOperator`
 
     :param dataset_id: A dotted
         ``(<project>.|<project>:)<dataset>`` that indicates which dataset
@@ -1952,7 +1952,7 @@ class BigQueryInsertJobOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigQueryInsertJobOperator`
+        :ref:`apache-airflow:howto/operator:BigQueryInsertJobOperator`
 
 
     :param configuration: The configuration parameter maps directly to BigQuery's

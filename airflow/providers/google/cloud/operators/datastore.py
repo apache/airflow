@@ -32,7 +32,7 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDatastoreExportEntitiesOperator`
+        :ref:`apache-airflow:howto/operator:CloudDatastoreExportEntitiesOperator`
 
     :param bucket: name of the cloud storage bucket to backup data
     :type bucket: str
@@ -147,7 +147,7 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDatastoreImportEntitiesOperator`
+        :ref:`apache-airflow:howto/operator:CloudDatastoreImportEntitiesOperator`
 
     :param bucket: container in Cloud Storage to store data
     :type bucket: str
@@ -253,7 +253,7 @@ class CloudDatastoreAllocateIdsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDatastoreAllocateIdsOperator`
+        :ref:`apache-airflow:howto/operator:CloudDatastoreAllocateIdsOperator`
 
     .. seealso::
         https://cloud.google.com/datastore/docs/reference/rest/v1/projects/allocateIds
@@ -321,7 +321,7 @@ class CloudDatastoreBeginTransactionOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDatastoreBeginTransactionOperator`
+        :ref:`apache-airflow:howto/operator:CloudDatastoreBeginTransactionOperator`
 
     .. seealso::
         https://cloud.google.com/datastore/docs/reference/rest/v1/projects/beginTransaction
@@ -389,7 +389,7 @@ class CloudDatastoreCommitOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDatastoreCommitOperator`
+        :ref:`apache-airflow:howto/operator:CloudDatastoreCommitOperator`
 
     .. seealso::
         https://cloud.google.com/datastore/docs/reference/rest/v1/projects/commit
@@ -457,7 +457,7 @@ class CloudDatastoreRollbackOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDatastoreRollbackOperator`
+        :ref:`apache-airflow:howto/operator:CloudDatastoreRollbackOperator`
 
     .. seealso::
         https://cloud.google.com/datastore/docs/reference/rest/v1/projects/rollback
@@ -524,7 +524,7 @@ class CloudDatastoreRunQueryOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudDatastoreRunQueryOperator`
+        :ref:`apache-airflow:howto/operator:CloudDatastoreRunQueryOperator`
 
     .. seealso::
         https://cloud.google.com/datastore/docs/reference/rest/v1/projects/runQuery

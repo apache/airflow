@@ -36,6 +36,10 @@ class SnowflakeToSlackOperator(BaseOperator):
     allow the dataframe to be rendered nicely. For example, set 'slack_message' to {{ results_df |
     tabulate(tablefmt="pretty", headers="keys") }} to send the results to Slack as an ascii rendered table.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`apache-airflow:howto/operator:SnowflakeToSlackOperator`
+
     :param sql: The SQL statement to execute on Snowflake (templated)
     :type sql: str
     :param slack_message: The templated Slack message to send with the data returned from Snowflake.

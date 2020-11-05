@@ -35,6 +35,7 @@ if __name__ != "__main__":
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
 DOCS_DIR = os.path.join(ROOT_DIR, 'docs')
+DOCS_PROVIDER_DIR = os.path.join(ROOT_DIR, 'docs-providers')
 PROVIDER_DATA_SCHEMA_PATH = os.path.join(ROOT_DIR, "dev", "provider.yaml.schema.json")
 CORE_INTEGRATIONS = ["SQL", "Local"]
 
@@ -250,6 +251,13 @@ def check_doc_files(yaml_files: Dict[str, Dict]):
         for f in glob(f"{DOCS_DIR}/howto/operator/**/*.rst", recursive=True)
         if not f.endswith("/index.rst") and '/_partials' not in f
     }
+
+    expected_doc_urls |= {
+        "/docs-providers/" + os.path.relpath(f, start=DOCS_PROVIDER_DIR)
+        for f in glob(f"{DOCS_PROVIDER_DIR}/*/operators/**/*.rst", recursive=True)
+        if not f.endswith("/index.rst") and '/_partials' not in f
+    }
+
     expected_doc_urls -= DOC_FILES_EXCLUDE_LIST
     try:
         assert_sets_equal(set(expected_doc_urls), set(current_doc_urls))

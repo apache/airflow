@@ -61,17 +61,27 @@ def _render_template(template_name, **kwargs):
 
 
 def _docs_path(filepath: str):
-    if not filepath.startswith("/docs/"):
-        raise Exception(f"The path must starts with '/docs/'. Current value: {filepath}")
+    if not filepath.startswith("/docs/") and not filepath.startswith("/docs-providers/"):
+        raise Exception(
+            f"The path must starts with '/docs/' or '/docs-providers/''. Current value: {filepath}"
+        )
 
     if not filepath.endswith(".rst"):
         raise Exception(f"The path must ends with '.rst'. Current value: {filepath}")
 
+    if filepath.startswith("/docs-providers/"):
+        _, _, provider, rest = filepath.split("/", maxsplit=3)
+        filepath = f"{provider}:{rest}"
+    elif filepath.startswith("/docs/apache-airflow-providers-"):
+        _, _, _, provider, rest = filepath.split("/", maxsplit=4)
+        filepath = f"{provider}:{rest}"
+    else:
+        filepath = os.path.join(ROOT_DIR, filepath.lstrip('/'))
+        filepath = os.path.relpath(filepath, DOCS_DIR)
+
     len_rst = len(".rst")
     filepath = filepath[:-len_rst]
-    filepath = os.path.join(ROOT_DIR, filepath.lstrip('/'))
-
-    return os.path.relpath(filepath, DOCS_DIR)
+    return filepath
 
 
 def _prepare_resource_index(package_data, resource_type):
@@ -252,7 +262,7 @@ if __name__ == "__main__":
     parser_b.set_defaults(cmd=CMD_TRANSFERS)
 
     args = parser.parse_args()
-    print(args)
+
     if args.cmd == CMD_OPERATORS_AND_HOOKS:
         content = _render_operator_content(
             tags=set(args.tags) if args.tags else None, header_separator=args.header_separator

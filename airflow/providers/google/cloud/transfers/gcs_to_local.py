@@ -36,7 +36,7 @@ class GCSToLocalFilesystemOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GCSToLocalFilesystemOperator`
+        :ref:`apache-airflow:howto/operator:GCSToLocalFilesystemOperator`
 
     :param bucket: The Google Cloud Storage bucket where the object is.
         Must not contain 'gs://' prefix. (templated)

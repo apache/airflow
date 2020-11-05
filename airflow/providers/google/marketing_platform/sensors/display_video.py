@@ -29,7 +29,7 @@ class GoogleDisplayVideo360ReportSensor(BaseSensorOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleDisplayVideo360ReportSensor`
+        :ref:`apache-airflow:howto/operator:GoogleDisplayVideo360ReportSensor`
 
     :param report_id: Report ID to delete.
     :type report_id: str
@@ -95,7 +95,7 @@ class GoogleDisplayVideo360GetSDFDownloadOperationSensor(BaseSensorOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleDisplayVideo360GetSDFDownloadOperationSensor`
+        :ref:`apache-airflow:howto/operator:GoogleDisplayVideo360GetSDFDownloadOperationSensor`
 
     :param name: The name of the operation resource
     :type name: Dict[str, Any]

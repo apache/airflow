@@ -31,7 +31,7 @@ class GoogleSheetsToGCSOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleSheetsToGCSOperator`
+        :ref:`apache-airflow:howto/operator:GoogleSheetsToGCSOperator`
 
     :param spreadsheet_id: The Google Sheet ID to interact with.
     :type spreadsheet_id: str

@@ -270,7 +270,7 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudSQLCreateInstanceOperator`
+        :ref:`apache-airflow:howto/operator:CloudSQLCreateInstanceOperator`
 
     :param body: Body required by the Cloud SQL insert API, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/insert
@@ -375,7 +375,7 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudSQLInstancePatchOperator`
+        :ref:`apache-airflow:howto/operator:CloudSQLInstancePatchOperator`
 
     :param body: Body required by the Cloud SQL patch API, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/patch#request-body
@@ -459,7 +459,7 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudSQLDeleteInstanceOperator`
+        :ref:`apache-airflow:howto/operator:CloudSQLDeleteInstanceOperator`
 
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
@@ -530,7 +530,7 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudSQLCreateInstanceDatabaseOperator`
+        :ref:`apache-airflow:howto/operator:CloudSQLCreateInstanceDatabaseOperator`
 
     :param instance: Database instance ID. This does not include the project ID.
     :type instance: str
@@ -637,7 +637,7 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudSQLPatchInstanceDatabaseOperator`
+        :ref:`apache-airflow:howto/operator:CloudSQLPatchInstanceDatabaseOperator`
 
     :param instance: Database instance ID. This does not include the project ID.
     :type instance: str
@@ -743,7 +743,7 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudSQLDeleteInstanceDatabaseOperator`
+        :ref:`apache-airflow:howto/operator:CloudSQLDeleteInstanceDatabaseOperator`
 
     :param instance: Database instance ID. This does not include the project ID.
     :type instance: str
@@ -833,7 +833,7 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudSQLExportInstanceOperator`
+        :ref:`apache-airflow:howto/operator:CloudSQLExportInstanceOperator`
 
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
@@ -938,7 +938,7 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudSQLImportInstanceOperator`
+        :ref:`apache-airflow:howto/operator:CloudSQLImportInstanceOperator`
 
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
@@ -1028,7 +1028,7 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudSQLExecuteQueryOperator`
+        :ref:`apache-airflow:howto/operator:CloudSQLExecuteQueryOperator`
 
     :param sql: SQL query or list of queries to run (should be DML or DDL query -
         this operator does not return any data from the database,

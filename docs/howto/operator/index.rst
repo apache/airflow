@@ -36,7 +36,6 @@ determine what actually executes when your DAG runs.
     apache/index
     databricks
     dingding
-    google/index
     http
     jdbc
     kubernetes

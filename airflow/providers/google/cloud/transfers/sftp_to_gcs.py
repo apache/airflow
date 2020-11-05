@@ -35,7 +35,7 @@ class SFTPToGCSOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:SFTPToGCSOperator`
+        :ref:`apache-airflow:howto/operator:SFTPToGCSOperator`
 
     :param source_path: The sftp remote path. This is the specified file path
         for downloading the single file or multiple files from the SFTP server.

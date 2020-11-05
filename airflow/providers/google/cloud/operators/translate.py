@@ -30,7 +30,7 @@ class CloudTranslateTextOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudTranslateTextOperator`
+        :ref:`apache-airflow:howto/operator:CloudTranslateTextOperator`
 
     See https://cloud.google.com/translate/docs/translating-text
 

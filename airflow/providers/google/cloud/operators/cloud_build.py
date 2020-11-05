@@ -165,7 +165,7 @@ class CloudBuildCreateBuildOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudBuildCreateBuildOperator`
+        :ref:`apache-airflow:howto/operator:CloudBuildCreateBuildOperator`
 
     :param body: The build config with instructions to perform with CloudBuild.
         Can be a dictionary or path to a file type like YAML or JSON.

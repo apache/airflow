@@ -28,7 +28,7 @@ class GoogleSheetsCreateSpreadsheetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleSheetsCreateSpreadsheetOperator`
+        :ref:`apache-airflow:howto/operator:GoogleSheetsCreateSpreadsheetOperator`
 
     :param spreadsheet: an instance of Spreadsheet
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets#Spreadsheet

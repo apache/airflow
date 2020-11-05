@@ -30,7 +30,7 @@ class SalesforceToGcsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:SalesforceToGcsOperator`
+        :ref:`apache-airflow:howto/operator:SalesforceToGcsOperator`
 
     :param query: The query to make to Salesforce.
     :type query: str

@@ -34,7 +34,7 @@ class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVideoIntelligenceDetectVideoLabelsOperator`.
+        :ref:`apache-airflow:howto/operator:CloudVideoIntelligenceDetectVideoLabelsOperator`.
 
     :param input_uri: Input video location. Currently, only Google Cloud Storage URIs are supported,
         which must be specified in the following format: ``gs://bucket-id/object-id``.
@@ -134,7 +134,7 @@ class CloudVideoIntelligenceDetectVideoExplicitContentOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVideoIntelligenceDetectVideoExplicitContentOperator`
+        :ref:`apache-airflow:howto/operator:CloudVideoIntelligenceDetectVideoExplicitContentOperator`
 
     :param input_uri: Input video location. Currently, only Google Cloud Storage URIs are supported,
         which must be specified in the following format: ``gs://bucket-id/object-id``.
@@ -234,7 +234,7 @@ class CloudVideoIntelligenceDetectVideoShotsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVideoIntelligenceDetectVideoShotsOperator`
+        :ref:`apache-airflow:howto/operator:CloudVideoIntelligenceDetectVideoShotsOperator`
 
     :param input_uri: Input video location. Currently, only Google Cloud Storage URIs are supported,
         which must be specified in the following format: ``gs://bucket-id/object-id``.

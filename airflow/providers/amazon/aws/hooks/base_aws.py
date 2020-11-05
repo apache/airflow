@@ -21,7 +21,7 @@ This module contains Base AWS Hook.
 
 .. seealso::
     For more information on how to use this hook, take a look at the guide:
-    :ref:`howto/connection:AWSHook`
+    :doc:`apache-airflow:howto/connection/aws`
 """
 
 import configparser
