@@ -17,9 +17,9 @@
 # under the License.
 import re
 import sys
+from collections import deque
 from datetime import datetime
 from typing import Dict, Optional
-from collections import deque
 
 from botocore.waiter import Waiter
 
@@ -183,7 +183,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
 
     def execute(self, context):
         self.log.info(
-            'Running ECS Task - Task definition: %s - on cluster %s', self.task_definition, self.cluster
+            f'Running ECS Task - Task definition: {self.task_definition} - on cluster {self.cluster}'
         )
         self.log.info('ECSOperator overrides: %s', self.overrides)
 
@@ -203,6 +203,8 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
 
         if self.do_xcom_push:
             return self._last_log_event()
+
+        return
 
     def _start_task(self):
         run_opts = {
@@ -265,6 +267,8 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         waiter.config.max_attempts = sys.maxsize  # timeout is managed by airflow
         waiter.wait(cluster=self.cluster, tasks=[self.arn])
 
+        return
+
     def _cloudwatch_log_events(self):
         if not self.awslogs_group:
             return
@@ -279,8 +283,10 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
 
     def _last_log_event(self):
         log_events = self._cloudwatch_log_events()
-        if log_events is not None:
-            return deque(log_events, maxlen=1).pop()["message"]
+        if log_events is None:
+            return
+
+        return deque(log_events, maxlen=1).pop()["message"]
 
 
     def _check_success_task(self) -> None:
