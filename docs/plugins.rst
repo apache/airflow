@@ -24,8 +24,7 @@ Airflow has a simple plugin manager built-in that can integrate external
 features to its core by simply dropping files in your
 ``$AIRFLOW_HOME/plugins`` folder.
 
-The python modules in the ``plugins`` folder get imported,
-and **hooks**, **macros** and web **views**
+The python modules in the ``plugins`` folder get imported, and **macros** and web **views**
 get integrated to Airflow's main collections and become available for use.
 
 To troubleshoot issue with plugins, you can use ``airflow plugins`` command.
@@ -163,7 +162,7 @@ definitions in Airflow.
     from airflow.models.baseoperator import BaseOperatorLink
     from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
 
-    # Will show up under airflow.hooks.test_plugin.PluginHook
+    # Will show up in Connections screen in a future version
     class PluginHook(BaseHook):
         pass
 

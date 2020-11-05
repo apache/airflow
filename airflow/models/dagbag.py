@@ -40,7 +40,6 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDagBag
 from airflow.exceptions import AirflowClusterPolicyViolation, AirflowDagCycleException, SerializedDagNotFound
-from airflow.plugins_manager import integrate_dag_plugins
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import test_cycle
@@ -236,8 +235,6 @@ class DagBag(BaseDagBag, LoggingMixin):
         Given a path to a python module or zip file, this method imports
         the module and look for dag objects within it.
         """
-        integrate_dag_plugins()
-
         # if the source file no longer exists in the DB or in the filesystem,
         # return an empty list
         # todo: raise exception?
