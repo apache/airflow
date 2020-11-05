@@ -179,7 +179,6 @@ ALL_TESTS="Core Integration Heisentests"
 readonly ALL_TESTS
 
 function set_outputs_run_everything_and_exit() {
-    needs_api_tests "true"
     needs_helm_tests "true"
     needs_javascript_scans "true"
     needs_python_scans "true"
@@ -201,7 +200,6 @@ function set_outputs_run_all_tests() {
 }
 
 function set_output_skip_all_tests_and_docs_and_exit() {
-    needs_api_tests "false"
     needs_helm_tests "false"
     needs_javascript_scans "false"
     needs_python_scans "false"
@@ -215,7 +213,6 @@ function set_output_skip_all_tests_and_docs_and_exit() {
 }
 
 function set_output_skip_tests_but_build_images_and_exit() {
-    needs_api_tests "false"
     needs_helm_tests "false"
     needs_javascript_scans "false"
     needs_python_scans "false"
@@ -378,9 +375,8 @@ function get_count_kubernetes_files() {
     echo "Count Kubernetes files"
     echo
     local pattern_array=(
-        "^airflow/kubernetes"
         "^chart"
-        "^tests/kubernetes_tests"
+        "^kubernetes_tests"
     )
     show_changed_files
     COUNT_KUBERNETES_CHANGED_FILES=$(count_changed_files)
