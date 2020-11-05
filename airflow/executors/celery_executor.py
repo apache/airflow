@@ -244,7 +244,7 @@ class CeleryExecutor(BaseExecutor):
 
         task_tuples_to_send: List[TaskInstanceInCelery] = []
 
-        for _ in range(min((open_slots, len(self.queued_tasks)))):
+        for _ in range(min(open_slots, len(self.queued_tasks))):
             key, (command, _, queue, simple_ti) = sorted_queue.pop(0)
             task_tuples_to_send.append((key, simple_ti, command, queue, execute_command))
 
