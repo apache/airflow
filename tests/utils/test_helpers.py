@@ -138,9 +138,11 @@ class TestHelpers(unittest.TestCase):
         merged = merge_dicts(dict1, dict2)
         self.assertDictEqual(merged, {'a': 1, 'r': {'b': 0, 'c': 3}})
 
-    @conf_vars({
-        ("webserver", "dag_default_view"): "custom",
-    })
+    @conf_vars(
+        {
+            ("webserver", "dag_default_view"): "custom",
+        }
+    )
     def test_build_airflow_url_with_query(self):
         query = {"dag_id": "test_dag", "param": "key/to.encode"}
         url = build_airflow_url_with_query(query)
