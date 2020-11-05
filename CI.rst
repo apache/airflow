@@ -53,8 +53,8 @@ techniques have been implemented that use efficiently cache from the GitHub Dock
 this brings down the time needed to rebuild the image to ~4 minutes. In some cases (when dependencies change)
 it can be ~6-7 minutes and in case base image of Python releases new patch-level, it can be ~12 minutes.
 
-Currently in master version of Airflow we run tests in 3 different versions of Python (3.6, 3.7, 3.8)
-which means that we have to build 6 images (3 CI ones and 3 PROD ones). Yet we run around 12 jobs
+Currently in master version of Airflow we run tests in 4 different versions of Python (3.6, 3.7, 3.8, 3.9)
+which means that we have to build 8 images (4 CI ones and 4 PROD ones). Yet we run around 12 jobs
 with each of the CI images. That is a lot of time to just build the environment to run. Therefore
 we are utilising ``workflow_run`` feature of GitHub Actions. This feature allows to run a separate,
 independent workflow, when the main workflow is run - this separate workflow is different than the main
@@ -779,8 +779,8 @@ The image names follow the patterns:
 +--------------+----------------------------+--------------------------------+--------------------------------------------------------------------------------------------+
 
 * <BRANCH> might be either "master" or "v1-10-test" or "v2-0-test"
-* <X.Y> - Python version (Major + Minor). For "master" and "v2-0-test" should be in ["3.6", "3.7", "3.8"]. For
-  v1-10-test it should be in ["2.7", "3.5", "3.6". "3.7", "3.8"].
+* <X.Y> - Python version (Major + Minor). For "master" and "v2-0-test" should be in ["3.6", "3.7", "3.8", "3.9"].
+  For v1-10-test it should be in ["2.7", "3.5", "3.6". "3.7", "3.8"].
 * <RUN_ID> - GitHub Actions RUN_ID. You can get it from CI action job outputs (run id is printed in
   logs and displayed as part of the step name. All PRs belong to some RUN_ID and this way you can
   pull the very exact version of image used in that RUN_ID

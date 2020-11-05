@@ -39,6 +39,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
 **Table of contents**
 
 - [Project Focus](#project-focus)
@@ -69,22 +70,22 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 ## Principles
 
-- **Dynamic**:  Airflow pipelines are configuration as code (Python), allowing for dynamic pipeline generation. This allows for writing code that instantiates pipelines dynamically.
-- **Extensible**:  Easily define your own operators, executors and extend the library so that it fits the level of abstraction that suits your environment.
-- **Elegant**:  Airflow pipelines are lean and explicit. Parameterizing your scripts is built into the core of Airflow using the powerful **Jinja** templating engine.
-- **Scalable**:  Airflow has a modular architecture and uses a message queue to orchestrate an arbitrary number of workers.
+- **Dynamic**: Airflow pipelines are configuration as code (Python), allowing for dynamic pipeline generation. This allows for writing code that instantiates pipelines dynamically.
+- **Extensible**: Easily define your own operators, executors and extend the library so that it fits the level of abstraction that suits your environment.
+- **Elegant**: Airflow pipelines are lean and explicit. Parameterizing your scripts is built into the core of Airflow using the powerful **Jinja** templating engine.
+- **Scalable**: Airflow has a modular architecture and uses a message queue to orchestrate an arbitrary number of workers.
 
 ## Requirements
 
 Apache Airflow is tested with:
 
-|              | Master version (dev)      | Stable version (2.0.0)   | Previous version (1.10.14) |
-| ------------ | ------------------------- | ------------------------ | -------------------------  |
-| Python       | 3.6, 3.7, 3.8             | 3.6, 3.7, 3.8            | 2.7, 3.5, 3.6, 3.7, 3.8    |
-| PostgreSQL   | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      | 9.6, 10, 11, 12, 13        |
-| MySQL        | 5.7, 8                    | 5.7, 8                   | 5.6, 5.7                   |
-| SQLite       | 3.15.0+                   | 3.15.0+                  | 3.15.0+                    |
-| Kubernetes   | 1.16.9, 1.17.5, 1.18.6    | 1.16.9, 1.17.5, 1.18.6   | 1.16.9, 1.17.5, 1.18.6     |
+|            | Master version (dev)   | Stable version (2.0.0) | Previous version (1.10.14) |
+| ---------- | ---------------------- | ---------------------- | -------------------------- |
+| Python     | 3.6, 3.7, 3.8, 3.9     | 3.6, 3.7, 3.8, 3.9     | 2.7, 3.5, 3.6, 3.7, 3.8    |
+| PostgreSQL | 9.6, 10, 11, 12, 13    | 9.6, 10, 11, 12, 13    | 9.6, 10, 11, 12, 13        |
+| MySQL      | 5.7, 8                 | 5.7, 8                 | 5.6, 5.7                   |
+| SQLite     | 3.15.0+                | 3.15.0+                | 3.15.0+                    |
+| Kubernetes | 1.16.9, 1.17.5, 1.18.6 | 1.16.9, 1.17.5, 1.18.6 | 1.16.9, 1.17.5, 1.18.6     |
 
 **Note:** MySQL 5.x versions are unable to or have limitations with
 running multiple schedulers -- please see the "Scheduler" docs. MariaDB is not tested/recommended.
@@ -110,7 +111,7 @@ release schedule of Python, nicely summarized in the
 
 ### Additional notes on Python version requirements
 
-* Previous version [requires](https://github.com/apache/airflow/issues/8162) at least Python 3.5.3
+- Previous version [requires](https://github.com/apache/airflow/issues/8162) at least Python 3.5.3
   when using Python 3
 
 ## Getting started
@@ -139,7 +140,6 @@ constraints files separately per major/minor python version.
 You can use them as constraint files when installing Airflow from PyPI. Note that you have to specify
 correct Airflow tag/version/branch and python versions in the URL.
 
-
 1. Installing just Airflow:
 
 NOTE!!!
@@ -160,7 +160,6 @@ Installing via `Poetry` or `pip-tools` is not currently supported.
 
 If you wish to install airflow using those tools you should use the constraint files and convert
 them to appropriate format and workflow that your tool requires.
-
 
 ```bash
 pip install apache-airflow==2.0.0 \
@@ -233,10 +232,9 @@ following the ASF Policy.
 
   ![Gantt View](/docs/apache-airflow/img/gantt.png)
 
-- **Code View**:  Quick way to view source code of a DAG.
+- **Code View**: Quick way to view source code of a DAG.
 
   ![Code View](/docs/apache-airflow/img/code.png)
-
 
 ## Contributing
 

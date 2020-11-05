@@ -23,7 +23,7 @@
 # by the BATS tests automatically during pre-commit and CI
 # Those cannot be made read-only as the breeze-complete must be re-sourceable
 
-_breeze_allowed_python_major_minor_versions="2.7 3.5 3.6 3.7 3.8"
+_breeze_allowed_python_major_minor_versions="2.7 3.5 3.6 3.7 3.8 3.9"
 _breeze_allowed_backends="sqlite mysql postgres"
 _breeze_allowed_integrations="cassandra kerberos mongo openldap pinot presto rabbitmq redis all"
 # registrys is good here even if it is not correct english. We are adding s automatically to all variables
@@ -324,19 +324,17 @@ _breeze_getopt_long_options=""
 #   _breeze_getopt_short_options
 #   _breeze_getopt_long_options
 #######################################################################################################
-function breeze_complete::_build_options_breeze {
+function breeze_complete::_build_options_breeze() {
     local separator=""
     local option
 
-    for option in ${_breeze_short_options}
-    do
+    for option in ${_breeze_short_options}; do
         _breeze_getopt_short_options="${_breeze_getopt_short_options}${separator}${option}"
         separator=","
     done
 
     separator=""
-    for option in ${_breeze_long_options}
-    do
+    for option in ${_breeze_long_options}; do
         _breeze_getopt_long_options="${_breeze_getopt_long_options}${separator}${option}"
         separator=","
     done
@@ -355,14 +353,13 @@ function breeze_complete::_build_options_breeze {
 #   0 - if the word is found in the list
 #   1 - otherwise
 #######################################################################################################
-function breeze_complete::_listcontains_breeze {
+function breeze_complete::_listcontains_breeze() {
     local word
     for word in $1; do
         [[ ${word} = "$2" ]] && return 0
     done
     return 1
 }
-
 
 #######################################################################################################
 #
@@ -378,12 +375,11 @@ function breeze_complete::_listcontains_breeze {
 #       all_options - space-separated all options
 #       options_with extra_args - space separate list of options with an extra argument
 #######################################################################################################
-function breeze_complete::_convert_options {
+function breeze_complete::_convert_options() {
     local option_with_prefix_without_colon
     local option
     local prefix=$1
-    for option in $2
-    do
+    for option in $2; do
         last_character="${option:$((${#option} - 1)):1}"
         option_with_prefix_without_colon=${prefix}${option//:/}
         if [[ "${last_character}" == ":" ]]; then
@@ -393,7 +389,6 @@ function breeze_complete::_convert_options {
     done
 }
 
-
 #######################################################################################################
 #
 # A completion function for breeze
@@ -401,7 +396,7 @@ function breeze_complete::_convert_options {
 # See: https://www.gnu.org/software/bash/manual/html_node/Programmable-Completion.html#Programmable-Completion
 #
 #######################################################################################################
-function breeze_complete::_comp_breeze {
+function breeze_complete::_comp_breeze() {
     local all_options=""
     local options_with_extra_arguments=""
     local currently_typed_string
@@ -430,7 +425,7 @@ function breeze_complete::_comp_breeze {
 
     # if the previous command is in the list of options with extra args - check what are the known values
     if breeze_complete::_listcontains_breeze \
-            "${options_with_extra_arguments}" "${previous_command_in_the_command_line}"; then
+        "${options_with_extra_arguments}" "${previous_command_in_the_command_line}"; then
         # Set COMPREPLY containing list of valid values matching currently typed string from known values
         COMPREPLY=()
         breeze_complete::get_known_values_breeze "${previous_command_in_the_command_line}"

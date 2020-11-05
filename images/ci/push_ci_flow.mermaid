@@ -42,7 +42,7 @@ sequenceDiagram
         Build Images -->> Build Images: Cancel
     end
     Note over Build Images: Build info
-    par 3.6, 3.7, 3.8
+    par 3.6, 3.7, 3.8, 3.9
         Note over Build Images: Update constraints
         Note over Build Images: Build PROD Images<br>[GITHUB_RUN_ID]
     and
@@ -58,7 +58,7 @@ sequenceDiagram
     and
         Note over CI Build: OpenAPI client gen
     end
-    par 3.6, 3.7, 3.8
+    par 3.6, 3.7, 3.8, 3.9
         Build Images ->> GitHub Registry: Push CI Images
         activate GitHub Registry
     and
@@ -70,7 +70,7 @@ sequenceDiagram
     deactivate Build Images
     Note over GitHub Registry: Tagged Images<br>[GITHUB_RUN_ID]
     loop Wait for images
-        par 3.6, 3.7, 3.8
+        par 3.6, 3.7, 3.8, 3.9
             CI Build ->> CI Build: Pull CI Images
             Note over CI Build: Wait for<br>[GITHUB_RUN_ID]
         and
@@ -78,13 +78,13 @@ sequenceDiagram
             Note over CI Build: Wait for<br>[GITHUB_RUN_ID]
         end
     end
-    par 3.6, 3.7, 3.8
+    par 3.6, 3.7, 3.8, 3.9
         GitHub Registry ->> CI Build: Pull CI Images
     and
         GitHub Registry ->> CI Build: Pull PROD Images
     end
     deactivate GitHub Registry
-    par 3.6, 3.7, 3.8
+    par 3.6, 3.7, 3.8, 3.9
         Note over CI Build: Run static checks
     and
         Note over CI Build: Build docs
@@ -101,14 +101,14 @@ sequenceDiagram
     Note over CI Build: Merge Coverage
     CI Build -->> Coverage.io: Upload Coverage
     Note over CI Build: Tag image<br>[COMMIT_SHA]
-    par 3.6, 3.7, 3.8
+    par 3.6, 3.7, 3.8, 3.9
         CI Build ->> GitHub Registry: Push CI Images
         activate GitHub Registry
     and
         CI Build ->> GitHub Registry: Push PROD Images
     end
     Note over GitHub Registry: Tagged Images<br>[COMMIT_SHA]
-    par 3.6, 3.7, 3.8
+    par 3.6, 3.7, 3.8, 3.9
         CI Build ->> Airflow Repo: Push Constraints
     end
     deactivate GitHub Registry
