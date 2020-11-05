@@ -477,7 +477,6 @@ function get_count_kubernetes_files() {
         "^airflow/kubernetes"
         "^airflow/executors/kubernetes_executor.py"
         "^chart"
-        "^tests/kubernetes"
         "^kubernetes_tests"
         "^tests/executors/test_kubernetes_executor.py"
     )
