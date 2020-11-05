@@ -521,7 +521,9 @@ class TestAirflowBaseViews(TestBase):
     def test_doc_urls(self):
         resp = self.client.get('/', follow_redirects=True)
         if "dev" in version.version:
-            airflow_doc_site = "https://airflow.readthedocs.io/en/latest"
+            airflow_doc_site = (
+                "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/"
+            )
         else:
             airflow_doc_site = f'https://airflow.apache.org/docs/{version.version}'
 

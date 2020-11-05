@@ -314,10 +314,24 @@ jobs:
         run: ./scripts/ci/docs/ci_docs.sh --docs-only
       - name: "Upload documentation"
         uses: actions/upload-artifact@v2
-        if: always()
+        if: always() && github.event_name == 'pull_request'
         with:
           name: airflow-documentation
           path: "./files/documentation"
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        if: >
+          github.ref == 'refs/heads/master' && github.repository == 'apache/airflow' &&
+          github.event_name == 'push'
+        with:
+          aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+      - name: "Upload documentation to AWS S3"
+        if: >
+          github.ref == 'refs/heads/master' && github.repository == 'apache/airflow' &&
+          github.event_name == 'push'
+        run: aws s3 sync ./files/documentation s3://apache-airflow-docs
 
   docs-spell-check:
     timeout-minutes: 30

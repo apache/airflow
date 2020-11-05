@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-datadog
+name: Datadog
 description: |
     `Datadog <https://www.datadoghq.com/>`__
 

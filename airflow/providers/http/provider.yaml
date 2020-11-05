@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-http
+name: Hypertext Transfer Protocol (HTTP)
 description: |
     `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 

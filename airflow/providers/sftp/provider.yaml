@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-sftp
+name: SFTP
 description: |
     `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
 

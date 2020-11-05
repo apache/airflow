@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-openfaas
+name: OpenFaaS
 description: |
     `OpenFaaS <https://www.openfaas.com/>`__
 

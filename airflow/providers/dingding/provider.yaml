@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-dingding
+name: Dingding
 description: |
     `Dingding <https://oapi.dingtalk.com/>`__
 

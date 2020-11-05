@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-microsoft-azure
+name: Microsoft Azure
 description: |
     `Microsoft Azure <https://azure.microsoft.com/>`__
 

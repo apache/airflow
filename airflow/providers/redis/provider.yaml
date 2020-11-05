@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-redis
+name: Redis
 description: |
     `Redis <https://redis.io/>`__
 

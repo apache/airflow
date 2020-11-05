@@ -228,7 +228,7 @@ Airflow has support for the `Google service <https://developer.google.com/>`__.
 All hooks are based on :class:`airflow.providers.google.common.hooks.base_google.GoogleBaseHook`. Some integration
 also use :mod:`airflow.providers.google.common.hooks.discovery_api`.
 
-See the :doc:`Google Cloud connection type <howto/connection/gcp>` documentation to
+See the :doc:`Google Cloud connection type <apache-airflow-providers-google:connections/gcp>` documentation to
 configure connections to Google services.
 
 .. _GCP:

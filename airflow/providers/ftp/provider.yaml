@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-ftp
+name: File Transfer Protocol (FTP)
 description: |
     `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
 

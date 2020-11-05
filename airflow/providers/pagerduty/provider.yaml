@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-pagerduty
+name: Pagerduty
 description: |
     `Pagerduty <https://www.pagerduty.com/>`__
 

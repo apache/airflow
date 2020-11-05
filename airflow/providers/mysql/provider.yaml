@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-mysql
+name: MySQL
 description: |
     `MySQL <https://www.mysql.com/products/>`__
 

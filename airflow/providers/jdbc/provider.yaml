@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-jdbc
+name: Java Database Connectivity (JDBC)
 description: |
     `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
 

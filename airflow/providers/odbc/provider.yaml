@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-odbc
+name: ODBC
 description: |
     `ODBC <https://github.com/mkleehammer/pyodbc/wiki>`__
 

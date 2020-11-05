@@ -171,7 +171,7 @@ info:
     The default is to deny all requests.
 
     For details on configuring the authentication, see
-    [API Authorization](https://airflow.readthedocs.io/en/latest/security/api.html).
+    [API Authorization](https://airflow.apache.org/docs/stable/security/api.html).
 
     # Errors
 
@@ -1877,7 +1877,7 @@ components:
         DAG details.
 
         For details see:
-        (airflow.models.DAG)[https://airflow.readthedocs.io/en/stable/_api/airflow/models/index.html#airflow.models.DAG]
+        (airflow.models.DAG)[https://airflow.apache.org/docs/stable/_api/airflow/models/index.html#airflow.models.DAG]
       allOf:
         - $ref: '#/components/schemas/DAG'
         - type: object

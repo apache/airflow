@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-facebook
+name: Facebook
 description: |
     `Facebook Ads <http://business.facebook.com/>`__
 

@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-apache-hive
+name: Apache Hive
 description: |
     `Apache Hive <https://hive.apache.org/>`__
 

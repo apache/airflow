@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-exasol
+name: Exasol
 description: |
     `Exasol <https://docs.exasol.com/home.htm>`__
 

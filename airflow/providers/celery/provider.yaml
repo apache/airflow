@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-celery
+name: Celery
 description: |
     `Celery <http://www.celeryproject.org/>`__
 

@@ -251,6 +251,12 @@ def check_doc_files(yaml_files: Dict[str, Dict]):
         for f in glob(f"{DOCS_DIR}/howto/operator/**/*.rst", recursive=True)
         if not f.endswith("/index.rst") and '/_partials' not in f
     }
+    expected_doc_urls |= {
+        "/docs/" + os.path.relpath(f, start=DOCS_DIR)
+        for f in glob(f"{DOCS_DIR}//apache-airflow-providers-*/operators/**/*.rst", recursive=True)
+        if not f.endswith("/index.rst") and '/_partials' not in f
+    }
+
     expected_doc_urls -= DOC_FILES_EXCLUDE_LIST
     try:
         assert_sets_equal(set(expected_doc_urls), set(current_doc_urls))

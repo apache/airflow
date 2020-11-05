@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-plexus
+name: Plexus
 description: |
     `Plexus <https://plexus.corescientific.com/>`__
 

@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-elasticsearch
+name: Elasticsearch
 description: |
     `Elasticsearch <https://https//www.elastic.co/elasticsearch>`__
 

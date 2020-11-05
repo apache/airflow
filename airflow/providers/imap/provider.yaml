@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-imap
+name: Internet Message Access Protocol (IMAP)
 description: |
     `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
 

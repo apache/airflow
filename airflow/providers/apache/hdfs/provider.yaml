@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-apache-hdfs
+name: Apache HDFS
 description: |
     `Hadoop Distributed File System (HDFS) <https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html>`__
     and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.

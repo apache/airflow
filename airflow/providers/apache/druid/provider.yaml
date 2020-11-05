@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-apache-druid
+name: Apache Druid
 description: |
     `Apache Druid <https://druid.apache.org/>`__.
 

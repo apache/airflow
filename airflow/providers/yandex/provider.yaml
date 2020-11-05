@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-yandex
+name: Yandex
 description: |
     Yandex including `Yandex.Cloud <https://cloud.yandex.com/>`__
 

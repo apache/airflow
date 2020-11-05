@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-slack
+name: Slack
 description: |
     `Slack <https://slack.com/>`__
 

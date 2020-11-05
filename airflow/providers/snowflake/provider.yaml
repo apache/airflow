@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-snowflake
+name: Snowflake
 description: |
     `Snowflake <https://www.snowflake.com/>`__
 

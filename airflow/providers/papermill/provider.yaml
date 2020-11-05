@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-papermill
+name: Papermill
 description: |
     `Papermill <https://github.com/nteract/papermill>`__
 

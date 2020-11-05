@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-segment
+name: Segment
 description: |
     `Segment <https://segment.com/>`__
 

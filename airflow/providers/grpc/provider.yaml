@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-grpc
+name: gRPC
 description: |
     `gRPC <https://grpc.io/>`__
 

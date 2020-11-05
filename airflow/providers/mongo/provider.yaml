@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-mongo
+name: MongoDB
 description: |
     `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
 

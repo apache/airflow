@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-google
+name: Google
 description: |
     Google services including:
 
@@ -33,52 +34,52 @@ integrations:
   - integration-name: Google Analytics360
     external-doc-url: https://analytics.google.com/
     how-to-guide:
-      - /docs/howto/operator/google/marketing_platform/analytics.rst
+      - /docs/apache-airflow-providers-google/operators/marketing_platform/analytics.rst
     tags: [gmp]
   - integration-name: Google Ads
     external-doc-url: https://ads.google.com/
     how-to-guide:
-      - /docs/howto/operator/google/ads.rst
+      - /docs/apache-airflow-providers-google/operators/ads.rst
     tags: [gmp]
   - integration-name: Google AutoML
     external-doc-url: https://cloud.google.com/automl/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/automl.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/automl.rst
     tags: [gcp]
   - integration-name: Google BigQuery Data Transfer Service
     external-doc-url: https://cloud.google.com/bigquery/transfer/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/bigquery_dts.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/bigquery_dts.rst
     tags: [gcp]
   - integration-name: Google BigQuery
     how-to-guide:
-      - /docs/howto/operator/google/cloud/bigquery.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/bigquery.rst
     external-doc-url: https://cloud.google.com/bigquery/
     tags: [gcp]
   - integration-name: Google Bigtable
     how-to-guide:
-      - /docs/howto/operator/google/cloud/bigtable.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/bigtable.rst
     external-doc-url: https://cloud.google.com/bigtable/
     tags: [gcp]
   - integration-name: Google Cloud Build
     external-doc-url: https://cloud.google.com/cloud-build/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/cloud_build.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/cloud_build.rst
     tags: [gcp]
   - integration-name: Google Cloud Data Loss Prevention (DLP)
     external-doc-url: https://cloud.google.com/dlp/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/dlp.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/data_loss_prevention.rst
     tags: [gcp]
   - integration-name: Google Cloud Firestore
     external-doc-url: https://firebase.google.com/docs/firestore
     how-to-guide:
-      - /docs/howto/operator/google/firebase/firestore.rst
+      - /docs/apache-airflow-providers-google/operators/firebase/firestore.rst
     tags: [gcp]
   - integration-name: Google Cloud Functions
     external-doc-url: https://cloud.google.com/functions/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/functions.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/functions.rst
     tags: [gcp]
   - integration-name: Google Cloud Key Management Service (KMS)
     external-doc-url: https://cloud.google.com/kms/
@@ -86,13 +87,13 @@ integrations:
   - integration-name: Google Cloud Life Sciences
     external-doc-url: https://cloud.google.com/life-sciences/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/life_sciences.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/life_sciences.rst
     tags: [gcp]
   - integration-name: Google Cloud Memorystore
     external-doc-url: https://cloud.google.com/memorystore/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/cloud_memorystore.rst
-      - /docs/howto/operator/google/cloud/cloud_memorystore_memcached.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/cloud_memorystore.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/cloud_memorystore_memcached.rst
     tags: [gcp]
   - integration-name: Google Cloud OS Login
     external-doc-url: https://cloud.google.com/compute/docs/oslogin/
@@ -100,7 +101,7 @@ integrations:
   - integration-name: Google Cloud Pub/Sub
     external-doc-url: https://cloud.google.com/pubsub/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/pubsub.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/pubsub.rst
     tags: [gcp]
   - integration-name: Google Cloud Secret Manager
     external-doc-url: https://cloud.google.com/secret-manager/
@@ -108,28 +109,28 @@ integrations:
   - integration-name: Google Cloud Spanner
     external-doc-url: https://cloud.google.com/spanner/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/spanner.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/spanner.rst
     tags: [gcp]
   - integration-name: Google Cloud Speech-to-Text
     external-doc-url: https://cloud.google.com/speech-to-text/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/speech_to_text.rst
-      - /docs/howto/operator/google/cloud/translate_speech.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/speech_to_text.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/translate_speech.rst
     tags: [gcp]
   - integration-name: Google Cloud SQL
     external-doc-url: https://cloud.google.com/sql/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/cloud_sql.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/cloud_sql.rst
     tags: [gcp]
   - integration-name: Google Cloud Stackdriver
     external-doc-url: https://cloud.google.com/stackdriver
     how-to-guide:
-      - /docs/howto/operator/google/cloud/stackdriver.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/stackdriver.rst
     tags: [gcp]
   - integration-name: Google Cloud Storage (GCS)
     external-doc-url: https://cloud.google.com/gcs/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/gcs.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/gcs.rst
     tags: [gcp]
   - integration-name: Google Cloud Tasks
     external-doc-url: https://cloud.google.com/tasks/
@@ -137,29 +138,29 @@ integrations:
   - integration-name: Google Cloud Text-to-Speech
     external-doc-url: https://cloud.google.com/text-to-speech/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/text_to_speech.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/text_to_speech.rst
     tags: [gcp]
   - integration-name: Google Cloud Translation
     external-doc-url: https://cloud.google.com/translate/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/translate.rst
-      - /docs/howto/operator/google/cloud/translate_speech.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/translate.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/translate_speech.rst
     tags: [gcp]
   - integration-name: Google Cloud Video Intelligence
     external-doc-url: https://cloud.google.com/video_intelligence/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/video_intelligence.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/video_intelligence.rst
     tags: [gcp]
   - integration-name: Google Cloud Vision
     external-doc-url: https://cloud.google.com/vision/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/vision.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/vision.rst
     tags: [gcp]
   - integration-name: Google Compute Engine
     external-doc-url: https://cloud.google.com/compute/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/compute.rst
-      - /docs/howto/operator/google/cloud/compute_ssh.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/compute.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/compute_ssh.rst
     tags: [gcp]
   - integration-name: Google Data Proc
     external-doc-url: https://cloud.yandex.com/services/data-proc
@@ -167,7 +168,7 @@ integrations:
   - integration-name: Google Data Catalog
     external-doc-url: https://cloud.google.com/data-catalog
     how-to-guide:
-      - /docs/howto/operator/google/cloud/datacatalog.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/datacatalog.rst
     tags: [gcp]
   - integration-name: Google Dataflow
     external-doc-url: https://cloud.google.com/dataflow/
@@ -175,22 +176,22 @@ integrations:
   - integration-name: Google Data Fusion
     external-doc-url: https://cloud.google.com/data-fusion/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/datafusion.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/datafusion.rst
     tags: [gcp]
   - integration-name: Google Dataprep
     external-doc-url: https://cloud.google.com/dataprep/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/dataprep.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/dataprep.rst
     tags: [gcp]
   - integration-name: Google Dataproc
     external-doc-url: https://cloud.google.com/dataproc/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/dataproc.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/dataproc.rst
     tags: [gcp]
   - integration-name: Google Datastore
     external-doc-url: https://cloud.google.com/datastore/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/datastore.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/datastore.rst
     tags: [gcp]
   - integration-name: Google Deployment Manager
     external-doc-url: https://cloud.google.com/deployment-manager/
@@ -201,7 +202,7 @@ integrations:
   - integration-name: Google Campaign Manager
     external-doc-url: https://developers.google.com/doubleclick-advertisers
     how-to-guide:
-      - /docs/howto/operator/google/marketing_platform/campaign_manager.rst
+      - /docs/apache-airflow-providers-google/operators/marketing_platform/campaign_manager.rst
     tags: [gcp]
   - integration-name: Google Cloud
     external-doc-url: https://cloud.google.com/
@@ -212,7 +213,7 @@ integrations:
   - integration-name: Google Display&Video 360
     external-doc-url: https://marketingplatform.google.com/about/display-video-360/
     how-to-guide:
-      - /docs/howto/operator/google/marketing_platform/display_video.rst
+      - /docs/apache-airflow-providers-google/operators/marketing_platform/display_video.rst
     tags: [gmp]
   - integration-name: Google Drive
     external-doc-url: https://www.google.com/drive/
@@ -220,7 +221,7 @@ integrations:
   - integration-name: Google Search Ads 360
     external-doc-url: https://marketingplatform.google.com/about/search-ads-360/
     how-to-guide:
-      - /docs/howto/operator/google/marketing_platform/search_ads.rst
+      - /docs/apache-airflow-providers-google/operators/marketing_platform/search_ads.rst
     tags: [gmp]
   - integration-name: Google
     external-doc-url: https://developer.google.com/
@@ -228,27 +229,27 @@ integrations:
   - integration-name: Google Spreadsheet
     external-doc-url: https://www.google.com/intl/en/sheets/about/
     how-to-guide:
-      - /docs/howto/operator/google/suite/sheets.rst
+      - /docs/apache-airflow-providers-google/operators/suite/sheets.rst
     tags: [google]
   - integration-name: Google Cloud Storage Transfer Service
     external-doc-url: https://cloud.google.com/storage/transfer/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/cloud_storage_transfer_service.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/cloud_storage_transfer_service.rst
     tags: [gcp]
   - integration-name: Google Kubernetes Engine
     external-doc-url: https://cloud.google.com/kubernetes_engine/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/kubernetes_engine.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/kubernetes_engine.rst
     tags: [gcp]
   - integration-name: Google Machine Learning Engine
     external-doc-url: https://cloud.google.com/ai-platform/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/mlengine.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/mlengine.rst
     tags: [gcp]
   - integration-name: Google Cloud Natural Language
     external-doc-url: https://cloud.google.com/natural-language/
     how-to-guide:
-      - /docs/howto/operator/google/cloud/natural_language.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/natural_language.rst
     tags: [gcp]
 
 operators:
@@ -548,36 +549,36 @@ hooks:
 transfers:
   - source-integration-name: Presto
     target-integration-name: Google Cloud Storage (GCS)
-    how-to-guide: /docs/howto/operator/google/transfer/presto_to_gcs.rst
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/presto_to_gcs.rst
     python-module: airflow.providers.google.cloud.transfers.presto_to_gcs
   - source-integration-name: SQL
     target-integration-name: Google Cloud Storage (GCS)
     python-module: airflow.providers.google.cloud.transfers.sql_to_gcs
   - source-integration-name: Google Cloud Storage (GCS)
     target-integration-name: Google Drive
-    how-to-guide: /docs/howto/operator/google/transfer/gcs_to_gdrive.rst
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gcs_to_gdrive.rst
     python-module: airflow.providers.google.suite.transfers.gcs_to_gdrive
   - source-integration-name: Microsoft SQL Server (MSSQL)
     target-integration-name: Google Cloud Storage (GCS)
     python-module: airflow.providers.google.cloud.transfers.mssql_to_gcs
   - source-integration-name: Microsoft Azure FileShare
     target-integration-name: Google Cloud Storage (GCS)
-    how-to-guide: /docs/howto/operator/google/transfer/azure_fileshare_to_gcs.rst
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/azure_fileshare_to_gcs.rst
     python-module: airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs
   - source-integration-name: Apache Cassandra
     target-integration-name: Google Cloud Storage (GCS)
     python-module: airflow.providers.google.cloud.transfers.cassandra_to_gcs
   - source-integration-name: Google Spreadsheet
     target-integration-name: Google Cloud Storage (GCS)
-    how-to-guide: /docs/howto/operator/google/transfer/sheets_to_gcs.rst
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/sheets_to_gcs.rst
     python-module: airflow.providers.google.cloud.transfers.sheets_to_gcs
   - source-integration-name: Amazon Simple Storage Service (S3)
     target-integration-name: Google Cloud Storage (GCS)
-    how-to-guide: /docs/howto/operator/google/transfer/s3_to_gcs.rst
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/s3_to_gcs.rst
     python-module: airflow.providers.google.cloud.transfers.s3_to_gcs
   - source-integration-name: Google Cloud Storage (GCS)
     target-integration-name: SSH File Transfer Protocol (SFTP)
-    how-to-guide: /docs/howto/operator/google/transfer/gcs_to_sftp.rst
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gcs_to_sftp.rst
     python-module: airflow.providers.google.cloud.transfers.gcs_to_sftp
   - source-integration-name: PostgreSQL
     target-integration-name: Google Cloud Storage (GCS)
@@ -590,15 +591,15 @@ transfers:
     python-module: airflow.providers.google.cloud.transfers.gcs_to_bigquery
   - source-integration-name: Google Cloud Storage (GCS)
     target-integration-name: Google Cloud Storage (GCS)
-    how-to-guide: /docs/howto/operator/google/transfer/gcs_to_gcs.rst
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gcs_to_gcs.rst
     python-module: airflow.providers.google.cloud.transfers.gcs_to_gcs
   - source-integration-name: Facebook Ads
     target-integration-name: Google Cloud Storage (GCS)
-    how-to-guide: /docs/howto/operator/google/transfer/facebook_ads_to_gcs.rst
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/facebook_ads_to_gcs.rst
     python-module: airflow.providers.google.cloud.transfers.facebook_ads_to_gcs
   - source-integration-name: SSH File Transfer Protocol (SFTP)
     target-integration-name: Google Cloud Storage (GCS)
-    how-to-guide: /docs/howto/operator/google/transfer/sftp_to_gcs.rst
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/sftp_to_gcs.rst
     python-module: airflow.providers.google.cloud.transfers.sftp_to_gcs
   - source-integration-name: Microsoft Azure Data Lake Storage
     target-integration-name: Google Cloud Storage (GCS)
@@ -609,25 +610,25 @@ transfers:
   - source-integration-name: MySQL
     target-integration-name: Google Cloud Storage (GCS)
     python-module: airflow.providers.google.cloud.transfers.mysql_to_gcs
-    how-to-guide: /docs/howto/operator/google/transfer/mysql_to_gcs.rst
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/mysql_to_gcs.rst
   - source-integration-name: Google Cloud Storage (GCS)
     target-integration-name: Google Spreadsheet
-    how-to-guide: /docs/howto/operator/google/transfer/gcs_to_sheets.rst
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gcs_to_sheets.rst
     python-module: airflow.providers.google.suite.transfers.gcs_to_sheets
   - source-integration-name: Local
     target-integration-name: Google Cloud Storage (GCS)
-    how-to-guide: /docs/howto/operator/google/transfer/local_to_gcs.rst
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/local_to_gcs.rst
     python-module: airflow.providers.google.cloud.transfers.local_to_gcs
   - source-integration-name: Google BigQuery
     target-integration-name: Google Cloud Storage (GCS)
     python-module: airflow.providers.google.cloud.transfers.bigquery_to_gcs
   - source-integration-name: Google Cloud Storage (GCS)
     target-integration-name: Local
-    how-to-guide: /docs/howto/operator/google/transfer/gcs_to_local.rst
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gcs_to_local.rst
     python-module: airflow.providers.google.cloud.transfers.gcs_to_local
   - source-integration-name: Salesforce
     target-integration-name: Google Cloud Storage (GCS)
-    how-to-guide: /docs/howto/operator/google/transfer/salesforce_to_gcs.rst
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/salesforce_to_gcs.rst
     python-module: airflow.providers.google.cloud.transfers.salesforce_to_gcs
   - source-integration-name: Google Ads
     target-integration-name: Google Cloud Storage (GCS)

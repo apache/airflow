@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-apache-sqoop
+name: Apache Sqoop
 description: |
     `Apache Sqoop <https://sqoop.apache.org/>`__
 

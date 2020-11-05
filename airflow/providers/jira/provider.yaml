@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-jira
+name: Jira
 description: |
     `Atlassian Jira <https://www.atlassian.com/>`__
 

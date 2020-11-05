@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-sqlite
+name: SQLite
 description: |
     `SQLite <https://www.sqlite.org/>`__
 

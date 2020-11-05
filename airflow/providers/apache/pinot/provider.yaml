@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-apache-pinot
+name: Apache Pinot
 description: |
     `Apache Pinot <https://pinot.apache.org/>`__
 

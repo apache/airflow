@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-zendesk
+name: Zendesk
 description: |
     `Zendesk <https://www.zendesk.com/>`__
 

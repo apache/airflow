@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-hashicorp
+name: Hashicorp
 description: |
     Hashicorp including `Hashicorp Vault <https://www.vaultproject.io/>`__
 

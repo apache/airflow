@@ -18,7 +18,7 @@
 """Validator for body fields sent via Google Cloud API.
 
 The validator performs validation of the body (being dictionary of fields) that
-is sent in the API request to Google Cloud (via googleclient API usually).
+is sent in the API request to Google Cloud (via ``googleclient`` API usually).
 
 Context
 -------

@@ -373,7 +373,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
 
             * project_id is optional if you have a project id defined
               in the connection
-              See: :ref:`howto/connection:gcp`
+              See: :doc:`/connections/gcp`
 
         :type request_filter: dict
         :return: transfer operation

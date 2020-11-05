@@ -150,6 +150,10 @@ class DatabricksSubmitRunOperator(BaseOperator):
         - ``run_name``
         - ``timeout_seconds``
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`apache-airflow:howto/operator:DatabricksSubmitRunOperator`
+
     :param json: A JSON object containing API parameters which will be passed
         directly to the ``api/2.0/jobs/runs/submit`` endpoint. The other named parameters
         (i.e. ``spark_jar_task``, ``notebook_task``..) to this operator will

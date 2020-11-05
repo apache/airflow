@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-apache-spark
+name: Apache Spark
 description: |
     `Apache Spark <https://spark.apache.org/>`__
 

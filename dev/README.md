@@ -106,7 +106,7 @@ via [Official Apache Download for providers](https://downloads.apache.org/airflo
 [Official Apache Download for backport-providers](https://downloads.apache.org/airflow/backport-providers/)
 
 The full provider's list can be found here:
-[Provider Packages Reference](https://airflow.readthedocs.io/en/latest/provider-packages-ref.html)
+[Provider Packages Reference](https://s.apache.org/airflow-docs)
 
 There are also convenience packages released as "apache-airflow-providers" and
 "apache-airflow-backport-providers" separately in PyPI.

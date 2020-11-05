@@ -31,7 +31,7 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:AzureBlobStorageToGCSOperator`
+        :ref:`apache-airflow:howto/operator:AzureBlobStorageToGCSOperator`
 
     :param wasb_conn_id: Reference to the wasb connection.
     :type wasb_conn_id: str

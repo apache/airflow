@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-apache-pig
+name: Apache Pig
 description: |
     `Apache Pig <https://pig.apache.org/>`__
 

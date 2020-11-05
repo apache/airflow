@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-sendgrid
+name: Sendgrid
 description: |
     `Sendgrid <https://sendgrid.com/>`__
 

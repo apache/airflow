@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-apache-cassandra
+name: Apache Cassandra
 description: |
     `Apache Cassandra <http://cassandra.apache.org/>`__.
 

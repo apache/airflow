@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-qubole
+name: Qubole
 description: |
     `Qubole <https://www.qubole.com/>`__
 

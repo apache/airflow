@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-cncf-kubernetes
+name: Kubernetes
 description: |
     `Kubernetes <https://kubernetes.io/>`__
 

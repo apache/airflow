@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-opsgenie
+name: Opsgenie
 description: |
     `Opsgenie <https://www.opsgenie.com/>`__
 

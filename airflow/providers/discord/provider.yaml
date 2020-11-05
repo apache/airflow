@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-discord
+name: Discord
 description: |
     `Discord <https://discordapp.com/>`__
 

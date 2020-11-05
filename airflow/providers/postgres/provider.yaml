@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-postgres
+name: PostgreSQL
 description: |
     `PostgreSQL <https://www.postgresql.org/>`__
 

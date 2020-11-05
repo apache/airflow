@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-presto
+name: Presto
 description: |
     `Presto <https://prestodb.github.io/>`__
 

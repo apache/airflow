@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-oracle
+name: Orcle
 description: |
     `Oracle <https://www.oracle.com/en/database/>`__
 

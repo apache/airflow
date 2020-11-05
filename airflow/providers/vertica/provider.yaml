@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-vertica
+name: Vertica
 description: |
     `Vertica <https://www.vertica.com/>`__
 

@@ -33,7 +33,7 @@ class SparkSubmitOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:SparkSubmitOperator`
+        :ref:`apache-airflow:howto/operator:SparkSubmitOperator`
 
     :param application: The application that submitted as a job, either jar or py file. (templated)
     :type application: str

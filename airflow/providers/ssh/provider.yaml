@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-ssh
+name: SSH
 description: |
     `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
 

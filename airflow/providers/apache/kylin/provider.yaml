@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-apache-kylin
+name: Apache Hive
 description: |
     `Apache Kylin <https://kylin.apache.org/>`__
 

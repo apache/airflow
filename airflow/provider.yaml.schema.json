@@ -6,6 +6,10 @@
       "description": "Package name available under which the package is available in the PyPI repository.",
       "type": "string"
     },
+    "name": {
+      "description": "Provider name",
+      "type": "string"
+    },
     "description": {
       "description": "Information about the package in RST format",
       "type": "string"
@@ -167,6 +171,7 @@
   },
   "additionalProperties": false,
   "required": [
+    "name",
     "package-name",
     "description",
     "versions"

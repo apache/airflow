@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-singularity
+name: Singularity
 description: |
     `Singularity <https://sylabs.io/guides/latest/user-guide/>`__
 

@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-databricks
+name: Databricks
 description: |
     `Databricks <https://databricks.com/>`__
 

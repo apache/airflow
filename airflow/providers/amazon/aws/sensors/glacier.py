@@ -35,6 +35,10 @@ class GlacierJobOperationSensor(BaseSensorOperator):
     """
     Glacier sensor for checking job state. This operator runs only in reschedule mode.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`apache-airflow:howto/operator:GlacierJobOperationSensor`
+
     :param aws_conn_id: The reference to the AWS connection details
     :type aws_conn_id: str
     :param vault_name: name of Glacier vault on which job is executed

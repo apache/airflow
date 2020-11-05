@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-apache-livy
+name: Apache Livy
 description: |
     `Apache Livy <https://livy.apache.org/>`__
 

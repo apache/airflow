@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-docker
+name: Docker
 description: |
     `Docker <https://docs.docker.com/install/>`__
 

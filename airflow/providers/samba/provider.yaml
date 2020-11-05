@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-samba
+name: Samba
 description: |
     `Samba <https://www.samba.org/>`__
 

@@ -17,6 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-salesforce
+name: Salesforce
 description: |
     `Salesforce <https://www.salesforce.com/>`__
 
