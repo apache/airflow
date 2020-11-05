@@ -66,7 +66,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
         context = self.create_context(k)
         k.execute(context=context)
         client_mock.assert_called_once_with(
-            in_cluster=False, cluster_context='default', config_file=file_path,
+            in_cluster=False,
+            cluster_context='default',
+            config_file=file_path,
         )
 
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")

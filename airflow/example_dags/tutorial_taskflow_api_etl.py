@@ -18,13 +18,13 @@
 
 # pylint: disable=missing-function-docstring
 """
-### Functional DAG Tutorial Documentation
+### TaskFlow API Tutorial Documentation
 
-This is a simple ETL data pipeline example which demonstrates the use of Functional DAGs
+This is a simple ETL data pipeline example which demonstrates the use of the TaskFlow API
 using three simple tasks for Extract, Transform, and Load.
 
-Documentation that goes along with the Airflow Functional DAG tutorial located
-[here](https://airflow.apache.org/tutorial_functional.html)
+Documentation that goes along with the Airflow TaskFlow API tutorial located
+[here](https://airflow.apache.org/docs/stable/tutorial_taskflow_api.html)
 """
 # [START tutorial]
 # [START import_module]
@@ -46,9 +46,9 @@ default_args = {
 
 # [START instantiate_dag]
 with DAG(
-    'tutorial_functional_etl_dag',
+    'tutorial_taskflow_api_etl_dag',
     default_args=default_args,
-    description='Functional ETL DAG tutorial',
+    description='TaskFlow API ETL DAG tutorial',
     schedule_interval=None,
     start_date=days_ago(2),
     tags=['example'],

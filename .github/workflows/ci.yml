@@ -97,6 +97,7 @@ jobs:
       docs-build: ${{ steps.selective-checks.outputs.docs-build }}
       needs-helm-tests: ${{ steps.selective-checks.outputs.needs-helm-tests }}
       needs-api-tests: ${{ steps.selective-checks.outputs.needs-api-tests }}
+      needs-api-codegen: ${{ steps.selective-checks.outputs.needs-api-codegen }}
       pullRequestNumber: ${{ steps.source-run-info.outputs.pullRequestNumber }}
       pullRequestLabels: ${{ steps.source-run-info.outputs.pullRequestLabels }}
     steps:
@@ -148,11 +149,12 @@ jobs:
     name: "Test OpenAPI client generation"
     runs-on: ubuntu-latest
     needs: [build-info]
-    if: >
-      needs.build-info.outputs.needs-api-tests == 'true'
+    if: needs.build-info.outputs.needs-api-codegen == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
       - name: "Generate client codegen diff"
         run: ./scripts/ci/openapi/client_codegen_diff.sh
 

@@ -18,15 +18,21 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$(dirname "${BASH_SOURCE[0]}")/../libraries/_script_init.sh"
 
-set -e
-target_remote="origin"
-if [ "${CI_TARGET_REPO}" != "${CI_SOURCE_REPO}" ]; then
-    target_remote="target"
-    git remote add target "https://github.com/${CI_TARGET_REPO}"
-    git fetch target "${CI_TARGET_BRANCH}" --depth=1
-fi
+set -eu
 
-echo "Diffing openapi spec against ${target_remote}/${CI_TARGET_BRANCH}..."
+# HEAD^1 says the "first" parent. For PR merge commits, or master commits, this is the "right" commit.
+#
+# In this example, 9c532b6 is the PR commit (HEAD^2), 4840892 is the head github checks-out for us, and db121f7 is the
+# "merge target" (HEAD^1) -- i.e. mainline
+#
+# *   4840892 (HEAD, pull/11906/merge) Merge 9c532b6a2c56cd5d4c2a80ecbed60f9dfd1f5fe6 into db121f726b3c7a37aca1ea05eb4714f884456005 [Ephraim Anierobi]
+# |\
+# | * 9c532b6 (grafted) make taskinstances pid and duration nullable [EphraimBuddy]
+# * db121f7 (grafted) Add truncate table (before copy) option to S3ToRedshiftOperator (#9246) [JavierLopezT]
+
+previous_mainline_commit="$(git rev-parse --short HEAD^1)"
+
+echo "Diffing openapi spec against ${previous_mainline_commit}..."
 
 SPEC_FILE="airflow/api_connexion/openapi/v1.yaml"
 readonly SPEC_FILE
@@ -37,14 +43,6 @@ readonly GO_CLIENT_PATH
 GO_TARGET_CLIENT_PATH="clients/go_target_branch/airflow"
 readonly GO_TARGET_CLIENT_PATH
 
-
-if ! git diff --name-only "${target_remote}/${CI_TARGET_BRANCH}" HEAD | grep "${SPEC_FILE}\|clients/gen"; then
-    echo "No openapi spec change detected, going to skip client code gen validation."
-    exit 0
-fi
-
-echo "OpenAPI spec change detected. comparing codegen diff..."
-
 # generate client for current patch
 mkdir -p "${GO_CLIENT_PATH}"
 
@@ -52,7 +50,7 @@ mkdir -p "${GO_CLIENT_PATH}"
 # generate client for target patch
 mkdir -p "${GO_TARGET_CLIENT_PATH}"
 
-git reset --hard "${target_remote}/${CI_TARGET_BRANCH}"
+git reset --hard "${previous_mainline_commit}"
 ./clients/gen/go.sh "${SPEC_FILE}" "${GO_TARGET_CLIENT_PATH}"
 
 diff -u "${GO_TARGET_CLIENT_PATH}" "${GO_CLIENT_PATH}" || true

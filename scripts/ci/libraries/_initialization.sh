@@ -567,8 +567,6 @@ Detected CI build environment:
     CI_BUILD_ID=${CI_BUILD_ID}
     CI_JOB_ID=${CI_JOB_ID}
     CI_EVENT_TYPE=${CI_EVENT_TYPE}
-    CI_SOURCE_REPO=${CI_SOURCE_REPO}
-    CI_SOURCE_BRANCH=${CI_SOURCE_BRANCH}
 
 Initialization variables:
 
@@ -599,30 +597,6 @@ function initialization::get_environment_for_builds_on_ci() {
         export CI_JOB_ID="${GITHUB_JOB}"
         export CI_EVENT_TYPE="${GITHUB_EVENT_NAME}"
         export CI_REF="${GITHUB_REF:=}"
-        if [[ ${CI_EVENT_TYPE:=} == "pull_request" ]]; then
-            # default name of the source repo (assuming it's forked without rename)
-            export SOURCE_AIRFLOW_REPO=${SOURCE_AIRFLOW_REPO:="airflow"}
-            # For Pull Requests it's ambiguous to find the PR and we need to
-            # assume that name of repo is airflow but it could be overridden in case it's not
-            export CI_SOURCE_REPO="${GITHUB_ACTOR}/${SOURCE_AIRFLOW_REPO}"
-            export CI_SOURCE_BRANCH="${GITHUB_HEAD_REF}"
-            BRANCH_EXISTS=$(git ls-remote --heads \
-                "https://github.com/${CI_SOURCE_REPO}.git" "${CI_SOURCE_BRANCH}" || true)
-            if [[ -z ${BRANCH_EXISTS=} ]]; then
-                verbosity::print_info
-                verbosity::print_info "https://github.com/${CI_SOURCE_REPO}.git Branch ${CI_SOURCE_BRANCH} does not exist"
-                verbosity::print_info
-                verbosity::print_info
-                verbosity::print_info "Fallback to https://github.com/${CI_TARGET_REPO}.git Branch ${CI_TARGET_BRANCH}"
-                verbosity::print_info
-                # Fallback to the target repository if the repo does not exist
-                export CI_SOURCE_REPO="${CI_TARGET_REPO}"
-                export CI_SOURCE_BRANCH="${CI_TARGET_BRANCH}"
-            fi
-        else
-            export CI_SOURCE_REPO="${CI_TARGET_REPO}"
-            export CI_SOURCE_BRANCH="${CI_TARGET_BRANCH}"
-        fi
     else
         # CI PR settings
         export CI_TARGET_REPO="${CI_TARGET_REPO="apache/airflow"}"
@@ -631,9 +605,6 @@ function initialization::get_environment_for_builds_on_ci() {
         export CI_JOB_ID="${CI_JOB_ID="0"}"
         export CI_EVENT_TYPE="${CI_EVENT_TYPE="pull_request"}"
         export CI_REF="${CI_REF="refs/head/master"}"
-
-        export CI_SOURCE_REPO="${CI_SOURCE_REPO="apache/airflow"}"
-        export CI_SOURCE_BRANCH="${DEFAULT_BRANCH="master"}"
     fi
 
     if [[ ${VERBOSE} == "true" && ${PRINT_INFO_FROM_SCRIPTS} == "true" ]]; then
