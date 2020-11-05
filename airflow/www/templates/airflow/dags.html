@@ -125,7 +125,13 @@
                   </div>
                 </td>
                 {# Column 3: Dag Owners #}
-                <td>{{ dag.owners }}</td>
+                <td>
+                  <a class="label label-default"
+                     href="?search={{ dag.owners }}"
+                     style="margin: 3px;">
+                     {{ dag.owners }}
+                  </a>
+                </td>
                 {# Column 4: Dag Runs #}
                 <td style="padding:0; width:120px;">
                   {{ loading_dots(classes='js-loading-dag-stats text-muted') }}
