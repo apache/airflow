@@ -290,8 +290,9 @@ if airflow_theme_is_available:
 # == Extensions configuration ==================================================
 
 # -- Options for sphinxcontrib.jinjac ------------------------------------------
-
 # See: https://github.com/tardyp/sphinx-jinja
+
+# Jinja context
 jinja_contexts = {'config_ctx': {"configs": default_config_yaml()}}
 
 # -- Options for sphinx.ext.autodoc --------------------------------------------
