@@ -183,7 +183,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
 
     def execute(self, context):
         self.log.info(
-             'Running ECS Task - Task definition: %s - on cluster %s', self.task_definition, self.cluster
+            'Running ECS Task - Task definition: %s - on cluster %s', self.task_definition, self.cluster
         )
         self.log.info('ECSOperator overrides: %s', self.overrides)
 
@@ -287,7 +287,6 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
             return None
 
         return deque(log_events, maxlen=1).pop()["message"]
-
 
     def _check_success_task(self) -> None:
         if not self.client or not self.arn:
