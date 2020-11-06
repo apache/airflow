@@ -646,10 +646,10 @@ CONNECTION_URIS = {
     "mysql": {
         "proxy": {
             "tcp": "mysql://{user}:{password}@127.0.0.1:{proxy_port}/{database}",
-            "socket": "mysql://{user}:{password}@localhost/{database}?" "unix_socket={socket_path}",
+            "socket": "mysql://{user}:{password}@localhost/{database}?unix_socket={socket_path}",
         },
         "public": {
-            "ssl": "mysql://{user}:{password}@{public_ip}:{public_port}/{database}?" "ssl={ssl_spec}",
+            "ssl": "mysql://{user}:{password}@{public_ip}:{public_port}/{database}?ssl={ssl_spec}",
             "non-ssl": "mysql://{user}:{password}@{public_ip}:{public_port}/{database}",
         },
     },

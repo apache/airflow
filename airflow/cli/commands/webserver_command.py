@@ -250,7 +250,7 @@ class GunicornMonitor(LoggingMixin):
         # to increase number of workers
         if num_workers_running < self.num_workers_expected:
             self.log.error(
-                "[%d / %d] Some workers seem to have died and gunicorn did not restart " "them as expected",
+                "[%d / %d] Some workers seem to have died and gunicorn did not restart them as expected",
                 num_ready_workers_running,
                 num_workers_running,
             )

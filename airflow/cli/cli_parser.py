@@ -304,9 +304,7 @@ ARG_IMGCAT_DAGRUN = Arg(
 )
 ARG_SAVE_DAGRUN = Arg(
     ("--save-dagrun",),
-    help=(
-        "After completing the backfill, saves the diagram for current DAG Run to the indicated file.\n" "\n"
-    ),
+    help=("After completing the backfill, saves the diagram for current DAG Run to the indicated file.\n\n"),
 )
 
 # list_tasks
@@ -453,12 +451,12 @@ ARG_DEBUG = Arg(
 ARG_ACCESS_LOGFILE = Arg(
     ("-A", "--access-logfile"),
     default=conf.get('webserver', 'ACCESS_LOGFILE'),
-    help="The logfile to store the webserver access log. Use '-' to print to " "stderr",
+    help="The logfile to store the webserver access log. Use '-' to print to stderr",
 )
 ARG_ERROR_LOGFILE = Arg(
     ("-E", "--error-logfile"),
     default=conf.get('webserver', 'ERROR_LOGFILE'),
-    help="The logfile to store the webserver error log. Use '-' to print to " "stderr",
+    help="The logfile to store the webserver error log. Use '-' to print to stderr",
 )
 
 # scheduler
@@ -493,7 +491,7 @@ ARG_CONCURRENCY = Arg(
 )
 ARG_CELERY_HOSTNAME = Arg(
     ("-H", "--celery-hostname"),
-    help=("Set the hostname of celery worker " "if you have multiple workers on a single machine"),
+    help=("Set the hostname of celery worker if you have multiple workers on a single machine"),
 )
 ARG_UMASK = Arg(
     ("-u", "--umask"),

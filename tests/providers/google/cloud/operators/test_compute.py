@@ -786,7 +786,7 @@ class TestGceInstanceTemplateCopy(unittest.TestCase):
             )
             op.execute(None)
         err = cm.exception
-        self.assertIn("should contain at least name for the new operator " "in the 'name' field", str(err))
+        self.assertIn("should contain at least name for the new operator in the 'name' field", str(err))
         mock_hook.assert_not_called()
 
 
