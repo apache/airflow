@@ -241,19 +241,8 @@ class TestApp(unittest.TestCase):
         }
     )
     @mock.patch("airflow.www.app.app", None)
-    def test_should_emit_deprecation_warnings(self):
-        with pytest.warns(DeprecationWarning) as warns:
+    def test_should_stop_app_when_removed_options_are_provided(self):
+        with self.assertRaises(SystemExit) as se:
             conf.remove_option('webserver', 'session_lifetime_minutes')
-            app = application.cached_app(testing=True)
-
-        warn_msg = (
-            '`SESSION_LIFETIME_DAYS` option from `webserver` section has been '
-            'renamed to `SESSION_LIFETIME_MINUTES`. New option allows to configure '
-            'session lifetime in minutes. FORCE_LOG_OUT_AFTER option has been removed '
-            'from `webserver` section.\nUsing default value for '
-            '`SESSION_LIFETIME_MINUTES`: 43200'
-        )
-
-        warns = [w.message.args[0] for w in warns]
-        self.assertEqual(warn_msg in warns, True)
-        self.assertEqual(app.config['PERMANENT_SESSION_LIFETIME'], timedelta(minutes=43200))
+            application.cached_app(testing=True)
+        self.assertEqual(se.exception.code, 4)
