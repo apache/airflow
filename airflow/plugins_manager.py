@@ -209,10 +209,12 @@ plugins = load_entrypoint_plugins(
 )
 
 
-def make_deprecated_module(name, objects, plugin):
-    name = name.lower()
+def make_deprecated_module(kind, plugin, objects=None):
+    name = 'airflow.{}.{}'.format(kind, plugin.name)
     module = imp.new_module(name)
     module._name = name.split('.')[-1]
+    if objects is None:
+        objects = getattr(plugin, kind)
     module._objects = objects
     objects = {o.__name__: o for o in objects}
 
@@ -236,12 +238,12 @@ def make_deprecated_module(name, objects, plugin):
             correct_import_name = '.'.join((obj.__module__, obj_name))
 
         warnings.warn(
-            "Importing '{}' from under 'airflow.operators.*' has been deprecated and should be directly "
+            "Importing '{}' from under 'airflow.{}.*' has been deprecated and should be directly "
             "imported as '{}' instead.\n"
             "\n"
             "Support for importing from within the airflow namespace for plugins will be dropped entirely "
             "in Airflow 2.0. See <http://airflow.apache.org/docs/stable/howto/custom-operator.html>.".format(
-                attrname, correct_import_name
+                attrname, kind, correct_import_name
             ),
             category=FutureWarning,
             stacklevel=stacklevel
@@ -292,11 +294,13 @@ during deserialization
 
 for p in plugins:
     operators_modules.append(
-        make_deprecated_module('airflow.operators.' + p.name, p.operators + p.sensors, p))
+        make_deprecated_module('operators', p, p.operators + p.sensors))
     sensors_modules.append(
-        make_deprecated_module('airflow.sensors.' + p.name, p.sensors, p)
+        make_deprecated_module('sensors', p)
     )
-    hooks_modules.append(make_module('airflow.hooks.' + p.name, p.hooks))
+    hooks_modules.append(
+        make_deprecated_module('hooks', p)
+    )
     executors_modules.append(
         make_module('airflow.executors.' + p.name, p.executors))
     macros_modules.append(make_module('airflow.macros.' + p.name, p.macros))
