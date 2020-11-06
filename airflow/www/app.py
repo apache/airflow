@@ -46,6 +46,7 @@ from airflow.www.extensions.init_views import (
     init_plugins,
 )
 from airflow.www.extensions.init_wsgi_middlewares import init_wsgi_middleware
+from airflow.www.extensions.stop_webserver import stop_webserver
 
 app: Optional[Flask] = None
 
@@ -86,11 +87,9 @@ def create_app(config=None, testing=False, app_name="Airflow"):
                 'session lifetime in minutes. FORCE_LOG_OUT_AFTER option has been removed '
                 'from `webserver` section. Please update your configuration.'
             )
-            sys.exit(4)
+            stop_webserver()
         else:
-            logging.info(
-                f'Using default value for `SESSION_LIFETIME_MINUTES`: {default_session_lifetime}'
-            )
+            logging.info(f'Using default value for `SESSION_LIFETIME_MINUTES`: {default_session_lifetime}')
             session_lifetime_minutes = default_session_lifetime
 
     flask_app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=session_lifetime_minutes)
