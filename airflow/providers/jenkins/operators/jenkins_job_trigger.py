@@ -112,9 +112,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         super().__init__(**kwargs)
         self.job_name = job_name
         self.parameters = parameters
-        if sleep_time < 1:
-            sleep_time = 1
-        self.sleep_time = sleep_time
+        self.sleep_time = max(sleep_time, 1)
         self.jenkins_connection_id = jenkins_connection_id
         self.max_try_before_job_appears = max_try_before_job_appears
 
