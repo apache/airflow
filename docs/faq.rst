@@ -94,7 +94,7 @@ What's the deal with ``start_date``?
 relevant in many ways. When creating a new DAG, you probably want to set
 a global ``start_date`` for your tasks using ``default_args``. The first
 DagRun to be created will be based on the ``min(start_date)`` for all your
-task. From that point on, the scheduler creates new DagRuns based on
+tasks. From that point on, the scheduler creates new DagRuns based on
 your ``schedule_interval`` and the corresponding task instances run as your
 dependencies are met. When introducing new tasks to your DAG, you need to
 pay special attention to ``start_date``, and may want to reactivate
