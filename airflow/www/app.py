@@ -88,7 +88,7 @@ def create_app(config=None, testing=False, app_name="Airflow"):
             )
             stop_webserver()
         else:
-            logging.info(f'Using default value for `SESSION_LIFETIME_MINUTES`: {default_session_lifetime}')
+            logging.info('Using default value for `SESSION_LIFETIME_MINUTES`: %s', default_session_lifetime)
             session_lifetime_minutes = default_session_lifetime
 
     flask_app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=session_lifetime_minutes)
