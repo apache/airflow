@@ -338,7 +338,7 @@ function kind::deploy_airflow_with_helm() {
     kubectl create namespace "${HELM_AIRFLOW_NAMESPACE}"
     kubectl create namespace "test-namespace"
     pushd "${AIRFLOW_SOURCES}/chart" || exit 1
-    helm repo add stable https://kubernetes-charts.storage.googleapis.com
+    helm repo add stable https://charts.helm.sh/stable/
     helm dep update
     helm install airflow . --namespace "${HELM_AIRFLOW_NAMESPACE}" \
         --set "defaultAirflowRepository=${DOCKERHUB_USER}/${DOCKERHUB_REPO}" \
