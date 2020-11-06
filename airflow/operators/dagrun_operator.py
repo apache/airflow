@@ -142,10 +142,7 @@ class TriggerDagRunOperator(BaseOperator):
                 if dag_model is None:
                     raise DagNotFound(f"Dag id {self.trigger_dag_id} not found in DagModel")
 
-                dag_bag = DagBag(
-                    dag_folder=dag_model.fileloc,
-                    read_dags_from_db=True
-                )
+                dag_bag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
 
                 dag = dag_bag.get_dag(self.trigger_dag_id)
 
@@ -159,39 +156,51 @@ class TriggerDagRunOperator(BaseOperator):
                 dttm = context['execution_date']
 
                 dttm_filter = dttm if isinstance(dttm, list) else [dttm]
-                serialized_dttm_filter = ','.join(
-                    [datetime.isoformat() for datetime in dttm_filter])
+                serialized_dttm_filter = ','.join([datetime.isoformat() for datetime in dttm_filter])
 
                 self.log.info(
                     'Waiting for %s on %s to become one of %s... ',
-                    self.trigger_dag_id, serialized_dttm_filter, self.allowed_states
+                    self.trigger_dag_id,
+                    serialized_dttm_filter,
+                    self.allowed_states,
                 )
 
                 DR = DagRun
 
                 # get failed count
-                failed_count = session.query(func.count()).filter(
-                    DR.dag_id == self.trigger_dag_id,
-                    DR.state.in_(self.failed_states),   # pylint: disable=no-member
-                    DR.execution_date.in_(dttm_filter),
-                ).scalar()
+                failed_count = (
+                    session.query(func.count())
+                    .filter(
+                        DR.dag_id == self.trigger_dag_id,
+                        DR.state.in_(self.failed_states),  # pylint: disable=no-member
+                        DR.execution_date.in_(dttm_filter),
+                    )
+                    .scalar()
+                )
+
                 # if triggered dag run failed and that is not in allowed_states,
                 # make this triggering dag fail.
                 if failed_count:
                     raise AirflowException(
-                        f"{self.trigger_dag_id} failed with failed states {self.failed_states}")
+                        f"{self.trigger_dag_id} failed with failed states {self.failed_states}"
+                    )
 
                 # get expected state count
-                count = session.query(func.count()).filter(
-                    DR.dag_id == self.trigger_dag_id,
-                    DR.state.in_(self.allowed_states),  # pylint: disable=no-member
-                    DR.execution_date.in_(dttm_filter),
-                ).scalar()
+                count = (
+                    session.query(func.count())
+                    .filter(
+                        DR.dag_id == self.trigger_dag_id,
+                        DR.state.in_(self.allowed_states),  # pylint: disable=no-member
+                        DR.execution_date.in_(dttm_filter),
+                    )
+                    .scalar()
+                )
 
                 session.commit()
                 if count == len(dttm_filter):
-                    self.log.info("%s finished with allowed stats %s",
-                                  self.trigger_dag_id, self.allowed_states)
+                    self.log.info(
+                        "%s finished with allowed stats %s", self.trigger_dag_id, self.allowed_states
+                    )
                     return
 
                 time.sleep(self.poke_interval)
