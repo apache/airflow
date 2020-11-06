@@ -20,15 +20,12 @@ import datetime
 import time
 from typing import Dict, List, Optional, Union
 
-from sqlalchemy import func
-
 from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.exceptions import AirflowException, DagNotFound, DagRunAlreadyExists
 from airflow.models import BaseOperator, BaseOperatorLink, DagBag, DagModel, DagRun
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.helpers import build_airflow_url_with_query
-from airflow.utils.session import provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -110,8 +107,7 @@ class TriggerDagRunOperator(BaseOperator):
 
         self.execution_date: Optional[datetime.datetime] = execution_date  # type: ignore
 
-    @provide_session
-    def execute(self, context: Dict, session=None):
+    def execute(self, context: Dict):
         if isinstance(self.execution_date, datetime.datetime):
             execution_date = self.execution_date
         elif isinstance(self.execution_date, str):
@@ -124,7 +120,7 @@ class TriggerDagRunOperator(BaseOperator):
         try:
             # Ignore MyPy type for self.execution_date
             # because it doesn't pick up the timezone.parse() for strings
-            trigger_dag(
+            dag_run = trigger_dag(
                 dag_id=self.trigger_dag_id,
                 run_id=run_id,
                 conf=self.conf,
@@ -153,54 +149,18 @@ class TriggerDagRunOperator(BaseOperator):
         if self.wait_for_completion:
             # wait for dag to complete
             while True:
-                dttm = context['execution_date']
-
-                dttm_filter = dttm if isinstance(dttm, list) else [dttm]
-                serialized_dttm_filter = ','.join([datetime.isoformat() for datetime in dttm_filter])
-
                 self.log.info(
-                    'Waiting for %s on %s to become one of %s... ',
+                    'Waiting for %s on %s to become allowed state %s ...',
                     self.trigger_dag_id,
-                    serialized_dttm_filter,
+                    dag_run.execution_date,
                     self.allowed_states,
                 )
-
-                DR = DagRun
-
-                # get failed count
-                failed_count = (
-                    session.query(func.count())
-                    .filter(
-                        DR.dag_id == self.trigger_dag_id,
-                        DR.state.in_(self.failed_states),  # pylint: disable=no-member
-                        DR.execution_date.in_(dttm_filter),
-                    )
-                    .scalar()
-                )
-
-                # if triggered dag run failed and that is not in allowed_states,
-                # make this triggering dag fail.
-                if failed_count:
-                    raise AirflowException(
-                        f"{self.trigger_dag_id} failed with failed states {self.failed_states}"
-                    )
-
-                # get expected state count
-                count = (
-                    session.query(func.count())
-                    .filter(
-                        DR.dag_id == self.trigger_dag_id,
-                        DR.state.in_(self.allowed_states),  # pylint: disable=no-member
-                        DR.execution_date.in_(dttm_filter),
-                    )
-                    .scalar()
-                )
-
-                session.commit()
-                if count == len(dttm_filter):
-                    self.log.info(
-                        "%s finished with allowed stats %s", self.trigger_dag_id, self.allowed_states
-                    )
+                dag_run.refresh_from_db()
+                state = dag_run.state
+                if state in self.failed_states:
+                    raise AirflowException(f"{self.trigger_dag_id} failed with failed states {state}")
+                elif state in self.allowed_states:
+                    self.log.info("%s finished with allowed state %s", self.trigger_dag_id, state)
                     return
 
                 time.sleep(self.poke_interval)
