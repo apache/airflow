@@ -43,9 +43,10 @@ from setproctitle import setproctitle  # pylint: disable=no-name-in-module
 import airflow.settings as settings
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor, CommandType, EventBufferValueType
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
+from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
@@ -59,7 +60,7 @@ CELERY_FETCH_ERR_MSG_HEADER = 'Error fetching Celery task state'
 
 CELERY_SEND_ERR_MSG_HEADER = 'Error sending Celery task'
 
-OPERATION_TIMEOUT = conf.getfloat('celery', 'operation_timeout', fallback=2.0)
+OPERATION_TIMEOUT = conf.getfloat('celery', 'operation_timeout', fallback=1.0)
 
 '''
 To start the celery worker, run the command:
@@ -220,6 +221,8 @@ class CeleryExecutor(BaseExecutor):
         self.task_adoption_timeout = datetime.timedelta(
             seconds=conf.getint('celery', 'task_adoption_timeout', fallback=600)
         )
+        self.task_publish_retries: Dict[TaskInstanceKey, int] = OrderedDict()
+        self.task_publish_max_retries = conf.getint('celery', 'task_publish_max_retries', fallback=3)
 
     def start(self) -> None:
         self.log.debug('Starting Celery Executor using %s processes for syncing', self._sync_parallelism)
@@ -246,7 +249,10 @@ class CeleryExecutor(BaseExecutor):
 
         for _ in range(min(open_slots, len(self.queued_tasks))):
             key, (command, _, queue, simple_ti) = sorted_queue.pop(0)
-            task_tuples_to_send.append((key, simple_ti, command, queue, execute_command))
+            task_tuple = (key, simple_ti, command, queue, execute_command)
+            task_tuples_to_send.append(task_tuple)
+            if key not in self.task_publish_retries:
+                self.task_publish_retries[key] = 1
 
         if task_tuples_to_send:
             self._process_tasks(task_tuples_to_send)
@@ -262,10 +268,26 @@ class CeleryExecutor(BaseExecutor):
         self.log.debug('Sent all tasks.')
 
         for key, _, result in key_and_async_results:
+            if isinstance(result, ExceptionWithTraceback) and isinstance(
+                result.exception, AirflowTaskTimeout
+            ):
+                if key in self.task_publish_retries and (
+                    self.task_publish_retries.get(key) <= self.task_publish_max_retries
+                ):
+                    Stats.incr("celery.task_timeout_error")
+                    self.log.info(
+                        "[Try %s of %s] Task Timeout Error for Task: (%s).",
+                        self.task_publish_retries[key],
+                        self.task_publish_max_retries,
+                        key,
+                    )
+                    self.task_publish_retries[key] += 1
+                    continue
             self.queued_tasks.pop(key)
+            self.task_publish_retries.pop(key)
             if isinstance(result, ExceptionWithTraceback):
                 self.log.error(  # pylint: disable=logging-not-lazy
-                    CELERY_SEND_ERR_MSG_HEADER + ":%s\n%s\n", result.exception, result.traceback
+                    CELERY_SEND_ERR_MSG_HEADER + ": %s\n%s\n", result.exception, result.traceback
                 )
                 self.event_buffer[key] = (State.FAILED, None)
             elif result is not None:
@@ -281,7 +303,7 @@ class CeleryExecutor(BaseExecutor):
                 # If the task runs _really quickly_ we may already have a result!
                 self.update_task_state(key, result.state, getattr(result, 'info', None))
 
-    def _send_tasks_to_celery(self, task_tuples_to_send):
+    def _send_tasks_to_celery(self, task_tuples_to_send: List[TaskInstanceInCelery]):
         if len(task_tuples_to_send) == 1 or self._sync_parallelism == 1:
             # One tuple, or max one process -> send it in the main thread.
             return list(map(send_task_to_executor, task_tuples_to_send))

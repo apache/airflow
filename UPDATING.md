@@ -50,6 +50,12 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Default value for `[celery] operation_timeout` has changed to `1.0`
+
+From Airflow 2, by default Airflow will retry 3 times to publish task to Celery broker. This is controlled by
+`[celery] task_publish_max_retries`. Because of this we can now have a lower Operation timeout that raises
+`AirflowTaskTimeout`. This generally occurs during network blips or intermittent DNS issues.
+
 ### Adding Operators and Sensors via plugins is no longer supported
 
 Operators and Sensors should no longer be registered or imported via Airflow's plugin mechanism -- these types of classes are just treated as plain python classes by Airflow, so there is no need to register them with Airflow.

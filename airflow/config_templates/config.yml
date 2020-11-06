@@ -1412,7 +1412,7 @@
       version_added: 1.10.8
       type: float
       example: ~
-      default: "2.0"
+      default: "1.0"
     - name: task_track_started
       description: |
         Celery task will report its status as 'started' when the task is executed by a worker.
@@ -1430,6 +1430,14 @@
       type: int
       example: ~
       default: "600"
+    - name: task_publish_max_retries
+      description: |
+        The Maximum number of retries for publishing task messages to the broker when failing
+        due to ``AirflowTaskTimeout`` error before giving up and marking Task as failed.
+      version_added: 2.0.0
+      type: int
+      example: ~
+      default: "3"
 - name: celery_broker_transport_options
   description: |
     This section is for specifying options which can be passed to the
