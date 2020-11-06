@@ -1898,6 +1898,7 @@ components:
             doc_md:
               type: string
               readOnly: true
+              nullable: true
             default_view:
               type: string
               readOnly: true
