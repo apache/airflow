@@ -22,6 +22,7 @@ import itertools
 import logging
 import multiprocessing
 import os
+import sched
 import signal
 import sys
 import threading
@@ -30,7 +31,7 @@ from collections import defaultdict
 from contextlib import ExitStack, redirect_stderr, redirect_stdout, suppress
 from datetime import timedelta
 from multiprocessing.connection import Connection as MultiprocessingConnection
-from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Set, Tuple
+from typing import Any, Callable, DefaultDict, Dict, Iterable, List, Optional, Set, Tuple
 
 from setproctitle import setproctitle
 from sqlalchemy import and_, func, not_, or_
@@ -1272,9 +1273,6 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             self.executor.job_id = self.id
             self.executor.start()
 
-            self.log.info("Resetting orphaned tasks for active dag runs")
-            self.adopt_or_reset_orphaned_tasks()
-
             self.register_signals()
 
             # Start after resetting orphaned tasks to avoid stressing out DB.
@@ -1338,6 +1336,41 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             raise ValueError("Processor agent is not started.")
         is_unit_test: bool = conf.getboolean('core', 'unit_test_mode')
 
+        timers = sched.scheduler()
+
+        def call_regular_interval(
+            delay: float,
+            action: Callable,
+            arguments=(),
+            kwargs={},
+        ):  # pylint: disable=dangerous-default-value
+            def repeat(*args, **kwargs):
+                action(*args, **kwargs)
+                # This is not perfect. If we want a timer every 60s, but action
+                # takes 10s to run, this will run it every 70s.
+                # Good enough for now
+                timers.enter(delay, 1, repeat, args, kwargs)
+
+            timers.enter(delay, 1, repeat, arguments, kwargs)
+
+        # Check on start up, then every configured interval
+        self.adopt_or_reset_orphaned_tasks()
+
+        call_regular_interval(
+            conf.getfloat('scheduler', 'orphaned_tasks_check_interval', fallback=300.0),
+            self.adopt_or_reset_orphaned_tasks,
+        )
+
+        call_regular_interval(
+            conf.getfloat('scheduler', 'pool_metrics_interval', fallback=5.0),
+            self._emit_pool_metrics,
+        )
+
+        call_regular_interval(
+            conf.getfloat('scheduler', 'clean_tis_without_dagrun', fallback=15.0),
+            self._clean_tis_without_dagrun,
+        )
+
         for loop_count in itertools.count(start=1):
             loop_start_time = time.time()
 
@@ -1360,7 +1393,9 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             # Heartbeat the scheduler periodically
             self.heartbeat(only_if_necessary=True)
 
-            self._emit_pool_metrics()
+            # Run any pending timed events
+            next_event = timers.run(blocking=False)
+            self.log.debug("Next timed event is in %f", next_event)
 
             loop_end_time = time.time()
             loop_duration = loop_end_time - loop_start_time
@@ -1370,7 +1405,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 # If the scheduler is doing things, don't sleep. This means when there is work to do, the
                 # scheduler will run "as quick as possible", but when it's stopped, it can sleep, dropping CPU
                 # usage when "idle"
-                time.sleep(self._processor_poll_interval)
+                time.sleep(min(self._processor_poll_interval, next_event))
 
             if loop_count >= self.num_runs > 0:
                 self.log.info(
@@ -1387,6 +1422,29 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                     loop_count,
                 )
                 break
+
+    @provide_session
+    def _clean_tis_without_dagrun(self, session):
+        with prohibit_commit(session) as guard:
+            try:
+                self._change_state_for_tis_without_dagrun(
+                    old_states=[State.UP_FOR_RETRY], new_state=State.FAILED, session=session
+                )
+
+                self._change_state_for_tis_without_dagrun(
+                    old_states=[State.QUEUED, State.SCHEDULED, State.UP_FOR_RESCHEDULE, State.SENSING],
+                    new_state=State.NONE,
+                    session=session,
+                )
+
+                guard.commit()
+            except OperationalError as e:
+                if is_lock_not_available_error(error=e):
+                    self.log.debug("Lock held by another Scheduler")
+                    session.rollback()
+                else:
+                    raise
+            guard.commit()
 
     def _do_scheduling(self, session) -> int:
         """
@@ -1471,26 +1529,6 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             # Without this, the session has an invalid view of the DB
             session.expunge_all()
             # END: schedule TIs
-
-            # TODO[HA]: Do we need to do it every time?
-            try:
-                self._change_state_for_tis_without_dagrun(
-                    old_states=[State.UP_FOR_RETRY], new_state=State.FAILED, session=session
-                )
-
-                self._change_state_for_tis_without_dagrun(
-                    old_states=[State.QUEUED, State.SCHEDULED, State.UP_FOR_RESCHEDULE, State.SENSING],
-                    new_state=State.NONE,
-                    session=session,
-                )
-
-                guard.commit()
-            except OperationalError as e:
-                if is_lock_not_available_error(error=e):
-                    self.log.debug("Lock held by another Scheduler")
-                    session.rollback()
-                else:
-                    raise
 
             try:
                 if self.executor.slots_available <= 0:
@@ -1720,6 +1758,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         :return: the number of TIs reset
         :rtype: int
         """
+        self.log.info("Resetting orphaned tasks for active dag runs")
         timeout = conf.getint('scheduler', 'scheduler_health_check_threshold')
 
         num_failed = (

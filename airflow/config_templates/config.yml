@@ -1500,6 +1500,14 @@
       type: string
       example: ~
       default: "5"
+    - name: clean_tis_without_dagrun
+      description: |
+        How often (in seconds) to check and tidy up 'running' TaskInstancess
+        that no longer have a matching DagRun
+      version_added: 2.0.0
+      type: float
+      example: ~
+      default: "15.0"
     - name: scheduler_heartbeat_sec
       description: |
         The scheduler constantly tries to trigger new tasks (look at the
@@ -1545,6 +1553,13 @@
       type: string
       example: ~
       default: "30"
+    - name: pool_metrics_interval
+      description: |
+        How often (in seconds) should pool usage stats be sent to statsd (if statsd_on is enabled)
+      version_added: 2.0.0
+      type: float
+      example: ~
+      default: "5.0"
     - name: scheduler_health_check_threshold
       description: |
         If the last scheduler heartbeat happened more than scheduler_health_check_threshold
@@ -1554,6 +1569,13 @@
       type: string
       example: ~
       default: "30"
+    - name: orphaned_tasks_check_interval
+      description: |
+        How often (in seconds) should the scheduler check for orphaned tasks and SchedulerJobs
+      version_added: 2.0.0
+      type: float
+      example: ~
+      default: "300.0"
     - name: child_process_log_directory
       description: ~
       version_added: ~
