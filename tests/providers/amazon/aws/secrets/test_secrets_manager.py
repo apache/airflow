@@ -87,7 +87,7 @@ class TestSecretsManagerBackend(TestCase):
     @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend._get_secret")
     def test_connection_prefix_none_value(self, mock_get_secret):
         """
-        Test that if Variable key is not present in SSM,
+        Test that if Variable key is not present in AWS Secrets Manager,
         SecretsManagerBackend.get_conn_uri should return None,
         SecretsManagerBackend._get_secret should not be called
         """
@@ -101,7 +101,7 @@ class TestSecretsManagerBackend(TestCase):
     @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend._get_secret")
     def test_variable_prefix_none_value(self, mock_get_secret):
         """
-        Test that if Variable key is not present in SSM,
+        Test that if Variable key is not present in AWS Secrets Manager,
         SecretsManagerBackend.get_variables should return None,
         SecretsManagerBackend._get_secret should not be called
         """
@@ -115,7 +115,7 @@ class TestSecretsManagerBackend(TestCase):
     @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend._get_secret")
     def test_config_prefix_none_value(self, mock_get_secret):
         """
-        Test that if Variable key is not present in SSM,
+        Test that if Variable key is not present in AWS Secrets Manager,
         SecretsManagerBackend.get_config should return None,
         SecretsManagerBackend._get_secret should not be called
         """
