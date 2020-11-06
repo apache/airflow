@@ -296,7 +296,7 @@ function deploy_airflow_with_helm() {
     verbose_kubectl create namespace "${HELM_AIRFLOW_NAMESPACE}"
     verbose_kubectl create namespace "test-namespace"
     pushd "${AIRFLOW_SOURCES}/chart" || exit 1
-    verbose_helm repo add stable https://kubernetes-charts.storage.googleapis.com
+    verbose_helm repo add stable https://charts.helm.sh/stable/
     verbose_helm dep update
     verbose_helm install airflow . --namespace "${HELM_AIRFLOW_NAMESPACE}" \
         --set "defaultAirflowRepository=${DOCKERHUB_USER}/${DOCKERHUB_REPO}" \
