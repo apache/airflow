@@ -68,7 +68,27 @@ from my_plugin import MyOperator
 
 The name under `airflow.operators.` was the plugin name, where as in the second example it is the python module name where the operator is defined.
 
-See http://airflow.apache.org/docs/stable/howto/custom-operator.html#define-an-operator-extra-link for more info.
+See http://airflow.apache.org/docs/stable/howto/custom-operator.html for more info.
+
+### Importing Hooks via plugins is no longer supported
+
+Importing hooks added in plugins via `airflow.hooks.<plugin_name>` is no longer supported, and hooks should just be imported as regular python modules.
+
+```
+from airflow.hooks.my_plugin import MyHook
+```
+
+You should instead import it as:
+
+```
+from my_plugin import MyHook
+```
+
+It is still possible (but not required) to "register" hooks in plugins. This is to allow future support for dynamically populating the Connections form in the UI.
+
+See http://airflow.apache.org/docs/stable/howto/custom-operator.html for more info.
+
+### Adding Operators and Sensors via plugins is no longer supported
 
 ### The default value for `[core] enable_xcom_pickling` has been changed to `False`
 

@@ -24,12 +24,15 @@ import logging
 import os
 import sys
 import types
-from typing import Any, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
 import pkg_resources
 
 from airflow import settings
 from airflow.utils.file import find_path_from_directory
+
+if TYPE_CHECKING:
+    from airflow.hooks.base_hook import BaseHook
 
 log = logging.getLogger(__name__)
 
@@ -38,7 +41,7 @@ import_errors: Dict[str, str] = {}
 plugins = None  # type: Optional[List[AirflowPlugin]]
 
 # Plugin components to integrate as modules
-hooks_modules: Optional[List[Any]] = None
+registered_hooks: Optional[List['BaseHook']] = None
 macros_modules: Optional[List[Any]] = None
 executors_modules: Optional[List[Any]] = None
 
@@ -248,7 +251,7 @@ def ensure_plugins_loaded():
 
     Plugins are only loaded if they have not been previously loaded.
     """
-    global plugins  # pylint: disable=global-statement
+    global plugins, registered_hooks  # pylint: disable=global-statement
 
     if plugins is not None:
         log.debug("Plugins are already loaded. Skipping.")
@@ -260,9 +263,15 @@ def ensure_plugins_loaded():
     log.debug("Loading plugins")
 
     plugins = []
+    registered_hooks = []
 
     load_plugins_from_plugin_directory()
     load_entrypoint_plugins()
+
+    # We don't do anything with these for now, but we want to keep track of
+    # them so we can integrate them in to the UI's Connection screens
+    for plugin in plugins:
+        registered_hooks.extend(plugin.hooks)
 
 
 def initialize_web_ui_plugins():
@@ -374,15 +383,14 @@ def integrate_executor_plugins() -> None:
             sys.modules[executors_module.__name__] = executors_module  # pylint: disable=no-member
 
 
-def integrate_dag_plugins() -> None:
-    """Integrates operator, sensor, hook, macro plugins."""
+def integrate_macros_plugins() -> None:
+    """Integrates macro plugins."""
     # pylint: disable=global-statement
     global plugins
-    global hooks_modules
     global macros_modules
     # pylint: enable=global-statement
 
-    if hooks_modules is not None and macros_modules is not None:
+    if macros_modules is not None:
         return
 
     ensure_plugins_loaded()
@@ -392,19 +400,13 @@ def integrate_dag_plugins() -> None:
 
     log.debug("Integrate DAG plugins")
 
-    hooks_modules = []
     macros_modules = []
 
     for plugin in plugins:
         if plugin.name is None:
             raise AirflowPluginException("Invalid plugin name")
 
-        hooks_module = make_module(f'airflow.hooks.{plugin.name}', plugin.hooks)
         macros_module = make_module(f'airflow.macros.{plugin.name}', plugin.macros)
-
-        if hooks_module:
-            hooks_modules.append(hooks_module)
-            sys.modules[hooks_module.__name__] = hooks_module  # pylint: disable=no-member
 
         if macros_module:
             macros_modules.append(macros_module)

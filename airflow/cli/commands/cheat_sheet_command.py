@@ -58,7 +58,6 @@ def display_commands_index():
         if groups:
             for group_command in sorted(groups, key=lambda d: d.name):
                 group_prefix = [*prefix, group_command.name]
-                # print(bold(" ".join(group_prefix)), end="")
                 cprint(group_command.help, attrs=["bold", "underline"])
                 print()
                 display_recursive(group_prefix, group_command.subcommands)

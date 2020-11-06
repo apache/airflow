@@ -215,7 +215,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             # or if s3 prefix exists in the case user provides multiple files in
             # a prefix
             raise AirflowException(
-                "The input S3 Key " "or Prefix {} does not exist in the Bucket {}".format(s3url, bucket)
+                f"The input S3 Key or Prefix {s3url} does not exist in the Bucket {bucket}"
             )
         return True
 

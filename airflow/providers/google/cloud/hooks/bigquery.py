@@ -2139,7 +2139,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             _validate_value(param_name, configuration['query'][param_name], param_type)
 
             if param_name == 'schemaUpdateOptions' and param:
-                self.log.info("Adding experimental 'schemaUpdateOptions': " "%s", schema_update_options)
+                self.log.info("Adding experimental 'schemaUpdateOptions': %s", schema_update_options)
 
             if param_name != 'destinationTable':
                 continue
@@ -2167,7 +2167,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             and configuration['query']['useLegacySql']
             and 'queryParameters' in configuration['query']
         ):
-            raise ValueError("Query parameters are not allowed " "when using legacy SQL")
+            raise ValueError("Query parameters are not allowed when using legacy SQL")
 
         if labels:
             _api_resource_configs_duplication_check('labels', labels, configuration)
