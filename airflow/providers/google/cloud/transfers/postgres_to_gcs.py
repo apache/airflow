@@ -20,6 +20,7 @@
 import datetime
 import json
 import time
+import uuid
 from decimal import Decimal
 from typing import Dict
 
@@ -30,12 +31,51 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.decorators import apply_defaults
 
 
+class _PostgresServerSideCursorDecorator:
+    """
+    Inspired by `_PrestoToGCSPrestoCursorAdapter` to keep this consistent.
+
+    Decorator for allowing description to be available for postgres cursor in case server side
+    cursor is used. It doesn't provide other methods except those needed in BaseSQLToGCSOperator,
+    which is more of a safety feature.
+    """
+
+    def __init__(self, cursor):
+        self.cursor = cursor
+        self.rows = []
+        self.initialized = False
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.rows:
+            return self.rows.pop()
+        else:
+            self.initialized = True
+            return next(self.cursor)
+
+    @property
+    def description(self):
+        """Fetch first row to initialize cursor description when using server side cursor."""
+        if not self.initialized:
+            element = self.cursor.fetchone()
+            self.rows.append(element)
+            self.initialized = True
+        return self.cursor.description
+
+
 class PostgresToGCSOperator(BaseSQLToGCSOperator):
     """
     Copy data from Postgres to Google Cloud Storage in JSON or CSV format.
 
     :param postgres_conn_id: Reference to a specific Postgres hook.
     :type postgres_conn_id: str
+    :param use_server_side_cursor: If server-side cursor should be used for querying postgres.
+        For detailed info, check https://www.psycopg.org/docs/usage.html#server-side-cursors
+    :type use_server_side_cursor: bool
+    :param cursor_itersize: How many records are fetched at a time in case of server-side cursor.
+    :type cursor_itersize: int
     """
 
     ui_color = '#a0e08c'
@@ -58,16 +98,31 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
     }
 
     @apply_defaults
-    def __init__(self, *, postgres_conn_id='postgres_default', **kwargs):
+    def __init__(
+        self,
+        *,
+        postgres_conn_id='postgres_default',
+        use_server_side_cursor=False,
+        cursor_itersize=2000,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.postgres_conn_id = postgres_conn_id
+        self.use_server_side_cursor = use_server_side_cursor
+        self.cursor_itersize = cursor_itersize
+
+    def _unique_name(self):
+        return f"{self.dag_id}__{self.task_id}__{uuid.uuid4()}" if self.use_server_side_cursor else None
 
     def query(self):
         """Queries Postgres and returns a cursor to the results."""
         hook = PostgresHook(postgres_conn_id=self.postgres_conn_id)
         conn = hook.get_conn()
-        cursor = conn.cursor()
+        cursor = conn.cursor(name=self._unique_name())
         cursor.execute(self.sql, self.parameters)
+        if self.use_server_side_cursor:
+            cursor.itersize = self.cursor_itersize
+            return _PostgresServerSideCursorDecorator(cursor)
         return cursor
 
     def field_to_bigquery(self, field) -> Dict[str, str]:

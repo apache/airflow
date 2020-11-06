@@ -110,6 +110,7 @@ class LocalWorkerBase(Process, LoggingMixin):
 
             signal.signal(signal.SIGINT, signal.SIG_DFL)
             signal.signal(signal.SIGTERM, signal.SIG_DFL)
+            signal.signal(signal.SIGUSR2, signal.SIG_DFL)
 
             parser = get_parser()
             # [1:] - remove "airflow" from the start of the command

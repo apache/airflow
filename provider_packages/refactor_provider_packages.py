@@ -432,6 +432,70 @@ class RefactorBackportPackages:
             .rename("airflow.providers.amazon.common.utils.email")
         )
 
+    def refactor_elasticsearch_package(self):
+        """
+        Fixes to "elasticsearch" providers package.
+
+        Copies some of the classes used from core Airflow to "common.utils" package of
+        the provider and renames imports to use them from there.
+
+        We copy file_task_handler.py and change import as in example diff:
+
+        .. code-block:: diff
+
+            --- ./airflow/providers/elasticsearch/log/es_task_handler.py
+            +++ ./airflow/providers/elasticsearch/log/es_task_handler.py
+            @@ -24,7 +24,7 @@
+            from airflow.configuration import conf
+            from airflow.models import TaskInstance
+            from airflow.utils import timezone
+            from airflow.utils.helpers import parse_template_string
+            -from airflow.utils.log.file_task_handler import FileTaskHandler
+            +from airflow.providers.elasticsearch.common.utils.log.file_task_handler import FileTaskHandler
+            from airflow.utils.log.json_formatter import JSONFormatter
+            from airflow.utils.log.logging_mixin import LoggingMixin
+
+        """
+
+        def elasticsearch_package_filter(node: LN, capture: Capture, filename: Filename) -> bool:
+            return filename.startswith("./airflow/providers/elasticsearch/")
+
+        os.makedirs(
+            os.path.join(get_target_providers_package_folder("elasticsearch"), "common", "utils", "log"),
+            exist_ok=True,
+        )
+        copyfile(
+            os.path.join(get_source_airflow_folder(), "airflow", "utils", "__init__.py"),
+            os.path.join(get_target_providers_package_folder("elasticsearch"), "common", "__init__.py"),
+        )
+        copyfile(
+            os.path.join(get_source_airflow_folder(), "airflow", "utils", "__init__.py"),
+            os.path.join(
+                get_target_providers_package_folder("elasticsearch"), "common", "utils", "__init__.py"
+            ),
+        )
+        copyfile(
+            os.path.join(get_source_airflow_folder(), "airflow", "utils", "log", "__init__.py"),
+            os.path.join(
+                get_target_providers_package_folder("elasticsearch"), "common", "utils", "log", "__init__.py"
+            ),
+        )
+        copyfile(
+            os.path.join(get_source_airflow_folder(), "airflow", "utils", "log", "file_task_handler.py"),
+            os.path.join(
+                get_target_providers_package_folder("elasticsearch"),
+                "common",
+                "utils",
+                "log",
+                "file_task_handler.py",
+            ),
+        )
+        (
+            self.qry.select_module("airflow.utils.log.file_task_handler")
+            .filter(callback=elasticsearch_package_filter)
+            .rename("airflow.providers.elasticsearch.common.utils.log.file_task_handler")
+        )
+
     def refactor_google_package(self):
         r"""
         Fixes to "google" providers package.
@@ -651,6 +715,7 @@ class RefactorBackportPackages:
     def do_refactor(self, in_process: bool = False) -> None:  # noqa
         self.rename_deprecated_modules()
         self.refactor_amazon_package()
+        self.refactor_elasticsearch_package()
         self.refactor_google_package()
         self.refactor_odbc_package()
         self.remove_tags()

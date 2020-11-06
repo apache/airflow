@@ -130,9 +130,7 @@ class QuboleHook(BaseHook):
             cmd = Command.find(cmd_id)
             if cmd is not None:
                 if cmd.status == 'done':
-                    log.info(
-                        'Command ID: %s has been succeeded, hence marking this ' 'TI as Success.', cmd_id
-                    )
+                    log.info('Command ID: %s has been succeeded, hence marking this TI as Success.', cmd_id)
                     ti.state = State.SUCCESS
                 elif cmd.status == 'running':
                     log.info('Cancelling the Qubole Command Id: %s', cmd_id)

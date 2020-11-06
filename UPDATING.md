@@ -50,6 +50,26 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Adding Operators and Sensors via plugins is no longer supported
+
+Operators and Sensors should no longer be registered or imported via Airflow's plugin mechanism -- these types of classes are just treated as plain python classes by Airflow, so there is no need to register them with Airflow.
+
+If you previously had a `plugins/my_plugin.py` and you used it like this in a DAG:
+
+```
+from airflow.operators.my_plugin import MyOperator
+```
+
+You should instead import it as:
+
+```
+from my_plugin import MyOperator
+```
+
+The name under `airflow.operators.` was the plugin name, where as in the second example it is the python module name where the operator is defined.
+
+See http://airflow.apache.org/docs/stable/howto/custom-operator.html#define-an-operator-extra-link for more info.
+
 ### The default value for `[core] enable_xcom_pickling` has been changed to `False`
 
 The pickle type for XCom messages has been replaced to JSON by default to prevent RCE attacks.

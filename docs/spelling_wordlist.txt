@@ -1021,6 +1021,7 @@ pid
 pigcmd
 pinodb
 pinot
+pkill
 plaintext
 platformVersion
 pluggable

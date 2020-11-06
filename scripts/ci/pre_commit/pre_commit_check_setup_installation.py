@@ -22,6 +22,7 @@ Checks if all the libraries in setup.py are listed in installation.rst file
 
 import os
 import re
+import sys
 from os.path import dirname
 from typing import Dict, List
 
@@ -92,7 +93,7 @@ if __name__ == '__main__':
             output_table += "| {:20} | {:^10} | {:^10} |\n".format(extras, "", "V")
 
     if output_table == "":
-        exit(0)
+        sys.exit(0)
 
     print(
         f"""
@@ -108,4 +109,4 @@ documented although not used.
     print(".{:_^22}.{:_^12}.{:_^12}.".format("NAME", "SETUP", "INSTALLATION"))
     print(output_table)
 
-    exit(1)
+    sys.exit(1)

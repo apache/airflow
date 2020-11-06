@@ -123,7 +123,7 @@ class DruidHook(BaseHook):
             elif status == 'SUCCESS':
                 running = False  # Great success!
             elif status == 'FAILED':
-                raise AirflowException('Druid indexing job failed, ' 'check console for more info')
+                raise AirflowException('Druid indexing job failed, check console for more info')
             else:
                 raise AirflowException(f'Could not get status of the job, got {status}')
 

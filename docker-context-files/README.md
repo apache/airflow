@@ -17,7 +17,7 @@
  under the License.
  -->
 
-This folder is par of the Docker context.
+This folder is part of the Docker context.
 
 Most of other folders in Airflow are not part of the context in order to make the context smaller.
 

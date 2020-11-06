@@ -217,7 +217,9 @@ class TestSqlSensor(TestHiveEnvironment):
         mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
 
         mock_get_records.return_value = [[1]]
-        self.assertRaises(AirflowException, op.poke, None)
+        with self.assertRaises(AirflowException) as e:
+            op.poke(None)
+        self.assertEqual("self.failure is present, but not callable -> [1]", str(e.exception))
 
     @mock.patch('airflow.sensors.sql_sensor.BaseHook')
     def test_sql_sensor_postgres_poke_invalid_success(self, mock_hook):
@@ -232,7 +234,9 @@ class TestSqlSensor(TestHiveEnvironment):
         mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
 
         mock_get_records.return_value = [[1]]
-        self.assertRaises(AirflowException, op.poke, None)
+        with self.assertRaises(AirflowException) as e:
+            op.poke(None)
+        self.assertEqual("self.success is present, but not callable -> [1]", str(e.exception))
 
     @unittest.skipIf(
         'AIRFLOW_RUNALL_TESTS' not in os.environ, "Skipped because AIRFLOW_RUNALL_TESTS is not set"

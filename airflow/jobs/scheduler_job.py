@@ -509,7 +509,7 @@ class DagFileProcessor(LoggingMixin):
                     notification_sent = True
                 except Exception:  # pylint: disable=broad-except
                     Stats.incr('sla_email_notification_failure')
-                    self.log.exception("Could not send SLA Miss email notification for" " DAG %s", dag.dag_id)
+                    self.log.exception("Could not send SLA Miss email notification for DAG %s", dag.dag_id)
             # If we sent any notification, update the sla_miss table
             if notification_sent:
                 for sla in slas:
@@ -742,10 +742,11 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         self.dagbag = DagBag(read_dags_from_db=True)
 
-    def register_exit_signals(self) -> None:
+    def register_signals(self) -> None:
         """Register signals that stop child processes"""
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
+        signal.signal(signal.SIGUSR2, self._debug_dump)
 
     def _exit_gracefully(self, signum, frame) -> None:  # pylint: disable=unused-argument
         """Helper method to clean up processor_agent to avoid leaving orphan processes."""
@@ -753,6 +754,17 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         if self.processor_agent:
             self.processor_agent.end()
         sys.exit(os.EX_OK)
+
+    def _debug_dump(self, signum, frame):  # pylint: disable=unused-argument
+        try:
+            sig_name = signal.Signals(signum).name  # pylint: disable=no-member
+        except Exception:  # pylint: disable=broad-except
+            sig_name = str(signum)
+
+        self.log.info("%s\n%s received, printing debug\n%s", "-" * 80, sig_name, "-" * 80)
+
+        self.executor.debug_dump()
+        self.log.info("-" * 80)
 
     def is_alive(self, grace_multiplier: Optional[float] = None) -> bool:
         """
@@ -1263,7 +1275,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             self.log.info("Resetting orphaned tasks for active dag runs")
             self.adopt_or_reset_orphaned_tasks()
 
-            self.register_exit_signals()
+            self.register_signals()
 
             # Start after resetting orphaned tasks to avoid stressing out DB.
             self.processor_agent.start()

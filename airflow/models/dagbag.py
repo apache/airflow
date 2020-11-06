@@ -139,7 +139,7 @@ class DagBag(BaseDagBag, LoggingMixin):
     def store_serialized_dags(self) -> bool:
         """Whether or not to read dags from DB"""
         warnings.warn(
-            "The store_serialized_dags property has been deprecated. " "Use read_dags_from_db instead.",
+            "The store_serialized_dags property has been deprecated. Use read_dags_from_db instead.",
             DeprecationWarning,
             stacklevel=2,
         )

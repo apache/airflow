@@ -46,10 +46,10 @@ if [[ ${INSTALL_MYSQL_CLIENT:="true"} == "true" ]]; then
         gpg --keyserver "${keyserver}" --recv-keys "${KEY}" && break
     done
     set -e
-    gpg --export "${KEY}" | apt-key add -
+    gpg --export "${KEY}" > /etc/apt/trusted.gpg.d/mysql.gpg
     gpgconf --kill all
     rm -rf "${GNUPGHOME}"
-    apt-key list > /dev/null
+    apt-key list > /dev/null 2>&1
     echo "deb http://repo.mysql.com/apt/debian/ buster mysql-8.0" | tee -a /etc/apt/sources.list.d/mysql.list
     apt-get update
     apt-get install --no-install-recommends -y "${packages[@]}"

@@ -52,7 +52,7 @@ class MongoSensor(BaseSensorOperator):
 
     def poke(self, context: dict) -> bool:
         self.log.info(
-            "Sensor check existence of the document " "that matches the following query: %s", self.query
+            "Sensor check existence of the document that matches the following query: %s", self.query
         )
         hook = MongoHook(self.mongo_conn_id)
         return hook.find(self.collection, self.query, find_one=True) is not None

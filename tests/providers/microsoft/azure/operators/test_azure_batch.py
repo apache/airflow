@@ -221,7 +221,7 @@ class TestAzureBatchOperator(unittest.TestCase):  # pylint: disable=too-many-ins
             self.operator_fail.execute(None)
         self.assertEqual(
             str(e.exception),
-            "Either target_dedicated_nodes or enable_auto_scale " "must be set. None was set",
+            "Either target_dedicated_nodes or enable_auto_scale must be set. None was set",
         )
 
     @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")

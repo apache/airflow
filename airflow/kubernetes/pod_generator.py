@@ -132,10 +132,10 @@ class PodGenerator:
     ):
         if not pod_template_file and not pod:
             raise AirflowConfigException(
-                "Podgenerator requires either a " "`pod` or a `pod_template_file` argument"
+                "Podgenerator requires either a `pod` or a `pod_template_file` argument"
             )
         if pod_template_file and pod:
-            raise AirflowConfigException("Cannot pass both `pod` " "and `pod_template_file` arguments")
+            raise AirflowConfigException("Cannot pass both `pod` and `pod_template_file` arguments")
 
         if pod_template_file:
             self.ud_pod = self.deserialize_model_file(pod_template_file)
@@ -199,7 +199,7 @@ class PodGenerator:
             return PodGenerator.from_legacy_obj(obj)
         else:
             raise TypeError(
-                'Cannot convert a non-kubernetes.client.models.V1Pod' 'object into a KubernetesExecutorConfig'
+                'Cannot convert a non-kubernetes.client.models.V1Pod object into a KubernetesExecutorConfig'
             )
 
     @staticmethod

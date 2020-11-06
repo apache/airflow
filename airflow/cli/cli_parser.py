@@ -1361,6 +1361,14 @@ airflow_commands: List[CLICommand] = [
             ARG_STDERR,
             ARG_LOG_FILE,
         ),
+        epilog=(
+            'Signals:\n'
+            '\n'
+            '  - SIGUSR2: Dump a snapshot of task state being tracked by the executor.\n'
+            '\n'
+            '    Example:\n'
+            '        pkill -f -USR2 "airflow scheduler"'
+        ),
     ),
     ActionCommand(
         name='version',

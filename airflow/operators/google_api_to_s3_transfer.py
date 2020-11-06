@@ -25,7 +25,7 @@ import warnings
 from airflow.providers.amazon.aws.transfers.google_api_to_s3 import GoogleApiToS3Operator
 
 warnings.warn(
-    "This module is deprecated. " "Please use `airflow.providers.amazon.aws.transfers.google_api_to_s3`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.transfers.google_api_to_s3`.",
     DeprecationWarning,
     stacklevel=2,
 )

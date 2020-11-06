@@ -70,7 +70,7 @@ class DingdingHook(HttpHook):
         token = conn.password
         if not token:
             raise AirflowException(
-                'Dingding token is requests but get nothing, ' 'check you conn_id configuration.'
+                'Dingding token is requests but get nothing, check you conn_id configuration.'
             )
         return f'robot/send?access_token={token}'
 
