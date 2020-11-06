@@ -19,4 +19,5 @@ import sys
 
 
 def stop_webserver():
+    """Stops gunicorn server https://github.com/benoitc/gunicorn/blob/20.0.4/gunicorn/arbiter.py#L526"""
     sys.exit(4)

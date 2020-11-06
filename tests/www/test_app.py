@@ -254,7 +254,7 @@ class TestApp(unittest.TestCase):
     )
     @mock.patch("airflow.www.app.app", None)
     def test_should_stop_app_when_removed_options_are_provided(self):
-        with self.assertRaises(SystemExit) as se:
+        with self.assertRaises(SystemExit) as e:
             conf.remove_option('webserver', 'session_lifetime_minutes')
             application.cached_app(testing=True)
-        self.assertEqual(se.exception.code, 4)
+        self.assertEqual(e.exception.code, 4)
