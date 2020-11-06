@@ -1,0 +1,122 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+version: '3.7'
+networks:
+airflow:
+driver: bridge
+volumes:
+mysql_data:
+driver: local
+airflow_logs:
+driver: local
+x-airflow-env: &airflow-env
+AIRFLOW__CORE__SQL_ALCHEMY_CONN: mysql://mysql:airflow@mysql:3306/airflow?charset=utf8mb4
+AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+AIRFLOW__WEBSERVER__RBAC: "True"
+AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "True"
+AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
+AIRFLOW__CELERY__RESULT_BACKEND: db+mysql://mysql:airflow@mysql:3306/airflow?charset=utf8mb4
+AIRFLOW__CORE__STORE_SERIALIZED_DAGS: "True"
+AIRFLOW__CORE__STORE_DAG_CODE: "True"
+AIRFLOW__CORE__LOAD_EXAMPLES: "True"
+AIRFLOW_HOME: /opt/airflow/
+services:
+mysql:
+image: mysql:5.7
+networks:
+      - airflow
+environment:
+      - MYSQL_USER=mysql
+      - MYSQL_ROOT_HOST=%
+      - MYSQL_ROOT_PASSWORD=
+      - MYSQL_PASSWORD=airflow
+      - MYSQL_DATABASE=airflow
+      - MYSQL_ALLOW_EMPTY_PASSWORD=true
+command: >
+      --explicit_defaults_for_timestamp
+    cap_add:
+      - SYS_NICE
+scheduler:
+build:
+context: .
+dockerfile: Dockerfile.ha
+image: kaxil/ap-airflow:2.0.0-1.dev3-buster-onbuild
+volumes:
+      - airflow_logs:/opt/airflow/logs
+      - ./dags/:/opt/airflow/dags/:ro
+environment:
+<<: *airflow-env
+depends_on:
+      - mysql
+      - redis
+command: >
+      bash -c "airflow db upgrade && airflow scheduler"
+    networks:
+      - airflow
+webserver:
+image: kaxil/ap-airflow:2.0.0-1.dev3-buster-onbuild
+volumes:
+      - airflow_logs:/opt/airflow/logs
+      - ./dags/:/opt/airflow/dags/:ro
+environment:
+<<: *airflow-env
+depends_on:
+      - mysql
+      - scheduler
+command: >
+      bash -c "airflow users  create --role Admin --username admin --email admin
+      --firstname admin --lastname admin --password admin && airflow webserver"
+    ports:
+      - "8080:8080"
+networks:
+      - airflow
+redis:
+image: redis:5.0.5
+depends_on:
+      - mysql
+networks:
+      - airflow
+worker:
+image: kaxil/ap-airflow:2.0.0-1.dev3-buster-onbuild
+volumes:
+      - airflow_logs:/opt/airflow/logs
+      - ./dags/:/opt/airflow/dags/:ro
+environment:
+<<: *airflow-env
+command: "celery worker"
+depends_on:
+      - mysql
+      - scheduler
+      - redis
+networks:
+      - airflow
+flower:
+image: kaxil/ap-airflow:2.0.0-1.dev3-buster-onbuild
+volumes:
+      - airflow_logs:/opt/airflow/logs
+environment:
+<<: *airflow-env
+command: "celery flower"
+depends_on:
+      - mysql
+      - worker
+      - redis
+networks:
+      - airflow
+ports:
+      - "5555:5555"
