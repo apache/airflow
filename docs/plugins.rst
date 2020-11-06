@@ -30,6 +30,12 @@ get integrated to Airflow's main collections and become available for use.
 To troubleshoot issue with plugins, you can use ``airflow plugins`` command.
 This command dumps information about loaded plugins.
 
+.. versionchanged:: 2.0
+    Importing operators, sensors, hooks added in plugins via
+   ``airflow.{operators,sensors,hooks}.<plugin_name>`` is no longer supported, and these extensions should
+   just be imported as regular python modules. For more information, see: :doc:`/modules_management` and
+   :doc:`/howto/custom-operator`
+
 What for?
 ---------
 
@@ -265,9 +271,7 @@ will automatically load the registered plugins from the entrypoint list.
 .. note::
     Neither the entrypoint name (eg, ``my_plugin``) nor the name of the
     plugin class will contribute towards the module and class name of the plugin
-    itself. The structure is determined by
-    ``airflow.plugins_manager.AirflowPlugin.name`` and the class name of the plugin
-    component with the pattern ``airflow.{component}.{name}.{component_class_name}``.
+    itself.
 
 .. code-block:: python
 
