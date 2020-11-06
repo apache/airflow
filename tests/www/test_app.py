@@ -236,6 +236,18 @@ class TestApp(unittest.TestCase):
 
     @conf_vars(
         {
+            ('webserver', 'session_lifetime_minutes'): '3600',
+            ('webserver', 'session_lifetime_days'): '30',
+            ('webserver', 'force_log_out_after'): '30',
+        }
+    )
+    @mock.patch("airflow.www.app.app", None)
+    def test_should_start_app_when_session_lifetime_minutes_is_provided(self):
+        app = application.cached_app(testing=True)
+        self.assertEqual(app.config['PERMANENT_SESSION_LIFETIME'], timedelta(minutes=3600))
+
+    @conf_vars(
+        {
             ('webserver', 'session_lifetime_days'): '30',
             ('webserver', 'force_log_out_after'): '30',
         }
