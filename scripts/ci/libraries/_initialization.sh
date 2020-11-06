@@ -748,5 +748,7 @@ function initialization::ga_output() {
 }
 
 function initialization::ga_env() {
-    echo "${1}=${2}" >> "${GITHUB_ENV}"
+    if [[ ${GITHUB_ENV=} != "" ]]; then
+        echo "${1}=${2}" >> "${GITHUB_ENV}"
+    fi
 }

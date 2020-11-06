@@ -304,7 +304,7 @@ function kind::forward_port_to_kind_webserver() {
         echo
         echo "Trying to establish port forwarding to 'airflow webserver'"
         echo
-        if [[ ${INCREASE_PORT_NUMBER_FOR_KUBERNETES} == "true" ]] ; then
+        if [[ ${INCREASE_PORT_NUMBER_FOR_KUBERNETES=} == "true" ]] ; then
             forwarded_port_number=$(( forwarded_port_number + 1 ))
         fi
         if [[ ${num_tries} == "${MAX_NUM_TRIES_FOR_PORT_FORWARD}" ]]; then
