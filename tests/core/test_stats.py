@@ -86,7 +86,7 @@ class TestStats(unittest.TestCase):
         self.statsd_client.assert_not_called()
 
     @conf_vars({('scheduler', 'statsd_on'): 'True'})
-    @mock.patch("statsd.StatsClient", spec=statsd.StatsClient)
+    @mock.patch("statsd.StatsClient")
     def test_does_send_stats_using_statsd(self, mock_statsd):
         importlib.reload(airflow.stats)
         airflow.stats.Stats.incr("dummy_key")
