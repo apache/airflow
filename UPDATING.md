@@ -50,6 +50,10 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Statsd metrics for Datadog
+
+The statsd metrics for Datadog have tags, so not all key values are now static.
+
 ### Default value for `[celery] operation_timeout` has changed to `1.0`
 
 From Airflow 2, by default Airflow will retry 3 times to publish task to Celery broker. This is controlled by
