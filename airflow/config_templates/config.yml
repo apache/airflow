@@ -577,6 +577,78 @@
       type: string
       example: "connexion,sqlalchemy"
       default: ""
+- name: metrics
+  description: |
+    Statsd (https://github.com/etsy/statsd) integration settings.
+  options:
+    - name: statsd_on
+      description: |
+        Enables sending statsD metrics.
+      version_added: ~
+      type: string
+      example: ~
+      default: "False"
+    - name: statsd_host
+      description: ~
+      version_added: ~
+      type: string
+      example: ~
+      default: "localhost"
+    - name: statsd_port
+      description: ~
+      version_added: ~
+      type: string
+      example: ~
+      default: "8125"
+    - name: statsd_prefix
+      description: ~
+      version_added: ~
+      type: string
+      example: ~
+      default: "airflow"
+    - name: statsd_allow_list
+      description: |
+        If you want to avoid send all the available metrics to StatsD,
+        you can configure an allow list of prefixes to send only the metrics that
+        start with the elements of the list (e.g: scheduler,executor,dagrun)
+      version_added: 1.10.6
+      type: string
+      example: ~
+      default: ""
+    - name: stat_name_handler
+      description: |
+        A function that validate the statsd stat name, apply changes to the stat name if necessary and return
+        the transformed stat name.
+
+        The function should have the following signature:
+        def func_name(stat_name: str) -> str:
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
+    - name: statsd_datadog_enabled
+      description: |
+        To enable datadog integration to send airflow metrics.
+      version_added: ~
+      type: string
+      example: ~
+      default: "False"
+    - name: statsd_datadog_tags
+      description: |
+        List of datadog tags attached to all metrics(e.g: key1:value1,key2:value2)
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
+    - name: statsd_custom_client_path
+      description: |
+        If you want to utilise your own custom Statsd client set the relevant
+        module path below.
+        Note: The module path must exist on your PYTHONPATH for Airflow to pick it up
+      version_added: ~
+      type: string
+      example: ~
+      default: ~
 - name: secrets
   description: ~
   options:
@@ -1635,74 +1707,6 @@
       example: ~
       version_added: 2.0.0
       type: boolean
-      default: ~
-    - name: statsd_on
-      description: |
-        Statsd (https://github.com/etsy/statsd) integration settings
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
-    - name: statsd_host
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "localhost"
-    - name: statsd_port
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "8125"
-    - name: statsd_prefix
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "airflow"
-    - name: statsd_allow_list
-      description: |
-        If you want to avoid send all the available metrics to StatsD,
-        you can configure an allow list of prefixes to send only the metrics that
-        start with the elements of the list (e.g: scheduler,executor,dagrun)
-      version_added: 1.10.6
-      type: string
-      example: ~
-      default: ""
-    - name: stat_name_handler
-      description: |
-        A function that validate the statsd stat name, apply changes to the stat name if necessary and return
-        the transformed stat name.
-
-        The function should have the following signature:
-        def func_name(stat_name: str) -> str:
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    - name: statsd_datadog_enabled
-      description: |
-        To enable datadog integration to send airflow metrics.
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
-    - name: statsd_datadog_tags
-      description: |
-        List of datadog tags attached to all metrics(e.g: key1:value1,key2:value2)
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    - name: statsd_custom_client_path
-      description: |
-        If you want to utilise your own custom Statsd client set the relevant
-        module path below.
-        Note: The module path must exist on your PYTHONPATH for Airflow to pick it up
-      version_added: ~
-      type: string
-      example: ~
       default: ~
     - name: max_threads
       description: |

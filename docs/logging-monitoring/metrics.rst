@@ -35,7 +35,7 @@ Add the following lines to your configuration file e.g. ``airflow.cfg``
 
 .. code-block:: ini
 
-    [scheduler]
+    [metrics]
     statsd_on = True
     statsd_host = localhost
     statsd_port = 8125
@@ -46,7 +46,7 @@ the metrics that start with the elements of the list:
 
 .. code-block:: ini
 
-    [scheduler]
+    [metrics]
     statsd_allow_list = scheduler,executor,dagrun
 
 If you want to redirect metrics to different name, you can configure ``stat_name_handler`` option
@@ -60,14 +60,19 @@ to the stat name if necessary and return the transformed stat name. The function
 
 If you want to use a custom Statsd client outwith the default one provided by Airflow the following key must be added
 to the configuration file alongside the module path of your custom Statsd client. This module must be available on
-your PYTHONPATH.
+your :envvar:`PYTHONPATH`.
 
 .. code-block:: ini
 
-    [scheduler]
+    [metrics]
     statsd_custom_client_path = x.y.customclient
 
 See :doc:`../modules_management` for details on how Python and Airflow manage modules.
+
+.. note::
+
+    For a detailed listing of configuration options regarding metrics,
+    see the configuration reference documentation - :ref:`config:metrics`.
 
 Counters
 --------

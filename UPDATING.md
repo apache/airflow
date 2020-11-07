@@ -311,6 +311,20 @@ The following configurations have been moved from `[core]` to the new `[logging]
 * `dag_processor_manager_log_location`
 * `task_log_reader`
 
+#### Metrics configuration has been moved to new section
+
+The following configurations have been moved from `[scheduler]` to the new `[metrics]` section.
+
+- `statsd_on`
+- `statsd_host`
+- `statsd_port`
+- `statsd_prefix`
+- `statsd_allow_list`
+- `stat_name_handler`
+- `statsd_datadog_enabled`
+- `statsd_datadog_tags`
+- `statsd_custom_client_path`
+
 #### Changes to Elasticsearch logging provider
 
 When JSON output to stdout is enabled, log lines will now contain the `log_id` & `offset` fields, this should make reading task logs from elasticsearch on the webserver work out of the box. Example configuration:
