@@ -425,6 +425,7 @@ autoapi_ignore = [
     '*/airflow/kubernetes/kubernetes_request_factory/*',
     '*/_internal*',
     '*/node_modules/*',
+    '*/example_dags/*,',
     '*/migrations/*',
 ]
 # Keep the AutoAPI generated files on the filesystem after the run.
