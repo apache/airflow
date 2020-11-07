@@ -677,7 +677,7 @@ class TestAirflowBaseViews(TestBase):
         self.check_content_in_response('XCom', resp)
 
     def test_xcom_list_view_title(self):
-        resp = self.client.get('xcom/list')
+        resp = self.client.get('xcom/list', follow_redirects=True)
         self.check_content_in_response('List XComs', resp)
 
     def test_rendered(self):
