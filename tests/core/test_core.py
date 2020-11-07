@@ -1127,6 +1127,7 @@ class CliTests(unittest.TestCase):
             'no_access_control',
             None,
         )
+        self.appbuilder.add_permissions.assert_called_once_with(update_perms=True)
 
     def expect_dagbag_contains(self, dags, dagbag_mock):
         dagbag = mock.Mock()
