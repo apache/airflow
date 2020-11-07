@@ -21,7 +21,6 @@ which has implicit namespace support. Until that time, we make it look
 like a real package for building docs
 """
 import os
-import shutil
 
 from sphinx.application import Sphinx
 
@@ -42,7 +41,8 @@ def _create_init_py(app, config):
 def _delete_init_py(app, exception):
     del app
     del exception
-    shutil.rmtree(PROVIDER_INIT_FILE, ignore_errors=True)
+    if os.path.exists(PROVIDER_INIT_FILE):
+        os.remove(PROVIDER_INIT_FILE)
 
 
 def setup(app: Sphinx):
