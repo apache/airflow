@@ -23,7 +23,7 @@ if [ -z "${AIRFLOW_BREEZE_CONFIG_DIR+x}" ]; then
     export AIRFLOW_BREEZE_CONFIG_DIR="${FILES_DIR}/airflow-breeze-config"
 fi
 
-if [ -z "${INIT_SCRIPT_FILE}" ]; then
+if [ -z "${INIT_SCRIPT_FILE=}" ]; then
     export INIT_SCRIPT_FILE="init.sh"
 fi
 
