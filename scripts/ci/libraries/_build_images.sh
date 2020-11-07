@@ -536,7 +536,7 @@ function build_images::build_ci_image() {
         )
     else
         echo >&2
-        echo >&2 "Error - thee ${DOCKER_CACHE} cache is unknown!"
+        echo >&2 "Error - the ${DOCKER_CACHE} cache is unknown!"
         echo >&2
         exit 1
     fi
