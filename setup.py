@@ -27,7 +27,7 @@ from os.path import dirname
 from textwrap import wrap
 from typing import Dict, Iterable, List
 
-from setuptools import Command, find_packages, setup
+from setuptools import Command, find_namespace_packages, find_packages, setup
 
 logger = logging.getLogger(__name__)
 
@@ -771,6 +771,11 @@ def do_setup():
         else ['airflow.providers', 'airflow.providers.*']
     )
     write_version()
+    packages_to_install = (
+        find_namespace_packages(include=['airflow*'], exclude=exclude_patterns)
+        if install_providers_from_sources
+        else find_packages(include=['airflow*'], exclude=exclude_patterns)
+    )
     setup(
         name='apache-airflow',
         description='Programmatically author, schedule and monitor data pipelines',
@@ -778,7 +783,7 @@ def do_setup():
         long_description_content_type='text/markdown',
         license='Apache License 2.0',
         version=version,
-        packages=find_packages(include=['airflow*'], exclude=exclude_patterns),
+        packages=packages_to_install,
         package_data={
             'airflow': ['py.typed'],
             '': [
