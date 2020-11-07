@@ -310,7 +310,7 @@ class _Stats(type):
         # and previously it would crash with None is callable if it was called without it.
         from statsd import StatsClient
 
-        stats_class = conf.getimport('metrics', 'statsd_custom_client_path')
+        stats_class = conf.getimport('metrics', 'statsd_custom_client_path', fallback=None)
 
         if stats_class:
             if not issubclass(stats_class, StatsClient):
