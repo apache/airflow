@@ -24,6 +24,8 @@ from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Sequence, Set
 
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.models.taskmixin import TaskMixin
+from airflow.utils.decorators import signature
+from airflow.operators.python import T
 
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
@@ -344,3 +346,39 @@ class TaskGroupContext:
                 return dag.task_group
 
         return cls._context_managed_task_group
+
+ 
+def taskgroup(*tg_args, **tg_kwargs):
+    """
+    Python TaskGroup decorator. Wraps a function into an Airflow TaskGroup.
+    Accepts kwargs for operator TaskGroup. Can be used to parametrize TaskGroup.
+
+    :param tg_args: Arguments for TaskGroup object
+    :type tg_args: list
+    :param tg_kwargs: Kwargs for TaskGroup object.
+    :type tg_kwargs: dict
+    """
+    def wrapper(f: T):
+        # Get dag initializer signature and bind it to validate that task_group_args, and task_group_kwargs are correct
+        task_group_sig = signature(TaskGroup.__init__)
+        task_group_bound_args = task_group_sig.bind_partial(*tg_args, **tg_kwargs)
+
+        def factory(*args, **kwargs):
+            # Generate signature for decorated function and bind the arguments when called
+            # we do this to extract parameters so we can annotate them on the DAG object.
+            # In addition, this fails if we are missing any args/kwargs with TypeError as expected.
+            f_sig = signature(f).bind(*args, **kwargs)
+            # Apply defaults to capture default values if set.
+            f_sig.apply_defaults()
+
+            # Initialize TaskGroup with bound arguments
+            with TaskGroup(*task_group_bound_args.args, **task_group_bound_args.kwargs) as tg_obj:
+                # Invoke function to run Tasks inside the TaskGroup
+                f(**f_sig.arguments)
+
+            # Return task_group object such that it's accessible in Globals.
+            return tg_obj
+
+        return factory
+
+    return wrapper
