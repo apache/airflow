@@ -186,7 +186,7 @@ Here's the list of the subpackages and what they enable:
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | pagerduty           | ``pip install 'apache-airflow[pagerduty]'``         | Pagerduty hook                                                       |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| plexus              | ``pip install 'apache-airflow[plexus]'``            |                                                                      |
+| plexus              | ``pip install 'apache-airflow[plexus]'``            | Plexus service of CoreScientific.com AI platform                     |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | qds                 | ``pip install 'apache-airflow[qds]'``               | Enable QDS (Qubole Data Service) support                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
@@ -196,7 +196,7 @@ Here's the list of the subpackages and what they enable:
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | segment             | ``pip install 'apache-airflow[segment]'``           | Segment hooks and sensors                                            |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| sentry              | ``pip install 'apache-airflow[sentry]'``            |                                                                      |
+| sentry              | ``pip install 'apache-airflow[sentry]'``            | Sentry service for application logging and monitoring                |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | slack               | ``pip install 'apache-airflow[slack]'``             | :class:`airflow.providers.slack.operators.slack.SlackAPIOperator`    |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
@@ -204,7 +204,7 @@ Here's the list of the subpackages and what they enable:
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | vertica             | ``pip install 'apache-airflow[vertica]'``           | Vertica hook support as an Airflow backend                           |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| yandexcloud         | ``pip install 'apache-airflow[yandexcloud]'``       |                                                                      |
+| yandexcloud         | ``pip install 'apache-airflow[yandexcloud]'``       | Yandex.Cloud hooks and operators                                     |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 
 
@@ -261,9 +261,9 @@ Here's the list of the subpackages and what they enable:
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
 | statsd              | ``pip install 'apache-airflow[statsd]'``            | Needed by StatsD metrics                                                           |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
-| tableau             | ``pip install 'apache-airflow[tableau]'``           |                                                                                    |
+| tableau             | ``pip install 'apache-airflow[tableau]'``           | Tableau visualization integration                                                  |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
-| virtualenv          | ``pip install 'apache-airflow[virtualenv]'``        |                                                                                    |
+| virtualenv          | ``pip install 'apache-airflow[virtualenv]'``        | Running python tasks in local virtualenv                                           |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
 
 

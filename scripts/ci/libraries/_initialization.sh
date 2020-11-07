@@ -570,10 +570,10 @@ Detected CI build environment:
 
 Initialization variables:
 
-    INIT_SCRIPT_FILE: ${INIT_SCRIPT_FILE}
+    INIT_SCRIPT_FILE: ${INIT_SCRIPT_FILE=}
     LOAD_DEFAULT_CONNECTIONS: ${LOAD_DEFAULT_CONNECTIONS}
     LOAD_EXAMPLES: ${LOAD_EXAMPLES}
-    INSTALL_WHEELS: ${INSTALL_WHEELS}
+    INSTALL_WHEELS: ${INSTALL_WHEELS=}
     DISABLE_RBAC: ${DISABLE_RBAC}
 
 Test variables:
@@ -748,5 +748,7 @@ function initialization::ga_output() {
 }
 
 function initialization::ga_env() {
-    echo "${1}=${2}" >> "${GITHUB_ENV}"
+    if [[ ${GITHUB_ENV=} != "" ]]; then
+        echo "${1}=${2}" >> "${GITHUB_ENV}"
+    fi
 }

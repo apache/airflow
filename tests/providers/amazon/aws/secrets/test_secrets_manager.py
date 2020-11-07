@@ -83,3 +83,45 @@ class TestSecretsManagerBackend(TestCase):
         secrets_manager_backend.client.put_secret_value(**param)
 
         self.assertIsNone(secrets_manager_backend.get_variable("test_mysql"))
+
+    @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend._get_secret")
+    def test_connection_prefix_none_value(self, mock_get_secret):
+        """
+        Test that if Variable key is not present in AWS Secrets Manager,
+        SecretsManagerBackend.get_conn_uri should return None,
+        SecretsManagerBackend._get_secret should not be called
+        """
+        kwargs = {'connections_prefix': None}
+
+        secrets_manager_backend = SecretsManagerBackend(**kwargs)
+
+        self.assertIsNone(secrets_manager_backend.get_conn_uri("test_mysql"))
+        mock_get_secret.assert_not_called()
+
+    @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend._get_secret")
+    def test_variable_prefix_none_value(self, mock_get_secret):
+        """
+        Test that if Variable key is not present in AWS Secrets Manager,
+        SecretsManagerBackend.get_variables should return None,
+        SecretsManagerBackend._get_secret should not be called
+        """
+        kwargs = {'variables_prefix': None}
+
+        secrets_manager_backend = SecretsManagerBackend(**kwargs)
+
+        self.assertIsNone(secrets_manager_backend.get_variable("hello"))
+        mock_get_secret.assert_not_called()
+
+    @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend._get_secret")
+    def test_config_prefix_none_value(self, mock_get_secret):
+        """
+        Test that if Variable key is not present in AWS Secrets Manager,
+        SecretsManagerBackend.get_config should return None,
+        SecretsManagerBackend._get_secret should not be called
+        """
+        kwargs = {'config_prefix': None}
+
+        secrets_manager_backend = SecretsManagerBackend(**kwargs)
+
+        self.assertIsNone(secrets_manager_backend.get_config("config"))
+        mock_get_secret.assert_not_called()

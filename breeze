@@ -889,7 +889,7 @@ function breeze::parse_arguments() {
         -C | --force-clean-images)
             echo "Clean build of images without cache"
             echo
-            export DOCKER_CACHE="no-cache"
+            export DOCKER_CACHE="disabled"
             # if not set here, docker cached is determined later, depending on type of image to be build
             readonly DOCKER_CACHE
             export FORCE_BUILD_IMAGES="true"

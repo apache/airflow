@@ -78,6 +78,7 @@ release = airflow.__version__
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    'provider_init_hack',
     'sphinx.ext.autodoc',
     'sphinx.ext.coverage',
     'sphinx.ext.viewcode',
@@ -424,6 +425,7 @@ autoapi_ignore = [
     '*/airflow/kubernetes/kubernetes_request_factory/*',
     '*/_internal*',
     '*/node_modules/*',
+    '*/example_dags/*,',
     '*/migrations/*',
 ]
 # Keep the AutoAPI generated files on the filesystem after the run.
