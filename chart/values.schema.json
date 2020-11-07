@@ -343,6 +343,14 @@
             "description": "Secrets for all airflow containers.",
             "type": "array"
         },
+        "extraEnv": {
+          "description": "Extra env 'items' that will be added to the definition of airflow containers ; a string is expected (can be templated).",
+          "type": ["null", "string"]
+        },
+        "extraEnvFrom": {
+          "description": "Extra envFrom 'items' that will be added to the definition of airflow containers ; a string is expected (can be templated).",
+          "type": ["null", "string"]
+        },
         "extraSecrets": {
           "description": "Extra secrets that will be managed by the chart.",
           "type": "object",
