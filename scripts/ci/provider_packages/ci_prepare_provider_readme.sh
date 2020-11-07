@@ -17,7 +17,7 @@
 # under the License.
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
-
+#
 build_images::prepare_ci_build
 
 build_images::rebuild_ci_image_if_needed

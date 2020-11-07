@@ -32,9 +32,7 @@ class TestSearchAdsHook(TestCase):
         ):
             self.hook = GoogleSearchAdsHook(gcp_conn_id=GCP_CONN_ID)
 
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.hooks." "search_ads.GoogleSearchAdsHook._authorize"
-    )
+    @mock.patch("airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsHook._authorize")
     @mock.patch("airflow.providers.google.marketing_platform.hooks.search_ads.build")
     def test_gen_conn(self, mock_build, mock_authorize):
         result = self.hook.get_conn()
@@ -46,9 +44,7 @@ class TestSearchAdsHook(TestCase):
         )
         self.assertEqual(mock_build.return_value, result)
 
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.hooks." "search_ads.GoogleSearchAdsHook.get_conn"
-    )
+    @mock.patch("airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsHook.get_conn")
     def test_insert(self, get_conn_mock):
         report = {"report": "test"}
 
@@ -63,9 +59,7 @@ class TestSearchAdsHook(TestCase):
 
         self.assertEqual(return_value, result)
 
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.hooks." "search_ads.GoogleSearchAdsHook.get_conn"
-    )
+    @mock.patch("airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsHook.get_conn")
     def test_get(self, get_conn_mock):
         report_id = "REPORT_ID"
 
@@ -78,9 +72,7 @@ class TestSearchAdsHook(TestCase):
 
         self.assertEqual(return_value, result)
 
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.hooks." "search_ads.GoogleSearchAdsHook.get_conn"
-    )
+    @mock.patch("airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsHook.get_conn")
     def test_get_file(self, get_conn_mock):
         report_fragment = 42
         report_id = "REPORT_ID"

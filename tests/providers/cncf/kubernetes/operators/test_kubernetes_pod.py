@@ -137,3 +137,30 @@ class TestKubernetesPodOperator(unittest.TestCase):
         self.assertEqual(task.image, "{{ image_jinja }}:16.04")
         task.render_template_fields(context={"image_jinja": "ubuntu"})
         self.assertEqual(task.image, "ubuntu:16.04")
+
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+    def test_randomize_pod_name(self, mock_client, monitor_mock, start_mock):
+        from airflow.utils.state import State
+
+        name_base = 'test'
+
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name=name_base,
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+            cluster_context='default',
+        )
+        monitor_mock.return_value = (State.SUCCESS, None)
+        context = self.create_context(k)
+        k.execute(context=context)
+
+        assert start_mock.call_args[0][0].metadata.name.startswith(name_base)
+        assert start_mock.call_args[0][0].metadata.name != name_base

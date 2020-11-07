@@ -28,9 +28,9 @@ from urllib.parse import urlsplit, urlunsplit
 
 import requests
 import tenacity
-from typing_extensions import Protocol
 
 from airflow import configuration
+from airflow.typing_compat import Protocol
 from airflow.version import version as airflow_version
 
 log = logging.getLogger(__name__)

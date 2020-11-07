@@ -24,12 +24,17 @@ Airflow has a simple plugin manager built-in that can integrate external
 features to its core by simply dropping files in your
 ``$AIRFLOW_HOME/plugins`` folder.
 
-The python modules in the ``plugins`` folder get imported,
-and **hooks**, **macros** and web **views**
+The python modules in the ``plugins`` folder get imported, and **macros** and web **views**
 get integrated to Airflow's main collections and become available for use.
 
 To troubleshoot issue with plugins, you can use ``airflow plugins`` command.
 This command dumps information about loaded plugins.
+
+.. versionchanged:: 2.0
+    Importing operators, sensors, hooks added in plugins via
+   ``airflow.{operators,sensors,hooks}.<plugin_name>`` is no longer supported, and these extensions should
+   just be imported as regular python modules. For more information, see: :doc:`/modules_management` and
+   :doc:`/howto/custom-operator`
 
 What for?
 ---------
@@ -163,7 +168,7 @@ definitions in Airflow.
     from airflow.models.baseoperator import BaseOperatorLink
     from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
 
-    # Will show up under airflow.hooks.test_plugin.PluginHook
+    # Will show up in Connections screen in a future version
     class PluginHook(BaseHook):
         pass
 
@@ -266,9 +271,7 @@ will automatically load the registered plugins from the entrypoint list.
 .. note::
     Neither the entrypoint name (eg, ``my_plugin``) nor the name of the
     plugin class will contribute towards the module and class name of the plugin
-    itself. The structure is determined by
-    ``airflow.plugins_manager.AirflowPlugin.name`` and the class name of the plugin
-    component with the pattern ``airflow.{component}.{name}.{component_class_name}``.
+    itself.
 
 .. code-block:: python
 

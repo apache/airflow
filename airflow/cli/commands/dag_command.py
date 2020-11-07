@@ -158,9 +158,7 @@ def dag_delete(args):
     api_client = get_current_api_client()
     if (
         args.yes
-        or input(
-            "This will drop all existing records related to the specified DAG. " "Proceed? (y/n)"
-        ).upper()
+        or input("This will drop all existing records related to the specified DAG. Proceed? (y/n)").upper()
         == "Y"
     ):
         try:

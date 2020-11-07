@@ -55,6 +55,7 @@ from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
+from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sentry import Sentry
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
@@ -1469,6 +1470,8 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         """Return TI Context"""
         task = self.task
         from airflow import macros
+
+        integrate_macros_plugins()
 
         params = {}  # type: Dict[str, Any]
         run_id = ''

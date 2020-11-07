@@ -474,9 +474,8 @@ function get_count_kubernetes_files() {
     echo "Count Kubernetes files"
     echo
     local pattern_array=(
-        "^airflow/kubernetes"
         "^chart"
-        "^tests/kubernetes_tests"
+        "^kubernetes_tests"
     )
     show_changed_files
     COUNT_KUBERNETES_CHANGED_FILES=$(count_changed_files)

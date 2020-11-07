@@ -384,7 +384,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             metadata=k8s.V1ObjectMeta(
                 namespace=self.namespace,
                 labels=self.labels,
-                name=self.name,
+                name=PodGenerator.make_unique_pod_id(self.name),
                 annotations=self.annotations,
             ),
             spec=k8s.V1PodSpec(
