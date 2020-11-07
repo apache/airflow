@@ -362,7 +362,8 @@ def taskgroup(*tg_args, **tg_kwargs):
         # Get dag initializer signature and bind it to validate that task_group_args, and task_group_kwargs are correct
         task_group_sig = signature(TaskGroup.__init__)
         task_group_bound_args = task_group_sig.bind_partial(*tg_args, **tg_kwargs)
-
+        
+        @functools.wraps(f)
         def factory(*args, **kwargs):
             # Generate signature for decorated function and bind the arguments when called
             # we do this to extract parameters so we can annotate them on the DAG object.
