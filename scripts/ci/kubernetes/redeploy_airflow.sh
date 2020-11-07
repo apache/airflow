@@ -23,10 +23,6 @@ traps::add_trap "kind::dump_kind_logs" EXIT HUP INT TERM
 
 kind::make_sure_kubernetes_tools_are_installed
 kind::get_kind_cluster_name
-build_images::prepare_prod_build
-build_images::build_prod_images
-kind::build_image_for_kubernetes_tests
-kind::load_image_to_kind_cluster
 kind::deploy_airflow_with_helm
-kind::forward_port_to_kind_webserver
 kind::deploy_test_kubernetes_resources
+kind::wait_for_webserver_healthy

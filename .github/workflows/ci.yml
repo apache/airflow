@@ -765,23 +765,14 @@ jobs:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
-      - name: "Setup Kind Cluster ${{ env.KIND_VERSION }}"
-        uses: engineerd/setup-kind@v0.4.0
-        with:
-          version: "${{ env.KIND_VERSION }}"
-          name: airflow-python-${{matrix.python-version}}-${{matrix.kubernetes-version}}
-          config: "scripts/ci/kubernetes/kind-cluster-conf.yaml"
       - name: "Prepare PROD Image"
         run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
-      - name: "Deploy airflow to cluster"
-        id: deploy-app
-        run: ./scripts/ci/kubernetes/ci_deploy_app_to_kubernetes.sh
+      - name: "Setup cluster and deploy Airflow"
+        id: setp-cluster-deploy-app
+        run: ./scripts/ci/kubernetes/ci_setup_cluster_and_deploy_airflow_to_kubernetes.sh
         env:
           # We have the right image pulled already by the previous step
           SKIP_BUILDING_PROD_IMAGE: "true"
-          # due to some instabilities, in CI we try to increase port numbers when trying to establish
-          # port forwarding
-          INCREASE_PORT_NUMBER_FOR_KUBERNETES: "true"
       - name: "Cache virtualenv for kubernetes testing"
         uses: actions/cache@v2
         env:
@@ -798,7 +789,7 @@ jobs:
           key: "${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}\
 -${{ needs.build-info.outputs.defaultKindVersion }}\
 -${{ needs.build-info.outputs.defaultHelmVersion }}\
--$${{ matrix.kubernetes-version }}"
+-${{ matrix.kubernetes-version }}"
       - name: "Kubernetes Tests"
         run: ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh
       - name: "Upload KinD logs"

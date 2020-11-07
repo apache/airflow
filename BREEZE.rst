@@ -1751,7 +1751,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
         to the cluster so you can also pass appropriate build image flags that will influence
         rebuilding the production image. Operation is one of:
 
-                 start stop restart status deploy test shell
+                 start stop restart status deploy test shell k9s
+
+        The last two operations - shell and k9s allow you to perform interactive testing with
+        kubernetes tests. You can enter the shell from which you can run kubernetes tests and in
+        another terminal you can start the k9s CLI to debug kubernetes instance. It is an easy
+        way to debug the kubernetes deployments.
+
+        You can read more about k9s at https://k9scli.io/
 
   Flags:
 

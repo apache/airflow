@@ -21,7 +21,6 @@
 kind::make_sure_kubernetes_tools_are_installed
 kind::get_kind_cluster_name
 
-traps::add_trap kind::stop_kubectl EXIT HUP INT TERM
 traps::add_trap kind::dump_kind_logs EXIT HUP INT TERM
 
 interactive="false"
@@ -105,7 +104,6 @@ if [[ ${interactive} == "true" ]]; then
     echo
     echo "You are entering the virtualenv now. Type exit to exit back to the original shell"
     echo
-    kubectl config set-context --current --namespace=airflow
     exec "${SHELL}"
 else
     pytest "${pytest_args[@]}" "${tests_to_run[@]}"

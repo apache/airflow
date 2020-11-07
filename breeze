@@ -1790,6 +1790,13 @@ ${CMDNAME} kind-cluster [FLAGS] OPERATION
 
 ${FORMATTED_KIND_OPERATIONS}
 
+      The last two operations - shell and k9s allow you to perform interactive testing with
+      kubernetes tests. You can enter the shell from which you can run kubernetes tests and in
+      another terminal you can start the k9s CLI to debug kubernetes instance. It is an easy
+      way to debug the kubernetes deployments.
+
+      You can read more about k9s at https://k9scli.io/
+
 Flags:
 $(breeze::flag_airflow_variants)
 $(breeze::flag_build_docker_images)
@@ -3068,6 +3075,8 @@ function breeze::run_build_command() {
             echo "Run Kubernetes tests with the KinD cluster "
         elif [[ ${KIND_CLUSTER_OPERATION} == "shell" ]]; then
             echo "Enter an interactive shell for kubernetes testing"
+        elif [[ ${KIND_CLUSTER_OPERATION} == "k9s" ]]; then
+            echo "Run k9s cli to debug in style"
         elif [[ -z ${KIND_CLUSTER_OPERATION=} ]]; then
             echo
             echo "Please provide an operation to run"
