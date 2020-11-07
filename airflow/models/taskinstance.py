@@ -1264,7 +1264,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             'dag.{dag_id}.{task_id}.duration', duration, labels={"dag_id": dag_id, "task_id": task_id}
         )
         task_type = self.task.task_type
-        Stats.incr('operator_successes_{task.task_type}', 1, 1, labels={"task_type": task_type})
+        Stats.incr('operator_successes_{task_type}', 1, 1, labels={"task_type": task_type})
         Stats.incr('ti_successes')
 
     @provide_session

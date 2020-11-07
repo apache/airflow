@@ -1770,7 +1770,7 @@ class TestTaskInstance(unittest.TestCase):
                     'ti.start.{dag_id}.{task_id}',
                     labels={'dag_id': 'test_task_start_end_stats', 'task_id': 'dummy_op'},
                 ),
-                call('operator_successes_{self.task.task_type}', 1, 1, labels={'task_type': 'DummyOperator'}),
+                call('operator_successes_{task_type}', 1, 1, labels={'task_type': 'DummyOperator'}),
                 call('ti_successes'),
                 call(
                     'ti.finish.{dag_id}.{task_id}.{state}',
