@@ -2689,6 +2689,8 @@ class XComModelView(AirflowModelView):
 
     route_base = '/xcom'
 
+    list_title = 'List XComs'
+
     datamodel = AirflowModelView.CustomSQLAInterface(XCom)
 
     class_permission_name = permissions.RESOURCE_XCOM

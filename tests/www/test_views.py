@@ -676,6 +676,10 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('XCom', resp)
 
+    def test_xcom_list_view_title(self):
+        resp = self.client.get('xcom/list')
+        self.check_content_in_response('List XComs', resp)
+
     def test_rendered(self):
         url = 'rendered?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'.format(
             self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)
