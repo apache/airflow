@@ -74,7 +74,8 @@ Tags support
 
 If you are using a statsd client that supports tags, the placeholder will not be replaced in the key, but
 the values will be sent in the tags. If your client doesn't support tags your values will be replaced
-in the key.
+in the key. This allows more freedom in aggregation when the client supports the tags and at the same time
+maintains compatibility with clients that do not support the tags.
 
 **Example:**
 
@@ -84,6 +85,7 @@ task ID is ``run_me``, you will get the following metric:
 - When your client supports tags, you will have an ``ti.start.dagid.taskid`` metric with
   ``dagid:example_bash_operator`` and ``taskid:run_me`` tags
 - When your client doesn't supports tags, you will have an ``ti.start.example_bash_operator.run_me`` metric.
+
 
 Counters
 --------
