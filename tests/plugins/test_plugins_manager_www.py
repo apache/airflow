@@ -22,7 +22,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import unittest
+import six
 from mock import MagicMock, PropertyMock
 
 from flask.blueprints import Blueprint
@@ -37,19 +37,39 @@ from airflow.www.app import create_app
 
 from tests.plugins.test_plugin import MockPluginA, MockPluginB, MockPluginC
 
+if six.PY2:
+    # Need `assertWarns` back-ported from unittest2
+    import unittest2 as unittest
+else:
+    import unittest
+
 
 class PluginsTest(unittest.TestCase):
-
     def test_operators(self):
-        from airflow.operators.test_plugin import PluginOperator
+        with self.assertWarnsRegex(
+            FutureWarning, r"'PluginOperator' from under 'airflow.operators.*'"
+        ):
+            from airflow.operators.test_plugin import PluginOperator
         self.assertTrue(issubclass(PluginOperator, BaseOperator))
 
+        with self.assertWarnsRegex(
+            FutureWarning, r"'PluginSensorOperator' from under 'airflow.operators.*'"
+        ):
+            from airflow.operators.test_plugin import PluginSensorOperator
+        self.assertTrue(issubclass(PluginSensorOperator, BaseSensorOperator))
+
     def test_sensors(self):
-        from airflow.sensors.test_plugin import PluginSensorOperator
+        with self.assertWarnsRegex(
+            FutureWarning, r"'PluginSensorOperator' from under 'airflow.sensors.*'"
+        ):
+            from airflow.sensors.test_plugin import PluginSensorOperator
         self.assertTrue(issubclass(PluginSensorOperator, BaseSensorOperator))
 
     def test_hooks(self):
-        from airflow.hooks.test_plugin import PluginHook
+        with self.assertWarnsRegex(
+            FutureWarning, r"'PluginHook' from under 'airflow.hooks.*'"
+        ):
+            from airflow.hooks.test_plugin import PluginHook
         self.assertTrue(issubclass(PluginHook, BaseHook))
 
     def test_executors(self):
