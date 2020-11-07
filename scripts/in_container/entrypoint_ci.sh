@@ -97,7 +97,7 @@ else
     install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}"
 fi
 
-if [[ ${INSTALL_WHEELS} == "true" ]]; then
+if [[ ${INSTALL_WHEELS=} == "true" ]]; then
   pip install /dist/*.whl || true
 fi
 
