@@ -595,7 +595,7 @@ class _Stats(type):
             if not issubclass(stats_class, StatsClient):
                 raise AirflowConfigException(
                     "Your custom Statsd client must extend the statsd.StatsClient in order to ensure "
-                    "backwards compatibility."
+                    f"backwards compatibility. Current type: {type(stats_class)}"
                 )
             else:
                 log.info("Successfully loaded custom Statsd client")
