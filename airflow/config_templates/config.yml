@@ -579,11 +579,11 @@
       default: ""
 - name: metrics
   description: |
-    Statsd (https://github.com/etsy/statsd) integration settings.
+    StatsD (https://github.com/etsy/statsd) integration settings.
   options:
     - name: statsd_on
       description: |
-        Enables sending statsD metrics.
+        Enables sending metrics to StatsD.
       version_added: ~
       type: string
       example: ~
