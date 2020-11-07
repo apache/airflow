@@ -77,6 +77,7 @@ Counters
 ======================================  =============================================================================================================================================================
 Key                                     Description
 ======================================  =============================================================================================================================================================
+``celery.task_timeout_error``           Number of ``AirflowTaskTimeout`` errors raised when publishing Task to Celery Broker.
 ``dag.callback_exceptions``             Number of exceptions raised from DAG callbacks. When this happens, it means DAG callback is not working.
 ``dag_processing.processes``            Number of currently running DAG parsing processes
 ``operator_failures_{operator_name}``   Operator ``{operator_name}`` failures

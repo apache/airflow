@@ -135,6 +135,11 @@ METRICS_LIST: List[Metric] = [
             "not working."
         ),
     ),
+    Metric(
+        metric_type=MetricType.COUNTER,
+        key="celery.task_timeout_error",
+        description=("Number of ``AirflowTaskTimeout`` errors raised when publishing Task to Celery Broker."),
+    ),
     Metric(metric_type=MetricType.GAUGE, key="dagbag_size", description="DAG bag size"),
     Metric(
         metric_type=MetricType.GAUGE,

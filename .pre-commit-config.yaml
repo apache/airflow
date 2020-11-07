@@ -409,7 +409,7 @@ repos:
         name: Checks for consistency between airflow/stats.py and docs/logging-monitoring/metrics.rst
         entry: ./scripts/ci/pre_commit/pre_commit_generate_metrics_reference_tables.sh
         language: system
-        files: ^.pre-commit-config.yaml$|^metrics.rst$
+        files: ^.pre-commit-config.yaml$|metrics.rst$|stats.py$
         require_serial: true
       - id: helm-lint
         name: Lint Helm Chart
