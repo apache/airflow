@@ -1763,9 +1763,21 @@ class TestTaskInstance(unittest.TestCase):
         session.commit()
         ti._run_raw_task()
         ti.refresh_from_db()
-        stats_mock.assert_called_with(f'ti.finish.{dag.dag_id}.{op.task_id}.{ti.state}')
-        self.assertIn(call(f'ti.start.{dag.dag_id}.{op.task_id}'), stats_mock.mock_calls)
-        self.assertEqual(stats_mock.call_count, 5)
+        stats_mock.assert_has_calls(
+            [
+                call('task_instance_created-{task_type}', 1, 1, labels={'task_type': 'DummyOperator'}),
+                call(
+                    'ti.start.{dag_id}.{task_id}',
+                    labels={'dag_id': 'test_task_start_end_stats', 'task_id': 'dummy_op'},
+                ),
+                call('operator_successes_{self.task.task_type}', 1, 1, labels={'task_type': 'DummyOperator'}),
+                call('ti_successes'),
+                call(
+                    'ti.finish.{dag_id}.{task_id}.{state}',
+                    labels={'dag_id': 'test_task_start_end_stats', 'task_id': 'dummy_op', 'state': 'success'},
+                ),
+            ]
+        )
 
     def test_generate_command_default_param(self):
         dag_id = 'test_generate_command_default_param'

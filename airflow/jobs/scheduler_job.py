@@ -1057,7 +1057,9 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 dag_concurrency_map[dag_id] += 1
                 task_concurrency_map[(task_instance.dag_id, task_instance.task_id)] += 1
 
-            Stats.gauge('pool.starving_tasks.{pool_name}', num_starving_tasks, tags={"pool_name": pool_name})
+            Stats.gauge(
+                'pool.starving_tasks.{pool_name}', num_starving_tasks, labels={"pool_name": pool_name}
+            )
 
         Stats.gauge('scheduler.tasks.starving', num_starving_tasks_total)
         Stats.gauge('scheduler.tasks.running', num_tasks_in_executor)
@@ -1703,12 +1705,12 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     def _emit_pool_metrics(self, session: Session = None) -> None:
         pools = models.Pool.slots_stats(session=session)
         for pool_name, slot_stats in pools.items():
-            Stats.gauge('pool.open_slots.{pool_name}', slot_stats["open"], tags={"pool_name": pool_name})
+            Stats.gauge('pool.open_slots.{pool_name}', slot_stats["open"], labels={"pool_name": pool_name})
             Stats.gauge(
-                'pool.queued_slots.{pool_name}', slot_stats[State.QUEUED], tags={"pool_name": pool_name}
+                'pool.queued_slots.{pool_name}', slot_stats[State.QUEUED], labels={"pool_name": pool_name}
             )
             Stats.gauge(
-                'pool.running_slots.{pool_name}', slot_stats[State.RUNNING], tags={"pool_name": pool_name}
+                'pool.running_slots.{pool_name}', slot_stats[State.RUNNING], labels={"pool_name": pool_name}
             )
 
     @provide_session
@@ -1738,7 +1740,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         if num_failed:
             self.log.info("Marked %d SchedulerJob instances as failed", num_failed)
             class_name = self.__class__.__name__.lower()
-            Stats.incr('{class_name}_end', num_failed, tags={"class_name": class_name})
+            Stats.incr('{class_name}_end', num_failed, labels={"class_name": class_name})
 
         resettable_states = [State.SCHEDULED, State.QUEUED, State.RUNNING]
         query = (
