@@ -603,6 +603,7 @@ def check_spelling() -> None:
     :return:
     """
     extensions_to_use = [
+        'provider_init_hack',
         "sphinxarg.ext",
         "autoapi.extension",
         "sphinxcontrib.spelling",
