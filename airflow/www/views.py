@@ -2818,7 +2818,11 @@ class ConnectionModelView(AirflowModelView):
     def prefill_form(self, form, pk):
         """Prefill the form."""
         try:
-            extra_dictionary = json.loads(form.data.get('extra', '{}'))
+            extra = form.data.get('extra')
+            if extra is None:
+                extra_dictionary = {}
+            else:
+                extra_dictionary = json.loads(extra)
         except JSONDecodeError:
             extra_dictionary = {}
 
