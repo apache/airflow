@@ -120,6 +120,7 @@ class DagBag(LoggingMixin):
         # Only used by SchedulerJob to compare the dag_hash to identify change in DAGs
         self.dags_hash: Dict[str, str] = {}
 
+        self.dagbag_import_tree_depth = conf.getint('core', 'dagbag_import_tree_depth')
         self.dagbag_import_error_tracebacks = conf.getboolean('core', 'dagbag_import_error_tracebacks')
         self.dagbag_import_error_traceback_depth = conf.getint('core', 'dagbag_import_error_traceback_depth')
         self.collect_dags(
@@ -307,12 +308,16 @@ class DagBag(LoggingMixin):
         mods = []
         current_zip_file = zipfile.ZipFile(filepath)
         for zip_info in current_zip_file.infolist():
-            head, _ = os.path.split(zip_info.filename)
+            nodes = [node for node in zip_info.filename.split(os.sep) if node]
+            # root level starts at 0
+            current_depth = len(nodes) - 1
             mod_name, ext = os.path.splitext(zip_info.filename)
             if ext not in [".py", ".pyc"]:
                 continue
-            if head:
+            if current_depth > self.dagbag_import_tree_depth:
                 continue
+
+            mod_name = mod_name.strip("/").replace("/", ".")
 
             if mod_name == '__init__':
                 self.log.warning("Found __init__.%s at root of %s", ext, filepath)

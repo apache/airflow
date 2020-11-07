@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,10 +15,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
+from datetime import datetime
 
-from airflow.utils import timezone
+from airflow.models import DAG
+from airflow.operators.python import PythonOperator
 
-DEFAULT_DATE = timezone.datetime(2016, 1, 1)
-TEST_DAGS_FOLDER = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../dags')
-TEST_DAGS_ZIP_FOLDER = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../dags_zip')
+from .custom_lib.my_module import my_func
+
+DEFAULT_DATE = datetime(2016, 1, 1)
+
+args = {
+    'owner': 'airflow',
+    'start_date': DEFAULT_DATE,
+}
+
+dag = DAG(dag_id='test_zip_nested', default_args=args)
+python_op = PythonOperator(task_id='python_task', python_callable=my_func, dag=dag)

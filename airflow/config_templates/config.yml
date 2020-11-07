@@ -256,6 +256,15 @@
       type: integer
       example: ~
       default: "2"
+    - name: dagbag_import_tree_depth
+      description: |
+        For zip files, if dags are defined in a subfolder,
+        how deep will a DagFileProcessor look for a dag object.
+        0 means we only look at the root folder.
+      version_added: 2.0.0
+      type: integer
+      example: ~
+      default: "0"
     - name: dag_file_processor_timeout
       description: |
         How long before timing out a DagFileProcessor, which processes a dag file

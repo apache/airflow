@@ -25,6 +25,7 @@ from unittest import mock
 from unittest.mock import patch
 
 from freezegun import freeze_time
+from parameterized import parameterized
 from sqlalchemy import func
 from sqlalchemy.exc import OperationalError
 
@@ -35,7 +36,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.dates import timezone as tz
 from airflow.utils.session import create_session
 from tests import cluster_policies
-from tests.models import TEST_DAGS_FOLDER
+from tests.models import TEST_DAGS_FOLDER, TEST_DAGS_ZIP_FOLDER
 from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
@@ -157,6 +158,29 @@ class TestDagBag(unittest.TestCase):
         dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip"))
         self.assertTrue(dagbag.get_dag("test_zip_dag"))
+
+    @parameterized.expand(
+        [
+            ("archive1", 0, None),
+            ("archive1", 1, "test_zip_nested"),
+            ("archive1", 2, "test_zip_nested"),
+        ]
+    )
+    def test_zip_nested(self, dag_dir, depth, expected_dag):
+        """
+        test the loading of a DAG in a subfolder within a zip file that includes dependencies
+        """
+        # we keep the unzipped directory in git to help code review
+        zip_dest = os.path.join(mkdtemp(), dag_dir)
+        shutil.make_archive(zip_dest, 'zip', os.path.join(TEST_DAGS_ZIP_FOLDER, dag_dir))
+
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+        dagbag.dagbag_import_tree_depth = depth
+        dagbag.process_file(f"{zip_dest}.zip")
+        if expected_dag:
+            self.assertTrue(dagbag.get_dag(expected_dag))
+        else:
+            self.assertDictEqual(dagbag.dags, {})
 
     def test_process_file_cron_validity_check(self):
         """
