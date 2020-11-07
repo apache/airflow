@@ -1110,6 +1110,7 @@ class CliTests(unittest.TestCase):
             DAG('no_access_control')
         ], dagbag_mock)
         self.appbuilder.sm = mock.Mock()
+        self.appbuilder.add_permissions = mock.Mock()
 
         args = self.parser.parse_args([
             'sync_perm'
@@ -1127,6 +1128,7 @@ class CliTests(unittest.TestCase):
             'no_access_control',
             None,
         )
+        self.appbuilder.add_permissions.assert_called_once_with(update_perms=True)
 
     def expect_dagbag_contains(self, dags, dagbag_mock):
         dagbag = mock.Mock()
