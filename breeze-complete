@@ -98,6 +98,7 @@ language-matters
 lint-dockerfile
 lint-openapi
 mermaid
+metrics-tables
 mixed-line-ending
 mypy
 mypy-helm

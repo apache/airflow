@@ -35,7 +35,7 @@ class CustomStatsd(statsd.StatsClient):
     def __init__(self, host=None, port=None, prefix=None):
         super().__init__()
 
-    def incr(self, stat, count=1, rate=1):  # pylint: disable=unused-argument
+    def incr(self, stat, count=1, rate=1, labels=None):  # pylint: disable=unused-argument
         CustomStatsd.incr_calls += 1
 
     @classmethod
@@ -54,7 +54,7 @@ class InvalidCustomStatsd:
     def __init__(self, host=None, port=None, prefix=None):
         pass
 
-    def incr(self, stat, count=1, rate=1):  # pylint: disable=unused-argument
+    def incr(self, stat, count=1, rate=1, labels=None):  # pylint: disable=unused-argument
         InvalidCustomStatsd.incr_calls += 1
 
     @classmethod
@@ -86,13 +86,25 @@ class TestStats(unittest.TestCase):
         self.statsd_client.assert_not_called()
 
     @conf_vars({('scheduler', 'statsd_on'): 'True'})
-    @mock.patch("statsd.StatsClient")
+    @mock.patch("statsd.StatsClient", spec=statsd.StatsClient)
     def test_does_send_stats_using_statsd(self, mock_statsd):
         importlib.reload(airflow.stats)
         airflow.stats.Stats.incr("dummy_key")
         mock_statsd.return_value.incr.assert_called_once_with('dummy_key', 1, 1)
 
     @conf_vars({('scheduler', 'statsd_on'): 'True'})
+    @mock.patch("statsd.StatsClient", spec=statsd.StatsClient)
+    def test_does_send_stats_with_labels_using_statsd(self, mock_statsd):
+        importlib.reload(airflow.stats)
+        airflow.stats.Stats.incr("dummy_key.{filename}", labels={"filename": "my-awesome-file.py"})
+        mock_statsd.return_value.incr.assert_called_once_with('dummy_key.my-awesome-file.py', 1, 1)
+
+    @conf_vars(
+        {
+            ('scheduler', 'statsd_on'): 'True',
+            ("scheduler", "statsd_custom_client_path"): "",
+        }
+    )
     @mock.patch("datadog.DogStatsd")
     def test_does_not_send_stats_using_dogstatsd(self, mock_dogstatsd):
         importlib.reload(airflow.stats)
@@ -175,9 +187,18 @@ class TestDogStats(unittest.TestCase):
 
     @conf_vars({('scheduler', 'statsd_datadog_enabled'): 'True'})
     @mock.patch("datadog.DogStatsd")
+    def test_does_send_stats_with_placeholder_using_dogstatsd_when_dogstatsd_on(self, mock_dogstatsd):
+        importlib.reload(airflow.stats)
+        airflow.stats.Stats.incr("dummy_key.{filename}", labels={"filename": "my-awesome-file.py"})
+        mock_dogstatsd.return_value.increment.assert_called_once_with(
+            metric='dummy_key', sample_rate=1, tags=['filename:my-awesome-file.py'], value=1
+        )
+
+    @conf_vars({('scheduler', 'statsd_datadog_enabled'): 'True'})
+    @mock.patch("datadog.DogStatsd")
     def test_does_send_stats_using_dogstatsd_with_tags(self, mock_dogstatsd):
         importlib.reload(airflow.stats)
-        airflow.stats.Stats.incr("dummy_key", 1, 1, ['key1:value1', 'key2:value2'])
+        airflow.stats.Stats.incr("dummy_key", 1, 1, tags=['key1:value1', 'key2:value2'])
         mock_dogstatsd.return_value.increment.assert_called_once_with(
             metric='dummy_key', sample_rate=1, tags=['key1:value1', 'key2:value2'], value=1
         )

@@ -72,72 +72,79 @@ See :doc:`../modules_management` for details on how Python and Airflow manage mo
 Counters
 --------
 
-======================================= ================================================================
-Name                                    Description
-======================================= ================================================================
-``<job_name>_start``                    Number of started ``<job_name>`` job, ex. ``SchedulerJob``, ``LocalTaskJob``
-``<job_name>_end``                      Number of ended ``<job_name>`` job, ex. ``SchedulerJob``, ``LocalTaskJob``
-``operator_failures_<operator_name>``   Operator ``<operator_name>`` failures
-``operator_successes_<operator_name>``  Operator ``<operator_name>`` successes
-``ti_failures``                         Overall task instances failures
-``ti_successes``                        Overall task instances successes
-``zombies_killed``                      Zombie tasks killed
-``scheduler_heartbeat``                 Scheduler heartbeats
+.. START METRICS[TYPE=COUNTER] REFERENCE HERE
+
+======================================  =============================================================================================================================================================
+Key                                     Description
+======================================  =============================================================================================================================================================
+``dag.callback_exceptions``             Number of exceptions raised from DAG callbacks. When this happens, it means DAG callback is not working.
 ``dag_processing.processes``            Number of currently running DAG parsing processes
+``operator_failures_{operator_name}``   Operator ``{operator_name}`` failures
+``operator_successes_{operator_name}``  Operator ``{operator_name}`` successes
+``scheduler.critical_section_busy``     Count of times a scheduler process tried to get a lock on the critical section (needed to send tasks to the executor) and found it locked by another process.
+``scheduler.orphaned_tasks.adopted``    Number of Orphaned tasks adopted by the Scheduler
+``scheduler.orphaned_tasks.cleared``    Number of Orphaned tasks cleared by the Scheduler
 ``scheduler.tasks.killed_externally``   Number of tasks killed externally
 ``scheduler.tasks.running``             Number of tasks running in executor
 ``scheduler.tasks.starving``            Number of tasks that cannot be scheduled because of no open slot in pool
-``scheduler.orphaned_tasks.cleared``    Number of Orphaned tasks cleared by the Scheduler
-``scheduler.orphaned_tasks.adopted``    Number of Orphaned tasks adopted by the Scheduler
-``scheduler.critical_section_busy``     Count of times a scheduler process tried to get a lock on the critical
-                                        section (needed to send tasks to the executor) and found it locked by
-                                        another process.
+``scheduler_heartbeat``                 Scheduler heartbeats
 ``sla_email_notification_failure``      Number of failed SLA miss email notification attempts
-``ti.start.<dagid>.<taskid>``           Number of started task in a given dag. Similar to <job_name>_start but for task
-``ti.finish.<dagid>.<taskid>.<state>``  Number of completed task in a given dag. Similar to <job_name>_end but for task
-``dag.callback_exceptions``             Number of exceptions raised from DAG callbacks. When this happens, it means DAG callback is not working.
-``celery.task_timeout_error``           Number of ``AirflowTaskTimeout`` errors raised when publishing Task to Celery Broker.
-======================================= ================================================================
+``ti.finish.{dagid}.{taskid}.{state}``  Number of completed task in a given dag. Similar to <job_name>_end but for task
+``ti.start.{dagid}.{taskid}``           Number of started task in a given dag. Similar to <job_name>_start but for task
+``ti_failures``                         Overall task instances failures
+``ti_successes``                        Overall task instances successes
+``zombies_killed``                      Zombie tasks killed
+``{job_name}_end``                      Number of ended ``{job_name}`` job, ex. ``SchedulerJob``, ``LocalTaskJob``
+``{job_name}_start``                    Number of started ``{job_name}`` job, ex. ``SchedulerJob``, ``LocalTaskJob``
+======================================  =============================================================================================================================================================
+
+.. END METRICS[TYPE=COUNTER] REFERENCE HERE
 
 Gauges
 ------
 
-=================================================== ========================================================================
-Name                                                Description
-=================================================== ========================================================================
-``dagbag_size``                                     DAG bag size
+.. START METRICS[TYPE=GAUGE] REFERENCE HERE
+
+==================================================  =====================================================================================
+Key                                                 Description
+==================================================  =====================================================================================
 ``dag_processing.import_errors``                    Number of errors from trying to parse DAG files
-``dag_processing.total_parse_time``                 Seconds taken to scan and import all DAG files once
-``dag_processing.last_runtime.<dag_file>``          Seconds spent processing ``<dag_file>`` (in most recent iteration)
-``dag_processing.last_run.seconds_ago.<dag_file>``  Seconds since ``<dag_file>`` was last processed
+``dag_processing.last_run.seconds_ago.{dag_file}``  Seconds since ``<dag_file>`` was last processed
+``dag_processing.last_runtime.{dag_file}``          Seconds spent processing ``<dag_file>`` (in most recent iteration)
 ``dag_processing.processor_timeouts``               Number of file processors that have been killed due to taking too long
+``dag_processing.total_parse_time``                 Seconds taken to scan and import all DAG files once
+``dagbag_size``                                     DAG bag size
 ``executor.open_slots``                             Number of open slots on executor
 ``executor.queued_tasks``                           Number of queued tasks on executor
 ``executor.running_tasks``                          Number of running tasks on executor
-``pool.open_slots.<pool_name>``                     Number of open slots in the pool
-``pool.queued_slots.<pool_name>``                   Number of queued slots in the pool
-``pool.running_slots.<pool_name>``                  Number of running slots in the pool
-``pool.starving_tasks.<pool_name>``                 Number of starving tasks in the pool
-``smart_sensor_operator.poked_tasks``               Number of tasks poked by the smart sensor in the previous poking loop
-``smart_sensor_operator.poked_success``             Number of newly succeeded tasks poked by the smart sensor in the previous poking loop
-``smart_sensor_operator.poked_exception``           Number of exceptions in the previous smart sensor poking loop
+``pool.open_slots.{pool_name}``                     Number of open slots in the pool
+``pool.queued_slots.{pool_name}``                   Number of queued slots in the pool
+``pool.running_slots.{pool_name}``                  Number of running slots in the pool
+``pool.starving_tasks.{pool_name}``                 Number of starving tasks in the pool
 ``smart_sensor_operator.exception_failures``        Number of failures caused by exception in the previous smart sensor poking loop
 ``smart_sensor_operator.infra_failures``            Number of infrastructure failures in the previous smart sensor poking loop
-=================================================== ========================================================================
+``smart_sensor_operator.poked_exception``           Number of exceptions in the previous smart sensor poking loop
+``smart_sensor_operator.poked_success``             Number of newly succeeded tasks poked by the smart sensor in the previous poking loop
+``smart_sensor_operator.poked_tasks``               Number of tasks poked by the smart sensor in the previous poking loop
+==================================================  =====================================================================================
+
+.. END METRICS[TYPE=GAUGE] REFERENCE HERE
 
 Timers
 ------
 
-=========================================== =================================================================
-Name                                        Description
-=========================================== =================================================================
-``dagrun.dependency-check.<dag_id>``        Milliseconds taken to check DAG dependencies
-``dag.<dag_id>.<task_id>.duration``         Milliseconds taken to finish a task
-``dag_processing.last_duration.<dag_file>`` Milliseconds taken to load the given DAG file
-``dagrun.duration.success.<dag_id>``        Milliseconds taken for a DagRun to reach success state
-``dagrun.duration.failed.<dag_id>``         Milliseconds taken for a DagRun to reach failed state
-``dagrun.schedule_delay.<dag_id>``          Milliseconds of delay between the scheduled DagRun start date and
-                                            the actual DagRun start date
-``scheduler.critical_section_duration``     Milliseconds spent in the critical section of scheduler loop --
-                                            only a single scheduler can enter this loop at a time
-=========================================== =================================================================
+.. START METRICS[TYPE=TIMER] REFERENCE HERE
+
+===========================================  =====================================================================================================================
+Key                                          Description
+===========================================  =====================================================================================================================
+``dag.{dag_id}.{task_id}.duration``          Milliseconds taken to finish a task
+``dag_processing.last_duration.{dag_file}``  Milliseconds taken to load the given DAG file
+``dagrun.dependency-check.{dag_id}``         Milliseconds taken to check DAG dependencies
+``dagrun.duration.failed.{dag_id}``          Milliseconds taken for a DagRun to reach failed state
+``dagrun.duration.success.{dag_id}``         Milliseconds taken for a DagRun to reach success state
+``dagrun.schedule_delay.{dag_id}``           Milliseconds of delay between the scheduled DagRun start date and the actual DagRun start date
+``scheduler.critical_section_duration``      Milliseconds spent in the critical section of scheduler loop -- only a single scheduler can enter this loop at a time
+===========================================  =====================================================================================================================
+
+.. END METRICS[TYPE=TIMER] REFERENCE HERE

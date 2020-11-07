@@ -798,11 +798,19 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             last_run = self.get_last_finish_time(file_path)
             if last_run:
                 seconds_ago = (now - last_run).total_seconds()
-                Stats.gauge(f'dag_processing.last_run.seconds_ago.{file_name}', seconds_ago)
+                Stats.gauge(
+                    'dag_processing.last_run.seconds_ago.{file_name}',
+                    seconds_ago,
+                    labels={"file_name": file_name},
+                )
             if runtime:
-                Stats.timing(f'dag_processing.last_duration.{file_name}', runtime)
+                Stats.timing(
+                    'dag_processing.last_duration.{file_name}', runtime, labels={"file_name": file_name}
+                )
                 # TODO: Remove before Airflow 2.0
-                Stats.timing(f'dag_processing.last_runtime.{file_name}', runtime)
+                Stats.timing(
+                    'dag_processing.last_runtime.{file_name}', runtime, labels={"file_name": file_name}
+                )
 
             rows.append((file_path, processor_pid, runtime, num_dags, num_errors, last_runtime, last_run))
 

@@ -471,7 +471,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             # file_stat.file similar format: /subdir/dag_name.py
             # TODO: Remove for Airflow 2.0
             filename = file_stat.file.split('/')[-1].replace('.py', '')
-            Stats.timing(f'dag.loading-duration.{filename}', file_stat.duration)
+            Stats.timing('dag.loading-duration.{filename}', file_stat.duration, labels={"filename": filename})
 
     def collect_dags_from_db(self):
         """Collects DAGs from database."""

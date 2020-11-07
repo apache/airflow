@@ -422,7 +422,7 @@ class DagRun(Base, LoggingMixin):
             )
 
         duration = timezone.utcnow() - start_dttm
-        Stats.timing(f"dagrun.dependency-check.{self.dag_id}", duration)
+        Stats.timing("dagrun.dependency-check.{dag_id}", duration, labels={"dag_id": self.dag_id})
 
         leaf_task_ids = {t.task_id for t in dag.leaves}
         leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids]
@@ -571,9 +571,9 @@ class DagRun(Base, LoggingMixin):
 
         duration = self.end_date - self.start_date
         if self.state is State.SUCCESS:
-            Stats.timing(f'dagrun.duration.success.{self.dag_id}', duration)
+            Stats.timing('dagrun.duration.success.{dag_id}', duration, labels={"dag_id": self.dag_id})
         elif self.state == State.FAILED:
-            Stats.timing(f'dagrun.duration.failed.{self.dag_id}', duration)
+            Stats.timing('dagrun.duration.failed.{dag_id}', duration, labels={"dag_id": self.dag_id})
 
     @provide_session
     def verify_integrity(self, session: Session = None):
@@ -600,13 +600,13 @@ class DagRun(Base, LoggingMixin):
                     pass  # ti has already been removed, just ignore it
                 elif self.state is not State.RUNNING and not dag.partial:
                     self.log.warning("Failed to get task '%s' for dag '%s'. Marking it as removed.", ti, dag)
-                    Stats.incr(f"task_removed_from_dag.{dag.dag_id}", 1, 1)
+                    Stats.incr("task_removed_from_dag.{dag_id}", 1, 1, labels={"dag_id": dag.dag_id})
                     ti.state = State.REMOVED
 
             should_restore_task = (task is not None) and ti.state == State.REMOVED
             if should_restore_task:
                 self.log.info("Restoring task '%s' which was previously removed from DAG '%s'", ti, dag)
-                Stats.incr(f"task_restored_to_dag.{dag.dag_id}", 1, 1)
+                Stats.incr("task_restored_to_dag.{dag_id}", 1, 1, labels={"dag_id": dag.dag_id})
                 ti.state = State.NONE
             session.merge(ti)
 
@@ -616,7 +616,7 @@ class DagRun(Base, LoggingMixin):
                 continue
 
             if task.task_id not in task_ids:
-                Stats.incr(f"task_instance_created-{task.task_type}", 1, 1)
+                Stats.incr("task_instance_created-{task_type}", 1, 1, labels={"task_type": task.task_type})
                 ti = TI(task, self.execution_date)
                 task_instance_mutation_hook(ti)
                 session.add(ti)

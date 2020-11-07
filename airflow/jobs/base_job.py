@@ -220,14 +220,15 @@ class BaseJob(Base, LoggingMixin):
                 self.heartbeat_callback(session=session)
                 self.log.debug('[heartbeat]')
         except OperationalError:
-            Stats.incr(convert_camel_to_snake(self.__class__.__name__) + '_heartbeat_failure', 1, 1)
+            class_name = convert_camel_to_snake(self.__class__.__name__)
+            Stats.incr('{class_name}_heartbeat_failure', 1, 1, labels={"class_name": class_name})
             self.log.exception("%s heartbeat got an exception", self.__class__.__name__)
             # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
             self.latest_heartbeat = previous_heartbeat
 
     def run(self):
         """Starts the job."""
-        Stats.incr(self.__class__.__name__.lower() + '_start', 1, 1)
+        Stats.incr('{class_name}_start', 1, 1, labels={"class_name": self.__class__.__name__.lower()})
         # Adding an entry in the DB
         with create_session() as session:
             self.state = State.RUNNING
@@ -250,7 +251,7 @@ class BaseJob(Base, LoggingMixin):
                 session.merge(self)
                 session.commit()
 
-        Stats.incr(self.__class__.__name__.lower() + '_end', 1, 1)
+        Stats.incr('{class_name}_end', 1, 1, labels={"class_name": self.__class__.__name__.lower()})
 
     def _execute(self):
         raise NotImplementedError("This method needs to be overridden")

@@ -1071,7 +1071,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
 
         context = {}  # type: Dict
         actual_start_date = timezone.utcnow()
-        Stats.incr(f'ti.start.{task.dag_id}.{task.task_id}')
+        Stats.incr('ti.start.{dag_id}.{task_id}', labels={"dag_id": task.dag_id, "task_id": task.task_id})
         try:
             if not mark_success:
                 context = self.get_template_context()
@@ -1118,7 +1118,10 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             self.handle_failure(e, test_mode, context)
             raise
         finally:
-            Stats.incr(f'ti.finish.{task.dag_id}.{task.task_id}.{self.state}')
+            Stats.incr(
+                'ti.finish.{dag_id}.{task_id}.{state}',
+                labels={"dag_id": task.dag_id, "task_id": task.task_id, "state": self.state},
+            )
 
         self._run_success_callback(context, task)
 
@@ -1255,11 +1258,13 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
 
         end_time = time.time()
         duration = timedelta(seconds=end_time - start_time)
+        dag_id = task_copy.dag_id
+        task_id = task_copy.task_id
         Stats.timing(
-            f'dag.{task_copy.dag_id}.{task_copy.task_id}.duration',
-            duration,
+            'dag.{dag_id}.{task_id}.duration', duration, labels={"dag_id": dag_id, "task_id": task_id}
         )
-        Stats.incr(f'operator_successes_{self.task.task_type}', 1, 1)
+        task_type = self.task.task_type
+        Stats.incr('operator_successes_{self.task.task_type}', 1, 1, labels={"task_type": task_type})
         Stats.incr('ti_successes')
 
     @provide_session
@@ -1394,7 +1399,8 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         task = self.task
         self.end_date = timezone.utcnow()
         self.set_duration()
-        Stats.incr(f'operator_failures_{task.task_type}', 1, 1)
+        task_type = task.task_type
+        Stats.incr('operator_failures_{task_type}', 1, 1, labels={"task_type": task_type})
         Stats.incr('ti_failures')
         if not test_mode:
             session.add(Log(State.FAILED, self))
