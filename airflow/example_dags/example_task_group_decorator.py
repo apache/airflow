@@ -21,7 +21,7 @@
 from airflow.models.dag import DAG
 from airflow.operators.python import task
 from airflow.utils.dates import days_ago
-from airflow.utils.task_group import taskgroup, TaskGroup
+from airflow.utils.task_group import taskgroup
 
 
 # Creating Tasks
@@ -69,13 +69,13 @@ def task_4(value):
 
 # Creating TaskGroups
 @taskgroup(group_id='section_1')
-def section_1(value) -> TaskGroup:
+def section_1(value):
     """ TaskGroup for grouping related Tasks"""
     return task_2(task_1(value))
 
 
 @taskgroup(group_id='section_2')
-def section_2(value) -> TaskGroup:
+def section_2(value):
     """ TaskGroup for grouping related Tasks"""
     return task_4(task_3(value))
 
