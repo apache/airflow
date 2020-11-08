@@ -1031,7 +1031,7 @@ TaskGroup can be created using @taskgroup decorator, it takes one mandatory argu
 
   @task
   def task_2(value):
-      print( f'[ Task2 {value} ]')
+      print(f'[ Task2 {value} ]')
 
 
   @taskgroup(group_id='section_1')
