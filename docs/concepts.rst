@@ -1194,72 +1194,67 @@ state.
 
 Cluster Policy
 ==============
+
 Cluster policies provide an interface for taking action on every Airflow task
-either at DAG load time or just before task execution.
+or DAG either at DAG load time or just before task execution. In this way users
+are able to do the following:
 
-Cluster Policies for Task Mutation
+- set default arguments on each DAG/task
+- checks that DAG/task meets required standards
+- perform custom logic of routing task to a queue
+
+Any many other options. To use cluster-wide policies users can define in their
+``airflow_local_settings`` the following functions
+
+- ``dag_policy`` - which as an input takes ``dag`` argument of :class:`~airflow.models.dag.DAG` type.
+  This function allows users to define dag-level policy which is executed for every DAG at loading time.
+- ``task_policy`` - which as an input takes ``task`` argument of :class:`~airflow.models.baseoperator.BaseOperator`
+  type. This function allows users to define task-level policy which is executed for every task at DAG loading time.
+- ``task_instance_mutation_hook`` - which as an input takes ``task_instance`` argument of
+  :class:`~airflow.models.taskinstance.TaskInstance` type. This function allows users to define task-level
+  policy that is executed right before the task execution.
+
+In case of DAG and task policies users may raise :class:`~airflow.exceptions.AirflowClusterPolicyViolation`
+to prevent a DAG from being imported or prevent a task from being executed if the task is not compliant with
+users' check.
+
+Please note, cluster policy will have precedence over task attributes defined in DAG meaning
+if ``task.sla`` is defined in dag and also mutated via cluster policy then later will have precedence.
+
+In next sections we show examples of each type of cluster policy.
+
+Where to put ``airflow_local_settings.py``?
+-------------------------------------------
+Add a ``airflow_local_settings.py`` file to your ``$PYTHONPATH`` or to ``$AIRFLOW_HOME/config`` folder.
+
+See :doc:`modules_management` for details on how Python and Airflow manage modules.
+
+
+DAG level cluster policy
 -----------------------------------
-In case you want to apply cluster-wide mutations to the Airflow tasks,
-you can either mutate the task right after the DAG is loaded or
-mutate the task instance before task execution.
+In this example we check if each DAG has at least one tag defined.
+Here is what it may look like:
 
-Mutate tasks after DAG loaded
+.. literalinclude:: /../tests/cluster_policies/__init__.py
+      :language: python
+      :start-after: [START example_dag_cluster_policy]
+      :end-before: [END example_dag_cluster_policy]
+
+Task level cluster policy
 -----------------------------
-
-To mutate the task right after the DAG is parsed, you can define
-a ``policy`` function in ``airflow_local_settings.py`` that mutates the
-task based on other task or DAG attributes (through ``task.dag``).
-It receives a single argument as a reference to the task object and you can alter
-its attributes.
-
 For example, this function could apply a specific queue property when
 using a specific operator, or enforce a task timeout policy, making sure
 that no tasks run for more than 48 hours. Here's an example of what this
-may look like inside your ``airflow_local_settings.py``:
+may look like:
 
+.. literalinclude:: /../tests/cluster_policies/__init__.py
+      :language: python
+      :start-after: [START example_task_cluster_policy]
+      :end-before: [END example_task_cluster_policy]
 
-.. code-block:: python
-
-    def policy(task):
-        if task.task_type == 'HivePartitionSensor':
-            task.queue = "sensor_queue"
-        if task.timeout > timedelta(hours=48):
-            task.timeout = timedelta(hours=48)
-
-
-Please note, cluster policy will have precedence over task
-attributes defined in DAG meaning if ``task.sla`` is defined
-in dag and also mutated via cluster policy then later will have precedence.
-
-
-Mutate task instances before task execution
--------------------------------------------
-
-To mutate the task instance before the task execution, you can define a
-``task_instance_mutation_hook`` function in ``airflow_local_settings.py``
-that mutates the task instance.
-
-For example, this function re-routes the task to execute in a different
-queue during retries:
-
-.. code-block:: python
-
-    def task_instance_mutation_hook(ti):
-        if ti.try_number >= 1:
-            ti.queue = 'retry_queue'
-
-
-Cluster Policies for Custom Task Checks
--------------------------------------------
-You may also use Cluster Policies to apply cluster-wide checks on Airflow
-tasks. You can raise :class:`~airflow.exceptions.AirflowClusterPolicyViolation`
-in a policy or task mutation hook (described below) to prevent a DAG from being
-imported or prevent a task from being executed if the task is not compliant with
-your check.
-
-These checks are intended to help teams using Airflow to protect against common
-beginner errors that may get past a code reviewer, rather than as technical
-security controls.
+As a more advanced example we may consider implementing checks that are intended to help
+teams using Airflow to protect against common beginner errors that may get past a code
+reviewer, rather than as technical security controls.
 
 For example, don't run tasks without airflow owners:
 
@@ -1281,14 +1276,15 @@ For Example in ``airflow_local_settings.py``:
       :start-after: [START example_list_of_cluster_policy_rules]
       :end-before: [END example_list_of_cluster_policy_rules]
 
-Where to put ``airflow_local_settings.py``?
+Task instance mutation hook
 -------------------------------------------
+Task instance mutation hook can be used for example to re-routes the task to
+execute in a different queue during retries:
 
-Add a ``airflow_local_settings.py`` file to your ``$PYTHONPATH``
-or to ``$AIRFLOW_HOME/config`` folder.
-
-See :doc:`modules_management` for details on how Python and Airflow manage modules.
-
+.. literalinclude:: /../tests/cluster_policies/__init__.py
+      :language: python
+      :start-after: [START example_task_mutation_hook]
+      :end-before: [END example_task_mutation_hook]
 
 Documentation & Notes
 =====================

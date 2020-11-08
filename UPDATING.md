@@ -77,6 +77,14 @@ session_lifetime_minutes = 43200
 
 ## Airflow 2.0.0b1
 
+### Rename policy to task_policy
+
+Because Airflow introduced DAG level policy (`dag_policy`) we decided to rename existing `policy`
+function to `task_policy` to make the distinction more profound and avoid any confusion.
+
+Users using cluster policy need to rename their `policy` functions in `airflow_local_settings.py`
+to `task_policy`.
+
 ### Default value for `[celery] operation_timeout` has changed to `1.0`
 
 From Airflow 2, by default Airflow will retry 3 times to publish task to Celery broker. This is controlled by
