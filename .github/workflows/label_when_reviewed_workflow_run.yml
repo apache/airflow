@@ -35,6 +35,20 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           sourceRunId: ${{ github.event.workflow_run.id }}
+      - name: Initiate Selective Build check
+        uses: LouisBrunner/checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798  # v1.1.0
+        id: selective-build-check
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: "Selective build check"
+          status: "in_progress"
+          sha: ${{ steps.source-run-info.outputs.sourceHeadSha }}
+          details_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          output: >
+            {"summary":
+            "Checking selective status of the build in
+            [the run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            "}
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
       - name: >
@@ -125,3 +139,18 @@ jobs:
           pullRequestNumber: ${{ steps.source-run-info.outputs.pullRequestNumber }}
           require_committers_approval: 'true'
           comment: "The PR is ready to be merged. No tests are needed!"
+      - name: Update Selective Build check
+        uses: LouisBrunner/checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798  # v1.1.0
+        if: always()
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          check_id: ${{ steps.selective-build-check.outputs.check_id }}
+          status: "completed"
+          sha: ${{ steps.source-run-info.outputs.sourceHeadSha }}
+          conclusion: ${{ job.status }}
+          details_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          output: >
+            {"summary":
+            "Checking selective status of the build completed in
+            [the run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            "}
