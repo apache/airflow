@@ -47,6 +47,16 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.timeout import timeout
 
+# TODO: Remove once deprecated
+if hasattr(settings, "policy"):
+    warnings.warn(
+        "Using `policy` in airflow_local_settings.py is deprecated. "
+        "Please rename your `policy` to `task_policy`.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    setattr(settings, "task_policy", settings.policy)  # pylint: disable=no-member
+
 
 class FileLoadStat(NamedTuple):
     """Information about single file"""
