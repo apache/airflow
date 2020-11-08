@@ -359,7 +359,7 @@
         a = document.querySelector(`[data-dag-id="${this.dag_id}"]`);
         a.title = `${this.active_dag_run}/${this.max_active_runs} active dag runs`;
         if(this.active_dag_run >= this.max_active_runs) {
-          a.style.backgroundColor = 'red';
+          a.style.color = '#e43921';
         }
       });
     }
