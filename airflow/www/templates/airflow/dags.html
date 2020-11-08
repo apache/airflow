@@ -126,11 +126,13 @@
                 </td>
                 {# Column 3: Dag Owners #}
                 <td>
+                  {% for owner in dag.owners.split(",") %}
                   <a class="label label-default"
-                     href="?search={{ dag.owners }}"
+                     href="?search={{ owner | trim }}"
                      style="margin: 3px;">
-                     {{ dag.owners }}
+                     {{ owner | trim }}
                   </a>
+                  {% endfor %}
                 </td>
                 {# Column 4: Dag Runs #}
                 <td style="padding:0; width:120px;">
