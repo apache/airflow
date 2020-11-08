@@ -1225,7 +1225,7 @@ These integrations allow you to perform various operations within various servic
      - :mod:`airflow.providers.jira.sensors.jira`
 
    * - `Databricks <https://databricks.com/>`__
-     -
+     - :doc:`How to use <howto/operator/databricks>`
      - :mod:`airflow.providers.databricks.hooks.databricks`
      - :mod:`airflow.providers.databricks.operators.databricks`
      -
