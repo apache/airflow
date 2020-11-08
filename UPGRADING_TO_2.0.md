@@ -44,6 +44,7 @@ assists users migrating to a new version.
   - [Changes to Exception handling for from DAG callbacks](#changes-to-exception-handling-for-from-dag-callbacks)
   - [Airflow CLI changes in 2.0](#airflow-cli-changes-in-20)
   - [Changes to Airflow Plugins](#changes-to-airflow-plugins)
+  - [Support for Airflow 1.10.x releases](#support-for-airflow-110x-releases)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -1026,3 +1027,23 @@ class AirflowTestPlugin(AirflowPlugin):
     appbuilder_views = [v_appbuilder_package]
     appbuilder_menu_items = [appbuilder_mitem]
 ```
+
+### Support for Airflow 1.10.x releases
+
+As mentioned earlier in Step 2, the 1.10.13 release is intended to be a "bridge release"
+which would be a step in the migration to Airflow 2.0.
+
+After the Airflow 2.0 GA (General Availability) release, it expected that all
+future Airflow development would be based on Airflow 2.0, including a series of
+patch releases such as 2.0.1, 2.0.2 and then feature releases such as 2.1.
+
+The Airflow 1.10.x release tree will be supported for a limited time after the
+GA release of Airflow 2.0.
+
+Specifically, only "critical fixes" defined as fixes
+to bugs that take down Production systems, will be backported to 1.10.x core for
+six months after Airflow 2.0.0 is released.
+
+In addition, Backport providers within
+1.10.x, will be supported for critical fixes for three months after Airflow 2.0.0
+is released.
