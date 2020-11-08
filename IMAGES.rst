@@ -46,6 +46,17 @@ where:
 * The ``-ci`` suffix is added for CI images
 * The ``-manifest`` is added for manifest images (see below for explanation of manifest images)
 
+We also store (to increase speed of local build/pulls) python images that were used to build
+the CI images. Each CI image, when built uses current python version of the base images. Those
+python images are regularly updated (with bugfixes/security fixes), so for example python3.8 from
+last week might be a different image than python3.8 today. Therefore whenever we push CI image
+to airflow repository, we also push the python image that was used to build it this image is stored
+as ``apache/airflow:python-3.8-<BRANCH_OR_TAG>``.
+
+Since those are simply snapshots of the existing python images, DockerHub does not create a separate
+copy of those images - all layers are mounted from the original python images and those are merely
+labels pointing to those.
+
 Building docker images
 ======================
 
