@@ -31,18 +31,6 @@ def task_start():
     return '[Task_start]'
 
 
-@task()
-def task_end1():
-    """Dummy Task which is Last Task of Dag"""
-    print(f'[ Task_End 1 ]')
-
-
-@task()
-def task_end2():
-    """Dummy Task which is Last Task of Dag"""
-    print(f'[ Task_End 2 ]')
-
-
 @task
 def task_1(value):
     """ Dummy Task1"""
@@ -52,32 +40,26 @@ def task_1(value):
 @task
 def task_2(value):
     """ Dummy Task2"""
-    print( f'[ Task2 {value} ]')
+    return f'[ Task2 {value} ]'
 
 
 @task
 def task_3(value):
     """ Dummy Task3"""
-    return f'[ Task3 {value} ]'
+    print(f'[ Task3 {value} ]')
 
 
-@task
-def task_4(value):
-    """ Dummy Task3"""
-    print(f'[ Task4 {value} ]')
+@task()
+def task_end():
+    """Dummy Task which is Last Task of Dag"""
+    print(f'[ Task_End  ]')
 
 
 # Creating TaskGroups
 @taskgroup(group_id='section_1')
 def section_1(value):
     """ TaskGroup for grouping related Tasks"""
-    return task_2(task_1(value))
-
-
-@taskgroup(group_id='section_2')
-def section_2(value):
-    """ TaskGroup for grouping related Tasks"""
-    return task_4(task_3(value))
+    return task_3(task_2(task_1(value)))
 
 
 # Executing Tasks and TaskGroups
@@ -85,7 +67,4 @@ with DAG(dag_id="example_task_group_decorator", start_date=days_ago(2), tags=["e
     t1 = task_start()
 
     s1 = section_1(t1)
-    s2 = section_2(t1)
-
-    s1.set_downstream(task_end1())
-    s2.set_downstream(task_end2())
+    s1.set_downstream(task_end())
