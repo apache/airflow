@@ -125,7 +125,15 @@
                   </div>
                 </td>
                 {# Column 3: Dag Owners #}
-                <td>{{ dag.owners }}</td>
+                <td>
+                  {% for owner in dag.owners.split(",") %}
+                  <a class="label label-default"
+                     href="?search={{ owner | trim }}"
+                     style="margin: 3px 6px 3px 0;">
+                     {{ owner | trim }}
+                  </a>
+                  {% endfor %}
+                </td>
                 {# Column 4: Dag Runs #}
                 <td style="padding:0; width:120px;">
                   {{ loading_dots(classes='js-loading-dag-stats text-muted') }}
@@ -133,7 +141,7 @@
                 </td>
                 {# Column 5: Dag Schedule #}
                 <td>
-                  <a class="label label-default schedule" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}">
+                  <a class="label label-default schedule" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}" data-dag-id="{{ dag.dag_id }}">
                     {{ dag.schedule_interval }}
                   </a>
                 </td>
@@ -356,12 +364,10 @@
 
     function blockedHandler(error, json) {
       $.each(json, function() {
-        $('.label.schedule.' + this.dag_id)
-        .attr('title', this.active_dag_run + '/' + this.max_active_runs + ' active dag runs')
-        .tooltip();
+        a = document.querySelector(`[data-dag-id="${this.dag_id}"]`);
+        a.title = `${this.active_dag_run}/${this.max_active_runs} active dag runs`;
         if(this.active_dag_run >= this.max_active_runs) {
-          $('.label.schedule.' + this.dag_id)
-          .css('background-color', 'red');
+          a.style.color = '#e43921';
         }
       });
     }

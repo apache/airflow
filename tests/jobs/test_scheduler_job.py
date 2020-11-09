@@ -1919,18 +1919,21 @@ class TestSchedulerJob(unittest.TestCase):
         ti.state = initial_task_state
         session.commit()
 
-        # Create scheduler and mock calls to processor. Run duration is set
-        # to a high value to ensure loop is entered. Poll interval is 0 to
-        # avoid sleep. Done flag is set to true to exist the loop immediately.
-        scheduler = SchedulerJob(num_runs=0, processor_poll_interval=0)
+        # This poll interval is large, bug the scheduler doesn't sleep that
+        # long, instead we hit the clean_tis_without_dagrun interval instead
+        scheduler = SchedulerJob(num_runs=2, processor_poll_interval=30)
+        scheduler.dagbag = dagbag
         executor = MockExecutor(do_update=False)
         executor.queued_tasks
         scheduler.executor = executor
         processor = mock.MagicMock()
-        processor.done = True
+        processor.done = False
         scheduler.processor_agent = processor
 
-        scheduler._run_scheduler_loop()
+        with mock.patch.object(settings, "USE_JOB_SCHEDULE", False), conf_vars(
+            {('scheduler', 'clean_tis_without_dagrun'): '0.001'}
+        ):
+            scheduler._run_scheduler_loop()
 
         ti = dr.get_task_instance(task_id=op1.task_id, session=session)
         self.assertEqual(ti.state, expected_task_state)

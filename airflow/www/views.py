@@ -1124,7 +1124,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         dag = current_app.dag_bag.get_dag(dag_id)
 
         if not dag or task_id not in dag.task_ids:
-            flash("Task [{}.{}] doesn't seem to exist" " at the moment".format(dag_id, task_id), "error")
+            flash(f"Task [{dag_id}.{task_id}] doesn't seem to exist at the moment", "error")
             return redirect(url_for('Airflow.index'))
         task = copy.copy(dag.get_task(task_id))
         task.resolve_template_files()
@@ -1217,7 +1217,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         ti = session.query(ti_db).filter(ti_db.dag_id == dag_id and ti_db.task_id == task_id).first()
 
         if not ti:
-            flash("Task [{}.{}] doesn't seem to exist" " at the moment".format(dag_id, task_id), "error")
+            flash(f"Task [{dag_id}.{task_id}] doesn't seem to exist at the moment", "error")
             return redirect(url_for('Airflow.index'))
 
         xcomlist = (
@@ -1315,7 +1315,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             ignore_ti_state=ignore_ti_state,
         )
         executor.heartbeat()
-        flash("Sent {} to the message queue, " "it should start any moment now.".format(ti))
+        flash(f"Sent {ti} to the message queue, it should start any moment now.")
         return redirect(origin)
 
     @expose('/delete', methods=['POST'])
@@ -1339,10 +1339,10 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             flash(f"DAG with id {dag_id} not found. Cannot delete", 'error')
             return redirect(request.referrer)
         except DagFileExists:
-            flash("Dag id {} is still in DagBag. " "Remove the DAG file first.".format(dag_id), 'error')
+            flash(f"Dag id {dag_id} is still in DagBag. Remove the DAG file first.", 'error')
             return redirect(request.referrer)
 
-        flash("Deleting DAG with id {}. May take a couple minutes to fully" " disappear.".format(dag_id))
+        flash(f"Deleting DAG with id {dag_id}. May take a couple minutes to fully disappear.")
 
         # Upon success return to origin.
         return redirect(origin)
@@ -1409,7 +1409,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             dag_hash=current_app.dag_bag.dags_hash.get(dag_id),
         )
 
-        flash("Triggered {}, " "it should start any moment now.".format(dag_id))
+        flash(f"Triggered {dag_id}, it should start any moment now.")
         return redirect(origin)
 
     def _clear_dag_tis(
@@ -1448,7 +1448,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
             response = self.render_template(
                 'airflow/confirm.html',
-                message=("Here's the list of task instances you are about " "to clear:"),
+                message=("Here's the list of task instances you are about to clear:"),
                 details=details,
             )
 
@@ -1836,7 +1836,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             )
         dag_runs = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
 
-        dates = sorted(list(dag_runs.keys()))
+        dates = sorted(dag_runs.keys())
         max_date = max(dates) if dates else None
         min_date = min(dates) if dates else None
 
@@ -2131,20 +2131,19 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         cum_chart.create_y_axis('yAxis', format='.02f', custom_format=False, label=f'Duration ({cum_y_unit})')
         cum_chart.axislist['yAxis']['axisLabelDistance'] = '-15'
 
-        for task in dag.tasks:
-            if x_points[task.task_id]:
-                chart.add_serie(
-                    name=task.task_id,
-                    x=x_points[task.task_id],
-                    y=scale_time_units(y_points[task.task_id], y_unit),
-                )
-                cum_chart.add_serie(
-                    name=task.task_id,
-                    x=x_points[task.task_id],
-                    y=scale_time_units(cumulative_y[task.task_id], cum_y_unit),
-                )
+        for task_id in x_points:
+            chart.add_serie(
+                name=task_id,
+                x=x_points[task_id],
+                y=scale_time_units(y_points[task_id], y_unit),
+            )
+            cum_chart.add_serie(
+                name=task_id,
+                x=x_points[task_id],
+                y=scale_time_units(cumulative_y[task_id], cum_y_unit),
+            )
 
-        dates = sorted(list({ti.execution_date for ti in task_instances}))
+        dates = sorted({ti.execution_date for ti in task_instances})
         max_date = max([ti.execution_date for ti in task_instances]) if dates else None
 
         session.commit()
@@ -2216,7 +2215,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 chart.add_serie(name=task.task_id, x=x_points, y=y_points)
 
         tis = dag.get_task_instances(start_date=min_date, end_date=base_date)
-        tries = sorted(list({ti.try_number for ti in tis}))
+        tries = sorted({ti.try_number for ti in tis})
         max_date = max([ti.execution_date for ti in tis]) if tries else None
         chart.create_y_axis('yAxis', format='.02f', custom_format=False, label='Tries')
         chart.axislist['yAxis']['axisLabelDistance'] = '-15'
@@ -2291,16 +2290,16 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         # update the y Axis to have the correct time units
         chart.create_y_axis('yAxis', format='.02f', custom_format=False, label=f'Landing Time ({y_unit})')
         chart.axislist['yAxis']['axisLabelDistance'] = '-15'
-        for task in dag.tasks:
-            if x_points[task.task_id]:
-                chart.add_serie(
-                    name=task.task_id,
-                    x=x_points[task.task_id],
-                    y=scale_time_units(y_points[task.task_id], y_unit),
-                )
+
+        for task_id in x_points:
+            chart.add_serie(
+                name=task_id,
+                x=x_points[task_id],
+                y=scale_time_units(y_points[task_id], y_unit),
+            )
 
         tis = dag.get_task_instances(start_date=min_date, end_date=base_date)
-        dates = sorted(list({ti.execution_date for ti in tis}))
+        dates = sorted({ti.execution_date for ti in tis})
         max_date = max([ti.execution_date for ti in tis]) if dates else None
 
         session.commit()
@@ -2690,6 +2689,8 @@ class XComModelView(AirflowModelView):
 
     route_base = '/xcom'
 
+    list_title = 'List XComs'
+
     datamodel = AirflowModelView.CustomSQLAInterface(XCom)
 
     class_permission_name = permissions.RESOURCE_XCOM
@@ -2819,7 +2820,11 @@ class ConnectionModelView(AirflowModelView):
     def prefill_form(self, form, pk):
         """Prefill the form."""
         try:
-            extra_dictionary = json.loads(form.data.get('extra', '{}'))
+            extra = form.data.get('extra')
+            if extra is None:
+                extra_dictionary = {}
+            else:
+                extra_dictionary = json.loads(extra)
         except JSONDecodeError:
             extra_dictionary = {}
 
@@ -2868,7 +2873,6 @@ class PluginView(AirflowBaseView):
     def list(self):
         """List loaded plugins."""
         plugins_manager.ensure_plugins_loaded()
-        plugins_manager.integrate_dag_plugins()
         plugins_manager.integrate_executor_plugins()
         plugins_manager.initialize_extra_operators_links_plugins()
         plugins_manager.initialize_web_ui_plugins()

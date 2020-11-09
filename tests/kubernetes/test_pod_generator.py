@@ -296,7 +296,7 @@ class TestPodGenerator(unittest.TestCase):
         self.assertEqual(
             result_from_pod,
             expected_from_pod,
-            "There was a discrepency" " between KubernetesExecutor and pod_override",
+            "There was a discrepency between KubernetesExecutor and pod_override",
         )
 
         self.assertEqual(

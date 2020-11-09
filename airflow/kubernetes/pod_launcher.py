@@ -83,7 +83,7 @@ class PodLauncher(LoggingMixin):
             )
             self.log.debug('Pod Creation Response: %s', resp)
         except Exception as e:
-            self.log.exception('Exception when attempting ' 'to create Namespaced Pod: %s', json_pod)
+            self.log.exception('Exception when attempting to create Namespaced Pod: %s', json_pod)
             raise e
         return resp
 

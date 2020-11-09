@@ -563,6 +563,8 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         """Register signals that stop child processes"""
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
+        # So that we ignore the debug dump signal, making it easier to send
+        signal.signal(signal.SIGUSR2, signal.SIG_IGN)
 
     def _exit_gracefully(self, signum, frame):  # pylint: disable=unused-argument
         """Helper method to clean up DAG file processors to avoid leaving orphan processes."""
@@ -697,7 +699,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
 
             if max_runs_reached:
                 self.log.info(
-                    "Exiting dag parsing loop as all files " "have been processed %s times", self._max_runs
+                    "Exiting dag parsing loop as all files have been processed %s times", self._max_runs
                 )
                 break
 
@@ -1097,7 +1099,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             duration = now - processor.start_time
             if duration > self._processor_timeout:
                 self.log.error(
-                    "Processor for %s with PID %s started at %s has timed out, " "killing it.",
+                    "Processor for %s with PID %s started at %s has timed out, killing it.",
                     file_path,
                     processor.pid,
                     processor.start_time.isoformat(),

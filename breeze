@@ -889,7 +889,7 @@ function breeze::parse_arguments() {
         -C | --force-clean-images)
             echo "Clean build of images without cache"
             echo
-            export DOCKER_CACHE="no-cache"
+            export DOCKER_CACHE="disabled"
             # if not set here, docker cached is determined later, depending on type of image to be build
             readonly DOCKER_CACHE
             export FORCE_BUILD_IMAGES="true"
@@ -1869,7 +1869,7 @@ ${CMDNAME} tests [FLAGS] [TEST_TARGET ..] [-- <EXTRA_ARGS>]
       as additional options passed to pytest. You can pass 'tests' as target to
       run all tests. For example:
 
-      '${CMDNAME} tests tests/test_core.py -- --logging-level=DEBUG'
+      '${CMDNAME} tests tests/core/test_core.py -- --logging-level=DEBUG'
       '${CMDNAME} tests tests
 
 Flags:
@@ -2219,6 +2219,8 @@ function breeze::flag_choose_different_airflow_version() {
         image building time in production image and at container entering time for CI image. One of:
 
 ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
+
+        When 'wheel' is used, Airflow is installed from /dist/apache_airflow-*.whl file.
 
 -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
         If specified, installs Airflow directly from reference in GitHub. This happens at

@@ -177,6 +177,6 @@ class AzureFileShareToGCSOperator(BaseOperator):
         if files:
             self.log.info("All done, uploaded %d files to Google Cloud Storage.", len(files))
         else:
-            self.log.info('In sync, no files needed to be uploaded to Google Cloud' 'Storage')
+            self.log.info('In sync, no files needed to be uploaded to Google Cloud Storage')
 
         return files

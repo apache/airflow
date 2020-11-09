@@ -383,7 +383,7 @@ class GCSHook(GoogleBaseHook):
             blob.upload_from_string(data, content_type=mime_type)
             self.log.info('Data stream uploaded to %s in %s bucket', object_name, bucket_name)
         else:
-            raise ValueError("'filename' and 'data' parameter missing. " "One is required to upload to gcs.")
+            raise ValueError("'filename' and 'data' parameter missing. One is required to upload to gcs.")
 
     def exists(self, bucket_name: str, object_name: str) -> bool:
         """

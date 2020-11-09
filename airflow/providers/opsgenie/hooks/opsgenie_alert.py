@@ -50,7 +50,7 @@ class OpsgenieAlertHook(HttpHook):
         api_key = conn.password
         if not api_key:
             raise AirflowException(
-                'Opsgenie API Key is required for this hook, ' 'please check your conn_id configuration.'
+                'Opsgenie API Key is required for this hook, please check your conn_id configuration.'
             )
         return api_key
 

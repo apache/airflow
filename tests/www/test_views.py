@@ -62,6 +62,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from airflow.www import app as application
+from airflow.www.views import ConnectionModelView
 from tests.test_utils import fab_utils
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
@@ -241,6 +242,13 @@ class TestConnectionModelView(TestBase):
     def test_create_connection(self):
         resp = self.client.post('/connection/add', data=self.connection, follow_redirects=True)
         self.check_content_in_response('Added Row', resp)
+
+    def test_prefill_form_null_extra(self):
+        mock_form = mock.Mock()
+        mock_form.data = {"conn_id": "test", "extra": None}
+
+        cmv = ConnectionModelView()
+        cmv.prefill_form(form=mock_form, pk=1)
 
 
 class TestVariableModelView(TestBase):
@@ -676,6 +684,10 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('XCom', resp)
 
+    def test_xcom_list_view_title(self):
+        resp = self.client.get('xcom/list', follow_redirects=True)
+        self.check_content_in_response('List XComs', resp)
+
     def test_rendered(self):
         url = 'rendered?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'.format(
             self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)
@@ -798,7 +810,6 @@ class TestAirflowBaseViews(TestBase):
             data={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
             follow_redirects=True,
         )
-        self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
         self.assertIn('example_bash_operator', stats)
         self.assertIn('example_subdag_operator', stats)
@@ -1164,7 +1175,10 @@ class TestRedocView(TestBase):
 
         self.assertEqual(len(templates), 1)
         self.assertEqual(templates[0].name, 'airflow/redoc.html')
-        self.assertEqual(templates[0].local_context, {'openapi_spec_url': '/api/v1/openapi.yaml'})
+        self.assertEqual(
+            templates[0].local_context,
+            {'openapi_spec_url': '/api/v1/openapi.yaml'},
+        )
 
 
 class TestLogView(TestBase):
@@ -1962,7 +1976,6 @@ class TestDagACLView(TestBase):
             data={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
             follow_redirects=True,
         )
-        self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
         self.assertIn('example_bash_operator', stats)
         self.assertIn('example_subdag_operator', stats)
@@ -2034,7 +2047,6 @@ class TestDagACLView(TestBase):
             data={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
             follow_redirects=True,
         )
-        self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
         self.assertIn('example_bash_operator', stats)
         self.assertIn('example_subdag_operator', stats)
@@ -2338,7 +2350,6 @@ class TestDagACLView(TestBase):
             data={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
             follow_redirects=True,
         )
-        self.assertEqual(resp.status_code, 200)
         blocked_dags = {blocked['dag_id'] for blocked in json.loads(resp.data.decode('utf-8'))}
         self.assertIn('example_bash_operator', blocked_dags)
         self.assertIn('example_subdag_operator', blocked_dags)

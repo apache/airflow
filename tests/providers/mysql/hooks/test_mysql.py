@@ -409,7 +409,7 @@ class TestMySql(unittest.TestCase):
             elif priv == ("",):
                 hook.bulk_dump("INFORMATION_SCHEMA.TABLES", f"TABLES_{client}_{uuid.uuid1()}")
             else:
-                self.skipTest("Skip test_mysql_hook_test_bulk_load " "since file output is not permitted")
+                self.skipTest("Skip test_mysql_hook_test_bulk_load since file output is not permitted")
 
     @parameterized.expand(
         [

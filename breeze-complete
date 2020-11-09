@@ -60,6 +60,7 @@ _breeze_allowed_install_airflow_versions=$(cat <<-EOF
 1.10.4
 1.10.3
 1.10.2
+wheel
 EOF
 )
 
@@ -104,6 +105,7 @@ mypy-helm
 no-relative-imports
 pre-commit-descriptions
 provide-create-sessions
+providers-init-file
 pydevd
 pydocstyle
 pylint
@@ -122,6 +124,7 @@ update-breeze-file
 update-extras
 update-local-yml-file
 update-setup-cfg-file
+version-sync
 yamllint
 EOF
 )

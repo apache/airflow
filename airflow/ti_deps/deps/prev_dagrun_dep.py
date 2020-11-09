@@ -35,7 +35,7 @@ class PrevDagrunDep(BaseTIDep):
     def _get_dep_statuses(self, ti, session, dep_context):
         if dep_context.ignore_depends_on_past:
             yield self._passing_status(
-                reason="The context specified that the state of past DAGs could be " "ignored."
+                reason="The context specified that the state of past DAGs could be ignored."
             )
             return
 

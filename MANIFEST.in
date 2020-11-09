@@ -32,10 +32,5 @@ global-exclude __pycache__  *.pyc
 include airflow/alembic.ini
 include airflow/api_connexion/openapi/v1.yaml
 include airflow/git_version
-include airflow/providers/amazon/aws/hooks/batch_waiters.json
-include airflow/providers/cncf/kubernetes/example_dags/example_spark_kubernetes_operator_spark_pi.yaml
-include airflow/providers/google/cloud/example_dags/example_bigquery_query.sql
-include airflow/providers/google/cloud/example_dags/example_cloud_build.yaml
-include airflow/providers/google/cloud/example_dags/example_spanner.sql
 include airflow/serialization/schema.json
 include airflow/utils/python_virtualenv_script.jinja2

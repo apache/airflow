@@ -293,3 +293,17 @@ class BaseExecutor(LoggingMixin):
         """Check if the command to execute is airflow command"""
         if command[0:3] != ["airflow", "tasks", "run"]:
             raise ValueError('The command must start with ["airflow", "tasks", "run"].')
+
+    def debug_dump(self):
+        """Called in response to SIGUSR2 by the scheduler"""
+        self.log.info(
+            "executor.queued (%d)\n\t%s",
+            len(self.queued_tasks),
+            "\n\t".join(map(repr, self.queued_tasks.items())),
+        )
+        self.log.info("executor.running (%d)\n\t%s", len(self.running), "\n\t".join(map(repr, self.running)))
+        self.log.info(
+            "executor.event_buffer (%d)\n\t%s",
+            len(self.event_buffer),
+            "\n\t".join(map(repr, self.event_buffer.items())),
+        )

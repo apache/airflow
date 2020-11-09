@@ -50,6 +50,12 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Default value for `[celery] operation_timeout` has changed to `1.0`
+
+From Airflow 2, by default Airflow will retry 3 times to publish task to Celery broker. This is controlled by
+`[celery] task_publish_max_retries`. Because of this we can now have a lower Operation timeout that raises
+`AirflowTaskTimeout`. This generally occurs during network blips or intermittent DNS issues.
+
 ### Adding Operators and Sensors via plugins is no longer supported
 
 Operators and Sensors should no longer be registered or imported via Airflow's plugin mechanism -- these types of classes are just treated as plain python classes by Airflow, so there is no need to register them with Airflow.
@@ -68,7 +74,27 @@ from my_plugin import MyOperator
 
 The name under `airflow.operators.` was the plugin name, where as in the second example it is the python module name where the operator is defined.
 
-See http://airflow.apache.org/docs/stable/howto/custom-operator.html#define-an-operator-extra-link for more info.
+See http://airflow.apache.org/docs/stable/howto/custom-operator.html for more info.
+
+### Importing Hooks via plugins is no longer supported
+
+Importing hooks added in plugins via `airflow.hooks.<plugin_name>` is no longer supported, and hooks should just be imported as regular python modules.
+
+```
+from airflow.hooks.my_plugin import MyHook
+```
+
+You should instead import it as:
+
+```
+from my_plugin import MyHook
+```
+
+It is still possible (but not required) to "register" hooks in plugins. This is to allow future support for dynamically populating the Connections form in the UI.
+
+See http://airflow.apache.org/docs/stable/howto/custom-operator.html for more info.
+
+### Adding Operators and Sensors via plugins is no longer supported
 
 ### The default value for `[core] enable_xcom_pickling` has been changed to `False`
 
@@ -284,6 +310,20 @@ The following configurations have been moved from `[core]` to the new `[logging]
 * `log_processor_filename_template`
 * `dag_processor_manager_log_location`
 * `task_log_reader`
+
+#### Metrics configuration has been moved to new section
+
+The following configurations have been moved from `[scheduler]` to the new `[metrics]` section.
+
+- `statsd_on`
+- `statsd_host`
+- `statsd_port`
+- `statsd_prefix`
+- `statsd_allow_list`
+- `stat_name_handler`
+- `statsd_datadog_enabled`
+- `statsd_datadog_tags`
+- `statsd_custom_client_path`
 
 #### Changes to Elasticsearch logging provider
 

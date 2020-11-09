@@ -43,7 +43,7 @@ The default connection ID is ``aws_default``.
 
 
 Configuring the Connection
-==========================
+--------------------------
 
 
 Login (optional)
@@ -180,3 +180,214 @@ The following settings may be used within the ``assume_role_with_saml`` containe
     :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#api_assumerolewithsaml
     https://pypi.org/project/requests-gssapi/
+
+Google Cloud to AWS authentication using Web Identity Federation
+----------------------------------------------------------------
+
+
+Thanks to `Web Identity Federation <https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_oidc.html>`__, you can use the credentials from the Google Cloud platform to authorize
+access in the Amazon Web Service platform. If you additionally use authorizations with access token obtained
+from `metadata server <https://cloud.google.com/compute/docs/storing-retrieving-metadata>`__ or
+`Workfload Identity <https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity#gke_mds>`__,
+you can improve the security of your environment by eliminating long-lived credentials.
+
+Role setup
+^^^^^^^^^^
+
+In order for a Google identity to be recognized by AWS, you must configure roles in AWS.
+
+You can do it by using the role wizard or by using `the Terraform <https://www.terraform.io/>`__.
+
+Role wizard
+"""""""""""
+
+To create an IAM role for web identity federation:
+
+1. Sign in to the AWS Management Console and open the IAM console at https://console.aws.amazon.com/iam/.
+2. In the navigation pane, choose **Roles** and then choose **Create role**.
+3. Choose the **Web identity** role type.
+4. For Identity provider, choose the **Google**.
+5. Type the service account email address (in the form ``<NAME>@<PROJECT_ID>.iam.gserviceaccount.com``) into the **Audience** box.
+6. Review your web identity information and then choose **Next: Permissions**.
+7. Select the policy to use for the permissions policy or choose **Create policy** to open a new browser tab and create a new policy from scratch. For more information, see `Creating IAM Policy <https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_create-console.html#access_policies_create-start>`__.
+8. Choose **Next: Tags**.
+9. (Optional) Add metadata to the role by attaching tags as key–value pairs. For more information about using tags in IAM, see `Tagging IAM users and roles <https://docs.aws.amazon.com/IAM/latest/UserGuide/id_tags.html>`__.
+10. Choose **Next: Review**.
+11. For **Role name**, type a role name. Role names must be unique within your AWS account.
+12. (Optional) For **Role description**, type a description for the new role.
+13. Review the role and then choose **Create role**.
+
+For more information, see: `Creating a role for web identity or OpenID connect federation (console) <https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-idp_oidc.html>`__
+
+Finally, you should get a role that has a similar policy to the one below:
+
+.. code-block:: json
+
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Principal": {
+            "Federated": "accounts.google.com"
+          },
+          "Action": "sts:AssumeRoleWithWebIdentity",
+          "Condition": {
+            "StringEquals": {
+              "accounts.google.com:aud": "<NAME>@<PROJECT_ID>.iam.gserviceaccount.com"
+            }
+          }
+        }
+      ]
+    }
+
+In order to protect against the misuse of the Google OpenID token, you can also limit the scope of use by configuring
+restrictions per audience. You will need to configure the same value for the connection, and then this value also included in the ID Token. AWS will test if this value matches.
+For that, you can add a new condition to the policy.
+
+.. code-block:: json
+
+    {
+      "Condition": {
+        "StringEquals": {
+          "accounts.google.com:aud": "<NAME>@<PROJECT_ID>.iam.gserviceaccount.com",
+          "accounts.google.com:oaud": "service-amp.my-company.com"
+        }
+      }
+    }
+
+After creating the role, you should configure the connection in Airflow.
+
+Terraform
+"""""""""
+
+In order to quickly configure a new role, you can use the following Terraform script, which configures
+AWS roles along with the assigned policy.
+Before using it, you need correct the variables in the ``locals`` section to suit your environment:
+
+* ``google_service_account`` - The email address of the service account that will have permission to use
+  this role
+* ``google_openid_audience`` - Constant value that is configured in the Airflow role and connection.
+  It prevents misuse of the Google ID token.
+* ``aws_role_name`` - The name of the new AWS role.
+* ``aws_policy_name`` - The name of the new AWS policy.
+
+
+For more information on using Terraform scripts, see:
+`Terraform docs - Get started - AWS <https://learn.hashicorp.com/collections/terraform/aws-get-started>`__
+
+After executing the plan, you should configure the connection in Airflow.
+
+.. code-block: terraform
+
+    locals {
+      google_service_account = "<NAME>@<PROJECT>.iam.gserviceaccount.com"
+      google_openid_audience = "<SERVICE_NAME>.<DOMAIN>"
+      aws_role_name          = "WebIdentity-Role"
+      aws_policy_name        = "WebIdentity-Role"
+    }
+
+    terraform {
+      required_providers {
+        aws = {
+          source  = "hashicorp/aws"
+          version = "~> 3.0"
+        }
+      }
+    }
+
+    provider "aws" {
+      region = "us-east-1"
+    }
+
+    data "aws_iam_policy_document" "assume_role_policy" {
+      statement {
+        actions = [
+          "sts:AssumeRoleWithWebIdentity"
+        ]
+        effect = "Allow"
+
+        condition {
+          test = "StringEquals"
+          variable = "accounts.google.com:aud"
+          values = [local.google_service_account]
+        }
+
+        condition {
+          test = "StringEquals"
+          variable = "accounts.google.com:oaud"
+          values = [local.google_openid_audience]
+        }
+
+        principals {
+          identifiers = ["accounts.google.com"]
+          type = "Federated"
+        }
+      }
+    }
+
+    resource "aws_iam_role" "role_web_identity" {
+      name               = local.aws_role_name
+      description        = "Terraform managed policy"
+      path               = "/"
+      assume_role_policy = data.aws_iam_policy_document.assume_role_policy.json
+    }
+    # terraform import aws_iam_role.role_web_identity "WebIdentity-Role"
+
+    data "aws_iam_policy_document" "web_identity_bucket_policy_document" {
+      statement {
+        effect = "Allow"
+        actions = [
+          "s3:ListAllMyBuckets"
+        ]
+        resources = ["*"]
+      }
+    }
+
+    resource "aws_iam_policy" "web_identity_bucket_policy" {
+      name = local.aws_policy_name
+      path = "/"
+      description = "Terraform managed policy"
+      policy = data.aws_iam_policy_document.web_identity_bucket_policy_document.json
+    }
+    # terraform import aws_iam_policy.web_identity_bucket_policy arn:aws:iam::240057002457:policy/WebIdentity-S3-Policy
+
+
+    resource "aws_iam_role_policy_attachment" "policy-attach" {
+      role       = aws_iam_role.role_web_identity.name
+      policy_arn = aws_iam_policy.web_identity_bucket_policy.arn
+    }
+    # terraform import aws_iam_role_policy_attachment.policy-attach WebIdentity-Role/arn:aws:iam::240057002457:policy/WebIdentity-S3-Policy
+
+
+Connection setup
+^^^^^^^^^^^^^^^^
+
+In order to use a Google identity, field ``"assume_role_method"`` must be ``"assume_role_with_web_identity"`` and
+field ``"assume_role_with_web_identity_federation"`` must be ``"google"`` in the extra section
+of the connection setup. It also requires that you set up roles in the ``"role_arn"`` field.
+Optionally, you can limit the use of the Google Open ID token by configuring the
+``"assume_role_with_web_identity_federation_audience"`` field. The value of these fields must match the value configured in the role.
+
+Airflow will establish Google's credentials based on `the Application Default Credentials <https://cloud.google.com/docs/authentication/production>`__.
+
+Below is an example connection configuration.
+
+.. code-block:: json
+
+  {
+    "role_arn": "arn:aws:iam::240057002457:role/WebIdentity-Role",
+    "assume_role_method": "assume_role_with_web_identity",
+    "assume_role_with_web_identity_federation": "google",
+    "assume_role_with_web_identity_federation_audience": "service_a.apache.com"
+  }
+
+You can configure connection, also using environmental variable :envvar:`AIRFLOW_CONN_{CONN_ID}`.
+
+.. code-block:: bash
+
+    export AIRFLOW_CONN_AWS_DEFAULT="aws://\
+    ?role_arn=arn%3Aaws%3Aiam%3A%3A240057002457%3Arole%2FWebIdentity-Role&\
+    assume_role_method=assume_role_with_web_identity&\
+    assume_role_with_web_identity_federation=google&\
+    assume_role_with_web_identity_federation_audience=aaa.polidea.com"

@@ -54,7 +54,7 @@ def jenkins_request_with_headers(jenkins_server: Jenkins, req: Request) -> Optio
         response_headers = response.headers
         if response_body is None:
             raise jenkins.EmptyResponseException(
-                "Error communicating with server[%s]: " "empty response" % jenkins_server.server
+                "Error communicating with server[%s]: empty response" % jenkins_server.server
             )
         return {'body': response_body.decode('utf-8'), 'headers': response_headers}
     except HTTPError as e:
@@ -112,9 +112,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         super().__init__(**kwargs)
         self.job_name = job_name
         self.parameters = parameters
-        if sleep_time < 1:
-            sleep_time = 1
-        self.sleep_time = sleep_time
+        self.sleep_time = max(sleep_time, 1)
         self.jenkins_connection_id = jenkins_connection_id
         self.max_try_before_job_appears = max_try_before_job_appears
 
@@ -190,12 +188,12 @@ class JenkinsJobTriggerOperator(BaseOperator):
                 ' being able to use this operator'
             )
             raise AirflowException(
-                'The jenkins_connection_id parameter is missing,' 'impossible to trigger the job'
+                'The jenkins_connection_id parameter is missing, impossible to trigger the job'
             )
 
         if not self.job_name:
             self.log.error("Please specify the job name to use in the job_name parameter")
-            raise AirflowException('The job_name parameter is missing,' 'impossible to trigger the job')
+            raise AirflowException('The job_name parameter is missing,impossible to trigger the job')
 
         self.log.info(
             'Triggering the job %s on the jenkins : %s with the parameters : %s',

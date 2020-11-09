@@ -337,7 +337,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
             DeprecationWarning,
             stacklevel=2,
         )
-        return "id: {}. Host: {}, Port: {}, Schema: {}, " "Login: {}, Password: {}, extra: {}".format(
+        return "id: {}. Host: {}, Port: {}, Schema: {}, Login: {}, Password: {}, extra: {}".format(
             self.conn_id,
             self.host,
             self.port,
@@ -358,7 +358,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
             DeprecationWarning,
             stacklevel=2,
         )
-        return "id: {}. Host: {}, Port: {}, Schema: {}, " "Login: {}, Password: {}, extra: {}".format(
+        return "id: {}. Host: {}, Port: {}, Schema: {}, Login: {}, Password: {}, extra: {}".format(
             self.conn_id,
             self.host,
             self.port,

@@ -22,20 +22,16 @@ import os
 import subprocess
 import sys
 import unittest
-from importlib import util
 from os.path import dirname
 from textwrap import wrap
 from typing import Dict, Iterable, List
 
-from setuptools import Command, find_packages, setup
+from setuptools import Command, find_namespace_packages, find_packages, setup
 
 logger = logging.getLogger(__name__)
 
-# Kept manually in sync with airflow.__version__
-spec = util.spec_from_file_location("airflow.version", os.path.join('airflow', 'version.py'))  # noqa
-mod = util.module_from_spec(spec)
-spec.loader.exec_module(mod)  # type: ignore
-version = mod.version  # type: ignore
+# This is automatically maintained in sync via pre-commit from airflow/version.py
+version = '2.0.0a2'
 
 PY3 = sys.version_info[0] == 3
 
@@ -736,7 +732,7 @@ INSTALL_REQUIREMENTS = [
     'jsonschema~=3.0',
     'lazy_object_proxy~=1.3',
     'lockfile>=0.12.2',
-    'markdown>=2.5.2, <3.0',
+    'markdown>=2.5.2, <4.0',
     'markupsafe>=1.1.1, <2.0',
     'marshmallow-oneofschema>=2.0.1',
     'pandas>=0.17.1, <2.0',
@@ -773,6 +769,11 @@ def do_setup():
         else ['airflow.providers', 'airflow.providers.*']
     )
     write_version()
+    packages_to_install = (
+        find_namespace_packages(include=['airflow*'], exclude=exclude_patterns)
+        if install_providers_from_sources
+        else find_packages(include=['airflow*'], exclude=exclude_patterns)
+    )
     setup(
         name='apache-airflow',
         description='Programmatically author, schedule and monitor data pipelines',
@@ -780,7 +781,7 @@ def do_setup():
         long_description_content_type='text/markdown',
         license='Apache License 2.0',
         version=version,
-        packages=find_packages(include=['airflow*'], exclude=exclude_patterns),
+        packages=packages_to_install,
         package_data={
             'airflow': ['py.typed'],
             '': [
