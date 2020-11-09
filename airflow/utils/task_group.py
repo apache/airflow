@@ -359,10 +359,14 @@ def taskgroup(*tg_args, **tg_kwargs):
     :type tg_kwargs: dict
     """
     def wrapper(f: T):
+        # Setting group_id as function name if not given
+        if len(tg_args) == 0 and 'group_id' not in tg_kwargs.keys():
+            tg_kwargs['group_id'] = f.__name__
+
         # Get dag initializer signature and bind it to validate that task_group_args, and task_group_kwargs are correct
         task_group_sig = signature(TaskGroup.__init__)
         task_group_bound_args = task_group_sig.bind_partial(*tg_args, **tg_kwargs)
-        
+
         @functools.wraps(f)
         def factory(*args, **kwargs):
             # Generate signature for decorated function and bind the arguments when called
