@@ -71,14 +71,11 @@ one named parameter for each top level parameter in the ``runs/submit`` endpoint
      - whether we should push run_id and run_page_url to xcom
 
 An example usage of the DatabricksSubmitRunOperator is as follows:
-
 .. exampleinclude:: /../airflow/providers/databricks/example_dags/example_databricks.py
     :language: python
     :start-after: [START howto_operator_databricks_json]
     :end-before: [END howto_operator_databricks_json]
-    
 You can also use named parameters to initialize the operator and run the job.
-
 .. exampleinclude:: /../airflow/providers/databricks/example_dags/example_databricks.py
     :language: python
     :start-after: [START howto_operator_databricks_named]
