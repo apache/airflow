@@ -33,12 +33,12 @@ def test_build_task_group_context_manager():
     """
 
     # Creating Tasks
-    @task()
+    @task
     def task_start():
         """Dummy Task which is First Task of Dag """
         return '[Task_start]'
 
-    @task()
+    @task
     def task_end():
         """Dummy Task which is Last Task of Dag"""
         print(f'[ Task_End ]')
@@ -64,7 +64,7 @@ def test_build_task_group_context_manager():
         print(f'[ Task4 {value} ]')
 
     # Creating TaskGroups
-    @taskgroup()
+    @taskgroup
     def section_1(value):
         """ TaskGroup for grouping related Tasks"""
 
@@ -89,7 +89,7 @@ def test_build_task_group_context_manager():
     assert set(dag.task_group.children['section_1'].children.keys()) == {
         'section_1.task_1',
         'section_1.task_2',
-        'section_1.section_2'
+        'section_1.section_2',
     }
 
     # Testing TaskGroup consisting Tasks created using task decorator
@@ -181,7 +181,8 @@ def test_build_task_group_with_operators():
     assert set(dag.task_group.children['section_1'].children.keys()) == {
         'section_1.task_2',
         'section_1.task_3',
-        'section_1.task_1'}
+        'section_1.task_1',
+    }
 
     # Testing Tasks downstream
     assert dag.task_dict['task_start'].downstream_task_ids == {'section_1.task_1'}
