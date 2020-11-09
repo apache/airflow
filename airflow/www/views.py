@@ -1504,7 +1504,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
             response = self.render_template(
                 'airflow/confirm.html',
-                message=("Here's the list of task instances you are about to clear:"),
+                message="Here's the list of task instances you are about to clear:",
                 details=details,
             )
 
@@ -1773,7 +1773,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         response = self.render_template(
             "airflow/confirm.html",
-            message=(f"Here's the list of task instances you are about to mark as {state}:"),
+            message=f"Here's the list of task instances you are about to mark as {state}:",
             details=details,
         )
 
