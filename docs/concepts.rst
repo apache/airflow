@@ -1203,7 +1203,7 @@ are able to do the following:
 - checks that DAG/task meets required standards
 - perform custom logic of routing task to a queue
 
-Any many other options. To use cluster-wide policies users can define in their
+And many other options. To use cluster-wide policies users can define in their
 ``airflow_local_settings`` the following functions
 
 - ``dag_policy`` - which as an input takes ``dag`` argument of :class:`~airflow.models.dag.DAG` type.
