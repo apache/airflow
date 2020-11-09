@@ -1689,7 +1689,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
 
         self.task.render_template_fields(context)
 
-    def render_k8s_pod_yaml(self) -> Optional[str]:
+    def render_k8s_pod_yaml(self) -> Optional[dict]:
         """Render k8s pod yaml"""
         kube_config = KubeConfig()
         pod = PodGenerator.construct_pod(

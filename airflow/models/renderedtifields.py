@@ -86,7 +86,7 @@ class RenderedTaskInstanceFields(Base):
 
     @classmethod
     @provide_session
-    def get_k8s_pod_yaml(cls, ti: TaskInstance, session: Session = None) -> Optional[str]:
+    def get_k8s_pod_yaml(cls, ti: TaskInstance, session: Session = None) -> Optional[dict]:
         """
         Get rendered Kubernetes Pod Yaml for a TaskInstance from the RenderedTaskInstanceFields
         table.

@@ -946,22 +946,27 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         root = request.args.get('root', '')
         logging.info("Retrieving rendered templates.")
         dag = current_app.dag_bag.get_dag(dag_id)
-        task = copy.copy(dag.get_task(task_id))
+        task = dag.get_task(task_id)
         ti = models.TaskInstance(task=task, execution_date=dttm)
+
+        pod_spec = None
         try:
             pod_spec = ti.get_rendered_k8s_spec()
-        except AirflowException as e:  # pylint: disable=broad-except
-            msg = "Error rendering template: " + escape(e)
+        except AirflowException as e:
+            msg = "Error rendering Kubernetes POD Spec: " + escape(e)
             if e.__cause__:  # pylint: disable=using-constant-test
                 msg += Markup("<br><br>OriginalError: ") + escape(e.__cause__)
             flash(msg, "error")
         except Exception as e:  # pylint: disable=broad-except
-            flash("Error rendering template: " + str(e), "error")
+            flash("Error rendering Kubernetes Pod Spec: " + str(e), "error")
         title = "Rendered K8s Pod Spec"
         html_dict = {}
         renderers = wwwutils.get_attr_renderer()
-        content = yaml.dump(pod_spec)
-        content = renderers["yaml"](content)
+        if pod_spec:
+            content = yaml.dump(pod_spec)
+            content = renderers["yaml"](content)
+        else:
+            content = Markup("<pre><code>Error rendering Kubernetes POD Spec</pre></code>")
         html_dict['k8s'] = content
 
         return self.render_template(
