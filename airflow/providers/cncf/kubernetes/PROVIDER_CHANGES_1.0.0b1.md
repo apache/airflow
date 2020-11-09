@@ -4,6 +4,7 @@
 
 | Commit                                                                                         | Committed   | Subject                                                                       |
 |:-----------------------------------------------------------------------------------------------|:------------|:------------------------------------------------------------------------------|
+| [59eb5de78](https://github.com/apache/airflow/commit/59eb5de78c70ee9c7ae6e4cba5c7a2babb8103ca) | 2020-11-09  | Update provider READMEs for up-coming 1.0.0beta1 releases (#12206)            |
 | [3f59e75cd](https://github.com/apache/airflow/commit/3f59e75cdf4a95829ac60b151135e03267e63a12) | 2020-11-09  | KubernetesPodOperator: use randomized name to get the failure status (#12171) |
 | [b2a28d159](https://github.com/apache/airflow/commit/b2a28d1590410630d66966aa1f2b2a049a8c3b32) | 2020-11-09  | Moves provider packages scripts to dev (#12082)                               |
 | [7825be50d](https://github.com/apache/airflow/commit/7825be50d80d04da0db8fcee55df5e1339864c88) | 2020-11-05  | Randomize pod name (#12117)                                                   |

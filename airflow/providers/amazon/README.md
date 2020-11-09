@@ -78,15 +78,15 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 pip install apache-airflow-providers-amazon[apache.hive]
 ```
 
-| Dependent package                                                                                                            | Extra       |
-|:-----------------------------------------------------------------------------------------------------------------------------|:------------|
-| [apache-airflow-backport-providers-apache-hive](https://github.com/apache/airflow/tree/master/airflow/providers/apache/hive) | apache.hive |
-| [apache-airflow-backport-providers-google](https://github.com/apache/airflow/tree/master/airflow/providers/google)           | google      |
-| [apache-airflow-backport-providers-imap](https://github.com/apache/airflow/tree/master/airflow/providers/imap)               | imap        |
-| [apache-airflow-backport-providers-mongo](https://github.com/apache/airflow/tree/master/airflow/providers/mongo)             | mongo       |
-| [apache-airflow-backport-providers-mysql](https://github.com/apache/airflow/tree/master/airflow/providers/mysql)             | mysql       |
-| [apache-airflow-backport-providers-postgres](https://github.com/apache/airflow/tree/master/airflow/providers/postgres)       | postgres    |
-| [apache-airflow-backport-providers-ssh](https://github.com/apache/airflow/tree/master/airflow/providers/ssh)                 | ssh         |
+| Dependent package                                                                                     | Extra       |
+|:------------------------------------------------------------------------------------------------------|:------------|
+| [apache-airflow-providers-apache-hive](https://pypi.org/project/apache-airflow-providers-apache-hive) | apache.hive |
+| [apache-airflow-providers-google](https://pypi.org/project/apache-airflow-providers-google)           | google      |
+| [apache-airflow-providers-imap](https://pypi.org/project/apache-airflow-providers-imap)               | imap        |
+| [apache-airflow-providers-mongo](https://pypi.org/project/apache-airflow-providers-mongo)             | mongo       |
+| [apache-airflow-providers-mysql](https://pypi.org/project/apache-airflow-providers-mysql)             | mysql       |
+| [apache-airflow-providers-postgres](https://pypi.org/project/apache-airflow-providers-postgres)       | postgres    |
+| [apache-airflow-providers-ssh](https://pypi.org/project/apache-airflow-providers-ssh)                 | ssh         |
 
 # Provider classes summary
 
@@ -263,6 +263,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 | Commit                                                                                         | Committed   | Subject                                                                     |
 |:-----------------------------------------------------------------------------------------------|:------------|:----------------------------------------------------------------------------|
+| [59eb5de78](https://github.com/apache/airflow/commit/59eb5de78c70ee9c7ae6e4cba5c7a2babb8103ca) | 2020-11-09  | Update provider READMEs for up-coming 1.0.0beta1 releases (#12206)          |
 | [b2a28d159](https://github.com/apache/airflow/commit/b2a28d1590410630d66966aa1f2b2a049a8c3b32) | 2020-11-09  | Moves provider packages scripts to dev (#12082)                             |
 | [fcb6b00ef](https://github.com/apache/airflow/commit/fcb6b00efef80c81272a30cfc618202a29e0c6a9) | 2020-11-08  | Add authentication to AWS with Google credentials (#12079)                  |
 | [fb6bddba0](https://github.com/apache/airflow/commit/fb6bddba0c9e3e7ef2610b4fb3f73622e48d7ea0) | 2020-11-07  | In AWS Secrets backend, a lookup is optional (#12143)                       |

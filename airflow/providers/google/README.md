@@ -106,19 +106,19 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 pip install apache-airflow-providers-google[amazon]
 ```
 
-| Dependent package                                                                                                                      | Extra            |
-|:---------------------------------------------------------------------------------------------------------------------------------------|:-----------------|
-| [apache-airflow-backport-providers-amazon](https://github.com/apache/airflow/tree/master/airflow/providers/amazon)                     | amazon           |
-| [apache-airflow-backport-providers-apache-cassandra](https://github.com/apache/airflow/tree/master/airflow/providers/apache/cassandra) | apache.cassandra |
-| [apache-airflow-backport-providers-cncf-kubernetes](https://github.com/apache/airflow/tree/master/airflow/providers/cncf/kubernetes)   | cncf.kubernetes  |
-| [apache-airflow-backport-providers-facebook](https://github.com/apache/airflow/tree/master/airflow/providers/facebook)                 | facebook         |
-| [apache-airflow-backport-providers-microsoft-azure](https://github.com/apache/airflow/tree/master/airflow/providers/microsoft/azure)   | microsoft.azure  |
-| [apache-airflow-backport-providers-microsoft-mssql](https://github.com/apache/airflow/tree/master/airflow/providers/microsoft/mssql)   | microsoft.mssql  |
-| [apache-airflow-backport-providers-mysql](https://github.com/apache/airflow/tree/master/airflow/providers/mysql)                       | mysql            |
-| [apache-airflow-backport-providers-postgres](https://github.com/apache/airflow/tree/master/airflow/providers/postgres)                 | postgres         |
-| [apache-airflow-backport-providers-presto](https://github.com/apache/airflow/tree/master/airflow/providers/presto)                     | presto           |
-| [apache-airflow-backport-providers-salesforce](https://github.com/apache/airflow/tree/master/airflow/providers/salesforce)             | salesforce       |
-| [apache-airflow-backport-providers-sftp](https://github.com/apache/airflow/tree/master/airflow/providers/sftp)                         | sftp             |
+| Dependent package                                                                                               | Extra            |
+|:----------------------------------------------------------------------------------------------------------------|:-----------------|
+| [apache-airflow-providers-amazon](https://pypi.org/project/apache-airflow-providers-amazon)                     | amazon           |
+| [apache-airflow-providers-apache-cassandra](https://pypi.org/project/apache-airflow-providers-apache-cassandra) | apache.cassandra |
+| [apache-airflow-providers-cncf-kubernetes](https://pypi.org/project/apache-airflow-providers-cncf-kubernetes)   | cncf.kubernetes  |
+| [apache-airflow-providers-facebook](https://pypi.org/project/apache-airflow-providers-facebook)                 | facebook         |
+| [apache-airflow-providers-microsoft-azure](https://pypi.org/project/apache-airflow-providers-microsoft-azure)   | microsoft.azure  |
+| [apache-airflow-providers-microsoft-mssql](https://pypi.org/project/apache-airflow-providers-microsoft-mssql)   | microsoft.mssql  |
+| [apache-airflow-providers-mysql](https://pypi.org/project/apache-airflow-providers-mysql)                       | mysql            |
+| [apache-airflow-providers-postgres](https://pypi.org/project/apache-airflow-providers-postgres)                 | postgres         |
+| [apache-airflow-providers-presto](https://pypi.org/project/apache-airflow-providers-presto)                     | presto           |
+| [apache-airflow-providers-salesforce](https://pypi.org/project/apache-airflow-providers-salesforce)             | salesforce       |
+| [apache-airflow-providers-sftp](https://pypi.org/project/apache-airflow-providers-sftp)                         | sftp             |
 
 # Provider classes summary
 
@@ -580,6 +580,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 | Commit                                                                                         | Committed   | Subject                                                                                                     |
 |:-----------------------------------------------------------------------------------------------|:------------|:------------------------------------------------------------------------------------------------------------|
+| [59eb5de78](https://github.com/apache/airflow/commit/59eb5de78c70ee9c7ae6e4cba5c7a2babb8103ca) | 2020-11-09  | Update provider READMEs for up-coming 1.0.0beta1 releases (#12206)                                          |
 | [61feb6ec4](https://github.com/apache/airflow/commit/61feb6ec453f8dda1a0e1fe3ebcc0f1e3224b634) | 2020-11-09  | Provider&#39;s readmes generated for elasticsearch and google packages (#12194)                                 |
 | [b2a28d159](https://github.com/apache/airflow/commit/b2a28d1590410630d66966aa1f2b2a049a8c3b32) | 2020-11-09  | Moves provider packages scripts to dev (#12082)                                                             |
 | [fcb6b00ef](https://github.com/apache/airflow/commit/fcb6b00efef80c81272a30cfc618202a29e0c6a9) | 2020-11-08  | Add authentication to AWS with Google credentials (#12079)                                                  |

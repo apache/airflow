@@ -767,7 +767,10 @@ def convert_pip_requirements_to_table(requirements: Iterable[str]) -> str:
     return tabulate(table_data, headers=headers, tablefmt="pipe")
 
 
-def convert_cross_package_dependencies_to_table(cross_package_dependencies: List[str], base_url: str) -> str:
+def convert_cross_package_dependencies_to_table(
+    cross_package_dependencies: List[str],
+    backport_packages: bool,
+) -> str:
     """
     Converts cross-package dependencies to a markdown table
     :param cross_package_dependencies: list of cross-package dependencies
@@ -778,9 +781,15 @@ def convert_cross_package_dependencies_to_table(cross_package_dependencies: List
 
     headers = ["Dependent package", "Extra"]
     table_data = []
+    if backport_packages:
+        prefix = "apache-airflow-backport-providers"
+        base_url = "https://github.com/apache/airflow/tree/master/airflow/providers/"
+    else:
+        prefix = "apache-airflow-providers"
+        base_url = f"https://pypi.org/project/{prefix}-"
     for dependency in cross_package_dependencies:
-        pip_package_name = f"apache-airflow-backport-providers-{dependency.replace('.','-')}"
-        url_suffix = f"{dependency.replace('.','/')}"
+        pip_package_name = f"{prefix}-{dependency.replace('.','-')}"
+        url_suffix = f"{dependency.replace('.','-')}"
         table_data.append((f"[{pip_package_name}]({base_url}{url_suffix})", dependency))
     return tabulate(table_data, headers=headers, tablefmt="pipe")
 
@@ -1208,7 +1217,7 @@ def update_generated_files_for_package(
         )
         cross_providers_dependencies_table = convert_cross_package_dependencies_to_table(
             cross_providers_dependencies,
-            base_url="https://github.com/apache/airflow/tree/master/airflow/providers/",
+            backport_packages=backport_packages,
         )
         context["CROSS_PROVIDERS_DEPENDENCIES_TABLE"] = cross_providers_dependencies_table
         context["PIP_REQUIREMENTS_TABLE"] = pip_requirements_table
