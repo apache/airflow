@@ -1,6 +1,24 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 import pendulum
 from airflow.models.dag import DAG
-from airflow.operators.python import task, PythonOperator
+from airflow.operators.python import PythonOperator, task
 from airflow.utils.task_group import taskgroup
 from airflow.www.views import task_group_to_dict
 
@@ -59,15 +77,20 @@ def test_build_task_group_context_manager():
         return section_2(op1)
 
     execution_date = pendulum.parse("20201109")
-    with DAG(dag_id="example_nested_task_group_decorator", start_date=execution_date, tags=["example"]) as dag:
+    with DAG(
+        dag_id="example_nested_task_group_decorator", start_date=execution_date, tags=["example"]
+    ) as dag:
         t1 = task_start()
         s1 = section_1(t1)
         s1.set_downstream(task_end())
 
     # Testing TaskGroup created using taskgroup decorator
     assert set(dag.task_group.children.keys()) == {"task_start", "task_end", "section_1"}
-    assert set(dag.task_group.children['section_1'].children.keys()) == \
-           {'section_1.task_1', 'section_1.task_2', 'section_1.section_2'}
+    assert set(dag.task_group.children['section_1'].children.keys()) == {
+        'section_1.task_1',
+        'section_1.task_2',
+        'section_1.section_2'
+    }
 
     # Testing TaskGroup consisting Tasks created using task decorator
     assert dag.task_dict['task_start'].downstream_task_ids == {'section_1.task_1'}
@@ -89,20 +112,26 @@ def test_build_task_group_context_manager():
     # Node IDs test
     node_ids = {
         'id': None,
-        'children':
-            [{'id': 'section_1',
-              'children': [{
-                  'id': 'section_1.section_2',
-                  'children': [
-                      {'id': 'section_1.section_2.task_3'},
-                      {'id': 'section_1.section_2.task_4'}]},
-
-                  {'id': 'section_1.task_1'},
-                  {'id': 'section_1.task_2'},
-                  {'id': 'section_1.downstream_join_id'}]},
-
-             {'id': 'task_end'},
-             {'id': 'task_start'}]}
+        'children': [
+            {
+                'id': 'section_1',
+                'children': [
+                    {
+                        'id': 'section_1.section_2',
+                        'children': [
+                            {'id': 'section_1.section_2.task_3'},
+                            {'id': 'section_1.section_2.task_4'},
+                        ],
+                    },
+                    {'id': 'section_1.task_1'},
+                    {'id': 'section_1.task_2'},
+                    {'id': 'section_1.downstream_join_id'},
+                ],
+            },
+            {'id': 'task_end'},
+            {'id': 'task_start'},
+        ],
+    }
 
     assert extract_node_id(task_group_to_dict(dag.task_group)) == node_ids
 
@@ -149,8 +178,10 @@ def test_build_task_group_with_operators():
 
     # Testing Tasks ing DAG
     assert set(dag.task_group.children.keys()) == {'section_1', 'task_start', 'task_end'}
-    assert set(dag.task_group.children['section_1'].children.keys()) == \
-           {'section_1.task_2', 'section_1.task_3', 'section_1.task_1'}
+    assert set(dag.task_group.children['section_1'].children.keys()) == {
+        'section_1.task_2',
+        'section_1.task_3',
+        'section_1.task_1'}
 
     # Testing Tasks downstream
     assert dag.task_dict['task_start'].downstream_task_ids == {'section_1.task_1'}
