@@ -20,7 +20,7 @@
 
 # Package apache-airflow-providers-papermill
 
-Release: 0.0.2a1
+Release: 1.0.0b1
 
 **Table of contents**
 
@@ -31,6 +31,7 @@ Release: 0.0.2a1
     - [Operators](#operators)
         - [Moved operators](#moved-operators)
 - [Releases](#releases)
+    - [Release 1.0.0b1](#release-100b1)
     - [Release 0.0.2a1](#release-002a1)
     - [Release 0.0.1](#release-001)
 
@@ -78,6 +79,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 
 ## Releases
+
+### Release 1.0.0b1
+
+| Commit                                                                                         | Committed   | Subject                                    |
+|:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------|
+| [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855) |
+
 
 ### Release 0.0.2a1
 
