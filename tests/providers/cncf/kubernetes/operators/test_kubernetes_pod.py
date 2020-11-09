@@ -195,7 +195,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
             k.execute(context=context)
 
         self.assertEqual(
-            str(cm.exception), 
+            str(cm.exception),
             f"Pod Launching failed: Pod {k.pod.metadata.name} returned a failure: {failed_pod_status}",
         )
         assert mock_client.return_value.read_namespaced_pod.called
