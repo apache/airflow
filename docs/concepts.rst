@@ -1040,8 +1040,8 @@ TaskGroup can be created using ``@taskgroup decorator``, it takes one mandatory 
 
 .. exampleinclude:: /../airflow/example_dags/example_task_group_decorator.py
     :language: python
-    :start-after: [START howto_task_group]
-    :end-before: [END howto_task_group]
+    :start-after: [START task_group_decorator_usage]
+    :end-before: [END task_group_decorator_usage]
 
 
 SLAs
