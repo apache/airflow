@@ -311,7 +311,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 final_state, _, result = self.create_new_pod_for_operator(labels, launcher)
             if final_state != State.SUCCESS:
                 status = self.client.read_namespaced_pod(self.pod.metadata.name, self.namespace)
-                raise AirflowException(f'Pod returned a failure: {status}')
+                raise AirflowException(f'Pod {self.pod.metadata.name} returned a failure: {status}')
             return result
         except AirflowException as ex:
             raise AirflowException(f'Pod Launching failed: {ex}')
