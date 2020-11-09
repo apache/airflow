@@ -181,6 +181,8 @@ The following settings may be used within the ``assume_role_with_saml`` containe
     https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#api_assumerolewithsaml
     https://pypi.org/project/requests-gssapi/
 
+.. _howto/connection:aws:gcp-federation:
+
 Google Cloud to AWS authentication using Web Identity Federation
 ----------------------------------------------------------------
 
@@ -190,6 +192,16 @@ access in the Amazon Web Service platform. If you additionally use authorization
 from `metadata server <https://cloud.google.com/compute/docs/storing-retrieving-metadata>`__ or
 `Workfload Identity <https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity#gke_mds>`__,
 you can improve the security of your environment by eliminating long-lived credentials.
+
+The Google Cloud credentials is exchanged for the Amazon Web Service
+`temporary credentials <https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html>`__
+by `AWS Security Token Service <https://docs.aws.amazon.com/STS/latest/APIReference/welcome.html>`__.
+
+The following diagram illustrates a typical communication flow used to obtain the AWS credentials.
+
+.. figure::  /img/aws-web-identity-federation-gcp.png
+
+    Communication Flow Diagram
 
 Role setup
 ^^^^^^^^^^
