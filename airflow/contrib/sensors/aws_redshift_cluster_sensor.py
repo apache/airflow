@@ -26,5 +26,4 @@ from airflow.providers.amazon.aws.sensors.redshift import AwsRedshiftClusterSens
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.redshift`.",
     DeprecationWarning,
-    stacklevel=2,
 )

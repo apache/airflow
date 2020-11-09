@@ -25,5 +25,4 @@ from airflow.providers.amazon.aws.operators.s3_file_transform import S3FileTrans
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.s3_file_transform`.",
     DeprecationWarning,
-    stacklevel=2,
 )

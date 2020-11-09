@@ -25,5 +25,4 @@ from airflow.providers.microsoft.mssql.operators.mssql import MsSqlOperator  # n
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.microsoft.mssql.operators.mssql`.",
     DeprecationWarning,
-    stacklevel=2,
 )

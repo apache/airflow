@@ -25,5 +25,4 @@ from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.slack.hooks.slack_webhook`.",
     DeprecationWarning,
-    stacklevel=2,
 )

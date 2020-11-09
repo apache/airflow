@@ -25,5 +25,4 @@ from airflow.providers.google.cloud.hooks.vision import CloudVisionHook  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.vision`.",
     DeprecationWarning,
-    stacklevel=2,
 )

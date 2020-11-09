@@ -25,5 +25,4 @@ from airflow.providers.apache.hive.sensors.hive_partition import HivePartitionSe
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.hive.sensors.hive_partition`.",
     DeprecationWarning,
-    stacklevel=2,
 )

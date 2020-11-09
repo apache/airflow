@@ -31,7 +31,6 @@ warnings.warn(
     Please use `airflow.providers.google.cloud.operators.natural_language`
     """,
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

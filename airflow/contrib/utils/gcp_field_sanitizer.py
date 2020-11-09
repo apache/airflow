@@ -28,5 +28,4 @@ from airflow.providers.google.cloud.utils.field_sanitizer import (  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.utils.field_sanitizer`.",
     DeprecationWarning,
-    stacklevel=2,
 )

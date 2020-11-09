@@ -24,7 +24,6 @@ from airflow.providers.google.cloud.hooks.dataflow import DataflowHook
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.dataflow`.",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

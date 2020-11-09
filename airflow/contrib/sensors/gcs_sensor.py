@@ -29,7 +29,6 @@ from airflow.providers.google.cloud.sensors.gcs import (
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.sensors.gcs`.",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

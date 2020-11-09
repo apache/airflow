@@ -25,5 +25,4 @@ from airflow.providers.oracle.operators.oracle import OracleOperator  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.oracle.operators.oracle`.",
     DeprecationWarning,
-    stacklevel=2,
 )

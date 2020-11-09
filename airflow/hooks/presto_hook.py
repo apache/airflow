@@ -25,5 +25,4 @@ from airflow.providers.presto.hooks.presto import PrestoHook  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.presto.hooks.presto`.",
     DeprecationWarning,
-    stacklevel=2,
 )

@@ -25,5 +25,4 @@ from airflow.providers.google.cloud.hooks.datastore import DatastoreHook  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.datastore`.",
     DeprecationWarning,
-    stacklevel=2,
 )

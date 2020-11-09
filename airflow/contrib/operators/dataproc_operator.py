@@ -37,7 +37,6 @@ from airflow.providers.google.cloud.operators.dataproc import (
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.dataproc`.",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

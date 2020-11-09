@@ -28,7 +28,6 @@ from airflow.providers.mysql.transfers.vertica_to_mysql import VerticaToMySqlOpe
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.mysql.transfers.vertica_to_mysql`.",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

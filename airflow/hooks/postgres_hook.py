@@ -25,5 +25,4 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.postgres.hooks.postgres`.",
     DeprecationWarning,
-    stacklevel=2,
 )

@@ -25,5 +25,4 @@ from airflow.providers.google.cloud.utils.mlengine_operator_utils import create_
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.utils.mlengine_operator_utils`.",
     DeprecationWarning,
-    stacklevel=2,
 )

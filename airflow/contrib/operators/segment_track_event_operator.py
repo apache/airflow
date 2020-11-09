@@ -25,5 +25,4 @@ from airflow.providers.segment.operators.segment_track_event import SegmentTrack
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.segment.operators.segment_track_event`.",
     DeprecationWarning,
-    stacklevel=2,
 )

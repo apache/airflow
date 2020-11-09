@@ -29,5 +29,4 @@ from airflow.providers.google.cloud.operators.bigquery import (  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.bigquery`.",
     DeprecationWarning,
-    stacklevel=2,
 )

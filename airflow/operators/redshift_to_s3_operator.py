@@ -27,7 +27,6 @@ from airflow.providers.amazon.aws.transfers.redshift_to_s3 import RedshiftToS3Op
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.transfers.redshift_to_s3`.",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

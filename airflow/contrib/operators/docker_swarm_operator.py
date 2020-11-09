@@ -25,5 +25,4 @@ from airflow.providers.docker.operators.docker_swarm import DockerSwarmOperator 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.docker.operators.docker_swarm`.",
     DeprecationWarning,
-    stacklevel=2,
 )

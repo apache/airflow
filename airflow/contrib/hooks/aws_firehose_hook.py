@@ -26,5 +26,4 @@ from airflow.providers.amazon.aws.hooks.kinesis import AwsFirehoseHook  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.kinesis`.",
     DeprecationWarning,
-    stacklevel=2,
 )

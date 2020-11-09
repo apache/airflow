@@ -25,5 +25,4 @@ from airflow.providers.slack.operators.slack import SlackAPIOperator, SlackAPIPo
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.slack.operators.slack`.",
     DeprecationWarning,
-    stacklevel=2,
 )

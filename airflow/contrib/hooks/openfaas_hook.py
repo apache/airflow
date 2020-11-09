@@ -25,5 +25,4 @@ from airflow.providers.openfaas.hooks.openfaas import OK_STATUS_CODE, OpenFaasHo
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.openfaas.hooks.openfaas`.",
     DeprecationWarning,
-    stacklevel=2,
 )

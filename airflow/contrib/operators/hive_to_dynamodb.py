@@ -25,5 +25,4 @@ from airflow.providers.amazon.aws.transfers.hive_to_dynamodb import HiveToDynamo
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.transfers.hive_to_dynamodb`.",
     DeprecationWarning,
-    stacklevel=2,
 )

@@ -30,5 +30,4 @@ from airflow.providers.apache.hive.hooks.hive import (  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.hive.hooks.hive`.",
     DeprecationWarning,
-    stacklevel=2,
 )

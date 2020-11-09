@@ -26,5 +26,4 @@ from airflow.providers.amazon.aws.secrets.systems_manager import SystemsManagerP
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.secrets.systems_manager`.",
     DeprecationWarning,
-    stacklevel=2,
 )

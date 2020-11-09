@@ -25,5 +25,4 @@ from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.spark.hooks.spark_sql`.",
     DeprecationWarning,
-    stacklevel=2,
 )

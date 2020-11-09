@@ -25,5 +25,4 @@ from airflow.providers.apache.hive.sensors.named_hive_partition import NamedHive
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.hive.sensors.named_hive_partition`.",
     DeprecationWarning,
-    stacklevel=2,
 )

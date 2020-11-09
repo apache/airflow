@@ -25,5 +25,4 @@ from airflow.providers.microsoft.azure.operators.wasb_delete_blob import WasbDel
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.operators.wasb_delete_blob`.",
     DeprecationWarning,
-    stacklevel=2,
 )

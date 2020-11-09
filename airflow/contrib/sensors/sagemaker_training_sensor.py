@@ -28,5 +28,4 @@ from airflow.providers.amazon.aws.sensors.sagemaker_training import (  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.sagemaker_training`.",
     DeprecationWarning,
-    stacklevel=2,
 )

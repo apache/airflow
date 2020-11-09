@@ -25,5 +25,4 @@ from airflow.providers.sftp.hooks.sftp import SFTPHook  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.sftp.hooks.sftp`.",
     DeprecationWarning,
-    stacklevel=2,
 )

@@ -25,5 +25,4 @@ from airflow.providers.discord.operators.discord_webhook import DiscordWebhookOp
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.discord.operators.discord_webhook`.",
     DeprecationWarning,
-    stacklevel=2,
 )

@@ -26,5 +26,4 @@ from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.athena`.",
     DeprecationWarning,
-    stacklevel=2,
 )

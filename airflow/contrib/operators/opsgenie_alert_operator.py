@@ -25,5 +25,4 @@ from airflow.providers.opsgenie.operators.opsgenie_alert import OpsgenieAlertOpe
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.opsgenie.operators.opsgenie_alert`.",
     DeprecationWarning,
-    stacklevel=2,
 )

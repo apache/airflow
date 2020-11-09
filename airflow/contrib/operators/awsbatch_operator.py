@@ -36,7 +36,6 @@ warnings.warn(
     "`airflow.providers.amazon.aws.hooks.batch_client`, and "
     "`airflow.providers.amazon.aws.hooks.batch_waiters`",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

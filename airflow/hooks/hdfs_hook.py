@@ -25,5 +25,4 @@ from airflow.providers.apache.hdfs.hooks.hdfs import HDFSHook, HDFSHookException
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.hdfs.hooks.hdfs`.",
     DeprecationWarning,
-    stacklevel=2,
 )

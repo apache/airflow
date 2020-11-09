@@ -25,5 +25,4 @@ from airflow.providers.mysql.hooks.mysql import MySqlHook  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.mysql.hooks.mysql`.",
     DeprecationWarning,
-    stacklevel=2,
 )

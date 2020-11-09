@@ -24,7 +24,6 @@ from airflow.providers.google.cloud.hooks.text_to_speech import CloudTextToSpeec
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.text_to_speech`",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

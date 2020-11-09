@@ -25,5 +25,4 @@ from airflow.providers.apache.sqoop.hooks.sqoop import SqoopHook  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.sqoop.hooks.sqoop`.",
     DeprecationWarning,
-    stacklevel=2,
 )

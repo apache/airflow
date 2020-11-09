@@ -24,7 +24,6 @@ from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 warnings.warn(
     "This module is deprecated. Please use airflow.providers.google.cloud.hooks.compute`",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

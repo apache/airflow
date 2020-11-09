@@ -29,5 +29,4 @@ from airflow.providers.google.cloud.utils.field_validator import (  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.utils.field_validator`.",
     DeprecationWarning,
-    stacklevel=2,
 )

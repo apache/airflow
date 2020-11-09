@@ -25,5 +25,4 @@ from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.microsoft.mssql.hooks.mssql`.",
     DeprecationWarning,
-    stacklevel=2,
 )

@@ -25,5 +25,4 @@ from airflow.providers.apache.hdfs.hooks.webhdfs import WebHDFSHook  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.hdfs.hooks.webhdfs`.",
     DeprecationWarning,
-    stacklevel=2,
 )

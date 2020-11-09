@@ -25,5 +25,4 @@ from airflow.providers.apache.spark.operators.spark_sql import SparkSqlOperator 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.spark.operators.spark_sql`.",
     DeprecationWarning,
-    stacklevel=2,
 )

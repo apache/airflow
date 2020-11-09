@@ -25,5 +25,4 @@ from airflow.providers.apache.pinot.hooks.pinot import PinotAdminHook, PinotDbAp
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.pinot.hooks.pinot`.",
     DeprecationWarning,
-    stacklevel=2,
 )

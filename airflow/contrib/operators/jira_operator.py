@@ -25,5 +25,4 @@ from airflow.providers.jira.operators.jira import JiraOperator  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.jira.operators.jira`.",
     DeprecationWarning,
-    stacklevel=2,
 )

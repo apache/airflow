@@ -25,5 +25,4 @@ from airflow.providers.ftp.hooks.ftp import FTPHook, FTPSHook  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.ftp.hooks.ftp`.",
     DeprecationWarning,
-    stacklevel=2,
 )

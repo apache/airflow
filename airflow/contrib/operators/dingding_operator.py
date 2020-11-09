@@ -25,5 +25,4 @@ from airflow.providers.dingding.operators.dingding import DingdingOperator  # no
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.dingding.operators.dingding`.",
     DeprecationWarning,
-    stacklevel=2,
 )

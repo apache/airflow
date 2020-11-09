@@ -29,7 +29,6 @@ from airflow.providers.google.cloud.operators.mlengine import (
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.mlengine`.",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

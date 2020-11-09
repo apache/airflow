@@ -26,5 +26,4 @@ from airflow.providers.jira.hooks.jira import JiraHook  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.jira.hooks.jira`.",
     DeprecationWarning,
-    stacklevel=2,
 )

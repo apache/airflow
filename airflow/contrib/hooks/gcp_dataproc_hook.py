@@ -24,7 +24,6 @@ from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.dataproc`.",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

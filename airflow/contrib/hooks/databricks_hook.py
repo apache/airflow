@@ -37,5 +37,4 @@ from airflow.providers.databricks.hooks.databricks import (  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.databricks.hooks.databricks`.",
     DeprecationWarning,
-    stacklevel=2,
 )

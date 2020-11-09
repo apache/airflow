@@ -31,5 +31,4 @@ warnings.warn(
     "This module is deprecated. "
     "Please use `airflow.providers.amazon.aws.operators.sagemaker_endpoint_config`.",
     DeprecationWarning,
-    stacklevel=2,
 )

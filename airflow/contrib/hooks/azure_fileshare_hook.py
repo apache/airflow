@@ -25,5 +25,4 @@ from airflow.providers.microsoft.azure.hooks.azure_fileshare import AzureFileSha
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.azure_fileshare`.",
     DeprecationWarning,
-    stacklevel=2,
 )

@@ -24,7 +24,6 @@ from airflow.providers.google.cloud.transfers.postgres_to_gcs import PostgresToG
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.transfers.postgres_to_gcs`.",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

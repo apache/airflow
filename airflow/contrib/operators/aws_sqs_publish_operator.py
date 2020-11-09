@@ -25,5 +25,4 @@ from airflow.providers.amazon.aws.operators.sqs import SQSPublishOperator  # noq
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.sqs`.",
     DeprecationWarning,
-    stacklevel=2,
 )

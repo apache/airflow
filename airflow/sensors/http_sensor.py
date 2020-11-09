@@ -25,5 +25,4 @@ from airflow.providers.http.sensors.http import HttpSensor  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.http.sensors.http`.",
     DeprecationWarning,
-    stacklevel=2,
 )

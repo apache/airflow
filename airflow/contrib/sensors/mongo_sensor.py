@@ -25,5 +25,4 @@ from airflow.providers.mongo.sensors.mongo import MongoSensor  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.mongo.sensors.mongo`.",
     DeprecationWarning,
-    stacklevel=2,
 )

@@ -24,7 +24,6 @@ from airflow.providers.google.cloud.hooks.spanner import SpannerHook
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.spanner`.",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

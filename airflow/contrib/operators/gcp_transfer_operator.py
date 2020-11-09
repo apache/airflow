@@ -39,7 +39,6 @@ warnings.warn(
     "This module is deprecated. "
     "Please use `airflow.providers.google.cloud.operators.cloud_storage_transfer_service`",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

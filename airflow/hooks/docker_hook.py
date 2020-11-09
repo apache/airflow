@@ -25,5 +25,4 @@ from airflow.providers.docker.hooks.docker import DockerHook  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.docker.hooks.docker`.",
     DeprecationWarning,
-    stacklevel=2,
 )

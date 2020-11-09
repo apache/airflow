@@ -35,7 +35,6 @@ warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.bigtable`"
     " or `airflow.providers.google.cloud.sensors.bigtable`.",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 
