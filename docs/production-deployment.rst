@@ -687,7 +687,7 @@ Impersonate Service Accounts
 
 If you need access to other service accounts, you can :ref:`impersonate other service accounts <howto/connection:gcp:impersonation>` to exchange the token with the default identity to another service account. Thus, the account keys are still managed by Google and cannot be read by your workload.
 
-It is not recommended to generate service account keys and store them in the Metabase or the secrets backend. Even with the use of the backend secret, the service account key is available for your workload.
+It is not recommended to generate service account keys and store them in the metadata database or the secrets backend. Even with the use of the backend secret, the service account key is available for your workload.
 
 Access to Compute Engine Instance
 ---------------------------------
@@ -706,3 +706,6 @@ Thanks to `Web Identity Federation <https://docs.aws.amazon.com/IAM/latest/UserG
 .. spelling::
 
     nsswitch
+    cryptographic
+    firewalling
+    ComputeEngineHook
