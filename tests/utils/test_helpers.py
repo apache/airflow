@@ -19,13 +19,11 @@
 import unittest
 from datetime import datetime
 
-import pytest
-
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import helpers
-from airflow.utils.helpers import make_kwargs_callable, merge_dicts
+from airflow.utils.helpers import merge_dicts
 
 
 class TestHelpers(unittest.TestCase):
@@ -138,130 +136,3 @@ class TestHelpers(unittest.TestCase):
         dict2 = {'a': 1, 'r': {'c': 3, 'b': 0}}
         merged = merge_dicts(dict1, dict2)
         self.assertDictEqual(merged, {'a': 1, 'r': {'b': 0, 'c': 3}})
-
-
-def callable1(ds_nodash):
-    return (ds_nodash,)
-
-
-callable2 = lambda ds_nodash, prev_ds_nodash: (ds_nodash, prev_ds_nodash)
-
-
-def callable3(ds_nodash, prev_ds_nodash, *args, **kwargs):
-    return (ds_nodash, prev_ds_nodash, args, kwargs)
-
-
-def callable4(ds_nodash, prev_ds_nodash, **kwargs):
-    return (ds_nodash, prev_ds_nodash, kwargs)
-
-
-def callable5(**kwargs):
-    return (kwargs,)
-
-
-def callable6(arg1, ds_nodash):
-    return (arg1, ds_nodash)
-
-
-def callable7(arg1, **kwargs):
-    return (arg1, kwargs)
-
-
-def callable8(arg1, *args, **kwargs):
-    return (arg1, args, kwargs)
-
-
-def callable9(*args, **kwargs):
-    return (args, kwargs)
-
-
-def callable10(arg1, *, ds_nodash="20200201"):
-    return (arg1, ds_nodash)
-
-
-def callable11(*, ds_nodash, **kwargs):
-    return (
-        ds_nodash,
-        kwargs,
-    )
-
-
-KWARGS = {
-    "prev_ds_nodash": "20191231",
-    "ds_nodash": "20200101",
-    "tomorrow_ds_nodash": "20200102",
-}
-
-
-@pytest.mark.parametrize(
-    "func,args,kwargs,expected",
-    [
-        (callable1, (), KWARGS, ("20200101",)),
-        (callable2, (), KWARGS, ("20200101", "20191231")),
-        (
-            callable3,
-            (),
-            KWARGS,
-            (
-                "20200101",
-                "20191231",
-                (),
-                {"tomorrow_ds_nodash": "20200102"},
-            ),
-        ),
-        (
-            callable4,
-            (),
-            KWARGS,
-            (
-                "20200101",
-                "20191231",
-                {"tomorrow_ds_nodash": "20200102"},
-            ),
-        ),
-        (
-            callable5,
-            (),
-            KWARGS,
-            (KWARGS,),
-        ),
-        (callable6, (1,), KWARGS, ((1, "20200101"))),
-        (callable7, (1,), KWARGS, ((1, KWARGS))),
-        (callable8, (1, 2), KWARGS, ((1, (2,), KWARGS))),
-        (callable9, (1, 2), KWARGS, (((1, 2), KWARGS))),
-        (callable10, (1,), KWARGS, ((1, "20200101"))),
-        (
-            callable11,
-            (),
-            KWARGS,
-            (
-                (
-                    "20200101",
-                    {
-                        "prev_ds_nodash": "20191231",
-                        "tomorrow_ds_nodash": "20200102",
-                    },
-                )
-            ),
-        ),
-    ],
-)
-def test_make_kwargs_callable(func, args, kwargs, expected):
-    kwargs_callable = make_kwargs_callable(func)
-    ret = kwargs_callable(*args, **kwargs)
-    assert ret == expected
-
-
-def test_make_kwargs_callable_conflict():
-    def func(ds_nodash):
-        pytest.fail(f"Should not reach here: {ds_nodash}")
-
-    kwargs_callable = make_kwargs_callable(func)
-
-    args = ["20200101"]
-    kwargs = {"ds_nodash": "20200101", "tomorrow_ds_nodash": "20200102"}
-
-    with pytest.raises(ValueError) as exc_info:
-        kwargs_callable(*args, **kwargs)
-
-    assert "ds_nodash" in str(exc_info)

@@ -94,7 +94,7 @@ class HttpSensor(BaseSensorOperator):
         self.hook = HttpHook(method=method, http_conn_id=http_conn_id)
 
     def poke(self, context: Dict[Any, Any]) -> bool:
-        from airflow.utils.helpers import make_kwargs_callable
+        from airflow.utils.operator_helpers import make_kwargs_callable
 
         self.log.info('Poking: %s', self.endpoint)
         try:

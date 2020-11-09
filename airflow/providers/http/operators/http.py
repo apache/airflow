@@ -99,7 +99,7 @@ class SimpleHttpOperator(BaseOperator):
             raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
     def execute(self, context: Dict[str, Any]) -> Any:
-        from airflow.utils.helpers import make_kwargs_callable
+        from airflow.utils.operator_helpers import make_kwargs_callable
 
         http = HttpHook(self.method, http_conn_id=self.http_conn_id)
 

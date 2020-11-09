@@ -237,7 +237,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         implementation to pass all context variables as keyword arguments, to allow
         for more sophisticated returns of dates to return.
         """
-        from airflow.utils.helpers import make_kwargs_callable
+        from airflow.utils.operator_helpers import make_kwargs_callable
 
         # Remove "execution_date" because it is already a mandatory positional argument
         execution_date = context["execution_date"]
