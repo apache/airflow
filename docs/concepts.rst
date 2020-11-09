@@ -1020,21 +1020,21 @@ This animated gif shows the UI interactions. TaskGroups are expanded or collapse
 @taskgroup decorator
 --------------------
 
-TaskGroup can be created using ``@taskgroup decorator``, it takes one mandatory argument ``group_id`` which is same as constructor of TaskGroup class. It works exactly same as creating TaskGroup using context manager ``with TaskGroup('groupid') as section:``.
+TaskGroup can be created using ``@taskgroup decorator``, it takes one mandatory argument ``group_id`` which is same as constructor of TaskGroup class, if not given it copies function name as ``group_id``. It works exactly same as creating TaskGroup using context manager ``with TaskGroup('groupid') as section:``.
 
 .. code-block:: python
 
-  @task
+  @task()
   def task_1(value):
       return f'[ Task1 {value} ]'
 
 
-  @task
+  @task()
   def task_2(value):
       print(f'[ Task2 {value} ]')
 
 
-  @taskgroup(group_id='section_1')
+  @taskgroup()
   def section_1(value):
       return task_2(task_1(value))
 
