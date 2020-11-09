@@ -1251,6 +1251,7 @@ tagValue
 tao
 taskflow
 taskinstance
+taskgroup
 tblproperties
 tcp
 templatable
