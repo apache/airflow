@@ -24,8 +24,8 @@ from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Sequence, Set
 
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.models.taskmixin import TaskMixin
-from airflow.utils.decorators import signature
 from airflow.operators.python import T
+from airflow.utils.decorators import signature
 
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
@@ -348,11 +348,14 @@ class TaskGroupContext:
         return cls._context_managed_task_group
 
  
-def taskgroup(*tg_args, **tg_kwargs):
+def taskgroup(
+    python_callable: Optional[Callable] = None, *tg_args, **tg_kwargs
+) -> Callable[[T], T]:
     """
     Python TaskGroup decorator. Wraps a function into an Airflow TaskGroup.
     Accepts kwargs for operator TaskGroup. Can be used to parametrize TaskGroup.
 
+    :param python_callable: Function to decorate
     :param tg_args: Arguments for TaskGroup object
     :type tg_args: list
     :param tg_kwargs: Kwargs for TaskGroup object.
@@ -384,6 +387,10 @@ def taskgroup(*tg_args, **tg_kwargs):
             # Return task_group object such that it's accessible in Globals.
             return tg_obj
 
-        return factory
+        return cast(T, factory)
 
+    if callable(python_callable):
+        return wrapper(python_callable)
+    elif python_callable is not None:
+        raise AirflowException('No args allowed while using @taskgroup, use kwargs instead')
     return wrapper
