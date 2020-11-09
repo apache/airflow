@@ -363,7 +363,7 @@ ARG_KEYTAB = Arg(("-k", "--keytab"), help="keytab", nargs='?', default=conf.get(
 # instead.
 ARG_INTERACTIVE = Arg(
     ('-N', '--interactive'),
-    help='Do not capture standard output and error streams ' '(useful for interactive debugging)',
+    help='Do not capture standard output and error streams (useful for interactive debugging)',
     action='store_true',
 )
 ARG_FORCE = Arg(
@@ -573,7 +573,7 @@ ARG_FIRSTNAME = Arg(('-f', '--firstname'), help='First name of the user', requir
 ARG_LASTNAME = Arg(('-l', '--lastname'), help='Last name of the user', required=True, type=str)
 ARG_ROLE = Arg(
     ('-r', '--role'),
-    help='Role of the user. Existing roles include Admin, ' 'User, Op, Viewer, and Public',
+    help='Role of the user. Existing roles include Admin, User, Op, Viewer, and Public',
     required=True,
     type=str,
 )
@@ -581,7 +581,7 @@ ARG_EMAIL = Arg(('-e', '--email'), help='Email of the user', required=True, type
 ARG_EMAIL_OPTIONAL = Arg(('-e', '--email'), help='Email of the user', type=str)
 ARG_PASSWORD = Arg(
     ('-p', '--password'),
-    help='Password of the user, required to create a user ' 'without --use-random-password',
+    help='Password of the user, required to create a user without --use-random-password',
     type=str,
 )
 ARG_USE_RANDOM_PASSWORD = Arg(
@@ -628,7 +628,7 @@ ARG_SKIP_SERVE_LOGS = Arg(
 # info
 ARG_ANONYMIZE = Arg(
     ('--anonymize',),
-    help=('Minimize any personal identifiable information. ' 'Use it when sharing output with others.'),
+    help='Minimize any personal identifiable information. Use it when sharing output with others.',
     action='store_true',
 )
 ARG_FILE_IO = Arg(

@@ -140,7 +140,7 @@ class MLEngineHook(GoogleBaseHook):
                     existing_job = self._get_job(project_id, job_id)
                     if not use_existing_job_fn(existing_job):
                         self.log.error(
-                            'Job with job_id %s already exist, but it does ' 'not match our expectation: %s',
+                            'Job with job_id %s already exist, but it does not match our expectation: %s',
                             job_id,
                             existing_job,
                         )

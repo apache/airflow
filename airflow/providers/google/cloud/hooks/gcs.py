@@ -630,7 +630,7 @@ class GCSHook(GoogleBaseHook):
         :type object_name: str
         """
         self.log.info(
-            'Retrieving the crc32c checksum of ' 'object_name: %s in bucket_name: %s',
+            'Retrieving the crc32c checksum of object_name: %s in bucket_name: %s',
             object_name,
             bucket_name,
         )
@@ -651,7 +651,7 @@ class GCSHook(GoogleBaseHook):
             storage bucket_name.
         :type object_name: str
         """
-        self.log.info('Retrieving the MD5 hash of ' 'object: %s in bucket: %s', object_name, bucket_name)
+        self.log.info('Retrieving the MD5 hash of object: %s in bucket: %s', object_name, bucket_name)
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
         blob = bucket.get_blob(blob_name=object_name)

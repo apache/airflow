@@ -112,7 +112,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 raise
             else:
                 self.log.warning(
-                    'Watch died gracefully, starting back up with: ' 'last resource_version: %s',
+                    'Watch died gracefully, starting back up with: last resource_version: %s',
                     self.resource_version,
                 )
 
@@ -263,7 +263,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             self.log.debug("KubeJobWatcher alive, continuing")
         else:
             self.log.error(
-                'Error while health checking kube watcher process. ' 'Process died for unknown reasons'
+                'Error while health checking kube watcher process. Process died for unknown reasons'
             )
             self.kube_watcher = self._make_kube_watcher()
 
@@ -478,7 +478,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             pod_list = self.kube_client.list_namespaced_pod(self.kube_config.kube_namespace, **kwargs)
             if not pod_list.items:
                 self.log.info(
-                    'TaskInstance: %s found in queued state but was not launched, ' 'rescheduling', task
+                    'TaskInstance: %s found in queued state but was not launched, rescheduling', task
                 )
                 session.query(TaskInstance).filter(
                     TaskInstance.dag_id == task.dag_id,
@@ -509,7 +509,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                         **self.kube_config.kube_client_request_args,
                     )
                 self.log.exception(
-                    'Exception while trying to inject secret. ' 'Secret name: %s, error details: %s',
+                    'Exception while trying to inject secret. Secret name: %s, error details: %s',
                     secret_name,
                     e,
                 )
@@ -605,7 +605,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                         self.change_state(key, State.FAILED, e)
                     else:
                         self.log.warning(
-                            'ApiException when attempting to run task, re-queueing. ' 'Message: %s',
+                            'ApiException when attempting to run task, re-queueing. Message: %s',
                             json.loads(e.body)['message'],
                         )
                         self.task_queue.put(task)
@@ -729,7 +729,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                         self._change_state(key, state, pod_id, namespace)
                     except Exception as e:  # pylint: disable=broad-except
                         self.log.exception(
-                            'Ignoring exception: %s when attempting to change state of %s ' 'to %s.',
+                            'Ignoring exception: %s when attempting to change state of %s to %s.',
                             e,
                             results,
                             state,
