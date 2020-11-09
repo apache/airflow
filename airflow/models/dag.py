@@ -54,7 +54,6 @@ from sqlalchemy.orm.session import Session
 
 from airflow import settings, utils
 from airflow.configuration import conf
-from airflow.dag.base_dag import BaseDag
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound, TaskNotFound
 from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator
@@ -111,7 +110,7 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
 
 
 @functools.total_ordering
-class DAG(BaseDag, LoggingMixin):
+class DAG(LoggingMixin):
     """
     A dag (directed acyclic graph) is a collection of tasks with directional
     dependencies. A dag also has a schedule, a start date and an end date
@@ -280,7 +279,6 @@ class DAG(BaseDag, LoggingMixin):
 
         validate_key(dag_id)
 
-        # Properties from BaseDag
         self._dag_id = dag_id
         self._full_filepath = full_filepath if full_filepath else ''
         self._concurrency = concurrency
