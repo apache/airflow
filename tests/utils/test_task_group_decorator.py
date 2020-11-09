@@ -1,5 +1,4 @@
 import pendulum
-
 from airflow.models.dag import DAG
 from airflow.operators.python import task, PythonOperator
 from airflow.utils.task_group import taskgroup
@@ -47,11 +46,11 @@ def test_build_task_group_context_manager():
         print(f'[ Task4 {value} ]')
 
     # Creating TaskGroups
-    @taskgroup(group_id='section_1')
+    @taskgroup()
     def section_1(value):
         """ TaskGroup for grouping related Tasks"""
 
-        @taskgroup(group_id='section_2')
+        @taskgroup()
         def section_2(value2):
             """ TaskGroup for grouping related Tasks"""
             return task_4(task_3(value2))
