@@ -43,6 +43,7 @@ class CheckJobRunning(Enum):
     WaitForRun = 3
 
 
+# pylint: disable=too-many-instance-attributes
 class DataflowCreateJavaJobOperator(BaseOperator):
     """
     Start a Java Cloud DataFlow batch job. The parameters of the operation
@@ -151,6 +152,22 @@ class DataflowCreateJavaJobOperator(BaseOperator):
             always wait until finished. For more information, look at:
             `Asynchronous execution
             <https://cloud.google.com/dataflow/docs/guides/specifying-exec-params#python_10>`__
+
+        The process of starting the Dataflow job in Airflow consists of two steps:
+
+        * running a subprocess and reading the stderr/stderr log for the job id.
+        * loop waiting for the end of the job ID from the previous step.
+          This loop checks the status of the job.
+
+        Step two is started just after step one has finished, so if you have wait_until_finished in your
+        pipeline code, step two will not start until the process stops. When this process stops,
+        steps two will run, but it will only execute one iteration as the job will be in a terminal state.
+
+        If you in your pipeline do not call the wait_for_pipeline method but pass wait_until_finish=True
+        to the operator, the second loop will wait for the job's terminal state.
+
+        If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish =False
+        to the operator, the second loop will wait for the running state only.
     :type wait_until_finished: Optional[bool]
 
     Note that both
@@ -297,6 +314,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
             self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id)
 
 
+# pylint: disable=too-many-instance-attributes
 class DataflowTemplatedJobStartOperator(BaseOperator):
     """
     Start a Templated Cloud DataFlow job. The parameters of the operation
@@ -369,6 +387,22 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             always wait until finished. For more information, look at:
             `Asynchronous execution
             <https://cloud.google.com/dataflow/docs/guides/specifying-exec-params#python_10>`__
+
+        The process of starting the Dataflow job in Airflow consists of two steps:
+
+        * running a subprocess and reading the stderr/stderr log for the job id.
+        * loop waiting for the end of the job ID from the previous step.
+          This loop checks the status of the job.
+
+        Step two is started just after step one has finished, so if you have wait_until_finished in your
+        pipeline code, step two will not start until the process stops. When this process stops,
+        steps two will run, but it will only execute one iteration as the job will be in a terminal state.
+
+        If you in your pipeline do not call the wait_for_pipeline method but pass wait_until_finish=True
+        to the operator, the second loop will wait for the job's terminal state.
+
+        If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish =False
+        to the operator, the second loop will wait for the running state only.
     :type wait_until_finished: Optional[bool]
 
     It's a good practice to define dataflow_* parameters in the default_args of the dag
@@ -544,6 +578,22 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
             always wait until finished. For more information, look at:
             `Asynchronous execution
             <https://cloud.google.com/dataflow/docs/guides/specifying-exec-params#python_10>`__
+
+        The process of starting the Dataflow job in Airflow consists of two steps:
+
+        * running a subprocess and reading the stderr/stderr log for the job id.
+        * loop waiting for the end of the job ID from the previous step.
+          This loop checks the status of the job.
+
+        Step two is started just after step one has finished, so if you have wait_until_finished in your
+        pipeline code, step two will not start until the process stops. When this process stops,
+        steps two will run, but it will only execute one iteration as the job will be in a terminal state.
+
+        If you in your pipeline do not call the wait_for_pipeline method but pass wait_until_finish=True
+        to the operator, the second loop will wait for the job's terminal state.
+
+        If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish =False
+        to the operator, the second loop will wait for the running state only.
     """
 
     template_fields = ["body", "location", "project_id", "gcp_conn_id"]
@@ -788,6 +838,22 @@ class DataflowCreatePythonJobOperator(BaseOperator):
             always wait until finished. For more information, look at:
             `Asynchronous execution
             <https://cloud.google.com/dataflow/docs/guides/specifying-exec-params#python_10>`__
+
+        The process of starting the Dataflow job in Airflow consists of two steps:
+
+        * running a subprocess and reading the stderr/stderr log for the job id.
+        * loop waiting for the end of the job ID from the previous step.
+          This loop checks the status of the job.
+
+        Step two is started just after step one has finished, so if you have wait_until_finished in your
+        pipeline code, step two will not start until the process stops. When this process stops,
+        steps two will run, but it will only execute one iteration as the job will be in a terminal state.
+
+        If you in your pipeline do not call the wait_for_pipeline method but pass wait_until_finish=True
+        to the operator, the second loop will wait for the job's terminal state.
+
+        If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish =False
+        to the operator, the second loop will wait for the running state only.
     :type wait_until_finished: Optional[bool]
     """
 
