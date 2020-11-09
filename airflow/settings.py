@@ -20,9 +20,11 @@ import json
 import logging
 import os
 import sys
+import warnings
 from typing import Optional
 
 import pendulum
+import rich
 from sqlalchemy import create_engine, exc
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -91,6 +93,17 @@ STATE_COLORS = {
     "skipped": "pink",
     "scheduled": "tan",
 }
+
+
+def custom_show_warning(message, category, filename, lineno, file=None, line=None):
+    """Custom function to print rich and visible warnings"""
+    msg = f"[bold]{line}" if line else f"[bold][yellow]{filename}:{lineno}"
+    msg += f" {category.__name__}[/bold]: {message}[/yellow]"
+    file = file or sys.stderr
+    rich.print(msg, file=file)
+
+
+warnings.showwarning = custom_show_warning
 
 
 def policy(task):  # pylint: disable=unused-argument
