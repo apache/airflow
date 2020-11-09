@@ -192,6 +192,8 @@ log.txt*
 /provider_packages/MANIFEST.in
 /airflow/providers/__init__.py
 
+# Docker context files
+/docker-context-files
 # Local .terraform directories
 **/.terraform/*
 
