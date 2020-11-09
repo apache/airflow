@@ -1192,10 +1192,16 @@ def update_generated_files_for_package(
     }
     if update_release_notes:
         git_cmd = get_git_command(previous_release)
-        changes = subprocess.check_output(git_cmd, cwd=source_provider_package_path, universal_newlines=True)
-        changes_table = convert_git_changes_to_table(
-            changes, base_url="https://github.com/apache/airflow/commit/"
-        )
+        try:
+            changes = subprocess.check_output(
+                git_cmd, cwd=source_provider_package_path, universal_newlines=True
+            )
+            changes_table = convert_git_changes_to_table(
+                changes, base_url="https://github.com/apache/airflow/commit/"
+            )
+        except subprocess.CalledProcessError:
+            # TODO(potiuk) fix me for both backport/provider package check
+            changes_table = ''
         context["CURRENT_CHANGES_TABLE"] = changes_table
         pip_requirements_table = convert_pip_requirements_to_table(
             PROVIDERS_REQUIREMENTS[provider_package_id]
@@ -1542,6 +1548,7 @@ ERROR! Wrong first param: {sys.argv[1]}
         print("Generate setup files")
         print()
         provider = sys.argv[2]
+        make_sure_remote_apache_exists_and_fetch()
         update_generated_files_for_package(
             provider, "", suffix, [], BACKPORT_PACKAGES, update_release_notes=False, update_setup=True
         )
