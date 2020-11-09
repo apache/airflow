@@ -23,7 +23,7 @@ DatabricksSubmitRunOperator
 ===========================
 
 Use the :class:`~airflow.providers.databricks.operators.DatabricksSubmitRunOperator` to submit
-an existing Spark job run to `Databricks api/2.0/jobs/runs/submit <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_API endpoint.
+an existing Spark job run to Databricks api/2.0/jobs/runs/submit <https://docs.databricks.com/api/latest/jobs.html#runs-submit> API endpoint.
 
 
 Using the Operator
