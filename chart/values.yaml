@@ -409,6 +409,13 @@ flower:
   #     cpu: 100m
   #     memory: 128Mi
 
+  # A secret containing the connection
+  secretName: ~
+
+  # Else, if username and password are set, create secret from username and password
+  username: ~
+  password: ~
+
   service:
     type: ClusterIP
 
@@ -593,6 +600,11 @@ config:
     auth_backend: airflow.api.auth.backend.deny_all
   logging:
     logging_level: DEBUG
+  metrics:
+    statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
+    statsd_port: 9125
+    statsd_prefix: airflow
+    statsd_host: '{{ printf "%s-statsd" .Release.Name }}'
   webserver:
     enable_proxy_fix: 'True'
     expose_config: 'True'
@@ -603,6 +615,7 @@ config:
 
   scheduler:
     scheduler_heartbeat_sec: 5
+    # For Airflow 1.10, backward compatibility
     statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
     statsd_port: 9125
     statsd_prefix: airflow
@@ -633,10 +646,10 @@ config:
     worker_container_repository: '{{ .Values.images.airflow.repository | default .Values.defaultAirflowRepository }}'
     worker_container_tag: '{{ .Values.images.airflow.tag | default .Values.defaultAirflowTag }}'
     delete_worker_pods: 'True'
-    multi_namespace_mode: '{{ .Values.multiNamespaceMode }}'
+    multi_namespace_mode: '{{ if .Values.multiNamespaceMode }}True{{ else }}False{{ end }}'
 # yamllint enable rule:line-length
 
-multiNamespaceMode: 'False'
+multiNamespaceMode: false
 
 podTemplate: ~
 

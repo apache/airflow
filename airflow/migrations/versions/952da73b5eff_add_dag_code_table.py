@@ -51,20 +51,22 @@ def upgrade():
         fileloc_hash = sa.Column(sa.BigInteger, nullable=False)
 
     """Apply add source code table"""
-    op.create_table('dag_code',  # pylint: disable=no-member
-                    sa.Column('fileloc_hash', sa.BigInteger(),
-                              nullable=False, primary_key=True, autoincrement=False),
-                    sa.Column('fileloc', sa.String(length=2000), nullable=False),
-                    sa.Column('source_code', sa.UnicodeText(), nullable=False),
-                    sa.Column('last_updated', sa.TIMESTAMP(timezone=True), nullable=False))
+    op.create_table(
+        'dag_code',  # pylint: disable=no-member
+        sa.Column('fileloc_hash', sa.BigInteger(), nullable=False, primary_key=True, autoincrement=False),
+        sa.Column('fileloc', sa.String(length=2000), nullable=False),
+        sa.Column('source_code', sa.UnicodeText(), nullable=False),
+        sa.Column('last_updated', sa.TIMESTAMP(timezone=True), nullable=False),
+    )
 
     conn = op.get_bind()
     if conn.dialect.name != 'sqlite':
         if conn.dialect.name == "mssql":
             op.drop_index('idx_fileloc_hash', 'serialized_dag')
 
-        op.alter_column(table_name='serialized_dag', column_name='fileloc_hash',
-                        type_=sa.BigInteger(), nullable=False)
+        op.alter_column(
+            table_name='serialized_dag', column_name='fileloc_hash', type_=sa.BigInteger(), nullable=False
+        )
         if conn.dialect.name == "mssql":
             op.create_index('idx_fileloc_hash', 'serialized_dag', ['fileloc_hash'])
 

@@ -37,7 +37,6 @@ Those "known-to-be-working" constraints are per major/minor python version. You 
 files when installing Airflow from PyPI. Note that you have to specify correct Airflow version
 and python versions in the URL.
 
-
   **Prerequisites**
 
   On Debian based Linux OS:
@@ -52,18 +51,21 @@ and python versions in the URL.
 
 .. code-block:: bash
 
-    pip install \
-     apache-airflow==1.10.12 \
-     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.7.txt"
-
+    AIRFLOW_VERSION=1.10.12
+    PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
+    # For example: 3.6
+    CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
+    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.6.txt
+    pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
 2. Installing with extras (for example postgres, google)
 
 .. code-block:: bash
 
-    pip install \
-     apache-airflow[postgres,google]==1.10.12 \
-     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.7.txt"
+    AIRFLOW_VERSION=1.10.12
+    PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
+    CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
+    pip install "apache-airflow[postgres,google]==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
 
 You need certain system level requirements in order to install Airflow. Those are requirements that are known
@@ -118,8 +120,6 @@ Here's the list of the subpackages and what they enable:
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | all_dbs             | ``pip install 'apache-airflow[all_dbs]'``           | All databases integrations                                           |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| crypto              | ``pip install 'apache-airflow[crypto]'``            | Encrypt connection passwords in metadata db                          |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | devel               | ``pip install 'apache-airflow[devel]'``             | Minimum dev tools requirements                                       |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | devel_hadoop        | ``pip install 'apache-airflow[devel_hadoop]'``      | Airflow + dependencies on the Hadoop stack                           |
@@ -149,15 +149,9 @@ Here's the list of the subpackages and what they enable:
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | kylin               | ``pip install 'apache-airflow[apache.kylin]'``      | All Kylin related operators & hooks                                  |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| livy                | ``pip install 'apache-airflow[apache.livy]'``       | All Livy related operators & hooks                                   |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| pig                 | ``pip install 'apache-airflow[apache.pig]'``        | All Pig related operators & hooks                                    |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | presto              | ``pip install 'apache-airflow[apache.presto]'``     | All Presto related operators & hooks                                 |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | spark               | ``pip install 'apache-airflow[apache.spark]'``      | All Spark related operators & hooks                                  |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| sqoop               | ``pip install 'apache-airflow[apache.sqoop]'``      | All Sqoop related operators & hooks                                  |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | webhdfs             | ``pip install 'apache-airflow[webhdfs]'``           | HDFS hooks and operators                                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
@@ -190,6 +184,10 @@ Here's the list of the subpackages and what they enable:
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | jira                | ``pip install 'apache-airflow[jira]'``              | Jira hooks and operators                                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| pagerduty           | ``pip install 'apache-airflow[pagerduty]'``         | Pagerduty hook                                                       |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| plexus              | ``pip install 'apache-airflow[plexus]'``            | Plexus service of CoreScientific.com AI platform                     |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | qds                 | ``pip install 'apache-airflow[qds]'``               | Enable QDS (Qubole Data Service) support                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | salesforce          | ``pip install 'apache-airflow[salesforce]'``        | Salesforce hook                                                      |
@@ -198,11 +196,15 @@ Here's the list of the subpackages and what they enable:
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | segment             | ``pip install 'apache-airflow[segment]'``           | Segment hooks and sensors                                            |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| sentry              | ``pip install 'apache-airflow[sentry]'``            | Sentry service for application logging and monitoring                |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | slack               | ``pip install 'apache-airflow[slack]'``             | :class:`airflow.providers.slack.operators.slack.SlackAPIOperator`    |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | snowflake           | ``pip install 'apache-airflow[snowflake]'``         | Snowflake hooks and operators                                        |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | vertica             | ``pip install 'apache-airflow[vertica]'``           | Vertica hook support as an Airflow backend                           |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| yandexcloud         | ``pip install 'apache-airflow[yandexcloud]'``       | Yandex.Cloud hooks and operators                                     |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 
 
@@ -255,7 +257,13 @@ Here's the list of the subpackages and what they enable:
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
 | samba               | ``pip install 'apache-airflow[samba]'``             | :class:`airflow.providers.apache.hive.transfers.hive_to_samba.HiveToSambaOperator` |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
+| singularity         | ``pip install 'apache-airflow[singularity]'``       | Singularity container operator                                                     |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
 | statsd              | ``pip install 'apache-airflow[statsd]'``            | Needed by StatsD metrics                                                           |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
+| tableau             | ``pip install 'apache-airflow[tableau]'``           | Tableau visualization integration                                                  |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
+| virtualenv          | ``pip install 'apache-airflow[virtualenv]'``        | Running python tasks in local virtualenv                                           |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
 
 

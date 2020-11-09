@@ -247,9 +247,7 @@ class SpannerHook(GoogleBaseHook):
         """
         instance = self._get_client(project_id=project_id).instance(instance_id=instance_id)
         if not instance.exists():
-            raise AirflowException(
-                "The instance {} does not exist in project {} !".format(instance_id, project_id)
-            )
+            raise AirflowException(f"The instance {instance_id} does not exist in project {project_id} !")
         database = instance.database(database_id=database_id)
         if not database.exists():
             return None
@@ -281,9 +279,7 @@ class SpannerHook(GoogleBaseHook):
         """
         instance = self._get_client(project_id=project_id).instance(instance_id=instance_id)
         if not instance.exists():
-            raise AirflowException(
-                "The instance {} does not exist in project {} !".format(instance_id, project_id)
-            )
+            raise AirflowException(f"The instance {instance_id} does not exist in project {project_id} !")
         database = instance.database(database_id=database_id, ddl_statements=ddl_statements)
         try:
             operation = database.create()  # type: Operation
@@ -324,9 +320,7 @@ class SpannerHook(GoogleBaseHook):
         """
         instance = self._get_client(project_id=project_id).instance(instance_id=instance_id)
         if not instance.exists():
-            raise AirflowException(
-                "The instance {} does not exist in project {} !".format(instance_id, project_id)
-            )
+            raise AirflowException(f"The instance {instance_id} does not exist in project {project_id} !")
         database = instance.database(database_id=database_id)
         try:
             operation = database.update_ddl(ddl_statements=ddl_statements, operation_id=operation_id)
@@ -363,9 +357,7 @@ class SpannerHook(GoogleBaseHook):
         """
         instance = self._get_client(project_id=project_id).instance(instance_id=instance_id)
         if not instance.exists():
-            raise AirflowException(
-                "The instance {} does not exist in project {} !".format(instance_id, project_id)
-            )
+            raise AirflowException(f"The instance {instance_id} does not exist in project {project_id} !")
         database = instance.database(database_id=database_id)
         if not database.exists():
             self.log.info(

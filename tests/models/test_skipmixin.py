@@ -35,7 +35,6 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
 class TestSkipMixin(unittest.TestCase):
-
     @patch('airflow.utils.timezone.utcnow')
     def test_skip(self, mock_now):
         session = settings.Session()
@@ -52,11 +51,7 @@ class TestSkipMixin(unittest.TestCase):
             execution_date=now,
             state=State.FAILED,
         )
-        SkipMixin().skip(
-            dag_run=dag_run,
-            execution_date=now,
-            tasks=tasks,
-            session=session)
+        SkipMixin().skip(dag_run=dag_run, execution_date=now, tasks=tasks, session=session)
 
         session.query(TI).filter(
             TI.dag_id == 'dag',
@@ -77,11 +72,7 @@ class TestSkipMixin(unittest.TestCase):
         )
         with dag:
             tasks = [DummyOperator(task_id='task')]
-        SkipMixin().skip(
-            dag_run=None,
-            execution_date=now,
-            tasks=tasks,
-            session=session)
+        SkipMixin().skip(dag_run=None, execution_date=now, tasks=tasks, session=session)
 
         session.query(TI).filter(
             TI.dag_id == 'dag',
@@ -113,10 +104,7 @@ class TestSkipMixin(unittest.TestCase):
         ti2 = TI(task2, execution_date=DEFAULT_DATE)
         ti3 = TI(task3, execution_date=DEFAULT_DATE)
 
-        SkipMixin().skip_all_except(
-            ti=ti1,
-            branch_task_ids=['task2']
-        )
+        SkipMixin().skip_all_except(ti=ti1, branch_task_ids=['task2'])
 
         def get_state(ti):
             ti.refresh_from_db()

@@ -18,7 +18,7 @@
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-setup_backport_packages
+setup_provider_packages
 
 LIST_OF_DIRS_FILE=$(mktemp)
 
@@ -29,14 +29,13 @@ find . -type d | sed 's/.\///; s/\//\./g' | grep -E 'hooks|operators|sensors|sec
 
 cd "${AIRFLOW_SOURCES}/provider_packages" || exit 1
 
-rm -rf dist/*
-rm -rf -- *.egg-info
-
+PREPARE_PROVIDER_PACKAGES_PY="${AIRFLOW_SOURCES}/dev/provider_packages/prepare_provider_packages.py"
+REFACTOR_PROVIDER_PACKAGES_PY="${AIRFLOW_SOURCES}/dev/provider_packages/refactor_provider_packages.py"
 
 verify_suffix_versions_for_package_preparation
 
 if [[ -z "$*" ]]; then
-    PROVIDERS_PACKAGES=$(python3 prepare_provider_packages.py list-providers-packages)
+    PROVIDERS_PACKAGES=$(python3 "${PREPARE_PROVIDER_PACKAGES_PY}" list-providers-packages)
 
     PACKAGE_ERROR="false"
     # Check if all providers are included
@@ -51,20 +50,20 @@ if [[ -z "$*" ]]; then
 
     if [[ ${PACKAGE_ERROR} == "true" ]]; then
         echo
-        echo "ERROR! Some packages from provider_packages/prepare_provider_packages.py are missing in providers dir"
+        echo "ERROR! Some packages from dev/provider_packages/prepare_provider_packages.py are missing in providers dir"
         exit 1
     fi
 
     NUM_LINES=$(wc -l "${LIST_OF_DIRS_FILE}" | awk '{ print $1 }')
     if [[ ${NUM_LINES} != "0" ]]; then
         echo "ERROR! Some folders from providers package are not defined"
-        echo "       Please add them to provider_packages/prepare_provider_packages.py:"
+        echo "       Please add them to dev/provider_packages/prepare_provider_packages.py:"
         echo
         cat "${LIST_OF_DIRS_FILE}"
         echo
         exit 1
     fi
-    PROVIDER_PACKAGES=$(python3 prepare_provider_packages.py list-backportable-packages)
+    PROVIDER_PACKAGES=$(python3 "${PREPARE_PROVIDER_PACKAGES_PY}" list-backportable-packages)
 else
     if [[ "$1" == "--help" ]]; then
         echo
@@ -72,7 +71,7 @@ else
         echo
         echo "You can provide list of packages to build out of:"
         echo
-        python3 prepare_provider_packages.py list-providers-packages | tr '\n ' ' ' | fold -w 100 -s
+        python3 "${PREPARE_PROVIDER_PACKAGES_PY}" list-providers-packages | tr '\n ' ' ' | fold -w 100 -s
         echo
         echo
         exit
@@ -89,11 +88,17 @@ else
     echo " Copying sources for provider packages"
     echo "==================================================================================="
 fi
-python3 refactor_provider_packages.py
+
+python3 "${REFACTOR_PROVIDER_PACKAGES_PY}"
+
+rm -rf dist/*
 
 for PROVIDER_PACKAGE in ${PROVIDER_PACKAGES}
 do
+    rm -rf -- *.egg-info
+    rm -rf build/
     LOG_FILE=$(mktemp)
+    python3 "${PREPARE_PROVIDER_PACKAGES_PY}" generate-setup-files "${PROVIDER_PACKAGE}"
     echo "==================================================================================="
     echo " Preparing ${PACKAGE_TYPE} package ${PROVIDER_PACKAGE} "
     if [[ "${VERSION_SUFFIX_FOR_PYPI}" == '' && "${VERSION_SUFFIX_FOR_SVN}" == ''
@@ -126,7 +131,7 @@ do
         # only adds suffix to setup.py if version suffix for PyPI is set but the SVN one is not
         package_suffix="${VERSION_SUFFIX_FOR_PYPI}"
     fi
-    python3 prepare_provider_packages.py --version-suffix "${package_suffix}" \
+    python3 "${PREPARE_PROVIDER_PACKAGES_PY}" --version-suffix "${package_suffix}" \
         "${PROVIDER_PACKAGE}">"${LOG_FILE}" 2>&1
     RES="${?}"
     set -e

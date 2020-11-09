@@ -354,7 +354,7 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
         if not self._check_if_instance_exists(self.instance, hook):
             hook.create_instance(project_id=self.project_id, body=self.body)
         else:
-            self.log.info("Cloud SQL instance with ID %s already exists. " "Aborting create.", self.instance)
+            self.log.info("Cloud SQL instance with ID %s already exists. Aborting create.", self.instance)
 
         instance_resource = hook.get_instance(project_id=self.project_id, instance=self.instance)
         service_account_email = instance_resource["serviceAccountEmailAddress"]
@@ -518,7 +518,7 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         if not self._check_if_instance_exists(self.instance, hook):
-            print("Cloud SQL instance with ID {} does not exist. Aborting delete.".format(self.instance))
+            print(f"Cloud SQL instance with ID {self.instance} does not exist. Aborting delete.")
             return True
         else:
             return hook.delete_instance(project_id=self.project_id, instance=self.instance)
@@ -620,7 +620,7 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
         )
         if self._check_if_db_exists(database, hook):
             self.log.info(
-                "Cloud SQL instance with ID %s already contains database" " '%s'. Aborting database insert.",
+                "Cloud SQL instance with ID %s already contains database '%s'. Aborting database insert.",
                 self.instance,
                 database,
             )

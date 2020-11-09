@@ -25,7 +25,10 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.operators.check_operator import (
-    CheckOperator, IntervalCheckOperator, ThresholdCheckOperator, ValueCheckOperator,
+    CheckOperator,
+    IntervalCheckOperator,
+    ThresholdCheckOperator,
+    ValueCheckOperator,
 )
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.sql import BranchSQLOperator
@@ -98,8 +101,7 @@ class TestValueCheckOperator(unittest.TestCase):
 
     def test_pass_value_template_string(self):
         pass_value_str = "2018-03-22"
-        operator = self._construct_operator(
-            "select date from tab1;", "{{ ds }}")
+        operator = self._construct_operator("select date from tab1;", "{{ ds }}")
 
         operator.render_template_fields({"ds": pass_value_str})
 
@@ -108,8 +110,7 @@ class TestValueCheckOperator(unittest.TestCase):
 
     def test_pass_value_template_string_float(self):
         pass_value_float = 4.0
-        operator = self._construct_operator(
-            "select date from tab1;", pass_value_float)
+        operator = self._construct_operator("select date from tab1;", pass_value_float)
 
         operator.render_template_fields({})
 
@@ -134,8 +135,7 @@ class TestValueCheckOperator(unittest.TestCase):
         mock_hook.get_first.return_value = [11]
         mock_get_db_hook.return_value = mock_hook
 
-        operator = self._construct_operator(
-            "select value from tab1 limit 1;", 5, 1)
+        operator = self._construct_operator("select value from tab1 limit 1;", 5, 1)
 
         with self.assertRaisesRegex(AirflowException, "Tolerance:100.0%"):
             operator.execute()
@@ -155,7 +155,9 @@ class TestIntervalCheckOperator(unittest.TestCase):
         with self.assertRaisesRegex(AirflowException, "Invalid diff_method"):
             self._construct_operator(
                 table="test_table",
-                metric_thresholds={"f1": 1, },
+                metric_thresholds={
+                    "f1": 1,
+                },
                 ratio_formula="abs",
                 ignore_zero=False,
             )
@@ -168,7 +170,9 @@ class TestIntervalCheckOperator(unittest.TestCase):
 
         operator = self._construct_operator(
             table="test_table",
-            metric_thresholds={"f1": 1, },
+            metric_thresholds={
+                "f1": 1,
+            },
             ratio_formula="max_over_min",
             ignore_zero=False,
         )
@@ -184,7 +188,9 @@ class TestIntervalCheckOperator(unittest.TestCase):
 
         operator = self._construct_operator(
             table="test_table",
-            metric_thresholds={"f1": 1, },
+            metric_thresholds={
+                "f1": 1,
+            },
             ratio_formula="max_over_min",
             ignore_zero=True,
         )
@@ -208,7 +214,12 @@ class TestIntervalCheckOperator(unittest.TestCase):
 
         operator = self._construct_operator(
             table="test_table",
-            metric_thresholds={"f0": 1.0, "f1": 1.5, "f2": 2.0, "f3": 2.5, },
+            metric_thresholds={
+                "f0": 1.0,
+                "f1": 1.5,
+                "f2": 2.0,
+                "f3": 2.5,
+            },
             ratio_formula="max_over_min",
             ignore_zero=True,
         )
@@ -233,7 +244,12 @@ class TestIntervalCheckOperator(unittest.TestCase):
 
         operator = self._construct_operator(
             table="test_table",
-            metric_thresholds={"f0": 0.5, "f1": 0.6, "f2": 0.7, "f3": 0.8, },
+            metric_thresholds={
+                "f0": 0.5,
+                "f1": 0.6,
+                "f2": 0.7,
+                "f3": 0.8,
+            },
             ratio_formula="relative_diff",
             ignore_zero=True,
         )
@@ -260,9 +276,7 @@ class TestThresholdCheckOperator(unittest.TestCase):
         mock_hook.get_first.return_value = (10,)
         mock_get_db_hook.return_value = mock_hook
 
-        operator = self._construct_operator(
-            "Select avg(val) from table1 limit 1", 1, 100
-        )
+        operator = self._construct_operator("Select avg(val) from table1 limit 1", 1, 100)
 
         operator.execute()
 
@@ -272,9 +286,7 @@ class TestThresholdCheckOperator(unittest.TestCase):
         mock_hook.get_first.return_value = (10,)
         mock_get_db_hook.return_value = mock_hook
 
-        operator = self._construct_operator(
-            "Select avg(val) from table1 limit 1", 20, 100
-        )
+        operator = self._construct_operator("Select avg(val) from table1 limit 1", 20, 100)
 
         with self.assertRaisesRegex(AirflowException, "10.*20.0.*100.0"):
             operator.execute()
@@ -285,8 +297,7 @@ class TestThresholdCheckOperator(unittest.TestCase):
         mock_hook.get_first.side_effect = lambda x: (int(x.split()[1]),)
         mock_get_db_hook.return_value = mock_hook
 
-        operator = self._construct_operator(
-            "Select 10", "Select 1", "Select 100")
+        operator = self._construct_operator("Select 10", "Select 1", "Select 100")
 
         operator.execute()
 
@@ -296,8 +307,7 @@ class TestThresholdCheckOperator(unittest.TestCase):
         mock_hook.get_first.side_effect = lambda x: (int(x.split()[1]),)
         mock_get_db_hook.return_value = mock_hook
 
-        operator = self._construct_operator(
-            "Select 10", "Select 20", "Select 100")
+        operator = self._construct_operator("Select 10", "Select 20", "Select 100")
 
         with self.assertRaisesRegex(AirflowException, "10.*20.*100"):
             operator.execute()
@@ -367,8 +377,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         )
 
         with self.assertRaises(AirflowException):
-            op.run(start_date=DEFAULT_DATE,
-                   end_date=DEFAULT_DATE, ignore_ti_state=True)
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_invalid_conn(self):
         """Check if BranchSQLOperator throws an exception for invalid connection """
@@ -382,8 +391,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         )
 
         with self.assertRaises(AirflowException):
-            op.run(start_date=DEFAULT_DATE,
-                   end_date=DEFAULT_DATE, ignore_ti_state=True)
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_invalid_follow_task_true(self):
         """Check if BranchSQLOperator throws an exception for invalid connection """
@@ -397,8 +405,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         )
 
         with self.assertRaises(AirflowException):
-            op.run(start_date=DEFAULT_DATE,
-                   end_date=DEFAULT_DATE, ignore_ti_state=True)
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_invalid_follow_task_false(self):
         """Check if BranchSQLOperator throws an exception for invalid connection """
@@ -412,8 +419,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         )
 
         with self.assertRaises(AirflowException):
-            op.run(start_date=DEFAULT_DATE,
-                   end_date=DEFAULT_DATE, ignore_ti_state=True)
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @pytest.mark.backend("mysql")
     def test_sql_branch_operator_mysql(self):
@@ -426,9 +432,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             follow_task_ids_if_false="branch_2",
             dag=self.dag,
         )
-        branch_op.run(
-            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
-        )
+        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @pytest.mark.backend("postgres")
     def test_sql_branch_operator_postgres(self):
@@ -441,9 +445,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             follow_task_ids_if_false="branch_2",
             dag=self.dag,
         )
-        branch_op.run(
-            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
-        )
+        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @mock.patch("airflow.operators.sql.BaseHook")
     def test_branch_single_value_with_dag_run(self, mock_hook):
@@ -469,9 +471,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         )
 
         mock_hook.get_connection("mysql_default").conn_type = "mysql"
-        mock_get_records = (
-            mock_hook.get_connection.return_value.get_hook.return_value.get_first
-        )
+        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_first
 
         mock_get_records.return_value = 1
 
@@ -512,9 +512,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         )
 
         mock_hook.get_connection("mysql_default").conn_type = "mysql"
-        mock_get_records = (
-            mock_hook.get_connection.return_value.get_hook.return_value.get_first
-        )
+        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_first
 
         for true_value in SUPPORTED_TRUE_VALUES:
             mock_get_records.return_value = true_value
@@ -556,9 +554,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         )
 
         mock_hook.get_connection("mysql_default").conn_type = "mysql"
-        mock_get_records = (
-            mock_hook.get_connection.return_value.get_hook.return_value.get_first
-        )
+        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_first
 
         for false_value in SUPPORTED_FALSE_VALUES:
             mock_get_records.return_value = false_value
@@ -602,9 +598,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         )
 
         mock_hook.get_connection("mysql_default").conn_type = "mysql"
-        mock_get_records = (
-            mock_hook.get_connection.return_value.get_hook.return_value.get_first
-        )
+        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_first
         mock_get_records.return_value = [["1"]]
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -646,9 +640,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         )
 
         mock_hook.get_connection("mysql_default").conn_type = "mysql"
-        mock_get_records = (
-            mock_hook.get_connection.return_value.get_hook.return_value.get_first
-        )
+        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_first
 
         mock_get_records.return_value = ["Invalid Value"]
 
@@ -679,9 +671,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         )
 
         mock_hook.get_connection("mysql_default").conn_type = "mysql"
-        mock_get_records = (
-            mock_hook.get_connection.return_value.get_hook.return_value.get_first
-        )
+        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_first
 
         for true_value in SUPPORTED_TRUE_VALUES:
             mock_get_records.return_value = [true_value]
@@ -723,9 +713,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         )
 
         mock_hook.get_connection("mysql_default").conn_type = "mysql"
-        mock_get_records = (
-            mock_hook.get_connection.return_value.get_hook.return_value.get_first
-        )
+        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_first
 
         for false_value in SUPPORTED_FALSE_VALUES:
             mock_get_records.return_value = [false_value]

@@ -28,7 +28,7 @@ Before you begin
 
 Before you start, make sure you have performed the following tasks:
 
-1.  Include sendgrid subpackage as part of your Airflow installation
+1.  Include ``google`` subpackage as part of your Airflow installation
 
     .. code-block:: bash
 
@@ -152,7 +152,7 @@ command as in the example below.
     Created version [1] of the secret [airflow-variables-first-variable].
 
 Checking configuration
-======================
+""""""""""""""""""""""
 
 You can use the ``airflow connections get`` command to check if the connection is correctly read from the backend secret:
 
@@ -180,7 +180,7 @@ To check the variables is correctly read from the backend secret, you can use ``
     secret_content
 
 Clean up
-========
+""""""""
 
 To avoid incurring charges to your Google Cloud account for the resources used in this guide,
 delete secrets by running ``gcloud beta secrets delete``:

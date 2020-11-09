@@ -17,7 +17,7 @@
 # under the License.
 
 import json
-from typing import Union, Optional, List
+from typing import List, Optional, Union
 
 import requests
 from requests import Session
@@ -70,9 +70,9 @@ class DingdingHook(HttpHook):
         token = conn.password
         if not token:
             raise AirflowException(
-                'Dingding token is requests but get nothing, ' 'check you conn_id configuration.'
+                'Dingding token is requests but get nothing, check you conn_id configuration.'
             )
-        return 'robot/send?access_token={}'.format(token)
+        return f'robot/send?access_token={token}'
 
     def _build_message(self) -> str:
         """

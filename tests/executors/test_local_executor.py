@@ -91,14 +91,16 @@ class TestLocalExecutor(unittest.TestCase):
         self.assertEqual(executor.workers_used, expected)
 
     def test_execution_subprocess_unlimited_parallelism(self):
-        with mock.patch.object(settings, 'EXECUTE_TASKS_NEW_PYTHON_INTERPRETER',
-                               new_callable=mock.PropertyMock) as option:
+        with mock.patch.object(
+            settings, 'EXECUTE_TASKS_NEW_PYTHON_INTERPRETER', new_callable=mock.PropertyMock
+        ) as option:
             option.return_value = True
             self.execution_parallelism_subprocess(parallelism=0)  # pylint: disable=no-value-for-parameter
 
     def test_execution_subprocess_limited_parallelism(self):
-        with mock.patch.object(settings, 'EXECUTE_TASKS_NEW_PYTHON_INTERPRETER',
-                               new_callable=mock.PropertyMock) as option:
+        with mock.patch.object(
+            settings, 'EXECUTE_TASKS_NEW_PYTHON_INTERPRETER', new_callable=mock.PropertyMock
+        ) as option:
             option.return_value = True
             self.execution_parallelism_subprocess(parallelism=2)  # pylint: disable=no-value-for-parameter
 
@@ -116,7 +118,9 @@ class TestLocalExecutor(unittest.TestCase):
     def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
         executor = LocalExecutor()
         executor.heartbeat()
-        calls = [mock.call('executor.open_slots', mock.ANY),
-                 mock.call('executor.queued_tasks', mock.ANY),
-                 mock.call('executor.running_tasks', mock.ANY)]
+        calls = [
+            mock.call('executor.open_slots', mock.ANY),
+            mock.call('executor.queued_tasks', mock.ANY),
+            mock.call('executor.running_tasks', mock.ANY),
+        ]
         mock_stats_gauge.assert_has_calls(calls)

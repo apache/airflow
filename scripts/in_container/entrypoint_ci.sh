@@ -97,7 +97,7 @@ else
     install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}"
 fi
 
-if [[ ${INSTALL_WHEELS} == "true" ]]; then
+if [[ ${INSTALL_WHEELS=} == "true" ]]; then
   pip install /dist/*.whl || true
 fi
 
@@ -185,7 +185,6 @@ if [[ "${GITHUB_ACTIONS}" == "true" ]]; then
         # timeouts in seconds for individual tests
         "--setup-timeout=20"
         "--execution-timeout=60"
-        "--with-db-init"
         "--teardown-timeout=20"
         # Only display summary for non-expected case
         # f - failed
@@ -197,7 +196,12 @@ if [[ "${GITHUB_ACTIONS}" == "true" ]]; then
         # p - passed
         # P - passed with output
         "-rfEX"
+    )
+    if [[ "${TEST_TYPE}" != "Helm" ]]; then
+        EXTRA_PYTEST_ARGS+=(
+        "--with-db-init"
         )
+    fi
 else
     EXTRA_PYTEST_ARGS=(
         "-rfEX"
@@ -232,6 +236,7 @@ else
     CLI_TESTS=("tests/cli")
     API_TESTS=("tests/api" "tests/api_connexion")
     PROVIDERS_TESTS=("tests/providers")
+    ALWAYS_TESTS=("tests/always")
     CORE_TESTS=(
         "tests/core"
         "tests/executors"
@@ -242,12 +247,14 @@ else
         "tests/utils"
     )
     WWW_TESTS=("tests/www")
+    HELM_CHART_TESTS=("chart/tests")
     ALL_TESTS=("tests")
     ALL_PRESELECTED_TESTS=(
         "${CLI_TESTS[@]}"
         "${API_TESTS[@]}"
         "${PROVIDERS_TESTS[@]}"
         "${CORE_TESTS[@]}"
+        "${ALWAYS_TESTS[@]}"
         "${WWW_TESTS[@]}"
     )
 
@@ -259,12 +266,17 @@ else
         SELECTED_TESTS=("${PROVIDERS_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Core" ]]; then
         SELECTED_TESTS=("${CORE_TESTS[@]}")
+    elif [[ ${TEST_TYPE:=""} == "Always" ]]; then
+        SELECTED_TESTS=("${ALWAYS_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "WWW" ]]; then
         SELECTED_TESTS=("${WWW_TESTS[@]}")
+    elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
+        SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Other" ]]; then
         find_all_other_tests
         SELECTED_TESTS=("${ALL_OTHER_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "All" || ${TEST_TYPE} == "Quarantined" || \
+            ${TEST_TYPE} == "Always" || \
             ${TEST_TYPE} == "Postgres" || ${TEST_TYPE} == "MySQL" || \
             ${TEST_TYPE} == "Heisentests" || ${TEST_TYPE} == "Long" || \
             ${TEST_TYPE} == "Integration" ]]; then

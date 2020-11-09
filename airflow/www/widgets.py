@@ -36,7 +36,6 @@ class AirflowDateTimePickerWidget:
         "</span>"
         '<input class="form-control" %(text)s />'
         "</div>"
-
     )
 
     def __call__(self, field, **kwargs):
@@ -46,6 +45,4 @@ class AirflowDateTimePickerWidget:
             field.data = ""
         template = self.data_template
 
-        return Markup(
-            template % {"text": html_params(type="text", value=field.data, **kwargs)}
-        )
+        return Markup(template % {"text": html_params(type="text", value=field.data, **kwargs)})

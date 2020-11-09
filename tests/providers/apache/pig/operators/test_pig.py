@@ -16,7 +16,6 @@
 # under the License.
 
 import unittest
-
 from unittest import mock
 
 from airflow.providers.apache.pig.hooks.pig import PigCliHook

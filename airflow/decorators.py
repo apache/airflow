@@ -15,4 +15,5 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from airflow.models.dag import dag  # noqa # pylint: disable=unused-import
 from airflow.operators.python import task  # noqa # pylint: disable=unused-import

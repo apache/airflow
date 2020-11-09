@@ -1,3 +1,20 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
 ---
 name: "CodeQL"
 
@@ -13,7 +30,6 @@ jobs:
   selective-checks:
     name: Selective checks
     runs-on: ubuntu-latest
-    if: github.repository == 'apache/airflow'
     outputs:
       needs-python-scans: ${{ steps.selective-checks.outputs.needs-python-scans }}
       needs-javascript-scans: ${{ steps.selective-checks.outputs.needs-javascript-scans }}
@@ -55,16 +71,14 @@ jobs:
           # a pull request then we can checkout the head.
           fetch-depth: 2
         if: |
-          github.repository == 'apache/airflow' &&
-          (matrix.language == 'python' && needs.selective-checks.outputs.needs-python-scans == 'true' ||
-          matrix.language == 'javascript' && needs.selective-checks.outputs.needs-javascript-scans == 'true')
+          matrix.language == 'python' && needs.selective-checks.outputs.needs-python-scans == 'true' ||
+          matrix.language == 'javascript' && needs.selective-checks.outputs.needs-javascript-scans == 'true'
 
       # If this run was triggered by a pull request event, then checkout
       # the head of the pull request instead of the merge commit.
       - run: git checkout HEAD^2
         if: |
           github.event_name == 'pull_request' &&
-          github.repository == 'apache/airflow' &&
           (matrix.language == 'python' && needs.selective-checks.outputs.needs-python-scans == 'true' ||
           matrix.language == 'javascript' && needs.selective-checks.outputs.needs-javascript-scans == 'true')
 
@@ -78,22 +92,19 @@ jobs:
           # Prefix the list here with "+" to use these queries and those in the config file.
           # queries: ./path/to/local/query, your-org/your-repo/queries@main
         if: |
-          github.repository == 'apache/airflow' &&
-          (matrix.language == 'python' && needs.selective-checks.outputs.needs-python-scans == 'true' ||
-          matrix.language == 'javascript' && needs.selective-checks.outputs.needs-javascript-scans == 'true')
+          matrix.language == 'python' && needs.selective-checks.outputs.needs-python-scans == 'true' ||
+          matrix.language == 'javascript' && needs.selective-checks.outputs.needs-javascript-scans == 'true'
 
       # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).
       # If this step fails, then you should remove it and run the build manually (see below)
       - name: Autobuild
         uses: github/codeql-action/autobuild@v1
         if: |
-          github.repository == 'apache/airflow' &&
-          (matrix.language == 'python' && needs.selective-checks.outputs.needs-python-scans == 'true' ||
-          matrix.language == 'javascript' && needs.selective-checks.outputs.needs-javascript-scans == 'true')
+          matrix.language == 'python' && needs.selective-checks.outputs.needs-python-scans == 'true' ||
+          matrix.language == 'javascript' && needs.selective-checks.outputs.needs-javascript-scans == 'true'
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v1
         if: |
-          github.repository == 'apache/airflow' &&
-          (matrix.language == 'python' && needs.selective-checks.outputs.needs-python-scans == 'true' ||
-          matrix.language == 'javascript' && needs.selective-checks.outputs.needs-javascript-scans == 'true')
+          matrix.language == 'python' && needs.selective-checks.outputs.needs-python-scans == 'true' ||
+          matrix.language == 'javascript' && needs.selective-checks.outputs.needs-javascript-scans == 'true'

@@ -105,7 +105,7 @@ class SFTPOperator(BaseOperator):
         self.create_intermediate_dirs = create_intermediate_dirs
         if not (self.operation.lower() == SFTPOperation.GET or self.operation.lower() == SFTPOperation.PUT):
             raise TypeError(
-                "unsupported operation value {0}, expected {1} or {2}".format(
+                "unsupported operation value {}, expected {} or {}".format(
                     self.operation, SFTPOperation.GET, SFTPOperation.PUT
                 )
             )
@@ -118,7 +118,7 @@ class SFTPOperator(BaseOperator):
                     self.log.info("ssh_conn_id is ignored when ssh_hook is provided.")
                 else:
                     self.log.info(
-                        "ssh_hook is not provided or invalid. " "Trying ssh_conn_id to create SSHHook."
+                        "ssh_hook is not provided or invalid. Trying ssh_conn_id to create SSHHook."
                     )
                     self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id)
 
@@ -139,7 +139,7 @@ class SFTPOperator(BaseOperator):
                     local_folder = os.path.dirname(self.local_filepath)
                     if self.create_intermediate_dirs:
                         Path(local_folder).mkdir(parents=True, exist_ok=True)
-                    file_msg = "from {0} to {1}".format(self.remote_filepath, self.local_filepath)
+                    file_msg = f"from {self.remote_filepath} to {self.local_filepath}"
                     self.log.info("Starting to transfer %s", file_msg)
                     sftp_client.get(self.remote_filepath, self.local_filepath)
                 else:
@@ -149,12 +149,12 @@ class SFTPOperator(BaseOperator):
                             sftp_client=sftp_client,
                             remote_directory=remote_folder,
                         )
-                    file_msg = "from {0} to {1}".format(self.local_filepath, self.remote_filepath)
+                    file_msg = f"from {self.local_filepath} to {self.remote_filepath}"
                     self.log.info("Starting to transfer file %s", file_msg)
                     sftp_client.put(self.local_filepath, self.remote_filepath, confirm=self.confirm)
 
         except Exception as e:
-            raise AirflowException("Error while transferring {0}, error: {1}".format(file_msg, str(e)))
+            raise AirflowException("Error while transferring {}, error: {}".format(file_msg, str(e)))
 
         return self.local_filepath
 

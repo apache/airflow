@@ -152,9 +152,9 @@ class TestAwsS3Hook:
         bucket.put_object(Key='a', Body=b'a')
 
         assert hook.check_for_key('a', s3_bucket) is True
-        assert hook.check_for_key('s3://{}//a'.format(s3_bucket)) is True
+        assert hook.check_for_key(f's3://{s3_bucket}//a') is True
         assert hook.check_for_key('b', s3_bucket) is False
-        assert hook.check_for_key('s3://{}//b'.format(s3_bucket)) is False
+        assert hook.check_for_key(f's3://{s3_bucket}//b') is False
 
     def test_check_for_key_raises_error_with_invalid_conn_id(self, monkeypatch, s3_bucket):
         monkeypatch.delenv('AWS_PROFILE', raising=False)
@@ -170,7 +170,7 @@ class TestAwsS3Hook:
         bucket.put_object(Key='a', Body=b'a')
 
         assert hook.get_key('a', s3_bucket).key == 'a'
-        assert hook.get_key('s3://{}/a'.format(s3_bucket)).key == 'a'
+        assert hook.get_key(f's3://{s3_bucket}/a').key == 'a'
 
     def test_read_key(self, s3_bucket):
         hook = S3Hook()
@@ -196,13 +196,13 @@ class TestAwsS3Hook:
 
         assert hook.check_for_wildcard_key('a*', s3_bucket) is True
         assert hook.check_for_wildcard_key('abc', s3_bucket) is True
-        assert hook.check_for_wildcard_key('s3://{}//a*'.format(s3_bucket)) is True
-        assert hook.check_for_wildcard_key('s3://{}//abc'.format(s3_bucket)) is True
+        assert hook.check_for_wildcard_key(f's3://{s3_bucket}//a*') is True
+        assert hook.check_for_wildcard_key(f's3://{s3_bucket}//abc') is True
 
         assert hook.check_for_wildcard_key('a', s3_bucket) is False
         assert hook.check_for_wildcard_key('b', s3_bucket) is False
-        assert hook.check_for_wildcard_key('s3://{}//a'.format(s3_bucket)) is False
-        assert hook.check_for_wildcard_key('s3://{}//b'.format(s3_bucket)) is False
+        assert hook.check_for_wildcard_key(f's3://{s3_bucket}//a') is False
+        assert hook.check_for_wildcard_key(f's3://{s3_bucket}//b') is False
 
     def test_get_wildcard_key(self, s3_bucket):
         hook = S3Hook()
@@ -216,14 +216,14 @@ class TestAwsS3Hook:
         assert hook.get_wildcard_key('a*', s3_bucket).key == 'a/b'
         assert hook.get_wildcard_key('a*', s3_bucket, delimiter='/').key == 'abc'
         assert hook.get_wildcard_key('abc', s3_bucket, delimiter='/').key == 'abc'
-        assert hook.get_wildcard_key('s3://{}/a*'.format(s3_bucket)).key == 'a/b'
-        assert hook.get_wildcard_key('s3://{}/a*'.format(s3_bucket), delimiter='/').key == 'abc'
-        assert hook.get_wildcard_key('s3://{}/abc'.format(s3_bucket), delimiter='/').key == 'abc'
+        assert hook.get_wildcard_key(f's3://{s3_bucket}/a*').key == 'a/b'
+        assert hook.get_wildcard_key(f's3://{s3_bucket}/a*', delimiter='/').key == 'abc'
+        assert hook.get_wildcard_key(f's3://{s3_bucket}/abc', delimiter='/').key == 'abc'
 
         assert hook.get_wildcard_key('a', s3_bucket) is None
         assert hook.get_wildcard_key('b', s3_bucket) is None
-        assert hook.get_wildcard_key('s3://{}/a'.format(s3_bucket)) is None
-        assert hook.get_wildcard_key('s3://{}/b'.format(s3_bucket)) is None
+        assert hook.get_wildcard_key(f's3://{s3_bucket}/a') is None
+        assert hook.get_wildcard_key(f's3://{s3_bucket}/b') is None
 
     def test_load_string(self, s3_bucket):
         hook = S3Hook()
@@ -363,7 +363,7 @@ class TestAwsS3Hook:
         num_keys_to_remove = 1001
         keys = []
         for index in range(num_keys_to_remove):
-            key = 'key-{}'.format(index)
+            key = f'key-{index}'
             mocked_s3_res.Object(s3_bucket, key).put(Body=b'Data')
             keys.append(key)
 

@@ -92,7 +92,7 @@ class WebHDFSHook(BaseHook):
         return None
 
     def _get_client(self, connection: Connection) -> Any:
-        connection_str = 'http://{host}:{port}'.format(host=connection.host, port=connection.port)
+        connection_str = f'http://{connection.host}:{connection.port}'
 
         if _kerberos_security_mode:
             client = KerberosClient(connection_str)

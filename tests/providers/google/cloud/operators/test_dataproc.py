@@ -58,7 +58,7 @@ IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 CLUSTER_NAME = "cluster_name"
 CONFIG = {
     "gce_cluster_config": {
-        "zone_uri": "https://www.googleapis.com/compute/v1/projects/" "project_id/zones/zone",
+        "zone_uri": "https://www.googleapis.com/compute/v1/projects/project_id/zones/zone",
         "metadata": {"metadata": "data"},
         "network_uri": "network_uri",
         "subnetwork_uri": "subnetwork_uri",
@@ -464,7 +464,7 @@ class TestDataprocSubmitJobOperator(unittest.TestCase):
             metadata=METADATA,
         )
         mock_hook.return_value.wait_for_job.assert_called_once_with(
-            job_id=job_id, project_id=GCP_PROJECT, location=GCP_LOCATION
+            job_id=job_id, project_id=GCP_PROJECT, location=GCP_LOCATION, timeout=None
         )
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))

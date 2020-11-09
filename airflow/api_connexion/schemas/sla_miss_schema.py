@@ -16,6 +16,7 @@
 # under the License.
 
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
+
 from airflow.models import SlaMiss
 
 

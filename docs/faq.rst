@@ -94,7 +94,7 @@ What's the deal with ``start_date``?
 relevant in many ways. When creating a new DAG, you probably want to set
 a global ``start_date`` for your tasks using ``default_args``. The first
 DagRun to be created will be based on the ``min(start_date)`` for all your
-task. From that point on, the scheduler creates new DagRuns based on
+tasks. From that point on, the scheduler creates new DagRuns based on
 your ``schedule_interval`` and the corresponding task instances run as your
 dependencies are met. When introducing new tasks to your DAG, you need to
 pay special attention to ``start_date``, and may want to reactivate
@@ -136,7 +136,7 @@ How can I create DAGs dynamically?
 
 Airflow looks in your ``DAGS_FOLDER`` for modules that contain ``DAG`` objects
 in their global namespace and adds the objects it finds in the
-``DagBag``. Knowing this all, we need is a way to dynamically assign
+``DagBag``. Knowing this, all we need is a way to dynamically assign
 variable in the global namespace. This is easily done in python using the
 ``globals()`` function for the standard library, which behaves like a
 simple dictionary.
@@ -228,3 +228,29 @@ If pausing or unpausing a dag fails for any reason, the dag toggle will
 revert to its previous state and turn red. If you observe this behavior,
 try pausing the dag again, or check the console or server logs if the
 issue recurs.
+
+Why do I see error when importing or running airflow: ``Symbol not found: _Py_GetArgcArgv``?
+--------------------------------------------------------------------------------------------
+
+If you are using a homebrew installed version of Python, this is generally caused by
+using python in ``/usr/local/opt/bin`` rather than the Frameworks installation (e.g. for ``python 3.7``: ``/usr/local/opt/python@3.7/Frameworks/Python.framework/Versions/3.7``).
+
+The crux of the issue is that a library Airflow depends on, ``setproctitle``, uses a non-public Python API
+which is not available from the standard installation ``/usr/local/opt/`` (which symlinks to a path under ``/usr/local/Cellar``).
+
+An easy fix is just to ensure you use a version of Python that has a dylib of the python library available. For example:
+
+.. code-block:: bash
+  :linenos:
+
+  # Note: these instructions are for python3.7 but can be loosely modified for other versions
+  brew install python@3.7
+  virtualenv -p /usr/local/opt/python@3.7/Frameworks/Python.framework/Versions/3.7/bin/python3 .toy-venv
+  source .toy-venv/bin/activate
+  pip install apache-airflow
+  python
+  >>> import setproctitle
+  # Success!
+
+
+Alternatively, you can download and install Python directly from the [Python website](https://www.python.org/).

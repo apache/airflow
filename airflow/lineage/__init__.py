@@ -54,9 +54,14 @@ def _get_instance(meta: Metadata):
 
 def _render_object(obj: Any, context) -> Any:
     """Renders a attr annotated object. Will set non serializable attributes to none"""
-    return structure(json.loads(ENV.from_string(
-        json.dumps(unstructure(obj), default=lambda o: None)
-    ).render(**context).encode('utf-8')), type(obj))
+    return structure(
+        json.loads(
+            ENV.from_string(json.dumps(unstructure(obj), default=lambda o: None))
+            .render(**context)
+            .encode('utf-8')
+        ),
+        type(obj),
+    )
 
 
 def _to_dataset(obj: Any, source: str) -> Optional[Metadata]:
@@ -81,26 +86,21 @@ def apply_lineage(func: T) -> T:
 
     @wraps(func)
     def wrapper(self, context, *args, **kwargs):
-        self.log.debug("Lineage called with inlets: %s, outlets: %s",
-                       self.inlets, self.outlets)
+        self.log.debug("Lineage called with inlets: %s, outlets: %s", self.inlets, self.outlets)
         ret_val = func(self, context, *args, **kwargs)
 
-        outlets = [unstructure(_to_dataset(x, f"{self.dag_id}.{self.task_id}"))
-                   for x in self.outlets]
-        inlets = [unstructure(_to_dataset(x, None))
-                  for x in self.inlets]
+        outlets = [unstructure(_to_dataset(x, f"{self.dag_id}.{self.task_id}")) for x in self.outlets]
+        inlets = [unstructure(_to_dataset(x, None)) for x in self.inlets]
 
         if self.outlets:
-            self.xcom_push(context,
-                           key=PIPELINE_OUTLETS,
-                           value=outlets,
-                           execution_date=context['ti'].execution_date)
+            self.xcom_push(
+                context, key=PIPELINE_OUTLETS, value=outlets, execution_date=context['ti'].execution_date
+            )
 
         if self.inlets:
-            self.xcom_push(context,
-                           key=PIPELINE_INLETS,
-                           value=inlets,
-                           execution_date=context['ti'].execution_date)
+            self.xcom_push(
+                context, key=PIPELINE_INLETS, value=inlets, execution_date=context['ti'].execution_date
+            )
 
         return ret_val
 
@@ -123,27 +123,28 @@ def prepare_lineage(func: T) -> T:
         self.log.debug("Preparing lineage inlets and outlets")
 
         if isinstance(self._inlets, (str, Operator)) or attr.has(self._inlets):
-            self._inlets = [self._inlets, ]
+            self._inlets = [
+                self._inlets,
+            ]
 
         if self._inlets and isinstance(self._inlets, list):
             # get task_ids that are specified as parameter and make sure they are upstream
-            task_ids = set(
-                filter(lambda x: isinstance(x, str) and x.lower() != AUTO, self._inlets)
-            ).union(
-                map(lambda op: op.task_id,
-                    filter(lambda op: isinstance(op, Operator), self._inlets))
-            ).intersection(self.get_flat_relative_ids(upstream=True))
+            task_ids = (
+                set(filter(lambda x: isinstance(x, str) and x.lower() != AUTO, self._inlets))
+                .union(map(lambda op: op.task_id, filter(lambda op: isinstance(op, Operator), self._inlets)))
+                .intersection(self.get_flat_relative_ids(upstream=True))
+            )
 
             # pick up unique direct upstream task_ids if AUTO is specified
             if AUTO.upper() in self._inlets or AUTO.lower() in self._inlets:
                 task_ids = task_ids.union(task_ids.symmetric_difference(self.upstream_task_ids))
 
-            _inlets = self.xcom_pull(context, task_ids=task_ids,
-                                     dag_id=self.dag_id, key=PIPELINE_OUTLETS)
+            _inlets = self.xcom_pull(context, task_ids=task_ids, dag_id=self.dag_id, key=PIPELINE_OUTLETS)
 
             # re-instantiate the obtained inlets
-            _inlets = [_get_instance(structure(item, Metadata))
-                       for sublist in _inlets if sublist for item in sublist]
+            _inlets = [
+                _get_instance(structure(item, Metadata)) for sublist in _inlets if sublist for item in sublist
+            ]
 
             self.inlets.extend(_inlets)
             self.inlets.extend(self._inlets)
@@ -152,16 +153,16 @@ def prepare_lineage(func: T) -> T:
             raise AttributeError("inlets is not a list, operator, string or attr annotated object")
 
         if not isinstance(self._outlets, list):
-            self._outlets = [self._outlets, ]
+            self._outlets = [
+                self._outlets,
+            ]
 
         self.outlets.extend(self._outlets)
 
         # render inlets and outlets
-        self.inlets = [_render_object(i, context)
-                       for i in self.inlets if attr.has(i)]
+        self.inlets = [_render_object(i, context) for i in self.inlets if attr.has(i)]
 
-        self.outlets = [_render_object(i, context)
-                        for i in self.outlets if attr.has(i)]
+        self.outlets = [_render_object(i, context) for i in self.outlets if attr.has(i)]
 
         self.log.debug("inlets: %s, outlets: %s", self.inlets, self.outlets)
         return func(self, context, *args, **kwargs)

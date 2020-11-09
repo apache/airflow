@@ -42,7 +42,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
     DAG_ID = 'dag_for_testing_file_task_handler'
     TASK_ID = 'task_for_testing_file_log_handler'
     EXECUTION_DATE = datetime(2016, 1, 1)
-    LOG_ID = '{dag_id}-{task_id}-2016-01-01T00:00:00+00:00-1'.format(dag_id=DAG_ID, task_id=TASK_ID)
+    LOG_ID = f'{DAG_ID}-{TASK_ID}-2016-01-01T00:00:00+00:00-1'
 
     @elasticmock
     def setUp(self):
@@ -258,7 +258,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.es_task_handler.set_context(self.ti)
         self.es_task_handler.close()
         with open(
-            os.path.join(self.local_log_location, self.filename_template.format(try_number=1)), 'r'
+            os.path.join(self.local_log_location, self.filename_template.format(try_number=1))
         ) as log_file:
             # end_of_log_mark may contain characters like '\n' which is needed to
             # have the log uploaded but will not be stored in elasticsearch.
@@ -272,7 +272,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.es_task_handler.set_context(self.ti)
         self.es_task_handler.close()
         with open(
-            os.path.join(self.local_log_location, self.filename_template.format(try_number=1)), 'r'
+            os.path.join(self.local_log_location, self.filename_template.format(try_number=1))
         ) as log_file:
             self.assertNotIn(self.end_of_log_mark, log_file.read())
         self.assertTrue(self.es_task_handler.closed)
@@ -282,7 +282,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.es_task_handler.set_context(self.ti)
         self.es_task_handler.close()
         with open(
-            os.path.join(self.local_log_location, self.filename_template.format(try_number=1)), 'r'
+            os.path.join(self.local_log_location, self.filename_template.format(try_number=1))
         ) as log_file:
             self.assertEqual(0, len(log_file.read()))
 
@@ -291,7 +291,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.es_task_handler.handler = None
         self.es_task_handler.close()
         with open(
-            os.path.join(self.local_log_location, self.filename_template.format(try_number=1)), 'r'
+            os.path.join(self.local_log_location, self.filename_template.format(try_number=1))
         ) as log_file:
             self.assertEqual(0, len(log_file.read()))
         self.assertTrue(self.es_task_handler.closed)
@@ -301,7 +301,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.es_task_handler.handler.stream = None
         self.es_task_handler.close()
         with open(
-            os.path.join(self.local_log_location, self.filename_template.format(try_number=1)), 'r'
+            os.path.join(self.local_log_location, self.filename_template.format(try_number=1))
         ) as log_file:
             self.assertIn(self.end_of_log_mark, log_file.read())
         self.assertTrue(self.es_task_handler.closed)
@@ -310,7 +310,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.es_task_handler.handler.stream.close()
         self.es_task_handler.close()
         with open(
-            os.path.join(self.local_log_location, self.filename_template.format(try_number=1)), 'r'
+            os.path.join(self.local_log_location, self.filename_template.format(try_number=1))
         ) as log_file:
             self.assertIn(self.end_of_log_mark, log_file.read())
         self.assertTrue(self.es_task_handler.closed)

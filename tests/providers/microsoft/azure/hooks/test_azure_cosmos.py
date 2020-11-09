@@ -22,8 +22,8 @@ import json
 import logging
 import unittest
 import uuid
-
 from unittest import mock
+
 from azure.cosmos.cosmos_client import CosmosClient
 
 from airflow.exceptions import AirflowException

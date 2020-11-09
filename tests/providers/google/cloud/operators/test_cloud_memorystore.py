@@ -19,6 +19,7 @@ from typing import Dict, Sequence, Tuple
 from unittest import TestCase, mock
 
 from google.api_core.retry import Retry
+from google.cloud.memcache_v1beta2.types import cloud_memcache
 from google.cloud.redis_v1.gapic.enums import FailoverInstanceRequest
 from google.cloud.redis_v1.types import Instance
 
@@ -31,13 +32,13 @@ from airflow.providers.google.cloud.operators.cloud_memorystore import (
     CloudMemorystoreGetInstanceOperator,
     CloudMemorystoreImportOperator,
     CloudMemorystoreListInstancesOperator,
-    CloudMemorystoreScaleInstanceOperator,
-    CloudMemorystoreUpdateInstanceOperator,
     CloudMemorystoreMemcachedCreateInstanceOperator,
     CloudMemorystoreMemcachedDeleteInstanceOperator,
     CloudMemorystoreMemcachedGetInstanceOperator,
     CloudMemorystoreMemcachedListInstancesOperator,
     CloudMemorystoreMemcachedUpdateInstanceOperator,
+    CloudMemorystoreScaleInstanceOperator,
+    CloudMemorystoreUpdateInstanceOperator,
 )
 
 TEST_GCP_CONN_ID = "test-gcp-conn-id"
@@ -386,6 +387,7 @@ class TestCloudMemorystoreCreateInstanceAndImportOperatorOperator(TestCase):
 class TestCloudMemorystoreMemcachedCreateInstanceOperator(TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreMemcachedHook")
     def test_assert_valid_hook_call(self, mock_hook):
+        mock_hook.return_value.create_instance.return_value = cloud_memcache.Instance()
         task = CloudMemorystoreMemcachedCreateInstanceOperator(
             task_id=TEST_TASK_ID,
             location=TEST_LOCATION,
@@ -438,6 +440,7 @@ class TestCloudMemorystoreMemcachedDeleteInstanceOperator(TestCase):
 class TestCloudMemorystoreMemcachedGetInstanceOperator(TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreMemcachedHook")
     def test_assert_valid_hook_call(self, mock_hook):
+        mock_hook.return_value.get_instance.return_value = cloud_memcache.Instance()
         task = CloudMemorystoreMemcachedGetInstanceOperator(
             task_id=TEST_TASK_ID,
             location=TEST_LOCATION,

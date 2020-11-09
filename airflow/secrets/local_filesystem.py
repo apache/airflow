@@ -28,7 +28,10 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 import yaml
 
 from airflow.exceptions import (
-    AirflowException, AirflowFileParseException, ConnectionNotUnique, FileSyntaxError,
+    AirflowException,
+    AirflowFileParseException,
+    ConnectionNotUnique,
+    FileSyntaxError,
 )
 from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.utils.file import COMMENT_PATTERN
@@ -82,7 +85,12 @@ def _parse_env_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSynt
 
         key, value = var_parts
         if not key:
-            errors.append(FileSyntaxError(line_no=line_no, message="Invalid line format. Key is empty.",))
+            errors.append(
+                FileSyntaxError(
+                    line_no=line_no,
+                    message="Invalid line format. Key is empty.",
+                )
+            )
         secrets[key].append(value)
     return secrets, errors
 
@@ -236,7 +244,8 @@ def load_connections(file_path) -> Dict[str, List[Any]]:
     """This function is deprecated. Please use `airflow.secrets.local_filesystem.load_connections_dict`.","""
     warnings.warn(
         "This function is deprecated. Please use `airflow.secrets.local_filesystem.load_connections_dict`.",
-        DeprecationWarning, stacklevel=2
+        DeprecationWarning,
+        stacklevel=2,
     )
     return {k: [v] for k, v in load_connections_dict(file_path).values()}
 

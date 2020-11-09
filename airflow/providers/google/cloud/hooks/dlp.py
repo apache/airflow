@@ -260,7 +260,7 @@ class CloudDLPHook(GoogleBaseHook):
             if match is not None:
                 job_name = match.groupdict()["job"]
             else:
-                raise AirflowException("Unable to retrieve DLP job's ID from {}.".format(job.name))
+                raise AirflowException(f"Unable to retrieve DLP job's ID from {job.name}.")
 
         while wait_until_finished:
             job = self.get_dlp_job(dlp_job_id=job_name, project_id=project_id)

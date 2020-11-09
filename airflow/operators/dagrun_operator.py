@@ -20,7 +20,6 @@ import datetime
 from typing import Dict, Optional, Union
 from urllib.parse import quote
 
-from airflow import settings
 from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
 from airflow.models import BaseOperator, BaseOperatorLink, DagBag, DagModel, DagRun
@@ -74,7 +73,7 @@ class TriggerDagRunOperator(BaseOperator):
         conf: Optional[Dict] = None,
         execution_date: Optional[Union[str, datetime.datetime]] = None,
         reset_dag_run: bool = False,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.trigger_dag_id = trigger_dag_id
@@ -120,10 +119,7 @@ class TriggerDagRunOperator(BaseOperator):
                 if dag_model is None:
                     raise DagNotFound(f"Dag id {self.trigger_dag_id} not found in DagModel")
 
-                dag_bag = DagBag(
-                    dag_folder=dag_model.fileloc,
-                    store_serialized_dags=settings.STORE_SERIALIZED_DAGS
-                )
+                dag_bag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
 
                 dag = dag_bag.get_dag(self.trigger_dag_id)
 

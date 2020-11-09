@@ -53,35 +53,26 @@ def downgrade():
 def _add_worker_uuid_table():
     columns_and_constraints = [
         sa.Column("one_row_id", sa.Boolean, server_default=sa.true(), primary_key=True),
-        sa.Column("worker_uuid", sa.String(255))
+        sa.Column("worker_uuid", sa.String(255)),
     ]
 
     conn = op.get_bind()
 
     # alembic creates an invalid SQL for mssql and mysql dialects
     if conn.dialect.name in {"mysql"}:
-        columns_and_constraints.append(
-            sa.CheckConstraint("one_row_id<>0", name="kube_worker_one_row_id")
-        )
+        columns_and_constraints.append(sa.CheckConstraint("one_row_id<>0", name="kube_worker_one_row_id"))
     elif conn.dialect.name not in {"mssql"}:
-        columns_and_constraints.append(
-            sa.CheckConstraint("one_row_id", name="kube_worker_one_row_id")
-        )
+        columns_and_constraints.append(sa.CheckConstraint("one_row_id", name="kube_worker_one_row_id"))
 
-    table = op.create_table(
-        WORKER_RESOURCEVERSION_TABLE,
-        *columns_and_constraints
-    )
+    table = op.create_table(WORKER_RESOURCEVERSION_TABLE, *columns_and_constraints)
 
-    op.bulk_insert(table, [
-        {"worker_uuid": ""}
-    ])
+    op.bulk_insert(table, [{"worker_uuid": ""}])
 
 
 def _add_resource_table():
     columns_and_constraints = [
         sa.Column("one_row_id", sa.Boolean, server_default=sa.true(), primary_key=True),
-        sa.Column("resource_version", sa.String(255))
+        sa.Column("resource_version", sa.String(255)),
     ]
 
     conn = op.get_bind()
@@ -96,11 +87,6 @@ def _add_resource_table():
             sa.CheckConstraint("one_row_id", name="kube_resource_version_one_row_id")
         )
 
-    table = op.create_table(
-        WORKER_RESOURCEVERSION_TABLE,
-        *columns_and_constraints
-    )
+    table = op.create_table(WORKER_RESOURCEVERSION_TABLE, *columns_and_constraints)
 
-    op.bulk_insert(table, [
-        {"resource_version": ""}
-    ])
+    op.bulk_insert(table, [{"resource_version": ""}])

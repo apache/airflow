@@ -126,7 +126,7 @@ class TestAwsBatchClient(unittest.TestCase):
         self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "RUNNING"}]}
         with self.assertRaises(AirflowException) as e:
             self.batch_client.poll_for_job_complete(JOB_ID)
-        msg = "AWS Batch job ({}) status checks exceed max_retries".format(JOB_ID)
+        msg = f"AWS Batch job ({JOB_ID}) status checks exceed max_retries"
         self.assertIn(msg, str(e.exception))
         self.client_mock.describe_jobs.assert_called_with(jobs=[JOB_ID])
         self.assertEqual(self.client_mock.describe_jobs.call_count, self.MAX_RETRIES + 1)
@@ -138,7 +138,7 @@ class TestAwsBatchClient(unittest.TestCase):
         )
         with self.assertRaises(AirflowException) as e:
             self.batch_client.poll_for_job_complete(JOB_ID)
-        msg = "AWS Batch job ({}) description error".format(JOB_ID)
+        msg = f"AWS Batch job ({JOB_ID}) description error"
         self.assertIn(msg, str(e.exception))
         # It should retry when this client error occurs
         self.client_mock.describe_jobs.assert_called_with(jobs=[JOB_ID])
@@ -151,7 +151,7 @@ class TestAwsBatchClient(unittest.TestCase):
         )
         with self.assertRaises(AirflowException) as e:
             self.batch_client.poll_for_job_complete(JOB_ID)
-        msg = "AWS Batch job ({}) description error".format(JOB_ID)
+        msg = f"AWS Batch job ({JOB_ID}) description error"
         self.assertIn(msg, str(e.exception))
         # It will not retry when this client error occurs
         self.client_mock.describe_jobs.assert_called_once_with(jobs=[JOB_ID])
@@ -176,7 +176,7 @@ class TestAwsBatchClient(unittest.TestCase):
         with self.assertRaises(AirflowException) as e:
             self.batch_client.check_job_success(JOB_ID)
         self.client_mock.describe_jobs.assert_called_once_with(jobs=[JOB_ID])
-        msg = "AWS Batch job ({}) failed".format(JOB_ID)
+        msg = f"AWS Batch job ({JOB_ID}) failed"
         self.assertIn(msg, str(e.exception))
 
     def test_check_job_success_raises_failed_for_multiple_attempts(self):
@@ -193,7 +193,7 @@ class TestAwsBatchClient(unittest.TestCase):
         with self.assertRaises(AirflowException) as e:
             self.batch_client.check_job_success(JOB_ID)
         self.client_mock.describe_jobs.assert_called_once_with(jobs=[JOB_ID])
-        msg = "AWS Batch job ({}) failed".format(JOB_ID)
+        msg = f"AWS Batch job ({JOB_ID}) failed"
         self.assertIn(msg, str(e.exception))
 
     def test_check_job_success_raises_incomplete(self):
@@ -201,7 +201,7 @@ class TestAwsBatchClient(unittest.TestCase):
         with self.assertRaises(AirflowException) as e:
             self.batch_client.check_job_success(JOB_ID)
         self.client_mock.describe_jobs.assert_called_once_with(jobs=[JOB_ID])
-        msg = "AWS Batch job ({}) is not complete".format(JOB_ID)
+        msg = f"AWS Batch job ({JOB_ID}) is not complete"
         self.assertIn(msg, str(e.exception))
 
     def test_check_job_success_raises_unknown_status(self):
@@ -210,7 +210,7 @@ class TestAwsBatchClient(unittest.TestCase):
         with self.assertRaises(AirflowException) as e:
             self.batch_client.check_job_success(JOB_ID)
         self.client_mock.describe_jobs.assert_called_once_with(jobs=[JOB_ID])
-        msg = "AWS Batch job ({}) has unknown status".format(JOB_ID)
+        msg = f"AWS Batch job ({JOB_ID}) has unknown status"
         self.assertIn(msg, str(e.exception))
         self.assertIn(status, str(e.exception))
 
@@ -219,7 +219,7 @@ class TestAwsBatchClient(unittest.TestCase):
         with self.assertRaises(AirflowException) as e:
             self.batch_client.check_job_success(JOB_ID)
         self.client_mock.describe_jobs.assert_called_once_with(jobs=[JOB_ID])
-        msg = "AWS Batch job ({}) description error".format(JOB_ID)
+        msg = f"AWS Batch job ({JOB_ID}) description error"
         self.assertIn(msg, str(e.exception))
 
     def test_terminate_job(self):

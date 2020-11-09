@@ -23,14 +23,10 @@ from airflow.utils.python_virtualenv import prepare_virtualenv
 
 
 class TestPrepareVirtualenv(unittest.TestCase):
-
     @mock.patch('airflow.utils.python_virtualenv.execute_in_subprocess')
     def test_should_create_virtualenv(self, mock_execute_in_subprocess):
         python_bin = prepare_virtualenv(
-            venv_directory="/VENV",
-            python_bin="pythonVER",
-            system_site_packages=False,
-            requirements=[]
+            venv_directory="/VENV", python_bin="pythonVER", system_site_packages=False, requirements=[]
         )
         self.assertEqual("/VENV/bin/python", python_bin)
         mock_execute_in_subprocess.assert_called_once_with(['virtualenv', '/VENV', '--python=pythonVER'])
@@ -38,10 +34,7 @@ class TestPrepareVirtualenv(unittest.TestCase):
     @mock.patch('airflow.utils.python_virtualenv.execute_in_subprocess')
     def test_should_create_virtualenv_with_system_packages(self, mock_execute_in_subprocess):
         python_bin = prepare_virtualenv(
-            venv_directory="/VENV",
-            python_bin="pythonVER",
-            system_site_packages=True,
-            requirements=[]
+            venv_directory="/VENV", python_bin="pythonVER", system_site_packages=True, requirements=[]
         )
         self.assertEqual("/VENV/bin/python", python_bin)
         mock_execute_in_subprocess.assert_called_once_with(
@@ -54,14 +47,10 @@ class TestPrepareVirtualenv(unittest.TestCase):
             venv_directory="/VENV",
             python_bin="pythonVER",
             system_site_packages=False,
-            requirements=['apache-beam[gcp]']
+            requirements=['apache-beam[gcp]'],
         )
         self.assertEqual("/VENV/bin/python", python_bin)
 
-        mock_execute_in_subprocess.assert_any_call(
-            ['virtualenv', '/VENV', '--python=pythonVER']
-        )
+        mock_execute_in_subprocess.assert_any_call(['virtualenv', '/VENV', '--python=pythonVER'])
 
-        mock_execute_in_subprocess.assert_called_with(
-            ['/VENV/bin/pip', 'install', 'apache-beam[gcp]']
-        )
+        mock_execute_in_subprocess.assert_called_with(['/VENV/bin/pip', 'install', 'apache-beam[gcp]'])

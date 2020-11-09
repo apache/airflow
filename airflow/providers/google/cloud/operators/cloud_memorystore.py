@@ -1290,7 +1290,7 @@ class CloudMemorystoreMemcachedCreateInstanceOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return hook.proto_message_to_dict(result)
+        return cloud_memcache.Instance.to_dict(result)
 
 
 class CloudMemorystoreMemcachedDeleteInstanceOperator(BaseOperator):
@@ -1438,7 +1438,7 @@ class CloudMemorystoreMemcachedGetInstanceOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return hook.proto_message_to_dict(result)
+        return cloud_memcache.Instance.to_dict(result)
 
 
 class CloudMemorystoreMemcachedListInstancesOperator(BaseOperator):
@@ -1520,7 +1520,7 @@ class CloudMemorystoreMemcachedListInstancesOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        instances = [hook.proto_message_to_dict(a) for a in result]
+        instances = [cloud_memcache.Instance.to_dict(a) for a in result]
         return instances
 
 

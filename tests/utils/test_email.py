@@ -34,48 +34,40 @@ send_email_test = mock.MagicMock()
 
 
 class TestEmail(unittest.TestCase):
-
     def test_get_email_address_single_email(self):
         emails_string = 'test1@example.com'
 
-        self.assertEqual(
-            get_email_address_list(emails_string), [emails_string])
+        self.assertEqual(get_email_address_list(emails_string), [emails_string])
 
     def test_get_email_address_comma_sep_string(self):
         emails_string = 'test1@example.com, test2@example.com'
 
-        self.assertEqual(
-            get_email_address_list(emails_string), EMAILS)
+        self.assertEqual(get_email_address_list(emails_string), EMAILS)
 
     def test_get_email_address_colon_sep_string(self):
         emails_string = 'test1@example.com; test2@example.com'
 
-        self.assertEqual(
-            get_email_address_list(emails_string), EMAILS)
+        self.assertEqual(get_email_address_list(emails_string), EMAILS)
 
     def test_get_email_address_list(self):
         emails_list = ['test1@example.com', 'test2@example.com']
 
-        self.assertEqual(
-            get_email_address_list(emails_list), EMAILS)
+        self.assertEqual(get_email_address_list(emails_list), EMAILS)
 
     def test_get_email_address_tuple(self):
         emails_tuple = ('test1@example.com', 'test2@example.com')
 
-        self.assertEqual(
-            get_email_address_list(emails_tuple), EMAILS)
+        self.assertEqual(get_email_address_list(emails_tuple), EMAILS)
 
     def test_get_email_address_invalid_type(self):
         emails_string = 1
 
-        self.assertRaises(
-            TypeError, get_email_address_list, emails_string)
+        self.assertRaises(TypeError, get_email_address_list, emails_string)
 
     def test_get_email_address_invalid_type_in_iterable(self):
         emails_list = ['test1@example.com', 2]
 
-        self.assertRaises(
-            TypeError, get_email_address_list, emails_list)
+        self.assertRaises(TypeError, get_email_address_list, emails_list)
 
     def setUp(self):
         conf.remove_option('email', 'EMAIL_BACKEND')
@@ -91,8 +83,16 @@ class TestEmail(unittest.TestCase):
         with conf_vars({('email', 'email_backend'): 'tests.utils.test_email.send_email_test'}):
             utils.email.send_email('to', 'subject', 'content')
         send_email_test.assert_called_once_with(
-            'to', 'subject', 'content', files=None, dryrun=False,
-            cc=None, bcc=None, mime_charset='utf-8', mime_subtype='mixed')
+            'to',
+            'subject',
+            'content',
+            files=None,
+            dryrun=False,
+            cc=None,
+            bcc=None,
+            mime_charset='utf-8',
+            mime_subtype='mixed',
+        )
         self.assertFalse(mock_send_email.called)
 
     def test_build_mime_message(self):
@@ -162,8 +162,10 @@ class TestEmailSmtp(unittest.TestCase):
         self.assertEqual('subject', msg['Subject'])
         self.assertEqual(conf.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
         self.assertEqual(2, len(msg.get_payload()))
-        self.assertEqual('attachment; filename="' + os.path.basename(attachment.name) + '"',
-                         msg.get_payload()[-1].get('Content-Disposition'))
+        self.assertEqual(
+            'attachment; filename="' + os.path.basename(attachment.name) + '"',
+            msg.get_payload()[-1].get('Content-Disposition'),
+        )
         mimeapp = MIMEApplication('attachment')
         self.assertEqual(mimeapp.get_payload(), msg.get_payload()[-1].get_payload())
 
@@ -204,10 +206,12 @@ class TestEmailSmtp(unittest.TestCase):
     def test_send_mime_noauth(self, mock_smtp, mock_smtp_ssl):
         mock_smtp.return_value = mock.Mock()
         mock_smtp_ssl.return_value = mock.Mock()
-        with conf_vars({
-            ('smtp', 'smtp_user'): None,
-            ('smtp', 'smtp_password'): None,
-        }):
+        with conf_vars(
+            {
+                ('smtp', 'smtp_user'): None,
+                ('smtp', 'smtp_password'): None,
+            }
+        ):
             utils.email.send_mime_email('from', 'to', MIMEMultipart(), dryrun=False)
         self.assertFalse(mock_smtp_ssl.called)
         mock_smtp.assert_called_once_with(

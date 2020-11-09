@@ -626,7 +626,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `Snowflake <https://snowflake.com/>`__
-     -
+     - :doc:`How to use <howto/operator/snowflake>`
      - :mod:`airflow.providers.snowflake.transfers.s3_to_snowflake`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
@@ -992,6 +992,11 @@ These integrations allow you to copy data from/to Google Cloud.
      - :doc:`How to use <howto/operator/google/transfer/facebook_ads_to_gcs>`
      - :mod:`airflow.providers.google.cloud.transfers.facebook_ads_to_gcs`
 
+   * - `Salesforce <https://www.salesforce.com/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - :doc:`How to use <howto/operator/google/transfer/salesforce_to_gcs>`
+     - :mod:`airflow.providers.google.cloud.transfers.salesforce_to_gcs`
+
 
    * - `Google Ads <https://ads.google.com/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
@@ -1065,7 +1070,7 @@ These integrations allow you to copy data from/to Google Cloud.
      - :doc:`How to use <howto/operator/google/transfer/mysql_to_gcs>`
      - :mod:`airflow.providers.google.cloud.transfers.mysql_to_gcs`
 
-   * - `PostgresSQL <https://www.postgresql.org/>`__
+   * - `PostgreSQL <https://www.postgresql.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
      - :mod:`airflow.providers.google.cloud.transfers.postgres_to_gcs`
@@ -1263,7 +1268,7 @@ These integrations allow you to perform various operations within various servic
      - :mod:`airflow.providers.jira.sensors.jira`
 
    * - `Databricks <https://databricks.com/>`__
-     -
+     - :doc:`How to use <howto/operator/databricks>`
      - :mod:`airflow.providers.databricks.hooks.databricks`
      - :mod:`airflow.providers.databricks.operators.databricks`
      -
@@ -1310,6 +1315,12 @@ These integrations allow you to perform various operations within various servic
      - :mod:`airflow.providers.jenkins.operators.jenkins_job_trigger`
      -
 
+   * - `MySql <https://www.mysql.com/>`__
+     - :doc:`How to use <howto/operator/mysql>`
+     - :mod:`airflow.providers.snowflake.hooks.mysql`
+     - :mod:`airflow.providers.snowflake.operators.mysql`
+     -
+
    * - `Opsgenie <https://www.opsgenie.com/>`__
      -
      - :mod:`airflow.providers.opsgenie.hooks.opsgenie_alert`
@@ -1352,7 +1363,7 @@ These integrations allow you to perform various operations within various servic
      -
 
    * - `Snowflake <https://www.snowflake.com/>`__
-     -
+     - :doc:`How to use <howto/operator/snowflake>`
      - :mod:`airflow.providers.snowflake.hooks.snowflake`
      - :mod:`airflow.providers.snowflake.operators.snowflake`,
        :mod:`airflow.providers.snowflake.transfers.snowflake_to_slack`
@@ -1502,7 +1513,7 @@ These integrations allow you to perform various operations using various softwar
      - :mod:`airflow.providers.papermill.operators.papermill`
      -
 
-   * - `PostgresSQL <https://www.postgresql.org/>`__
+   * - `PostgreSQL <https://www.postgresql.org/>`__
      -
      - :mod:`airflow.providers.postgres.hooks.postgres`
      - :mod:`airflow.providers.postgres.operators.postgres`
@@ -1598,7 +1609,7 @@ These integrations allow you to copy data.
      -
      - :mod:`airflow.providers.oracle.transfers.oracle_to_oracle`
 
-   * - `PostgresSQL <https://www.postgresql.org/>`__
+   * - `PostgreSQL <https://www.postgresql.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
      - :mod:`airflow.providers.google.cloud.transfers.postgres_to_gcs`
@@ -1662,7 +1673,7 @@ communication protocols or interface.
      - :mod:`airflow.providers.imap.sensors.imap_attachment`
 
    * - `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
-     -
+     - :doc:`How to use <howto/operator/jdbc>`
      - :mod:`airflow.providers.jdbc.hooks.jdbc`
      - :mod:`airflow.providers.jdbc.operators.jdbc`
      -

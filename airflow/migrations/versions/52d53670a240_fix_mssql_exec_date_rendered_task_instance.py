@@ -52,7 +52,7 @@ def upgrade():
             sa.Column('task_id', sa.String(length=250), nullable=False),
             sa.Column('execution_date', mssql.DATETIME2, nullable=False),
             sa.Column('rendered_fields', json_type(), nullable=False),
-            sa.PrimaryKeyConstraint('dag_id', 'task_id', 'execution_date')
+            sa.PrimaryKeyConstraint('dag_id', 'task_id', 'execution_date'),
         )
 
 
@@ -72,5 +72,5 @@ def downgrade():
             sa.Column('task_id', sa.String(length=250), nullable=False),
             sa.Column('execution_date', sa.TIMESTAMP, nullable=False),
             sa.Column('rendered_fields', json_type(), nullable=False),
-            sa.PrimaryKeyConstraint('dag_id', 'task_id', 'execution_date')
+            sa.PrimaryKeyConstraint('dag_id', 'task_id', 'execution_date'),
         )

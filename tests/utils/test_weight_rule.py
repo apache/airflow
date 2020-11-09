@@ -22,7 +22,6 @@ from airflow.utils.weight_rule import WeightRule
 
 
 class TestWeightRule(unittest.TestCase):
-
     def test_valid_weight_rules(self):
         self.assertTrue(WeightRule.is_valid(WeightRule.DOWNSTREAM))
         self.assertTrue(WeightRule.is_valid(WeightRule.UPSTREAM))

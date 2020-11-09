@@ -203,7 +203,7 @@ class WasbHook(BaseHook):
             blobs_to_delete = []
 
         if not ignore_if_missing and len(blobs_to_delete) == 0:
-            raise AirflowException('Blob(s) not found: {}'.format(blob_name))
+            raise AirflowException(f'Blob(s) not found: {blob_name}')
 
         for blob_uri in blobs_to_delete:
             self.log.info("Deleting blob: %s", blob_uri)

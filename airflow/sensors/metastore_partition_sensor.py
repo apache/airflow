@@ -24,5 +24,6 @@ from airflow.providers.apache.hive.sensors.metastore_partition import MetastoreP
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.hive.sensors.metastore_partition`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

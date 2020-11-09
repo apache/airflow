@@ -94,28 +94,66 @@ class TestSqlAlchemyUtils(unittest.TestCase):
                 state=State.NONE,
                 execution_date=start_date,
                 start_date=start_date,
-                session=self.session
+                session=self.session,
             )
         dag.clear()
 
-    @parameterized.expand([
-        ("postgresql", True, {'skip_locked': True}, ),
-        ("mysql", False, {}, ),
-        ("mysql", True, {'skip_locked': True}, ),
-        ("sqlite", False, {'skip_locked': True}, ),
-    ])
+    @parameterized.expand(
+        [
+            (
+                "postgresql",
+                True,
+                {'skip_locked': True},
+            ),
+            (
+                "mysql",
+                False,
+                {},
+            ),
+            (
+                "mysql",
+                True,
+                {'skip_locked': True},
+            ),
+            (
+                "sqlite",
+                False,
+                {'skip_locked': True},
+            ),
+        ]
+    )
     def test_skip_locked(self, dialect, supports_for_update_of, expected_return_value):
         session = mock.Mock()
         session.bind.dialect.name = dialect
         session.bind.dialect.supports_for_update_of = supports_for_update_of
         self.assertEqual(skip_locked(session=session), expected_return_value)
 
-    @parameterized.expand([
-        ("postgresql", True, {'nowait': True}, ),
-        ("mysql", False, {}, ),
-        ("mysql", True, {'nowait': True}, ),
-        ("sqlite", False, {'nowait': True, }, ),
-    ])
+    @parameterized.expand(
+        [
+            (
+                "postgresql",
+                True,
+                {'nowait': True},
+            ),
+            (
+                "mysql",
+                False,
+                {},
+            ),
+            (
+                "mysql",
+                True,
+                {'nowait': True},
+            ),
+            (
+                "sqlite",
+                False,
+                {
+                    'nowait': True,
+                },
+            ),
+        ]
+    )
     def test_nowait(self, dialect, supports_for_update_of, expected_return_value):
         session = mock.Mock()
         session.bind.dialect.name = dialect

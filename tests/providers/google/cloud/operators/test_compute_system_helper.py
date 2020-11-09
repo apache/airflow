@@ -188,7 +188,7 @@ if __name__ == '__main__':
 
     helper = GCPComputeTestHelper()
     gcp_authenticator = GcpAuthenticator(GCP_COMPUTE_KEY)
-    helper.log.info('Starting action: {}'.format(action))
+    helper.log.info(f'Starting action: {action}')
 
     gcp_authenticator.gcp_store_authentication()
     try:
@@ -206,8 +206,8 @@ if __name__ == '__main__':
         elif action == 'delete-instance-group':
             helper.delete_instance_group_and_template()
         else:
-            raise Exception("Unknown action: {}".format(action))
+            raise Exception(f"Unknown action: {action}")
     finally:
         gcp_authenticator.gcp_restore_authentication()
 
-    helper.log.info('Finishing action: {}'.format(action))
+    helper.log.info(f'Finishing action: {action}')

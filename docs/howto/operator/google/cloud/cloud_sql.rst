@@ -568,5 +568,5 @@ Reference
 For further information, look at:
 
 * `Google Cloud API - MySQL Documentation <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/>`__
-* `Google Cloud API - PostgresSQL Documentation <https://cloud.google.com/sql/docs/postgres/admin-api/v1beta4/>`__
+* `Google Cloud API - PostgreSQL Documentation <https://cloud.google.com/sql/docs/postgres/admin-api/v1beta4/>`__
 * `Product Documentation <https://cloud.google.com/sql/docs/>`__

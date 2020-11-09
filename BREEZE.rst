@@ -1207,6 +1207,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
           image building time in production image and at container entering time for CI image. One of:
 
                  1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2
+                 wheel
+
+          When 'wheel' is used, Airflow is installed from /dist/apache_airflow-*.whl file.
 
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           If specified, installs Airflow directly from reference in GitHub. This happens at
@@ -2003,11 +2006,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  consistent-pylint daysago-import-check debug-statements detect-private-key doctoc
                  dont-use-safe-filter end-of-file-fixer fix-encoding-pragma flake8 forbid-tabs
                  helm-lint incorrect-use-of-LoggingMixin insert-license isort language-matters
-                 lint-dockerfile lint-openapi mermaid mixed-line-ending mypy no-relative-imports
-                 pre-commit-descriptions provide-create-sessions pydevd pydocstyle pylint
-                 pylint-tests python-no-log-warn restrict-start_date rst-backticks setup-order
+                 lint-dockerfile lint-openapi mermaid mixed-line-ending mypy mypy-helm
+                 no-relative-imports pre-commit-descriptions provide-create-sessions
+                 providers-init-file pydevd pydocstyle pylint pylint-tests python-no-log-warn
+                 pyupgrade restrict-start_date rst-backticks setup-order setup-installation
                  shellcheck sort-in-the-wild stylelint trailing-whitespace update-breeze-file
-                 update-extras update-local-yml-file update-setup-cfg-file yamllint
+                 update-extras update-local-yml-file update-setup-cfg-file version-sync yamllint
 
         You can pass extra arguments including options to to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
@@ -2034,7 +2038,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
         as additional options passed to pytest. You can pass 'tests' as target to
         run all tests. For example:
 
-        'breeze tests tests/test_core.py -- --logging-level=DEBUG'
+        'breeze tests tests/core/test_core.py -- --logging-level=DEBUG'
         'breeze tests tests
 
   Flags:
@@ -2042,7 +2046,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --test-type TEST_TYPE
           Type of the test to run. One of:
 
-                 All,Core,Providers,API,CLI,Integration,Other,WWW,Heisentests,Postgres,MySQL
+                 All,Core,Providers,API,CLI,Integration,Other,WWW,Heisentests,Postgres,MySQL,Helm
 
           Default: All
 
@@ -2230,6 +2234,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
           image building time in production image and at container entering time for CI image. One of:
 
                  1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2
+                 wheel
+
+          When 'wheel' is used, Airflow is installed from /dist/apache_airflow-*.whl file.
 
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           If specified, installs Airflow directly from reference in GitHub. This happens at
@@ -2419,7 +2426,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --test-type TEST_TYPE
           Type of the test to run. One of:
 
-                 All,Core,Providers,API,CLI,Integration,Other,WWW,Heisentests,Postgres,MySQL
+                 All,Core,Providers,API,CLI,Integration,Other,WWW,Heisentests,Postgres,MySQL,Helm
 
           Default: All
 

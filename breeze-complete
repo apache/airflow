@@ -33,7 +33,7 @@ _breeze_allowed_kind_versions="v0.8.0"
 _breeze_allowed_mysql_versions="5.7 8"
 _breeze_allowed_postgres_versions="9.6 10 11 12 13"
 _breeze_allowed_kind_operations="start stop restart status deploy test shell"
-_breeze_allowed_test_types="All Core Providers API CLI Integration Other WWW Heisentests Postgres MySQL"
+_breeze_allowed_test_types="All Core Providers API CLI Integration Other WWW Heisentests Postgres MySQL Helm"
 
 # shellcheck disable=SC2034
 {
@@ -60,6 +60,7 @@ _breeze_allowed_install_airflow_versions=$(cat <<-EOF
 1.10.4
 1.10.3
 1.10.2
+wheel
 EOF
 )
 
@@ -100,17 +101,21 @@ lint-openapi
 mermaid
 mixed-line-ending
 mypy
+mypy-helm
 no-relative-imports
 pre-commit-descriptions
 provide-create-sessions
+providers-init-file
 pydevd
 pydocstyle
 pylint
 pylint-tests
 python-no-log-warn
+pyupgrade
 restrict-start_date
 rst-backticks
 setup-order
+setup-installation
 shellcheck
 sort-in-the-wild
 stylelint
@@ -119,6 +124,7 @@ update-breeze-file
 update-extras
 update-local-yml-file
 update-setup-cfg-file
+version-sync
 yamllint
 EOF
 )

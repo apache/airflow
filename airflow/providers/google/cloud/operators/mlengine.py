@@ -45,7 +45,7 @@ def _normalize_mlengine_job_id(job_id: str) -> str:
     # Add a prefix when a job_id starts with a digit or a template
     match = re.search(r'\d|\{{2}', job_id)
     if match and match.start() == 0:
-        job = 'z_{}'.format(job_id)
+        job = f'z_{job_id}'
     else:
         job = job_id
 
@@ -221,17 +221,17 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         if not self._project_id:
             raise AirflowException('Google Cloud project id is required.')
         if not self._job_id:
-            raise AirflowException('An unique job id is required for Google MLEngine prediction ' 'job.')
+            raise AirflowException('An unique job id is required for Google MLEngine prediction job.')
 
         if self._uri:
             if self._model_name or self._version_name:
                 raise AirflowException(
-                    'Ambiguous model origin: Both uri and ' 'model/version name are provided.'
+                    'Ambiguous model origin: Both uri and model/version name are provided.'
                 )
 
         if self._version_name and not self._model_name:
             raise AirflowException(
-                'Missing model: Batch prediction expects ' 'a model name when a version name is provided.'
+                'Missing model: Batch prediction expects a model name when a version name is provided.'
             )
 
         if not (self._uri or self._model_name):
@@ -257,7 +257,7 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         if self._uri:
             prediction_request['predictionInput']['uri'] = self._uri
         elif self._model_name:
-            origin_name = 'projects/{}/models/{}'.format(self._project_id, self._model_name)
+            origin_name = f'projects/{self._project_id}/models/{self._model_name}'
             if not self._version_name:
                 prediction_request['predictionInput']['modelName'] = origin_name
             else:
@@ -380,7 +380,7 @@ class MLEngineManageModelOperator(BaseOperator):
         elif self._operation == 'get':
             return hook.get_model(project_id=self._project_id, model_name=self._model['name'])
         else:
-            raise ValueError('Unknown operation: {}'.format(self._operation))
+            raise ValueError(f'Unknown operation: {self._operation}')
 
 
 class MLEngineCreateModelOperator(BaseOperator):
@@ -705,9 +705,7 @@ class MLEngineManageVersionOperator(BaseOperator):
 
         if self._operation == 'create':
             if not self._version:
-                raise ValueError(
-                    "version attribute of {} could not " "be empty".format(self.__class__.__name__)
-                )
+                raise ValueError(f"version attribute of {self.__class__.__name__} could not be empty")
             return hook.create_version(
                 project_id=self._project_id, model_name=self._model_name, version_spec=self._version
             )
@@ -722,7 +720,7 @@ class MLEngineManageVersionOperator(BaseOperator):
                 project_id=self._project_id, model_name=self._model_name, version_name=self._version['name']
             )
         else:
-            raise ValueError('Unknown operation: {}'.format(self._operation))
+            raise ValueError(f'Unknown operation: {self._operation}')
 
 
 class MLEngineCreateVersionOperator(BaseOperator):
@@ -1212,12 +1210,12 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         if not self._project_id:
             raise AirflowException('Google Cloud project id is required.')
         if not self._job_id:
-            raise AirflowException('An unique job id is required for Google MLEngine training ' 'job.')
+            raise AirflowException('An unique job id is required for Google MLEngine training job.')
         if not package_uris:
-            raise AirflowException('At least one python package is required for MLEngine ' 'Training job.')
+            raise AirflowException('At least one python package is required for MLEngine Training job.')
         if not training_python_module:
             raise AirflowException(
-                'Python module name to run after installing required ' 'packages is required.'
+                'Python module name to run after installing required packages is required.'
             )
         if not self._region:
             raise AirflowException('Google Compute Engine region is required.')

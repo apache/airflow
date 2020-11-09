@@ -23,7 +23,7 @@ import time
 import warnings
 from typing import Any, Dict, Optional, Sequence, Union
 
-from googleapiclient.discovery import build, Resource
+from googleapiclient.discovery import Resource, build
 
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 

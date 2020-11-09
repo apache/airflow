@@ -65,11 +65,13 @@ class DaskExecutor(BaseExecutor):
         self.client = Client(self.cluster_address, security=security)
         self.futures = {}
 
-    def execute_async(self,
-                      key: TaskInstanceKey,
-                      command: CommandType,
-                      queue: Optional[str] = None,
-                      executor_config: Optional[Any] = None) -> None:
+    def execute_async(
+        self,
+        key: TaskInstanceKey,
+        command: CommandType,
+        queue: Optional[str] = None,
+        executor_config: Optional[Any] = None,
+    ) -> None:
 
         self.validate_command(command)
 

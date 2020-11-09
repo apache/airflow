@@ -81,19 +81,36 @@ spec:
               containerPort: {{ .Values.ports.flowerUI }}
           livenessProbe:
             failureThreshold: 10
-            httpGet:
-              path: /
-              port: {{ .Values.ports.flowerUI }}
+            exec:
+              command:
+                - curl
+                {{- if (or .Values.flower.secretName (and .Values.flower.username .Values.flower.password))}}
+                - "--user"
+                - $AIRFLOW__CELERY__FLOWER_BASIC_AUTH
+                {{- end }}
+                - {{ printf "localhost:%s" (.Values.ports.flowerUI | toString) }}
             initialDelaySeconds: 10
             periodSeconds: 5
           readinessProbe:
             failureThreshold: 10
-            httpGet:
-              path: /
-              port: {{ .Values.ports.flowerUI }}
+            exec:
+              command:
+                - curl
+                {{- if (or .Values.flower.secretName (and .Values.flower.username .Values.flower.password))}}
+                - "--user"
+                - $AIRFLOW__CELERY__FLOWER_BASIC_AUTH
+                {{- end }}
+                - {{ printf "localhost:%s" (.Values.ports.flowerUI | toString) }}
             initialDelaySeconds: 10
             periodSeconds: 5
           env:
+            {{- if (or .Values.flower.secretName (and .Values.flower.username .Values.flower.password))}}
+            - name: AIRFLOW__CELERY__FLOWER_BASIC_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: {{ template "flower_secret" . }}
+                  key: basicAuth
+            {{- end }}
           {{- include "standard_airflow_environment" . | indent 10 }}
       volumes:
         - name: config

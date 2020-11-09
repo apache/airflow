@@ -27,9 +27,9 @@ and password (=Storage account key), or login and SAS token in the extra field
 
 import json
 import unittest
-
 from unittest import mock
-from azure.storage.file import File, Directory
+
+from azure.storage.file import Directory, File
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.azure_fileshare import AzureFileShareHook

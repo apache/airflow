@@ -33,11 +33,11 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():   # noqa: D103
+def upgrade():  # noqa: D103
     if context.config.get_main_option('sqlalchemy.url').startswith('mysql'):
         op.alter_column(table_name='variable', column_name='val', type_=mysql.MEDIUMTEXT)
 
 
-def downgrade():   # noqa: D103
+def downgrade():  # noqa: D103
     if context.config.get_main_option('sqlalchemy.url').startswith('mysql'):
         op.alter_column(table_name='variable', column_name='val', type_=mysql.TEXT)

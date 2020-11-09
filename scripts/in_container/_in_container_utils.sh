@@ -259,11 +259,15 @@ function install_released_airflow_version() {
         export SLUGIFY_USES_TEXT_UNIDECODE=yes
     fi
     rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
-    INSTALLS=("apache-airflow==${1}" "werkzeug<1.0.0")
-    pip install --upgrade "${INSTALLS[@]}"
+    if [[ ${INSTALL_AIRFLOW_VERSION} == "wheel" ]]; then
+        pip install /dist/apache_airflow-*.whl
+    else
+        INSTALLS=("apache-airflow==${1}")
+        pip install --upgrade "${INSTALLS[@]}"
+    fi
 }
 
-function setup_backport_packages() {
+function setup_provider_packages() {
     if [[ ${BACKPORT_PACKAGES:=} == "true" ]]; then
         export PACKAGE_TYPE="backport"
         export PACKAGE_PREFIX_UPPERCASE="BACKPORT_"
@@ -364,6 +368,16 @@ function verify_suffix_versions_for_package_preparation {
     export TARGET_VERSION_SUFFIX
 }
 
+function filenames_to_python_module() {
+  for file in "$@";
+  do
+    # Turn the file name into a python package name
+    no_leading_dotslash="${file#./}"
+    no_py="${no_leading_dotslash/.py/}"
+    no_init="${no_py/\/__init__/}"
+    echo "${no_init//\//.}"
+  done
+}
 
 export CI=${CI:="false"}
 export GITHUB_ACTIONS=${GITHUB_ACTIONS:="false"}

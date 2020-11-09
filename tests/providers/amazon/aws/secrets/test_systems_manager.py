@@ -131,3 +131,54 @@ class TestSsmSecrets(TestCase):
 
         systems_manager.client
         mock_ssm_client.assert_called_once_with('ssm', use_ssl=False)
+
+    @mock.patch(
+        "airflow.providers.amazon.aws.secrets.systems_manager."
+        "SystemsManagerParameterStoreBackend._get_secret"
+    )
+    def test_connection_prefix_none_value(self, mock_get_secret):
+        """
+        Test that if Variable key is not present in SSM,
+        SystemsManagerParameterStoreBackend.get_conn_uri should return None,
+        SystemsManagerParameterStoreBackend._get_secret should not be called
+        """
+        kwargs = {'connections_prefix': None}
+
+        ssm_backend = SystemsManagerParameterStoreBackend(**kwargs)
+
+        self.assertIsNone(ssm_backend.get_conn_uri("test_mysql"))
+        mock_get_secret.assert_not_called()
+
+    @mock.patch(
+        "airflow.providers.amazon.aws.secrets.systems_manager."
+        "SystemsManagerParameterStoreBackend._get_secret"
+    )
+    def test_variable_prefix_none_value(self, mock_get_secret):
+        """
+        Test that if Variable key is not present in SSM,
+        SystemsManagerParameterStoreBackend.get_variables should return None,
+        SystemsManagerParameterStoreBackend._get_secret should not be called
+        """
+        kwargs = {'variables_prefix': None}
+
+        ssm_backend = SystemsManagerParameterStoreBackend(**kwargs)
+
+        self.assertIsNone(ssm_backend.get_variable("hello"))
+        mock_get_secret.assert_not_called()
+
+    @mock.patch(
+        "airflow.providers.amazon.aws.secrets.systems_manager."
+        "SystemsManagerParameterStoreBackend._get_secret"
+    )
+    def test_config_prefix_none_value(self, mock_get_secret):
+        """
+        Test that if Variable key is not present in SSM,
+        SystemsManagerParameterStoreBackend.get_config should return None,
+        SystemsManagerParameterStoreBackend._get_secret should not be called
+        """
+        kwargs = {'config_prefix': None}
+
+        ssm_backend = SystemsManagerParameterStoreBackend(**kwargs)
+
+        self.assertIsNone(ssm_backend.get_config("config"))
+        mock_get_secret.assert_not_called()

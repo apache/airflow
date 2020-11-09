@@ -58,7 +58,7 @@ class DockerHook(BaseHook, LoggingMixin):
         self.__version = version
         self.__tls = tls
         if conn.port:
-            self.__registry = "{}:{}".format(conn.host, conn.port)
+            self.__registry = f"{conn.host}:{conn.port}"
         else:
             self.__registry = conn.host
         self.__username = conn.login
@@ -71,7 +71,7 @@ class DockerHook(BaseHook, LoggingMixin):
         self.__login(client)
         return client
 
-    def __login(self, client) -> None:
+    def __login(self, client) -> int:
         self.log.debug('Logging into Docker registry')
         try:
             client.login(

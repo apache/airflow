@@ -17,7 +17,6 @@
 # under the License.
 
 import unittest
-
 from unittest import mock
 
 from airflow.providers.google.cloud.transfers.s3_to_gcs import S3ToGCSOperator

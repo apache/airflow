@@ -22,5 +22,6 @@ from airflow.providers.google.cloud.log.stackdriver_task_handler import Stackdri
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.log.stackdriver_task_handler`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

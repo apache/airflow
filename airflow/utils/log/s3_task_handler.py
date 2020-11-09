@@ -23,5 +23,6 @@ from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler  # no
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.log.s3_task_handler`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

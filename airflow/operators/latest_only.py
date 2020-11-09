@@ -44,17 +44,17 @@ class LatestOnlyOperator(BaseBranchOperator):
         # If the DAG Run is externally triggered, then return without
         # skipping downstream tasks
         if context['dag_run'] and context['dag_run'].external_trigger:
-            self.log.info(
-                "Externally triggered DAG_Run: allowing execution to proceed.")
+            self.log.info("Externally triggered DAG_Run: allowing execution to proceed.")
             return list(context['task'].get_direct_relative_ids(upstream=False))
 
         now = pendulum.now('UTC')
-        left_window = context['dag'].following_schedule(
-            context['execution_date'])
+        left_window = context['dag'].following_schedule(context['execution_date'])
         right_window = context['dag'].following_schedule(left_window)
         self.log.info(
             'Checking latest only with left_window: %s right_window: %s now: %s',
-            left_window, right_window, now
+            left_window,
+            right_window,
+            now,
         )
 
         if not left_window < now <= right_window:

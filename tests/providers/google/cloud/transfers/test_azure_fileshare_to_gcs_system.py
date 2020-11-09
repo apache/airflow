@@ -19,22 +19,21 @@ import os
 
 import pytest
 
+from airflow.models import Connection
 from airflow.providers.google.cloud.example_dags.example_azure_fileshare_to_gcs import (
+    AZURE_DIRECTORY_NAME,
     AZURE_SHARE_NAME,
     DEST_GCS_BUCKET,
-    AZURE_DIRECTORY_NAME,
 )
 from airflow.utils.session import create_session
-
-from airflow.models import Connection
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
 from tests.test_utils.azure_system_helpers import AzureSystemTest, provide_azure_fileshare
 from tests.test_utils.db import clear_db_connections
 from tests.test_utils.gcp_system_helpers import (
-    GoogleSystemTest,
-    provide_gcs_bucket,
     CLOUD_DAG_FOLDER,
+    GoogleSystemTest,
     provide_gcp_context,
+    provide_gcs_bucket,
 )
 
 AZURE_LOGIN = os.environ.get('AZURE_LOGIN', 'default_login')

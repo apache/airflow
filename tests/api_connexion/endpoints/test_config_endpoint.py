@@ -16,14 +16,12 @@
 # under the License.
 
 import textwrap
-
 from unittest.mock import patch
 
 from airflow.security import permissions
 from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
-
 
 MOCK_CONF = {
     'core': {
@@ -60,7 +58,7 @@ class TestGetConfig:
         self.client = self.app.test_client()  # type:ignore
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
-    def test_should_response_200_text_plain(self, mock_as_dict):
+    def test_should_respond_200_text_plain(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config", headers={'Accept': 'text/plain'}, environ_overrides={'REMOTE_USER': "test"}
         )
@@ -78,7 +76,7 @@ class TestGetConfig:
         assert expected == response.data.decode()
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
-    def test_should_response_200_application_json(self, mock_as_dict):
+    def test_should_respond_200_application_json(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config",
             headers={'Accept': 'application/json'},
@@ -105,7 +103,7 @@ class TestGetConfig:
         assert expected == response.json
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
-    def test_should_response_406(self, mock_as_dict):
+    def test_should_respond_406(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config",
             headers={'Accept': 'application/octet-stream'},
