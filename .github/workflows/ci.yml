@@ -410,7 +410,7 @@ jobs:
           path: "./files/airflow-readme-*"
 
   tests-helm:
-    timeout-minutes: 5
+    timeout-minutes: 20
     name: "Python unit tests for helm chart"
     runs-on: ubuntu-latest
     needs: [build-info, ci-images]
