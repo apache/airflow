@@ -111,20 +111,20 @@ This can also be done by specifying a full path to the test:
 
 .. code-block:: bash
 
-    pytest tests/test_core.py::TestCore::test_check_operators
+    pytest tests/core/test_core.py::TestCore::test_check_operators
 
 To run the whole test class, enter:
 
 .. code-block:: bash
 
-    pytest tests/test_core.py::TestCore
+    pytest tests/core/test_core.py::TestCore
 
 You can use all available ``pytest`` flags. For example, to increase a log level
 for debugging purposes, enter:
 
 .. code-block:: bash
 
-    pytest --log-level=DEBUG tests/test_core.py::TestCore
+    pytest --log-level=DEBUG tests/core/test_core.py::TestCore
 
 
 Running Tests for a Specified Target Using Breeze from the Host
@@ -149,7 +149,7 @@ You can also specify individual tests or a group of tests:
 
 .. code-block:: bash
 
-    ./breeze tests --db-reset tests/test_core.py::TestCore
+    ./breeze tests --db-reset tests/core/test_core.py::TestCore
 
 
 Running Tests of a specified type from the Host

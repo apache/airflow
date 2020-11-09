@@ -2035,7 +2035,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
         as additional options passed to pytest. You can pass 'tests' as target to
         run all tests. For example:
 
-        'breeze tests tests/test_core.py -- --logging-level=DEBUG'
+        'breeze tests tests/core/test_core.py -- --logging-level=DEBUG'
         'breeze tests tests
 
   Flags:

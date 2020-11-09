@@ -1869,7 +1869,7 @@ ${CMDNAME} tests [FLAGS] [TEST_TARGET ..] [-- <EXTRA_ARGS>]
       as additional options passed to pytest. You can pass 'tests' as target to
       run all tests. For example:
 
-      '${CMDNAME} tests tests/test_core.py -- --logging-level=DEBUG'
+      '${CMDNAME} tests tests/core/test_core.py -- --logging-level=DEBUG'
       '${CMDNAME} tests tests
 
 Flags:
