@@ -59,7 +59,21 @@ def do_setup(version_suffix_for_pypi=''):
         packages=find_namespace_packages(
             include=['airflow.providers.{{ PROVIDER_PACKAGE_ID }}',
                      'airflow.providers.{{ PROVIDER_PACKAGE_ID }}.*']),
+        package_data={ '': [
+{% if PROVIDER_PACKAGE_ID == 'amazon' %}
+          "*.json",
+{% elif PROVIDER_PACKAGE_ID == 'cncf.kubernetes' %}
+          "*.yaml",
+{% elif PROVIDER_PACKAGE_ID == 'google' %}
+          "*.yaml",
+          "*.sql",
+{% elif PROVIDER_PACKAGE_ID == 'papermill' %}
+          "*.ipynb",
+{% endif %}
+            ],
+        },
         zip_safe=False,
+        include_package_data=True,
         install_requires={{ INSTALL_REQUIREMENTS }},
         setup_requires={{ SETUP_REQUIREMENTS }},
         extras_require={{ EXTRAS_REQUIREMENTS }},

@@ -1220,6 +1220,7 @@ def update_generated_files_for_package(
     if update_setup:
         prepare_setup_py_file(context)
         prepare_setup_cfg_file(context)
+        prepare_manifest_in_file(context)
 
     bad = bad + sum([len(entity_summary.wrong_entities) for entity_summary in entity_summaries.values()])
     if bad != 0:
@@ -1316,6 +1317,19 @@ def prepare_setup_cfg_file(context):
     )
     with open(setup_file_path, "wt") as setup_file:
         setup_file.write(setup_content)
+
+
+def prepare_manifest_in_file(context):
+    target = os.path.abspath(os.path.join(get_target_folder(), "MANIFEST.in"))
+    content = render_template(
+        template_name="MANIFEST",
+        context=context,
+        extension='.in',
+        autoescape=False,
+        keep_trailing_newline=True,
+    )
+    with open(target, "wt") as fh:
+        fh.write(content)
 
 
 def update_release_notes_for_packages(

@@ -189,6 +189,7 @@ log.txt*
 
 # Provider-related ignores
 /provider_packages/CHANGELOG.txt
+/provider_packages/MANIFEST.in
 /airflow/providers/__init__.py
 
 # Local .terraform directories
