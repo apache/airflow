@@ -190,12 +190,14 @@ class TestKubernetesPodOperator(unittest.TestCase):
         read_namespaced_pod_mock = mock_client.return_value.read_namespaced_pod
         read_namespaced_pod_mock.return_value = failed_pod_status
 
-        with self.assertRaisesRegex(
-            AirflowException,
-            fr'Pod Launching failed: Pod {k.pod.metadata.name} returned a failure: {failed_pod_status}',
-        ):
+        with self.assertRaises(AirflowException) as cm:
             context = self.create_context(k)
             k.execute(context=context)
+
+        self.assertEqual(
+            str(cm.exception), 
+            f"Pod Launching failed: Pod {k.pod.metadata.name} returned a failure: {failed_pod_status}",
+        )
         assert mock_client.return_value.read_namespaced_pod.called
         self.assertEqual(read_namespaced_pod_mock.call_args[0][0], k.pod.metadata.name)
 
