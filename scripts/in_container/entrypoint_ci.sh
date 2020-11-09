@@ -31,6 +31,11 @@ function disable_rbac_if_requested() {
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . /opt/airflow/scripts/in_container/_in_container_script_init.sh
 
+# Add "other" and "group" write permission to the tmp folder
+# Note that it will also change permissions in the /tmp folder on the host
+# but this is necessary to enable some of our CLI tools to work without errors
+chmod 1777 /tmp
+
 AIRFLOW_SOURCES=$(cd "${IN_CONTAINER_DIR}/../.." || exit 1; pwd)
 
 PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.6}
