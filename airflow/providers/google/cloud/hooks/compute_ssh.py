@@ -235,7 +235,8 @@ class ComputeEngineSSHHook(SSHHook):
 
     def _connect_to_instance(self, user, hostname, pkey, proxy_command) -> paramiko.SSHClient:
         self.log.info("Opening remote connection to host: username=%s, hostname=%s", user, hostname)
-        for time_to_wait in exponential_sleep_generator(initial=1, maximum=10):
+        max_time_to_wait = 10
+        for time_to_wait in exponential_sleep_generator(initial=1, maximum=max_time_to_wait):
             try:
                 client = _GCloudAuthorizedSSHClient(self._compute_hook)
                 # Default is RejectPolicy
@@ -253,7 +254,7 @@ class ComputeEngineSSHHook(SSHHook):
             except paramiko.SSHException:
                 # exponential_sleep_generator is an infinite generator, so we need to
                 # check the end condition.
-                if time_to_wait == 10:
+                if time_to_wait == max_time_to_wait:
                     raise
             self.log.info("Failed to connect. Waiting %ds to retry", time_to_wait)
             time.sleep(time_to_wait)
