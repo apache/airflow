@@ -23,7 +23,7 @@ from airflow.operators.python import task
 from airflow.utils.dates import days_ago
 from airflow.utils.task_group import taskgroup
 
-
+# [START task_group_decorator_usage]
 # Creating Tasks
 @task()
 def task_start():
@@ -68,3 +68,4 @@ with DAG(dag_id="example_task_group_decorator", start_date=days_ago(2), tags=["e
 
     s1 = section_1(t1)
     s1.set_downstream(task_end())
+# [END task_group_decorator_usage]
