@@ -19,4 +19,8 @@
 
 ### Release {{RELEASE_NO_LEADING_ZEROS}}{{ VERSION_SUFFIX }}
 
-{{CURRENT_CHANGES_TABLE}}
+| Commit | Committed | Subject |
+|:-------|:----------|:--------|
+{% for row in CURRENT_CHANGES_TABLE -%}
+| {{ row[0] }} | {{ row[1] }} | {{ row[2] }} |
+{% endfor %}

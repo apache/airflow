@@ -733,17 +733,14 @@ def convert_git_changes_to_table(changes: str, base_url: str) -> str:
     :param base_url: base url for the commit URL
     :return: markdown-formatted table
     """
-    from tabulate import tabulate
-
     lines = changes.split("\n")
-    headers = ["Commit", "Committed", "Subject"]
     table_data = []
     for line in lines:
         if line == "":
             continue
         full_hash, short_hash, date, message = line.split(" ", maxsplit=3)
         table_data.append((f"[{short_hash}]({base_url}{full_hash})", date, message))
-    return tabulate(table_data, headers=headers, tablefmt="pipe")
+    return table_data
 
 
 def convert_pip_requirements_to_table(requirements: Iterable[str]) -> str:
