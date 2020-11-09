@@ -250,6 +250,7 @@ repos:
         files: ^setup.py$|^docs/installation.rst$
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_setup_installation.py
+        additional_dependencies: ['rich==9.2.0']
       - id: update-breeze-file
         name: Update output of breeze command in BREEZE.rst
         entry: "./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.sh"
