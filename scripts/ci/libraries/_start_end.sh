@@ -53,7 +53,6 @@ function start_end::dump_container_logs() {
     echo "###########################################################################################"
     docker logs "${container}" > "${dump_file}"
     echo "                   Container ${container} logs dumped to ${dump_file}"
-    popd || exit 1
     echo "###########################################################################################"
 }
 
