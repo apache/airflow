@@ -27,7 +27,6 @@ from airflow.providers.google.cloud.operators.gcs import (
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.gcs`.",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

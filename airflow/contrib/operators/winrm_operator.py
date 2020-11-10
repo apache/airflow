@@ -25,5 +25,4 @@ from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator  # n
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.microsoft.winrm.operators.winrm`.",
     DeprecationWarning,
-    stacklevel=2,
 )

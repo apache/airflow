@@ -25,5 +25,4 @@ from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Op
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.transfers.dynamodb_to_s3`.",
     DeprecationWarning,
-    stacklevel=2,
 )

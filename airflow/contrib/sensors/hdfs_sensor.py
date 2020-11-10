@@ -28,7 +28,7 @@ from airflow.providers.apache.hdfs.sensors.hdfs import HdfsFolderSensor, HdfsReg
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.hdfs.sensors.hdfs`.",
     DeprecationWarning,
-    stacklevel=2,
+
 )
 
 

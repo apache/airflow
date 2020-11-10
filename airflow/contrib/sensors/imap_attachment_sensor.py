@@ -25,5 +25,5 @@ from airflow.providers.imap.sensors.imap_attachment import ImapAttachmentSensor 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.imap.sensors.imap_attachment`.",
     DeprecationWarning,
-    stacklevel=2,
+
 )

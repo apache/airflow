@@ -39,5 +39,4 @@ from airflow.providers.google.cloud.operators.tasks import (  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.tasks`",
     DeprecationWarning,
-    stacklevel=2,
 )

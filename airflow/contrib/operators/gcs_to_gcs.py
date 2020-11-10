@@ -24,7 +24,6 @@ from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.transfers.gcs_to_gcs`.",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

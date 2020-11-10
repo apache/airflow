@@ -25,7 +25,6 @@ from airflow.providers.google.cloud.operators.translate_speech import CloudTrans
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.translate_speech`.",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

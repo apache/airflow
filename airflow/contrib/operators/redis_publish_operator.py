@@ -25,5 +25,4 @@ from airflow.providers.redis.operators.redis_publish import RedisPublishOperator
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.redis.operators.redis_publish`.",
     DeprecationWarning,
-    stacklevel=2,
 )

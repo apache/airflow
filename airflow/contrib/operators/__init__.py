@@ -22,6 +22,4 @@ import warnings
 
 warnings.warn(
     "This package is deprecated. Please use `airflow.operators` or `airflow.providers.*.operators`.",
-    DeprecationWarning,
-    stacklevel=2,
 )

@@ -28,7 +28,6 @@ from airflow.providers.google.cloud.operators.kubernetes_engine import (
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.kubernetes_engine`",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

@@ -25,5 +25,4 @@ from airflow.providers.amazon.aws.operators.sagemaker_transform import SageMaker
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.sagemaker_transform`.",
     DeprecationWarning,
-    stacklevel=2,
 )

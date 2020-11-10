@@ -25,5 +25,5 @@ from airflow.providers.amazon.aws.sensors.sagemaker_base import SageMakerBaseSen
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.sagemaker_base`.",
     DeprecationWarning,
-    stacklevel=2,
+
 )

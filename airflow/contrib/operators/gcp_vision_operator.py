@@ -41,7 +41,6 @@ from airflow.providers.google.cloud.operators.vision import (  # noqa # pylint: 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.vision`.",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

@@ -27,7 +27,6 @@ from airflow.providers.apache.hive.transfers.vertica_to_hive import VerticaToHiv
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.hive.transfers.vertica_to_hive`.",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

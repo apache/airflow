@@ -25,5 +25,4 @@ from airflow.providers.apache.druid.operators.druid import DruidOperator  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.druid.operators.druid`.",
     DeprecationWarning,
-    stacklevel=2,
 )

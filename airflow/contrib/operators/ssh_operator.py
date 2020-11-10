@@ -23,7 +23,5 @@ import warnings
 from airflow.providers.ssh.operators.ssh import SSHOperator  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.ssh.operators.ssh`.",
-    DeprecationWarning,
-    stacklevel=2,
+    "This module is deprecated. Please use `airflow.providers.ssh.operators.ssh`.", DeprecationWarning
 )

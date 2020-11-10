@@ -26,5 +26,5 @@ from airflow.providers.amazon.aws.sensors.athena import AthenaSensor  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.athena`.",
     DeprecationWarning,
-    stacklevel=2,
+
 )

@@ -25,5 +25,4 @@ from airflow.providers.amazon.aws.operators.emr_terminate_job_flow import EmrTer
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.emr_terminate_job_flow`.",
     DeprecationWarning,
-    stacklevel=2,
 )

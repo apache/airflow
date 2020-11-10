@@ -26,5 +26,4 @@ from airflow.providers.amazon.aws.operators.sns import SnsPublishOperator  # noq
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.sns`.",
     DeprecationWarning,
-    stacklevel=2,
 )

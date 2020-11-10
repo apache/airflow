@@ -22,5 +22,5 @@ import warnings
 warnings.warn(
     "This package is deprecated. Please use `airflow.sensors` or `airflow.providers.*.sensors`.",
     DeprecationWarning,
-    stacklevel=2,
+
 )

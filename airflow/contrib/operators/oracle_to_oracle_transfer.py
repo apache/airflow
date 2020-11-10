@@ -28,7 +28,6 @@ from airflow.providers.oracle.transfers.oracle_to_oracle import OracleToOracleOp
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.oracle.transfers.oracle_to_oracle`.",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

@@ -34,7 +34,6 @@ warnings.warn(
     """This module is deprecated.
     "Please use `airflow.providers.google.cloud.operators.pubsub`.""",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

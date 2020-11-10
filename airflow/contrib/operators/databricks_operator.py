@@ -28,5 +28,4 @@ from airflow.providers.databricks.operators.databricks import (  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.databricks.operators.databricks`.",
     DeprecationWarning,
-    stacklevel=2,
 )

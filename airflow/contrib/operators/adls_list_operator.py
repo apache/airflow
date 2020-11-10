@@ -25,5 +25,4 @@ from airflow.providers.microsoft.azure.operators.adls_list import AzureDataLakeS
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.operators.adls_list`.",
     DeprecationWarning,
-    stacklevel=2,
 )

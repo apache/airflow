@@ -23,7 +23,5 @@ import warnings
 from airflow.providers.vertica.operators.vertica import VerticaOperator  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.vertica.operators.vertica`.",
-    DeprecationWarning,
-    stacklevel=2,
+    "This module is deprecated. Please use `airflow.providers.vertica.operators.vertica`.", DeprecationWarning
 )

@@ -25,5 +25,4 @@ from airflow.providers.sftp.operators.sftp import SFTPOperator  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.sftp.operators.sftp`.",
     DeprecationWarning,
-    stacklevel=2,
 )

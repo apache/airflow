@@ -25,5 +25,4 @@ from airflow.providers.amazon.aws.operators.sagemaker_endpoint import SageMakerE
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.sagemaker_endpoint`.",
     DeprecationWarning,
-    stacklevel=2,
 )

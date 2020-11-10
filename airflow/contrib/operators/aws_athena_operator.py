@@ -26,5 +26,4 @@ from airflow.providers.amazon.aws.operators.athena import AWSAthenaOperator  # n
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.athena`.",
     DeprecationWarning,
-    stacklevel=2,
 )

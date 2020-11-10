@@ -24,7 +24,6 @@ from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQue
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.transfers.gcs_to_bigquery`.",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

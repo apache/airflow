@@ -25,5 +25,5 @@ from airflow.providers.redis.sensors.redis_pub_sub import RedisPubSubSensor  # n
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.redis.sensors.redis_pub_sub`.",
     DeprecationWarning,
-    stacklevel=2,
+
 )

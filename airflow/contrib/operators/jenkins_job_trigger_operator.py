@@ -25,5 +25,4 @@ from airflow.providers.jenkins.operators.jenkins_job_trigger import JenkinsJobTr
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.jenkins.operators.jenkins_job_trigger`.",
     DeprecationWarning,
-    stacklevel=2,
 )

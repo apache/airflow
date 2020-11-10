@@ -25,5 +25,4 @@ from airflow.providers.google.cloud.operators.cloud_build import CloudBuildCreat
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.cloud_build`.",
     DeprecationWarning,
-    stacklevel=2,
 )

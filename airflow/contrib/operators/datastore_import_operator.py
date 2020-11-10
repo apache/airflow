@@ -24,7 +24,6 @@ from airflow.providers.google.cloud.operators.datastore import CloudDatastoreImp
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.datastore`.",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

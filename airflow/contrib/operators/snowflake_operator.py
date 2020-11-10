@@ -25,5 +25,4 @@ from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator  #
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.snowflake.operators.snowflake`.",
     DeprecationWarning,
-    stacklevel=2,
 )

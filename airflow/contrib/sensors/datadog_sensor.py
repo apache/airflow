@@ -25,5 +25,5 @@ from airflow.providers.datadog.sensors.datadog import DatadogSensor  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.datadog.sensors.datadog`.",
     DeprecationWarning,
-    stacklevel=2,
+
 )

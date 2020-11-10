@@ -24,7 +24,7 @@ from airflow.providers.google.cloud.sensors.bigquery import BigQueryTableExisten
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.sensors.bigquery`.",
     DeprecationWarning,
-    stacklevel=2,
+
 )
 
 

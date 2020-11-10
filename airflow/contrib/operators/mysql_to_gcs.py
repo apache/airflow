@@ -24,7 +24,6 @@ from airflow.providers.google.cloud.transfers.mysql_to_gcs import MySQLToGCSOper
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.transfers.mysql_to_gcs`.",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

@@ -26,7 +26,6 @@ from airflow.typing_compat import Protocol, runtime_checkable
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.ecs`.",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

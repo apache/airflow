@@ -25,5 +25,4 @@ from airflow.providers.amazon.aws.operators.sagemaker_tuning import SageMakerTun
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.sagemaker_tuning`.",
     DeprecationWarning,
-    stacklevel=2,
 )

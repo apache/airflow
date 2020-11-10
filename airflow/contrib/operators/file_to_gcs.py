@@ -24,7 +24,6 @@ from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesyste
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.transfers.local_to_gcs`,",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

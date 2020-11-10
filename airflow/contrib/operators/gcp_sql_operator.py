@@ -35,7 +35,6 @@ from airflow.providers.google.cloud.operators.cloud_sql import (
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.cloud_sql`",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 
