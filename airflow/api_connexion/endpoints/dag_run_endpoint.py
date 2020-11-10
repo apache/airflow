@@ -218,8 +218,10 @@ def post_dag_run(dag_id, session):
     """Trigger a DAG."""
     if not session.query(DagModel).filter(DagModel.dag_id == dag_id).first():
         raise NotFound(title="DAG not found", detail=f"DAG with dag_id: '{dag_id}' not found")
-
-    post_body = dagrun_schema.load(request.json, session=session)
+    try:
+        post_body = dagrun_schema.load(request.json, session=session)
+    except ValidationError as err:
+        raise BadRequest(detail=str(err))
     dagrun_instance = (
         session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == post_body["run_id"]).first()
     )

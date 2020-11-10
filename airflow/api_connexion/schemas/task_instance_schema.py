@@ -20,6 +20,7 @@ from typing import List, NamedTuple, Optional, Tuple
 from marshmallow import Schema, ValidationError, fields, validate, validates_schema
 from marshmallow.utils import get_value
 
+from airflow.api_connexion.parameters import validate_istimezone
 from airflow.api_connexion.schemas.enum_schemas import TaskInstanceStateField
 from airflow.api_connexion.schemas.sla_miss_schema import SlaMissSchema
 from airflow.models import SlaMiss, TaskInstance
@@ -31,9 +32,9 @@ class TaskInstanceSchema(Schema):
 
     task_id = fields.Str()
     dag_id = fields.Str()
-    execution_date = fields.DateTime()
-    start_date = fields.DateTime()
-    end_date = fields.DateTime()
+    execution_date = fields.DateTime(validate=validate_istimezone)
+    start_date = fields.DateTime(validate=validate_istimezone)
+    end_date = fields.DateTime(validate=validate_istimezone)
     duration = fields.Float()
     state = TaskInstanceStateField()
     _try_number = fields.Int(data_key="try_number")
@@ -80,12 +81,12 @@ class TaskInstanceBatchFormSchema(Schema):
     page_offset = fields.Int(missing=0, min=0)
     page_limit = fields.Int(missing=100, min=1)
     dag_ids = fields.List(fields.Str(), missing=None)
-    execution_date_gte = fields.DateTime(missing=None)
-    execution_date_lte = fields.DateTime(missing=None)
-    start_date_gte = fields.DateTime(missing=None)
-    start_date_lte = fields.DateTime(missing=None)
-    end_date_gte = fields.DateTime(missing=None)
-    end_date_lte = fields.DateTime(missing=None)
+    execution_date_gte = fields.DateTime(missing=None, validate=validate_istimezone)
+    execution_date_lte = fields.DateTime(missing=None, validate=validate_istimezone)
+    start_date_gte = fields.DateTime(missing=None, validate=validate_istimezone)
+    start_date_lte = fields.DateTime(missing=None, validate=validate_istimezone)
+    end_date_gte = fields.DateTime(missing=None, validate=validate_istimezone)
+    end_date_lte = fields.DateTime(missing=None, validate=validate_istimezone)
     duration_gte = fields.Int(missing=None)
     duration_lte = fields.Int(missing=None)
     state = fields.List(fields.Str(), missing=None)
@@ -97,8 +98,8 @@ class ClearTaskInstanceFormSchema(Schema):
     """Schema for handling the request of clearing task instance of a Dag"""
 
     dry_run = fields.Boolean(default=True)
-    start_date = fields.DateTime(missing=None)
-    end_date = fields.DateTime(missing=None)
+    start_date = fields.DateTime(missing=None, validate=validate_istimezone)
+    end_date = fields.DateTime(missing=None, validate=validate_istimezone)
     only_failed = fields.Boolean(missing=True)
     only_running = fields.Boolean(missing=False)
     include_subdags = fields.Boolean(missing=False)
@@ -120,7 +121,7 @@ class SetTaskInstanceStateFormSchema(Schema):
 
     dry_run = fields.Boolean(default=True)
     task_id = fields.Str(required=True)
-    execution_date = fields.DateTime(required=True)
+    execution_date = fields.DateTime(required=True, validate=validate_istimezone)
     include_upstream = fields.Boolean(required=True)
     include_downstream = fields.Boolean(required=True)
     include_future = fields.Boolean(required=True)
