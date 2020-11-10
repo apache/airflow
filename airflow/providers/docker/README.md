@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-providers-docker
 
 Release: 1.0.0b1
@@ -42,8 +41,6 @@ Release: 1.0.0b1
 This is a provider package for `docker` provider. All classes for this provider package
 are in `airflow.providers.docker` python package.
 
-
-
 ## Installation
 
 You can install this package on top of an existing airflow 2.* installation via
@@ -61,10 +58,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `docke
 are in the `airflow.providers.docker` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
-
 
 ### Moved operators
 
@@ -73,18 +67,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [operators.docker.DockerOperator](https://github.com/apache/airflow/blob/master/airflow/providers/docker/operators/docker.py)                  | [operators.docker_operator.DockerOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/docker_operator.py)                                  |
 | [operators.docker_swarm.DockerSwarmOperator](https://github.com/apache/airflow/blob/master/airflow/providers/docker/operators/docker_swarm.py) | [contrib.operators.docker_swarm_operator.DockerSwarmOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/docker_swarm_operator.py) |
 
-
 ## Hooks
-
-
 
 ### Moved hooks
 
 | Airflow 2.0 hooks: `airflow.providers.docker` package                                                             | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                     |
 |:------------------------------------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------|
 | [hooks.docker.DockerHook](https://github.com/apache/airflow/blob/master/airflow/providers/docker/hooks/docker.py) | [hooks.docker_hook.DockerHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/hooks/docker_hook.py) |
-
-
 
 ## Releases
 
@@ -99,7 +88,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [0314a3a21](https://github.com/apache/airflow/commit/0314a3a218f864f78ec260cc66134e7acae34bc5) | 2020-11-01  | Allow airflow.providers to be installed in multiple python folders (#10806) |
 | [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855)                                  |
 
-
 ### Release 0.0.2a1
 
 | Commit                                                                                         | Committed   | Subject                                                            |
@@ -107,7 +95,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [872b1566a](https://github.com/apache/airflow/commit/872b1566a11cb73297e657ff325161721b296574) | 2020-10-25  | Generated backport providers readmes/setup for 2020.10.29 (#11826) |
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                                 |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)       |
-
 
 ### Release 0.0.1
 

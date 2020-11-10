@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-providers-grpc
 
 Release: 1.0.0b1
@@ -42,8 +41,6 @@ Release: 1.0.0b1
 This is a provider package for `grpc` provider. All classes for this provider package
 are in `airflow.providers.grpc` python package.
 
-
-
 ## Installation
 
 You can install this package on top of an existing airflow 2.* installation via
@@ -63,10 +60,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `grpc`
 are in the `airflow.providers.grpc` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
-
 
 ### Moved operators
 
@@ -74,18 +68,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:----------------------------------------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------|
 | [operators.grpc.GrpcOperator](https://github.com/apache/airflow/blob/master/airflow/providers/grpc/operators/grpc.py) | [contrib.operators.grpc_operator.GrpcOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/grpc_operator.py) |
 
-
 ## Hooks
-
 
 ### New hooks
 
 | New Airflow 2.0 hooks: `airflow.providers.grpc` package                                                   |
 |:----------------------------------------------------------------------------------------------------------|
 | [hooks.grpc.GrpcHook](https://github.com/apache/airflow/blob/master/airflow/providers/grpc/hooks/grpc.py) |
-
-
-
 
 ## Releases
 
@@ -101,7 +90,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [8c42cf1b0](https://github.com/apache/airflow/commit/8c42cf1b00c90f0d7f11b8a3a455381de8e003c5) | 2020-11-03  | Use PyUpgrade to use Python 3.6 features (#11447)                  |
 | [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855)                         |
 
-
 ### Release 0.0.2a1
 
 | Commit                                                                                         | Committed   | Subject                                                            |
@@ -109,7 +97,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [872b1566a](https://github.com/apache/airflow/commit/872b1566a11cb73297e657ff325161721b296574) | 2020-10-25  | Generated backport providers readmes/setup for 2020.10.29 (#11826) |
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                                 |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)       |
-
 
 ### Release 0.0.1
 

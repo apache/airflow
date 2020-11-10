@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-mysql
 
 Release: 2020.10.29
@@ -50,8 +49,6 @@ are in `airflow.providers.mysql` python package.
 
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
-
-
 
 ## Installation
 
@@ -88,10 +85,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `mysql
 are in the `airflow.providers.mysql` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
-
 
 ### Moved operators
 
@@ -99,16 +93,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:--------------------------------------------------------------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------|
 | [operators.mysql.MySqlOperator](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/operators/mysql.py) | [operators.mysql_operator.MySqlOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/mysql_operator.py) |
 
-
 ## Transfer operators
-
 
 ### New transfer operators
 
 | New Airflow 2.0 transfers: `airflow.providers.mysql` package                                                                              |
 |:------------------------------------------------------------------------------------------------------------------------------------------|
 | [transfers.s3_to_mysql.S3ToMySqlOperator](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/transfers/s3_to_mysql.py) |
-
 
 ### Moved transfer operators
 
@@ -117,18 +108,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [transfers.presto_to_mysql.PrestoToMySqlOperator](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/transfers/presto_to_mysql.py)    | [operators.presto_to_mysql.PrestoToMySqlTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/presto_to_mysql.py)                    |
 | [transfers.vertica_to_mysql.VerticaToMySqlOperator](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/transfers/vertica_to_mysql.py) | [contrib.operators.vertica_to_mysql.VerticaToMySqlTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/vertica_to_mysql.py) |
 
-
 ## Hooks
-
-
 
 ### Moved hooks
 
 | Airflow 2.0 hooks: `airflow.providers.mysql` package                                                          | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                  |
 |:--------------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------|
 | [hooks.mysql.MySqlHook](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/hooks/mysql.py) | [hooks.mysql_hook.MySqlHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/hooks/mysql_hook.py) |
-
-
 
 ## Releases
 
@@ -140,7 +126,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                           |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487) |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)   |
-
 
 ### Release 2020.10.5
 
@@ -158,7 +143,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [24c8e4c2d](https://github.com/apache/airflow/commit/24c8e4c2d6e359ecc2c7d6275dccc68de4a82832) | 2020-08-06  | Changes to all the constructors to remove the args argument (#10163)  |
 | [aeea71274](https://github.com/apache/airflow/commit/aeea71274d4527ff2351102e94aa38bda6099e7f) | 2020-08-02  | Remove `args` parameter from provider operator constructors (#10097)  |
 | [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)                        |
-
 
 ### Release 2020.6.24
 

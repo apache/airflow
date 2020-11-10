@@ -1,5 +1,4 @@
 
-
 ### Release 2020.6.24
 
 | Commit                                                                                         | Committed   | Subject                                                                          |

@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-providers-slack
 
 Release: 1.0.0b1
@@ -43,8 +42,6 @@ Release: 1.0.0b1
 
 This is a provider package for `slack` provider. All classes for this provider package
 are in `airflow.providers.slack` python package.
-
-
 
 ## Installation
 
@@ -78,16 +75,13 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `slack
 are in the `airflow.providers.slack` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
 
 ### New operators
 
 | New Airflow 2.0 operators: `airflow.providers.slack` package                                                                     |
 |:---------------------------------------------------------------------------------------------------------------------------------|
 | [operators.slack.SlackAPIFileOperator](https://github.com/apache/airflow/blob/master/airflow/providers/slack/operators/slack.py) |
-
 
 ### Moved operators
 
@@ -97,10 +91,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [operators.slack.SlackAPIPostOperator](https://github.com/apache/airflow/blob/master/airflow/providers/slack/operators/slack.py)                 | [operators.slack_operator.SlackAPIPostOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/slack_operator.py)                                 |
 | [operators.slack_webhook.SlackWebhookOperator](https://github.com/apache/airflow/blob/master/airflow/providers/slack/operators/slack_webhook.py) | [contrib.operators.slack_webhook_operator.SlackWebhookOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/slack_webhook_operator.py) |
 
-
 ## Hooks
-
-
 
 ### Moved hooks
 
@@ -108,8 +99,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:-------------------------------------------------------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------|
 | [hooks.slack.SlackHook](https://github.com/apache/airflow/blob/master/airflow/providers/slack/hooks/slack.py)                        | [hooks.slack_hook.SlackHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/hooks/slack_hook.py)                                        |
 | [hooks.slack_webhook.SlackWebhookHook](https://github.com/apache/airflow/blob/master/airflow/providers/slack/hooks/slack_webhook.py) | [contrib.hooks.slack_webhook_hook.SlackWebhookHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/slack_webhook_hook.py) |
-
-
 
 ## Releases
 
@@ -123,7 +112,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [4e8f9cc8d](https://github.com/apache/airflow/commit/4e8f9cc8d02b29c325b8a5a76b4837671bdf5f68) | 2020-11-03  | Enable Black - Python Auto Formmatter (#9550)                      |
 | [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855)                         |
 
-
 ### Release 0.0.2a1
 
 | Commit                                                                                         | Committed   | Subject                                                            |
@@ -133,7 +121,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [4fb5c017f](https://github.com/apache/airflow/commit/4fb5c017fe5ca41ed95547a857c9c39efc4f1476) | 2020-10-21  | Check response status in slack webhook hook. (#11620)              |
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                                 |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)       |
-
 
 ### Release 0.0.1
 

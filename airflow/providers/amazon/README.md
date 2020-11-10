@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-providers-amazon
 
 Release: 1.0.0b1
@@ -52,8 +51,6 @@ Release: 1.0.0b1
 
 This is a provider package for `amazon` provider. All classes for this provider package
 are in `airflow.providers.amazon` python package.
-
-
 
 ## Installation
 
@@ -94,9 +91,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `amazo
 are in the `airflow.providers.amazon` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
 
 ### New operators
 
@@ -116,7 +111,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [aws.operators.sagemaker_processing.SageMakerProcessingOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/sagemaker_processing.py)                                        |
 | [aws.operators.step_function_get_execution_output.StepFunctionGetExecutionOutputOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/step_function_get_execution_output.py) |
 | [aws.operators.step_function_start_execution.StepFunctionStartExecutionOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/step_function_start_execution.py)               |
-
 
 ### Moved operators
 
@@ -141,9 +135,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [aws.operators.sns.SnsPublishOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/sns.py)                                                          | [contrib.operators.sns_publish_operator.SnsPublishOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/sns_publish_operator.py)                                          |
 | [aws.operators.sqs.SQSPublishOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/sqs.py)                                                          | [contrib.operators.aws_sqs_publish_operator.SQSPublishOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/aws_sqs_publish_operator.py)                                  |
 
-
 ## Transfer operators
-
 
 ### New transfer operators
 
@@ -151,7 +143,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [aws.transfers.glacier_to_gcs.GlacierToGCSOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/transfers/glacier_to_gcs.py) |
 | [aws.transfers.mysql_to_s3.MySQLToS3Operator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/transfers/mysql_to_s3.py)          |
-
 
 ### Moved transfer operators
 
@@ -168,9 +159,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [aws.transfers.s3_to_sftp.S3ToSFTPOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/transfers/s3_to_sftp.py)                                 | [contrib.operators.s3_to_sftp_operator.S3ToSFTPOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/s3_to_sftp_operator.py)                                 |
 | [aws.transfers.sftp_to_s3.SFTPToS3Operator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/transfers/sftp_to_s3.py)                                 | [contrib.operators.sftp_to_s3_operator.SFTPToS3Operator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/sftp_to_s3_operator.py)                                 |
 
-
 ## Sensors
-
 
 ### New sensors
 
@@ -185,7 +174,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [aws.sensors.s3_keys_unchanged.S3KeysUnchangedSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/s3_keys_unchanged.py)                   |
 | [aws.sensors.sagemaker_training.SageMakerTrainingSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/sagemaker_training.py)               |
 | [aws.sensors.step_function_execution.StepFunctionExecutionSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/step_function_execution.py) |
-
 
 ### Moved sensors
 
@@ -204,9 +192,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [aws.sensors.sagemaker_tuning.SageMakerTuningSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/sagemaker_tuning.py)                     | [contrib.sensors.sagemaker_tuning_sensor.SageMakerTuningSensor](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/sensors/sagemaker_tuning_sensor.py)                             |
 | [aws.sensors.sqs.SQSSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/sqs.py)                                                           | [contrib.sensors.aws_sqs_sensor.SQSSensor](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/sensors/aws_sqs_sensor.py)                                                           |
 
-
 ## Hooks
-
 
 ### New hooks
 
@@ -225,7 +211,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [aws.hooks.ses.SESHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/ses.py)                                                                             |
 | [aws.hooks.step_function.StepFunctionHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/step_function.py)                                                |
 
-
 ### Moved hooks
 
 | Airflow 2.0 hooks: `airflow.providers.amazon` package                                                                                          | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                 |
@@ -243,10 +228,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [aws.hooks.sns.AwsSnsHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/sns.py)                            | [contrib.hooks.aws_sns_hook.AwsSnsHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/aws_sns_hook.py)                           |
 | [aws.hooks.sqs.SQSHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/sqs.py)                               | [contrib.hooks.aws_sqs_hook.SQSHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/aws_sqs_hook.py)                              |
 
-
 ## Secrets
-
-
 
 ### Moved secrets
 
@@ -254,8 +236,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [aws.secrets.secrets_manager.SecretsManagerBackend](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/secrets/secrets_manager.py)               | [contrib.secrets.aws_secrets_manager.SecretsManagerBackend](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/secrets/aws_secrets_manager.py)               |
 | [aws.secrets.systems_manager.SystemsManagerParameterStoreBackend](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/secrets/systems_manager.py) | [contrib.secrets.aws_systems_manager.SystemsManagerParameterStoreBackend](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/secrets/aws_systems_manager.py) |
-
-
 
 ## Releases
 
@@ -276,7 +256,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [db121f726](https://github.com/apache/airflow/commit/db121f726b3c7a37aca1ea05eb4714f884456005) | 2020-10-28  | Add truncate table (before copy) option to S3ToRedshiftOperator (#9246)     |
 | [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855)                                  |
 
-
 ### Release 0.0.2a1
 
 | Commit                                                                                         | Committed   | Subject                                                            |
@@ -293,7 +272,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [674368f66](https://github.com/apache/airflow/commit/674368f66cf61b2a105f326f23868ac3aee08807) | 2020-10-19  | Fixes MySQLToS3 float to int conversion (#10437)                   |
 | [0823d46a7](https://github.com/apache/airflow/commit/0823d46a7f267f2e45195a175021825367938add) | 2020-10-16  | Add type annotations for AWS operators and hooks (#11434)          |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)       |
-
 
 ### Release 0.0.1
 

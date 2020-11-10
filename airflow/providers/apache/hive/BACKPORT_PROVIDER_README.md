@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-apache-hive
 
 Release: 2020.10.29
@@ -51,8 +50,6 @@ are in `airflow.providers.apache.hive` python package.
 
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
-
-
 
 ## Installation
 
@@ -92,10 +89,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `apach
 are in the `airflow.providers.apache.hive` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
-
 
 ### Moved operators
 
@@ -104,10 +98,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [operators.hive.HiveOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/operators/hive.py)                            | [operators.hive_operator.HiveOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/hive_operator.py)                            |
 | [operators.hive_stats.HiveStatsCollectionOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/operators/hive_stats.py) | [operators.hive_stats_operator.HiveStatsCollectionOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/hive_stats_operator.py) |
 
-
 ## Transfer operators
-
-
 
 ### Moved transfer operators
 
@@ -120,10 +111,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [transfers.s3_to_hive.S3ToHiveOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/transfers/s3_to_hive.py)                | [operators.s3_to_hive_operator.S3ToHiveTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/s3_to_hive_operator.py)              |
 | [transfers.vertica_to_hive.VerticaToHiveOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/transfers/vertica_to_hive.py) | [contrib.operators.vertica_to_hive.VerticaToHiveTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/vertica_to_hive.py) |
 
-
 ## Sensors
-
-
 
 ### Moved sensors
 
@@ -133,10 +121,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [sensors.metastore_partition.MetastorePartitionSensor](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/sensors/metastore_partition.py)   | [sensors.metastore_partition_sensor.MetastorePartitionSensor](https://github.com/apache/airflow/blob/v1-10-stable/airflow/sensors/metastore_partition_sensor.py)   |
 | [sensors.named_hive_partition.NamedHivePartitionSensor](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/sensors/named_hive_partition.py) | [sensors.named_hive_partition_sensor.NamedHivePartitionSensor](https://github.com/apache/airflow/blob/v1-10-stable/airflow/sensors/named_hive_partition_sensor.py) |
 
-
 ## Hooks
-
-
 
 ### Moved hooks
 
@@ -145,8 +130,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [hooks.hive.HiveCliHook](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/hooks/hive.py)       | [hooks.hive_hooks.HiveCliHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/hooks/hive_hooks.py)       |
 | [hooks.hive.HiveMetastoreHook](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/hooks/hive.py) | [hooks.hive_hooks.HiveMetastoreHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/hooks/hive_hooks.py) |
 | [hooks.hive.HiveServer2Hook](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/hooks/hive.py)   | [hooks.hive_hooks.HiveServer2Hook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/hooks/hive_hooks.py)   |
-
-
 
 ## Releases
 
@@ -158,7 +141,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                           |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487) |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)   |
-
 
 ### Release 2020.10.5
 
@@ -187,7 +169,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [44d4ae809](https://github.com/apache/airflow/commit/44d4ae809c1e3784ff95b6a5e95113c3412e56b3) | 2020-07-06  | Upgrade to latest pre-commit checks (#9686)                                           |
 | [e13a14c87](https://github.com/apache/airflow/commit/e13a14c8730f4f633d996dd7d3468fe827136a84) | 2020-06-21  | Enable &amp; Fix Whitespace related PyDocStyle Checks (#9458)                             |
 | [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)                                        |
-
 
 ### Release 2020.6.24
 

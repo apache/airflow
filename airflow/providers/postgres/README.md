@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-providers-postgres
 
 Release: 1.0.0b1
@@ -42,8 +41,6 @@ Release: 1.0.0b1
 
 This is a provider package for `postgres` provider. All classes for this provider package
 are in `airflow.providers.postgres` python package.
-
-
 
 ## Installation
 
@@ -77,10 +74,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `postg
 are in the `airflow.providers.postgres` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
-
 
 ### Moved operators
 
@@ -88,18 +82,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:--------------------------------------------------------------------------------------------------------------------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------|
 | [operators.postgres.PostgresOperator](https://github.com/apache/airflow/blob/master/airflow/providers/postgres/operators/postgres.py) | [operators.postgres_operator.PostgresOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/postgres_operator.py) |
 
-
 ## Hooks
-
-
 
 ### Moved hooks
 
 | Airflow 2.0 hooks: `airflow.providers.postgres` package                                                                   | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                           |
 |:--------------------------------------------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------|
 | [hooks.postgres.PostgresHook](https://github.com/apache/airflow/blob/master/airflow/providers/postgres/hooks/postgres.py) | [hooks.postgres_hook.PostgresHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/hooks/postgres_hook.py) |
-
-
 
 ## Releases
 
@@ -113,7 +102,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [8c42cf1b0](https://github.com/apache/airflow/commit/8c42cf1b00c90f0d7f11b8a3a455381de8e003c5) | 2020-11-03  | Use PyUpgrade to use Python 3.6 features (#11447)                  |
 | [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855)                         |
 
-
 ### Release 0.0.2a1
 
 | Commit                                                                                         | Committed   | Subject                                                                                |
@@ -123,7 +111,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [a4dc11fae](https://github.com/apache/airflow/commit/a4dc11fae63d56bc6cbb029525113948862fd45d) | 2020-10-19  | Change to pass all extra connection paramaters to psycopg2 (#11019)                    |
 | [3cddc1182](https://github.com/apache/airflow/commit/3cddc11821ff8f9ed0811384c0643f756a2b3dfa) | 2020-10-16  | Updated template_fields_rendereds for PostgresOperator and SimpleHttpOperator (#11555) |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)                           |
-
 
 ### Release 0.0.1
 

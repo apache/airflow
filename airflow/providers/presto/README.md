@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-providers-presto
 
 Release: 1.0.0b1
@@ -40,8 +39,6 @@ Release: 1.0.0b1
 This is a provider package for `presto` provider. All classes for this provider package
 are in `airflow.providers.presto` python package.
 
-
-
 ## Installation
 
 You can install this package on top of an existing airflow 2.* installation via
@@ -59,18 +56,13 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `prest
 are in the `airflow.providers.presto` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Hooks
-
-
 
 ### Moved hooks
 
 | Airflow 2.0 hooks: `airflow.providers.presto` package                                                             | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                     |
 |:------------------------------------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------|
 | [hooks.presto.PrestoHook](https://github.com/apache/airflow/blob/master/airflow/providers/presto/hooks/presto.py) | [hooks.presto_hook.PrestoHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/hooks/presto_hook.py) |
-
-
 
 ## Releases
 
@@ -83,7 +75,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [4e8f9cc8d](https://github.com/apache/airflow/commit/4e8f9cc8d02b29c325b8a5a76b4837671bdf5f68) | 2020-11-03  | Enable Black - Python Auto Formmatter (#9550)                      |
 | [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855)                         |
 
-
 ### Release 0.0.2a1
 
 | Commit                                                                                         | Committed   | Subject                                                            |
@@ -92,7 +83,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                                 |
 | [1543923c1](https://github.com/apache/airflow/commit/1543923c197f658533ca0a0bb259b59a002cce43) | 2020-10-20  | Add Kerberos Auth for PrestoHook (#10488)                          |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)       |
-
 
 ### Release 0.0.1
 

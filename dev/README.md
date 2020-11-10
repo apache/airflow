@@ -155,7 +155,6 @@ You can add and copy the tokens here:
 * [Test PyPI](https://test.pypi.org/manage/account/token/)
 * [Prod PyPI](https://pypi.org/manage/account/token/)
 
-
 Create a `~/.pypirc` file:
 
 ```ini
@@ -193,7 +192,6 @@ pip install twine
 `$ chmod 600 ~/.pypirc`
 
 - Confirm that `airflow/version.py` is set properly.
-
 
 ## Hardware used to prepare and verify the packages
 
@@ -248,7 +246,6 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     ```shell script
     git archive --format=tar.gz ${VERSION} --prefix=apache-airflow-${VERSION}/ -o apache-airflow-${VERSION}-source.tar.gz`
     ```
-
 
 - Generate sdist
 
@@ -633,7 +630,6 @@ Cheers,
 <your name>
 ```
 
-
 ### Publish release to SVN
 
 You need to migrate the RC artifacts that passed to this repository:
@@ -759,9 +755,7 @@ EOF
 
 Update "Announcements" page at the [Official Airflow website](https://airflow.apache.org/announcements/)
 
-
 -----------------------------------------------------------------------------------------------------------
-
 
 # Provider Packages
 
@@ -959,7 +953,6 @@ Send out a vote to the dev@airflow.apache.org mailing list. Here you can prepare
 email using the ${VERSION} variable you already set in the command line.
 
 subject:
-
 
 ```shell script
 cat <<EOF
@@ -1163,7 +1156,6 @@ release candidate number 1,2,3,....).
 
 You can use any of the installation methods you prefer (you can even install it via the binary wheels
 downloaded from the SVN).
-
 
 #### Installing in your local virtualenv
 
@@ -1379,7 +1371,6 @@ ls dist/*<provider>*
 rm dist/*<provider>*
 ```
 
-
 * Verify the artifacts that would be uploaded:
 
 ```shell script
@@ -1440,7 +1431,6 @@ Cheers,
 EOF
 ```
 
-
 ### Update Announcements page
 
 Update "Announcements" page at the [Official Airflow website](https://airflow.apache.org/announcements/)
@@ -1457,7 +1447,6 @@ to SEMVER versioning.
 
 Details about maintaining the SEMVER version are going to be discussed and implemented in
 [the related issue](https://github.com/apache/airflow/issues/11425)
-
 
 ```shell script
 ./breeze prepare-provider-readme [packages]
@@ -1556,7 +1545,6 @@ Verify that the files are available at
 
 ### Publish the Regular convenience package to PyPI
 
-
 In case of pre-release versions you build the same packages for both PyPI and SVN so you can simply use
 packages generated in the previous step and you can skip the "prepare" step below.
 
@@ -1640,7 +1628,6 @@ Cheers,
 <your name>
 EOF
 ```
-
 
 ### Update Announcements page
 

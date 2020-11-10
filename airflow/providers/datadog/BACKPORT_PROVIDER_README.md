@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-datadog
 
 Release: 2020.10.29
@@ -47,8 +46,6 @@ are in `airflow.providers.datadog` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
-
-
 ## Installation
 
 You can install this package on top of an existing airflow 1.10.* installation via
@@ -66,10 +63,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `datad
 are in the `airflow.providers.datadog` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Sensors
-
-
 
 ### Moved sensors
 
@@ -77,18 +71,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:----------------------------------------------------------------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------|
 | [sensors.datadog.DatadogSensor](https://github.com/apache/airflow/blob/master/airflow/providers/datadog/sensors/datadog.py) | [contrib.sensors.datadog_sensor.DatadogSensor](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/sensors/datadog_sensor.py) |
 
-
 ## Hooks
-
-
 
 ### Moved hooks
 
 | Airflow 2.0 hooks: `airflow.providers.datadog` package                                                                | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                        |
 |:----------------------------------------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------------|
 | [hooks.datadog.DatadogHook](https://github.com/apache/airflow/blob/master/airflow/providers/datadog/hooks/datadog.py) | [contrib.hooks.datadog_hook.DatadogHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/datadog_hook.py) |
-
-
 
 ## Releases
 
@@ -100,7 +89,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                           |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487) |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)   |
-
 
 ### Release 2020.10.5
 
@@ -115,7 +103,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [24c8e4c2d](https://github.com/apache/airflow/commit/24c8e4c2d6e359ecc2c7d6275dccc68de4a82832) | 2020-08-06  | Changes to all the constructors to remove the args argument (#10163) |
 | [89fe5feb7](https://github.com/apache/airflow/commit/89fe5feb7b8088db7b5aaaec2b7a292cbc507209) | 2020-07-20  | improve typing for datadog provider (#9775)                          |
 | [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)                       |
-
 
 ### Release 2020.6.24
 

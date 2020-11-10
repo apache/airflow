@@ -61,7 +61,6 @@ current date - this way you might be sure the automated generation of the releas
 work. You can also preview the generated readme files (by downloading artifacts from GitHub Actions).
 The script does not modify the README and CHANGES files if there is no change in the repo for that provider.
 
-
 ## Generating release notes
 
 When you want to prepare release notes for a package, you need to run:
@@ -69,7 +68,6 @@ When you want to prepare release notes for a package, you need to run:
 ```
 ./breeze prepare-provider-readme [YYYY.MM.DD] <PACKAGE_ID> ...
 ```
-
 
 * YYYY.MM.DD - is the CALVER version of the package to prepare. Note that this date cannot be earlier
   than the already released version (the script will fail if it will be). It can be set in the future
@@ -95,7 +93,6 @@ the date (to update the existing release notes)
 ```
 ./breeze prepare-provider-readme google
 ```
-
 
 Whenever you are satisfied with the release notes generated you can commit generated changes/new files
 to the repository.
@@ -148,7 +145,6 @@ for example:
 ./breeze prepare-provider-packages --version-suffix-for-pypi=rc1 http ...
 ```
 
-
 * To build the final release packages run the following command:
 
 ```bash
@@ -173,7 +169,6 @@ also do not container the leading 0s.
 
 * You can install the .whl packages with `pip install <PACKAGE_FILE>`
 
-
 # Testing provider package scripts
 
 The backport packages importing and tests execute within the "CI" environment of Airflow -the
@@ -184,7 +179,6 @@ importability of all the packages. It is rather simple but requires some semi-au
 ## Backport packages
 
 1. Prepare backport packages
-
 
 ```shell script
 ./breeze --backports prepare-provider-packages
@@ -234,7 +228,6 @@ EOF
 
 6.  \[IN CONTAINER\] Check if all the providers can be imported
 python3 /opt/airflow/dev/import_all_classes.py --path <PATH_REPORTED_IN_THE_PREVIOUS_STEP>
-
 
 ## Regular packages
 

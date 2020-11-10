@@ -35,7 +35,6 @@
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-
 # Overview
 
 This document describes the process of preparing provider packages for release and releasing them.
@@ -93,7 +92,6 @@ marking those as patches/features/backwards incompatible changes.
 
 Details to be hashed out in [the related issue](https://github.com/apache/airflow/issues/11425)
 
-
 # Generating release notes
 
 ## Backport providers
@@ -103,7 +101,6 @@ When you want to prepare release notes for a package, you need to run:
 ```
 ./breeze --backports prepare-provider-readme [YYYY.MM.DD] <PACKAGE_ID> ...
 ```
-
 
 * YYYY.MM.DD - is the CALVER version of the package to prepare. Note that this date cannot be earlier
   than the already released version (the script will fail if it will be). It can be set in the future
@@ -130,10 +127,8 @@ the date (to update the existing release notes)
 ./breeze --backports prepare-provider-readme google
 ```
 
-
 Whenever you are satisfied with the release notes generated you can commit generated changes/new files
 to the repository.
-
 
 ## Regular providers
 
@@ -161,10 +156,8 @@ the date (to update the existing release notes)
 ./breeze --backports prepare-provider-readme google
 ```
 
-
 Whenever you are satisfied with the release notes generated you can commit generated changes/new files
 to the repository.
-
 
 # Content of the release notes
 
@@ -244,7 +237,6 @@ for example:
 ./breeze --backports prepare-provider-packages --version-suffix-for-pypi=rc1 http ...
 ```
 
-
 * To build the final release packages run the following command:
 
 ```bash
@@ -313,7 +305,6 @@ for example:
 ```bash
 ./breeze prepare-provider-packages --version-suffix-for-pypi=rc1 http ...
 ```
-
 
 * To build the final release packages run the following command:
 

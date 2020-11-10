@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-apache-druid
 
 Release: 2020.10.29
@@ -49,8 +48,6 @@ are in `airflow.providers.apache.druid` python package.
 
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
-
-
 
 ## Installation
 
@@ -84,10 +81,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `apach
 are in the `airflow.providers.apache.druid` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
-
 
 ### Moved operators
 
@@ -96,10 +90,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [operators.druid.DruidOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/druid/operators/druid.py)                  | [contrib.operators.druid_operator.DruidOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/druid_operator.py)  |
 | [operators.druid_check.DruidCheckOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/druid/operators/druid_check.py) | [operators.druid_check_operator.DruidCheckOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/druid_check_operator.py) |
 
-
 ## Transfer operators
-
-
 
 ### Moved transfer operators
 
@@ -107,10 +98,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:-------------------------------------------------------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------|
 | [transfers.hive_to_druid.HiveToDruidOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/druid/transfers/hive_to_druid.py) | [operators.hive_to_druid.HiveToDruidTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/hive_to_druid.py) |
 
-
 ## Hooks
-
-
 
 ### Moved hooks
 
@@ -118,8 +106,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:--------------------------------------------------------------------------------------------------------------------------|:-------------------------------------------------------------------------------------------------------------------|
 | [hooks.druid.DruidDbApiHook](https://github.com/apache/airflow/blob/master/airflow/providers/apache/druid/hooks/druid.py) | [hooks.druid_hook.DruidDbApiHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/hooks/druid_hook.py) |
 | [hooks.druid.DruidHook](https://github.com/apache/airflow/blob/master/airflow/providers/apache/druid/hooks/druid.py)      | [hooks.druid_hook.DruidHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/hooks/druid_hook.py)      |
-
-
 
 ## Releases
 
@@ -131,7 +117,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                           |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487) |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)   |
-
 
 ### Release 2020.10.5
 
@@ -149,7 +134,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [33f0cd265](https://github.com/apache/airflow/commit/33f0cd2657b2e77ea3477e0c93f13f1474be628e) | 2020-07-22  | apply_default keeps the function signature for mypy (#9784)  |
 | [4d74ac211](https://github.com/apache/airflow/commit/4d74ac2111862186598daf92cbf2c525617061c2) | 2020-07-19  | Increase typing for Apache and http provider package (#9729) |
 | [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)               |
-
 
 ### Release 2020.6.24
 

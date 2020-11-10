@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-microsoft-mssql
 
 Release: 2020.10.29
@@ -47,8 +46,6 @@ are in `airflow.providers.microsoft.mssql` python package.
 
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
-
-
 
 ## Installation
 
@@ -82,10 +79,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `micro
 are in the `airflow.providers.microsoft.mssql` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
-
 
 ### Moved operators
 
@@ -93,18 +87,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:------------------------------------------------------------------------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------|
 | [operators.mssql.MsSqlOperator](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/mssql/operators/mssql.py) | [operators.mssql_operator.MsSqlOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/mssql_operator.py) |
 
-
 ## Hooks
-
-
 
 ### Moved hooks
 
 | Airflow 2.0 hooks: `airflow.providers.microsoft.mssql` package                                                          | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                  |
 |:------------------------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------|
 | [hooks.mssql.MsSqlHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/mssql/hooks/mssql.py) | [hooks.mssql_hook.MsSqlHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/hooks/mssql_hook.py) |
-
-
 
 ## Releases
 
@@ -120,7 +109,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [d2754ef76](https://github.com/apache/airflow/commit/d2754ef76958f8df4dcb6974e2cd2c1edb17935e) | 2020-10-09  | Strict type check for Microsoft  (#11359)                    |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)   |
 
-
 ### Release 2020.10.5
 
 | Commit                                                                                         | Committed   | Subject                                                              |
@@ -133,7 +121,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [cdec30125](https://github.com/apache/airflow/commit/cdec3012542b45d23a05f62d69110944ba542e2a) | 2020-08-07  | Add correct signature to all operators and sensors (#10205)          |
 | [aeea71274](https://github.com/apache/airflow/commit/aeea71274d4527ff2351102e94aa38bda6099e7f) | 2020-08-02  | Remove `args` parameter from provider operator constructors (#10097) |
 | [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)                       |
-
 
 ### Release 2020.6.24
 

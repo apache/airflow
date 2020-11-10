@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-apache-cassandra
 
 Release: 2020.10.29
@@ -47,8 +46,6 @@ are in `airflow.providers.apache.cassandra` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
-
-
 ## Installation
 
 You can install this package on top of an existing airflow 1.10.* installation via
@@ -66,10 +63,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `apach
 are in the `airflow.providers.apache.cassandra` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Sensors
-
-
 
 ### Moved sensors
 
@@ -78,18 +72,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [sensors.record.CassandraRecordSensor](https://github.com/apache/airflow/blob/master/airflow/providers/apache/cassandra/sensors/record.py) | [contrib.sensors.cassandra_record_sensor.CassandraRecordSensor](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/sensors/cassandra_record_sensor.py) |
 | [sensors.table.CassandraTableSensor](https://github.com/apache/airflow/blob/master/airflow/providers/apache/cassandra/sensors/table.py)    | [contrib.sensors.cassandra_table_sensor.CassandraTableSensor](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/sensors/cassandra_table_sensor.py)    |
 
-
 ## Hooks
-
-
 
 ### Moved hooks
 
 | Airflow 2.0 hooks: `airflow.providers.apache.cassandra` package                                                                      | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                              |
 |:-------------------------------------------------------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------------------|
 | [hooks.cassandra.CassandraHook](https://github.com/apache/airflow/blob/master/airflow/providers/apache/cassandra/hooks/cassandra.py) | [contrib.hooks.cassandra_hook.CassandraHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/cassandra_hook.py) |
-
-
 
 ## Releases
 
@@ -102,7 +91,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [0646849e3](https://github.com/apache/airflow/commit/0646849e3dacdc2bc62705ae136f3ad3b16232e9) | 2020-10-14  | Add protocol_version to conn_config for Cassandrahook (#11036) |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)   |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)     |
-
 
 ### Release 2020.10.5
 
@@ -119,7 +107,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [4d74ac211](https://github.com/apache/airflow/commit/4d74ac2111862186598daf92cbf2c525617061c2) | 2020-07-19  | Increase typing for Apache and http provider package (#9729)      |
 | [750555f26](https://github.com/apache/airflow/commit/750555f261616d809d24b8550b9482a713ba3171) | 2020-07-19  | Add guide for Cassandra Operators (#9877)                         |
 | [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)                    |
-
 
 ### Release 2020.6.24
 

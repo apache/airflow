@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-apache-spark
 
 Release: 2020.10.29
@@ -47,8 +46,6 @@ are in `airflow.providers.apache.spark` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
-
-
 ## Installation
 
 You can install this package on top of an existing airflow 1.10.* installation via
@@ -66,10 +63,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `apach
 are in the `airflow.providers.apache.spark` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
-
 
 ### Moved operators
 
@@ -79,10 +73,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [operators.spark_sql.SparkSqlOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/spark/operators/spark_sql.py)          | [contrib.operators.spark_sql_operator.SparkSqlOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/spark_sql_operator.py)          |
 | [operators.spark_submit.SparkSubmitOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/spark/operators/spark_submit.py) | [contrib.operators.spark_submit_operator.SparkSubmitOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/spark_submit_operator.py) |
 
-
 ## Hooks
-
-
 
 ### Moved hooks
 
@@ -91,8 +82,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [hooks.spark_jdbc.SparkJDBCHook](https://github.com/apache/airflow/blob/master/airflow/providers/apache/spark/hooks/spark_jdbc.py)       | [contrib.hooks.spark_jdbc_hook.SparkJDBCHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/spark_jdbc_hook.py)       |
 | [hooks.spark_sql.SparkSqlHook](https://github.com/apache/airflow/blob/master/airflow/providers/apache/spark/hooks/spark_sql.py)          | [contrib.hooks.spark_sql_hook.SparkSqlHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/spark_sql_hook.py)          |
 | [hooks.spark_submit.SparkSubmitHook](https://github.com/apache/airflow/blob/master/airflow/providers/apache/spark/hooks/spark_submit.py) | [contrib.hooks.spark_submit_hook.SparkSubmitHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/spark_submit_hook.py) |
-
-
 
 ## Releases
 
@@ -105,7 +94,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)     |
 | [d305876be](https://github.com/apache/airflow/commit/d305876bee328287ff391a29cc1cd632468cc731) | 2020-10-12  | Remove redundant None provided as default to dict.get() (#11448) |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)       |
-
 
 ### Release 2020.10.5
 
@@ -129,7 +117,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [13a827d80](https://github.com/apache/airflow/commit/13a827d80fef738e25f30ea20c095ad4dbd401f6) | 2020-07-09  | Ensure Kerberos token is valid in SparkSubmitOperator before running `yarn kill` (#9044) |
 | [067806d59](https://github.com/apache/airflow/commit/067806d5985301f21da78f0a81056dbec348e6ba) | 2020-06-29  | Add tests for spark_jdbc_script (#9491)                                                  |
 | [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)                                           |
-
 
 ### Release 2020.6.24
 

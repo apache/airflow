@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-providers-microsoft-azure
 
 Release: 1.0.0b1
@@ -52,8 +51,6 @@ Release: 1.0.0b1
 
 This is a provider package for `microsoft.azure` provider. All classes for this provider package
 are in `airflow.providers.microsoft.azure` python package.
-
-
 
 ## Installation
 
@@ -98,9 +95,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `micro
 are in the `airflow.providers.microsoft.azure` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
 
 ### New operators
 
@@ -108,7 +103,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:-----------------------------------------------------------------------------------------------------------------------------------------------------|
 | [operators.adx.AzureDataExplorerQueryOperator](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/operators/adx.py)     |
 | [operators.azure_batch.AzureBatchOperator](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/operators/azure_batch.py) |
-
 
 ### Moved operators
 
@@ -119,9 +113,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [operators.azure_cosmos.AzureCosmosInsertDocumentOperator](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/operators/azure_cosmos.py)                         | [contrib.operators.azure_cosmos_operator.AzureCosmosInsertDocumentOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/azure_cosmos_operator.py)                         |
 | [operators.wasb_delete_blob.WasbDeleteBlobOperator](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/operators/wasb_delete_blob.py)                            | [contrib.operators.wasb_delete_blob_operator.WasbDeleteBlobOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/wasb_delete_blob_operator.py)                            |
 
-
 ## Transfer operators
-
 
 ### New transfer operators
 
@@ -130,7 +122,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [transfers.azure_blob_to_gcs.AzureBlobStorageToGCSOperator](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/transfers/azure_blob_to_gcs.py) |
 | [transfers.local_to_adls.LocalToAzureDataLakeStorageOperator](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/transfers/local_to_adls.py)   |
 
-
 ### Moved transfer operators
 
 | Airflow 2.0 transfers: `airflow.providers.microsoft.azure` package                                                                                                                          | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                                                              |
@@ -138,16 +129,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [transfers.file_to_wasb.FileToWasbOperator](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/transfers/file_to_wasb.py)                                      | [contrib.operators.file_to_wasb.FileToWasbOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/file_to_wasb.py)                                                        |
 | [transfers.oracle_to_azure_data_lake.OracleToAzureDataLakeOperator](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/transfers/oracle_to_azure_data_lake.py) | [contrib.operators.oracle_to_azure_data_lake_transfer.OracleToAzureDataLakeOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/oracle_to_azure_data_lake_transfer.py) |
 
-
 ## Sensors
-
 
 ### New sensors
 
 | New Airflow 2.0 sensors: `airflow.providers.microsoft.azure` package                                                                                      |
 |:----------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [sensors.azure_cosmos.AzureCosmosDocumentSensor](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/sensors/azure_cosmos.py) |
-
 
 ### Moved sensors
 
@@ -156,9 +144,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [sensors.wasb.WasbBlobSensor](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/sensors/wasb.py)   | [contrib.sensors.wasb_sensor.WasbBlobSensor](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/sensors/wasb_sensor.py)   |
 | [sensors.wasb.WasbPrefixSensor](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/sensors/wasb.py) | [contrib.sensors.wasb_sensor.WasbPrefixSensor](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/sensors/wasb_sensor.py) |
 
-
 ## Hooks
-
 
 ### New hooks
 
@@ -168,7 +154,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [hooks.azure_batch.AzureBatchHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/azure_batch.py)            |
 | [hooks.azure_data_lake.AzureDataLakeHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/azure_data_lake.py) |
 | [hooks.base_azure.AzureBaseHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/base_azure.py)               |
-
 
 ### Moved hooks
 
@@ -181,18 +166,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [hooks.azure_fileshare.AzureFileShareHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/azure_fileshare.py)                           | [contrib.hooks.azure_fileshare_hook.AzureFileShareHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/azure_fileshare_hook.py)                           |
 | [hooks.wasb.WasbHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/wasb.py)                                                           | [contrib.hooks.wasb_hook.WasbHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/wasb_hook.py)                                                           |
 
-
 ## Secrets
-
 
 ### New secrets
 
 | New Airflow 2.0 secrets: `airflow.providers.microsoft.azure` package                                                                                       |
 |:-----------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [secrets.azure_key_vault.AzureKeyVaultBackend](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/secrets/azure_key_vault.py) |
-
-
-
 
 ## Releases
 
@@ -208,7 +188,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [8c42cf1b0](https://github.com/apache/airflow/commit/8c42cf1b00c90f0d7f11b8a3a455381de8e003c5) | 2020-11-03  | Use PyUpgrade to use Python 3.6 features (#11447)                  |
 | [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855)                         |
 
-
 ### Release 0.0.2a1
 
 | Commit                                                                                         | Committed   | Subject                                                                                            |
@@ -218,7 +197,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                                                                 |
 | [f8ff217e2](https://github.com/apache/airflow/commit/f8ff217e2f2152bbb9fc701ff4c0b6eb447ad65c) | 2020-10-18  | Fix incorrect typing and move config args out of extra connection config to operator args (#11635) |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)                                       |
-
 
 ### Release 0.0.1
 

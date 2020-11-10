@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-facebook
 
 Release: 2020.10.29
@@ -45,8 +44,6 @@ are in `airflow.providers.facebook` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
-
-
 ## Installation
 
 You can install this package on top of an existing airflow 1.10.* installation via
@@ -64,18 +61,13 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `faceb
 are in the `airflow.providers.facebook` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Hooks
-
 
 ### New hooks
 
 | New Airflow 2.0 hooks: `airflow.providers.facebook` package                                                                         |
 |:------------------------------------------------------------------------------------------------------------------------------------|
 | [ads.hooks.ads.FacebookAdsReportingHook](https://github.com/apache/airflow/blob/master/airflow/providers/facebook/ads/hooks/ads.py) |
-
-
-
 
 ## Releases
 
@@ -87,7 +79,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                           |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487) |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)   |
-
 
 ### Release 2020.10.5
 
@@ -102,7 +93,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [ef8df1734](https://github.com/apache/airflow/commit/ef8df17348e3c567e2d2f0aface641acae3896ba) | 2020-08-22  | Fix typo in Facebook Ads Provider (#10484)                             |
 | [ee7ca128a](https://github.com/apache/airflow/commit/ee7ca128a17937313566f2badb6cc569c614db94) | 2020-08-22  | Fix broken Markdown refernces in Providers README (#10483)             |
 | [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)                         |
-
 
 ### Release 2020.6.24
 

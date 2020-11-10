@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-providers-mysql
 
 Release: 1.0.0b1
@@ -45,8 +44,6 @@ Release: 1.0.0b1
 
 This is a provider package for `mysql` provider. All classes for this provider package
 are in `airflow.providers.mysql` python package.
-
-
 
 ## Installation
 
@@ -83,10 +80,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `mysql
 are in the `airflow.providers.mysql` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
-
 
 ### Moved operators
 
@@ -94,16 +88,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:--------------------------------------------------------------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------|
 | [operators.mysql.MySqlOperator](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/operators/mysql.py) | [operators.mysql_operator.MySqlOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/mysql_operator.py) |
 
-
 ## Transfer operators
-
 
 ### New transfer operators
 
 | New Airflow 2.0 transfers: `airflow.providers.mysql` package                                                                              |
 |:------------------------------------------------------------------------------------------------------------------------------------------|
 | [transfers.s3_to_mysql.S3ToMySqlOperator](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/transfers/s3_to_mysql.py) |
-
 
 ### Moved transfer operators
 
@@ -112,18 +103,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [transfers.presto_to_mysql.PrestoToMySqlOperator](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/transfers/presto_to_mysql.py)    | [operators.presto_to_mysql.PrestoToMySqlTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/presto_to_mysql.py)                    |
 | [transfers.vertica_to_mysql.VerticaToMySqlOperator](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/transfers/vertica_to_mysql.py) | [contrib.operators.vertica_to_mysql.VerticaToMySqlTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/vertica_to_mysql.py) |
 
-
 ## Hooks
-
-
 
 ### Moved hooks
 
 | Airflow 2.0 hooks: `airflow.providers.mysql` package                                                          | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                  |
 |:--------------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------|
 | [hooks.mysql.MySqlHook](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/hooks/mysql.py) | [hooks.mysql_hook.MySqlHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/hooks/mysql_hook.py) |
-
-
 
 ## Releases
 
@@ -139,7 +125,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [8c42cf1b0](https://github.com/apache/airflow/commit/8c42cf1b00c90f0d7f11b8a3a455381de8e003c5) | 2020-11-03  | Use PyUpgrade to use Python 3.6 features (#11447)                  |
 | [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855)                         |
 
-
 ### Release 0.0.2a1
 
 | Commit                                                                                         | Committed   | Subject                                                            |
@@ -147,7 +132,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [872b1566a](https://github.com/apache/airflow/commit/872b1566a11cb73297e657ff325161721b296574) | 2020-10-25  | Generated backport providers readmes/setup for 2020.10.29 (#11826) |
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                                 |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)       |
-
 
 ### Release 0.0.1
 

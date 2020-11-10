@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-plexus
 
 Release: 2020.10.29
@@ -46,8 +45,6 @@ are in `airflow.providers.plexus` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
-
-
 ## Installation
 
 You can install this package on top of an existing airflow 1.10.* installation via
@@ -65,9 +62,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `plexu
 are in the `airflow.providers.plexus` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
 
 ### New operators
 
@@ -75,19 +70,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:---------------------------------------------------------------------------------------------------------------------------|
 | [operators.job.PlexusJobOperator](https://github.com/apache/airflow/blob/master/airflow/providers/plexus/operators/job.py) |
 
-
-
 ## Hooks
-
 
 ### New hooks
 
 | New Airflow 2.0 hooks: `airflow.providers.plexus` package                                                         |
 |:------------------------------------------------------------------------------------------------------------------|
 | [hooks.plexus.PlexusHook](https://github.com/apache/airflow/blob/master/airflow/providers/plexus/hooks/plexus.py) |
-
-
-
 
 ## Releases
 
@@ -99,7 +88,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [56d72e3ff](https://github.com/apache/airflow/commit/56d72e3ff8798a2662847355d1b73b2c1f57b31f) | 2020-10-24  | Replace non-empty sets with set literals (#11810)            |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487) |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)   |
-
 
 ### Release 2020.10.5
 

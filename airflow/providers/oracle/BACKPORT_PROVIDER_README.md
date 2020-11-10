@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-oracle
 
 Release: 2020.10.29
@@ -49,8 +48,6 @@ are in `airflow.providers.oracle` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
-
-
 ## Installation
 
 You can install this package on top of an existing airflow 1.10.* installation via
@@ -68,10 +65,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `oracl
 are in the `airflow.providers.oracle` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
-
 
 ### Moved operators
 
@@ -79,10 +73,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:------------------------------------------------------------------------------------------------------------------------------|:-------------------------------------------------------------------------------------------------------------------------------------|
 | [operators.oracle.OracleOperator](https://github.com/apache/airflow/blob/master/airflow/providers/oracle/operators/oracle.py) | [operators.oracle_operator.OracleOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/oracle_operator.py) |
 
-
 ## Transfer operators
-
-
 
 ### Moved transfer operators
 
@@ -90,18 +81,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:----------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [transfers.oracle_to_oracle.OracleToOracleOperator](https://github.com/apache/airflow/blob/master/airflow/providers/oracle/transfers/oracle_to_oracle.py) | [contrib.operators.oracle_to_oracle_transfer.OracleToOracleTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/oracle_to_oracle_transfer.py) |
 
-
 ## Hooks
-
-
 
 ### Moved hooks
 
 | Airflow 2.0 hooks: `airflow.providers.oracle` package                                                             | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                     |
 |:------------------------------------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------|
 | [hooks.oracle.OracleHook](https://github.com/apache/airflow/blob/master/airflow/providers/oracle/hooks/oracle.py) | [hooks.oracle_hook.OracleHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/hooks/oracle_hook.py) |
-
-
 
 ## Releases
 
@@ -114,7 +100,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)     |
 | [d305876be](https://github.com/apache/airflow/commit/d305876bee328287ff391a29cc1cd632468cc731) | 2020-10-12  | Remove redundant None provided as default to dict.get() (#11448) |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)       |
-
 
 ### Release 2020.10.5
 
@@ -131,7 +116,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [24c8e4c2d](https://github.com/apache/airflow/commit/24c8e4c2d6e359ecc2c7d6275dccc68de4a82832) | 2020-08-06  | Changes to all the constructors to remove the args argument (#10163) |
 | [aeea71274](https://github.com/apache/airflow/commit/aeea71274d4527ff2351102e94aa38bda6099e7f) | 2020-08-02  | Remove `args` parameter from provider operator constructors (#10097) |
 | [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)                       |
-
 
 ### Release 2020.6.24
 

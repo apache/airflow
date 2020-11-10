@@ -1,5 +1,4 @@
 
-
 ### Release 1.0.0b1
 
 | Commit                                                                                         | Committed   | Subject                                                                       |

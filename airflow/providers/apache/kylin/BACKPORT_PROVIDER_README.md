@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-apache-kylin
 
 Release: 2020.10.29
@@ -46,8 +45,6 @@ are in `airflow.providers.apache.kylin` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
-
-
 ## Installation
 
 You can install this package on top of an existing airflow 1.10.* installation via
@@ -65,9 +62,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `apach
 are in the `airflow.providers.apache.kylin` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
 
 ### New operators
 
@@ -75,19 +70,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:-----------------------------------------------------------------------------------------------------------------------------------------------|
 | [operators.kylin_cube.KylinCubeOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/kylin/operators/kylin_cube.py) |
 
-
-
 ## Hooks
-
 
 ### New hooks
 
 | New Airflow 2.0 hooks: `airflow.providers.apache.kylin` package                                                      |
 |:---------------------------------------------------------------------------------------------------------------------|
 | [hooks.kylin.KylinHook](https://github.com/apache/airflow/blob/master/airflow/providers/apache/kylin/hooks/kylin.py) |
-
-
-
 
 ## Releases
 
@@ -98,7 +87,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [b680bbc0b](https://github.com/apache/airflow/commit/b680bbc0b05ad71d403a5d58bc7023a2453b9a48) | 2020-10-24  | Generated backport providers readmes/setup for 2020.10.29    |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487) |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)   |
-
 
 ### Release 2020.10.5
 

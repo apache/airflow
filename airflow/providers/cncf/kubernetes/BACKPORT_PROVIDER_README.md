@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-cncf-kubernetes
 
 Release: 2020.10.29
@@ -49,13 +48,11 @@ are in `airflow.providers.cncf.kubernetes` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
-
 ## Additional limitations
 
 This provider is only usable with Apache Airflow &gt;= 1.10.12 version due to refactorings implemented in
 Apache Airflow 1.10.11 and fixes implemented in 1.10.11. The package has appropriate requirements
 set so you should not be able to install it with Apache Airflow &lt; 1.10.12.
-
 
 ## Installation
 
@@ -75,9 +72,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `cncf.
 are in the `airflow.providers.cncf.kubernetes` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
 
 ### New operators
 
@@ -85,16 +80,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [operators.spark_kubernetes.SparkKubernetesOperator](https://github.com/apache/airflow/blob/master/airflow/providers/cncf/kubernetes/operators/spark_kubernetes.py) |
 
-
 ### Moved operators
 
 | Airflow 2.0 operators: `airflow.providers.cncf.kubernetes` package                                                                                            | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                                |
 |:--------------------------------------------------------------------------------------------------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [operators.kubernetes_pod.KubernetesPodOperator](https://github.com/apache/airflow/blob/master/airflow/providers/cncf/kubernetes/operators/kubernetes_pod.py) | [contrib.operators.kubernetes_pod_operator.KubernetesPodOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/kubernetes_pod_operator.py) |
 
-
 ## Sensors
-
 
 ### New sensors
 
@@ -102,19 +94,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:--------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [sensors.spark_kubernetes.SparkKubernetesSensor](https://github.com/apache/airflow/blob/master/airflow/providers/cncf/kubernetes/sensors/spark_kubernetes.py) |
 
-
-
 ## Hooks
-
 
 ### New hooks
 
 | New Airflow 2.0 hooks: `airflow.providers.cncf.kubernetes` package                                                                     |
 |:---------------------------------------------------------------------------------------------------------------------------------------|
 | [hooks.kubernetes.KubernetesHook](https://github.com/apache/airflow/blob/master/airflow/providers/cncf/kubernetes/hooks/kubernetes.py) |
-
-
-
 
 ## Releases
 
@@ -132,7 +118,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [49aad025b](https://github.com/apache/airflow/commit/49aad025b53211a5815b10aa35f7d7b489cb5316) | 2020-10-09  | Users can specify sub-secrets and paths k8spodop (#11369)              |
 | [b93b6c5be](https://github.com/apache/airflow/commit/b93b6c5be3ab60960f650d0d4ee6c91271ac7909) | 2020-10-05  | Allow labels in KubernetesPodOperator to be templated (#10796)         |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)             |
-
 
 ### Release 2020.10.5
 

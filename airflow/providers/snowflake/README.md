@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-providers-snowflake
 
 Release: 1.0.0b1
@@ -44,8 +43,6 @@ Release: 1.0.0b1
 
 This is a provider package for `snowflake` provider. All classes for this provider package
 are in `airflow.providers.snowflake` python package.
-
-
 
 ## Installation
 
@@ -80,9 +77,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `snowf
 are in the `airflow.providers.snowflake` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
 
 ### New operators
 
@@ -90,10 +85,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:------------------------------------------------------------------------------------------------------------------------------------------|
 | [operators.snowflake.SnowflakeOperator](https://github.com/apache/airflow/blob/master/airflow/providers/snowflake/operators/snowflake.py) |
 
-
-
 ## Transfer operators
-
 
 ### New transfer operators
 
@@ -102,19 +94,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [transfers.s3_to_snowflake.S3ToSnowflakeOperator](https://github.com/apache/airflow/blob/master/airflow/providers/snowflake/transfers/s3_to_snowflake.py)          |
 | [transfers.snowflake_to_slack.SnowflakeToSlackOperator](https://github.com/apache/airflow/blob/master/airflow/providers/snowflake/transfers/snowflake_to_slack.py) |
 
-
-
 ## Hooks
-
 
 ### New hooks
 
 | New Airflow 2.0 hooks: `airflow.providers.snowflake` package                                                                  |
 |:------------------------------------------------------------------------------------------------------------------------------|
 | [hooks.snowflake.SnowflakeHook](https://github.com/apache/airflow/blob/master/airflow/providers/snowflake/hooks/snowflake.py) |
-
-
-
 
 ## Releases
 
@@ -130,7 +116,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [ecc3a4df0](https://github.com/apache/airflow/commit/ecc3a4df0da67f258c3ad04733d6e561d8266c93) | 2020-10-30  | Add autocommit property for snowflake connection (#10838)             |
 | [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855)                            |
 
-
 ### Release 0.0.2a1
 
 | Commit                                                                                         | Committed   | Subject                                                            |
@@ -139,7 +124,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [483068745](https://github.com/apache/airflow/commit/48306874538eea7cfd42358d5ebb59705204bfc4) | 2020-10-24  | Use Python 3 style super classes (#11806)                          |
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                                 |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)       |
-
 
 ### Release 0.0.1
 

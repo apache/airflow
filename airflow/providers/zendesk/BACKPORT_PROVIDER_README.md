@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-zendesk
 
 Release: 2020.10.29
@@ -45,8 +44,6 @@ are in `airflow.providers.zendesk` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
-
-
 ## Installation
 
 You can install this package on top of an existing airflow 1.10.* installation via
@@ -64,18 +61,13 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `zende
 are in the `airflow.providers.zendesk` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Hooks
-
-
 
 ### Moved hooks
 
 | Airflow 2.0 hooks: `airflow.providers.zendesk` package                                                                | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                        |
 |:----------------------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------|
 | [hooks.zendesk.ZendeskHook](https://github.com/apache/airflow/blob/master/airflow/providers/zendesk/hooks/zendesk.py) | [hooks.zendesk_hook.ZendeskHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/hooks/zendesk_hook.py) |
-
-
 
 ## Releases
 
@@ -89,7 +81,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [03ff06715](https://github.com/apache/airflow/commit/03ff067152ed3202b7d4beb0fe9b371a0ef51058) | 2020-10-06  | Add type annotations to ZendeskHook, update unit test (#10888) |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)     |
 
-
 ### Release 2020.10.5
 
 | Commit                                                                                         | Committed   | Subject                                                    |
@@ -101,7 +92,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [3696c34c2](https://github.com/apache/airflow/commit/3696c34c28c6bc7b442deab999d9ecba24ed0e34) | 2020-08-24  | Fix typo in the word &#34;release&#34; (#10528)                    |
 | [ee7ca128a](https://github.com/apache/airflow/commit/ee7ca128a17937313566f2badb6cc569c614db94) | 2020-08-22  | Fix broken Markdown refernces in Providers README (#10483) |
 | [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)             |
-
 
 ### Release 2020.6.24
 

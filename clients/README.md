@@ -24,7 +24,6 @@ Supported languages:
 
 * [Golang](https://github.com/apache/airflow-client-go) generated through `./gen/go.sh`.
 
-
 ## Dependencies
 
 All client generation scripts use [pre-commit](https://pre-commit.com/#install)

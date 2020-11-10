@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-sftp
 
 Release: 2020.10.29
@@ -49,8 +48,6 @@ are in `airflow.providers.sftp` python package.
 
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
-
-
 
 ## Installation
 
@@ -86,10 +83,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `sftp`
 are in the `airflow.providers.sftp` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
-
 
 ### Moved operators
 
@@ -97,10 +91,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:----------------------------------------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------|
 | [operators.sftp.SFTPOperator](https://github.com/apache/airflow/blob/master/airflow/providers/sftp/operators/sftp.py) | [contrib.operators.sftp_operator.SFTPOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/sftp_operator.py) |
 
-
 ## Sensors
-
-
 
 ### Moved sensors
 
@@ -108,18 +99,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:----------------------------------------------------------------------------------------------------------------|:-------------------------------------------------------------------------------------------------------------------------------------|
 | [sensors.sftp.SFTPSensor](https://github.com/apache/airflow/blob/master/airflow/providers/sftp/sensors/sftp.py) | [contrib.sensors.sftp_sensor.SFTPSensor](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/sensors/sftp_sensor.py) |
 
-
 ## Hooks
-
-
 
 ### Moved hooks
 
 | Airflow 2.0 hooks: `airflow.providers.sftp` package                                                       | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                               |
 |:----------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------|
 | [hooks.sftp.SFTPHook](https://github.com/apache/airflow/blob/master/airflow/providers/sftp/hooks/sftp.py) | [contrib.hooks.sftp_hook.SFTPHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/sftp_hook.py) |
-
-
 
 ## Releases
 
@@ -134,7 +120,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)     |
 | [d305876be](https://github.com/apache/airflow/commit/d305876bee328287ff391a29cc1cd632468cc731) | 2020-10-12  | Remove redundant None provided as default to dict.get() (#11448) |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)       |
-
 
 ### Release 2020.10.5
 
@@ -152,7 +137,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [4e3799fec](https://github.com/apache/airflow/commit/4e3799fec4c23d0f43603a0489c5a6158aeba035) | 2020-08-02  | [AIRFLOW-4541] Replace os.mkdirs usage with pathlib.Path(path).mkdir (#10117) |
 | [aeea71274](https://github.com/apache/airflow/commit/aeea71274d4527ff2351102e94aa38bda6099e7f) | 2020-08-02  | Remove `args` parameter from provider operator constructors (#10097)          |
 | [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)                                |
-
 
 ### Release 2020.6.24
 

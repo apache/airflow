@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-exasol
 
 Release: 2020.10.29
@@ -47,8 +46,6 @@ are in `airflow.providers.exasol` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
-
-
 ## Installation
 
 You can install this package on top of an existing airflow 1.10.* installation via
@@ -66,9 +63,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `exaso
 are in the `airflow.providers.exasol` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
 
 ### New operators
 
@@ -76,19 +71,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:------------------------------------------------------------------------------------------------------------------------------|
 | [operators.exasol.ExasolOperator](https://github.com/apache/airflow/blob/master/airflow/providers/exasol/operators/exasol.py) |
 
-
-
 ## Hooks
-
 
 ### New hooks
 
 | New Airflow 2.0 hooks: `airflow.providers.exasol` package                                                         |
 |:------------------------------------------------------------------------------------------------------------------|
 | [hooks.exasol.ExasolHook](https://github.com/apache/airflow/blob/master/airflow/providers/exasol/hooks/exasol.py) |
-
-
-
 
 ## Releases
 
@@ -102,7 +91,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [75071831b](https://github.com/apache/airflow/commit/75071831baa936d292354f98aac46cd808a4b2b8) | 2020-10-10  | Remove redundant parentheses from Python files (#10967)      |
 | [7b0a2f5d8](https://github.com/apache/airflow/commit/7b0a2f5d8e6c3ff17094a7c1e31440300defb0b7) | 2020-10-10  | Replaced basestring with str in the Exasol hook (#11360)     |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)   |
-
 
 ### Release 2020.10.5
 
@@ -118,7 +106,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [cdec30125](https://github.com/apache/airflow/commit/cdec3012542b45d23a05f62d69110944ba542e2a) | 2020-08-07  | Add correct signature to all operators and sensors (#10205)          |
 | [aeea71274](https://github.com/apache/airflow/commit/aeea71274d4527ff2351102e94aa38bda6099e7f) | 2020-08-02  | Remove `args` parameter from provider operator constructors (#10097) |
 | [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)                       |
-
 
 ### Release 2020.6.24
 

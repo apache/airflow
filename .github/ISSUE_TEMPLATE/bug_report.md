@@ -36,7 +36,6 @@ These questions are the first thing we need to know to understand the context.
 
 **Apache Airflow version**:
 
-
 **Kubernetes version (if you are using kubernetes)** (use `kubectl version`):
 
 **Environment**:
@@ -75,7 +74,6 @@ You can include images using the .md style of
 To record a screencast, mac users can use QuickTime and then create an unlisted youtube video with the resulting .mov file.
 
 --->
-
 
 **Anything else we need to know**:
 

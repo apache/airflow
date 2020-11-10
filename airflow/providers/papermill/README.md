@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-providers-papermill
 
 Release: 1.0.0b1
@@ -40,12 +39,10 @@ Release: 1.0.0b1
 This is a provider package for `papermill` provider. All classes for this provider package
 are in `airflow.providers.papermill` python package.
 
-
 ## Additional notes
 
 Papermill operator is the only one to work with AUTO inlets for now (for lineage support).
 However, since AUTO inlets is a feature of Airflow 2 not backported to 1.10.*.
-
 
 ## Installation
 
@@ -65,18 +62,13 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `paper
 are in the `airflow.providers.papermill` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
-
 
 ### Moved operators
 
 | Airflow 2.0 operators: `airflow.providers.papermill` package                                                                              | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                  |
 |:------------------------------------------------------------------------------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------|
 | [operators.papermill.PapermillOperator](https://github.com/apache/airflow/blob/master/airflow/providers/papermill/operators/papermill.py) | [operators.papermill_operator.PapermillOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/papermill_operator.py) |
-
-
 
 ## Releases
 
@@ -87,7 +79,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [59eb5de78](https://github.com/apache/airflow/commit/59eb5de78c70ee9c7ae6e4cba5c7a2babb8103ca) | 2020-11-09  | Update provider READMEs for up-coming 1.0.0beta1 releases (#12206) |
 | [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855)                         |
 
-
 ### Release 0.0.2a1
 
 | Commit                                                                                         | Committed   | Subject                                                            |
@@ -96,7 +87,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                                 |
 | [cb7c67dea](https://github.com/apache/airflow/commit/cb7c67dea9cd9b9c5de10e355b63039446003149) | 2020-10-20  | Fix example DAGs in pip packages (#11687)                          |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)       |
-
 
 ### Release 0.0.1
 

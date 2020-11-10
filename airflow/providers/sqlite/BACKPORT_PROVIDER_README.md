@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-sqlite
 
 Release: 2020.10.29
@@ -46,8 +45,6 @@ are in `airflow.providers.sqlite` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
-
-
 ## Installation
 
 You can install this package on top of an existing airflow 1.10.* installation via
@@ -59,10 +56,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `sqlit
 are in the `airflow.providers.sqlite` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
-
 
 ### Moved operators
 
@@ -70,18 +64,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:------------------------------------------------------------------------------------------------------------------------------|:-------------------------------------------------------------------------------------------------------------------------------------|
 | [operators.sqlite.SqliteOperator](https://github.com/apache/airflow/blob/master/airflow/providers/sqlite/operators/sqlite.py) | [operators.sqlite_operator.SqliteOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/sqlite_operator.py) |
 
-
 ## Hooks
-
-
 
 ### Moved hooks
 
 | Airflow 2.0 hooks: `airflow.providers.sqlite` package                                                             | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                     |
 |:------------------------------------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------|
 | [hooks.sqlite.SqliteHook](https://github.com/apache/airflow/blob/master/airflow/providers/sqlite/hooks/sqlite.py) | [hooks.sqlite_hook.SqliteHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/hooks/sqlite_hook.py) |
-
-
 
 ## Releases
 
@@ -93,7 +82,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                           |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487) |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)   |
-
 
 ### Release 2020.10.5
 
@@ -110,7 +98,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [aeea71274](https://github.com/apache/airflow/commit/aeea71274d4527ff2351102e94aa38bda6099e7f) | 2020-08-02  | Remove `args` parameter from provider operator constructors (#10097) |
 | [e13a14c87](https://github.com/apache/airflow/commit/e13a14c8730f4f633d996dd7d3468fe827136a84) | 2020-06-21  | Enable &amp; Fix Whitespace related PyDocStyle Checks (#9458)            |
 | [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)                       |
-
 
 ### Release 2020.6.24
 

@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-apache-livy
 
 Release: 2020.10.29
@@ -49,8 +48,6 @@ are in `airflow.providers.apache.livy` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
-
-
 ## Installation
 
 You can install this package on top of an existing airflow 1.10.* installation via
@@ -77,9 +74,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `apach
 are in the `airflow.providers.apache.livy` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
 
 ### New operators
 
@@ -87,10 +82,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:-----------------------------------------------------------------------------------------------------------------------------|
 | [operators.livy.LivyOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/livy/operators/livy.py) |
 
-
-
 ## Sensors
-
 
 ### New sensors
 
@@ -98,19 +90,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:-----------------------------------------------------------------------------------------------------------------------|
 | [sensors.livy.LivySensor](https://github.com/apache/airflow/blob/master/airflow/providers/apache/livy/sensors/livy.py) |
 
-
-
 ## Hooks
-
 
 ### New hooks
 
 | New Airflow 2.0 hooks: `airflow.providers.apache.livy` package                                                   |
 |:-----------------------------------------------------------------------------------------------------------------|
 | [hooks.livy.LivyHook](https://github.com/apache/airflow/blob/master/airflow/providers/apache/livy/hooks/livy.py) |
-
-
-
 
 ## Releases
 
@@ -123,7 +109,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                           |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487) |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)   |
-
 
 ### Release 2020.10.5
 
@@ -140,7 +125,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [33f0cd265](https://github.com/apache/airflow/commit/33f0cd2657b2e77ea3477e0c93f13f1474be628e) | 2020-07-22  | apply_default keeps the function signature for mypy (#9784)       |
 | [4d74ac211](https://github.com/apache/airflow/commit/4d74ac2111862186598daf92cbf2c525617061c2) | 2020-07-19  | Increase typing for Apache and http provider package (#9729)      |
 | [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)                    |
-
 
 ### Release 2020.6.24
 

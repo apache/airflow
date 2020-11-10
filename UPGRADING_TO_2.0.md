@@ -61,7 +61,6 @@ For a list of breaking changes between Python 2 and Python 3, please refer to th
 [handy blog](https://blog.couchbase.com/tips-and-tricks-for-upgrading-from-python-2-to-python-3/)
 from the CouchBaseDB team.
 
-
 ## Step 2: Upgrade to Airflow 1.10.13 (a.k.a our "bridge" release)
 
 To minimize friction for users upgrading from Airflow 1.10 to Airflow 2.0 and beyond, a "bridge"
@@ -92,7 +91,6 @@ goal is that any Airflow setup that can pass these tests will be able to upgrade
 ```shell script
     airflow upgrade_check
 ```
-
 
 ## Step 3: Set Operators to Backport Providers
 
@@ -147,7 +145,6 @@ import jinja2
 
 dag = DAG('simple_dag', template_undefined=jinja2.Undefined)
 ```
-
 
 ### Changes to the KubernetesPodOperator
 
@@ -327,7 +324,6 @@ The Old and New provider configuration keys that have changed are as follows
 | request_token_params| client_kwargs     |
 
 For more information, visit https://flask-appbuilder.readthedocs.io/en/latest/security.html#authentication-oauth
-
 
 ## Step 5: Upgrade KubernetesExecutor settings
 
@@ -691,7 +687,6 @@ k = KubernetesPodOperator(
     task_id="task"
 )
 ```
-
 
 #### resources has migrated from a Dict to a V1ResourceRequirements
 

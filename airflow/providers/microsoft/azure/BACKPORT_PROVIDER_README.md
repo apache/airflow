@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-microsoft-azure
 
 Release: 2020.10.29
@@ -57,8 +56,6 @@ are in `airflow.providers.microsoft.azure` python package.
 
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
-
-
 
 ## Installation
 
@@ -103,9 +100,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `micro
 are in the `airflow.providers.microsoft.azure` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
 
 ### New operators
 
@@ -113,7 +108,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:-----------------------------------------------------------------------------------------------------------------------------------------------------|
 | [operators.adx.AzureDataExplorerQueryOperator](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/operators/adx.py)     |
 | [operators.azure_batch.AzureBatchOperator](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/operators/azure_batch.py) |
-
 
 ### Moved operators
 
@@ -124,9 +118,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [operators.azure_cosmos.AzureCosmosInsertDocumentOperator](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/operators/azure_cosmos.py)                         | [contrib.operators.azure_cosmos_operator.AzureCosmosInsertDocumentOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/azure_cosmos_operator.py)                         |
 | [operators.wasb_delete_blob.WasbDeleteBlobOperator](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/operators/wasb_delete_blob.py)                            | [contrib.operators.wasb_delete_blob_operator.WasbDeleteBlobOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/wasb_delete_blob_operator.py)                            |
 
-
 ## Transfer operators
-
 
 ### New transfer operators
 
@@ -135,7 +127,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [transfers.azure_blob_to_gcs.AzureBlobStorageToGCSOperator](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/transfers/azure_blob_to_gcs.py) |
 | [transfers.local_to_adls.LocalToAzureDataLakeStorageOperator](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/transfers/local_to_adls.py)   |
 
-
 ### Moved transfer operators
 
 | Airflow 2.0 transfers: `airflow.providers.microsoft.azure` package                                                                                                                          | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                                                              |
@@ -143,16 +134,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [transfers.file_to_wasb.FileToWasbOperator](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/transfers/file_to_wasb.py)                                      | [contrib.operators.file_to_wasb.FileToWasbOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/file_to_wasb.py)                                                        |
 | [transfers.oracle_to_azure_data_lake.OracleToAzureDataLakeOperator](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/transfers/oracle_to_azure_data_lake.py) | [contrib.operators.oracle_to_azure_data_lake_transfer.OracleToAzureDataLakeOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/oracle_to_azure_data_lake_transfer.py) |
 
-
 ## Sensors
-
 
 ### New sensors
 
 | New Airflow 2.0 sensors: `airflow.providers.microsoft.azure` package                                                                                      |
 |:----------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [sensors.azure_cosmos.AzureCosmosDocumentSensor](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/sensors/azure_cosmos.py) |
-
 
 ### Moved sensors
 
@@ -161,9 +149,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [sensors.wasb.WasbBlobSensor](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/sensors/wasb.py)   | [contrib.sensors.wasb_sensor.WasbBlobSensor](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/sensors/wasb_sensor.py)   |
 | [sensors.wasb.WasbPrefixSensor](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/sensors/wasb.py) | [contrib.sensors.wasb_sensor.WasbPrefixSensor](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/sensors/wasb_sensor.py) |
 
-
 ## Hooks
-
 
 ### New hooks
 
@@ -173,7 +159,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [hooks.azure_batch.AzureBatchHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/azure_batch.py)            |
 | [hooks.azure_data_lake.AzureDataLakeHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/azure_data_lake.py) |
 | [hooks.base_azure.AzureBaseHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/base_azure.py)               |
-
 
 ### Moved hooks
 
@@ -186,18 +171,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [hooks.azure_fileshare.AzureFileShareHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/azure_fileshare.py)                           | [contrib.hooks.azure_fileshare_hook.AzureFileShareHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/azure_fileshare_hook.py)                           |
 | [hooks.wasb.WasbHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/wasb.py)                                                           | [contrib.hooks.wasb_hook.WasbHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/wasb_hook.py)                                                           |
 
-
 ## Secrets
-
 
 ### New secrets
 
 | New Airflow 2.0 secrets: `airflow.providers.microsoft.azure` package                                                                                       |
 |:-----------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [secrets.azure_key_vault.AzureKeyVaultBackend](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/secrets/azure_key_vault.py) |
-
-
-
 
 ## Releases
 
@@ -219,7 +199,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [fd682fd70](https://github.com/apache/airflow/commit/fd682fd70a97a1f937786a1a136f0fa929c8fb80) | 2020-10-05  | fix job deletion (#11272)                                                                                           |
 | [421061878](https://github.com/apache/airflow/commit/4210618789215dfe9cb2ab350f6477d3c6ce365e) | 2020-10-03  | Ensure target_dedicated_nodes or enable_auto_scale is set in AzureBatchOperator (#11251)                            |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)                                                          |
-
 
 ### Release 2020.10.5
 
@@ -244,7 +223,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [d3c76da95](https://github.com/apache/airflow/commit/d3c76da95250068161580036a86e26ee2790fa07) | 2020-07-12  | Improve type hinting to provider microsoft  (#9774)                         |
 | [23f80f34a](https://github.com/apache/airflow/commit/23f80f34adec86da24e4896168c53d213d01a7f6) | 2020-07-08  | Move gcs &amp; wasb task handlers to their respective provider packages (#9714) |
 | [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)                              |
-
 
 ### Release 2020.6.24
 

@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-apache-pinot
 
 Release: 2020.10.29
@@ -45,8 +44,6 @@ are in `airflow.providers.apache.pinot` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
-
-
 ## Installation
 
 You can install this package on top of an existing airflow 1.10.* installation via
@@ -64,10 +61,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `apach
 are in the `airflow.providers.apache.pinot` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Hooks
-
-
 
 ### Moved hooks
 
@@ -75,8 +69,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:--------------------------------------------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------|
 | [hooks.pinot.PinotAdminHook](https://github.com/apache/airflow/blob/master/airflow/providers/apache/pinot/hooks/pinot.py) | [contrib.hooks.pinot_hook.PinotAdminHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/pinot_hook.py) |
 | [hooks.pinot.PinotDbApiHook](https://github.com/apache/airflow/blob/master/airflow/providers/apache/pinot/hooks/pinot.py) | [contrib.hooks.pinot_hook.PinotDbApiHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/pinot_hook.py) |
-
-
 
 ## Releases
 
@@ -88,7 +80,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                           |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487) |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)   |
-
 
 ### Release 2020.10.5
 
@@ -102,7 +93,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [ee7ca128a](https://github.com/apache/airflow/commit/ee7ca128a17937313566f2badb6cc569c614db94) | 2020-08-22  | Fix broken Markdown refernces in Providers README (#10483)   |
 | [4d74ac211](https://github.com/apache/airflow/commit/4d74ac2111862186598daf92cbf2c525617061c2) | 2020-07-19  | Increase typing for Apache and http provider package (#9729) |
 | [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)               |
-
 
 ### Release 2020.6.24
 

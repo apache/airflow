@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-qubole
 
 Release: 2020.10.29
@@ -49,8 +48,6 @@ are in `airflow.providers.qubole` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
-
-
 ## Installation
 
 You can install this package on top of an existing airflow 1.10.* installation via
@@ -68,10 +65,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `qubol
 are in the `airflow.providers.qubole` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
-
 
 ### Moved operators
 
@@ -81,10 +75,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [operators.qubole_check.QuboleCheckOperator](https://github.com/apache/airflow/blob/master/airflow/providers/qubole/operators/qubole_check.py)      | [contrib.operators.qubole_check_operator.QuboleCheckOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/qubole_check_operator.py)      |
 | [operators.qubole_check.QuboleValueCheckOperator](https://github.com/apache/airflow/blob/master/airflow/providers/qubole/operators/qubole_check.py) | [contrib.operators.qubole_check_operator.QuboleValueCheckOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/qubole_check_operator.py) |
 
-
 ## Sensors
-
-
 
 ### Moved sensors
 
@@ -94,10 +85,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [sensors.qubole.QubolePartitionSensor](https://github.com/apache/airflow/blob/master/airflow/providers/qubole/sensors/qubole.py) | [contrib.sensors.qubole_sensor.QubolePartitionSensor](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/sensors/qubole_sensor.py) |
 | [sensors.qubole.QuboleSensor](https://github.com/apache/airflow/blob/master/airflow/providers/qubole/sensors/qubole.py)          | [contrib.sensors.qubole_sensor.QuboleSensor](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/sensors/qubole_sensor.py)          |
 
-
 ## Hooks
-
-
 
 ### Moved hooks
 
@@ -105,8 +93,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:-----------------------------------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------|
 | [hooks.qubole.QuboleHook](https://github.com/apache/airflow/blob/master/airflow/providers/qubole/hooks/qubole.py)                  | [contrib.hooks.qubole_hook.QuboleHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/qubole_hook.py)                  |
 | [hooks.qubole_check.QuboleCheckHook](https://github.com/apache/airflow/blob/master/airflow/providers/qubole/hooks/qubole_check.py) | [contrib.hooks.qubole_check_hook.QuboleCheckHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/qubole_check_hook.py) |
-
-
 
 ## Releases
 
@@ -118,7 +104,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                           |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487) |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)   |
-
 
 ### Release 2020.10.5
 
@@ -141,7 +126,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [33f0cd265](https://github.com/apache/airflow/commit/33f0cd2657b2e77ea3477e0c93f13f1474be628e) | 2020-07-22  | apply_default keeps the function signature for mypy (#9784)                             |
 | [3190db524](https://github.com/apache/airflow/commit/3190db52469f9d9a338231a9e8e7f333a6fbb638) | 2020-06-24  | [AIRFLOW-9347] Fix QuboleHook unable to add list to tags (#9349)                        |
 | [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)                                          |
-
 
 ### Release 2020.6.24
 

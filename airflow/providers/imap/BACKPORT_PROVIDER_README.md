@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-imap
 
 Release: 2020.10.29
@@ -46,8 +45,6 @@ are in `airflow.providers.imap` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
-
-
 ## Installation
 
 You can install this package on top of an existing airflow 1.10.* installation via
@@ -59,10 +56,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `imap`
 are in the `airflow.providers.imap` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Sensors
-
-
 
 ### Moved sensors
 
@@ -70,18 +64,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [sensors.imap_attachment.ImapAttachmentSensor](https://github.com/apache/airflow/blob/master/airflow/providers/imap/sensors/imap_attachment.py) | [contrib.sensors.imap_attachment_sensor.ImapAttachmentSensor](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/sensors/imap_attachment_sensor.py) |
 
-
 ## Hooks
-
-
 
 ### Moved hooks
 
 | Airflow 2.0 hooks: `airflow.providers.imap` package                                                       | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                               |
 |:----------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------|
 | [hooks.imap.ImapHook](https://github.com/apache/airflow/blob/master/airflow/providers/imap/hooks/imap.py) | [contrib.hooks.imap_hook.ImapHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/imap_hook.py) |
-
-
 
 ## Releases
 
@@ -93,7 +82,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                           |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487) |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)   |
-
 
 ### Release 2020.10.5
 
@@ -110,7 +98,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [24c8e4c2d](https://github.com/apache/airflow/commit/24c8e4c2d6e359ecc2c7d6275dccc68de4a82832) | 2020-08-06  | Changes to all the constructors to remove the args argument (#10163) |
 | [0aff69fbd](https://github.com/apache/airflow/commit/0aff69fbd2f5a09c51f5b503ebf1bb72a26d3290) | 2020-07-27  | Add typing to ImapHook (#9887)                                       |
 | [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)                       |
-
 
 ### Release 2020.6.24
 

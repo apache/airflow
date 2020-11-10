@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-providers-hashicorp
 
 Release: 1.0.0b1
@@ -42,8 +41,6 @@ Release: 1.0.0b1
 
 This is a provider package for `hashicorp` provider. All classes for this provider package
 are in `airflow.providers.hashicorp` python package.
-
-
 
 ## Installation
 
@@ -77,9 +74,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `hashi
 are in the `airflow.providers.hashicorp` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Hooks
-
 
 ### New hooks
 
@@ -87,19 +82,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:------------------------------------------------------------------------------------------------------------------|
 | [hooks.vault.VaultHook](https://github.com/apache/airflow/blob/master/airflow/providers/hashicorp/hooks/vault.py) |
 
-
-
 ## Secrets
-
-
 
 ### Moved secrets
 
 | Airflow 2.0 secrets: `airflow.providers.hashicorp` package                                                               | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                   |
 |:-------------------------------------------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------|
 | [secrets.vault.VaultBackend](https://github.com/apache/airflow/blob/master/airflow/providers/hashicorp/secrets/vault.py) | [contrib.secrets.hashicorp_vault.VaultBackend](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/secrets/hashicorp_vault.py) |
-
-
 
 ## Releases
 
@@ -113,7 +102,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [dd2442b1e](https://github.com/apache/airflow/commit/dd2442b1e66d4725e7193e0cab0548a4d8c71fbd) | 2020-11-02  | Vault with optional Variables or Connections (#11736)              |
 | [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855)                         |
 
-
 ### Release 0.0.2a1
 
 | Commit                                                                                         | Committed   | Subject                                                            |
@@ -121,7 +109,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [872b1566a](https://github.com/apache/airflow/commit/872b1566a11cb73297e657ff325161721b296574) | 2020-10-25  | Generated backport providers readmes/setup for 2020.10.29 (#11826) |
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                                 |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)       |
-
 
 ### Release 0.0.1
 

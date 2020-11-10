@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-celery
 
 Release: 2020.10.29
@@ -45,8 +44,6 @@ are in `airflow.providers.celery` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
-
-
 ## Installation
 
 You can install this package on top of an existing airflow 1.10.* installation via
@@ -66,18 +63,13 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `celer
 are in the `airflow.providers.celery` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Sensors
-
-
 
 ### Moved sensors
 
 | Airflow 2.0 sensors: `airflow.providers.celery` package                                                                                  | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                |
 |:-----------------------------------------------------------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [sensors.celery_queue.CeleryQueueSensor](https://github.com/apache/airflow/blob/master/airflow/providers/celery/sensors/celery_queue.py) | [contrib.sensors.celery_queue_sensor.CeleryQueueSensor](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/sensors/celery_queue_sensor.py) |
-
-
 
 ## Releases
 
@@ -88,7 +80,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [b680bbc0b](https://github.com/apache/airflow/commit/b680bbc0b05ad71d403a5d58bc7023a2453b9a48) | 2020-10-24  | Generated backport providers readmes/setup for 2020.10.29    |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487) |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)   |
-
 
 ### Release 2020.10.5
 
@@ -103,7 +94,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [24c8e4c2d](https://github.com/apache/airflow/commit/24c8e4c2d6e359ecc2c7d6275dccc68de4a82832) | 2020-08-06  | Changes to all the constructors to remove the args argument (#10163) |
 | [5bb228d84](https://github.com/apache/airflow/commit/5bb228d841585cd1780c15f6175c6d64cd98aeab) | 2020-07-11  | improve type hinting for celery provider (#9762)                     |
 | [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)                       |
-
 
 ### Release 2020.6.24
 

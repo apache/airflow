@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-providers-cncf-kubernetes
 
 Release: 1.0.0b1
@@ -45,13 +44,11 @@ Release: 1.0.0b1
 This is a provider package for `cncf.kubernetes` provider. All classes for this provider package
 are in `airflow.providers.cncf.kubernetes` python package.
 
-
 ## Additional limitations
 
 This provider is only usable with Apache Airflow &gt;= 1.10.12 version due to refactorings implemented in
 Apache Airflow 1.10.11 and fixes implemented in 1.10.11. The package has appropriate requirements
 set so you should not be able to install it with Apache Airflow &lt; 1.10.12.
-
 
 ## Installation
 
@@ -71,9 +68,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `cncf.
 are in the `airflow.providers.cncf.kubernetes` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
 
 ### New operators
 
@@ -81,16 +76,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [operators.spark_kubernetes.SparkKubernetesOperator](https://github.com/apache/airflow/blob/master/airflow/providers/cncf/kubernetes/operators/spark_kubernetes.py) |
 
-
 ### Moved operators
 
 | Airflow 2.0 operators: `airflow.providers.cncf.kubernetes` package                                                                                            | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                                |
 |:--------------------------------------------------------------------------------------------------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [operators.kubernetes_pod.KubernetesPodOperator](https://github.com/apache/airflow/blob/master/airflow/providers/cncf/kubernetes/operators/kubernetes_pod.py) | [contrib.operators.kubernetes_pod_operator.KubernetesPodOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/kubernetes_pod_operator.py) |
 
-
 ## Sensors
-
 
 ### New sensors
 
@@ -98,19 +90,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:--------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [sensors.spark_kubernetes.SparkKubernetesSensor](https://github.com/apache/airflow/blob/master/airflow/providers/cncf/kubernetes/sensors/spark_kubernetes.py) |
 
-
-
 ## Hooks
-
 
 ### New hooks
 
 | New Airflow 2.0 hooks: `airflow.providers.cncf.kubernetes` package                                                                     |
 |:---------------------------------------------------------------------------------------------------------------------------------------|
 | [hooks.kubernetes.KubernetesHook](https://github.com/apache/airflow/blob/master/airflow/providers/cncf/kubernetes/hooks/kubernetes.py) |
-
-
-
 
 ## Releases
 
@@ -127,7 +113,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [8c42cf1b0](https://github.com/apache/airflow/commit/8c42cf1b00c90f0d7f11b8a3a455381de8e003c5) | 2020-11-03  | Use PyUpgrade to use Python 3.6 features (#11447)                             |
 | [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855)                                    |
 
-
 ### Release 0.0.2a1
 
 | Commit                                                                                         | Committed   | Subject                                                            |
@@ -137,7 +122,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                                 |
 | [eee4e30f2](https://github.com/apache/airflow/commit/eee4e30f2caf02e16088ff5d1af1ea380a73e982) | 2020-10-15  | Add better debug logging to K8sexec and K8sPodOp (#11502)          |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)       |
-
 
 ### Release 0.0.1
 

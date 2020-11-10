@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-hashicorp
 
 Release: 2020.10.29
@@ -47,8 +46,6 @@ are in `airflow.providers.hashicorp` python package.
 
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
-
-
 
 ## Installation
 
@@ -82,9 +79,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `hashi
 are in the `airflow.providers.hashicorp` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Hooks
-
 
 ### New hooks
 
@@ -92,19 +87,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:------------------------------------------------------------------------------------------------------------------|
 | [hooks.vault.VaultHook](https://github.com/apache/airflow/blob/master/airflow/providers/hashicorp/hooks/vault.py) |
 
-
-
 ## Secrets
-
-
 
 ### Moved secrets
 
 | Airflow 2.0 secrets: `airflow.providers.hashicorp` package                                                               | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                   |
 |:-------------------------------------------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------|
 | [secrets.vault.VaultBackend](https://github.com/apache/airflow/blob/master/airflow/providers/hashicorp/secrets/vault.py) | [contrib.secrets.hashicorp_vault.VaultBackend](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/secrets/hashicorp_vault.py) |
-
-
 
 ## Releases
 
@@ -116,7 +105,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                           |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487) |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)   |
-
 
 ### Release 2020.10.5
 
@@ -134,7 +122,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [44d4ae809](https://github.com/apache/airflow/commit/44d4ae809c1e3784ff95b6a5e95113c3412e56b3) | 2020-07-06  | Upgrade to latest pre-commit checks (#9686)                          |
 | [a99aaeb49](https://github.com/apache/airflow/commit/a99aaeb49672e913d5ff79606237f6f3614fc8f5) | 2020-07-03  | Allow setting Hashicorp Vault token from File (#9644)                |
 | [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)                       |
-
 
 ### Release 2020.6.24
 

@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-google
 
 Release: 2020.11.13
@@ -58,8 +57,6 @@ are in `airflow.providers.google` python package.
 
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
-
-
 
 ## Installation
 
@@ -132,9 +129,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `googl
 are in the `airflow.providers.google` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
 
 ### New operators
 
@@ -288,7 +283,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [marketing_platform.operators.search_ads.GoogleSearchAdsInsertReportOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/marketing_platform/operators/search_ads.py)                             |
 | [suite.operators.sheets.GoogleSheetsCreateSpreadsheetOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/suite/operators/sheets.py)                                                             |
 
-
 ### Moved operators
 
 | Airflow 2.0 operators: `airflow.providers.google` package                                                                                                                                                                  | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                                                                                   |
@@ -437,9 +431,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [cloud.operators.vision.CloudVisionUpdateProductOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/operators/vision.py)                                                                | [contrib.operators.gcp_vision_operator.CloudVisionProductUpdateOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/gcp_vision_operator.py)                                                 |
 | [cloud.operators.vision.CloudVisionUpdateProductSetOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/operators/vision.py)                                                             | [contrib.operators.gcp_vision_operator.CloudVisionProductSetUpdateOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/gcp_vision_operator.py)                                              |
 
-
 ## Transfer operators
-
 
 ### New transfer operators
 
@@ -455,7 +447,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [cloud.transfers.sftp_to_gcs.SFTPToGCSOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/transfers/sftp_to_gcs.py)                                 |
 | [cloud.transfers.sheets_to_gcs.GoogleSheetsToGCSOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/transfers/sheets_to_gcs.py)                     |
 | [suite.transfers.gcs_to_sheets.GCSToGoogleSheetsOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/suite/transfers/gcs_to_sheets.py)                     |
-
 
 ### Moved transfer operators
 
@@ -476,9 +467,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [cloud.transfers.sql_to_gcs.BaseSQLToGCSOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/transfers/sql_to_gcs.py)                           | [contrib.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/sql_to_gcs.py)                              |
 | [suite.transfers.gcs_to_gdrive.GCSToGoogleDriveOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/suite/transfers/gcs_to_gdrive.py)                 | [contrib.operators.gcs_to_gdrive_operator.GCSToGoogleDriveOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/gcs_to_gdrive_operator.py)                 |
 
-
 ## Sensors
-
 
 ### New sensors
 
@@ -491,7 +480,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [marketing_platform.sensors.display_video.GoogleDisplayVideo360GetSDFDownloadOperationSensor](https://github.com/apache/airflow/blob/master/airflow/providers/google/marketing_platform/sensors/display_video.py) |
 | [marketing_platform.sensors.display_video.GoogleDisplayVideo360ReportSensor](https://github.com/apache/airflow/blob/master/airflow/providers/google/marketing_platform/sensors/display_video.py)                  |
 | [marketing_platform.sensors.search_ads.GoogleSearchAdsReportSensor](https://github.com/apache/airflow/blob/master/airflow/providers/google/marketing_platform/sensors/search_ads.py)                              |
-
 
 ### Moved sensors
 
@@ -506,9 +494,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [cloud.sensors.gcs.GCSUploadSessionCompleteSensor](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/sensors/gcs.py)                                                                | [contrib.sensors.gcs_sensor.GoogleCloudStorageUploadSessionCompleteSensor](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/sensors/gcs_sensor.py)                   |
 | [cloud.sensors.pubsub.PubSubPullSensor](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/sensors/pubsub.py)                                                                        | [contrib.sensors.pubsub_sensor.PubSubPullSensor](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/sensors/pubsub_sensor.py)                                          |
 
-
 ## Hooks
-
 
 ### New hooks
 
@@ -533,7 +519,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [marketing_platform.hooks.display_video.GoogleDisplayVideo360Hook](https://github.com/apache/airflow/blob/master/airflow/providers/google/marketing_platform/hooks/display_video.py)       |
 | [marketing_platform.hooks.search_ads.GoogleSearchAdsHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/marketing_platform/hooks/search_ads.py)                   |
 | [suite.hooks.sheets.GSheetsHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/suite/hooks/sheets.py)                                                             |
-
 
 ### Moved hooks
 
@@ -567,18 +552,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [common.hooks.base_google.GoogleBaseHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/common/hooks/base_google.py)                                                   | [contrib.hooks.gcp_api_base_hook.GoogleBaseHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/gcp_api_base_hook.py)                                 |
 | [suite.hooks.drive.GoogleDriveHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/suite/hooks/drive.py)                                                                | [contrib.hooks.gdrive_hook.GoogleDriveHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/gdrive_hook.py)                                            |
 
-
 ## Secrets
-
-
 
 ### Moved secrets
 
 | Airflow 2.0 secrets: `airflow.providers.google` package                                                                                                          | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                         |
 |:-----------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [cloud.secrets.secret_manager.CloudSecretManagerBackend](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/secrets/secret_manager.py) | [contrib.secrets.gcp_secrets_manager.CloudSecretsManagerBackend](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/secrets/gcp_secrets_manager.py) |
-
-
 
 ## Releases
 
@@ -611,7 +591,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [872b1566a](https://github.com/apache/airflow/commit/872b1566a11cb73297e657ff325161721b296574) | 2020-10-25  | Generated backport providers readmes/setup for 2020.10.29 (#11826)                                          |
 | [b680bbc0b](https://github.com/apache/airflow/commit/b680bbc0b05ad71d403a5d58bc7023a2453b9a48) | 2020-10-24  | Generated backport providers readmes/setup for 2020.10.29                                                   |
 
-
 ### Release 2020.10.29
 
 | Commit                                                                                         | Committed   | Subject                                                                    |
@@ -642,7 +621,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [b0fcf6755](https://github.com/apache/airflow/commit/b0fcf675595494b306800e1a516548dc0dc671f8) | 2020-10-07  | Add AzureFileShareToGCSOperator (#10991)                                   |
 | [47b05a87f](https://github.com/apache/airflow/commit/47b05a87f004dc273a4757ba49f03808a86f77e7) | 2020-10-07  | Improve handling of job_id in BigQuery operators (#11287)                  |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)                 |
-
 
 ### Release 2020.10.5
 
@@ -754,7 +732,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [e13a14c87](https://github.com/apache/airflow/commit/e13a14c8730f4f633d996dd7d3468fe827136a84) | 2020-06-21  | Enable &amp; Fix Whitespace related PyDocStyle Checks (#9458)                                    |
 | [5b680e27e](https://github.com/apache/airflow/commit/5b680e27e8118861ef484c00a4b87c6885b0a518) | 2020-06-19  | Don&#39;t use connection to store task handler credentials (#9381)                               |
 | [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)                                               |
-
 
 ### Release 2020.6.24
 

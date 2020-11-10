@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-slack
 
 Release: 2020.10.29
@@ -48,8 +47,6 @@ are in `airflow.providers.slack` python package.
 
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
-
-
 
 ## Installation
 
@@ -83,16 +80,13 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `slack
 are in the `airflow.providers.slack` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
 
 ### New operators
 
 | New Airflow 2.0 operators: `airflow.providers.slack` package                                                                     |
 |:---------------------------------------------------------------------------------------------------------------------------------|
 | [operators.slack.SlackAPIFileOperator](https://github.com/apache/airflow/blob/master/airflow/providers/slack/operators/slack.py) |
-
 
 ### Moved operators
 
@@ -102,10 +96,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [operators.slack.SlackAPIPostOperator](https://github.com/apache/airflow/blob/master/airflow/providers/slack/operators/slack.py)                 | [operators.slack_operator.SlackAPIPostOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/slack_operator.py)                                 |
 | [operators.slack_webhook.SlackWebhookOperator](https://github.com/apache/airflow/blob/master/airflow/providers/slack/operators/slack_webhook.py) | [contrib.operators.slack_webhook_operator.SlackWebhookOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/slack_webhook_operator.py) |
 
-
 ## Hooks
-
-
 
 ### Moved hooks
 
@@ -113,8 +104,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:-------------------------------------------------------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------|
 | [hooks.slack.SlackHook](https://github.com/apache/airflow/blob/master/airflow/providers/slack/hooks/slack.py)                        | [hooks.slack_hook.SlackHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/hooks/slack_hook.py)                                        |
 | [hooks.slack_webhook.SlackWebhookHook](https://github.com/apache/airflow/blob/master/airflow/providers/slack/hooks/slack_webhook.py) | [contrib.hooks.slack_webhook_hook.SlackWebhookHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/slack_webhook_hook.py) |
-
-
 
 ## Releases
 
@@ -128,7 +117,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                           |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487) |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)   |
-
 
 ### Release 2020.10.5
 
@@ -151,7 +139,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [33f0cd265](https://github.com/apache/airflow/commit/33f0cd2657b2e77ea3477e0c93f13f1474be628e) | 2020-07-22  | apply_default keeps the function signature for mypy (#9784)                   |
 | [df8efd04f](https://github.com/apache/airflow/commit/df8efd04f394afc4b5affb677bc78d8b7bd5275a) | 2020-06-21  | Enable &amp; Fix &#34;Docstring Content Issues&#34; PyDocStyle Check (#9460)              |
 | [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)                                |
-
 
 ### Release 2020.6.24
 

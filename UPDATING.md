@@ -172,8 +172,6 @@ https://developers.google.com/style/inclusive-documentation
 
 This section describes the major changes that have been made in this release.
 
-
-
 #### Changes to import paths
 
 Formerly the core code was maintained by the original creators - Airbnb. The code that was in the contrib
@@ -184,10 +182,6 @@ with third party services to the ``airflow.providers`` package.
 
 All changes made are backward compatible, but if you use the old import paths you will
 see a deprecation warning. The old import paths can be abandoned in the future.
-
-
-
-
 
 ### Database schema changes
 
@@ -269,7 +263,6 @@ The old configuration still works but can be abandoned.
 The previous option used a colon(`:`) to split the module from function. Now the dot(`.`) is used.
 
 The change aims to unify the format of all options that refer to objects in the `airflow.cfg` file.
-
 
 #### Custom executors is loaded using full import path
 
@@ -619,7 +612,6 @@ FileSensor is now takes a glob pattern, not just a filename. If the filename you
 to schedule tasks in the subdag. User no longer need to specify the executor
 in `SubDagOperator`.
 
-
 #### `airflow.providers.google.cloud.operators.datastore.CloudDatastoreExportEntitiesOperator`
 
 #### `airflow.providers.google.cloud.operators.datastore.CloudDatastoreImportEntitiesOperator`
@@ -701,7 +693,6 @@ The following variables were removed from the task instance context:
 - latest_date
 - tables
 
-
 #### `airflow.contrib.utils.Weekday`
 
 Formerly the core code was maintained by the original creators - Airbnb. The code that was in the contrib
@@ -781,7 +772,6 @@ If user provides `run_type` and `execution_date` then `run_id` is constructed as
 Airflow should construct dagruns using `run_type` and `execution_date`, creation using
 `run_id` is preserved for user actions.
 
-
 #### `airflow.models.dagrun.DagRun`
 
 Use DagRunType.SCHEDULED.value instead of DagRun.ID_PREFIX
@@ -807,7 +797,6 @@ Replaced by:
 >> DagRunType.SCHEDULED.value
 scheduled
 ```
-
 
 #### `airflow.utils.file.TemporaryDirectory`
 
@@ -881,7 +870,6 @@ delete this option.
 
 Passing `store_serialized_dags` argument to DagBag.__init__ and accessing `DagBag.store_serialized_dags` property
 are deprecated and will be removed in future versions.
-
 
 **Previous signature**:
 
@@ -1311,7 +1299,6 @@ specifying the service account.
 Detailed information about connection management is available:
 [Google Cloud Connection](https://airflow.apache.org/howto/connection/gcp.html).
 
-
 #### `airflow.providers.google.cloud.hooks.gcs.GCSHook`
 
 * The following parameters have been replaced in all the methods in GCSHook:
@@ -1543,7 +1530,6 @@ ImapHook:
 * The order of arguments has changed for `has_mail_attachment`,
 `retrieve_mail_attachments` and `download_mail_attachments`.
 * A new `mail_filter` argument has been added to each of those.
-
 
 #### `airflow.providers.http.hooks.http.HttpHook`
 
@@ -1906,7 +1892,6 @@ For more details about Celery pool implementation, please refer to:
 
 - https://docs.celeryproject.org/en/latest/userguide/workers.html#concurrency
 - https://docs.celeryproject.org/en/latest/userguide/concurrency/eventlet.html
-
 
 ### Change to method signature in `BaseOperator` and `DAG` classes
 

@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-presto
 
 Release: 2020.10.29
@@ -45,8 +44,6 @@ are in `airflow.providers.presto` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
-
-
 ## Installation
 
 You can install this package on top of an existing airflow 1.10.* installation via
@@ -64,18 +61,13 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `prest
 are in the `airflow.providers.presto` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Hooks
-
-
 
 ### Moved hooks
 
 | Airflow 2.0 hooks: `airflow.providers.presto` package                                                             | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                     |
 |:------------------------------------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------|
 | [hooks.presto.PrestoHook](https://github.com/apache/airflow/blob/master/airflow/providers/presto/hooks/presto.py) | [hooks.presto_hook.PrestoHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/hooks/presto_hook.py) |
-
-
 
 ## Releases
 
@@ -89,7 +81,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487) |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)   |
 
-
 ### Release 2020.10.5
 
 | Commit                                                                                         | Committed   | Subject                                                    |
@@ -102,7 +93,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [ee7ca128a](https://github.com/apache/airflow/commit/ee7ca128a17937313566f2badb6cc569c614db94) | 2020-08-22  | Fix broken Markdown refernces in Providers README (#10483) |
 | [8f8db8959](https://github.com/apache/airflow/commit/8f8db8959e526be54d700845d36ee9f315bae2ea) | 2020-08-12  | DbApiHook: Support kwargs in get_pandas_df (#9730)         |
 | [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)             |
-
 
 ### Release 2020.6.24
 

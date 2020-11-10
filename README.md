@@ -91,7 +91,6 @@ running more than a single scheduler -- please see the "Scheduler" docs.
 
 **Note:** SQLite is used primarily for development purpose.
 
-
 ### Additional notes on Python version requirements
 
 * Stable version [requires](https://github.com/apache/airflow/issues/8162) at least Python 3.5.3 when using Python 3
@@ -198,7 +197,6 @@ following the ASF Policy.
 - **Code View**:  Quick way to view source code of a DAG.
 
   ![](/docs/img/code.png)
-
 
 ## Contributing
 

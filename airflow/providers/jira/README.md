@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-providers-jira
 
 Release: 1.0.0b1
@@ -44,8 +43,6 @@ Release: 1.0.0b1
 This is a provider package for `jira` provider. All classes for this provider package
 are in `airflow.providers.jira` python package.
 
-
-
 ## Installation
 
 You can install this package on top of an existing airflow 2.* installation via
@@ -63,10 +60,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `jira`
 are in the `airflow.providers.jira` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
-
 
 ### Moved operators
 
@@ -74,10 +68,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:----------------------------------------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------|
 | [operators.jira.JiraOperator](https://github.com/apache/airflow/blob/master/airflow/providers/jira/operators/jira.py) | [contrib.operators.jira_operator.JiraOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/jira_operator.py) |
 
-
 ## Sensors
-
-
 
 ### Moved sensors
 
@@ -86,18 +77,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [sensors.jira.JiraSensor](https://github.com/apache/airflow/blob/master/airflow/providers/jira/sensors/jira.py)       | [contrib.sensors.jira_sensor.JiraSensor](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/sensors/jira_sensor.py)       |
 | [sensors.jira.JiraTicketSensor](https://github.com/apache/airflow/blob/master/airflow/providers/jira/sensors/jira.py) | [contrib.sensors.jira_sensor.JiraTicketSensor](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/sensors/jira_sensor.py) |
 
-
 ## Hooks
-
-
 
 ### Moved hooks
 
 | Airflow 2.0 hooks: `airflow.providers.jira` package                                                       | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                               |
 |:----------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------|
 | [hooks.jira.JiraHook](https://github.com/apache/airflow/blob/master/airflow/providers/jira/hooks/jira.py) | [contrib.hooks.jira_hook.JiraHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/jira_hook.py) |
-
-
 
 ## Releases
 
@@ -111,14 +97,12 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [4e8f9cc8d](https://github.com/apache/airflow/commit/4e8f9cc8d02b29c325b8a5a76b4837671bdf5f68) | 2020-11-03  | Enable Black - Python Auto Formmatter (#9550)                      |
 | [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855)                         |
 
-
 ### Release 0.0.2a1
 
 | Commit                                                                                         | Committed   | Subject                                                            |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------|
 | [872b1566a](https://github.com/apache/airflow/commit/872b1566a11cb73297e657ff325161721b296574) | 2020-10-25  | Generated backport providers readmes/setup for 2020.10.29 (#11826) |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)       |
-
 
 ### Release 0.0.1
 

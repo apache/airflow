@@ -17,7 +17,6 @@
  under the License.
  -->
 
-
 # Package apache-airflow-backport-providers-http
 
 Release: 2020.10.29
@@ -48,8 +47,6 @@ are in `airflow.providers.http` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
-
-
 ## Installation
 
 You can install this package on top of an existing airflow 1.10.* installation via
@@ -61,10 +58,7 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `http`
 are in the `airflow.providers.http` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-
 ## Operators
-
-
 
 ### Moved operators
 
@@ -72,10 +66,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:----------------------------------------------------------------------------------------------------------------------------|:-------------------------------------------------------------------------------------------------------------------------------------|
 | [operators.http.SimpleHttpOperator](https://github.com/apache/airflow/blob/master/airflow/providers/http/operators/http.py) | [operators.http_operator.SimpleHttpOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/http_operator.py) |
 
-
 ## Sensors
-
-
 
 ### Moved sensors
 
@@ -83,18 +74,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:----------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------|
 | [sensors.http.HttpSensor](https://github.com/apache/airflow/blob/master/airflow/providers/http/sensors/http.py) | [sensors.http_sensor.HttpSensor](https://github.com/apache/airflow/blob/v1-10-stable/airflow/sensors/http_sensor.py) |
 
-
 ## Hooks
-
-
 
 ### Moved hooks
 
 | Airflow 2.0 hooks: `airflow.providers.http` package                                                       | Airflow 1.10.* previous location (usually `airflow.contrib`)                                               |
 |:----------------------------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | [hooks.http.HttpHook](https://github.com/apache/airflow/blob/master/airflow/providers/http/hooks/http.py) | [hooks.http_hook.HttpHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/hooks/http_hook.py) |
-
-
 
 ## Releases
 
@@ -106,7 +92,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [3cddc1182](https://github.com/apache/airflow/commit/3cddc11821ff8f9ed0811384c0643f756a2b3dfa) | 2020-10-16  | Updated template_fields_rendereds for PostgresOperator and SimpleHttpOperator (#11555) |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)                           |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)                             |
-
 
 ### Release 2020.10.5
 
@@ -127,7 +112,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [ac93419d1](https://github.com/apache/airflow/commit/ac93419d1d15fb7779f5dc9cf30b2bca65d13b9e) | 2020-07-22  | Add response_filter parameter to SimpleHttpOperator (#9885)          |
 | [4d74ac211](https://github.com/apache/airflow/commit/4d74ac2111862186598daf92cbf2c525617061c2) | 2020-07-19  | Increase typing for Apache and http provider package (#9729)         |
 | [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)                       |
-
 
 ### Release 2020.6.24
 
