@@ -281,6 +281,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     ```
 
 - Push the artifacts to ASF dev dist repo
+
 ```
 # First clone the repo
 svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev

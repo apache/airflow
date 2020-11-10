@@ -70,6 +70,7 @@ and disrupting existing workflows. We strongly recommend that all users upgradin
 upgrade to Airflow 1.10.13.
 
 Features in 1.10.13 include:
+
 1. All breaking DAG and architecture changes of Airflow 2.0 have been backported to Airflow 1.10.13. This backward-compatibility does not mean
 that 1.10.13 will process these DAGs the same way as Airflow 2.0. What this does mean is that all Airflow 2.0
 compatible DAGs will work in Airflow 1.10.13. Instead, this backport will give users time to modify their DAGs over time without any service
@@ -84,6 +85,7 @@ section of your `airflow.cfg`
 3. Airflow 1.10.13 will contain our "upgrade check" scripts. These scripts will read through your `airflow.cfg` and all of your
 Dags and will give a detailed report of all changes required before upgrading. We are testing this script diligently, and our
 goal is that any Airflow setup that can pass these tests will be able to upgrade to 2.0 without any issues.
+
 ```shell script
     airflow upgrade_check
 ```

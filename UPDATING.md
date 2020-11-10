@@ -668,6 +668,7 @@ replaced with its corresponding new path.
 #### Variables removed from the task instance context
 
 The following variables were removed from the task instance context:
+
 - end_date
 - latest_date
 - tables
@@ -691,6 +692,7 @@ The connection module has new deprecated methods:
 - `Connection.debug_info`
 
 and one deprecated function:
+
 - `parse_netloc_to_hostname`
 
 Previously, users could create a connection object in two ways
@@ -896,6 +898,7 @@ which apply to most services. Parameters like ``datastore_conn_id``, ``bigquery_
 ``google_cloud_storage_conn_id`` and similar have been deprecated. Operators that require two connections are not changed.
 
 Following components were affected by normalization:
+
   * airflow.providers.google.cloud.hooks.datastore.DatastoreHook
   * airflow.providers.google.cloud.hooks.bigquery.BigQueryHook
   * airflow.providers.google.cloud.hooks.gcs.GoogleCloudStorageHook
@@ -1200,6 +1203,7 @@ The following methods were moved:
 Since BigQuery is the part of the GCP it was possible to simplify the code by handling the exceptions
 by usage of the `airflow.providers.google.common.hooks.base.GoogleBaseHook.catch_http_exception` decorator however it changes
 exceptions raised by the following methods:
+
 * `airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_table_delete` raises `AirflowException` instead of `Exception`.
 * `airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.create_empty_dataset` raises `AirflowException` instead of `ValueError`.
 * `airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_dataset` raises `AirflowException` instead of `ValueError`.
@@ -1392,6 +1396,7 @@ to surface new public methods on `AwsBatchClient` (and via inheritance on `AwsBa
 couple of job attributes are renamed on an instance of `AwsBatchOperator`; these were mostly
 used like private attributes but they were surfaced in the public API, so any use of them needs
 to be updated as follows:
+
 - `AwsBatchOperator().jobId` -> `AwsBatchOperator().job_id`
 - `AwsBatchOperator().jobName` -> `AwsBatchOperator().job_name`
 
@@ -1466,6 +1471,7 @@ Change parameter name from ``visibleTo`` to ``visible_to`` in OpsgenieAlertOpera
 #### `airflow.providers.imap.sensors.imap_attachment.ImapAttachmentSensor`
 
 ImapHook:
+
 * The order of arguments has changed for `has_mail_attachment`,
 `retrieve_mail_attachments` and `download_mail_attachments`.
 * A new `mail_filter` argument has been added to each of those.
@@ -1822,6 +1828,7 @@ implementation. Default value is "prefork", while choices include "prefork" (def
 in different scenarios.
 
 For more details about Celery pool implementation, please refer to:
+
 - https://docs.celeryproject.org/en/latest/userguide/workers.html#concurrency
 - https://docs.celeryproject.org/en/latest/userguide/concurrency/eventlet.html
 
@@ -2072,6 +2079,7 @@ We also provide a new cli command(``sync_perm``) to allow admin to auto sync per
 `ts_nodash` previously contained TimeZone information along with execution date. For Example: `20150101T000000+0000`. This is not user-friendly for file or folder names which was a popular use case for `ts_nodash`. Hence this behavior has been changed and using `ts_nodash` will no longer contain TimeZone information, restoring the pre-1.10 behavior of this macro. And a new macro `ts_nodash_with_tz` has been added which can be used to get a string with execution date and timezone info without dashes.
 
 Examples:
+
   * `ts_nodash`: `20150101T000000`
   * `ts_nodash_with_tz`: `20150101T000000+0000`
 
