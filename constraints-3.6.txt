@@ -1,4 +1,4 @@
-# Editable install with no version control (apache-airflow==2.0.0a2)
+# Editable install with no version control (apache-airflow==2.0.0b1)
 Authlib==0.14.3
 Babel==2.8.0
 Flask-AppBuilder==3.1.1
@@ -100,6 +100,7 @@ cloudant==2.14.0
 cloudpickle==1.4.1
 colorama==0.4.3
 colorlog==4.0.2
+commonmark==0.9.1
 connexion==2.7.0
 contextvars==2.4
 coverage==5.2.1
@@ -108,6 +109,7 @@ cryptography==3.0
 curlify==2.2.1
 cx-Oracle==8.0.0
 dask==2.23.0
+dataclasses==0.7
 datadog==0.38.0
 decorator==4.4.2
 defusedxml==0.6.0
@@ -340,6 +342,7 @@ requests-oauthlib==1.1.0
 requests-toolbelt==0.9.1
 requests==2.24.0
 responses==0.10.16
+rich==9.2.0
 rsa==4.6
 s3transfer==0.3.3
 sasl==0.2.1
