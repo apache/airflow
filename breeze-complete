@@ -91,6 +91,8 @@ insert-license
 language-matters
 lint-dockerfile
 lint-openapi
+markdownlint
+mermaid
 mixed-line-ending
 mypy
 mypy-helm
