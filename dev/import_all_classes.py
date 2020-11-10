@@ -57,7 +57,7 @@ def import_all_classes(
     def onerror(_):
         nonlocal tracebacks
         exception_string = traceback.format_exc()
-        if any([provider_prefix in exception_string for provider_prefix in provider_prefixes]):
+        if any(provider_prefix in exception_string for provider_prefix in provider_prefixes):
             tracebacks.append(exception_string)
 
     for modinfo in pkgutil.walk_packages(path=paths, prefix=prefix, onerror=onerror):
