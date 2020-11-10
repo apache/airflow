@@ -16,6 +16,7 @@
  specific language governing permissions and limitations
  under the License.
 -->
+
 # Updating Airflow
 
 This file documents any backwards-incompatible changes in Airflow and
@@ -166,6 +167,7 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+
 ### Major changes
 
 This section describes the major changes that have been made in this release.
@@ -238,6 +240,7 @@ You should update the import paths if you are setting log configurations with th
 The old import paths still works but can be abandoned.
 
 #### SendGrid emailer has been moved
+
 Formerly the core code was maintained by the original creators - Airbnb. The code that was in the contrib
 package was supported by the community. The project was passed to the Apache community and currently the
 entire code is maintained by the community, so now the division has no justification, and it is only due
@@ -411,6 +414,7 @@ has also been changed to `Running Slots`.
 The Mesos Executor is removed from the code base as it was not widely used and not maintained. [Mailing List Discussion on deleting it](https://lists.apache.org/thread.html/daa9500026b820c6aaadeffd66166eae558282778091ebbc68819fb7@%3Cdev.airflow.apache.org%3E).
 
 #### Change dag loading duration metric name
+
 Change DAG file loading duration metric from
 `dag.loading-duration.<dag_id>` to `dag.loading-duration.<dag_file>`. This is to
 better handle the case when a DAG file has multiple DAGs.
@@ -503,6 +507,7 @@ To maintain consistent behavior, both successful or skipped downstream task can 
 `wait_for_downstream=True` flag.
 
 #### `airflow.utils.helpers.cross_downstream`
+
 #### `airflow.utils.helpers.chain`
 
 The `chain` and `cross_downstream` methods are now moved to airflow.models.baseoperator module from
@@ -532,6 +537,7 @@ from airflow.models.baseoperator import cross_downstream
 ```
 
 #### `airflow.operators.python.BranchPythonOperator`
+
 `BranchPythonOperator` will now return a value equal to the `task_id` of the chosen branch,
 where previously it returned None. Since it inherits from BaseOperator it will do an
 `xcom_push` of this value if `do_xcom_push=True`. This is useful for downstream decision-making.
@@ -602,13 +608,21 @@ in `SubDagOperator`.
 
 
 #### `airflow.providers.google.cloud.operators.datastore.CloudDatastoreExportEntitiesOperator`
+
 #### `airflow.providers.google.cloud.operators.datastore.CloudDatastoreImportEntitiesOperator`
+
 #### `airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`
+
 #### `airflow.providers.ssh.operators.ssh.SSHOperator`
+
 #### `airflow.providers.microsoft.winrm.operators.winrm.WinRMOperator`
+
 #### `airflow.operators.bash.BashOperator`
+
 #### `airflow.providers.docker.operators.docker.DockerOperator`
+
 #### `airflow.providers.http.operators.http.SimpleHttpOperator`
+
 #### `airflow.providers.http.operators.http.SimpleHttpOperator`
 
 The `do_xcom_push` flag (a switch to push the result of an operator to xcom or not) was appearing in different incarnations in different operators. It's function has been unified under a common name (`do_xcom_push`) on `BaseOperator`. This way it is also easy to globally disable pushing results to xcom.
@@ -665,6 +679,7 @@ replaced with its corresponding new path.
 | ``airflow.LoggingMixin``     | ``airflow.utils.log.logging_mixin.LoggingMixin`` |
 | ``airflow.conf``             | ``airflow.configuration.conf``                   |
 | ``airflow.AirflowException`` | ``airflow.exceptions.AirflowException``          |
+
 #### Variables removed from the task instance context
 
 The following variables were removed from the task instance context:
@@ -711,6 +726,7 @@ The old method is still works but can be abandoned at any time. The changes are 
 that are rarely used.
 
 #### `airflow.models.dag.DAG.create_dagrun`
+
 DAG.create_dagrun accepts run_type and does not require run_id
 This change is caused by adding `run_type` column to `DagRun`.
 
@@ -799,6 +815,7 @@ untangle cyclic imports between DAG, BaseOperator, SerializedDAG, SerializedBase
 part of AIRFLOW-6010.
 
 #### `airflow.utils.log.logging_mixin.redirect_stderr`
+
 #### `airflow.utils.log.logging_mixin.redirect_stdout`
 
 Function `redirect_stderr` and `redirect_stdout` from `airflow.utils.log.logging_mixin` module has
@@ -885,6 +902,7 @@ This section describes the changes that have been made, and what you need to do 
 you use operators or hooks which integrate with Google services (including Google Cloud - GCP).
 
 #### Direct impersonation added to operators communicating with Google services
+
 [Directly impersonating a service account](https://cloud.google.com/iam/docs/understanding-service-accounts#directly_impersonating_a_service_account)
 has been made possible for operators communicating with Google services via new argument called `impersonation_chain`
 (`google_impersonation_chain` in case of operators that also communicate with services of other cloud providers).
@@ -1123,8 +1141,11 @@ operators/hooks. Otherwise, ``google_cloud_default`` will be used as GCP's conn_
 by default.
 
 #### `airflow.providers.google.cloud.hooks.dataflow.DataflowHook`
+
 #### `airflow.providers.google.cloud.operators.dataflow.DataflowCreateJavaJobOperator`
+
 #### `airflow.providers.google.cloud.operators.dataflow.DataflowTemplatedJobStartOperator`
+
 #### `airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator`
 
 To use project_id argument consistently across GCP hooks and operators, we did the following changes:
@@ -1165,6 +1186,7 @@ Will now call:
 Where '.keep' is a single file at your prefix that the sensor should not consider new.
 
 #### `airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor`
+
 #### `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook`
 
 To simplify BigQuery operators (no need of `Cursor`) and standardize usage of hooks within all GCP integration methods from `BiqQueryBaseCursor`
@@ -1209,6 +1231,7 @@ exceptions raised by the following methods:
 * `airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_dataset` raises `AirflowException` instead of `ValueError`.
 
 #### `airflow.providers.google.cloud.operators.bigquery.BigQueryCreateEmptyTableOperator`
+
 #### `airflow.providers.google.cloud.operators.bigquery.BigQueryCreateEmptyDatasetOperator`
 
 Idempotency was added to `BigQueryCreateEmptyTableOperator` and `BigQueryCreateEmptyDatasetOperator`.
@@ -1216,7 +1239,9 @@ But to achieve that try / except clause was removed from `create_empty_dataset` 
 methods of `BigQueryHook`.
 
 #### `airflow.providers.google.cloud.hooks.dataflow.DataflowHook`
+
 #### `airflow.providers.google.cloud.hooks.mlengine.MLEngineHook`
+
 #### `airflow.providers.google.cloud.hooks.pubsub.PubSubHook`
 
 The change in GCP operators implies that GCP Hooks for those operators require now keyword parameters rather
@@ -1226,11 +1251,17 @@ in case they are called using positional parameters.
 Other GCP hooks are unaffected.
 
 #### `airflow.providers.google.cloud.hooks.pubsub.PubSubHook`
+
 #### `airflow.providers.google.cloud.operators.pubsub.PubSubTopicCreateOperator`
+
 #### `airflow.providers.google.cloud.operators.pubsub.PubSubSubscriptionCreateOperator`
+
 #### `airflow.providers.google.cloud.operators.pubsub.PubSubTopicDeleteOperator`
+
 #### `airflow.providers.google.cloud.operators.pubsub.PubSubSubscriptionDeleteOperator`
+
 #### `airflow.providers.google.cloud.operators.pubsub.PubSubPublishOperator`
+
 #### `airflow.providers.google.cloud.sensors.pubsub.PubSubPullSensor`
 
 In the `PubSubPublishOperator` and `PubSubHook.publsh` method the data field in a message should be bytestring (utf-8 encoded) rather than base64 encoded string.
@@ -1267,10 +1298,15 @@ Detailed information about connection management is available:
 * The `maxResults` parameter in `GoogleCloudStorageHook.list` has been renamed to `max_results` for consistency.
 
 #### `airflow.providers.google.cloud.operators.dataproc.DataprocSubmitPigJobOperator`
+
 #### `airflow.providers.google.cloud.operators.dataproc.DataprocSubmitHiveJobOperator`
+
 #### `airflow.providers.google.cloud.operators.dataproc.DataprocSubmitSparkSqlJobOperator`
+
 #### `airflow.providers.google.cloud.operators.dataproc.DataprocSubmitSparkJobOperator`
+
 #### `airflow.providers.google.cloud.operators.dataproc.DataprocSubmitHadoopJobOperator`
+
 #### `airflow.providers.google.cloud.operators.dataproc.DataprocSubmitPySparkJobOperator`
 
 The 'properties' and 'jars' properties for the Dataproc related operators (`DataprocXXXOperator`) have been renamed from
@@ -1306,7 +1342,9 @@ previous one was (project_id, dataset_id, ...) (breaking change)
  favor of `list_rows`. (breaking change)
 
 #### `airflow.providers.google.cloud.hooks.dataflow.DataflowHook.start_python_dataflow`
+
 #### `airflow.providers.google.cloud.hooks.dataflow.DataflowHook.start_python_dataflow`
+
 #### `airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator`
 
 Change python3 as Dataflow Hooks/Operators default interpreter
@@ -1379,9 +1417,13 @@ Migrated are:
 | airflow.contrib.sensors.aws_sqs_sensor.SQSSensor             | airflow.providers.amazon.aws.sensors.sqs.SQSSensor        |
 
 #### `airflow.providers.amazon.aws.hooks.emr.EmrHook`
+
 #### `airflow.providers.amazon.aws.operators.emr_add_steps.EmrAddStepsOperator`
+
 #### `airflow.providers.amazon.aws.operators.emr_create_job_flow.EmrCreateJobFlowOperator`
+
 #### `airflow.providers.amazon.aws.operators.emr_terminate_job_flow.EmrTerminateJobFlowOperator`
+
 The default value for the [aws_conn_id](https://airflow.apache.org/howto/manage-connections.html#amazon-web-services) was accidently set to 's3_default' instead of 'aws_default' in some of the emr operators in previous
 versions. This was leading to EmrStepSensor not being able to find their corresponding emr cluster. With the new
 changes in the EmrAddStepsOperator, EmrTerminateJobFlowOperator and EmrCreateJobFlowOperator this issue is
@@ -1468,6 +1510,7 @@ Remove unnecessary parameter ``open`` in PostgresHook function ``copy_expert`` f
 Change parameter name from ``visibleTo`` to ``visible_to`` in OpsgenieAlertOperator for pylint compatible
 
 #### `airflow.providers.imap.hooks.imap.ImapHook`
+
 #### `airflow.providers.imap.sensors.imap_attachment.ImapAttachmentSensor`
 
 ImapHook:
@@ -1697,11 +1740,13 @@ Example:
 The above code returned `None` previously, now it will return `''`.
 
 ### Make behavior of `none_failed` trigger rule consistent with documentation
+
 The behavior of the `none_failed` trigger rule is documented as "all parents have not failed (`failed` or
     `upstream_failed`) i.e. all parents have succeeded or been skipped." As previously implemented, the actual behavior
     would skip if all parents of a task had also skipped.
 
 ### Add new trigger rule `none_failed_or_skipped`
+
 The fix to `none_failed` trigger rule breaks workflows that depend on the previous behavior.
     If you need the old behavior, you should change the tasks with `none_failed` trigger rule to `none_failed_or_skipped`.
 
@@ -1716,6 +1761,7 @@ No breaking changes.
 ## Airflow 1.10.8
 
 ### Failure callback will be called when task is marked failed
+
 When task is marked failed by user or task fails due to system failures - on failure call back will be called as part of clean up
 
 See [AIRFLOW-5621](https://jira.apache.org/jira/browse/AIRFLOW-5621) for details
@@ -1887,6 +1933,7 @@ they contain the strings "airflow" and "DAG". For backwards
 compatibility, this option is enabled by default.
 
 ### RedisPy dependency updated to v3 series
+
 If you are using the Redis Sensor or Hook you may have to update your code. See
 [redis-py porting instructions] to check if your code might be affected (MSET,
 MSETNX, ZADD, and ZINCRBY all were, but read the full doc).
@@ -1961,6 +2008,7 @@ Hooks involved:
 Other GCP hooks are unaffected.
 
 ### Changed behaviour of using default value when accessing variables
+
 It's now possible to use `None` as a default value with the `default_var` parameter when getting a variable, e.g.
 
 ```python
@@ -2076,6 +2124,7 @@ that he has permissions on. If a new role wants to access all the dags, the admi
 We also provide a new cli command(``sync_perm``) to allow admin to auto sync permissions.
 
 ### Modification to `ts_nodash` macro
+
 `ts_nodash` previously contained TimeZone information along with execution date. For Example: `20150101T000000+0000`. This is not user-friendly for file or folder names which was a popular use case for `ts_nodash`. Hence this behavior has been changed and using `ts_nodash` will no longer contain TimeZone information, restoring the pre-1.10 behavior of this macro. And a new macro `ts_nodash_with_tz` has been added which can be used to get a string with execution date and timezone info without dashes.
 
 Examples:
@@ -2088,6 +2137,7 @@ Examples:
 next_ds/prev_ds now map to execution_date instead of the next/previous schedule-aligned execution date for DAGs triggered in the UI.
 
 ### User model changes
+
 This patch changes the `User.superuser` field from a hardcoded boolean to a `Boolean()` database column. `User.superuser` will default to `False`, which means that this privilege will have to be granted manually to any users that may require it.
 
 For example, open a Python shell and
@@ -2590,6 +2640,7 @@ indefinitely. This is only available on the command line.
 After how much time should an updated DAG be picked up from the filesystem.
 
 #### min_file_parsing_loop_time
+
 CURRENTLY DISABLED DUE TO A BUG
 How many seconds to wait between file-parsing loops to prevent the logs from being spammed.
 

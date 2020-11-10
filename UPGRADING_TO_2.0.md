@@ -16,6 +16,7 @@
  specific language governing permissions and limitations
  under the License.
 -->
+
 # Upgrading to Airflow 2.0+
 
 This file documents any backwards-incompatible changes in Airflow and
@@ -92,6 +93,7 @@ goal is that any Airflow setup that can pass these tests will be able to upgrade
 
 
 ## Step 3: Set Operators to Backport Providers
+
 Now that you are set up in airflow 1.10.13 with python a 3.6+ environment, you are ready to start porting your DAGs to Airfow 2.0 compliance!
 
 The most important step in this transition is also the easiest step to do in pieces. All Airflow 2.0 operators are backwards compatible with Airflow 1.10
@@ -443,9 +445,11 @@ For Airflow 2.0, the traditional `executor_config` will continue operation with 
 but will be removed in a future version.
 
 ## Appendix
+
 ### Changed Parameters for the KubernetesPodOperator
 
 #### port has migrated from a List[Port] to a List[V1ContainerPort]
+
 Before:
 ```python
 from airflow.kubernetes.pod import Port
@@ -475,6 +479,7 @@ k = KubernetesPodOperator(
 ```
 
 #### volume_mounts has migrated from a List[VolumeMount] to a List[V1VolumeMount]
+
 Before:
 ```python
 from airflow.kubernetes.volume_mount import VolumeMount
@@ -509,6 +514,7 @@ k = KubernetesPodOperator(
 ```
 
 #### volumes has migrated from a List[Volume] to a List[V1Volume]
+
 Before:
 ```python
 from airflow.kubernetes.volume import Volume
@@ -545,7 +551,9 @@ k = KubernetesPodOperator(
     task_id="task",
 )
 ```
+
 #### env_vars has migrated from a Dict to a List[V1EnvVar]
+
 Before:
 ```python
 k = KubernetesPodOperator(
@@ -720,6 +728,7 @@ k = KubernetesPodOperator(
     resources=resources,
 )
 ```
+
 #### image_pull_secrets has migrated from a String to a List[k8s.V1LocalObjectReference]
 
 Before:
@@ -749,6 +758,7 @@ quay_k8s = KubernetesPodOperator(
 ```
 
 ### Migration Guide from Experimental API to Stable API v1
+
 In Airflow 2.0, we added the new REST API. Experimental API still works, but support may be dropped in the future.
 If your application is still using the experimental API, you should consider migrating to the stable API.
 
@@ -757,6 +767,7 @@ differences between the two endpoints that will help you migrate from the
 experimental REST API to the stable REST API.
 
 #### Base Endpoint
+
 The base endpoint for the stable API v1 is ``/api/v1/``. You must change the
 experimental base endpoint from ``/api/experimental/`` to ``/api/v1/``.
 The table below shows the differences:
@@ -777,6 +788,7 @@ The table below shows the differences:
 | DAG Lineage(GET)                  | /api/experimental/lineage/<DAG_ID>/<string:execution_date>/                      | /api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries |
 
 #### Note
+
 This endpoint ``/api/v1/dags/{dag_id}/dagRuns`` also allows you to filter dag_runs with parameters such as ``start_date``, ``end_date``, ``execution_date`` etc in the query string.
 Therefore the operation previously performed by this endpoint
 

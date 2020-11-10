@@ -48,6 +48,7 @@ section lists the parameters that can be configured during installation.
 > **Tip**: List all releases using `helm list`
 
 ## Upgrading the Chart
+
 To upgrade the chart with the release name `airflow`:
 
 ```bash
@@ -90,6 +91,7 @@ helm upgrade airflow . \
 ```
 
 ## Mounting DAGS using Git-Sync side car without Persistence
+
 This option will use an always running Git-Sync side car on every scheduler,webserver and worker pods. The Git-Sync side car containers will sync DAGs from a git repository every configured number of seconds. If you are using the KubernetesExecutor, Git-sync will run as an initContainer on your worker pods.
 
 ```bash
@@ -102,6 +104,7 @@ helm upgrade airflow . \
 ```
 
 ## Mounting DAGS from an externally populated PVC
+
 In this approach, Airflow will read the DAGs from a PVC which has `ReadOnlyMany` or `ReadWriteMany` accessMode. You will have to ensure that the PVC is populated/updated with the required DAGs(this won't be handled by the chart). You can pass in the name of the  volume claim to the chart
 
 ```bash
