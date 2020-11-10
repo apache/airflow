@@ -146,7 +146,7 @@ class TaskInstanceReferenceSchema(Schema):
 
 
 class TaskInstanceReferenceCollection(NamedTuple):
-    """List of objects with meatadata about taskinstance and dag_run_id"""
+    """List of objects with metadata about taskinstance and dag_run_id"""
 
     task_instances: List[Tuple[TaskInstance, str]]
 
