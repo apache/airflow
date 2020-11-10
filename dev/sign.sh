@@ -23,8 +23,12 @@ set -euo pipefail
 # you will still be required to type in your signing key password
 # or it needs to be available in your keychain
 
+# Which key to sign releases with? This can be a (partial) email address or a
+# key id. By default use any apache.org key
+SIGN_WITH="${SIGN_WITH:-apache.org}"
+
 for name in "${@}"
 do
-    gpg --armor --output "${name}.asc" --detach-sig "${name}"
+    gpg --armor --local-user "$SIGN_WITH" --output "${name}.asc" --detach-sig "${name}"
     gpg --print-md SHA512 "${name}" > "${name}.sha512"
 done
