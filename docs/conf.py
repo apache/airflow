@@ -123,14 +123,6 @@ exclude_patterns: List[str] = [
     "_api/airflow/providers/cncf/index.rst",
     # Packages without operators
     "_api/airflow/providers/sendgrid",
-    # Other API rst files.
-    "_api/endpoints/index.rst",
-    "_api/endpoints/*/index.rst",
-    "_api/exceptions/index.rst",
-    "_api/parameters/index.rst",
-    "_api/schemas/index.rst",
-    "_api/schemas/*/index.rst",
-    "_api/security/index.rst",
     # Templates or partials
     'autoapi_templates',
     'howto/operator/google/_partials',
