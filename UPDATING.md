@@ -26,7 +26,7 @@ assists users migrating to a new version.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
-- [Airflow Master](#airflow-master)
+- [Airflow 2.0.0b1](#airflow-200b1)
 - [Airflow 2.0.0a1](#airflow-200a1)
 - [Airflow 1.10.13](#airflow-11013)
 - [Airflow 1.10.12](#airflow-11012)
@@ -49,7 +49,7 @@ assists users migrating to a new version.
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## Airflow Master
+## Airflow 2.0.0b1
 
 ### Default value for `[celery] operation_timeout` has changed to `1.0`
 
