@@ -156,7 +156,7 @@ with models.DAG(
 
     # [START howto_operator_gcp_stackdriver_delete_alert_policy]
     delete_alert_policy = StackdriverDeleteAlertOperator(
-        task_id='delete-alert-polciy',
+        task_id='delete-alert-policy',
         name='test-alert',
     )
     # [END howto_operator_gcp_stackdriver_delete_alert_policy]
