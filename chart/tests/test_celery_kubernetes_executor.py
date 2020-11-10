@@ -23,7 +23,7 @@ from tests.helm_template_generator import render_chart
 
 
 class CeleryKubernetesExecutorTest(unittest.TestCase):
-    def test_should_create_a_worker_deployment_with_the_celery_executo(self):
+    def test_should_create_a_worker_deployment_with_the_celery_executor(self):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",

@@ -304,7 +304,7 @@ helm list -n airflow
 ```
 
 Run `kubectl port-forward svc/airflow-webserver 8080:8080 -n airflow`
-to port-forward the Airflow UI to http://localhost:8080/ to cofirm Airflow is working.
+to port-forward the Airflow UI to http://localhost:8080/ to confirm Airflow is working.
 
 **Build a Docker image from your DAGs:**
 
