@@ -20,7 +20,7 @@
 
 # Package apache-airflow-providers-sendgrid
 
-Release: 1.0.0b2
+Release: 1.0.0b1
 
 **Table of contents**
 
@@ -29,7 +29,7 @@ Release: 1.0.0b2
 - [PIP requirements](#pip-requirements)
 - [Provider class summary](#provider-classes-summary)
 - [Releases](#releases)
-    - [Release 1.0.0b2](#release-100b2)
+    - [Release 1.0.0b1](#release-100b1)
 
 ## Provider package
 
@@ -59,7 +59,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ## Releases
 
-### Release 1.0.0b2
+### Release 1.0.0b1
 
 | Commit                                                                                         | Committed   | Subject                                                          |
 |:-----------------------------------------------------------------------------------------------|:------------|:-----------------------------------------------------------------|
