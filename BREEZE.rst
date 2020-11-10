@@ -1863,10 +1863,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  check-hooks-apply check-integrations check-merge-conflict check-xml debug-statements
                  detect-private-key doctoc dont-use-safe-filter end-of-file-fixer fix-encoding-pragma
                  flake8 forbid-tabs helm-lint incorrect-use-of-LoggingMixin insert-license
-                 language-matters lint-dockerfile lint-openapi mixed-line-ending mypy mypy-helm
-                 no-relative-imports pre-commit-descriptions pydevd python2-compile python2-fastcheck
-                 python-no-log-warn rst-backticks setup-order setup-installation shellcheck
-                 sort-in-the-wild trailing-whitespace update-breeze-file update-extras
+                 language-matters lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending
+                 mypy mypy-helm no-relative-imports pre-commit-descriptions pydevd python2-compile
+                 python2-fastcheck python-no-log-warn rst-backticks setup-order setup-installation
+                 shellcheck sort-in-the-wild trailing-whitespace update-breeze-file update-extras
                  update-local-yml-file yamllint
 
         You can pass extra arguments including options to to the pre-commit framework as

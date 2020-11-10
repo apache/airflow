@@ -333,6 +333,26 @@ repos:
         files: ^breeze$|^breeze-complete$|\.sh$|\.bash$|\.bats$
         exclude: ^tests/bats/in_container/.*bats$|^scripts/in_container/.*sh$
         pass_filenames: false
+      - id: pre-commit-descriptions
+        name: Check if pre-commits are described
+        entry: ./scripts/ci/pre_commit/pre_commit_check_pre_commits.sh
+        language: system
+        files: ^.pre-commit-config.yaml$|^STATIC_CODE_CHECKS.rst|^breeze-complete$
+        require_serial: true
+      - id: sort-in-the-wild
+        name: Sort INTHEWILD.md alphabetically
+        entry: ./scripts/ci/pre_commit/pre_commit_sort_in_the_wild.sh
+        language: system
+        files: ^.pre-commit-config.yaml$|^INTHEWILD.md$
+        require_serial: true
+      - id: markdownlint
+        name: Run markdownlint
+        description: "Checks the style of Markdown files."
+        entry: markdownlint
+        language: node
+        types: [markdown]
+        files: \.(md|mdown|markdown)$
+        additional_dependencies: ['markdownlint-cli']
       - id: build
         name: Check if image build is needed
         entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.6 false
@@ -364,15 +384,3 @@ repos:
         entry: "./scripts/ci/pre_commit/pre_commit_in_container_bats_test.sh"
         files: ^tests/bats/in_container/.*.bats$|^scripts/in_container/.*sh
         pass_filenames: false
-      - id: pre-commit-descriptions
-        name: Check if pre-commits are described
-        entry: ./scripts/ci/pre_commit/pre_commit_check_pre_commits.sh
-        language: system
-        files: ^.pre-commit-config.yaml$|^STATIC_CODE_CHECKS.rst|^breeze-complete$
-        require_serial: true
-      - id: sort-in-the-wild
-        name: Sort INTHEWILD.md alphabetically
-        entry: ./scripts/ci/pre_commit/pre_commit_sort_in_the_wild.sh
-        language: system
-        files: ^.pre-commit-config.yaml$|^INTHEWILD.md$
-        require_serial: true
