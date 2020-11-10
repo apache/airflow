@@ -33,6 +33,7 @@ import json
 # The DAG object; we'll need this to instantiate a DAG
 from airflow import DAG
 from airflow.utils.dates import days_ago
+from airflow.decorators import dag
 
 # [END import_module]
 
@@ -45,14 +46,8 @@ default_args = {
 # [END default_args]
 
 # [START instantiate_dag]
-with DAG(
-    'tutorial_taskflow_api_etl_dag',
-    default_args=default_args,
-    description='TaskFlow API ETL DAG tutorial',
-    schedule_interval=None,
-    start_date=days_ago(2),
-    tags=['example'],
-) as dag:
+@dag(default_args=default_args, schedule_interval=None, start_date=days_ago(2))
+def tutorial_taskflow_api_etl():
     # [END instantiate_dag]
 
     # [START documentation]
