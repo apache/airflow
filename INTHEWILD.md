@@ -150,6 +150,7 @@ Currently, **officially** using Airflow:
 1. [Everlane](https://everlane.com) [[@NickBenthem](https://github.com/NickBenthem)]
 1. [Experity (formerly DocuTAP)](https://www.experityhealth.com/) [[@cloneluke](https://github.com/cloneluke) & [@tobyjoliver](https://github.com/tobyjoliver)]
 1. [FanDuel](https://www.fanduel.com/)
+1. [Farfetch](https://github.com/farfetch) [[@davidmarques78](https://github.com/davidmarques78)]
 1. [Fathom Health](https://www.fathomhealth.co/)
 1. [Firestone Inventing](https://www.hsmap.com/) [[@zihengCat](https://github.com/zihengCat)]
 1. [Flipp](https://www.flipp.com) [[@sethwilsonwishabi](https://github.com/sethwilsonwishabi)]
