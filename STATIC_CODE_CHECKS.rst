@@ -44,9 +44,11 @@ This table lists pre-commit hooks used by Airflow and indicates which hooks
 require Breeze Docker images to be installed locally:
 
 =================================== ================================================================ ============
-**Hooks**                             **Description**                                                 **Breeze**
+**Hooks**                            **Description**                                                 **Breeze**
 =================================== ================================================================ ============
 ``airflow-config-yaml``               Checks that airflow config yaml is 1-1 with the code
+----------------------------------- ---------------------------------------------------------------- ------------
+``airflow-providers-available``       Checks that providers are properly declared by extras
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``base-operator``                     Checks that BaseOperator is imported properly
 ----------------------------------- ---------------------------------------------------------------- ------------

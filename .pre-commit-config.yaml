@@ -475,6 +475,13 @@ repos:
         pass_filenames: false
         files: ^chart
         require_serial: true
+      - id: airflow-providers-available
+        name: Checks for providers being available when declared by extras in setup.py
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_check_extras_have_providers.py
+        files: "setup.py|^airflow/providers/.*.py"
+        pass_filenames: false
+        require_serial: true
       - id: build
         name: Check if image build is needed
         entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.6 false

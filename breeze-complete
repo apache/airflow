@@ -68,6 +68,7 @@ _breeze_allowed_static_checks=$(cat <<-EOF
 all
 all-but-pylint
 airflow-config-yaml
+airflow-providers-available
 base-operator
 bats-tests
 bats-in-container-tests

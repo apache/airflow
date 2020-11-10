@@ -541,8 +541,8 @@ This is the full list of those extras:
   .. START EXTRAS HERE
 
 all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.druid, apache.hdfs,
-apache.hive, apache.kylin, apache.pinot, apache.presto, apache.spark, apache.webhdfs, async, atlas,
-aws, azure, cassandra, celery, cgroups, cloudant, cncf.kubernetes, dask, databricks, datadog, devel,
+apache.hive, apache.kylin, apache.pinot, apache.spark, apache.webhdfs, async, atlas, aws, azure,
+cassandra, celery, cgroups, cloudant, cncf.kubernetes, dask, databricks, datadog, devel,
 devel_hadoop, doc, docker, druid, elasticsearch, exasol, facebook, gcp, gcp_api, github_enterprise,
 google, google_auth, grpc, hashicorp, hdfs, hive, jdbc, jira, kerberos, kubernetes, ldap,
 microsoft.azure, microsoft.mssql, microsoft.winrm, mongo, mssql, mysql, odbc, oracle, pagerduty,

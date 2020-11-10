@@ -569,7 +569,6 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     "apache.hive": hive,
     "apache.kylin": kylin,
     "apache.pinot": pinot,
-    "apache.presto": presto,
     "apache.spark": spark,
     "apache.webhdfs": webhdfs,
     'async': async_packages,
@@ -673,7 +672,6 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     "apache.hive": ["apache.hive"],
     "apache.kylin": ["apache.kylin"],
     "apache.pinot": ["apache.pinot"],
-    "apache.presto": ["apache.presto"],
     "apache.spark": ["apache.spark"],
     "apache.webhdfs": ["apache.hdfs"],
     'async': [],
@@ -685,7 +683,7 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'cgroups': [],
     'cloudant': ["cloudant"],
     'cncf.kubernetes': ["cncf.kubernetes"],
-    'dask': ["dask"],
+    'dask': [],
     'databricks': ["databricks"],
     'datadog': ["datadog"],
     'devel': ["cncf.kubernetes", "mysql"],
@@ -727,25 +725,26 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'presto': ["presto"],
     'qds': ["qubole"],  # TODO: remove this in Airflow 2.1
     'qubole': ["qubole"],
-    'rabbitmq': ["rabbitmq"],
+    'rabbitmq': [],
     'redis': ["redis"],
     'salesforce': ["salesforce"],
     'samba': ["samba"],
     'segment': ["segment"],
     'sendgrid': ["sendgrid"],
-    'sentry': ["sentry"],
+    'sentry': [],
     'singularity': ["singularity"],
     'slack': ["slack"],
     'snowflake': ["snowflake"],
-    'spark': ["spark"],
+    'spark': ["apache.spark"],
     'ssh': ["ssh"],
-    'statsd': ["statsd"],
-    'tableau': ["tableau"],
+    'statsd': [],
+    'tableau': [],
     'vertica': ["vertica"],
-    'virtualenv': ["virtualenv"],
+    'virtualenv': [],
     'webhdfs': ["apache.hdfs"],  # TODO: remove this in Airflow 2.1
     'winrm': ["microsoft.winrm"],  # TODO: remove this in Airflow 2.1
-    'yandexcloud': ["yandexcloud"],
+    'yandexcloud': ["yandex"],  # TODO: remove this in Airflow 2.1
+    'yandex': ["yandex"],
 }
 
 
