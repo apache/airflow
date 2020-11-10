@@ -78,9 +78,11 @@ compatible DAGs will work in Airflow 1.10.13. Instead, this backport will give u
 disruption.
 2. We have backported the `pod_template_file` capability for the KubernetesExecutor as well as a script that will generate a `pod_template_file`
 based on your `airflow.cfg` settings. To generate this file simply run the following command:
+
     ```shell script
      airflow generate_pod_template -o <output file path>
     ```
+
     Once you have performed this step, simply write out the file path to this file in the `pod_template_file` section of the `kubernetes`
 section of your `airflow.cfg`
 3. Airflow 1.10.13 will contain our "upgrade check" scripts. These scripts will read through your `airflow.cfg` and all of your
@@ -107,11 +109,13 @@ from airflow.operators.docker_operator import DockerOperator
 ```
 
 You would now run this command to import the provider:
+
 ```shell script
 pip install apache-airflow-backport-providers-docker
 ```
 
 and then import the operator with this path:
+
 ```python
 from airflow.providers.docker.operators.docker import DockerOperator
 ```
@@ -137,6 +141,7 @@ rendering involving undefined variables will fail the task, as well as displayin
 rendering.
 
 The behavior can be reverted when instantiating a DAG.
+
 ```python
 import jinja2
 
@@ -196,6 +201,7 @@ k = KubernetesPodOperator(
     priority_class_name="medium",
 )
 ```
+
 Now the user can use the `kubernetes.client.models` class as a single point of entry for creating all k8s objects.
 
 ```python
@@ -233,6 +239,7 @@ k = KubernetesPodOperator(
     is_delete_operator_pod=True,
     hostnetwork=False)
 ```
+
 We decided to keep the Secret class as users seem to really like that simplifies the complexity of mounting
 Kubernetes secrets into workers.
 
@@ -283,6 +290,7 @@ rbac = true
 ```
 
 In order to login to the interface, you need to create an administrator account.
+
 ```
 airflow create_user \
     --role Admin \
@@ -295,6 +303,7 @@ airflow create_user \
 If you have already installed Airflow 2.0, you can create a user with the command `airflow users create`.
 You don't need to make changes to the configuration file as the FAB RBAC UI is
 the only supported UI.
+
 ```
 airflow users create \
     --role Admin \
@@ -441,6 +450,7 @@ second_task = PythonOperator(
     }
 )
 ```
+
 For Airflow 2.0, the traditional `executor_config` will continue operation with a deprecation warning,
 but will be removed in a future version.
 
@@ -451,6 +461,7 @@ but will be removed in a future version.
 #### port has migrated from a List[Port] to a List[V1ContainerPort]
 
 Before:
+
 ```python
 from airflow.kubernetes.pod import Port
 port = Port('http', 80)
@@ -465,6 +476,7 @@ k = KubernetesPodOperator(
 ```
 
 After:
+
 ```python
 from kubernetes.client import models as k8s
 port = k8s.V1ContainerPort(name='http', container_port=80)
@@ -481,6 +493,7 @@ k = KubernetesPodOperator(
 #### volume_mounts has migrated from a List[VolumeMount] to a List[V1VolumeMount]
 
 Before:
+
 ```python
 from airflow.kubernetes.volume_mount import VolumeMount
 volume_mount = VolumeMount('test-volume',
@@ -498,6 +511,7 @@ k = KubernetesPodOperator(
 ```
 
 After:
+
 ```python
 from kubernetes.client import models as k8s
 volume_mount = k8s.V1VolumeMount(
@@ -516,6 +530,7 @@ k = KubernetesPodOperator(
 #### volumes has migrated from a List[Volume] to a List[V1Volume]
 
 Before:
+
 ```python
 from airflow.kubernetes.volume import Volume
 
@@ -536,6 +551,7 @@ k = KubernetesPodOperator(
 ```
 
 After:
+
 ```python
 from kubernetes.client import models as k8s
 volume = k8s.V1Volume(
@@ -555,6 +571,7 @@ k = KubernetesPodOperator(
 #### env_vars has migrated from a Dict to a List[V1EnvVar]
 
 Before:
+
 ```python
 k = KubernetesPodOperator(
     namespace='default',
@@ -567,6 +584,7 @@ k = KubernetesPodOperator(
 ```
 
 After:
+
 ```python
 from kubernetes.client import models as k8s
 
@@ -595,6 +613,7 @@ k = KubernetesPodOperator(
 PodRuntimeInfoEnv can now be added to the `env_vars` variable as a `V1EnvVarSource`
 
 Before:
+
 ```python
 from airflow.kubernetes.pod_runtime_info_env import PodRuntimeInfoEnv
 
@@ -609,6 +628,7 @@ k = KubernetesPodOperator(
 ```
 
 After:
+
 ```python
 from kubernetes.client import models as k8s
 
@@ -638,6 +658,7 @@ k = KubernetesPodOperator(
 configmaps can now be added to the `env_from` variable as a `V1EnvVarSource`
 
 Before:
+
 ```python
 k = KubernetesPodOperator(
     namespace='default',
@@ -675,6 +696,7 @@ k = KubernetesPodOperator(
 #### resources has migrated from a Dict to a V1ResourceRequirements
 
 Before:
+
 ```python
 resources = {
     'limit_cpu': 0.25,
@@ -699,6 +721,7 @@ k = KubernetesPodOperator(
 ```
 
 After:
+
 ```python
 from kubernetes.client import models as k8s
 
@@ -732,6 +755,7 @@ k = KubernetesPodOperator(
 #### image_pull_secrets has migrated from a String to a List[k8s.V1LocalObjectReference]
 
 Before:
+
 ```python
 k = KubernetesPodOperator(
     namespace='default',
@@ -745,6 +769,7 @@ k = KubernetesPodOperator(
 ```
 
 After:
+
 ```python
 quay_k8s = KubernetesPodOperator(
     namespace='default',
@@ -863,26 +888,31 @@ you have to run the help command: ``airflow celery --help``.
 #### Example Usage for the ``users`` group:
 
 To create a new user:
+
 ```bash
 airflow users create --username jondoe --lastname doe --firstname jon --email jdoe@apache.org --role Viewer --password test
 ```
 
 To list users:
+
 ```bash
 airflow users list
 ```
 
 To delete a user:
+
 ```bash
 airflow users delete --username jondoe
 ```
 
 To add a user to a role:
+
 ```bash
 airflow users add-role --username jondoe --role Public
 ```
 
 To remove a user from a role:
+
 ```bash
 airflow users remove-role --username jondoe --role Public
 ```

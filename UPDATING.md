@@ -249,11 +249,14 @@ to historical reasons.
 To clean up, the `send_mail` function from the `airflow.contrib.utils.sendgrid` module has been moved.
 
 If your configuration file looks like this:
+
 ```ini
 [email]
 email_backend = airflow.contrib.utils.sendgrid.send_email
 ```
+
 It should look like this now:
+
 ```ini
 [email]
 email_backend = airflow.providers.sendgrid.utils.emailer.send_email
@@ -283,7 +286,9 @@ called `my_plugin` then your configuration looks like this
 [core]
 executor = my_plugin.MyCustomExecutor
 ```
+
 And now it should look like this:
+
 ```ini
 [core]
 executor = my_acme_company.executors.MyCustomExecutor
@@ -297,6 +302,7 @@ In previous version, you could use plugins mechanism to configure ``stat_name_ha
 option in `[scheduler]` section to achieve the same effect.
 
 If your plugin looked like this and was available through the `test_plugin` path:
+
 ```python
 def my_stat_name_handler(stat):
     return stat
@@ -305,7 +311,9 @@ class AirflowTestPlugin(AirflowPlugin):
     name = "test_plugin"
     stat_name_handler = my_stat_name_handler
 ```
+
 then your `airflow.cfg` file should look like this:
+
 ```ini
 [scheduler]
 stat_name_handler=test_plugin.my_stat_name_handler
@@ -353,6 +361,7 @@ The following configurations have been moved from `[scheduler]` to the new `[met
 #### Changes to Elasticsearch logging provider
 
 When JSON output to stdout is enabled, log lines will now contain the `log_id` & `offset` fields, this should make reading task logs from elasticsearch on the webserver work out of the box. Example configuration:
+
 ```ini
 [logging]
 remote_logging = True
@@ -385,12 +394,15 @@ However, this requires that your operating system has ``libffi-dev`` installed.
 A new key `worker_annotations` has been added to existing `kubernetes` section instead.
 That is to remove restriction on the character set for k8s annotation keys.
 All key/value pairs from `kubernetes_annotations` should now go to `worker_annotations` as a json. I.e. instead of e.g.
+
 ```
 [kubernetes_annotations]
 annotation_key = annotation_value
 annotation_key2 = annotation_value2
 ```
+
 it should be rewritten to
+
 ```
 [kubernetes]
 worker_annotations = { "annotation_key" : "annotation_value", "annotation_key2" : "annotation_value2" }
@@ -531,6 +543,7 @@ from airflow.utils.helpers import cross_downstream
 ```
 
 In Airflow 2.0 it should be changed to:
+
 ```python
 from airflow.models.baseoperator import chain
 from airflow.models.baseoperator import cross_downstream
@@ -711,12 +724,14 @@ and one deprecated function:
 - `parse_netloc_to_hostname`
 
 Previously, users could create a connection object in two ways
+
 ```
 conn_1 = Connection(conn_id="conn_a", uri="mysql://AAA/")
 # or
 conn_2 = Connection(conn_id="conn_a")
 conn_2.parse_uri(uri="mysql://AAA/")
 ```
+
 Now the second way is not supported.
 
 `Connection.log_info` and `Connection.debug_info` method have been deprecated. Read each Connection field individually or use the
@@ -731,6 +746,7 @@ DAG.create_dagrun accepts run_type and does not require run_id
 This change is caused by adding `run_type` column to `DagRun`.
 
 Previous signature:
+
 ```python
 def create_dagrun(self,
                   run_id,
@@ -741,7 +757,9 @@ def create_dagrun(self,
                   conf=None,
                   session=None):
 ```
+
 current:
+
 ```python
 def create_dagrun(self,
                   state,
@@ -753,6 +771,7 @@ def create_dagrun(self,
                   run_type=None,
                   session=None):
 ```
+
 If user provides `run_id` then the `run_type` will be derived from it by checking prefix, allowed types
 : `manual`, `scheduled`, `backfill` (defined by `airflow.utils.types.DagRunType`).
 
@@ -823,6 +842,7 @@ been deleted because it can be easily replaced by the standard library.
 The functions of the standard library are more flexible and can be used in larger cases.
 
 The code below
+
 ```python
 import logging
 
@@ -832,7 +852,9 @@ logger = logging.getLogger("custom-logger")
 with redirect_stdout(logger, logging.INFO), redirect_stderr(logger, logging.WARN):
     print("I love Airflow")
 ```
+
 can be replaced by the following code:
+
 ```python
 from contextlib import redirect_stdout, redirect_stderr
 import logging
@@ -873,6 +895,7 @@ DagBag(
 ```
 
 **current**:
+
 ```python
 DagBag(
     dag_folder=None,
@@ -1370,11 +1393,13 @@ Hence, the default value for `master_disk_size` in `DataprocCreateClusterOperato
 We changed signature of BigQueryGetDatasetTablesOperator.
 
 Before:
+
 ```python
 BigQueryGetDatasetTablesOperator(dataset_id: str, dataset_resource: dict, ...)
 ```
 
 After:
+
 ```python
 BigQueryGetDatasetTablesOperator(dataset_resource: dict, dataset_id: Optional[str] = None, ...)
 ```
@@ -1532,6 +1557,7 @@ This can be overwriten by using the extra_options param as `{'verify': False}`.
 * removed `db` function since the database object can also be retrieved by calling `cloudant_session['database_name']`
 
 For example:
+
 ```python
 from airflow.providers.cloudant.hooks.cloudant import CloudantHook
 
@@ -1582,9 +1608,11 @@ If you want to install integration for Microsoft Azure, then instead of `pip ins
 you should use `pip install apache-airflow[apache.atlas]`.
 
 If you want to install integration for Microsoft Azure, then instead of
+
 ```
 pip install 'apache-airflow[azure_blob_storage,azure_data_lake,azure_cosmos,azure_container_instances]'
 ```
+
 you should execute `pip install 'apache-airflow[azure]'`
 
 If you want to install integration for Amazon Web Services, then instead of
@@ -1798,6 +1826,7 @@ positional argument, along with `content` and `context`. This function signature
 the `attr` argument is no longer required (or accepted).
 
 In order to use this function in subclasses of the `BaseOperator`, the `attr` argument must be removed:
+
 ```python
 result = self.render_template('myattr', self.myattr, context)  # Pre-1.10.6 call
 ...
@@ -2041,15 +2070,19 @@ The signature of the `create_transfer_job` method in `GCPTransferServiceHook`
 class has changed. The change does not change the behavior of the method.
 
 Old signature:
+
 ```python
 def create_transfer_job(self, description, schedule, transfer_spec, project_id=None):
 ```
+
 New signature:
+
 ```python
 def create_transfer_job(self, body):
 ```
 
 It is necessary to rewrite calls to method. The new call looks like this:
+
 ```python
 body = {
   'status': 'ENABLED',
@@ -2060,6 +2093,7 @@ body = {
 }
 gct_hook.create_transfer_job(body)
 ```
+
 The change results from the unification of all hooks and adjust to
 [the official recommendations](https://lists.apache.org/thread.html/e8534d82be611ae7bcb21ba371546a4278aad117d5e50361fd8f14fe@%3Cdev.airflow.apache.org%3E)
 for the Google Cloud.
@@ -2067,10 +2101,13 @@ for the Google Cloud.
 The signature of `wait_for_transfer_job` method in `GCPTransferServiceHook` has changed.
 
 Old signature:
+
 ```python
 def wait_for_transfer_job(self, job):
 ```
+
 New signature:
+
 ```python
 def wait_for_transfer_job(self, job, expected_statuses=(GcpTransferOperationStatus.SUCCESS, )):
 ```
@@ -2141,6 +2178,7 @@ next_ds/prev_ds now map to execution_date instead of the next/previous schedule-
 This patch changes the `User.superuser` field from a hardcoded boolean to a `Boolean()` database column. `User.superuser` will default to `False`, which means that this privilege will have to be granted manually to any users that may require it.
 
 For example, open a Python shell and
+
 ```python
 from airflow import models, settings
 

@@ -46,9 +46,6 @@ MD029: false
 # MD030/list-marker-space
 MD030: false
 
-# MD031/blanks-around-fences
-MD031: false
-
 # MD033/no-inline-html
 MD033: false
 

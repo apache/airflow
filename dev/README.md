@@ -345,6 +345,7 @@ is not supposed to be used by and advertised to the end-users who do not read th
 - Send out a vote to the dev@airflow.apache.org mailing list:
 
 Subject:
+
 ```
 [VOTE] Airflow 1.10.2rc3
 ```
@@ -561,6 +562,7 @@ release candidate number 1,2,3,....).
 ```shell script
 pip install apache-airflow==<VERSION>rc<X>
 ```
+
 Optionally it can be followed with constraints
 
 ```shell script
@@ -596,6 +598,7 @@ that the Airflow works as you expected.
 Once the vote has been passed, you will need to send a result vote to dev@airflow.apache.org:
 
 Subject:
+
 ```
 [RESULT][VOTE] Airflow 1.10.2rc3
 ```
@@ -704,6 +707,7 @@ At this point we release an official package:
     ```shell script
     $ git log 1.8.0..1.9.0 --pretty=oneline
     ```
+
 - Update CHANGELOG.md with the details, and commit it.
 
 ### Notify developers of release
@@ -712,6 +716,7 @@ At this point we release an official package:
 the artifacts have been published:
 
 Subject:
+
 ```shell script
 cat <<EOF
 Airflow ${VERSION} is released
@@ -719,6 +724,7 @@ EOF
 ```
 
 Body:
+
 ```shell script
 cat <<EOF
 Dear Airflow community,
@@ -1238,6 +1244,7 @@ that the Airflow works as you expected.
 Once the vote has been passed, you will need to send a result vote to dev@airflow.apache.org:
 
 Subject:
+
 ```shell script
 cat <<EOF
 [RESULT][VOTE] Airflow Backport Providers ${VERSION}
@@ -1400,6 +1407,7 @@ twine upload -r pypi dist/*
 the artifacts have been published:
 
 Subject:
+
 ```shell script
 cat <<EOF
 Airflow Backport Providers ${VERSION} are released
@@ -1407,6 +1415,7 @@ EOF
 ```
 
 Body:
+
 ```shell script
 cat <<EOF
 Dear Airflow community,
@@ -1600,6 +1609,7 @@ twine upload -r pypi dist/*
 the artifacts have been published:
 
 Subject:
+
 ```shell script
 cat <<EOF
 Airflow Providers are released
@@ -1607,6 +1617,7 @@ EOF
 ```
 
 Body:
+
 ```shell script
 cat <<EOF
 Dear Airflow community,

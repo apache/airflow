@@ -35,6 +35,7 @@ cluster using the [Helm](https://helm.sh) package manager.
 ## Installing the Chart
 
 To install this repository from source (using helm 3)
+
 ```bash
 kubectl create namespace airflow
 helm repo add stable https://charts.helm.sh/stable/
