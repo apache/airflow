@@ -17,6 +17,7 @@
 # under the License.
 #
 import logging
+import sys
 from datetime import timedelta
 from typing import Optional
 
@@ -45,7 +46,6 @@ from airflow.www.extensions.init_views import (
     init_plugins,
 )
 from airflow.www.extensions.init_wsgi_middlewares import init_wsgi_middleware
-from airflow.www.extensions.stop_webserver import stop_webserver
 
 app: Optional[Flask] = None
 
@@ -71,25 +71,20 @@ def create_app(config=None, testing=False, app_name="Airflow"):
     flask_app = Flask(__name__)
     flask_app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
-    default_session_lifetime = 43200
-    if conf.has_option('webserver', 'SESSION_LIFETIME_MINUTES'):
-        session_lifetime_minutes = conf.getint(
-            'webserver', 'SESSION_LIFETIME_MINUTES', fallback=default_session_lifetime
+    if conf.has_option('webserver', 'SESSION_LIFETIME_DAYS') or conf.has_option(
+        'webserver', 'FORCE_LOG_OUT_AFTER'
+    ):
+        logging.error(
+            '`SESSION_LIFETIME_DAYS` option from `webserver` section has been '
+            'renamed to `SESSION_LIFETIME_MINUTES`. New option allows to configure '
+            'session lifetime in minutes. FORCE_LOG_OUT_AFTER option has been removed '
+            'from `webserver` section. Please update your configuration.'
         )
+        # Stop gunicorn server https://github.com/benoitc/gunicorn/blob/20.0.4/gunicorn/arbiter.py#L526"""
+        sys.exit(4)
     else:
-        if conf.has_option('webserver', 'SESSION_LIFETIME_DAYS') or conf.has_option(
-            'webserver', 'FORCE_LOG_OUT_AFTER'
-        ):
-            logging.error(
-                '`SESSION_LIFETIME_DAYS` option from `webserver` section has been '
-                'renamed to `SESSION_LIFETIME_MINUTES`. New option allows to configure '
-                'session lifetime in minutes. FORCE_LOG_OUT_AFTER option has been removed '
-                'from `webserver` section. Please update your configuration.'
-            )
-            stop_webserver()
-        else:
-            logging.info('Using default value for `SESSION_LIFETIME_MINUTES`: %s', default_session_lifetime)
-            session_lifetime_minutes = default_session_lifetime
+        session_lifetime_minutes = conf.getint('webserver', 'SESSION_LIFETIME_MINUTES', fallback=43200)
+        logging.info('User session lifetime is set to %s minutes.', session_lifetime_minutes)
 
     flask_app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=session_lifetime_minutes)
 
