@@ -425,11 +425,13 @@
         execution_date: execution_date,
       });
 
-      updateButtonUrl(buttons.rendered_k8s, {
-        dag_id: dag_id,
-        task_id: task_id,
-        execution_date: execution_date,
-      });
+      if (buttons.rendered_k8s) {
+        updateButtonUrl(buttons.rendered_k8s, {
+          dag_id: dag_id,
+          task_id: task_id,
+          execution_date: execution_date,
+        });
+      }
 
       updateButtonUrl(buttons.ti, {
         flt1_dag_id_equals: dag_id,
