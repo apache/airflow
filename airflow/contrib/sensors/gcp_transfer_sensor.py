@@ -30,7 +30,6 @@ warnings.warn(
     "This module is deprecated. "
     "Please use `airflow.providers.google.cloud.sensors.cloud_storage_transfer_service`.",
     DeprecationWarning,
-
 )
 
 

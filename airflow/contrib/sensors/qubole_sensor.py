@@ -29,5 +29,4 @@ from airflow.providers.qubole.sensors.qubole import (  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.qubole.sensors.qubole`.",
     DeprecationWarning,
-
 )

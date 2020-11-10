@@ -25,5 +25,4 @@ from airflow.providers.amazon.aws.hooks.glue_catalog import AwsGlueCatalogHook  
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.glue_catalog`.",
     DeprecationWarning,
-    stacklevel=2,
 )

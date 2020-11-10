@@ -26,5 +26,4 @@ from airflow.providers.jira.sensors.jira import JiraSensor, JiraTicketSensor  # 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.jira.sensors.jira`.",
     DeprecationWarning,
-
 )

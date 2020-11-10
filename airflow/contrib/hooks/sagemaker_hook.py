@@ -32,5 +32,4 @@ from airflow.providers.amazon.aws.hooks.sagemaker import (  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.sagemaker`.",
     DeprecationWarning,
-    stacklevel=2,
 )

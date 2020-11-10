@@ -25,5 +25,4 @@ from airflow.providers.microsoft.azure.hooks.azure_cosmos import AzureCosmosDBHo
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.azure_cosmos`.",
     DeprecationWarning,
-    stacklevel=2,
 )

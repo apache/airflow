@@ -25,5 +25,4 @@ from airflow.providers.imap.hooks.imap import ImapHook, Mail, MailPart  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.imap.hooks.imap`.",
     DeprecationWarning,
-    stacklevel=2,
 )

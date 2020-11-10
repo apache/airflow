@@ -26,5 +26,4 @@ from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.snowflake.hooks.snowflake`.",
     DeprecationWarning,
-    stacklevel=2,
 )

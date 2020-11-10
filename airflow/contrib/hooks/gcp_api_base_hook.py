@@ -23,7 +23,6 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.common.hooks.base_google`.",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

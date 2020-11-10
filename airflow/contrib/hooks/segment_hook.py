@@ -25,5 +25,4 @@ from airflow.providers.segment.hooks.segment import SegmentHook, analytics  # no
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.segment.hooks.segment`.",
     DeprecationWarning,
-    stacklevel=2,
 )

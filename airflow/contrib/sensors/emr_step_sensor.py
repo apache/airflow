@@ -25,5 +25,4 @@ from airflow.providers.amazon.aws.sensors.emr_step import EmrStepSensor  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.emr_step`.",
     DeprecationWarning,
-
 )

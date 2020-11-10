@@ -26,5 +26,4 @@ from airflow.providers.apache.cassandra.sensors.table import CassandraTableSenso
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.cassandra.sensors.table`.",
     DeprecationWarning,
-
 )

@@ -26,5 +26,4 @@ from airflow.providers.amazon.aws.hooks.redshift import RedshiftHook  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.redshift`.",
     DeprecationWarning,
-    stacklevel=2,
 )

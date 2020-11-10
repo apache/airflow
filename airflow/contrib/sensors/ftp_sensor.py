@@ -25,5 +25,4 @@ from airflow.providers.ftp.sensors.ftp import FTPSensor, FTPSSensor  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.ftp.sensors.ftp`.",
     DeprecationWarning,
-
 )

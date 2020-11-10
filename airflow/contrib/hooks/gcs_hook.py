@@ -23,7 +23,6 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.gcs`.",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

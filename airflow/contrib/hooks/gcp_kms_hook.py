@@ -24,7 +24,6 @@ from airflow.providers.google.cloud.hooks.kms import CloudKMSHook
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.kms`.",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

@@ -24,7 +24,6 @@ from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.kubernetes_engine`",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

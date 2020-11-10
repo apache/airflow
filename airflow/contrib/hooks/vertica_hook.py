@@ -25,5 +25,4 @@ from airflow.providers.vertica.hooks.vertica import VerticaHook  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.vertica.hooks.vertica`.",
     DeprecationWarning,
-    stacklevel=2,
 )

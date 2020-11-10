@@ -25,5 +25,4 @@ from airflow.providers.cloudant.hooks.cloudant import CloudantHook  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.cloudant.hooks.cloudant`.",
     DeprecationWarning,
-    stacklevel=2,
 )

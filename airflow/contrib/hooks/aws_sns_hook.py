@@ -26,5 +26,4 @@ from airflow.providers.amazon.aws.hooks.sns import AwsSnsHook  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.sns`.",
     DeprecationWarning,
-    stacklevel=2,
 )

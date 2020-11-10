@@ -25,5 +25,4 @@ from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLak
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.azure_data_lake`.",
     DeprecationWarning,
-    stacklevel=2,
 )

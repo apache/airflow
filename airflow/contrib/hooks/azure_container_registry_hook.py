@@ -31,5 +31,4 @@ warnings.warn(
     "This module is deprecated. "
     "Please use `airflow.providers.microsoft.azure.hooks.azure_container_registry`.",
     DeprecationWarning,
-    stacklevel=2,
 )

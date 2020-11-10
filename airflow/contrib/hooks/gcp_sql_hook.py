@@ -24,7 +24,6 @@ from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook,
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.cloud_sql`",
     DeprecationWarning,
-    stacklevel=2,
 )
 
 

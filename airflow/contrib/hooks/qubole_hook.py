@@ -25,5 +25,4 @@ from airflow.providers.qubole.hooks.qubole import QuboleHook  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.qubole.hooks.qubole`.",
     DeprecationWarning,
-    stacklevel=2,
 )

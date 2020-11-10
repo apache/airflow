@@ -26,5 +26,4 @@ from airflow.providers.amazon.aws.hooks.lambda_function import AwsLambdaHook  # 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.lambda_function`.",
     DeprecationWarning,
-    stacklevel=2,
 )
