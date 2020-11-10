@@ -209,7 +209,7 @@ prepared using such hardware. More information can be found in this
 
 ### Build RC artifacts (both source packages and convenience packages)
 
-The Release Candidate artifacts we vote upon should be the exact ones we vote against, without any modification than renaming – i.e. the contents of the files must be the same between voted release canidate and final release. Because of this the version in the built artifacts that will become the official Apache releases must not include the rcN suffix.
+The Release Candidate artifacts we vote upon should be the exact ones we vote against, without any modification than renaming – i.e. the contents of the files must be the same between voted release candidate and final release. Because of this the version in the built artifacts that will become the official Apache releases must not include the rcN suffix.
 
 - Set environment variables
 
@@ -1167,7 +1167,7 @@ downloaded from the SVN).
 
 #### Installing in your local virtualenv
 
-You have to make sure you have Airilow 1.10.* installed in your PIP virtualenv
+You have to make sure you have Airflow 1.10.* installed in your PIP virtualenv
 (the version you want to install providers with).
 
 ```shell script
