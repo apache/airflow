@@ -2801,9 +2801,7 @@ def _split_tablename(
 ) -> Tuple[str, str, str]:
 
     if '.' not in table_input:
-        raise ValueError(
-            f'Expected target table name in the format of <dataset>.<table>. Got: {table_input}'
-        )
+        raise ValueError(f'Expected table name in the format of <dataset>.<table>. Got: {table_input}')
 
     if not default_project_id:
         raise ValueError("INTERNAL: No default project is specified")
