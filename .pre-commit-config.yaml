@@ -298,7 +298,7 @@ repos:
         language: pygrep
         name: No providers imports in core example DAGs
         description: The core example DAGs have no dependencies other than core Airflow
-        entry: "^\\s*from airflow.providers.*"
+        entry: "^\\s*from airflow\\.providers.*"
         pass_filenames: true
         files: ^airflow/example_dags/.*\.py$
       - id: no-relative-imports
