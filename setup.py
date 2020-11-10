@@ -886,6 +886,11 @@ def do_setup():
         else ['airflow.providers', 'airflow.providers.*']
     )
     write_version()
+    if not install_providers_from_sources:
+        for key, value in EXTRAS_PROVIDERS_PACKAGES.items():
+            EXTRAS_REQUIREMENTS[key].extend(
+                [get_provider_package_from_package_id(package_name) for package_name in value]
+            )
     packages_to_install = (
         find_namespace_packages(include=['airflow*'], exclude=exclude_patterns)
         if install_providers_from_sources
