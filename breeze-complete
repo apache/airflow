@@ -103,6 +103,7 @@ mermaid
 mixed-line-ending
 mypy
 mypy-helm
+no-providers-in-core-examples
 no-relative-imports
 pre-commit-descriptions
 provide-create-sessions

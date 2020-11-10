@@ -88,6 +88,8 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``dont-use-safe-filter``              Don't use safe in templates.
 ----------------------------------- ---------------------------------------------------------------- ------------
+``no-providers-in-core-examples``     Don't use providers imports in core example DAGs
+----------------------------------- ---------------------------------------------------------------- ------------
 ``no-relative-imports``               Use absolute imports, not relative
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``end-of-file-fixer``                 Makes sure that there is an empty line at the end.

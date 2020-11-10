@@ -69,6 +69,7 @@ class PythonOperator(BaseOperator):
     """
 
     template_fields = ('templates_dict', 'op_args', 'op_kwargs')
+    template_fields_renderers = {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"}
     ui_color = '#ffefeb'
 
     # since we won't mutate the arguments, we should just do the shallow copy
@@ -145,6 +146,8 @@ class _PythonDecoratedOperator(BaseOperator):
     """
 
     template_fields = ('op_args', 'op_kwargs')
+    template_fields_renderers = {"op_args": "py", "op_kwargs": "py"}
+
     ui_color = PythonOperator.ui_color
 
     # since we won't mutate the arguments, we should just do the shallow copy

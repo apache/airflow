@@ -47,6 +47,7 @@ class EmailOperator(BaseOperator):
     """
 
     template_fields = ('to', 'subject', 'html_content')
+    template_fields_renderers = {"html_content": "html"}
     template_ext = ('.html',)
     ui_color = '#e6faf9'
 
