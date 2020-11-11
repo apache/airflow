@@ -177,8 +177,7 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
     # about. Mapping of section -> setting -> { old, replace, by_version }
     deprecated_values = {
         'core': {
-            'task_runner': (re.compile(r'\ABashTaskRunner\Z'), r'StandardTaskRunner', '2.0'),
-            'hostname_callable': (re.compile(r':'), r'.', '2.0'),
+            'hostname_callable': (re.compile(r':'), r'.', '2.1'),
         },
         'webserver': {
             'navbar_color': (re.compile(r'\A#007A87\Z', re.IGNORECASE), '#fff', '2.1'),
@@ -187,7 +186,7 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
             'email_backend': (
                 re.compile(r'^airflow\.contrib\.utils\.sendgrid\.send_email$'),
                 r'airflow.providers.sendgrid.utils.emailer.send_email',
-                '2.0',
+                '2.1',
             ),
         },
     }
