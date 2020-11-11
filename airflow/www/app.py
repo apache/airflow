@@ -80,7 +80,7 @@ def create_app(config=None, testing=False, app_name="Airflow"):
             'session lifetime in minutes. FORCE_LOG_OUT_AFTER option has been removed '
             'from `webserver` section. Please update your configuration.'
         )
-        # Stop gunicorn server https://github.com/benoitc/gunicorn/blob/20.0.4/gunicorn/arbiter.py#L526"""
+        # Stop gunicorn server https://github.com/benoitc/gunicorn/blob/20.0.4/gunicorn/arbiter.py#L526
         sys.exit(4)
     else:
         session_lifetime_minutes = conf.getint('webserver', 'SESSION_LIFETIME_MINUTES', fallback=43200)
