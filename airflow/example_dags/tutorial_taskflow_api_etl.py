@@ -16,24 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# pylint: disable=missing-function-docstring
-"""
-### TaskFlow API Tutorial Documentation
-
-This is a simple ETL data pipeline example which demonstrates the use of the TaskFlow API
-using three simple tasks for Extract, Transform, and Load.
-
-Documentation that goes along with the Airflow TaskFlow API tutorial located
-[here](https://airflow.apache.org/docs/stable/tutorial_taskflow_api.html)
-"""
 # [START tutorial]
 # [START import_module]
 import json
 
 # The DAG object; we'll need this to instantiate a DAG
-from airflow import DAG
 from airflow.utils.dates import days_ago
-from airflow.decorators import dag
+from airflow.decorators import dag, task
 
 # [END import_module]
 
@@ -47,15 +36,22 @@ default_args = {
 
 # [START instantiate_dag]
 @dag(default_args=default_args, schedule_interval=None, start_date=days_ago(2))
+# [END instantiate_dag]
 def tutorial_taskflow_api_etl():
-    # [END instantiate_dag]
-
     # [START documentation]
-    dag.doc_md = __doc__
+    """
+    ### TaskFlow API Tutorial Documentation
+
+    This is a simple ETL data pipeline example which demonstrates the use of the TaskFlow API
+    using three simple tasks for Extract, Transform, and Load.
+
+    Documentation that goes along with the Airflow TaskFlow API tutorial located
+    [here](https://airflow.apache.org/docs/stable/tutorial_taskflow_api.html)
+    """
     # [END documentation]
 
     # [START extract]
-    @dag.task()
+    @task()
     def extract():
         """
         #### Extract task
@@ -70,7 +66,7 @@ def tutorial_taskflow_api_etl():
     # [END extract]
 
     # [START transform]
-    @dag.task(multiple_outputs=True)
+    @task(multiple_outputs=True)
     def transform(order_data_dict: dict):
         """
         #### Transform task
@@ -87,7 +83,7 @@ def tutorial_taskflow_api_etl():
     # [END transform]
 
     # [START load]
-    @dag.task()
+    @task()
     def load(total_order_value: float):
         """
         #### Load task
