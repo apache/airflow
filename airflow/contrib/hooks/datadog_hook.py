@@ -24,5 +24,6 @@ from airflow.providers.datadog.hooks.datadog import DatadogHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.datadog.hooks.datadog`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

@@ -18,11 +18,11 @@
 import pytest
 from psycopg2 import ProgrammingError
 
+from airflow.providers.google.cloud.example_dags.example_postgres_to_gcs import GCS_BUCKET
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
-GCS_BUCKET = "postgres_to_gcs_example"
 CREATE_QUERY = """
 CREATE TABLE public.test_table
 (
@@ -55,6 +55,7 @@ DELETE_QUERY = "DROP TABLE public.test_table;"
 
 
 @pytest.mark.backend("postgres")
+@pytest.mark.system("google.cloud")
 @pytest.mark.credential_file(GCP_GCS_KEY)
 class PostgresToGCSSystemTest(GoogleSystemTest):
     @staticmethod

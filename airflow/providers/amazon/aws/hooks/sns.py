@@ -18,7 +18,7 @@
 
 """This module contains AWS SNS hook"""
 import json
-from typing import Optional, Union, Dict
+from typing import Dict, Optional, Union
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 

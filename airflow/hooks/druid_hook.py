@@ -24,5 +24,6 @@ from airflow.providers.apache.druid.hooks.druid import DruidDbApiHook, DruidHook
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.druid.hooks.druid`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

@@ -41,6 +41,7 @@ def cheat_sheet(args):
 
 def display_commands_index():
     """Display list of all commands."""
+
     def display_recursive(prefix: List[str], commands: Iterable[Union[GroupCommand, ActionCommand]]):
         actions: List[ActionCommand]
         groups: List[GroupCommand]
@@ -57,7 +58,6 @@ def display_commands_index():
         if groups:
             for group_command in sorted(groups, key=lambda d: d.name):
                 group_prefix = [*prefix, group_command.name]
-                # print(bold(" ".join(group_prefix)), end="")
                 cprint(group_command.help, attrs=["bold", "underline"])
                 print()
                 display_recursive(group_prefix, group_command.subcommands)

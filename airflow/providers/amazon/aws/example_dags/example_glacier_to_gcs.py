@@ -17,9 +17,7 @@
 import os
 
 from airflow import models
-from airflow.providers.amazon.aws.operators.glacier import (
-    GlacierCreateJobOperator,
-)
+from airflow.providers.amazon.aws.operators.glacier import GlacierCreateJobOperator
 from airflow.providers.amazon.aws.sensors.glacier import GlacierJobOperationSensor
 from airflow.providers.amazon.aws.transfers.glacier_to_gcs import GlacierToGCSOperator
 from airflow.utils.dates import days_ago

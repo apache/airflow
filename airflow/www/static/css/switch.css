@@ -73,12 +73,20 @@
   box-shadow: 0 0 0 3px rgba(1, 124, 238, 0.4);
 }
 
-.switch-input:focus + .switch::before {
-  background-color: #fff;
-}
-
 .switch-input:not(:checked) + .switch:hover {
   background-color: #9e9e9c;
+}
+
+.switch-input:checked.switch-input--error + .switch {
+  background-color: #e43921;
+}
+
+.switch-input:not(:checked).switch-input--error + .switch {
+  background-color: #824840;
+}
+
+.switch-input:focus + .switch::before {
+  background-color: #fff;
 }
 
 .switch-input:not(:checked) + .switch:hover::before {

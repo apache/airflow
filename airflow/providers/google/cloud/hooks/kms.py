@@ -141,7 +141,7 @@ class CloudKMSHook(GoogleBaseHook):
         """
         Decrypts a ciphertext message using Google Cloud KMS.
 
-        :param key_name: The Resource Name for the key to be used for decyption.
+        :param key_name: The Resource Name for the key to be used for decryption.
                          Of the form ``projects/*/locations/*/keyRings/*/cryptoKeys/**``
         :type key_name: str
         :param ciphertext: The message to be decrypted.

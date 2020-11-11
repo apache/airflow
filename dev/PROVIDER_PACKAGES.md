@@ -123,7 +123,7 @@ Typically, the first time you run release before release, you run it with target
 ./breeze --backports prepare-provider-readme 2020.05.20 google
 ```
 
-Then while you iterate with merges and release candidates you update the release date wihout providing
+Then while you iterate with merges and release candidates you update the release date without providing
 the date (to update the existing release notes)
 
 ```
@@ -250,6 +250,7 @@ for example:
 ```bash
 ./breeze --backports prepare-provider-packages [PACKAGE_ID] ...
 ```
+
 for example:
 
 ```bash
@@ -319,6 +320,7 @@ for example:
 ```bash
 ./breeze prepare-provider-packages [PACKAGE_ID] ...
 ```
+
 for example:
 
 ```bash

@@ -19,8 +19,8 @@
 """This module contains AWS CloudFormation Hook"""
 from typing import Optional, Union
 
-from botocore.exceptions import ClientError
 from boto3 import client, resource
+from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 

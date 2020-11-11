@@ -24,5 +24,6 @@ from airflow.providers.samba.hooks.samba import SambaHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.samba.hooks.samba`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

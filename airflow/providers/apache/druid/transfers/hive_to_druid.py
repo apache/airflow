@@ -123,7 +123,7 @@ class HiveToDruidOperator(BaseOperator):
         self.log.info("Extracting data from Hive")
         hive_table = 'druid.' + context['task_instance_key_str'].replace('.', '_')
         sql = self.sql.strip().strip(';')
-        tblproperties = ''.join([", '{}' = '{}'".format(k, v) for k, v in self.hive_tblproperties.items()])
+        tblproperties = ''.join([f", '{k}' = '{v}'" for k, v in self.hive_tblproperties.items()])
         hql = f"""\
         SET mapred.output.compress=false;
         SET hive.exec.compress.output=false;
@@ -162,7 +162,7 @@ class HiveToDruidOperator(BaseOperator):
             self.log.info("Load seems to have succeeded!")
         finally:
             self.log.info("Cleaning up by dropping the temp Hive table %s", hive_table)
-            hql = "DROP TABLE IF EXISTS {}".format(hive_table)
+            hql = f"DROP TABLE IF EXISTS {hive_table}"
             hive.run_cli(hql)
 
     def construct_ingest_query(self, static_path: str, columns: List[str]) -> Dict[str, Any]:

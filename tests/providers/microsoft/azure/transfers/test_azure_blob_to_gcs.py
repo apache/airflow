@@ -15,12 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
-
 from unittest import mock
 
-from airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs import (
-    AzureBlobStorageToGCSOperator,
-)
+from airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs import AzureBlobStorageToGCSOperator
 
 WASB_CONN_ID = "wasb_default"
 GCP_CONN_ID = "google_cloud_default"

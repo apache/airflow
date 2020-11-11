@@ -879,7 +879,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         'view',
         'impersonation_chain',
     )
-
+    template_fields_renderers = {"table_resource": "json"}
     ui_color = BigQueryUIColors.TABLE.value
 
     # pylint: disable=too-many-arguments
@@ -1074,6 +1074,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         'table_resource',
         'impersonation_chain',
     )
+    template_fields_renderers = {"table_resource": "json"}
     ui_color = BigQueryUIColors.TABLE.value
 
     # pylint: disable=too-many-arguments,too-many-locals
@@ -1369,6 +1370,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         'dataset_reference',
         'impersonation_chain',
     )
+    template_fields_renderers = {"dataset_reference": "json"}
     ui_color = BigQueryUIColors.DATASET.value
 
     @apply_defaults
@@ -1615,6 +1617,7 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         'project_id',
         'impersonation_chain',
     )
+    template_fields_renderers = {"dataset_resource": "json"}
     ui_color = BigQueryUIColors.DATASET.value
 
     @apply_defaults
@@ -1705,6 +1708,7 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
         'project_id',
         'impersonation_chain',
     )
+    template_fields_renderers = {"dataset_resource": "json"}
     ui_color = BigQueryUIColors.DATASET.value
 
     @apply_defaults
@@ -1876,6 +1880,7 @@ class BigQueryUpsertTableOperator(BaseOperator):
         'table_resource',
         'impersonation_chain',
     )
+    template_fields_renderers = {"table_resource": "json"}
     ui_color = BigQueryUIColors.TABLE.value
 
     @apply_defaults
@@ -1993,6 +1998,7 @@ class BigQueryInsertJobOperator(BaseOperator):
         "impersonation_chain",
     )
     template_ext = (".json",)
+    template_fields_renderers = {"configuration": "json"}
     ui_color = BigQueryUIColors.QUERY.value
 
     def __init__(
@@ -2025,7 +2031,7 @@ class BigQueryInsertJobOperator(BaseOperator):
     def prepare_template(self) -> None:
         # If .json is passed then we have to read the file
         if isinstance(self.configuration, str) and self.configuration.endswith('.json'):
-            with open(self.configuration, 'r') as file:
+            with open(self.configuration) as file:
                 self.configuration = json.loads(file.read())
 
     def _submit_job(

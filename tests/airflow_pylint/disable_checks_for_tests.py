@@ -19,8 +19,9 @@
 from astroid import MANAGER, scoped_nodes
 from pylint.lint import PyLinter
 
-DISABLED_CHECKS_FOR_TESTS = \
+DISABLED_CHECKS_FOR_TESTS = (
     "missing-docstring, no-self-use, too-many-public-methods, protected-access, do-not-use-asserts"
+)
 
 
 def register(_: PyLinter):
@@ -42,18 +43,21 @@ def transform(mod):
     :param mod: astroid module
     :return: None
     """
-    if mod.name.startswith("test_") or \
-            mod.name.startswith("tests.") or \
-            mod.name.startswith("kubernetes_tests.") or \
-            mod.name.startswith("chart."):
+    if (
+        mod.name.startswith("test_")
+        or mod.name.startswith("tests.")
+        or mod.name.startswith("kubernetes_tests.")
+        or mod.name.startswith("chart.")
+    ):
         decoded_lines = mod.stream().read().decode("utf-8").split("\n")
         if decoded_lines[0].startswith("# pylint: disable="):
             decoded_lines[0] = decoded_lines[0] + " " + DISABLED_CHECKS_FOR_TESTS
         elif decoded_lines[0].startswith("#") or decoded_lines[0].strip() == "":
             decoded_lines[0] = "# pylint: disable=" + DISABLED_CHECKS_FOR_TESTS
         else:
-            raise Exception(f"The first line of module {mod.name} is not a comment or empty. "
-                            f"Please make sure it is!")
+            raise Exception(
+                f"The first line of module {mod.name} is not a comment or empty. " f"Please make sure it is!"
+            )
         # pylint will read from `.file_bytes` attribute later when tokenization
         mod.file_bytes = "\n".join(decoded_lines).encode("utf-8")
 

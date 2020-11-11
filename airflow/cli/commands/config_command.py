@@ -32,9 +32,7 @@ def show_config(args):
         conf.write(output)
         code = output.getvalue()
         if should_use_colors(args):
-            code = pygments.highlight(
-                code=code, formatter=get_terminal_formatter(), lexer=IniLexer()
-            )
+            code = pygments.highlight(code=code, formatter=get_terminal_formatter(), lexer=IniLexer())
         print(code)
 
 

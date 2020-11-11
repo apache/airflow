@@ -18,7 +18,7 @@
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-setup_backport_packages
+setup_provider_packages
 
 echo
 echo "Testing if all classes in import packages can be imported"
@@ -26,12 +26,13 @@ echo
 
 OUT_FILE_PRINTED_ON_ERROR=$(mktemp)
 
-if [[ ${INSTALL_AIRFLOW_VERSION:=""} =~ ^2\..*  ]]; then
+if [[ ${INSTALL_AIRFLOW_VERSION:=""} == "wheel"  ]]; then
     echo
-    echo "Installing regular packages for Airflow 2.0 but first installing prepared Airflow from master"
+    echo "Installing the airflow prepared from wheels"
     echo
+    pip uninstall -y apache-airflow
     pip install /dist/apache_airflow-*.whl
-    # Need to add excluded apache beam
+    # Need to add excluded apache. All the rest should be installed by extras
     pip install apache-beam[gcp]
     echo
 elif [[ ! ${INSTALL_AIRFLOW_VERSION:=""} =~ ^1\.10\..* ]]; then
@@ -71,14 +72,36 @@ fi
 # Install all packages at once
 pip install ${EXTRA_FLAGS} /dist/apache_airflow*providers_*.whl >>"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
 
-
 echo > "${OUT_FILE_PRINTED_ON_ERROR}"
 
 echo
 echo  Importing all classes in Airflow 1.10
 echo
 
+# We have to move to a directory where "airflow
+unset PYTHONPATH
 # We need to make sure we are not in the airflow checkout, otherwise it will automatically be added to the
 # import path
 cd /
-python3 /import_all_provider_classes.py
+
+declare -a IMPORT_CLASS_PARAMETERS
+
+PROVIDER_PATHS=$(python3 <<EOF 2>/dev/null
+import airflow.providers;
+path=airflow.providers.__path__
+for p in path._path:
+    print(p)
+EOF
+)
+export PROVIDER_PATHS
+
+echo "Searching for providers packages in:"
+echo "${PROVIDER_PATHS}"
+
+
+while read -r provider_path
+do
+    IMPORT_CLASS_PARAMETERS+=("--path" "${provider_path}")
+done < <(echo "${PROVIDER_PATHS}")
+
+python3 /opt/airflow/dev/import_all_classes.py "${IMPORT_CLASS_PARAMETERS[@]}"

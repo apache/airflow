@@ -24,5 +24,6 @@ from airflow.providers.google.cloud.hooks.translate import CloudTranslateHook  #
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.translate`",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

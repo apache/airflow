@@ -20,8 +20,8 @@ import unittest
 from copy import deepcopy
 from datetime import date, time
 from typing import Dict
-
 from unittest import mock
+
 from botocore.credentials import Credentials
 from freezegun import freeze_time
 from parameterized import parameterized

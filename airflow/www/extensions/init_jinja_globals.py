@@ -22,7 +22,7 @@ import pendulum
 
 import airflow
 from airflow.configuration import conf
-from airflow.settings import STATE_COLORS
+from airflow.settings import IS_K8S_OR_K8SCELERY_EXECUTOR, STATE_COLORS
 from airflow.utils.platform import get_airflow_git_version
 
 
@@ -64,7 +64,8 @@ def init_jinja_globals(app):
             'log_animation_speed': conf.getint('webserver', 'log_animation_speed', fallback=1000),
             'state_color_mapping': STATE_COLORS,
             'airflow_version': airflow_version,
-            'git_version': git_version
+            'git_version': git_version,
+            'k8s_or_k8scelery_executor': IS_K8S_OR_K8SCELERY_EXECUTOR,
         }
 
         if 'analytics_tool' in conf.getsection('webserver'):

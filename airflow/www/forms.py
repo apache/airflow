@@ -22,14 +22,23 @@ from operator import itemgetter
 
 import pendulum
 from flask_appbuilder.fieldwidgets import (
-    BS3PasswordFieldWidget, BS3TextAreaFieldWidget, BS3TextFieldWidget, Select2Widget,
+    BS3PasswordFieldWidget,
+    BS3TextAreaFieldWidget,
+    BS3TextFieldWidget,
+    Select2Widget,
 )
 from flask_appbuilder.forms import DynamicForm
 from flask_babel import lazy_gettext
 from flask_wtf import FlaskForm
 from wtforms import widgets
 from wtforms.fields import (
-    BooleanField, Field, IntegerField, PasswordField, SelectField, StringField, TextAreaField,
+    BooleanField,
+    Field,
+    IntegerField,
+    PasswordField,
+    SelectField,
+    StringField,
+    TextAreaField,
 )
 from wtforms.validators import DataRequired, NumberRange, Optional
 
@@ -86,8 +95,7 @@ class DateTimeWithTimezoneField(Field):
 class DateTimeForm(FlaskForm):
     """Date filter form needed for task views"""
 
-    execution_date = DateTimeWithTimezoneField(
-        "Execution date", widget=AirflowDateTimePickerWidget())
+    execution_date = DateTimeWithTimezoneField("Execution date", widget=AirflowDateTimePickerWidget())
 
 
 class DateTimeWithNumRunsForm(FlaskForm):
@@ -97,14 +105,19 @@ class DateTimeWithNumRunsForm(FlaskForm):
     """
 
     base_date = DateTimeWithTimezoneField(
-        "Anchor date", widget=AirflowDateTimePickerWidget(), default=timezone.utcnow())
-    num_runs = SelectField("Number of runs", default=25, choices=(
-        (5, "5"),
-        (25, "25"),
-        (50, "50"),
-        (100, "100"),
-        (365, "365"),
-    ))
+        "Anchor date", widget=AirflowDateTimePickerWidget(), default=timezone.utcnow()
+    )
+    num_runs = SelectField(
+        "Number of runs",
+        default=25,
+        choices=(
+            (5, "5"),
+            (25, "25"),
+            (50, "50"),
+            (100, "100"),
+            (365, "365"),
+        ),
+    )
 
 
 class DateTimeWithNumRunsWithDagRunsForm(DateTimeWithNumRunsForm):
@@ -116,33 +129,26 @@ class DateTimeWithNumRunsWithDagRunsForm(DateTimeWithNumRunsForm):
 class DagRunForm(DynamicForm):
     """Form for editing and adding DAG Run"""
 
-    dag_id = StringField(
-        lazy_gettext('Dag Id'),
-        validators=[DataRequired()],
-        widget=BS3TextFieldWidget())
-    start_date = DateTimeWithTimezoneField(
-        lazy_gettext('Start Date'),
-        widget=AirflowDateTimePickerWidget())
-    end_date = DateTimeWithTimezoneField(
-        lazy_gettext('End Date'),
-        widget=AirflowDateTimePickerWidget())
-    run_id = StringField(
-        lazy_gettext('Run Id'),
-        validators=[DataRequired()],
-        widget=BS3TextFieldWidget())
+    dag_id = StringField(lazy_gettext('Dag Id'), validators=[DataRequired()], widget=BS3TextFieldWidget())
+    start_date = DateTimeWithTimezoneField(lazy_gettext('Start Date'), widget=AirflowDateTimePickerWidget())
+    end_date = DateTimeWithTimezoneField(lazy_gettext('End Date'), widget=AirflowDateTimePickerWidget())
+    run_id = StringField(lazy_gettext('Run Id'), validators=[DataRequired()], widget=BS3TextFieldWidget())
     state = SelectField(
         lazy_gettext('State'),
-        choices=(('success', 'success'), ('running', 'running'), ('failed', 'failed'),),
-        widget=Select2Widget())
+        choices=(
+            ('success', 'success'),
+            ('running', 'running'),
+            ('failed', 'failed'),
+        ),
+        widget=Select2Widget(),
+    )
     execution_date = DateTimeWithTimezoneField(
-        lazy_gettext('Execution Date'),
-        widget=AirflowDateTimePickerWidget())
-    external_trigger = BooleanField(
-        lazy_gettext('External Trigger'))
+        lazy_gettext('Execution Date'), widget=AirflowDateTimePickerWidget()
+    )
+    external_trigger = BooleanField(lazy_gettext('External Trigger'))
     conf = TextAreaField(
-        lazy_gettext('Conf'),
-        validators=[ValidJson(), Optional()],
-        widget=BS3TextAreaFieldWidget())
+        lazy_gettext('Conf'), validators=[ValidJson(), Optional()], widget=BS3TextAreaFieldWidget()
+    )
 
     def populate_obj(self, item):
         """Populates the attributes of the passed obj with data from the form’s fields."""
@@ -214,83 +220,62 @@ _connection_types = [
 class ConnectionForm(DynamicForm):
     """Form for editing and adding Connection"""
 
-    conn_id = StringField(
-        lazy_gettext('Conn Id'),
-        widget=BS3TextFieldWidget())
+    conn_id = StringField(lazy_gettext('Conn Id'), widget=BS3TextFieldWidget())
     conn_type = SelectField(
         lazy_gettext('Conn Type'),
         choices=sorted(_connection_types, key=itemgetter(1)),  # pylint: disable=protected-access
-        widget=Select2Widget())
-    host = StringField(
-        lazy_gettext('Host'),
-        widget=BS3TextFieldWidget())
-    schema = StringField(
-        lazy_gettext('Schema'),
-        widget=BS3TextFieldWidget())
-    login = StringField(
-        lazy_gettext('Login'),
-        widget=BS3TextFieldWidget())
-    password = PasswordField(
-        lazy_gettext('Password'),
-        widget=BS3PasswordFieldWidget())
-    port = IntegerField(
-        lazy_gettext('Port'),
-        validators=[Optional()],
-        widget=BS3TextFieldWidget())
-    extra = TextAreaField(
-        lazy_gettext('Extra'),
-        widget=BS3TextAreaFieldWidget())
+        widget=Select2Widget(),
+    )
+    host = StringField(lazy_gettext('Host'), widget=BS3TextFieldWidget())
+    schema = StringField(lazy_gettext('Schema'), widget=BS3TextFieldWidget())
+    login = StringField(lazy_gettext('Login'), widget=BS3TextFieldWidget())
+    password = PasswordField(lazy_gettext('Password'), widget=BS3PasswordFieldWidget())
+    port = IntegerField(lazy_gettext('Port'), validators=[Optional()], widget=BS3TextFieldWidget())
+    extra = TextAreaField(lazy_gettext('Extra'), widget=BS3TextAreaFieldWidget())
 
     # Used to customized the form, the forms elements get rendered
     # and results are stored in the extra field as json. All of these
     # need to be prefixed with extra__ and then the conn_type ___ as in
     # extra__{conn_type}__name. You can also hide form elements and rename
     # others from the connection_form.js file
-    extra__jdbc__drv_path = StringField(
-        lazy_gettext('Driver Path'),
-        widget=BS3TextFieldWidget())
-    extra__jdbc__drv_clsname = StringField(
-        lazy_gettext('Driver Class'),
-        widget=BS3TextFieldWidget())
+    extra__jdbc__drv_path = StringField(lazy_gettext('Driver Path'), widget=BS3TextFieldWidget())
+    extra__jdbc__drv_clsname = StringField(lazy_gettext('Driver Class'), widget=BS3TextFieldWidget())
     extra__google_cloud_platform__project = StringField(
-        lazy_gettext('Project Id'),
-        widget=BS3TextFieldWidget())
+        lazy_gettext('Project Id'), widget=BS3TextFieldWidget()
+    )
     extra__google_cloud_platform__key_path = StringField(
-        lazy_gettext('Keyfile Path'),
-        widget=BS3TextFieldWidget())
+        lazy_gettext('Keyfile Path'), widget=BS3TextFieldWidget()
+    )
     extra__google_cloud_platform__keyfile_dict = PasswordField(
-        lazy_gettext('Keyfile JSON'),
-        widget=BS3PasswordFieldWidget())
+        lazy_gettext('Keyfile JSON'), widget=BS3PasswordFieldWidget()
+    )
     extra__google_cloud_platform__scope = StringField(
-        lazy_gettext('Scopes (comma separated)'),
-        widget=BS3TextFieldWidget())
+        lazy_gettext('Scopes (comma separated)'), widget=BS3TextFieldWidget()
+    )
     extra__google_cloud_platform__num_retries = IntegerField(
         lazy_gettext('Number of Retries'),
         validators=[NumberRange(min=0)],
         widget=BS3TextFieldWidget(),
-        default=5)
-    extra__grpc__auth_type = StringField(
-        lazy_gettext('Grpc Auth Type'),
-        widget=BS3TextFieldWidget())
+        default=5,
+    )
+    extra__grpc__auth_type = StringField(lazy_gettext('Grpc Auth Type'), widget=BS3TextFieldWidget())
     extra__grpc__credential_pem_file = StringField(
-        lazy_gettext('Credential Keyfile Path'),
-        widget=BS3TextFieldWidget())
-    extra__grpc__scopes = StringField(
-        lazy_gettext('Scopes (comma separated)'),
-        widget=BS3TextFieldWidget())
+        lazy_gettext('Credential Keyfile Path'), widget=BS3TextFieldWidget()
+    )
+    extra__grpc__scopes = StringField(lazy_gettext('Scopes (comma separated)'), widget=BS3TextFieldWidget())
     extra__yandexcloud__service_account_json = PasswordField(
         lazy_gettext('Service account auth JSON'),
         widget=BS3PasswordFieldWidget(),
         description='Service account auth JSON. Looks like '
-                    '{"id", "...", "service_account_id": "...", "private_key": "..."}. '
-                    'Will be used instead of OAuth token and SA JSON file path field if specified.',
+        '{"id", "...", "service_account_id": "...", "private_key": "..."}. '
+        'Will be used instead of OAuth token and SA JSON file path field if specified.',
     )
     extra__yandexcloud__service_account_json_path = StringField(
         lazy_gettext('Service account auth JSON file path'),
         widget=BS3TextFieldWidget(),
         description='Service account auth JSON file path. File content looks like '
-                    '{"id", "...", "service_account_id": "...", "private_key": "..."}. '
-                    'Will be used instead of OAuth token if specified.',
+        '{"id", "...", "service_account_id": "...", "private_key": "..."}. '
+        'Will be used instead of OAuth token if specified.',
     )
     extra__yandexcloud__oauth = PasswordField(
         lazy_gettext('OAuth Token'),
@@ -308,14 +293,11 @@ class ConnectionForm(DynamicForm):
         description='Optional. This key will be placed to all created Compute nodes'
         'to let you have a root shell there',
     )
-    extra__kubernetes__in_cluster = BooleanField(
-        lazy_gettext('In cluster configuration'))
+    extra__kubernetes__in_cluster = BooleanField(lazy_gettext('In cluster configuration'))
     extra__kubernetes__kube_config_path = StringField(
-        lazy_gettext('Kube config path'),
-        widget=BS3TextFieldWidget())
+        lazy_gettext('Kube config path'), widget=BS3TextFieldWidget()
+    )
     extra__kubernetes__kube_config = StringField(
-        lazy_gettext('Kube config (JSON format)'),
-        widget=BS3TextFieldWidget())
-    extra__kubernetes__namespace = StringField(
-        lazy_gettext('Namespace'),
-        widget=BS3TextFieldWidget())
+        lazy_gettext('Kube config (JSON format)'), widget=BS3TextFieldWidget()
+    )
+    extra__kubernetes__namespace = StringField(lazy_gettext('Namespace'), widget=BS3TextFieldWidget())

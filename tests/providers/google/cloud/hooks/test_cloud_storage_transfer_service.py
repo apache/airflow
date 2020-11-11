@@ -20,9 +20,9 @@ import json
 import re
 import unittest
 from copy import deepcopy
-
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
+
 from googleapiclient.errors import HttpError
 from parameterized import parameterized
 

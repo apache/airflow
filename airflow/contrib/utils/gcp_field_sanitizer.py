@@ -21,10 +21,12 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.providers.google.cloud.utils.field_sanitizer import (  # noqa
-    GcpBodyFieldSanitizer, GcpFieldSanitizerException,
+    GcpBodyFieldSanitizer,
+    GcpFieldSanitizerException,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.utils.field_sanitizer`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

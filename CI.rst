@@ -203,7 +203,8 @@ You can use those variables when you try to reproduce the build locally.
 |                                                           Image variables                                                          |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``INSTALL_AIRFLOW_VERSION``             |             |             |            | Installs Airflow version from PyPI when         |
-|                                         |             |             |            | building image.                                 |
+|                                         |             |             |            | building image. Can be "wheel" to install from  |
+|                                         |             |             |            | the wheel package instead.                      |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``INSTALL_AIRFLOW_REFERENCE``           |             |             |            | Installs Airflow version from GitHub            |
 |                                         |             |             |            | branch or tag.                                  |
@@ -361,12 +362,6 @@ Note that you need to set "CI" variable to true in order to get the same results
 | CI_EVENT_TYPE                | ``pull_request``     | Type of the event. It can be one of                 |
 |                              |                      | [``pull_request``, ``pull_request_target``,         |
 |                              |                      |  ``schedule``, ``push``]                            |
-+------------------------------+----------------------+-----------------------------------------------------+
-| CI_SOURCE_REPO               | ``apache/airflow``   | Source repository. This might be different than the |
-|                              |                      | ``CI_TARGET_REPO`` for pull requests                |
-+------------------------------+----------------------+-----------------------------------------------------+
-| CI_SOURCE_BRANCH             | ``master``           | Branch in the source repository that is used to     |
-|                              |                      | make the pull request.                              |
 +------------------------------+----------------------+-----------------------------------------------------+
 | CI_REF                       | ``refs/head/master`` | Branch in the source repository that is used to     |
 |                              |                      | make the pull request.                              |

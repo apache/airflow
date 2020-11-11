@@ -27,7 +27,7 @@ from datetime import datetime
 from io import BytesIO
 from os import path
 from tempfile import NamedTemporaryFile
-from typing import Callable, Optional, Sequence, Set, Tuple, TypeVar, Union, cast, List
+from typing import Callable, List, Optional, Sequence, Set, Tuple, TypeVar, Union, cast
 from urllib.parse import urlparse
 
 from google.api_core.exceptions import NotFound
@@ -383,7 +383,7 @@ class GCSHook(GoogleBaseHook):
             blob.upload_from_string(data, content_type=mime_type)
             self.log.info('Data stream uploaded to %s in %s bucket', object_name, bucket_name)
         else:
-            raise ValueError("'filename' and 'data' parameter missing. " "One is required to upload to gcs.")
+            raise ValueError("'filename' and 'data' parameter missing. One is required to upload to gcs.")
 
     def exists(self, bucket_name: str, object_name: str) -> bool:
         """
@@ -414,7 +414,7 @@ class GCSHook(GoogleBaseHook):
         bucket = client.bucket(bucket_name)
         blob = bucket.get_blob(blob_name=object_name)
         if blob is None:
-            raise ValueError("Object ({}) not found in Bucket ({})".format(object_name, bucket_name))
+            raise ValueError(f"Object ({object_name}) not found in Bucket ({bucket_name})")
         return blob.updated
 
     def is_updated_after(self, bucket_name: str, object_name: str, ts: datetime) -> bool:
@@ -630,7 +630,7 @@ class GCSHook(GoogleBaseHook):
         :type object_name: str
         """
         self.log.info(
-            'Retrieving the crc32c checksum of ' 'object_name: %s in bucket_name: %s',
+            'Retrieving the crc32c checksum of object_name: %s in bucket_name: %s',
             object_name,
             bucket_name,
         )
@@ -651,7 +651,7 @@ class GCSHook(GoogleBaseHook):
             storage bucket_name.
         :type object_name: str
         """
-        self.log.info('Retrieving the MD5 hash of ' 'object: %s in bucket: %s', object_name, bucket_name)
+        self.log.info('Retrieving the MD5 hash of object: %s in bucket: %s', object_name, bucket_name)
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
         blob = bucket.get_blob(blob_name=object_name)

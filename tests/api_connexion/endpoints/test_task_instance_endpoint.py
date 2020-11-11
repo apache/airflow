@@ -14,22 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
 import datetime as dt
 import getpass
+import unittest
 from unittest import mock
 
 from parameterized import parameterized
 
-from airflow.models import DagBag, DagRun, TaskInstance, SlaMiss
+from airflow.models import DagBag, DagRun, SlaMiss, TaskInstance
 from airflow.security import permissions
-from airflow.utils.types import DagRunType
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
+from airflow.utils.types import DagRunType
 from airflow.www import app
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
-from tests.test_utils.api_connexion_utils import create_user, delete_user, assert_401
 from tests.test_utils.db import clear_db_runs, clear_db_sla_miss
 
 DEFAULT_DATETIME_1 = datetime(2020, 1, 1)

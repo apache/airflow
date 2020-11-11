@@ -20,7 +20,7 @@ import getpass
 import os
 import warnings
 from io import StringIO
-from typing import Optional, Union, Tuple
+from typing import Optional, Tuple, Union
 
 import paramiko
 from paramiko.config import SSH_PORT
@@ -184,9 +184,7 @@ class SSHHook(BaseHook):
             )
             client.load_system_host_keys()
         if self.no_host_key_check:
-            self.log.warning(
-                'No Host Key Verification. This wont protect ' 'against Man-In-The-Middle attacks'
-            )
+            self.log.warning('No Host Key Verification. This wont protect against Man-In-The-Middle attacks')
             # Default is RejectPolicy
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         connect_kwargs = dict(

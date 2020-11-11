@@ -123,7 +123,7 @@ class PubSubPullSensor(BaseSensorOperator):
         # TODO: remove one day
         if project:
             warnings.warn(
-                "The project parameter has been deprecated. You should pass " "the project_id parameter.",
+                "The project parameter has been deprecated. You should pass the project_id parameter.",
                 DeprecationWarning,
                 stacklevel=2,
             )

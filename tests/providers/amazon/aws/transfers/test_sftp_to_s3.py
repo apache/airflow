@@ -81,7 +81,7 @@ class TestSFTPToS3Operator(unittest.TestCase):
         create_file_task = SSHOperator(
             task_id="test_create_file",
             ssh_hook=self.hook,
-            command="echo '{0}' > {1}".format(test_remote_file_content, self.sftp_path),
+            command=f"echo '{test_remote_file_content}' > {self.sftp_path}",
             do_xcom_push=True,
             dag=self.dag,
         )

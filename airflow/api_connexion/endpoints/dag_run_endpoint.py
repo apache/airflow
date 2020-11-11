@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from connexion import NoContent
-from flask import g, request, current_app
+from flask import current_app, g, request
 from marshmallow import ValidationError
 
 from airflow.api_connexion import security

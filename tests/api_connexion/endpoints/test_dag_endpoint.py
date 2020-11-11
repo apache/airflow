@@ -36,6 +36,7 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialize
 class TestDagEndpoint(unittest.TestCase):
     dag_id = "test_dag"
     task_id = "op1"
+    dag2_id = "test_dag2"
 
     @staticmethod
     def clean_db():
@@ -71,9 +72,13 @@ class TestDagEndpoint(unittest.TestCase):
         with DAG(cls.dag_id, start_date=datetime(2020, 6, 15), doc_md="details") as dag:
             DummyOperator(task_id=cls.task_id)
 
+        with DAG(cls.dag2_id, start_date=datetime(2020, 6, 15)) as dag2:  # no doc_md
+            DummyOperator(task_id=cls.task_id)
+
         cls.dag = dag  # type:ignore
+        cls.dag2 = dag2  # type: ignore
         dag_bag = DagBag(os.devnull, include_examples=False)
-        dag_bag.dags = {dag.dag_id: dag}
+        dag_bag.dags = {dag.dag_id: dag, dag2.dag_id: dag2}
         cls.app.dag_bag = dag_bag  # type:ignore
 
     @classmethod
@@ -215,6 +220,36 @@ class TestGetDagDetails(TestDagEndpoint):
         }
         assert response.json == expected
 
+    def test_should_response_200_with_doc_md_none(self):
+        response = self.client.get(
+            f"/api/v1/dags/{self.dag2_id}/details", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 200
+        expected = {
+            "catchup": True,
+            "concurrency": 16,
+            "dag_id": "test_dag2",
+            "dag_run_timeout": None,
+            "default_view": "tree",
+            "description": None,
+            "doc_md": None,
+            "fileloc": __file__,
+            "is_paused": None,
+            "is_subdag": False,
+            "orientation": "LR",
+            "owners": [],
+            "schedule_interval": {
+                "__type": "TimeDelta",
+                "days": 1,
+                "microseconds": 0,
+                "seconds": 0,
+            },
+            "start_date": "2020-06-15T00:00:00+00:00",
+            "tags": None,
+            "timezone": "Timezone('UTC')",
+        }
+        assert response.json == expected
+
     def test_should_respond_200_serialized(self):
         # Create empty app with empty dagbag to check if DAG is read from db
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
@@ -283,6 +318,21 @@ class TestGetDagDetails(TestDagEndpoint):
         response = self.client.get(f"/api/v1/dags/{self.dag_id}/details")
 
         assert_401(response)
+
+    def test_should_raise_404_when_dag_is_not_found(self):
+        response = self.client.get(
+            "/api/v1/dags/non_existing_dag_id/details", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 404
+        self.assertEqual(
+            response.json,
+            {
+                'detail': 'The DAG with dag_id: non_existing_dag_id was not found',
+                'status': 404,
+                'title': 'DAG not found',
+                'type': EXCEPTIONS_LINK_MAP[404],
+            },
+        )
 
 
 class TestGetDags(TestDagEndpoint):

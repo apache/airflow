@@ -19,8 +19,8 @@
 import datetime
 import decimal
 import unittest
-
 from unittest import mock
+
 from _mysql_exceptions import ProgrammingError
 from parameterized import parameterized
 

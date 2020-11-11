@@ -155,6 +155,10 @@ function needs_api_tests() {
     initialization::ga_output needs-api-tests "${@}"
 }
 
+function needs_api_codegen() {
+    initialization::ga_output needs-api-codegen "${@}"
+}
+
 function needs_javascript_scans() {
     initialization::ga_output needs-javascript-scans "${@}"
 }
@@ -184,6 +188,7 @@ readonly ALL_TESTS
 
 function set_outputs_run_everything_and_exit() {
     needs_api_tests "true"
+    needs_api_codegen "true"
     needs_helm_tests "true"
     needs_javascript_scans "true"
     needs_python_scans "true"
@@ -206,6 +211,7 @@ function set_outputs_run_all_tests() {
 
 function set_output_skip_all_tests_and_docs_and_exit() {
     needs_api_tests "false"
+    needs_api_codegen "false"
     needs_helm_tests "false"
     needs_javascript_scans "false"
     needs_python_scans "false"
@@ -220,6 +226,7 @@ function set_output_skip_all_tests_and_docs_and_exit() {
 
 function set_output_skip_tests_but_build_images_and_exit() {
     needs_api_tests "false"
+    needs_api_codegen "false"
     needs_helm_tests "false"
     needs_javascript_scans "false"
     needs_python_scans "false"
@@ -306,6 +313,20 @@ function check_if_api_tests_should_be_run() {
         needs_api_tests "false"
     else
         needs_api_tests "true"
+    fi
+}
+
+function check_if_api_codegen_should_be_run() {
+    local pattern_array=(
+        "^airflow/api_connexion/openapi/v1.yaml"
+        "^clients/gen"
+    )
+    show_changed_files
+
+    if [[ $(count_changed_files) == "0" ]]; then
+        needs_api_codegen "false"
+    else
+        needs_api_codegen "true"
     fi
 }
 
@@ -453,9 +474,8 @@ function get_count_kubernetes_files() {
     echo "Count Kubernetes files"
     echo
     local pattern_array=(
-        "^airflow/kubernetes"
         "^chart"
-        "^tests/kubernetes_tests"
+        "^kubernetes_tests"
     )
     show_changed_files
     COUNT_KUBERNETES_CHANGED_FILES=$(count_changed_files)
@@ -538,6 +558,7 @@ run_all_tests_if_environment_files_changed
 check_if_docs_should_be_generated
 check_if_helm_tests_should_be_run
 check_if_api_tests_should_be_run
+check_if_api_codegen_should_be_run
 check_if_javascript_security_scans_should_be_run
 check_if_python_security_scans_should_be_run
 check_if_tests_are_needed_at_all
@@ -555,7 +576,6 @@ if [[ ${image_build_needed} == "true" ]]; then
 else
     set_basic_checks_only "true"
 fi
-set_basic_checks_only "${image_build_needed}"
 set_docs_build "${docs_build_needed}"
 run_tests "${tests_needed}"
 run_kubernetes_tests "${kubernetes_tests_needed}"

@@ -24,5 +24,6 @@ from airflow.providers.docker.operators.docker import DockerOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.docker.operators.docker`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

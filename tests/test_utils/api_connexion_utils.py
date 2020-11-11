@@ -69,5 +69,5 @@ def assert_401(response):
         'detail': None,
         'status': 401,
         'title': 'Unauthorized',
-        'type': EXCEPTIONS_LINK_MAP[401]
+        'type': EXCEPTIONS_LINK_MAP[401],
     }

@@ -16,7 +16,7 @@
 # under the License.
 
 import json
-from typing import Optional, Dict, Any, Union
+from typing import Any, Dict, Optional, Union
 
 import yandexcloud
 

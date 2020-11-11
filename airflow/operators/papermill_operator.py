@@ -24,5 +24,6 @@ from airflow.providers.papermill.operators.papermill import PapermillOperator  #
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.papermill.operators.papermill`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

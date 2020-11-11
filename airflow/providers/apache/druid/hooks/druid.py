@@ -93,7 +93,7 @@ class DruidHook(BaseHook):
         self.log.info("Druid ingestion spec: %s", json_index_spec)
         req_index = requests.post(url, data=json_index_spec, headers=self.header, auth=self.get_auth())
         if req_index.status_code != 200:
-            raise AirflowException('Did not get 200 when ' 'submitting the Druid job to {}'.format(url))
+            raise AirflowException(f'Did not get 200 when submitting the Druid job to {url}')
 
         req_json = req_index.json()
         # Wait until the job is completed
@@ -104,13 +104,13 @@ class DruidHook(BaseHook):
 
         sec = 0
         while running:
-            req_status = requests.get("{0}/{1}/status".format(url, druid_task_id), auth=self.get_auth())
+            req_status = requests.get(f"{url}/{druid_task_id}/status", auth=self.get_auth())
 
             self.log.info("Job still running for %s seconds...", sec)
 
             if self.max_ingestion_time and sec > self.max_ingestion_time:
                 # ensure that the job gets killed if the max ingestion time is exceeded
-                requests.post("{0}/{1}/shutdown".format(url, druid_task_id), auth=self.get_auth())
+                requests.post(f"{url}/{druid_task_id}/shutdown", auth=self.get_auth())
                 raise AirflowException('Druid ingestion took more than ' f'{self.max_ingestion_time} seconds')
 
             time.sleep(self.timeout)
@@ -123,7 +123,7 @@ class DruidHook(BaseHook):
             elif status == 'SUCCESS':
                 running = False  # Great success!
             elif status == 'FAILED':
-                raise AirflowException('Druid indexing job failed, ' 'check console for more info')
+                raise AirflowException('Druid indexing job failed, check console for more info')
             else:
                 raise AirflowException(f'Could not get status of the job, got {status}')
 
@@ -165,10 +165,10 @@ class DruidDbApiHook(DbApiHook):
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         host = conn.host
         if conn.port is not None:
-            host += ':{port}'.format(port=conn.port)
+            host += f':{conn.port}'
         conn_type = 'druid' if not conn.conn_type else conn.conn_type
         endpoint = conn.extra_dejson.get('endpoint', 'druid/v2/sql')
-        return '{conn_type}://{host}/{endpoint}'.format(conn_type=conn_type, host=host, endpoint=endpoint)
+        return f'{conn_type}://{host}/{endpoint}'
 
     def set_autocommit(self, conn: connect, autocommit: bool) -> NotImplemented:
         raise NotImplementedError()

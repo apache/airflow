@@ -35,9 +35,10 @@ cluster using the [Helm](https://helm.sh) package manager.
 ## Installing the Chart
 
 To install this repository from source (using helm 3)
+
 ```bash
 kubectl create namespace airflow
-helm repo add stable https://kubernetes-charts.storage.googleapis.com
+helm repo add stable https://charts.helm.sh/stable/
 helm dep update
 helm install airflow . --namespace airflow
 ```
@@ -48,6 +49,7 @@ section lists the parameters that can be configured during installation.
 > **Tip**: List all releases using `helm list`
 
 ## Upgrading the Chart
+
 To upgrade the chart with the release name `airflow`:
 
 ```bash
@@ -90,6 +92,7 @@ helm upgrade airflow . \
 ```
 
 ## Mounting DAGS using Git-Sync side car without Persistence
+
 This option will use an always running Git-Sync side car on every scheduler,webserver and worker pods. The Git-Sync side car containers will sync DAGs from a git repository every configured number of seconds. If you are using the KubernetesExecutor, Git-sync will run as an initContainer on your worker pods.
 
 ```bash
@@ -102,6 +105,7 @@ helm upgrade airflow . \
 ```
 
 ## Mounting DAGS from an externally populated PVC
+
 In this approach, Airflow will read the DAGs from a PVC which has `ReadOnlyMany` or `ReadWriteMany` accessMode. You will have to ensure that the PVC is populated/updated with the required DAGs(this won't be handled by the chart). You can pass in the name of the  volume claim to the chart
 
 ```bash
@@ -142,17 +146,17 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `images.flower.repository`                            | Docker repository to pull image from. Update this to deploy a custom image                                   | `~`                                               |
 | `images.flower.tag`                                   | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `~`                                               |
 | `images.flower.pullPolicy`                            | PullPolicy for flower image                                                                                  | `IfNotPresent`                                    |
-| `images.statsd.repository`                            | Docker repository to pull image from. Update this to deploy a custom image                                   | `astronomerinc/ap-statsd-exporter`                |
-| `images.statsd.tag`                                   | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `~`                                               |
+| `images.statsd.repository`                            | Docker repository to pull image from. Update this to deploy a custom image                                   | `apache/airflow`                                  |
+| `images.statsd.tag`                                   | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `airflow-statsd-exporter-2020.09.05-v0.17.0`      |
 | `images.statsd.pullPolicy`                            | PullPolicy for statsd-exporter image                                                                         | `IfNotPresent`                                    |
 | `images.redis.repository`                             | Docker repository to pull image from. Update this to deploy a custom image                                   | `redis`                                           |
 | `images.redis.tag`                                    | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `6-buster`                                        |
 | `images.redis.pullPolicy`                             | PullPolicy for redis image                                                                                   | `IfNotPresent`                                    |
-| `images.pgbouncer.repository`                         | Docker repository to pull image from. Update this to deploy a custom image                                   | `astronomerinc/ap-pgbouncer`                      |
-| `images.pgbouncer.tag`                                | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `~`                                               |
+| `images.pgbouncer.repository`                         | Docker repository to pull image from. Update this to deploy a custom image                                   | `apache/airflow`                                  |
+| `images.pgbouncer.tag`                                | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `airflow-pgbouncer-2020.09.05-1.14.0`             |
 | `images.pgbouncer.pullPolicy`                         | PullPolicy for pgbouncer image                                                                               | `IfNotPresent`                                    |
-| `images.pgbouncerExporter.repository`                 | Docker repository to pull image from. Update this to deploy a custom image                                   | `astronomerinc/ap-pgbouncer-exporter`             |
-| `images.pgbouncerExporter.tag`                        | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `~`                                               |
+| `images.pgbouncerExporter.repository`                 | Docker repository to pull image from. Update this to deploy a custom image                                   | `apache/airflow`                                  |
+| `images.pgbouncerExporter.tag`                        | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `airflow-pgbouncer-exporter-2020.09.25-0.5.0`     |
 | `images.pgbouncerExporter.pullPolicy`                 | PullPolicy for pgbouncer-exporter image                                                                      | `IfNotPresent`                                    |
 | `env`                                                 | Environment variables key/values to mount into Airflow pods                                                  | `[]`                                              |
 | `secret`                                              | Secret name/key pairs to mount into Airflow pods                                                             | `[]`                                              |
@@ -229,7 +233,7 @@ helm install --name my-release \
   --set enablePodLaunching=false .
 ```
 
-##  Autoscaling with KEDA
+## Autoscaling with KEDA
 
 KEDA stands for Kubernetes Event Driven Autoscaling. [KEDA](https://github.com/kedacore/keda) is a custom controller that allows users to create custom bindings
 to the Kubernetes [Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/).
@@ -300,7 +304,7 @@ helm list -n airflow
 ```
 
 Run `kubectl port-forward svc/airflow-webserver 8080:8080 -n airflow`
-to port-forward the Airflow UI to http://localhost:8080/ to cofirm Airflow is working.
+to port-forward the Airflow UI to http://localhost:8080/ to confirm Airflow is working.
 
 **Build a Docker image from your DAGs:**
 

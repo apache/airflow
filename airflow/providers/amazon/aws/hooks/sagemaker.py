@@ -22,7 +22,7 @@ import tempfile
 import time
 import warnings
 from functools import partial
-from typing import Dict, List, Optional, Set, Any, Callable, Generator
+from typing import Any, Callable, Dict, Generator, List, Optional, Set
 
 from botocore.exceptions import ClientError
 
@@ -205,7 +205,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         """
         bucket, key = S3Hook.parse_s3_url(s3url)
         if not self.s3_hook.check_for_bucket(bucket_name=bucket):
-            raise AirflowException("The input S3 Bucket {} does not exist ".format(bucket))
+            raise AirflowException(f"The input S3 Bucket {bucket} does not exist ")
         if (
             key
             and not self.s3_hook.check_for_key(key=key, bucket_name=bucket)
@@ -215,7 +215,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             # or if s3 prefix exists in the case user provides multiple files in
             # a prefix
             raise AirflowException(
-                "The input S3 Key " "or Prefix {} does not exist in the Bucket {}".format(s3url, bucket)
+                f"The input S3 Key or Prefix {s3url} does not exist in the Bucket {bucket}"
             )
         return True
 
@@ -731,7 +731,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             try:
                 response = describe_function(job_name)
                 status = response[key]
-                self.log.info('Job still running for %s seconds... ' 'current status is %s', sec, status)
+                self.log.info('Job still running for %s seconds... current status is %s', sec, status)
             except KeyError:
                 raise AirflowException('Could not get status of the SageMaker job')
             except ClientError:
@@ -842,7 +842,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             status = last_description['TrainingJobStatus']
             if status in failed_states:
                 reason = last_description.get('FailureReason', '(No reason provided)')
-                raise AirflowException('Error training {}: {} Reason: {}'.format(job_name, status, reason))
+                raise AirflowException(f'Error training {job_name}: {status} Reason: {reason}')
             billable_time = (
                 last_description['TrainingEndTime'] - last_description['TrainingStartTime']
             ) * instance_count

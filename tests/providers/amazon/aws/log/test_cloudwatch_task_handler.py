@@ -49,7 +49,7 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
         self.filename_template = '{dag_id}/{task_id}/{execution_date}/{try_number}.log'
         self.cloudwatch_task_handler = CloudwatchTaskHandler(
             self.local_log_location,
-            "arn:aws:logs:{}:11111111:log-group:{}".format(self.region_name, self.remote_log_group),
+            f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",
             self.filename_template,
         )
         self.cloudwatch_task_handler.hook
@@ -80,7 +80,7 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
     def test_hook_raises(self):
         handler = CloudwatchTaskHandler(
             self.local_log_location,
-            "arn:aws:logs:{}:11111111:log-group:{}".format(self.region_name, self.remote_log_group),
+            f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",
             self.filename_template,
         )
 

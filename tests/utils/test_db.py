@@ -32,7 +32,6 @@ from airflow.utils.db import create_default_connections
 
 
 class TestDb(unittest.TestCase):
-
     def test_database_schema_and_sqlalchemy_model_are_in_sync(self):
         all_meta_data = MetaData()
         for (table_name, table) in airflow_base.metadata.tables.items():
@@ -45,62 +44,35 @@ class TestDb(unittest.TestCase):
         # known diffs to ignore
         ignores = [
             # ignore tables created by celery
-            lambda t: (t[0] == 'remove_table' and
-                       t[1].name == 'celery_taskmeta'),
-            lambda t: (t[0] == 'remove_table' and
-                       t[1].name == 'celery_tasksetmeta'),
-
+            lambda t: (t[0] == 'remove_table' and t[1].name == 'celery_taskmeta'),
+            lambda t: (t[0] == 'remove_table' and t[1].name == 'celery_tasksetmeta'),
             # ignore indices created by celery
-            lambda t: (t[0] == 'remove_index' and
-                       t[1].name == 'task_id'),
-            lambda t: (t[0] == 'remove_index' and
-                       t[1].name == 'taskset_id'),
-
+            lambda t: (t[0] == 'remove_index' and t[1].name == 'task_id'),
+            lambda t: (t[0] == 'remove_index' and t[1].name == 'taskset_id'),
             # Ignore all the fab tables
-            lambda t: (t[0] == 'remove_table' and
-                       t[1].name == 'ab_permission'),
-            lambda t: (t[0] == 'remove_table' and
-                       t[1].name == 'ab_register_user'),
-            lambda t: (t[0] == 'remove_table' and
-                       t[1].name == 'ab_role'),
-            lambda t: (t[0] == 'remove_table' and
-                       t[1].name == 'ab_permission_view'),
-            lambda t: (t[0] == 'remove_table' and
-                       t[1].name == 'ab_permission_view_role'),
-            lambda t: (t[0] == 'remove_table' and
-                       t[1].name == 'ab_user_role'),
-            lambda t: (t[0] == 'remove_table' and
-                       t[1].name == 'ab_user'),
-            lambda t: (t[0] == 'remove_table' and
-                       t[1].name == 'ab_view_menu'),
-
+            lambda t: (t[0] == 'remove_table' and t[1].name == 'ab_permission'),
+            lambda t: (t[0] == 'remove_table' and t[1].name == 'ab_register_user'),
+            lambda t: (t[0] == 'remove_table' and t[1].name == 'ab_role'),
+            lambda t: (t[0] == 'remove_table' and t[1].name == 'ab_permission_view'),
+            lambda t: (t[0] == 'remove_table' and t[1].name == 'ab_permission_view_role'),
+            lambda t: (t[0] == 'remove_table' and t[1].name == 'ab_user_role'),
+            lambda t: (t[0] == 'remove_table' and t[1].name == 'ab_user'),
+            lambda t: (t[0] == 'remove_table' and t[1].name == 'ab_view_menu'),
             # Ignore all the fab indices
-            lambda t: (t[0] == 'remove_index' and
-                       t[1].name == 'permission_id'),
-            lambda t: (t[0] == 'remove_index' and
-                       t[1].name == 'name'),
-            lambda t: (t[0] == 'remove_index' and
-                       t[1].name == 'user_id'),
-            lambda t: (t[0] == 'remove_index' and
-                       t[1].name == 'username'),
-            lambda t: (t[0] == 'remove_index' and
-                       t[1].name == 'field_string'),
-            lambda t: (t[0] == 'remove_index' and
-                       t[1].name == 'email'),
-            lambda t: (t[0] == 'remove_index' and
-                       t[1].name == 'permission_view_id'),
-
+            lambda t: (t[0] == 'remove_index' and t[1].name == 'permission_id'),
+            lambda t: (t[0] == 'remove_index' and t[1].name == 'name'),
+            lambda t: (t[0] == 'remove_index' and t[1].name == 'user_id'),
+            lambda t: (t[0] == 'remove_index' and t[1].name == 'username'),
+            lambda t: (t[0] == 'remove_index' and t[1].name == 'field_string'),
+            lambda t: (t[0] == 'remove_index' and t[1].name == 'email'),
+            lambda t: (t[0] == 'remove_index' and t[1].name == 'permission_view_id'),
             # from test_security unit test
-            lambda t: (t[0] == 'remove_table' and
-                       t[1].name == 'some_model'),
+            lambda t: (t[0] == 'remove_table' and t[1].name == 'some_model'),
         ]
         for ignore in ignores:
             diff = [d for d in diff if not ignore(d)]
 
-        self.assertFalse(
-            diff,
-            'Database schema and SQLAlchemy model are not in sync: ' + str(diff)
-        )
+        self.assertFalse(diff, 'Database schema and SQLAlchemy model are not in sync: ' + str(diff))
 
     def test_only_single_head_revision_in_migrations(self):
         config = Config()

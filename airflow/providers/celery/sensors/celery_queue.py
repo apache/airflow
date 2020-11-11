@@ -77,4 +77,4 @@ class CeleryQueueSensor(BaseSensorOperator):
 
             return reserved == 0 and scheduled == 0 and active == 0
         except KeyError:
-            raise KeyError('Could not locate Celery queue {0}'.format(self.celery_queue))
+            raise KeyError(f'Could not locate Celery queue {self.celery_queue}')

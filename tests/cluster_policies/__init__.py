@@ -24,10 +24,12 @@ from airflow.models.baseoperator import BaseOperator
 
 # [START example_cluster_policy_rule]
 def task_must_have_owners(task: BaseOperator):
-    if not task.owner or task.owner.lower() == conf.get('operators',
-                                                        'default_owner'):
+    if not task.owner or task.owner.lower() == conf.get('operators', 'default_owner'):
         raise AirflowClusterPolicyViolation(
-            f'''Task must have non-None non-default owner. Current value: {task.owner}''')
+            f'''Task must have non-None non-default owner. Current value: {task.owner}'''
+        )
+
+
 # [END example_cluster_policy_rule]
 
 
@@ -50,10 +52,13 @@ def _check_task_rules(current_task: BaseOperator):
         raise AirflowClusterPolicyViolation(
             f"DAG policy violation (DAG ID: {current_task.dag_id}, Path: {current_task.dag.filepath}):\n"
             f"Notices:\n"
-            f"{notices_list}")
+            f"{notices_list}"
+        )
 
 
 def cluster_policy(task: BaseOperator):
     """Ensure Tasks have non-default owners."""
     _check_task_rules(task)
+
+
 # [END example_list_of_cluster_policy_rules]

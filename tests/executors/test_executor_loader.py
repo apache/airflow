@@ -38,44 +38,37 @@ class FakePlugin(plugins_manager.AirflowPlugin):
 
 
 class TestExecutorLoader(unittest.TestCase):
-
     def setUp(self) -> None:
         ExecutorLoader._default_executor = None
 
     def tearDown(self) -> None:
         ExecutorLoader._default_executor = None
 
-    @parameterized.expand([
-        ("CeleryExecutor", ),
-        ("CeleryKubernetesExecutor", ),
-        ("DebugExecutor", ),
-        ("KubernetesExecutor", ),
-        ("LocalExecutor", ),
-    ])
+    @parameterized.expand(
+        [
+            ("CeleryExecutor",),
+            ("CeleryKubernetesExecutor",),
+            ("DebugExecutor",),
+            ("KubernetesExecutor",),
+            ("LocalExecutor",),
+        ]
+    )
     def test_should_support_executor_from_core(self, executor_name):
-        with conf_vars({
-            ("core", "executor"): executor_name
-        }):
+        with conf_vars({("core", "executor"): executor_name}):
             executor = ExecutorLoader.get_default_executor()
             self.assertIsNotNone(executor)
             self.assertEqual(executor_name, executor.__class__.__name__)
 
-    @mock.patch("airflow.plugins_manager.plugins", [
-        FakePlugin()
-    ])
+    @mock.patch("airflow.plugins_manager.plugins", [FakePlugin()])
     @mock.patch("airflow.plugins_manager.executors_modules", None)
     def test_should_support_plugins(self):
-        with conf_vars({
-            ("core", "executor"): f"{TEST_PLUGIN_NAME}.FakeExecutor"
-        }):
+        with conf_vars({("core", "executor"): f"{TEST_PLUGIN_NAME}.FakeExecutor"}):
             executor = ExecutorLoader.get_default_executor()
             self.assertIsNotNone(executor)
             self.assertEqual("FakeExecutor", executor.__class__.__name__)
 
     def test_should_support_custom_path(self):
-        with conf_vars({
-            ("core", "executor"): "tests.executors.test_executor_loader.FakeExecutor"
-        }):
+        with conf_vars({("core", "executor"): "tests.executors.test_executor_loader.FakeExecutor"}):
             executor = ExecutorLoader.get_default_executor()
             self.assertIsNotNone(executor)
             self.assertEqual("FakeExecutor", executor.__class__.__name__)

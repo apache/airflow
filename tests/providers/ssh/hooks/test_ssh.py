@@ -16,13 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 import json
-import unittest
-from io import StringIO
-
-from typing import Optional
 import random
 import string
+import unittest
+from io import StringIO
+from typing import Optional
 from unittest import mock
+
 import paramiko
 
 from airflow.models import Connection
@@ -82,7 +82,7 @@ class TestSSHHook(unittest.TestCase):
                 conn_id=cls.CONN_SSH_WITH_EXTRA,
                 host='localhost',
                 conn_type='ssh',
-                extra='{"compress" : true, "no_host_key_check" : "true", ' '"allow_host_key_change": false}',
+                extra='{"compress" : true, "no_host_key_check" : "true", "allow_host_key_change": false}',
             )
         )
         db.merge_conn(

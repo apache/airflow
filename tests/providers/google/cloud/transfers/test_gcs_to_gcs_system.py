@@ -41,14 +41,14 @@ class GcsToGcsExampleDagsSystemTest(GoogleSystemTest):
             self.create_gcs_bucket(name)
 
         # 2. Prepare parents
-        first_parent = "gs://{}/parent-1.bin".format(BUCKET_1_SRC)
-        second_parent = "gs://{}/parent-2.bin".format(BUCKET_1_SRC)
+        first_parent = f"gs://{BUCKET_1_SRC}/parent-1.bin"
+        second_parent = f"gs://{BUCKET_1_SRC}/parent-2.bin"
 
         self.execute_with_ctx(
             [
                 "bash",
                 "-c",
-                "cat /dev/urandom | head -c $((1 * 1024 * 1024)) | gsutil cp - {}".format(first_parent),
+                f"cat /dev/urandom | head -c $((1 * 1024 * 1024)) | gsutil cp - {first_parent}",
             ],
             key=GCP_GCS_KEY,
         )
@@ -57,7 +57,7 @@ class GcsToGcsExampleDagsSystemTest(GoogleSystemTest):
             [
                 "bash",
                 "-c",
-                "cat /dev/urandom | head -c $((1 * 1024 * 1024)) | gsutil cp - {}".format(second_parent),
+                f"cat /dev/urandom | head -c $((1 * 1024 * 1024)) | gsutil cp - {second_parent}",
             ],
             key=GCP_GCS_KEY,
         )

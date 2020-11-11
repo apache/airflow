@@ -24,5 +24,6 @@ from airflow.providers.mongo.hooks.mongo import MongoHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.mongo.hooks.mongo`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

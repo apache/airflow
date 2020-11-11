@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+export MOUNT_LOCAL_SOURCES="false"
+
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
@@ -26,7 +28,9 @@ function run_test_package_import_all_classes() {
         -v "${AIRFLOW_SOURCES}/setup.cfg:/airflow_sources/setup.cfg:cached" \
         -v "${AIRFLOW_SOURCES}/airflow/__init__.py:/airflow_sources/airflow/__init__.py:cached" \
         -v "${AIRFLOW_SOURCES}/airflow/version.py:/airflow_sources/airflow/version.py:cached" \
-        -v "${AIRFLOW_SOURCES}/provider_packages/import_all_provider_classes.py:/import_all_provider_classes.py:cached" \
+        -v "${AIRFLOW_SOURCES}/empty:/opt/airflow/airflow:cached" \
+        -v "${AIRFLOW_SOURCES}/scripts/in_container:/opt/airflow/scripts/in_container:cached" \
+        -v "${AIRFLOW_SOURCES}/dev/import_all_classes.py:/opt/airflow/dev/import_all_classes.py:cached" \
         "${AIRFLOW_CI_IMAGE}" \
         "--" "/opt/airflow/scripts/in_container/run_test_package_import_all_classes.sh"
 }

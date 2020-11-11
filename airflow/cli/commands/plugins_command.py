@@ -25,9 +25,6 @@ from airflow import plugins_manager
 PLUGINS_MANAGER_ATTRIBUTES_TO_DUMP = [
     "plugins",
     "import_errors",
-    "operators_modules",
-    "sensors_modules",
-    "hooks_modules",
     "macros_modules",
     "executors_modules",
     "flask_blueprints",
@@ -39,8 +36,6 @@ PLUGINS_MANAGER_ATTRIBUTES_TO_DUMP = [
 ]
 # list to maintain the order of items.
 PLUGINS_ATTRIBUTES_TO_DUMP = [
-    "operators",
-    "sensors",
     "hooks",
     "executors",
     "macros",
@@ -63,7 +58,7 @@ def dump_plugins(args):
     plugins_manager.log.setLevel(logging.DEBUG)
 
     plugins_manager.ensure_plugins_loaded()
-    plugins_manager.integrate_dag_plugins()
+    plugins_manager.integrate_macros_plugins()
     plugins_manager.integrate_executor_plugins()
     plugins_manager.initialize_extra_operators_links_plugins()
     plugins_manager.initialize_web_ui_plugins()

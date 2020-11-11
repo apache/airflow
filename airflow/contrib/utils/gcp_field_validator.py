@@ -21,10 +21,13 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.providers.google.cloud.utils.field_validator import (  # noqa
-    GcpBodyFieldValidator, GcpFieldValidationException, GcpValidationSpecificationException,
+    GcpBodyFieldValidator,
+    GcpFieldValidationException,
+    GcpValidationSpecificationException,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.utils.field_validator`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

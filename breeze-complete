@@ -60,6 +60,7 @@ _breeze_allowed_install_airflow_versions=$(cat <<-EOF
 1.10.4
 1.10.3
 1.10.2
+wheel
 EOF
 )
 
@@ -97,18 +98,22 @@ isort
 language-matters
 lint-dockerfile
 lint-openapi
+markdownlint
 mermaid
 mixed-line-ending
 mypy
 mypy-helm
+no-providers-in-core-examples
 no-relative-imports
 pre-commit-descriptions
 provide-create-sessions
+providers-init-file
 pydevd
 pydocstyle
 pylint
 pylint-tests
 python-no-log-warn
+pyupgrade
 restrict-start_date
 rst-backticks
 setup-order
@@ -121,6 +126,7 @@ update-breeze-file
 update-extras
 update-local-yml-file
 update-setup-cfg-file
+version-sync
 yamllint
 EOF
 )

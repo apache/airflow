@@ -16,8 +16,8 @@
 # under the License.
 
 import unittest
-
 from unittest import mock
+
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException

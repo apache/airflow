@@ -25,7 +25,7 @@ from copy import deepcopy
 from datetime import timedelta
 from typing import List, Optional, Sequence, Set, Union
 
-from googleapiclient.discovery import build, Resource
+from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException

@@ -27,6 +27,7 @@ CONFIG_TEMPLATES_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "config_t
 DEFAULT_AIRFLOW_SECTIONS = [
     'core',
     "logging",
+    "metrics",
     'secrets',
     'cli',
     'debug',
@@ -69,24 +70,34 @@ DEFAULT_TEST_SECTIONS = [
     'admin',
     'elasticsearch',
     'elasticsearch_configs',
-    'kubernetes'
+    'kubernetes',
 ]
 
 
 class TestAirflowCfg(unittest.TestCase):
-    @parameterized.expand([
-        ("default_airflow.cfg",),
-        ("default_test.cfg",),
-    ])
+    @parameterized.expand(
+        [
+            ("default_airflow.cfg",),
+            ("default_test.cfg",),
+        ]
+    )
     def test_should_be_ascii_file(self, filename: str):
         with open(os.path.join(CONFIG_TEMPLATES_FOLDER, filename), "rb") as f:
             content = f.read().decode("ascii")
         self.assertTrue(content)
 
-    @parameterized.expand([
-        ("default_airflow.cfg", DEFAULT_AIRFLOW_SECTIONS,),
-        ("default_test.cfg", DEFAULT_TEST_SECTIONS,),
-    ])
+    @parameterized.expand(
+        [
+            (
+                "default_airflow.cfg",
+                DEFAULT_AIRFLOW_SECTIONS,
+            ),
+            (
+                "default_test.cfg",
+                DEFAULT_TEST_SECTIONS,
+            ),
+        ]
+    )
     def test_should_be_ini_file(self, filename: str, expected_sections):
         filepath = os.path.join(CONFIG_TEMPLATES_FOLDER, filename)
         config = configparser.ConfigParser()

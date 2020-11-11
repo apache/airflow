@@ -24,12 +24,14 @@ from airflow.utils.docs import get_docs_url
 
 
 class TestGetDocsUrl(unittest.TestCase):
-    @parameterized.expand([
-        ('2.0.0.dev0', None, 'https://airflow.readthedocs.io/en/latest/'),
-        ('2.0.0.dev0', 'migration.html', 'https://airflow.readthedocs.io/en/latest/migration.html'),
-        ('1.10.0', None, 'https://airflow.apache.org/docs/1.10.0/'),
-        ('1.10.0', 'migration.html', 'https://airflow.apache.org/docs/1.10.0/migration.html'),
-    ])
+    @parameterized.expand(
+        [
+            ('2.0.0.dev0', None, 'https://airflow.readthedocs.io/en/latest/'),
+            ('2.0.0.dev0', 'migration.html', 'https://airflow.readthedocs.io/en/latest/migration.html'),
+            ('1.10.0', None, 'https://airflow.apache.org/docs/1.10.0/'),
+            ('1.10.0', 'migration.html', 'https://airflow.apache.org/docs/1.10.0/migration.html'),
+        ]
+    )
     def test_should_return_link(self, version, page, expected_urk):
         with mock.patch('airflow.version.version', version):
             self.assertEqual(expected_urk, get_docs_url(page))

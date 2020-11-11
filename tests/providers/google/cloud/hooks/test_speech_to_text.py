@@ -18,7 +18,6 @@
 #
 
 import unittest
-
 from unittest.mock import PropertyMock, patch
 
 from airflow.providers.google.cloud.hooks.speech_to_text import CloudSpeechToTextHook

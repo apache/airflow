@@ -24,13 +24,13 @@ from parameterized import parameterized
 
 from airflow.api_connexion.schemas.task_instance_schema import (
     clear_task_instance_form,
-    task_instance_schema,
     set_task_instance_state_form,
+    task_instance_schema,
 )
 from airflow.models import DAG, SlaMiss, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.utils.state import State
 from airflow.utils.session import create_session, provide_session
+from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
 

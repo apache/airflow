@@ -259,7 +259,7 @@ class ClusterGenerator:
 
         if self.internal_ip_only:
             if not self.subnetwork_uri:
-                raise AirflowException("Set internal_ip_only to true only when" " you pass a subnetwork_uri.")
+                raise AirflowException("Set internal_ip_only to true only when you pass a subnetwork_uri.")
             cluster_data['gce_cluster_config']['internal_ip_only'] = True
 
         if self.tags:
@@ -1476,7 +1476,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
             mime_type='application/x-python',
             filename=local_file,
         )
-        return "gs://{}/{}".format(bucket, temp_filename)
+        return f"gs://{bucket}/{temp_filename}"
 
     @apply_defaults
     def __init__(
@@ -1517,7 +1517,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
                 project_id=self.hook.project_id, region=self.region, cluster_name=self.cluster_name
             )
             bucket = cluster_info['config']['config_bucket']
-            self.main = "gs://{}/{}".format(bucket, self.main)
+            self.main = f"gs://{bucket}/{self.main}"
         self.job_template.set_python_main(self.main)
         self.job_template.add_args(self.arguments)
         self.job_template.add_archive_uris(self.archives)
@@ -1699,6 +1699,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
     """
 
     template_fields = ['template', 'impersonation_chain']
+    template_fields_renderers = {"template": "json"}
 
     @apply_defaults
     def __init__(

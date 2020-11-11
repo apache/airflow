@@ -17,8 +17,8 @@
 # under the License.
 
 import unittest
-
 from unittest import mock
+
 from slack.errors import SlackApiError
 
 from airflow.exceptions import AirflowException

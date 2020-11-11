@@ -33,6 +33,7 @@ class MetastoreBackend(BaseSecretsBackend):
     @provide_session
     def get_connections(self, conn_id, session=None) -> List['Connection']:
         from airflow.models.connection import Connection
+
         conn_list = session.query(Connection).filter(Connection.conn_id == conn_id).all()
         session.expunge_all()
         return conn_list
@@ -46,6 +47,7 @@ class MetastoreBackend(BaseSecretsBackend):
         :return: Variable Value
         """
         from airflow.models.variable import Variable
+
         var_value = session.query(Variable).filter(Variable.key == key).first()
         session.expunge_all()
         if var_value:

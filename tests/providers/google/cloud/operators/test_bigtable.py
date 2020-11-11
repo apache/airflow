@@ -79,7 +79,7 @@ class TestBigtableInstanceCreate(unittest.TestCase):
                 gcp_conn_id=GCP_CONN_ID,
             )
         err = e.exception
-        self.assertEqual(str(err), 'Empty parameter: {}'.format(missing_attribute))
+        self.assertEqual(str(err), f'Empty parameter: {missing_attribute}')
         mock_hook.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
@@ -301,7 +301,7 @@ class TestBigtableInstanceUpdate(unittest.TestCase):
                 task_id="id",
             )
         err = e.exception
-        self.assertEqual(str(err), 'Empty parameter: {}'.format(missing_attribute))
+        self.assertEqual(str(err), f'Empty parameter: {missing_attribute}')
         mock_hook.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
@@ -322,7 +322,7 @@ class TestBigtableInstanceUpdate(unittest.TestCase):
             op.execute(None)
 
         err = e.exception
-        self.assertEqual(str(err), "Dependency: instance '{}' does not exist.".format(INSTANCE_ID))
+        self.assertEqual(str(err), f"Dependency: instance '{INSTANCE_ID}' does not exist.")
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -347,7 +347,7 @@ class TestBigtableInstanceUpdate(unittest.TestCase):
             op.execute(None)
 
         err = e.exception
-        self.assertEqual(str(err), "Dependency: instance '{}' does not exist.".format(INSTANCE_ID))
+        self.assertEqual(str(err), f"Dependency: instance '{INSTANCE_ID}' does not exist.")
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -409,7 +409,7 @@ class TestBigtableClusterUpdate(unittest.TestCase):
                 gcp_conn_id=GCP_CONN_ID,
             )
         err = e.exception
-        self.assertEqual(str(err), 'Empty parameter: {}'.format(missing_attribute))
+        self.assertEqual(str(err), f'Empty parameter: {missing_attribute}')
         mock_hook.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
@@ -429,7 +429,7 @@ class TestBigtableClusterUpdate(unittest.TestCase):
             op.execute(None)
 
         err = e.exception
-        self.assertEqual(str(err), "Dependency: instance '{}' does not exist.".format(INSTANCE_ID))
+        self.assertEqual(str(err), f"Dependency: instance '{INSTANCE_ID}' does not exist.")
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -452,7 +452,7 @@ class TestBigtableClusterUpdate(unittest.TestCase):
             op.execute(None)
 
         err = e.exception
-        self.assertEqual(str(err), "Dependency: instance '{}' does not exist.".format(INSTANCE_ID))
+        self.assertEqual(str(err), f"Dependency: instance '{INSTANCE_ID}' does not exist.")
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -481,7 +481,7 @@ class TestBigtableClusterUpdate(unittest.TestCase):
         err = e.exception
         self.assertEqual(
             str(err),
-            "Dependency: cluster '{}' does not exist for instance '{}'.".format(CLUSTER_ID, INSTANCE_ID),
+            f"Dependency: cluster '{CLUSTER_ID}' does not exist for instance '{INSTANCE_ID}'.",
         )
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -512,7 +512,7 @@ class TestBigtableClusterUpdate(unittest.TestCase):
         err = e.exception
         self.assertEqual(
             str(err),
-            "Dependency: cluster '{}' does not exist for instance '{}'.".format(CLUSTER_ID, INSTANCE_ID),
+            f"Dependency: cluster '{CLUSTER_ID}' does not exist for instance '{INSTANCE_ID}'.",
         )
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -597,7 +597,7 @@ class TestBigtableInstanceDelete(unittest.TestCase):
         with self.assertRaises(AirflowException) as e:
             BigtableDeleteInstanceOperator(project_id=project_id, instance_id=instance_id, task_id="id")
         err = e.exception
-        self.assertEqual(str(err), 'Empty parameter: {}'.format(missing_attribute))
+        self.assertEqual(str(err), f'Empty parameter: {missing_attribute}')
         mock_hook.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
@@ -704,7 +704,7 @@ class TestBigtableTableDelete(unittest.TestCase):
                 gcp_conn_id=GCP_CONN_ID,
             )
         err = e.exception
-        self.assertEqual(str(err), 'Empty parameter: {}'.format(missing_attribute))
+        self.assertEqual(str(err), f'Empty parameter: {missing_attribute}')
         mock_hook.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
@@ -767,7 +767,7 @@ class TestBigtableTableDelete(unittest.TestCase):
         with self.assertRaises(AirflowException) as e:
             op.execute(None)
         err = e.exception
-        self.assertEqual(str(err), "Dependency: instance '{}' does not exist.".format(INSTANCE_ID))
+        self.assertEqual(str(err), f"Dependency: instance '{INSTANCE_ID}' does not exist.")
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -844,7 +844,7 @@ class TestBigtableTableCreate(unittest.TestCase):
                 gcp_conn_id=GCP_CONN_ID,
             )
         err = e.exception
-        self.assertEqual(str(err), 'Empty parameter: {}'.format(missing_attribute))
+        self.assertEqual(str(err), f'Empty parameter: {missing_attribute}')
         mock_hook.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
@@ -865,7 +865,7 @@ class TestBigtableTableCreate(unittest.TestCase):
         err = e.exception
         self.assertEqual(
             str(err),
-            "Dependency: instance '{}' does not exist in project '{}'.".format(INSTANCE_ID, PROJECT_ID),
+            f"Dependency: instance '{INSTANCE_ID}' does not exist in project '{PROJECT_ID}'.",
         )
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -954,9 +954,7 @@ class TestBigtableTableCreate(unittest.TestCase):
         with self.assertRaises(AirflowException) as e:
             op.execute(None)
         err = e.exception
-        self.assertEqual(
-            str(err), "Table '{}' already exists with different Column Families.".format(TABLE_ID)
-        )
+        self.assertEqual(str(err), f"Table '{TABLE_ID}' already exists with different Column Families.")
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -986,9 +984,7 @@ class TestBigtableTableCreate(unittest.TestCase):
         with self.assertRaises(AirflowException) as e:
             op.execute(None)
         err = e.exception
-        self.assertEqual(
-            str(err), "Table '{}' already exists with different Column Families.".format(TABLE_ID)
-        )
+        self.assertEqual(str(err), f"Table '{TABLE_ID}' already exists with different Column Families.")
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,

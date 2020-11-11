@@ -33,6 +33,11 @@ from airflow.providers.google.cloud.example_dags.example_dataflow_flex_template 
     PUBSUB_FLEX_TEMPLATE_SUBSCRIPTION,
     PUBSUB_FLEX_TEMPLATE_TOPIC,
 )
+from airflow.providers.google.cloud.example_dags.example_dataflow_sql import (
+    BQ_SQL_DATASET,
+    DATAFLOW_SQL_JOB_NAME,
+    DATAFLOW_SQL_LOCATION,
+)
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_DATAFLOW_KEY, GCP_GCS_TRANSFER_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
@@ -241,3 +246,117 @@ class CloudDataflowExampleDagFlexTemplateJavagSystemTest(GoogleSystemTest):
 
         # Delete the Cloud Storage bucket
         self.execute_cmd(["gsutil", "rm", "-r", f"gs://{GCS_FLEX_TEMPLATE_BUCKET_NAME}"])
+
+
+@pytest.mark.backend("mysql", "postgres")
+@pytest.mark.credential_file(GCP_GCS_TRANSFER_KEY)
+class CloudDataflowExampleDagSqlSystemTest(GoogleSystemTest):
+    @provide_gcp_context(GCP_GCS_TRANSFER_KEY, project_id=GoogleSystemTest._project_id())
+    def setUp(self) -> None:
+        # Build image with pipeline
+        with NamedTemporaryFile(suffix=".csv") as f:
+            f.write(
+                textwrap.dedent(
+                    """\
+                    state_id,state_code,state_name,sales_region
+                    1,MO,Missouri,Region_1
+                    2,SC,South Carolina,Region_1
+                    3,IN,Indiana,Region_1
+                    6,DE,Delaware,Region_2
+                    15,VT,Vermont,Region_2
+                    16,DC,District of Columbia,Region_2
+                    19,CT,Connecticut,Region_2
+                    20,ME,Maine,Region_2
+                    35,PA,Pennsylvania,Region_2
+                    38,NJ,New Jersey,Region_2
+                    47,MA,Massachusetts,Region_2
+                    54,RI,Rhode Island,Region_2
+                    55,NY,New York,Region_2
+                    60,MD,Maryland,Region_2
+                    66,NH,New Hampshire,Region_2
+                    4,CA,California,Region_3
+                    8,AK,Alaska,Region_3
+                    37,WA,Washington,Region_3
+                    61,OR,Oregon,Region_3
+                    33,HI,Hawaii,Region_4
+                    59,AS,American Samoa,Region_4
+                    65,GU,Guam,Region_4
+                    5,IA,Iowa,Region_5
+                    32,NV,Nevada,Region_5
+                    11,PR,Puerto Rico,Region_6
+                    17,CO,Colorado,Region_6
+                    18,MS,Mississippi,Region_6
+                    41,AL,Alabama,Region_6
+                    42,AR,Arkansas,Region_6
+                    43,FL,Florida,Region_6
+                    44,NM,New Mexico,Region_6
+                    46,GA,Georgia,Region_6
+                    48,KS,Kansas,Region_6
+                    52,AZ,Arizona,Region_6
+                    56,TN,Tennessee,Region_6
+                    58,TX,Texas,Region_6
+                    63,LA,Louisiana,Region_6
+                    7,ID,Idaho,Region_7
+                    12,IL,Illinois,Region_7
+                    13,ND,North Dakota,Region_7
+                    31,MN,Minnesota,Region_7
+                    34,MT,Montana,Region_7
+                    36,SD,South Dakota,Region_7
+                    50,MI,Michigan,Region_7
+                    51,UT,Utah,Region_7
+                    64,WY,Wyoming,Region_7
+                    9,NE,Nebraska,Region_8
+                    10,VA,Virginia,Region_8
+                    14,OK,Oklahoma,Region_8
+                    39,NC,North Carolina,Region_8
+                    40,WV,West Virginia,Region_8
+                    45,KY,Kentucky,Region_8
+                    53,WI,Wisconsin,Region_8
+                    57,OH,Ohio,Region_8
+                    49,VI,United States Virgin Islands,Region_9
+                    62,MP,Commonwealth of the Northern Mariana Islands,Region_9
+                    """
+                ).encode()
+            )
+            f.flush()
+
+            self.execute_cmd(["bq", "mk", "--dataset", f'{self._project_id()}:{BQ_SQL_DATASET}'])
+
+            self.execute_cmd(
+                ["bq", "load", "--autodetect", "--source_format=CSV", f"{BQ_SQL_DATASET}.beam_input", f.name]
+            )
+
+    @provide_gcp_context(GCP_GCS_TRANSFER_KEY, project_id=GoogleSystemTest._project_id())
+    def test_run_example_dag_function(self):
+        self.run_dag("example_gcp_dataflow_sql", CLOUD_DAG_FOLDER)
+
+    @provide_gcp_context(GCP_GCS_TRANSFER_KEY, project_id=GoogleSystemTest._project_id())
+    def tearDown(self) -> None:
+        # Execute test query
+        self.execute_cmd(
+            [
+                'bq',
+                'query',
+                '--use_legacy_sql=false',
+                f'select * FROM `{self._project_id()}.{BQ_SQL_DATASET}.beam_output`',
+            ]
+        )
+
+        # Stop the Dataflow pipelines.
+        self.execute_cmd(
+            [
+                "bash",
+                "-c",
+                textwrap.dedent(
+                    f"""\
+                        gcloud dataflow jobs list \
+                            --region={DATAFLOW_SQL_LOCATION} \
+                            --filter 'NAME:{DATAFLOW_SQL_JOB_NAME} AND STATE=Running' \
+                            --format 'value(JOB_ID)' \
+                          | xargs -r gcloud dataflow jobs cancel --region={DATAFLOW_SQL_LOCATION}
+                    """
+                ),
+            ]
+        )
+        # Delete the BigQuery dataset,
+        self.execute_cmd(["bq", "rm", "-r", "-f", "-d", f'{self._project_id()}:{BQ_SQL_DATASET}'])

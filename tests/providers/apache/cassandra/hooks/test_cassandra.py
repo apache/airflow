@@ -17,8 +17,8 @@
 # under the License.
 
 import unittest
-
 from unittest import mock
+
 import pytest
 from cassandra.cluster import Cluster
 from cassandra.policies import (

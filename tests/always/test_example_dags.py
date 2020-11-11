@@ -26,9 +26,7 @@ ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
 )
 
-NO_DB_QUERY_EXCEPTION = [
-    "/airflow/example_dags/example_subdag_operator.py"
-]
+NO_DB_QUERY_EXCEPTION = ["/airflow/example_dags/example_subdag_operator.py"]
 
 
 class TestExampleDags(unittest.TestCase):

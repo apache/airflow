@@ -27,8 +27,7 @@ from tests.test_utils.mock_process import MockConnectionCursor, MockDBConnection
 class MockHiveMetastoreHook(HiveMetastoreHook):
     def __init__(self, *args, **kwargs):
         self._find_valid_server = mock.MagicMock(return_value={})
-        self.get_metastore_client = mock.MagicMock(
-            return_value=mock.MagicMock())
+        self.get_metastore_client = mock.MagicMock(return_value=mock.MagicMock())
         super().__init__()
 
 
@@ -64,8 +63,7 @@ class MockPrestoHook(PrestoHook):
 
         self.conn.execute = mock.MagicMock()
         self.get_conn = mock.MagicMock(return_value=self.conn)
-        self.get_first = mock.MagicMock(
-            return_value=[['val_0', 'val_1'], 'val_2'])
+        self.get_first = mock.MagicMock(return_value=[['val_0', 'val_1'], 'val_2'])
 
         super().__init__(*args, **kwargs)
 

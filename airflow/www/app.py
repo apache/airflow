@@ -37,7 +37,11 @@ from airflow.www.extensions.init_manifest_files import configure_manifest_files
 from airflow.www.extensions.init_security import init_api_experimental_auth, init_xframe_protection
 from airflow.www.extensions.init_session import init_logout_timeout, init_permanent_session
 from airflow.www.extensions.init_views import (
-    init_api_connexion, init_api_experimental, init_appbuilder_views, init_error_handlers, init_flash_views,
+    init_api_connexion,
+    init_api_experimental,
+    init_appbuilder_views,
+    init_error_handlers,
+    init_flash_views,
     init_plugins,
 )
 from airflow.www.extensions.init_wsgi_middlewares import init_wsgi_middleware

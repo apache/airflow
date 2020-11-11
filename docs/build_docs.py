@@ -87,8 +87,13 @@ class SpellingError(NamedTuple):
         line_no_b = other.line_no or 0
         context_line_a = self.context_line or ''
         context_line_b = other.context_line or ''
-        return (file_path_a, line_no_a, context_line_a, self.spelling, self.message) < \
-               (file_path_b, line_no_b, context_line_b, other.spelling, other.message)
+        return (file_path_a, line_no_a, context_line_a, self.spelling, self.message) < (
+            file_path_b,
+            line_no_b,
+            context_line_b,
+            other.spelling,
+            other.message,
+        )
 
 
 build_errors: List[DocBuildError] = []
@@ -110,11 +115,6 @@ def clean_files() -> None:
     os.makedirs(_API_DIR, exist_ok=True)
     os.makedirs(_BUILD_DIR, exist_ok=True)
     print(f"Recreated content of the ${_BUILD_DIR} and ${_API_DIR} folders")
-    # Bugs in sphinx-autoapi using metaclasses prevent us from upgrading to 1.3
-    # which has implicit namespace support. Until that time, we make it look
-    # like a real package for building docs
-    with open(PROVIDER_INIT_FILE, "wt"):
-        pass
 
 
 def display_errors_summary() -> None:
@@ -221,7 +221,7 @@ def check_guide_links_in_operator_descriptions() -> None:
                 f".. seealso::\n"
                 f"    For more information on how to use this operator, take a look at the guide:\n"
                 f"    :ref:`howto/operator:{operator_name}`\n"
-            )
+            ),
         )
 
     # Extract operators for which there are existing .rst guides
@@ -261,9 +261,7 @@ def check_guide_links_in_operator_descriptions() -> None:
             if f":ref:`howto/operator:{existing_operator}`" in ast.get_docstring(class_def):
                 continue
 
-            build_errors.append(
-                generate_build_error(py_module_path, class_def.lineno, existing_operator)
-            )
+            build_errors.append(generate_build_error(py_module_path, class_def.lineno, existing_operator))
 
 
 def assert_file_not_contains(file_path: str, pattern: str, message: str) -> None:
@@ -325,8 +323,9 @@ def check_class_links_in_operators_and_hooks_ref() -> None:
 
     airflow_modules = find_modules() - find_modules(deprecated_only=True)
     airflow_modules = {
-        o for o in airflow_modules if any(f".{d}." in o for d in
-                                          ["operators", "hooks", "sensors", "transfers"])
+        o
+        for o in airflow_modules
+        if any(f".{d}." in o for d in ["operators", "hooks", "sensors", "transfers"])
     }
 
     missing_modules = airflow_modules - current_modules_in_file
@@ -359,20 +358,12 @@ def check_guide_links_in_operators_and_hooks_ref() -> None:
         if "_partials" not in guide
     ]
     # Remove partials and index
-    all_guides = [
-        guide
-        for guide in all_guides
-        if "/_partials/" not in guide and not guide.endswith("index")
-    ]
+    all_guides = [guide for guide in all_guides if "/_partials/" not in guide and not guide.endswith("index")]
 
     with open(os.path.join(DOCS_DIR, "operators-and-hooks-ref.rst")) as ref_file:
         content = ref_file.read()
 
-    missing_guides = [
-        guide
-        for guide in all_guides
-        if guide not in content
-    ]
+    missing_guides = [guide for guide in all_guides if guide not in content]
     if missing_guides:
         guide_text_list = "\n".join(f":doc:`How to use <{guide}>`" for guide in missing_guides)
 
@@ -403,7 +394,7 @@ def check_exampleinclude_for_example_dags():
             message=(
                 "literalinclude directive is prohibited for example DAGs. \n"
                 "You should use the exampleinclude directive to include example DAGs."
-            )
+            ),
         )
 
 
@@ -418,7 +409,7 @@ def check_enforce_code_block():
             message=(
                 "We recommend using the code-block directive instead of the code directive. "
                 "The code-block directive is more feature-full."
-            )
+            ),
         )
 
 
@@ -444,10 +435,12 @@ def check_google_guides():
     doc_files = glob(f"{DOCS_DIR}/howto/operator/google/**/*.rst", recursive=True)
     doc_names = {f.split("/")[-1].rsplit(".")[0] for f in doc_files}
 
-    operators_files = chain(*[
-        glob(f"{ROOT_PACKAGE_DIR}/providers/google/*/{resource_type}/*.py")
-        for resource_type in ["operators", "sensors", "transfers"]
-    ])
+    operators_files = chain(
+        *[
+            glob(f"{ROOT_PACKAGE_DIR}/providers/google/*/{resource_type}/*.py")
+            for resource_type in ["operators", "sensors", "transfers"]
+        ]
+    )
     operators_files = (f for f in operators_files if not f.endswith("__init__.py"))
     operator_names = {f.split("/")[-1].rsplit(".")[0] for f in operators_files}
 
@@ -495,6 +488,7 @@ def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int 
             lexer = get_lexer_for_filename(filename)
         except ClassNotFound:
             from pygments.lexers.special import TextLexer
+
             lexer = TextLexer()
         return lexer
 
@@ -504,6 +498,7 @@ def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int 
         with suppress(ImportError):
             import pygments
             from pygments.formatters.terminal import TerminalFormatter
+
             code = pygments.highlight(
                 code=code, formatter=TerminalFormatter(), lexer=guess_lexer_for_filename(file_path)
             )
@@ -541,9 +536,7 @@ def parse_sphinx_warnings(warning_text: str) -> List[DocBuildError]:
             except Exception:  # noqa pylint: disable=broad-except
                 # If an exception occurred while parsing the warning message, display the raw warning message.
                 sphinx_build_errors.append(
-                    DocBuildError(
-                        file_path=None, line_no=None, message=sphinx_warning
-                    )
+                    DocBuildError(file_path=None, line_no=None, message=sphinx_warning)
                 )
         else:
             sphinx_build_errors.append(DocBuildError(file_path=None, line_no=None, message=sphinx_warning))
@@ -610,6 +603,7 @@ def check_spelling() -> None:
     :return:
     """
     extensions_to_use = [
+        'provider_init_hack',
         "sphinxarg.ext",
         "autoapi.extension",
         "sphinxcontrib.spelling",
@@ -635,7 +629,7 @@ def check_spelling() -> None:
             "-D",  # override the extensions because one of them throws an error on the spelling builder
             f"extensions={','.join(extensions_to_use)}",
             ".",  # path to documentation source files
-            "_build/spelling"
+            "_build/spelling",
         ]
         print("Executing cmd: ", " ".join([shlex.quote(c) for c in build_cmd]))
 
@@ -643,8 +637,12 @@ def check_spelling() -> None:
         if completed_proc.returncode != 0:
             spelling_errors.append(
                 SpellingError(
-                    file_path=None, line_no=None, spelling=None, suggestion=None, context_line=None,
-                    message=f"Sphinx spellcheck returned non-zero exit status: {completed_proc.returncode}."
+                    file_path=None,
+                    line_no=None,
+                    spelling=None,
+                    suggestion=None,
+                    context_line=None,
+                    message=f"Sphinx spellcheck returned non-zero exit status: {completed_proc.returncode}.",
                 )
             )
 
@@ -710,10 +708,10 @@ def print_build_errors_and_exit(message) -> None:
 
 
 parser = argparse.ArgumentParser(description='Builds documentation and runs spell checking')
-parser.add_argument('--docs-only', dest='docs_only', action='store_true',
-                    help='Only build documentation')
-parser.add_argument('--spellcheck-only', dest='spellcheck_only', action='store_true',
-                    help='Only perform spellchecking')
+parser.add_argument('--docs-only', dest='docs_only', action='store_true', help='Only build documentation')
+parser.add_argument(
+    '--spellcheck-only', dest='spellcheck_only', action='store_true', help='Only perform spellchecking'
+)
 
 args = parser.parse_args()
 
@@ -725,21 +723,18 @@ Channel link: https://apache-airflow.slack.com/archives/CJ1LVREHX
 Invitation link: https://s.apache.org/airflow-slack\
 """
 
-try:
-    print_build_errors_and_exit("The documentation has errors. Fix them to build documentation.")
+print_build_errors_and_exit("The documentation has errors. Fix them to build documentation.")
 
-    if not args.docs_only:
-        check_spelling()
-        print_build_errors_and_exit("The documentation has spelling errors. Fix them to build documentation.")
+if not args.docs_only:
+    check_spelling()
+    print_build_errors_and_exit("The documentation has spelling errors. Fix them to build documentation.")
 
-    if not args.spellcheck_only:
-        build_sphinx_docs()
-        check_guide_links_in_operator_descriptions()
-        check_class_links_in_operators_and_hooks_ref()
-        check_guide_links_in_operators_and_hooks_ref()
-        check_enforce_code_block()
-        check_exampleinclude_for_example_dags()
-        check_google_guides()
-        print_build_errors_and_exit("The documentation has errors.")
-finally:
-    shutil.rmtree(PROVIDER_INIT_FILE, ignore_errors=True)
+if not args.spellcheck_only:
+    build_sphinx_docs()
+    check_guide_links_in_operator_descriptions()
+    check_class_links_in_operators_and_hooks_ref()
+    check_guide_links_in_operators_and_hooks_ref()
+    check_enforce_code_block()
+    check_exampleinclude_for_example_dags()
+    check_google_guides()
+    print_build_errors_and_exit("The documentation has errors.")

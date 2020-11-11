@@ -18,7 +18,6 @@
 
 import unittest
 from datetime import datetime
-
 from unittest import mock
 
 from airflow.exceptions import AirflowException
@@ -378,7 +377,7 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
 
         total_wildcards = operator.source_object.count(WILDCARD)
 
-        error_msg = "Only one wildcard '[*]' is allowed in source_object parameter. " "Found {}".format(
+        error_msg = "Only one wildcard '[*]' is allowed in source_object parameter. Found {}".format(
             total_wildcards
         )
 
