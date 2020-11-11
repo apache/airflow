@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import atexit
+import functools
 import json
 import logging
 import os
@@ -95,16 +96,23 @@ STATE_COLORS = {
 }
 
 
+@functools.lru_cache(maxsize=None)
+def _get_rich_console(file):
+    # Delay imports until we need it
+    import rich.console
+
+    return rich.console.Console(file=file)
+
+
 def custom_show_warning(message, category, filename, lineno, file=None, line=None):
     """Custom function to print rich and visible warnings"""
     # Delay imports until we need it
-    import rich
     from rich.markup import escape
 
     msg = f"[bold]{line}" if line else f"[bold][yellow]{filename}:{lineno}"
     msg += f" {category.__name__}[/bold]: {escape(str(message))}[/yellow]"
-    file = file or sys.stderr
-    rich.print(msg, file=file)
+    write_console = _get_rich_console(file or sys.stderr)
+    write_console.print(msg, soft_wrap=True)
 
 
 warnings.showwarning = custom_show_warning
