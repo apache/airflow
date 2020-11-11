@@ -26,6 +26,7 @@ assists users migrating to a new version.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Master](#master)
 - [Airflow 2.0.0b1](#airflow-200b1)
 - [Airflow 2.0.0a1](#airflow-200a1)
 - [Airflow 1.10.13](#airflow-11013)
@@ -48,6 +49,31 @@ assists users migrating to a new version.
 - [Airflow 1.7.1.2](#airflow-1712)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+## Master
+
+### Unify user session lifetime configuration
+
+In previous version of Airflow user session lifetime could be configured by
+`session_lifetime_days` and `force_log_out_after` options. In practise only `session_lifetime_days`
+had impact on session lifetime, but it was limited to values in day.
+We have removed mentioned options and introduced new `session_lifetime_minutes`
+option which simplify session lifetime configuration.
+
+Before
+
+ ```ini
+[webserver]
+force_log_out_after = 0
+session_lifetime_days = 30
+ ```
+
+After
+
+ ```ini
+[webserver]
+session_lifetime_minutes = 43200
+ ```
 
 ## Airflow 2.0.0b1
 
@@ -269,29 +295,6 @@ The old configuration still works but can be abandoned.
 The previous option used a colon(`:`) to split the module from function. Now the dot(`.`) is used.
 
 The change aims to unify the format of all options that refer to objects in the `airflow.cfg` file.
-
-#### Unify user session lifetime configuration
-
-In previous version of Airflow user session lifetime could be configured by
-`session_lifetime_days` and `force_log_out_after` options. In practise only `session_lifetime_days`
-had impact on session lifetime, but it was limited to values in day.
-In Airflow 2.0 we have removed mentioned options and introduced new `session_lifetime_minutes`
-option which simplify session lifetime configuration.
-
-Before
-
- ```ini
-[webserver]
-force_log_out_after = 0
-session_lifetime_days = 30
- ```
-
-After
-
- ```ini
-[webserver]
-session_lifetime_minutes = 43200
- ```
 
 #### Custom executors is loaded using full import path
 
