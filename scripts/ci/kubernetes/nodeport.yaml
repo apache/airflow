@@ -15,24 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-kind: Cluster
-apiVersion: kind.sigs.k8s.io/v1alpha3
-networking:
-  apiServerAddress: 0.0.0.0
-  apiServerPort: 19090
-nodes:
-  - role: control-plane
-  - role: worker
-    extraPortMappings:
-      - containerPort: 30007
-        hostPort: 8080
-        listenAddress: "0.0.0.0"
-        protocol: TCP
-kubeadmConfigPatchesJson6902:
-  - group: kubeadm.k8s.io
-    version: v1beta2
-    kind: ClusterConfiguration
-    patch: |
-      - op: add
-        path: /apiServer/certSANs/-
-        value: docker
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow-webserver-node-port
+spec:
+  type: NodePort
+  selector:
+    component: webserver
+    release: airflow
+    tier: airflow
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30007
