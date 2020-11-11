@@ -24,7 +24,6 @@ import warnings
 from typing import Optional
 
 import pendulum
-import rich
 from sqlalchemy import create_engine, exc
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -98,8 +97,12 @@ STATE_COLORS = {
 
 def custom_show_warning(message, category, filename, lineno, file=None, line=None):
     """Custom function to print rich and visible warnings"""
+    # Delay imports until we need it
+    import rich
+    from rich.markup import escape
+
     msg = f"[bold]{line}" if line else f"[bold][yellow]{filename}:{lineno}"
-    msg += f" {category.__name__}[/bold]: {message}[/yellow]"
+    msg += f" {category.__name__}[/bold]: {escape(str(message))}[/yellow]"
     file = file or sys.stderr
     rich.print(msg, file=file)
 
