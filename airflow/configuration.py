@@ -137,13 +137,6 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
     # When reading new option, the old option will be checked to see if it exists. If it does a
     # DeprecationWarning will be issued and the old option will be used instead
     deprecated_options = {
-        ('elasticsearch', 'host'): ('elasticsearch', 'elasticsearch_host'),
-        ('elasticsearch', 'log_id_template'): ('elasticsearch', 'elasticsearch_log_id_template'),
-        ('elasticsearch', 'end_of_log_mark'): ('elasticsearch', 'elasticsearch_end_of_log_mark'),
-        ('elasticsearch', 'frontend'): ('elasticsearch', 'elasticsearch_frontend'),
-        ('elasticsearch', 'write_stdout'): ('elasticsearch', 'elasticsearch_write_stdout'),
-        ('elasticsearch', 'json_format'): ('elasticsearch', 'elasticsearch_json_format'),
-        ('elasticsearch', 'json_fields'): ('elasticsearch', 'elasticsearch_json_fields'),
         ('logging', 'base_log_folder'): ('core', 'base_log_folder'),
         ('logging', 'remote_logging'): ('core', 'remote_logging'),
         ('logging', 'remote_log_conn_id'): ('core', 'remote_log_conn_id'),
