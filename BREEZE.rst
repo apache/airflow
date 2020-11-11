@@ -1188,6 +1188,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           image building time in production image and at container entering time for CI image. One of:
 
                  1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2
+                 wheel
 
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           If specified, installs Airflow directly from reference in GitHub. This happens at
@@ -1712,7 +1713,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
         to the cluster so you can also pass appropriate build image flags that will influence
         rebuilding the production image. Operation is one of:
 
-                 start stop restart status deploy test shell
+                 start stop restart status deploy test shell k9s
+
+        The last two operations - shell and k9s allow you to perform interactive testing with
+        kubernetes tests. You can enter the shell from which you can run kubernetes tests and in
+        another terminal you can start the k9s CLI to debug kubernetes instance. It is an easy
+        way to debug the kubernetes deployments.
+
+        You can read more about k9s at https://k9scli.io/
 
   Flags:
 
@@ -2087,6 +2095,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           image building time in production image and at container entering time for CI image. One of:
 
                  1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2
+                 wheel
 
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           If specified, installs Airflow directly from reference in GitHub. This happens at
