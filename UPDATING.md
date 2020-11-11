@@ -296,6 +296,7 @@ The previous option used a colon(`:`) to split the module from function. Now the
 
 The change aims to unify the format of all options that refer to objects in the `airflow.cfg` file.
 
+
 #### Custom executors is loaded using full import path
 
 In previous versions of Airflow it was possible to use plugins to load custom executors. It is still
