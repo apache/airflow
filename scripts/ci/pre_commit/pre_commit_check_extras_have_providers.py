@@ -44,7 +44,7 @@ def check_all_providers() -> List[str]:
             provider_directory = get_provider_directory(provider)
             if not os.path.isdir(provider_directory):
                 errors.append(
-                    f"The {extra} has provider {provider} that has" f" missing {provider_directory} directory"
+                    f"The {extra} has provider {provider} that has missing {provider_directory} directory"
                 )
                 continue
             if not os.path.exists(os.path.join(provider_directory, "__init__.py")):
