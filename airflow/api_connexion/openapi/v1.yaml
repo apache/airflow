@@ -1551,10 +1551,12 @@ components:
           description: The DAG ID
           type: string
           readOnly: true
+          nullable: true
         task_id:
           description: The DAG ID
           type: string
           readOnly: true
+          nullable: true
         event:
           description: A key describing the type of event.
           type: string
@@ -1565,6 +1567,7 @@ components:
           format: date-time
           type: string
           readOnly: true
+          nullable: true
         owner:
           description: Name of the user who triggered these events a.
           type: string
