@@ -188,6 +188,8 @@ dmypy.json
 log.txt*
 /backport_packages/CHANGELOG.txt
 
+# Docker context files
+/docker-context-files
 # Local .terraform directories
 **/.terraform/*
 
