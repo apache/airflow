@@ -18,6 +18,7 @@
 # under the License.
 #
 import logging
+import sys
 import socket
 from datetime import timedelta
 from typing import Any
@@ -62,8 +63,22 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
         )
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
-    session_lifetime_days = conf.getint('webserver', 'SESSION_LIFETIME_DAYS', fallback=30)
-    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=session_lifetime_days)
+    if conf.has_option('webserver', 'SESSION_LIFETIME_DAYS') or conf.has_option(
+        'webserver', 'FORCE_LOG_OUT_AFTER'
+    ):
+        logging.error(
+            '`SESSION_LIFETIME_DAYS` option from `webserver` section has been '
+            'renamed to `SESSION_LIFETIME_MINUTES`. New option allows to configure '
+            'session lifetime in minutes. FORCE_LOG_OUT_AFTER option has been removed '
+            'from `webserver` section. Please update your configuration.'
+        )
+        # Stop gunicorn server https://github.com/benoitc/gunicorn/blob/20.0.4/gunicorn/arbiter.py#L526
+        # sys.exit(4)
+    else:
+        session_lifetime_minutes = conf.getint('webserver', 'SESSION_LIFETIME_MINUTES', fallback=43200)
+        logging.info('User session lifetime is set to %s minutes.', session_lifetime_minutes)
+
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=session_lifetime_minutes)
 
     app.config.from_pyfile(settings.WEBSERVER_CONFIG, silent=True)
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -267,15 +282,6 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
         @app.teardown_appcontext
         def shutdown_session(exception=None):
             settings.Session.remove()
-
-        @app.before_request
-        def before_request():
-            _force_log_out_after = conf.getint('webserver', 'FORCE_LOG_OUT_AFTER', fallback=0)
-            if _force_log_out_after > 0:
-                flask.session.permanent = True
-                app.permanent_session_lifetime = timedelta(minutes=_force_log_out_after)
-                flask.session.modified = True
-                flask.g.user = flask_login.current_user
 
         @app.after_request
         def apply_caching(response):

@@ -18,11 +18,13 @@
 # under the License.
 import json
 import unittest
+from datetime import timedelta
 
 import pytest
 import six
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from airflow.configuration import conf
 from airflow.settings import Session
 from airflow.www_rbac import app as application
 from tests.compat import mock
@@ -80,3 +82,26 @@ class TestApp(unittest.TestCase):
         if six.PY2:
             engine_params = json.dumps(engine_params)
         self.assertEqual(app.config['SQLALCHEMY_ENGINE_OPTIONS'], engine_params)
+
+    @conf_vars(
+        {
+            ('webserver', 'session_lifetime_minutes'): '3600',
+        }
+    )
+    @mock.patch("airflow.www_rbac.app.app", None)
+    def test_should_set_permanent_session_timeout(self):
+        app, _ = application.cached_appbuilder(testing=True)
+        self.assertEqual(app.config['PERMANENT_SESSION_LIFETIME'], timedelta(minutes=3600))
+
+    @conf_vars(
+        {
+            ('webserver', 'session_lifetime_days'): '30',
+            ('webserver', 'force_log_out_after'): '30',
+        }
+    )
+    @mock.patch("airflow.www_rbac.app.app", None)
+    def test_should_stop_app_when_removed_options_are_provided(self):
+        with self.assertRaises(SystemExit) as e:
+            conf.remove_option('webserver', 'session_lifetime_minutes')
+            application.cached_appbuilder(testing=True)
+        self.assertEqual(e.exception.code, 4)
