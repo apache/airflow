@@ -64,5 +64,5 @@ if __name__ == '__main__':
     errors = check_all_providers()
     if errors:
         for message in errors:
-            print(f"{message}", file=sys.stderr)
+            print(message, file=sys.stderr)
         sys.exit(1)
