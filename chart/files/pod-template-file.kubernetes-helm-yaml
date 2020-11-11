@@ -66,12 +66,9 @@ spec:
   restartPolicy: Never
   securityContext:
     runAsUser: {{ .Values.uid }}
-  nodeSelector:
-    {{ toYaml .Values.nodeSelector | indent 8 }}
-  affinity:
-    {{ toYaml .Values.affinity | indent 8 }}
-  tolerations:
-    {{ toYaml .Values.tolerations | indent 8 }}
+  nodeSelector: {{ toYaml .Values.nodeSelector | nindent 4 }}
+  affinity: {{ toYaml .Values.affinity | nindent 4 }}
+  tolerations: {{ toYaml .Values.tolerations | nindent 4 }}
   serviceAccountName: '{{ .Release.Name }}-worker'
   volumes:
   {{- if .Values.dags.persistence.enabled }}
