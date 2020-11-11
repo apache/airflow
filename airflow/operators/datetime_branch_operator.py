@@ -20,6 +20,7 @@ from typing import Dict, Iterable, Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.operators.branch_operator import BaseBranchOperator
+from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 
 
@@ -40,8 +41,6 @@ class DateTimeBranchOperator(BaseBranchOperator):
     :type target_lower: Optional[datetime.datetime]
     :param target_upper: target upper bound.
     :type target_upper: Optional[datetime.datetime]
-    :param timezone: timezone to override local time.
-    :type timezone: Optional[datetime.timezone]
     """
 
     @apply_defaults
@@ -52,7 +51,6 @@ class DateTimeBranchOperator(BaseBranchOperator):
         follow_task_ids_if_false: Union[str, Iterable[str]],
         target_lower: Optional[datetime.datetime],
         target_upper: Optional[datetime.datetime],
-        timezone: Optional[datetime.timezone] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -64,12 +62,11 @@ class DateTimeBranchOperator(BaseBranchOperator):
 
         self.target_lower = target_lower
         self.target_upper = target_upper
-        self.timezone = timezone
         self.follow_task_ids_if_true = follow_task_ids_if_true
         self.follow_task_ids_if_false = follow_task_ids_if_false
 
     def choose_branch(self, context: Dict) -> Union[str, Iterable[str]]:
-        now = datetime.datetime.now(self.timezone)
+        now = timezone.make_naive(timezone.utcnow(), self.dag.timezone)
 
         if self.target_upper is not None and self.target_upper < now:
             return self.follow_task_ids_if_false
