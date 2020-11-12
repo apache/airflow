@@ -317,7 +317,7 @@ class DatabricksHook(BaseHook):  # noqa
         """
         Utility function to call the ``2.0/libraries/install`` endpoint.
 
-        :param json: The data(cluster_id and an array of library) used in the body of the request to the ``install`` endpoint.
+        :param json: json dictionary containing cluster_id and an array of library
         :type json: dict
         """
         self._do_api_call(INSTALL_LIBS_ENDPOINT, json)
@@ -326,7 +326,7 @@ class DatabricksHook(BaseHook):  # noqa
         """
         Utility function to call the ``2.0/libraries/uninstall`` endpoint.
 
-        :param json: The data(cluster_id and an array of library) used in the body of the request to the ``uninstall`` endpoint.
+        :param json: json dictionary containing cluster_id and an array of library
         :type json: dict
         """
         self._do_api_call(UNINSTALL_LIBS_ENDPOINT, json)
