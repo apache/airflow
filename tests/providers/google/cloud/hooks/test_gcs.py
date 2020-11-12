@@ -707,6 +707,35 @@ class TestGCSHook(unittest.TestCase):
             ]
         )
 
+    @mock.patch(GCS_STRING.format('NamedTemporaryFile'))
+    @mock.patch(GCS_STRING.format('GCSHook.upload'))
+    def test_provide_file_upload(self, mock_upload, mock_temp_file):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+        test_file = 'test_file'
+
+        mock_temp_file.return_value.__enter__.return_value = mock.MagicMock()
+        mock_temp_file.return_value.__enter__.return_value.name = test_file
+
+        with self.gcs_hook.provide_file_and_upload(
+            bucket_name=test_bucket, object_name=test_object
+        ) as fhandle:
+            assert fhandle.name == test_file
+            fhandle.write()
+
+        mock_upload.assert_called_once_with(
+            bucket_name=test_bucket, object_name=test_object, filename=test_file
+        )
+        mock_temp_file.assert_has_calls(
+            [
+                mock.call(suffix='test_object'),
+                mock.call().__enter__(),
+                mock.call().__enter__().write(),
+                mock.call().__enter__().flush(),
+                mock.call().__exit__(None, None, None),
+            ]
+        )
+
 
 class TestGCSHookUpload(unittest.TestCase):
     def setUp(self):
