@@ -71,7 +71,7 @@ google, google_auth, grpc, hashicorp, hdfs, hive, jdbc, jira, kerberos, kubernet
 microsoft.azure, microsoft.mssql, microsoft.winrm, mongo, mssql, mysql, odbc, oracle, pagerduty,
 papermill, password, pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, salesforce,
 samba, segment, sendgrid, sentry, singularity, slack, snowflake, spark, ssh, statsd, tableau,
-vertica, virtualenv, webhdfs, winrm, yandexcloud, all, devel_ci
+vertica, virtualenv, webhdfs, winrm, yandex, yandexcloud, all, devel_ci
 
 # END EXTRAS HERE
 
