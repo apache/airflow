@@ -139,7 +139,7 @@ For more information, see: :doc:`provider-packages`
 For the list of the provider packages and what they enable, see: :doc:`provider-packages-ref`.
 
 Initializing Airflow Database
------------------------------
+'''''''''''''''''''''''''''''
 
 Airflow requires a database to be initialized before you can run tasks. If
 you're just experimenting and learning Airflow, you can stick with the
@@ -154,6 +154,6 @@ run tasks:
     airflow db init
 
 Docker image
-------------
+''''''''''''
 
 Airflow is also distributed as a Docker image (OCI Image). For more information, see: :doc:`production-deployment`

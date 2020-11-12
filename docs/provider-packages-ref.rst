@@ -20,18 +20,15 @@ Providers packages reference
 
 Here's the list of the :doc:`provider packages <provider-packages>` and what they enable:
 
-.. note::
-    For more information on providers packages, see :ref:`installation:extra_packages`
 
 .. contents:: :local:
 
 .. jinja:: providers_ctx
-    :debug: true
 
     {% for package in package_data.providers %}
 
     ``{{ package["package-name"] }}``
-    {{ "=" * (section["name"]|length + 4) }}
+    {{ "=" * (package["package-name"]|length + 4) }}
 
     {% if package["description"] %}
     {{ package["description"] }}
