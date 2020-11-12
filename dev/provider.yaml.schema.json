@@ -25,7 +25,6 @@
   "additionalProperties": false,
   "required": [
     "package-name",
-    "python-module",
     "description",
     "versions"
   ]

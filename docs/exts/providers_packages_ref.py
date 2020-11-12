@@ -34,16 +34,22 @@ def _load_schema() -> Dict[str, Any]:
     return content
 
 
+def _filepath_to_module(filepath: str):
+    filepath = os.path.relpath(os.path.abspath(filepath), ROOT_DIR)
+    return filepath.replace("/", ".")
+
+
 def _load_package_data():
     schema = _load_schema()
     result = []
     for provider_yaml_path in sorted(glob(f"{ROOT_DIR}/airflow/providers/**/provider.yaml")):
         with open(provider_yaml_path) as yaml_file:
             provider = yaml.safe_load(yaml_file)
+        provider['python-module'] = _filepath_to_module(os.path.dirname(provider_yaml_path))
         try:
             jsonschema.validate(provider, schema=schema)
         except jsonschema.ValidationError:
-            raise Exception(f"Unable to parse: {provider_yaml_path}")
+            raise Exception(f"Unable to parse: {provider_yaml_path}.")
         result.append(provider)
     return result
 
