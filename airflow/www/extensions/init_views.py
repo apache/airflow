@@ -134,6 +134,7 @@ def init_error_handlers(app: Flask):
 
 
 def init_api_connexion(app: Flask) -> None:
+    """Initialize Stable API"""
 
     base_path = '/api/v1'
 
@@ -151,7 +152,6 @@ def init_api_connexion(app: Flask) -> None:
         else:
             return views.circles(ex)
 
-    """Initialize Stable API"""
     spec_dir = path.join(ROOT_APP_DIR, 'api_connexion', 'openapi')
     connexion_app = connexion.App(__name__, specification_dir=spec_dir, skip_error_handlers=True)
     connexion_app.app = app
