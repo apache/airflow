@@ -41,18 +41,20 @@ Here's the list of the :doc:`provider packages <provider-packages>` and what the
 
         pip install '{{ package["package-name"] }}'
 
-    Available versions:
-    {%- for version in package["versions"] %}``{{ version }}``{% if not loop.last %}, {% else %}.{% endif %}{%- endfor %}
+    :Available versions: {% for version in package["versions"] %}``{{ version }}``{% if not loop.last %}, {% else %}.{% endif %}{%- endfor %}
 
-    Reference: `PyPi repository <https://pypi.org/project/{{ package["package-name"] }}/>`__
+    :Reference: `PyPi repository <https://pypi.org/project/{{ package["package-name"] }}/>`__
+    {% if package["python-module"] %}
+    :Python API Reference: :mod:`{{ package["python-module"] }}`
+    {% endif %}
     {% else %}
 
     .. warning::
 
       This package has not yet been released.
 
+    {% if package["python-module"] %}
+    :Python API Reference: :mod:`{{ package["python-module"] }}`
     {% endif %}
-    {%- if package["python-module"] %}
-    Python API Reference: :mod:`{{ package["python-module"] }}`
     {% endif %}
     {% endfor %}
