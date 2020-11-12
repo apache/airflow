@@ -622,7 +622,8 @@ def check_spelling() -> None:
     with NamedTemporaryFile() as tmp_file:
         build_cmd = [
             "sphinx-build",
-            "-W",
+            "-W",  # turn warnings into errors
+            "-T",  # show full traceback on exception
             "-b",  # builder to use
             "spelling",
             "-d",  # path for the cached environment and doctree files
@@ -660,12 +661,13 @@ def build_sphinx_docs() -> None:
     with NamedTemporaryFile() as tmp_file:
         build_cmd = [
             "sphinx-build",
+            "-T",  # show full traceback on exception
+            "--color",  # do emit colored output
             "-b",  # builder to use
             "html",
             "-d",  # path for the cached environment and doctree files
             "_build/doctrees",
-            "--color",  # do emit colored output
-            "-w",  # turn warnings into errors
+            "-w",  # write warnings (and errors) to given file
             tmp_file.name,
             ".",  # path to documentation source files
             "_build/html",  # path to output directory

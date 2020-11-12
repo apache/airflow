@@ -53,6 +53,6 @@ Here's the list of the :doc:`provider packages <provider-packages>` and what the
 
     {% endif %}
     {%- if package["python-module"] %}
-    Python API Refernece: :mod:`{{ package["python-module"] }}`
+    Python API Reference: :mod:`{{ package["python-module"] }}`
     {% endif %}
     {% endfor %}

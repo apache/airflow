@@ -386,6 +386,7 @@ autoapi_template_dir = 'autoapi_templates'
 autoapi_ignore = [
     '*/airflow/kubernetes/kubernetes_request_factory/*',
     '*/_internal*',
+    '*/airflow/**/providers/**/utils/*',
     '*/node_modules/*',
     '*/example_dags/*',
     '*/migrations/*',
