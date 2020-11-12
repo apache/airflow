@@ -1743,6 +1743,7 @@ class TestSchedulerJob(unittest.TestCase):
         dagbag.bag_dag(dag2, root_dag=dag2)
         dagbag.bag_dag(dag3, root_dag=dag3)
         dagbag.sync_to_db(session)
+        session.commit()
 
         scheduler = SchedulerJob(num_runs=0)
         scheduler.dagbag.collect_dags_from_db()
