@@ -162,6 +162,6 @@ class TriggerDagRunOperator(BaseOperator):
                 state = dag_run.state
                 if state in self.failed_states:
                     raise AirflowException(f"{self.trigger_dag_id} failed with failed states {state}")
-                elif state in self.allowed_states:
+                if state in self.allowed_states:
                     self.log.info("%s finished with allowed state %s", self.trigger_dag_id, state)
                     return
