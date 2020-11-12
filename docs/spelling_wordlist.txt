@@ -995,6 +995,7 @@ openfaas
 oper
 optimise
 ora
+orm
 orchestrator
 orgtbl
 os
