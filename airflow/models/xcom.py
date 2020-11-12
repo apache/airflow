@@ -63,7 +63,7 @@ class BaseXCom(Base, LoggingMixin):
         i.e automatically deserialize Xcom value when loading from DB.
         """
         try:
-            self.value = XCom.deserialize_value(self)
+            self.value = XCom.orm_deserialize_value(self)
         except (UnicodeEncodeError, ValueError):
             # For backward-compatibility.
             # Preventing errors in webserver
@@ -258,6 +258,17 @@ class BaseXCom(Base, LoggingMixin):
                 "support for XCOM in your airflow config."
             )
             raise
+
+    @staticmethod
+    def orm_deserialize_value(result) -> Any:
+        """
+        Deserialize method which is used to reconstruct ORM XCom object.
+
+        This method should be overridden in custom XCom backends to avoid
+        unnecessary request or other resource consuming operations when
+        creating XCom orm model
+        """
+        return BaseXCom.deserialize_value(result)
 
 
 def resolve_xcom_backend():
