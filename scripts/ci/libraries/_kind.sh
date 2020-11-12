@@ -173,7 +173,6 @@ function kind::perform_kind_cluster_operation() {
             echo "Deploying Airflow to KinD"
             echo
             kind::build_image_for_kubernetes_tests
-            kind::get_kind_cluster_name
             kind::load_image_to_kind_cluster
             kind::deploy_airflow_with_helm
             kind::deploy_test_kubernetes_resources
