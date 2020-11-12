@@ -164,3 +164,66 @@ class TestKubernetesPodOperator(unittest.TestCase):
 
         assert start_mock.call_args[0][0].metadata.name.startswith(name_base)
         assert start_mock.call_args[0][0].metadata.name != name_base
+
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+    def test_describes_pod_on_failure(self, mock_client, monitor_mock, start_mock):
+        from airflow.utils.state import State
+
+        name_base = 'test'
+
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name=name_base,
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+            cluster_context='default',
+        )
+        monitor_mock.return_value = (State.FAILED, None)
+        failed_pod_status = 'read_pod_namespaced_result'
+        read_namespaced_pod_mock = mock_client.return_value.read_namespaced_pod
+        read_namespaced_pod_mock.return_value = failed_pod_status
+
+        with self.assertRaises(AirflowException) as cm:
+            context = self.create_context(k)
+            k.execute(context=context)
+
+        self.assertEqual(
+            str(cm.exception),
+            f"Pod Launching failed: Pod {k.pod.metadata.name} returned a failure: {failed_pod_status}",
+        )
+        assert mock_client.return_value.read_namespaced_pod.called
+        self.assertEqual(read_namespaced_pod_mock.call_args[0][0], k.pod.metadata.name)
+
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+    def test_no_need_to_describe_pod_on_success(self, mock_client, monitor_mock, start_mock):
+        from airflow.utils.state import State
+
+        name_base = 'test'
+
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name=name_base,
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+            cluster_context='default',
+        )
+        monitor_mock.return_value = (State.SUCCESS, None)
+
+        context = self.create_context(k)
+        k.execute(context=context)
+
+        assert not mock_client.return_value.read_namespaced_pod.called

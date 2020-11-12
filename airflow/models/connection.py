@@ -62,6 +62,10 @@ CONN_TYPE_TO_HOOK = {
         "airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook",
         "gcp_cloudsql_conn_id",
     ),
+    "gcpssh": (
+        "airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHook",
+        "gcp_conn_id",
+    ),
     "google_cloud_platform": (
         "airflow.providers.google.cloud.hooks.bigquery.BigQueryHook",
         "bigquery_conn_id",

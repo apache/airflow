@@ -27,6 +27,7 @@ CONFIG_TEMPLATES_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "config_t
 DEFAULT_AIRFLOW_SECTIONS = [
     'core',
     "logging",
+    "metrics",
     'secrets',
     'cli',
     'debug',

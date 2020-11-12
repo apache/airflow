@@ -38,7 +38,6 @@ from tabulate import tabulate
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.dag.base_dag import BaseDagBag
 from airflow.exceptions import AirflowClusterPolicyViolation, AirflowDagCycleException, SerializedDagNotFound
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -59,7 +58,7 @@ class FileLoadStat(NamedTuple):
     dags: str
 
 
-class DagBag(BaseDagBag, LoggingMixin):
+class DagBag(LoggingMixin):
     """
     A dagbag is a collection of dags, parsed out of a folder tree and has high
     level configuration settings, like what database to use as a backend and
@@ -146,6 +145,10 @@ class DagBag(BaseDagBag, LoggingMixin):
 
     @property
     def dag_ids(self) -> List[str]:
+        """
+        :return: a list of DAG IDs in this bag
+        :rtype: List[unicode]
+        """
         return list(self.dags.keys())
 
     @provide_session

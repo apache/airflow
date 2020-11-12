@@ -18,13 +18,13 @@
 
 import datetime
 from typing import Dict, Optional, Union
-from urllib.parse import quote
 
 from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
 from airflow.models import BaseOperator, BaseOperatorLink, DagBag, DagModel, DagRun
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.types import DagRunType
 
 
@@ -37,7 +37,8 @@ class TriggerDagRunLink(BaseOperatorLink):
     name = 'Triggered DAG'
 
     def get_link(self, operator, dttm):
-        return f"/graph?dag_id={operator.trigger_dag_id}&root=&execution_date={quote(dttm.isoformat())}"
+        query = {"dag_id": operator.trigger_dag_id, "execution_date": dttm.isoformat()}
+        return build_airflow_url_with_query(query)
 
 
 class TriggerDagRunOperator(BaseOperator):

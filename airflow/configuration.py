@@ -162,6 +162,15 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
         ('logging', 'log_processor_filename_template'): ('core', 'log_processor_filename_template'),
         ('logging', 'dag_processor_manager_log_location'): ('core', 'dag_processor_manager_log_location'),
         ('logging', 'task_log_reader'): ('core', 'task_log_reader'),
+        ('metrics', 'statsd_on'): ('scheduler', 'statsd_on'),
+        ('metrics', 'statsd_host'): ('scheduler', 'statsd_host'),
+        ('metrics', 'statsd_port'): ('scheduler', 'statsd_port'),
+        ('metrics', 'statsd_prefix'): ('scheduler', 'statsd_prefix'),
+        ('metrics', 'statsd_allow_list'): ('scheduler', 'statsd_allow_list'),
+        ('metrics', 'stat_name_handler'): ('scheduler', 'stat_name_handler'),
+        ('metrics', 'statsd_datadog_enabled'): ('scheduler', 'statsd_datadog_enabled'),
+        ('metrics', 'statsd_datadog_tags'): ('scheduler', 'statsd_datadog_tags'),
+        ('metrics', 'statsd_custom_client_path'): ('scheduler', 'statsd_custom_client_path'),
     }
 
     # A mapping of old default values that we want to change and warn the user

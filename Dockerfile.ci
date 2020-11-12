@@ -264,6 +264,10 @@ ENV AIRFLOW_LOCAL_PIP_WHEELS=${AIRFLOW_LOCAL_PIP_WHEELS}
 ARG INSTALL_AIRFLOW_VIA_PIP="true"
 ENV INSTALL_AIRFLOW_VIA_PIP=${INSTALL_AIRFLOW_VIA_PIP}
 
+# If wheel files are found in /docker-context-files during installation
+# they are also installed additionally to whatever is installed from Airflow.
+COPY docker-context-files /docker-context-files
+
 # In case of CI builds we want to pre-install master version of airflow dependencies so that
 # We do not have to always reinstall it from the scratch.
 # This can be reinstalled from latest master by increasing PIP_DEPENDENCIES_EPOCH_NUMBER.
@@ -312,10 +316,6 @@ RUN if [[ ${INSTALL_AIRFLOW_VIA_PIP} == "true" ]]; then \
             pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy only-if-needed; \
         fi; \
     fi
-
-# If wheel files are found in /docker-context-files sduring installation
-# they are also installed additionally to whatever is installed from Airflow.
-COPY docker-context-files /docker-context-files
 
 RUN if [[ ${AIRFLOW_LOCAL_PIP_WHEELS} != "true" ]]; then \
         if ls /docker-context-files/*.whl 1> /dev/null 2>&1; then \

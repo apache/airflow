@@ -142,6 +142,7 @@ class TestCeleryExecutor(unittest.TestCase):
                 # "Enqueue" them. We don't have a real SimpleTaskInstance, so directly edit the dict
                 for (key, simple_ti, command, queue, task) in task_tuples_to_send:  # pylint: disable=W0612
                     executor.queued_tasks[key] = (command, 1, queue, simple_ti)
+                    executor.task_publish_retries[key] = 1
 
                 executor._process_tasks(task_tuples_to_send)
 
@@ -195,9 +196,77 @@ class TestCeleryExecutor(unittest.TestCase):
             )
             key = ('fail', 'fake_simple_ti', when, 0)
             executor.queued_tasks[key] = value_tuple
+            executor.task_publish_retries[key] = 1
             executor.heartbeat()
         self.assertEqual(0, len(executor.queued_tasks), "Task should no longer be queued")
         self.assertEqual(executor.event_buffer[('fail', 'fake_simple_ti', when, 0)][0], State.FAILED)
+
+    @pytest.mark.integration("redis")
+    @pytest.mark.integration("rabbitmq")
+    @pytest.mark.backend("mysql", "postgres")
+    def test_retry_on_error_sending_task(self):
+        """Test that Airflow retries publishing tasks to Celery Broker atleast 3 times"""
+
+        def fake_execute_command(command):
+            print(command)
+
+        with _prepare_app(execute=fake_execute_command), self.assertLogs(
+            celery_executor.log
+        ) as cm, mock.patch.object(celery_executor, "OPERATION_TIMEOUT", 0.001):
+            # fake_execute_command takes no arguments while execute_command takes 1,
+            # which will cause TypeError when calling task.apply_async()
+            executor = celery_executor.CeleryExecutor()
+            self.assertEqual(executor.task_publish_retries, {})
+            self.assertEqual(executor.task_publish_max_retries, 3, msg="Assert Default Max Retries is 3")
+
+            task = BashOperator(
+                task_id="test", bash_command="true", dag=DAG(dag_id='id'), start_date=datetime.now()
+            )
+            when = datetime.now()
+            value_tuple = (
+                'command',
+                1,
+                None,
+                SimpleTaskInstance(ti=TaskInstance(task=task, execution_date=datetime.now())),
+            )
+            key = ('fail', 'fake_simple_ti', when, 0)
+            executor.queued_tasks[key] = value_tuple
+
+            # Test that when heartbeat is called again, task is published again to Celery Queue
+            executor.heartbeat()
+            self.assertEqual(dict(executor.task_publish_retries), {key: 2})
+            self.assertEqual(1, len(executor.queued_tasks), "Task should remain in queue")
+            self.assertEqual(executor.event_buffer, {})
+            self.assertIn(
+                "INFO:airflow.executors.celery_executor.CeleryExecutor:"
+                f"[Try 1 of 3] Task Timeout Error for Task: ({key}).",
+                cm.output,
+            )
+
+            executor.heartbeat()
+            self.assertEqual(dict(executor.task_publish_retries), {key: 3})
+            self.assertEqual(1, len(executor.queued_tasks), "Task should remain in queue")
+            self.assertEqual(executor.event_buffer, {})
+            self.assertIn(
+                "INFO:airflow.executors.celery_executor.CeleryExecutor:"
+                f"[Try 2 of 3] Task Timeout Error for Task: ({key}).",
+                cm.output,
+            )
+
+            executor.heartbeat()
+            self.assertEqual(dict(executor.task_publish_retries), {key: 4})
+            self.assertEqual(1, len(executor.queued_tasks), "Task should remain in queue")
+            self.assertEqual(executor.event_buffer, {})
+            self.assertIn(
+                "INFO:airflow.executors.celery_executor.CeleryExecutor:"
+                f"[Try 3 of 3] Task Timeout Error for Task: ({key}).",
+                cm.output,
+            )
+
+            executor.heartbeat()
+            self.assertEqual(dict(executor.task_publish_retries), {})
+            self.assertEqual(0, len(executor.queued_tasks), "Task should no longer be in queue")
+            self.assertEqual(executor.event_buffer[('fail', 'fake_simple_ti', when, 0)][0], State.FAILED)
 
     @pytest.mark.quarantined
     @pytest.mark.backend("mysql", "postgres")
@@ -324,7 +393,7 @@ class TestCeleryExecutor(unittest.TestCase):
 
 
 def test_operation_timeout_config():
-    assert celery_executor.OPERATION_TIMEOUT == 2
+    assert celery_executor.OPERATION_TIMEOUT == 1
 
 
 class ClassWithCustomAttributes:

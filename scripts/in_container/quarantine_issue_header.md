@@ -27,6 +27,7 @@ to the relevant branch.
 You can update "Comment" column in the issue list - the update process will read and preserve this column.
 
 # Status update
+
 Last status update (UTC): {{ DATE_UTC_NOW }}
 
 # List of Quarantined issues

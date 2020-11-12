@@ -78,6 +78,7 @@ release = airflow.__version__
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    'provider_init_hack',
     'sphinx.ext.autodoc',
     'sphinx.ext.coverage',
     'sphinx.ext.viewcode',
@@ -122,9 +123,6 @@ exclude_patterns: List[str] = [
     "_api/airflow/providers/cncf/index.rst",
     # Packages without operators
     "_api/airflow/providers/sendgrid",
-    # Setup.py files of the providers
-    "_api/airflow/providers/*/*setup/index.rst",
-    "_api/airflow/providers/*/*/*setup/index.rst",
     # Templates or partials
     'autoapi_templates',
     'howto/operator/google/_partials',
@@ -424,6 +422,7 @@ autoapi_ignore = [
     '*/airflow/kubernetes/kubernetes_request_factory/*',
     '*/_internal*',
     '*/node_modules/*',
+    '*/example_dags/*,',
     '*/migrations/*',
 ]
 # Keep the AutoAPI generated files on the filesystem after the run.

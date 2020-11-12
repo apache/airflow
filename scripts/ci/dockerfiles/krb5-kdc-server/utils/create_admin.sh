@@ -41,7 +41,7 @@ PASSWORD=$2
 REALM_NAME=EXAMPLE.COM
 
 cat << EOF | kadmin.local &>/dev/null
-add_principal -pw $PASSWORD "${USERNAME}/admmin@${REALM_NAME}"
+add_principal -pw $PASSWORD "${USERNAME}/admin@${REALM_NAME}"
 listprincs
 quit
 EOF

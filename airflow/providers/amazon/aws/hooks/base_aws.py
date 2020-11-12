@@ -25,13 +25,17 @@ This module contains Base AWS Hook.
 """
 
 import configparser
+import datetime
 import logging
 from typing import Any, Dict, Optional, Tuple, Union
 
 import boto3
+import botocore
+import botocore.session
 from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
 from cached_property import cached_property
+from dateutil.tz import tzlocal
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -88,17 +92,29 @@ class _SessionFactory(LoggingMixin):
     def _impersonate_to_role(
         self, role_arn: str, session: boto3.session.Session, session_kwargs: Dict[str, Any]
     ) -> boto3.session.Session:
-        sts_client = session.client("sts", config=self.config)
         assume_role_kwargs = self.extra_config.get("assume_role_kwargs", {})
         assume_role_method = self.extra_config.get('assume_role_method')
         self.log.info("assume_role_method=%s", assume_role_method)
         if not assume_role_method or assume_role_method == 'assume_role':
+            sts_client = session.client("sts", config=self.config)
             sts_response = self._assume_role(
                 sts_client=sts_client, role_arn=role_arn, assume_role_kwargs=assume_role_kwargs
             )
         elif assume_role_method == 'assume_role_with_saml':
+            sts_client = session.client("sts", config=self.config)
             sts_response = self._assume_role_with_saml(
                 sts_client=sts_client, role_arn=role_arn, assume_role_kwargs=assume_role_kwargs
+            )
+        elif assume_role_method == 'assume_role_with_web_identity':
+            botocore_session = self._assume_role_with_web_identity(
+                role_arn=role_arn,
+                assume_role_kwargs=assume_role_kwargs,
+                base_session=session._session,  # pylint: disable=protected-access
+            )
+            return boto3.session.Session(
+                region_name=session.region_name,
+                botocore_session=botocore_session,
+                **session_kwargs,
             )
         else:
             raise NotImplementedError(
@@ -241,6 +257,50 @@ class _SessionFactory(LoggingMixin):
         if not saml_assertion:
             raise ValueError('Invalid SAML Assertion')
         return saml_assertion
+
+    def _assume_role_with_web_identity(self, role_arn, assume_role_kwargs, base_session):
+        base_session = base_session or botocore.session.get_session()
+        client_creator = base_session.create_client
+        federation = self.extra_config.get('assume_role_with_web_identity_federation')
+        if federation == 'google':
+            web_identity_token_loader = self._get_google_identity_token_loader()
+        else:
+            raise AirflowException(
+                f'Unsupported federation: {federation}. Currently "google" only are supported.'
+            )
+        fetcher = botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher(
+            client_creator=client_creator,
+            web_identity_token_loader=web_identity_token_loader,
+            role_arn=role_arn,
+            extra_args=assume_role_kwargs or {},
+        )
+        aws_creds = botocore.credentials.DeferredRefreshableCredentials(
+            method='assume-role-with-web-identity',
+            refresh_using=fetcher.fetch_credentials,
+            time_fetcher=lambda: datetime.datetime.now(tz=tzlocal()),
+        )
+        botocore_session = botocore.session.Session()
+        botocore_session._credentials = aws_creds  # pylint: disable=protected-access
+        return botocore_session
+
+    def _get_google_identity_token_loader(self):
+        from google.auth.transport import requests as requests_transport
+
+        from airflow.providers.google.common.utils.id_token_credentials import (
+            get_default_id_token_credentials,
+        )
+
+        audience = self.extra_config.get('assume_role_with_web_identity_federation_audience')
+
+        google_id_token_credentials = get_default_id_token_credentials(target_audience=audience)
+
+        def web_identity_token_loader():
+            if not google_id_token_credentials.valid:
+                request_adapter = requests_transport.Request()
+                google_id_token_credentials.refresh(request=request_adapter)
+            return google_id_token_credentials.token
+
+        return web_identity_token_loader
 
 
 class AwsBaseHook(BaseHook):

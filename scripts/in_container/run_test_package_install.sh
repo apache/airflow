@@ -19,15 +19,15 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 OUT_FILE_PRINTED_ON_ERROR=$(mktemp)
 
-setup_backport_packages
+setup_provider_packages
 
 echo
 echo "Testing if all provider packages can be installed separately on Airflow and cause no side effects"
 echo
 
-if [[ ${INSTALL_AIRFLOW_VERSION:=""} =~ ^2\..* ]]; then
+if [[ ${INSTALL_AIRFLOW_VERSION:=""} == "wheel" ]]; then
     echo
-    echo "Installing regular packages for Airflow 2.0 but first installing prepared Airflow from master"
+    echo "Installing the airflow prepared from wheels"
     echo
     pip install /dist/apache_airflow-*.whl
     # Need to add excluded apache beam

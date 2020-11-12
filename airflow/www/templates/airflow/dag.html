@@ -45,7 +45,7 @@
         <span class="text-muted">SUBDAG:</span> {{ dag.dag_id }}
       {% else %}
         <label class="switch-label js-tooltip" title="Pause/Unpause DAG">
-          <input class="switch-input" id="pause_resume" dag_id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }} method="post">
+          <input class="switch-input" id="pause_resume" data-dag-id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }}>
           <span class="switch" aria-hidden="true"></span>
         </label>
         <span class="text-muted">DAG:</span> {{ dag.dag_id }}
@@ -132,16 +132,21 @@
             <hr>
           </div>
           <a id="btn_task" class="btn btn-sm" data-base-url="{{ url_for('Airflow.task') }}">
-            Task Instance Details
+            Instance Details
           </a>
-          <a id="btn_rendered" class="btn btn-sm" data-base-url="{{ url_for('Airflow.rendered') }}">
+          <a id="btn_rendered" class="btn btn-sm" data-base-url="{{ url_for('Airflow.rendered_templates') }}">
             Rendered
           </a>
-          <a id="btn_ti" class="btn btn-sm" data-base-url="{{ url_for('TaskInstanceModelView.list') }}">
-            Task Instances
-          </a>
+          {% if k8s_or_k8scelery_executor %}
+            <a id="btn_rendered_k8s" class="btn btn-sm" data-base-url="{{ url_for('Airflow.rendered_k8s') }}">
+              K8s Pod Spec
+            </a>
+          {% endif %}
           <a id="btn_log" class="btn btn-sm" data-base-url="{{ url_for('Airflow.log') }}">
-            View Log
+            Log
+          </a>
+          <a id="btn_ti" class="btn btn-sm" data-base-url="{{ url_for('TaskInstanceModelView.list') }}">
+            All Instances
           </a>
           <button id="btn_filter" type="button" class="btn btn-sm" title="Filter on this task and upstream ">
             Filter Upstream
@@ -420,6 +425,14 @@
         execution_date: execution_date,
       });
 
+      if (buttons.rendered_k8s) {
+        updateButtonUrl(buttons.rendered_k8s, {
+          dag_id: dag_id,
+          task_id: task_id,
+          execution_date: execution_date,
+        });
+      }
+
       updateButtonUrl(buttons.ti, {
         flt1_dag_id_equals: dag_id,
         _flt_3_task_id: task_id,
@@ -585,23 +598,16 @@
     });
 
     $('#pause_resume').change(function() {
-      var dag_id = $(this).attr('dag_id');
       var $input = $(this);
-      var $buttons = $input.parent('.toggle').find('.btn');
-      $buttons.removeClass('btn-danger');
-      if ($input.prop('checked')) {
-        is_paused = 'true'
-      } else {
-        is_paused = 'false'
-      }
-      var url = '{{ url_for('Airflow.paused') }}' + '?is_paused=' + is_paused + '&dag_id=' + encodeURIComponent(dag_id);
+      var dagId = $input.data('dag-id');
+      var isPaused = $input.is(':checked');
+      var url = `{{ url_for('Airflow.paused') }}?is_paused=${isPaused}&dag_id=${encodeURIComponent(dagId)}`;
+      $input.removeClass('switch-input--error');
       $.post(url).fail(function() {
-        if (is_paused === 'true') {
-          $input.data('bs.toggle').off(true);
-        } else {
-          $input.data('bs.toggle').on(true);
-        }
-        $buttons.addClass('btn-danger');
+        setTimeout(() => {
+          $input.prop('checked', !isPaused);
+          $input.addClass('switch-input--error');
+        }, 500 );
       });
     });
   </script>
