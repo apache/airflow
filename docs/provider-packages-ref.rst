@@ -25,7 +25,7 @@ Here's the list of the :doc:`provider packages <provider-packages>` and what the
 
 .. jinja:: providers_ctx
 
-    {% for package in package_data.providers %}
+    {% for package in providers %}
 
     ``{{ package["package-name"] }}``
     {{ "=" * (package["package-name"]|length + 4) }}

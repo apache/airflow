@@ -1,0 +1,7 @@
+---
+package-name: apache-airflow-providers-jenkins
+description: |
+    `Jenkins <https://jenkins.io/>`__
+
+versions:
+  - 1.0.0b1

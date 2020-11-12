@@ -1,0 +1,7 @@
+---
+package-name: apache-airflow-providers-qubole
+description: |
+    `Qubole <https://www.qubole.com/>`__
+
+versions:
+  - 1.0.0b1

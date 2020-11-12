@@ -1,0 +1,7 @@
+---
+package-name: apache-airflow-providers-singularity
+description: |
+    `Singularity <https://sylabs.io/guides/latest/user-guide/>`__
+
+versions:
+  - 1.0.0b1

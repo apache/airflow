@@ -1,0 +1,7 @@
+---
+package-name: apache-airflow-providers-apache-cassandra
+description: |
+    `Apache Cassandra <http://cassandra.apache.org/>`__.
+
+versions:
+  - 1.0.0b1

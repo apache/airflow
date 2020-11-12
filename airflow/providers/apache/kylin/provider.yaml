@@ -1,0 +1,7 @@
+---
+package-name: apache-airflow-providers-apache-kylin
+description: |
+    `Apache Kylin <https://kylin.apache.org/>`__
+
+versions:
+  - 1.0.0b1

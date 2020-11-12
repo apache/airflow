@@ -1,0 +1,7 @@
+---
+package-name: apache-airflow-providers-odbc
+description: |
+    `ODBC <https://github.com/mkleehammer/pyodbc/wiki>`__
+
+versions:
+  - 1.0.0b1

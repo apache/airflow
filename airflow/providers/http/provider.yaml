@@ -1,0 +1,7 @@
+---
+package-name: apache-airflow-providers-http
+description: |
+    `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
+
+versions:
+  - 1.0.0b1

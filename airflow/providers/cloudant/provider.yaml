@@ -1,0 +1,7 @@
+---
+package-name: apache-airflow-providers-cloudant
+description: |
+    `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
+
+versions:
+  - 1.0.0b1

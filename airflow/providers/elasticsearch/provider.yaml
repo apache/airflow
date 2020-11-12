@@ -1,0 +1,7 @@
+---
+package-name: apache-airflow-providers-elasticsearch
+description: |
+    `Elasticsearch <https://https//www.elastic.co/elasticsearch>`__
+
+versions:
+  - 1.0.0b1

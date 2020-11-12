@@ -1,0 +1,7 @@
+---
+package-name: apache-airflow-providers-apache-pinot
+description: |
+    `Apache Pinot <https://pinot.apache.org/>`__
+
+versions:
+  - 1.0.0b1

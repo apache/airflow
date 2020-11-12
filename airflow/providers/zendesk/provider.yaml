@@ -1,0 +1,7 @@
+---
+package-name: apache-airflow-providers-zendesk
+description: |
+    `Zendesk <https://www.zendesk.com/>`__
+
+versions:
+  - 1.0.0b1

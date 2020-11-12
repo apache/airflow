@@ -244,7 +244,7 @@ repos:
         files: ^setup.py$
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_order_setup.py
-      - id: setup-installation
+      - id: setup-extra-packages
         name: Checks if all the libraries in setup.py are listed in extra-packages-ref.rst file
         language: python
         files: ^setup.py$|^docs/extra-packages-ref.rst$

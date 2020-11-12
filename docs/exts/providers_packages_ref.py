@@ -17,6 +17,7 @@
 
 import json
 import os
+from glob import glob
 from typing import Any, Dict
 
 import jsonschema
@@ -24,8 +25,7 @@ import yaml
 from sphinx.application import Sphinx
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
-PROVIDER_DATA_PATH = os.path.join(ROOT_DIR, "dev", "package-data", "providers.yaml")
-PROVIDER_DATA_SCHEMA_PATH = f"{PROVIDER_DATA_PATH}.schema.json"
+PROVIDER_DATA_SCHEMA_PATH = os.path.join(ROOT_DIR, "dev", "provider.yaml.schema.json")
 
 
 def _load_schema() -> Dict[str, Any]:
@@ -36,17 +36,23 @@ def _load_schema() -> Dict[str, Any]:
 
 def _load_package_data():
     schema = _load_schema()
-    with open(PROVIDER_DATA_PATH) as yaml_file:
-        content = yaml.safe_load(yaml_file)
-    jsonschema.validate(content, schema=schema)
-    return content
+    result = []
+    for provider_yaml_path in sorted(glob(f"{ROOT_DIR}/airflow/providers/**/provider.yaml")):
+        with open(provider_yaml_path) as yaml_file:
+            provider = yaml.safe_load(yaml_file)
+        try:
+            jsonschema.validate(provider, schema=schema)
+        except jsonschema.ValidationError:
+            raise Exception(f"Unable to parse: {provider_yaml_path}")
+        result.append(provider)
+    return result
 
 
 def _on_config_inited(app, config):
     del app
     jinja_context = getattr(config, 'jinja_contexts', None) or {}
 
-    jinja_context['providers_ctx'] = {'package_data': _load_package_data()}
+    jinja_context['providers_ctx'] = {'providers': _load_package_data()}
 
     config.jinja_contexts = jinja_context
 

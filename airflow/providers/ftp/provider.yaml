@@ -1,0 +1,7 @@
+---
+package-name: apache-airflow-providers-ftp
+description: |
+    `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
+
+versions:
+  - 1.0.0b1

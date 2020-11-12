@@ -1,0 +1,7 @@
+---
+package-name: apache-airflow-providers-databricks
+description: |
+    `Databricks <https://databricks.com/>`__
+
+versions:
+  - 1.0.0b1

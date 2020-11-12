@@ -1,0 +1,7 @@
+---
+package-name: apache-airflow-providers-apache-pig
+description: |
+    `Apache Pig <https://pig.apache.org/>`__
+
+versions:
+  - 1.0.0b1

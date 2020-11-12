@@ -1,0 +1,7 @@
+---
+package-name: apache-airflow-providers-pagerduty
+description: |
+    `Pagerduty <https://www.pagerduty.com/>`__
+
+versions:
+  - 1.0.0b1

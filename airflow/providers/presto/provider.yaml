@@ -1,0 +1,7 @@
+---
+package-name: apache-airflow-providers-presto
+description: |
+    `Presto <https://prestodb.github.io/>`__
+
+versions:
+  - 1.0.0b1

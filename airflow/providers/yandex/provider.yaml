@@ -1,0 +1,7 @@
+---
+package-name: apache-airflow-providers-yandex
+description: |
+    Yandex including `Yandex.Cloud <https://cloud.yandex.com/>`__
+
+versions:
+  - 1.0.0b1

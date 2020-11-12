@@ -1,0 +1,7 @@
+---
+package-name: apache-airflow-providers-oracle
+description: |
+    `Oracle <https://www.oracle.com/en/database/>`__
+
+versions:
+  - 1.0.0b1

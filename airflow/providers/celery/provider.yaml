@@ -1,0 +1,7 @@
+---
+package-name: apache-airflow-providers-celery
+description: |
+    `Celery <http://www.celeryproject.org/>`__
+
+versions:
+  - 1.0.0b1

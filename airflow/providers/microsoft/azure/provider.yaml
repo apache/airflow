@@ -1,0 +1,7 @@
+---
+package-name: apache-airflow-providers-microsoft-azure
+description: |
+    `Microsoft Azure <https://azure.microsoft.com/>`__
+
+versions:
+  - 1.0.0b1

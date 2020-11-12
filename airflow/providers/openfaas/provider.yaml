@@ -1,0 +1,7 @@
+---
+package-name: apache-airflow-providers-openfaas
+description: |
+    `OpenFaaS <https://www.openfaas.com/>`__
+
+versions:
+  - 1.0.0b1

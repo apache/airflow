@@ -1,0 +1,7 @@
+---
+package-name: apache-airflow-providers-salesforce
+description: |
+    `Salesforce <https://www.salesforce.com/>`__
+
+versions:
+  - 1.0.0b1

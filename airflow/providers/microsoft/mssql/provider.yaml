@@ -1,0 +1,7 @@
+---
+package-name: apache-airflow-providers-microsoft-mssql
+description: |
+    `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/en-us/sql-server/sql-server-downloads>`__
+
+versions:
+  - 1.0.0b1

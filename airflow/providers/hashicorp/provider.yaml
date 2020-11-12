@@ -1,0 +1,7 @@
+---
+package-name: apache-airflow-providers-hashicorp
+description: |
+    Hashicorp including `Hashicorp Vault <https://www.vaultproject.io/>`__
+
+versions:
+  - 1.0.0b1
