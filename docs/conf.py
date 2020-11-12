@@ -93,7 +93,7 @@ extensions = [
     'removemarktransform',
     'sphinx_copybutton',
     'redirects',
-    'providers_index',
+    'providers_packages_ref',
     # First, generate redoc
     'sphinxcontrib.redoc',
     # Second, update redoc script

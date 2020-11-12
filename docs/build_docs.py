@@ -616,6 +616,7 @@ def check_spelling() -> None:
         "sphinxcontrib.jinja",
         "docroles",
         "removemarktransform",
+        'providers_packages_ref',
     ]
 
     with NamedTemporaryFile() as tmp_file:
