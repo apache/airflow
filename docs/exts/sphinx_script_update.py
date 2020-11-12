@@ -20,6 +20,7 @@ import os
 import sys
 import tempfile
 from distutils.file_util import copy_file
+from functools import lru_cache
 from typing import Dict
 
 import requests
@@ -48,6 +49,7 @@ def _user_cache_dir(appname=None):
     return path
 
 
+@lru_cache(maxsize=None)
 def fetch_and_cache(script_url: str, output_filename: str):
     """Fetch URL to local cache and returns path."""
     cache_key = _gethash(script_url)
@@ -104,7 +106,7 @@ def builder_inited(app):
 
 def build_finished(app, exception):
     """Sphinx "build-finished" event handler."""
-    if exception:
+    if exception or not isinstance(app.builder, builders.StandaloneHTMLBuilder):
         return
     script_url = app.config.redoc_script_url
     output_filename = "script.js"
