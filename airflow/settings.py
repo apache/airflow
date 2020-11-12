@@ -377,6 +377,17 @@ def import_local_settings():
                 if not k.startswith("__"):
                     globals()[k] = v
 
+        # TODO: Remove once deprecated
+        if "policy" in globals():
+            warnings.warn(
+                "Using `policy` in airflow_local_settings.py is deprecated. "
+                "Please rename your `policy` to `task_policy`.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            globals()["task_policy"] = globals()["policy"]
+            del globals()["policy"]
+
         log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
     except ImportError:
         log.debug("Failed to import airflow_local_settings.", exc_info=True)
