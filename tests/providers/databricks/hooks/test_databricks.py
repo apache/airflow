@@ -56,15 +56,8 @@ NOTEBOOK_PARAMS = {"dry-run": "true", "oldest-time-to-consider": "1457570074236"
 JAR_PARAMS = ["param1", "param2"]
 RESULT_STATE = None  # type: None
 LIBRARIES = [
-    {
-        "jar": "dbfs:/mnt/libraries/library.jar"
-    },
-    {
-        "maven": {
-            "coordinates": "org.jsoup:jsoup:1.7.2",
-            "exclusions": ["slf4j:slf4j"]
-        }
-    }
+    {"jar": "dbfs:/mnt/libraries/library.jar"},
+    {"maven": {"coordinates": "org.jsoup:jsoup:1.7.2", "exclusions": ["slf4j:slf4j"]}},
 ]
 
 
@@ -458,10 +451,7 @@ class TestDatabricksHook(unittest.TestCase):
 
         mock_requests.post.assert_called_once_with(
             install_endpoint(HOST),
-            json={
-                'cluster_id': CLUSTER_ID,
-                'libraries': LIBRARIES
-            },
+            json={'cluster_id': CLUSTER_ID, 'libraries': LIBRARIES},
             params=None,
             auth=(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
@@ -480,10 +470,7 @@ class TestDatabricksHook(unittest.TestCase):
 
         mock_requests.post.assert_called_once_with(
             uninstall_endpoint(HOST),
-            json={
-                'cluster_id': CLUSTER_ID,
-                'libraries': LIBRARIES
-            },
+            json={'cluster_id': CLUSTER_ID, 'libraries': LIBRARIES},
             params=None,
             auth=(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
