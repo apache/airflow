@@ -667,7 +667,7 @@ class DAG(LoggingMixin):
             get_last_dagrun(
                 self.dag_id, session=session, include_externally_triggered=include_externally_triggered
             )
-            != None
+            is not None
         )
 
     @property
