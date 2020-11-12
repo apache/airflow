@@ -89,10 +89,8 @@ def fetch_and_cache(script_url: str, output_filename: str):
     return cache_filepath
 
 
-def build_finished(app, exception):
+def build_inited(app):
     """Sphinx "build_finished" event handler."""
-    if exception:
-        return
     if not isinstance(app.builder, builders.StandaloneHTMLBuilder):
         log.warning(
             F"The plugin is support only 'html' builder, but you are using '{type(app.builder)}'. Skipping..."
@@ -108,4 +106,4 @@ def build_finished(app, exception):
 def setup(app):
     """Setup plugin"""
     app.add_config_value("redoc_script_url", None, "env")
-    app.connect("builder-inited", build_finished)
+    app.connect("builder-inited", build_inited)
