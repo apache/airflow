@@ -1814,7 +1814,6 @@ class TestTaskInstance(unittest.TestCase):
         with create_session() as session:
             session.query(RenderedTaskInstanceFields).delete()
 
-    @patch("airflow.models.renderedtifields.IS_K8S_OR_K8SCELERY_EXECUTOR", new=True)
     def test_get_rendered_k8s_spec(self):
         with DAG('test_get_rendered_k8s_spec', start_date=DEFAULT_DATE):
             task = BashOperator(task_id='op1', bash_command="{{ task.task_id }}")
