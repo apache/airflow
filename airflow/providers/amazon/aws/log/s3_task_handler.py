@@ -155,7 +155,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         try:
             return self.hook.read_key(remote_log_location)
         except Exception as error:  # pylint: disable=broad-except
-            msg = 'Could not read logs from {} with error: {}'.format(remote_log_location, error)
+            msg = f'Could not read logs from {remote_log_location} with error: {error}'
             self.log.exception(msg)
             # return error if needed
             if return_error:
