@@ -51,7 +51,7 @@ class RenderedTaskInstanceFields(Base):
         self.ti = ti
         if render_templates:
             ti.render_templates()
-        if os.environ["AIRFLOW_IS_K8S_EXECUTOR_POD"]:
+        if os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD", None):
             self.k8s_pod_yaml = ti.render_k8s_pod_yaml()
         self.rendered_fields = {
             field: serialize_template_field(getattr(self.task, field)) for field in self.task.template_fields

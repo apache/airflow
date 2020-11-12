@@ -18,6 +18,7 @@
 
 """Unit tests for RenderedTaskInstanceFields."""
 
+import os
 import unittest
 from datetime import date, timedelta
 from unittest import mock
@@ -227,7 +228,7 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
             ('test_write', 'test', {'bash_command': 'echo test_val_updated', 'env': None}), result_updated
         )
 
-    @mock.patch("airflow.models.renderedtifields.IS_K8S_OR_K8SCELERY_EXECUTOR", new=True)
+    @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
     @mock.patch("airflow.settings.pod_mutation_hook")
     def test_get_k8s_pod_yaml(self, mock_pod_mutation_hook):
         """
@@ -281,6 +282,7 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
                         ],
                         'image': ':',
                         'name': 'base',
+                        'env': [{'name': 'AIRFLOW_IS_K8S_EXECUTOR_POD', 'value': 'True'}],
                     }
                 ]
             },
@@ -292,12 +294,3 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
             session.add(rtif)
 
         self.assertEqual(expected_pod_yaml, RTIF.get_k8s_pod_yaml(ti=ti))
-
-        # Test the else part of get_k8s_pod_yaml
-        # i.e. for the TIs that are not stored in RTIF table
-        # Fetching them will return None
-        with dag:
-            task_2 = BashOperator(task_id="test2", bash_command="echo hello")
-
-        ti2 = TI(task_2, EXECUTION_DATE)
-        self.assertIsNone(RTIF.get_k8s_pod_yaml(ti=ti2))
