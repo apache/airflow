@@ -307,6 +307,10 @@ class _DataflowJobsController(LoggingMixin):
             raise Exception("Google Cloud Dataflow job {} has failed.".format(job['name']))
         elif job['currentState'] == DataflowJobStatus.JOB_STATE_CANCELLED:
             raise Exception("Google Cloud Dataflow job {} was cancelled.".format(job['name']))
+        elif job['currentState'] == DataflowJobStatus.JOB_STATE_DRAINED:
+            raise Exception("Google Cloud Dataflow job {} was drained.".format(job['name']))
+        elif job['currentState'] == DataflowJobStatus.JOB_STATE_UPDATED:
+            raise Exception("Google Cloud Dataflow job {} was updated.".format(job['name']))
         elif job['currentState'] == DataflowJobStatus.JOB_STATE_RUNNING and not wait_until_finished:
             return True
         elif job['currentState'] in DataflowJobStatus.AWAITING_STATES:

@@ -1069,7 +1069,19 @@ class TestDataflowJob(unittest.TestCase):
 
         self.assertEqual(dataflow_job.get_jobs(), [job, job])
 
-    def test_dataflow_job_wait_for_multiple_jobs_and_one_failed(self):
+    @parameterized.expand(
+        [
+            (DataflowJobStatus.JOB_STATE_FAILED, "Google Cloud Dataflow job name-2 has failed\\."),
+            (DataflowJobStatus.JOB_STATE_CANCELLED, "Google Cloud Dataflow job name-2 was cancelled\\."),
+            (DataflowJobStatus.JOB_STATE_DRAINED, "Google Cloud Dataflow job name-2 was drained\\."),
+            (DataflowJobStatus.JOB_STATE_UPDATED, "Google Cloud Dataflow job name-2 was updated\\."),
+            (
+                DataflowJobStatus.JOB_STATE_UNKNOWN,
+                "Google Cloud Dataflow job name-2 was unknown state: JOB_STATE_UNKNOWN",
+            ),
+        ]
+    )
+    def test_dataflow_job_wait_for_multiple_jobs_and_one_in_terminal_state(self, state, exception_regex):
         # fmt: off
         (
             self.mock_dataflow.projects.return_value.
@@ -1087,7 +1099,7 @@ class TestDataflowJob(unittest.TestCase):
                 {
                     "id": "id-2", "name": "name-2",
                     "type": DataflowJobType.JOB_TYPE_BATCH,
-                    "currentState": DataflowJobStatus.JOB_STATE_FAILED
+                    "currentState": state
                 }
             ]
         }
@@ -1108,79 +1120,7 @@ class TestDataflowJob(unittest.TestCase):
             num_retries=20,
             multiple_jobs=True,
         )
-        with self.assertRaisesRegex(Exception, 'Google Cloud Dataflow job name-2 has failed\\.'):
-            dataflow_job.wait_for_done()
-
-    def test_dataflow_job_wait_for_multiple_jobs_and_one_cancelled(self):
-        # fmt: off
-        (
-            self.mock_dataflow.projects.return_value.
-            locations.return_value.
-            jobs.return_value.
-            list.return_value.
-            execute.return_value
-        ) = {
-            "jobs": [
-                {"id": "id-1", "name": "name-1", "type": DataflowJobType.JOB_TYPE_BATCH,
-                 "currentState": DataflowJobStatus.JOB_STATE_DONE},
-                {"id": "id-2", "name": "name-2", "type": DataflowJobType.JOB_TYPE_BATCH,
-                 "currentState": DataflowJobStatus.JOB_STATE_CANCELLED}
-            ]
-        }
-        (
-            self.mock_dataflow.projects.return_value.
-            locations.return_value.
-            jobs.return_value.
-            list_next.return_value
-        ) = None
-        # fmt: on
-        dataflow_job = _DataflowJobsController(
-            dataflow=self.mock_dataflow,
-            project_number=TEST_PROJECT,
-            name="name-",
-            location=TEST_LOCATION,
-            poll_sleep=0,
-            job_id=None,
-            num_retries=20,
-            multiple_jobs=True,
-        )
-        with self.assertRaisesRegex(Exception, 'Google Cloud Dataflow job name-2 was cancelled\\.'):
-            dataflow_job.wait_for_done()
-
-    def test_dataflow_job_wait_for_multiple_jobs_and_one_unknown(self):
-        # fmt: off
-        (
-            self.mock_dataflow.projects.return_value.
-            locations.return_value.
-            jobs.return_value.
-            list.return_value.
-            execute.return_value
-        ) = {
-            "jobs": [
-                {"id": "id-1", "name": "name-1", "type": DataflowJobType.JOB_TYPE_BATCH,
-                 "currentState": DataflowJobStatus.JOB_STATE_DONE},
-                {"id": "id-2", "name": "name-2", "type": DataflowJobType.JOB_TYPE_BATCH,
-                 "currentState": "unknown"}
-            ]
-        }
-        (
-            self.mock_dataflow.projects.return_value.
-            locations.return_value.
-            jobs.return_value.
-            list_next.return_value
-        ) = None
-        # fmt: on
-        dataflow_job = _DataflowJobsController(
-            dataflow=self.mock_dataflow,
-            project_number=TEST_PROJECT,
-            name="name-",
-            location=TEST_LOCATION,
-            poll_sleep=0,
-            job_id=None,
-            num_retries=20,
-            multiple_jobs=True,
-        )
-        with self.assertRaisesRegex(Exception, 'Google Cloud Dataflow job name-2 was unknown state: unknown'):
+        with self.assertRaisesRegex(Exception, exception_regex):
             dataflow_job.wait_for_done()
 
     def test_dataflow_job_wait_for_multiple_jobs_and_streaming_jobs(self):
