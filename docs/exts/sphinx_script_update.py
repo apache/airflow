@@ -108,4 +108,4 @@ def build_finished(app, exception):
 def setup(app):
     """Setup plugin"""
     app.add_config_value("redoc_script_url", None, "env")
-    app.connect("build-finished", build_finished)
+    app.connect("builder-inited", build_finished)

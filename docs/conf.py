@@ -133,9 +133,7 @@ def _get_rst_filepath_from_path(filepath: str):
     elif os.path.isfile(filepath) and filepath.endswith('/__init__.py'):
         result = filepath.rpartition("/")[0]
     else:
-        result = filepath.rpartition(
-            ".",
-        )[0]
+        result = filepath.rpartition(".")[0]
     result += "/index.rst"
 
     result = f"_api/{os.path.relpath(result, ROOT_DIR)}"

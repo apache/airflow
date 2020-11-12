@@ -188,7 +188,7 @@ providers:
         - `Google Cloud (GCP) <https://cloud.google.com/>`__
         - `Google Firebase <https://firebase.google.com/>`__
         - `Google Marketing Platform <https://marketingplatform.google.com/>`__
-        - `Google Workspace <https://workspace.google.pl/>`__ (formely Google Suite)
+        - `Google Workspace <https://workspace.google.pl/>`__ (formerly Google Suite)
 
     versions:
       - 1.0.0b1
