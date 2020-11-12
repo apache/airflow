@@ -115,3 +115,5 @@ Content
     Experimental REST API <rest-api-ref>
     Stable REST API <stable-rest-api-ref>
     Configurations <configurations-ref>
+    Extra packages <extra-packaages-ref>
+    Provider packages <provider-packages-ref>

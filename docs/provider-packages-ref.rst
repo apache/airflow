@@ -1,0 +1,61 @@
+ .. Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+ ..   http://www.apache.org/licenses/LICENSE-2.0
+
+ .. Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+Providers packages reference
+''''''''''''''''''''''''''''
+
+Here's the list of the :doc:`provider packages <provider-packages>` and what they enable:
+
+.. note::
+    For more information on providers packages, see :ref:`installation:extra_packages`
+
+.. contents:: :local:
+
+.. jinja:: providers_ctx
+    :debug: true
+
+    {% for package in package_data.providers %}
+
+    ``{{ package["package-name"] }}``
+    {{ "=" * (section["name"]|length + 4) }}
+
+    {% if package["description"] %}
+    {{ package["description"] }}
+    {% endif %}
+
+    {% if package["versions"] %}
+    To install, run:
+
+    .. code-block:: bash
+
+        pip install '{{ package["package-name"] }}'
+
+    Available versions:
+    {%- for version in package["versions"] %}``{{ version }}``{% if not loop.last %}, {% else %}.{% endif %}{%- endfor %}
+
+    Reference: `PyPi repository <https://pypi.org/project/{{ package["package-name"] }}/>`__
+    {% else %}
+
+    .. warning::
+
+      This package has not yet been released.
+
+    {% endif %}
+    {%- if package["python-module"] %}
+    Python API Refernece: :mod:`{{ package["python-module"] }}`
+    {% endif %}
+    {% endfor %}

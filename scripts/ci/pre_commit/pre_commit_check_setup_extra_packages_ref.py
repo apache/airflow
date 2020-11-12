@@ -32,7 +32,7 @@ from rich.table import Table
 
 AIRFLOW_SOURCES_DIR = os.path.join(dirname(__file__), os.pardir, os.pardir, os.pardir)
 SETUP_PY_FILE = 'setup.py'
-DOCS_FILE = 'installation.rst'
+DOCS_FILE = 'extra-packages-ref.rst'
 PY_IDENTIFIER = r'[a-zA-Z_][a-zA-Z0-9_\.]*'
 
 

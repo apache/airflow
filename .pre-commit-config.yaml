@@ -245,11 +245,11 @@ repos:
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_order_setup.py
       - id: setup-installation
-        name: Checks if all the libraries in setup.py are listed in installation.rst file
+        name: Checks if all the libraries in setup.py are listed in extra-packages-ref.rst file
         language: python
-        files: ^setup.py$|^docs/installation.rst$
+        files: ^setup.py$|^docs/extra-packages-ref.rst$
         pass_filenames: false
-        entry: ./scripts/ci/pre_commit/pre_commit_check_setup_installation.py
+        entry: ./scripts/ci/pre_commit/pre_commit_check_setup_extra_packages_ref.py
         additional_dependencies: ['rich==9.2.0']
       - id: update-breeze-file
         name: Update output of breeze command in BREEZE.rst
