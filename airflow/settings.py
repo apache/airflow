@@ -378,7 +378,7 @@ def import_local_settings():
                     globals()[k] = v
 
         # TODO: Remove once deprecated
-        if "policy" in globals():
+        if "policy" in globals() and "task_policy" not in globals():
             warnings.warn(
                 "Using `policy` in airflow_local_settings.py is deprecated. "
                 "Please rename your `policy` to `task_policy`.",
