@@ -22,3 +22,16 @@ description: |
 
 versions:
   - 1.0.0b1
+integrations:
+  - integration-name: Jenkins
+    external-doc-url: https://jenkins.io/
+    tags: [software]
+
+operators:
+  - integration-name: Jenkins
+    python-modules:
+      - airflow.providers.jenkins.operators.jenkins_job_trigger
+hooks:
+  - integration-name: Jenkins
+    python-modules:
+      - airflow.providers.jenkins.hooks.jenkins

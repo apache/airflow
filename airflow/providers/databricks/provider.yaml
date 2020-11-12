@@ -22,3 +22,18 @@ description: |
 
 versions:
   - 1.0.0b1
+integrations:
+  - integration-name: Databricks
+    external-doc-url: https://databricks.com/
+    how-to-guide:
+      - /docs/howto/operator/databricks.rst
+    tags: [service]
+operators:
+  - integration-name: Databricks
+    python-modules:
+      - airflow.providers.databricks.operators.databricks
+
+hooks:
+  - integration-name: Databricks
+    python-modules:
+      - airflow.providers.databricks.hooks.databricks

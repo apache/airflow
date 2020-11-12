@@ -22,3 +22,27 @@ description: |
 
 versions:
   - 1.0.0b1
+
+integrations:
+  - integration-name: Yandex.Cloud
+    external-doc-url: https://cloud.yandex.com/
+    tags: [yandex]
+
+  - integration-name: Yandex.Cloud Dataproc
+    external-doc-url: https://cloud.yandex.com/dataproc
+    how-to-guide:
+      - /docs/howto/operator/yandexcloud.rst
+    tags: [yandex]
+
+operators:
+  - integration-name: Yandex.Cloud Dataproc
+    python-modules:
+      - airflow.providers.yandex.operators.yandexcloud_dataproc
+
+hooks:
+  - integration-name: Yandex.Cloud
+    python-modules:
+      - airflow.providers.yandex.hooks.yandex
+  - integration-name: Yandex.Cloud
+    python-modules:
+      - airflow.providers.yandex.hooks.yandexcloud_dataproc

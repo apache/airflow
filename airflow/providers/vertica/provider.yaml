@@ -22,3 +22,18 @@ description: |
 
 versions:
   - 1.0.0b1
+
+integrations:
+  - integration-name: Vertica
+    external-doc-url: https://www.vertica.com/
+    tags: [software]
+
+operators:
+  - integration-name: Vertica
+    python-modules:
+      - airflow.providers.vertica.operators.vertica
+
+hooks:
+  - integration-name: Vertica
+    python-modules:
+      - airflow.providers.vertica.hooks.vertica

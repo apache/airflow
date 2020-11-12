@@ -22,3 +22,17 @@ description: |
 
 versions:
   - 1.0.0b1
+integrations:
+  - integration-name: Opsgenie
+    external-doc-url: https://www.opsgenie.com/
+    tags: [service]
+
+operators:
+  - integration-name: Opsgenie
+    python-modules:
+      - airflow.providers.opsgenie.operators.opsgenie_alert
+
+hooks:
+  - integration-name: Opsgenie
+    python-modules:
+      - airflow.providers.opsgenie.hooks.opsgenie_alert

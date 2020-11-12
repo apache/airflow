@@ -27,6 +27,8 @@ Here's the list of the :doc:`provider packages <provider-packages>` and what the
 
     {% for package in providers %}
 
+    .. provider:: {{ package["package-name"] }}
+
     ``{{ package["package-name"] }}``
     {{ "=" * (package["package-name"]|length + 4) }}
 

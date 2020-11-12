@@ -22,3 +22,14 @@ description: |
 
 versions:
   - 1.0.0b1
+integrations:
+  - integration-name: Papermill
+    external-doc-url: https://github.com/nteract/papermill
+    how-to-guide:
+      - /docs/howto/operator/papermill.rst
+    tags: [software]
+
+operators:
+  - integration-name: Papermill
+    python-modules:
+      - airflow.providers.papermill.operators.papermill

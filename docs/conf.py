@@ -94,6 +94,7 @@ extensions = [
     'sphinx_copybutton',
     'redirects',
     'providers_packages_ref',
+    'operators_and_hooks_ref',
     # First, generate redoc
     'sphinxcontrib.redoc',
     # Second, update redoc script

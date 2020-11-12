@@ -22,3 +22,17 @@ description: |
 
 versions:
   - 1.0.0b1
+integrations:
+  - integration-name: Discord
+    external-doc-url: https://discordapp.com
+    tags: [service]
+
+operators:
+  - integration-name: Discord
+    python-modules:
+      - airflow.providers.discord.operators.discord_webhook
+
+hooks:
+  - integration-name: Discord
+    python-modules:
+      - airflow.providers.discord.hooks.discord_webhook

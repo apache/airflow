@@ -22,3 +22,17 @@ description: |
 
 versions:
   - 1.0.0b1
+integrations:
+  - integration-name: gRPC
+    external-doc-url: https://grpc.io/
+    tags: [protocol]
+
+operators:
+  - integration-name: gRPC
+    python-modules:
+      - airflow.providers.grpc.operators.grpc
+
+hooks:
+  - integration-name: gRPC
+    python-modules:
+      - airflow.providers.grpc.hooks.grpc

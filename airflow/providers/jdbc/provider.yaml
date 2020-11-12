@@ -22,3 +22,18 @@ description: |
 
 versions:
   - 1.0.0b1
+integrations:
+  - integration-name: Java Database Connectivity (JDBC)
+    external-doc-url: https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/
+    how-to-guide:
+      - /docs/howto/operator/jdbc.rst
+    tags: [protocol]
+
+operators:
+  - integration-name: Java Database Connectivity (JDBC)
+    python-modules:
+      - airflow.providers.jdbc.operators.jdbc
+hooks:
+  - integration-name: Java Database Connectivity (JDBC)
+    python-modules:
+      - airflow.providers.jdbc.hooks.jdbc

@@ -22,3 +22,13 @@ description: |
 
 versions:
   - 1.0.0b1
+
+integrations:
+  - integration-name: Singularity
+    external-doc-url: https://sylabs.io/guides/latest/user-guide/
+    tags: [software]
+
+operators:
+  - integration-name: Singularity
+    python-modules:
+      - airflow.providers.singularity.operators.singularity

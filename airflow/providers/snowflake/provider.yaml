@@ -22,3 +22,28 @@ description: |
 
 versions:
   - 1.0.0b1
+
+integrations:
+  - integration-name: Snowflake
+    external-doc-url: https://snowflake.com/
+    how-to-guide:
+      - /docs/howto/operator/snowflake.rst
+    tags: [software]
+
+operators:
+  - integration-name: Snowflake
+    python-modules:
+      - airflow.providers.snowflake.operators.snowflake
+
+hooks:
+  - integration-name: Snowflake
+    python-modules:
+      - airflow.providers.snowflake.hooks.snowflake
+
+transfers:
+  - source-integration-name: Amazon Simple Storage Service (S3)
+    target-integration-name: Snowflake
+    python-module: airflow.providers.snowflake.transfers.s3_to_snowflake
+  - source-integration-name: Snowflake
+    target-integration-name: Slack
+    python-module: airflow.providers.snowflake.transfers.snowflake_to_slack

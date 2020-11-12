@@ -22,3 +22,23 @@ description: |
 
 versions:
   - 1.0.0b1
+integrations:
+  - integration-name: Docker
+    external-doc-url: https://docs.docker.com/
+    tags: [software]
+  - integration-name: Docker Swarm
+    external-doc-url: https://docs.docker.com/engine/swarm/
+    tags: [software]
+
+operators:
+  - integration-name: Docker
+    python-modules:
+      - airflow.providers.docker.operators.docker
+  - integration-name: Docker Swarm
+    python-modules:
+      - airflow.providers.docker.operators.docker_swarm
+
+hooks:
+  - integration-name: Docker
+    python-modules:
+      - airflow.providers.docker.hooks.docker

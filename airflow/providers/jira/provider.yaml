@@ -22,3 +22,23 @@ description: |
 
 versions:
   - 1.0.0b1
+
+integrations:
+  - integration-name: Atlassian Jira
+    external-doc-url: https://www.atlassian.com/pl/software/jira
+    tags: [software]
+
+operators:
+  - integration-name: Atlassian Jira
+    python-modules:
+      - airflow.providers.jira.operators.jira
+
+sensors:
+  - integration-name: Atlassian Jira
+    python-modules:
+      - airflow.providers.jira.sensors.jira
+
+hooks:
+  - integration-name: Atlassian Jira
+    python-modules:
+      - airflow.providers.jira.hooks.jira

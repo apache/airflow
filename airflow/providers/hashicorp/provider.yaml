@@ -22,3 +22,12 @@ description: |
 
 versions:
   - 1.0.0b1
+integrations:
+  - integration-name: Hashicorp Vault
+    external-doc-url: https://www.vaultproject.io/
+    tags: [software]
+
+hooks:
+  - integration-name: Hashicorp Vault
+    python-modules:
+      - airflow.providers.hashicorp.hooks.vault

@@ -23,3 +23,27 @@ description: |
 
 versions:
   - 1.0.0b1
+
+integrations:
+  - integration-name: Hadoop Distributed File System (HDFS)
+    external-doc-url: https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html
+    tags: [apache]
+  - integration-name: WebHDFS
+    external-doc-url: https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html
+    tags: [apache]
+
+sensors:
+  - integration-name: Hadoop Distributed File System (HDFS)
+    python-modules:
+      - airflow.providers.apache.hdfs.sensors.hdfs
+  - integration-name: WebHDFS
+    python-modules:
+      - airflow.providers.apache.hdfs.sensors.web_hdfs
+
+hooks:
+  - integration-name: Hadoop Distributed File System (HDFS)
+    python-modules:
+      - airflow.providers.apache.hdfs.hooks.hdfs
+  - integration-name: WebHDFS
+    python-modules:
+      - airflow.providers.apache.hdfs.hooks.webhdfs

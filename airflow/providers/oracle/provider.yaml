@@ -22,3 +22,20 @@ description: |
 
 versions:
   - 1.0.0b1
+integrations:
+  - integration-name: Oracle
+    external-doc-url: https://www.oracle.com/en/database/
+    tags: [software]
+
+operators:
+  - integration-name: Oracle
+    python-modules:
+      - airflow.providers.oracle.operators.oracle
+hooks:
+  - integration-name: Oracle
+    python-modules:
+      - airflow.providers.oracle.hooks.oracle
+transfers:
+  - source-integration-name: Oracle
+    target-integration-name: Oracle
+    python-module: airflow.providers.oracle.transfers.oracle_to_oracle

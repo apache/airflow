@@ -22,3 +22,24 @@ description: |
 
 versions:
   - 1.0.0b1
+
+integrations:
+  - integration-name: Salesforce
+    external-doc-url: https://www.salesforce.com/
+    tags: [service]
+
+operators:
+  - integration-name: Salesforce
+    python-modules:
+      - airflow.providers.salesforce.operators.tableau_refresh_workbook
+
+sensors:
+  - integration-name: Salesforce
+    python-modules:
+      - airflow.providers.salesforce.sensors.tableau_job_status
+
+hooks:
+  - integration-name: Salesforce
+    python-modules:
+      - airflow.providers.salesforce.hooks.salesforce
+      - airflow.providers.salesforce.hooks.tableau

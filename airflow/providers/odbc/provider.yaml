@@ -22,3 +22,12 @@ description: |
 
 versions:
   - 1.0.0b1
+integrations:
+  - integration-name: ODBC
+    external-doc-url: https://github.com/mkleehammer/pyodbc/wiki
+    tags: [protocol]
+
+hooks:
+  - integration-name: ODBC
+    python-modules:
+      - airflow.providers.odbc.hooks.odbc

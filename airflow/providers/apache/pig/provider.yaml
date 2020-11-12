@@ -22,3 +22,16 @@ description: |
 
 versions:
   - 1.0.0b1
+integrations:
+  - integration-name: Apache Pig
+    external-doc-url: https://pig.apache.org/
+    tags: [apache]
+
+operators:
+  - integration-name: Apache Pig
+    python-modules:
+      - airflow.providers.apache.pig.operators.pig
+hooks:
+  - integration-name: Apache Pig
+    python-modules:
+      - airflow.providers.apache.pig.hooks.pig

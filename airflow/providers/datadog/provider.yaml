@@ -22,3 +22,18 @@ description: |
 
 versions:
   - 1.0.0b1
+
+integrations:
+  - integration-name: Datadog
+    external-doc-url: https://www.datadoghq.com/
+    tags: [service]
+
+sensors:
+  - integration-name: Datadog
+    python-modules:
+      - airflow.providers.datadog.sensors.datadog
+
+hooks:
+  - integration-name: Datadog
+    python-modules:
+      - airflow.providers.datadog.hooks.datadog

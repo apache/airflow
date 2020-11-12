@@ -22,3 +22,12 @@ description: |
 
 versions:
   - 1.0.0b1
+integrations:
+  - integration-name: Apache Pinot
+    external-doc-url: https://pinot.apache.org/
+    tags: [apache]
+
+hooks:
+  - integration-name: Apache Pinot
+    python-modules:
+      - airflow.providers.apache.pinot.hooks.pinot

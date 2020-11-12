@@ -22,3 +22,17 @@ description: |
 
 versions:
   - 1.0.0b1
+integrations:
+  - integration-name: Apache Sqoop
+    external-doc-url: https://sqoop.apache.org/
+    tags: [apache]
+
+operators:
+  - integration-name: Apache Sqoop
+    python-modules:
+      - airflow.providers.apache.sqoop.operators.sqoop
+
+hooks:
+  - integration-name: Apache Sqoop
+    python-modules:
+      - airflow.providers.apache.sqoop.hooks.sqoop

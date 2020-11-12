@@ -22,3 +22,16 @@ description: |
 
 versions:
   - 1.0.0b1
+integrations:
+  - integration-name: Plexus
+    external-doc-url: https://plexus.corescientific.com/
+    tags: [service]
+
+operators:
+  - integration-name: Plexus
+    python-modules:
+      - airflow.providers.plexus.operators.job
+hooks:
+  - integration-name: Plexus
+    python-modules:
+      - airflow.providers.plexus.hooks.plexus

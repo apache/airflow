@@ -22,3 +22,18 @@ description: |
 
 versions:
   - 1.0.0b1
+
+integrations:
+  - integration-name: Segment
+    external-doc-url: https://oapi.dingtalk.com
+    tags: [service]
+
+operators:
+  - integration-name: Segment
+    python-modules:
+      - airflow.providers.segment.operators.segment_track_event
+
+hooks:
+  - integration-name: Segment
+    python-modules:
+      - airflow.providers.segment.hooks.segment

@@ -22,3 +22,24 @@ description: |
 
 versions:
   - 1.0.0b1
+
+integrations:
+  - integration-name: Hypertext Transfer Protocol (HTTP)
+    external-doc-url: https://www.w3.org/Protocols/
+    how-to-guide:
+      - /docs/howto/operator/http.rst
+    tags: [protocol]
+
+operators:
+  - integration-name: Hypertext Transfer Protocol (HTTP)
+    python-modules:
+      - airflow.providers.http.operators.http
+sensors:
+  - integration-name: Hypertext Transfer Protocol (HTTP)
+    python-modules:
+      - airflow.providers.http.sensors.http
+
+hooks:
+  - integration-name: Hypertext Transfer Protocol (HTTP)
+    python-modules:
+      - airflow.providers.http.hooks.http

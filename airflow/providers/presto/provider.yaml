@@ -22,3 +22,12 @@ description: |
 
 versions:
   - 1.0.0b1
+integrations:
+  - integration-name: Presto
+    external-doc-url: http://prestodb.github.io/
+    tags: [software]
+
+hooks:
+  - integration-name: Presto
+    python-modules:
+      - airflow.providers.presto.hooks.presto

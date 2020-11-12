@@ -22,3 +22,12 @@ description: |
 
 versions:
   - 1.0.0b1
+integrations:
+  - integration-name: Elasticsearch
+    external-doc-url: https://www.elastic.co/elasticsearch
+    tags: [software]
+
+hooks:
+  - integration-name: Elasticsearch
+    python-modules:
+      - airflow.providers.elasticsearch.hooks.elasticsearch

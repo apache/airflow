@@ -22,3 +22,17 @@ description: |
 
 versions:
   - 1.0.0b1
+
+integrations:
+  - integration-name: MongoDB
+    external-doc-url: https://www.mongodb.com/what-is-mongodb
+    tags: [software]
+
+sensors:
+  - integration-name: MongoDB
+    python-modules:
+      - airflow.providers.mongo.sensors.mongo
+hooks:
+  - integration-name: MongoDB
+    python-modules:
+      - airflow.providers.mongo.hooks.mongo

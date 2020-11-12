@@ -22,3 +22,18 @@ description: |
 
 versions:
   - 1.0.0b1
+
+integrations:
+  - integration-name: Exasol
+    external-doc-url: https://docs.exasol.com/home.htm
+    tags: [software]
+
+operators:
+  - integration-name: Exasol
+    python-modules:
+      - airflow.providers.exasol.operators.exasol
+
+hooks:
+  - integration-name: Exasol
+    python-modules:
+      - airflow.providers.exasol.hooks.exasol

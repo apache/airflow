@@ -22,3 +22,31 @@ description: |
 
 versions:
   - 1.0.0b1
+integrations:
+  - integration-name: MySQL
+    external-doc-url: https://www.mysql.com/
+    how-to-guide:
+      - /docs/howto/operator/mysql.rst
+    tags: [software]
+
+operators:
+  - integration-name: MySQL
+
+    python-modules:
+      - airflow.providers.mysql.operators.mysql
+
+hooks:
+  - integration-name: MySQL
+    python-modules:
+      - airflow.providers.mysql.hooks.mysql
+
+transfers:
+  - source-integration-name: Vertica
+    target-integration-name: MySQL
+    python-module: airflow.providers.mysql.transfers.vertica_to_mysql
+  - source-integration-name: Amazon Simple Storage Service (S3)
+    target-integration-name: MySQL
+    python-module: airflow.providers.mysql.transfers.s3_to_mysql
+  - source-integration-name: Snowflake
+    target-integration-name: MySQL
+    python-module: airflow.providers.mysql.transfers.presto_to_mysql

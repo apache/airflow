@@ -22,3 +22,18 @@ description: |
 
 versions:
   - 1.0.0b1
+
+integrations:
+  - integration-name: Apache Kylin
+    external-doc-url: https://kylin.apache.org/
+    tags: [apache]
+
+operators:
+  - integration-name: Apache Kylin
+    python-modules:
+      - airflow.providers.apache.kylin.operators.kylin_cube
+
+hooks:
+  - integration-name: Apache Kylin
+    python-modules:
+      - airflow.providers.apache.kylin.hooks.kylin

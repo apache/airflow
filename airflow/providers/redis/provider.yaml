@@ -22,3 +22,24 @@ description: |
 
 versions:
   - 1.0.0b1
+
+integrations:
+  - integration-name: Redis
+    external-doc-url: https://redis.io/
+    tags: [software]
+
+operators:
+  - integration-name: Redis
+    python-modules:
+      - airflow.providers.redis.operators.redis_publish
+
+sensors:
+  - integration-name: Redis
+    python-modules:
+      - airflow.providers.redis.sensors.redis_key
+      - airflow.providers.redis.sensors.redis_pub_sub
+
+hooks:
+  - integration-name: Redis
+    python-modules:
+      - airflow.providers.redis.hooks.redis

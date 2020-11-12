@@ -22,3 +22,19 @@ description: |
 
 versions:
   - 1.0.0b1
+integrations:
+  - integration-name: Dingding
+    external-doc-url: https://oapi.dingtalk.com
+    how-to-guide:
+      - /docs/howto/operator/dingding.rst
+    tags: [service]
+
+operators:
+  - integration-name: Dingding
+    python-modules:
+      - airflow.providers.dingding.operators.dingding
+
+hooks:
+  - integration-name: IBM Cloudant
+    python-modules:
+      - airflow.providers.dingding.hooks.dingding

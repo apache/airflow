@@ -22,3 +22,22 @@ description: |
 
 versions:
   - 1.0.0b1
+integrations:
+  - integration-name: Apache Livy
+    external-doc-url: https://livy.apache.org/
+    tags: [apache]
+
+operators:
+  - integration-name: Apache Livy
+    python-modules:
+      - airflow.providers.apache.livy.operators.livy
+
+sensors:
+  - integration-name: Apache Livy
+    python-modules:
+      - airflow.providers.apache.livy.sensors.livy
+
+hooks:
+  - integration-name: Apache Livy
+    python-modules:
+      - airflow.providers.apache.livy.hooks.livy

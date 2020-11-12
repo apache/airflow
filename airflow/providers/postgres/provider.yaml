@@ -22,3 +22,18 @@ description: |
 
 versions:
   - 1.0.0b1
+
+integrations:
+  - integration-name: PostgreSQL
+    external-doc-url: https://www.postgresql.org/
+    tags: [software]
+
+operators:
+  - integration-name: PostgreSQL
+    python-modules:
+      - airflow.providers.postgres.operators.postgres
+
+hooks:
+  - integration-name: PostgreSQL
+    python-modules:
+      - airflow.providers.postgres.hooks.postgres

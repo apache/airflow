@@ -22,3 +22,18 @@ description: |
 
 versions:
   - 1.0.0b1
+
+integrations:
+  - integration-name: Internet Message Access Protocol (IMAP)
+    external-doc-url: https://tools.ietf.org/html/rfc3501
+    tags: [protocol]
+
+sensors:
+  - integration-name: Internet Message Access Protocol (IMAP)
+    python-modules:
+      - airflow.providers.imap.sensors.imap_attachment
+
+hooks:
+  - integration-name: Internet Message Access Protocol (IMAP)
+    python-modules:
+      - airflow.providers.imap.hooks.imap

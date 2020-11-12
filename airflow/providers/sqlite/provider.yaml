@@ -22,3 +22,18 @@ description: |
 
 versions:
   - 1.0.0b1
+
+integrations:
+  - integration-name: SQLite
+    external-doc-url: https://www.sqlite.org/index.html
+    tags: [software]
+
+operators:
+  - integration-name: SQLite
+    python-modules:
+      - airflow.providers.sqlite.operators.sqlite
+
+hooks:
+  - integration-name: SQLite
+    python-modules:
+      - airflow.providers.sqlite.hooks.sqlite

@@ -22,3 +22,24 @@ description: |
 
 versions:
   - 1.0.0b1
+
+integrations:
+  - integration-name: Apache Druid
+    external-doc-url: https://druid.apache.org/
+    tags: [apache]
+
+operators:
+  - integration-name: Apache Druid
+    python-modules:
+      - airflow.providers.apache.druid.operators.druid
+      - airflow.providers.apache.druid.operators.druid_check
+
+hooks:
+  - integration-name: Apache Druid
+    python-modules:
+      - airflow.providers.apache.druid.hooks.druid
+
+transfers:
+  - source-integration-name: Apache Hive
+    target-integration-name: Apache Druid
+    python-module: airflow.providers.apache.druid.transfers.hive_to_druid

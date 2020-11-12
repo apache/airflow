@@ -22,3 +22,13 @@ description: |
 
 versions:
   - 1.0.0b1
+integrations:
+  - integration-name: Pagerduty
+    external-doc-url: https://www.pagerduty.com/
+    tags: [service]
+
+
+hooks:
+  - integration-name: Pagerduty
+    python-modules:
+      - airflow.providers.pagerduty.hooks.pagerduty

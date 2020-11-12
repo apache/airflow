@@ -22,3 +22,18 @@ description: |
 
 versions:
   - 1.0.0b1
+
+integrations:
+  - integration-name: Windows Remote Management (WinRM)
+    external-doc-url: https://docs.microsoft.com/en-us/windows/win32/winrm/portal
+    tags: [protocol]
+
+operators:
+  - integration-name: Windows Remote Management (WinRM)
+    python-modules:
+      - airflow.providers.microsoft.winrm.operators.winrm
+
+hooks:
+  - integration-name: Windows Remote Management (WinRM)
+    python-modules:
+      - airflow.providers.microsoft.winrm.hooks.winrm

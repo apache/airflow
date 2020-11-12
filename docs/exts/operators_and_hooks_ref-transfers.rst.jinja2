@@ -1,0 +1,15 @@
+{%- for item in items %}
+{% set title = item['source-integration-name'] + " to " + item['source-integration-name'] %}
+{{ title }}
+{{ header_separator * (title|length) }}
+{# Force new line #}
+{%- if 'external-doc-url' in item["source-integration"] %}
+:Source product documentation: `{{ item["source-integration"]["integration-name"] }} <{{ item["source-integration"]["external-doc-url"] }}>`__
+{%- endif %}
+{%- if 'external-doc-url' in item["target-integration"] %}
+:Target product documentation: `{{ item["target-integration"]["integration-name"] }} <{{ item["target-integration"]["external-doc-url"] }}>`__
+{%- endif %}
+{%- if 'how-to-guide' in item %}
+:Operator guide: :doc:`{{ item['how-to-guide'] }}`
+{%- endif %}
+{% endfor %}

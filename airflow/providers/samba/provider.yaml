@@ -22,3 +22,13 @@ description: |
 
 versions:
   - 1.0.0b1
+
+integrations:
+  - integration-name: Samba
+    external-doc-url: https://www.samba.org/
+    tags: [protocol]
+
+hooks:
+  - integration-name: Samba
+    python-modules:
+      - airflow.providers.samba.hooks.samba
