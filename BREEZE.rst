@@ -2009,7 +2009,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  all all-but-pylint airflow-config-yaml airflow-providers-available base-operator
                  bats-tests bats-in-container-tests black build build-providers-dependencies
                  check-apache-license check-builtin-literals check-executables-have-shebangs
-                 check-hooks-apply check-extra-packages check-merge-conflict check-xml
+                 check-hooks-apply check-integrations check-merge-conflict check-xml
                  consistent-pylint daysago-import-check debug-statements detect-private-key doctoc
                  dont-use-safe-filter end-of-file-fixer fix-encoding-pragma flake8 forbid-tabs
                  helm-lint incorrect-use-of-LoggingMixin insert-license isort language-matters
@@ -2017,7 +2017,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  no-providers-in-core-examples no-relative-imports pre-commit-descriptions
                  provide-create-sessions providers-init-file pydevd pydocstyle pylint pylint-tests
                  python-no-log-warn pyupgrade restrict-start_date rst-backticks setup-order
-                 setup-installation shellcheck sort-in-the-wild stylelint trailing-whitespace
+                 setup-extra-packages shellcheck sort-in-the-wild stylelint trailing-whitespace
                  update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
                  version-sync yamllint
 
