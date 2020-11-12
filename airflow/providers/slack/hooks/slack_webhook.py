@@ -107,7 +107,7 @@ class SlackWebhookHook(HttpHook):
             extra = conn.extra_dejson
             return extra.get('webhook_token', '')
         else:
-            raise AirflowException('Cannot get token: No valid Slack ' 'webhook token nor conn_id supplied')
+            raise AirflowException('Cannot get token: No valid Slack webhook token nor conn_id supplied')
 
     def _build_slack_message(self) -> str:
         """

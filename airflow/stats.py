@@ -150,7 +150,7 @@ def stat_name_default_handler(stat_name, max_length=250) -> str:
 
 def get_current_handler_stat_name_func() -> Callable[[str], str]:
     """Get Stat Name Handler from airflow.cfg"""
-    return conf.getimport('scheduler', 'stat_name_handler') or stat_name_default_handler
+    return conf.getimport('metrics', 'stat_name_handler') or stat_name_default_handler
 
 
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
@@ -292,10 +292,10 @@ class _Stats(type):
         super().__init__(cls)
         if cls.__class__.instance is None:
             try:
-                is_datadog_enabled_defined = conf.has_option('scheduler', 'statsd_datadog_enabled')
-                if is_datadog_enabled_defined and conf.getboolean('scheduler', 'statsd_datadog_enabled'):
+                is_datadog_enabled_defined = conf.has_option('metrics', 'statsd_datadog_enabled')
+                if is_datadog_enabled_defined and conf.getboolean('metrics', 'statsd_datadog_enabled'):
                     cls.__class__.instance = cls.get_dogstatsd_logger()
-                elif conf.getboolean('scheduler', 'statsd_on'):
+                elif conf.getboolean('metrics', 'statsd_on'):
                     cls.__class__.instance = cls.get_statsd_logger()
                 else:
                     cls.__class__.instance = DummyStatsLogger()
@@ -310,9 +310,9 @@ class _Stats(type):
         # and previously it would crash with None is callable if it was called without it.
         from statsd import StatsClient
 
-        if conf.has_option('scheduler', 'statsd_custom_client_path'):
-            stats_class = conf.getimport('scheduler', 'statsd_custom_client_path')
+        stats_class = conf.getimport('metrics', 'statsd_custom_client_path', fallback=None)
 
+        if stats_class:
             if not issubclass(stats_class, StatsClient):
                 raise AirflowConfigException(
                     "Your custom Statsd client must extend the statsd.StatsClient in order to ensure "
@@ -325,11 +325,11 @@ class _Stats(type):
             stats_class = StatsClient
 
         statsd = stats_class(
-            host=conf.get('scheduler', 'statsd_host'),
-            port=conf.getint('scheduler', 'statsd_port'),
-            prefix=conf.get('scheduler', 'statsd_prefix'),
+            host=conf.get('metrics', 'statsd_host'),
+            port=conf.getint('metrics', 'statsd_port'),
+            prefix=conf.get('metrics', 'statsd_prefix'),
         )
-        allow_list_validator = AllowListValidator(conf.get('scheduler', 'statsd_allow_list', fallback=None))
+        allow_list_validator = AllowListValidator(conf.get('metrics', 'statsd_allow_list', fallback=None))
         return SafeStatsdLogger(statsd, allow_list_validator)
 
     @classmethod
@@ -338,12 +338,12 @@ class _Stats(type):
         from datadog import DogStatsd
 
         dogstatsd = DogStatsd(
-            host=conf.get('scheduler', 'statsd_host'),
-            port=conf.getint('scheduler', 'statsd_port'),
-            namespace=conf.get('scheduler', 'statsd_prefix'),
+            host=conf.get('metrics', 'statsd_host'),
+            port=conf.getint('metrics', 'statsd_port'),
+            namespace=conf.get('metrics', 'statsd_prefix'),
             constant_tags=cls.get_constant_tags(),
         )
-        dogstatsd_allow_list = conf.get('scheduler', 'statsd_allow_list', fallback=None)
+        dogstatsd_allow_list = conf.get('metrics', 'statsd_allow_list', fallback=None)
         allow_list_validator = AllowListValidator(dogstatsd_allow_list)
         return SafeDogStatsdLogger(dogstatsd, allow_list_validator)
 
@@ -351,7 +351,7 @@ class _Stats(type):
     def get_constant_tags(cls):
         """Get constant DataDog tags to add to all stats"""
         tags = []
-        tags_in_string = conf.get('scheduler', 'statsd_datadog_tags', fallback=None)
+        tags_in_string = conf.get('metrics', 'statsd_datadog_tags', fallback=None)
         if tags_in_string is None or tags_in_string == '':
             return tags
         else:

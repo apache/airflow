@@ -20,6 +20,7 @@
 ## Additional info
 
 ### Breaking change in `AutoMLBatchPredictOperator`
+
 Class `AutoMLBatchPredictOperator` property `params` is renamed to `prediction_params`.
 To keep old behaviour, please rename `params` to `prediction_params` when initializing an instance of `AutoMLBatchPredictOperator`.
 

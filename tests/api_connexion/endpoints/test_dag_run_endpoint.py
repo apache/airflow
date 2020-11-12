@@ -103,7 +103,6 @@ class TestDagRunEndpoint(unittest.TestCase):
         dag_runs.append(dagrun_model_2)
         if extra_dag:
             for i in range(3, 5):
-
                 dags.append(DagModel(dag_id='TEST_DAG_ID_' + str(i)))
                 dag_runs.append(
                     DagRun(
@@ -744,6 +743,37 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
 
     @parameterized.expand(
         [
+            ({"execution_date_gte": '2020-11-09T16:25:56.939143'}, 'Naive datetime is disallowed'),
+            (
+                {"start_date_gte": "2020-06-18T16:25:56.939143"},
+                'Naive datetime is disallowed',
+            ),
+            (
+                {"start_date_lte": "2020-06-18T18:00:00.564434"},
+                'Naive datetime is disallowed',
+            ),
+            (
+                {"start_date_lte": "2020-06-15T18:00:00.653434", "start_date_gte": "2020-06-12T18:00.343534"},
+                'Naive datetime is disallowed',
+            ),
+            (
+                {"execution_date_lte": "2020-06-13T18:00:00.353454"},
+                'Naive datetime is disallowed',
+            ),
+            ({"execution_date_gte": "2020-06-16T18:00:00.676443"}, 'Naive datetime is disallowed'),
+        ]
+    )
+    def test_naive_date_filters_raises_400(self, payload, expected_response):
+        self._create_dag_runs()
+
+        response = self.client.post(
+            "api/v1/dags/~/dagRuns/list", json=payload, environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 400
+        self.assertEqual(response.json['detail'], expected_response)
+
+    @parameterized.expand(
+        [
             (
                 {"end_date_gte": f"{(timezone.utcnow() + timedelta(days=1)).isoformat()}"},
                 [],
@@ -802,6 +832,23 @@ class TestPostDagRun(TestDagRunEndpoint):
             },
             response.json,
         )
+
+    @parameterized.expand(
+        [
+            ({'execution_date': "2020-11-10T08:25:56.939143"}, 'Naive datetime is disallowed'),
+            ({'execution_date': "2020-11-10T08:25:56P"}, "{'execution_date': ['Not a valid datetime.']}"),
+        ]
+    )
+    @provide_session
+    def test_should_response_400_for_naive_datetime_and_bad_datetime(self, data, expected, session):
+        dag_instance = DagModel(dag_id="TEST_DAG_ID")
+        session.add(dag_instance)
+        session.commit()
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns", json=data, environ_overrides={'REMOTE_USER': "test"}
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json['detail'], expected)
 
     def test_response_404(self):
         response = self.client.post(

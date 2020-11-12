@@ -120,7 +120,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         if os.path.basename(self.dst):  # path to a file
             if len(filepaths) > 1:  # multiple file upload
                 raise ValueError(
-                    "'dst' parameter references filepath. Please specifiy "
+                    "'dst' parameter references filepath. Please specify "
                     "directory (with trailing backslash) to upload multiple "
                     "files. e.g. /path/to/directory/"
                 )

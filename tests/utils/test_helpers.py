@@ -23,7 +23,8 @@ from airflow.models import TaskInstance
 from airflow.models.dag import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import helpers
-from airflow.utils.helpers import merge_dicts
+from airflow.utils.helpers import build_airflow_url_with_query, merge_dicts
+from tests.test_utils.config import conf_vars
 
 
 class TestHelpers(unittest.TestCase):
@@ -136,3 +137,13 @@ class TestHelpers(unittest.TestCase):
         dict2 = {'a': 1, 'r': {'c': 3, 'b': 0}}
         merged = merge_dicts(dict1, dict2)
         self.assertDictEqual(merged, {'a': 1, 'r': {'b': 0, 'c': 3}})
+
+    @conf_vars(
+        {
+            ("webserver", "dag_default_view"): "custom",
+        }
+    )
+    def test_build_airflow_url_with_query(self):
+        query = {"dag_id": "test_dag", "param": "key/to.encode"}
+        url = build_airflow_url_with_query(query)
+        assert url == "/custom?dag_id=test_dag&param=key%2Fto.encode"

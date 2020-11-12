@@ -127,7 +127,7 @@ class JsonCoder:
 
 @beam.ptransform_fn
 def MakeSummary(pcoll, metric_fn, metric_keys):  # pylint: disable=invalid-name
-    """Summary PTransofrm used in Dataflow."""
+    """Summary PTransform used in Dataflow."""
     return (
         pcoll
         | "ApplyMetricFnPerInstance" >> beam.Map(metric_fn)

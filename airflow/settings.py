@@ -16,10 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 import atexit
+import functools
 import json
 import logging
 import os
 import sys
+import warnings
 from typing import Optional
 
 import pendulum
@@ -31,6 +33,7 @@ from sqlalchemy.pool import NullPool
 
 # pylint: disable=unused-import
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
+from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
 
@@ -91,6 +94,28 @@ STATE_COLORS = {
     "skipped": "pink",
     "scheduled": "tan",
 }
+
+
+@functools.lru_cache(maxsize=None)
+def _get_rich_console(file):
+    # Delay imports until we need it
+    import rich.console
+
+    return rich.console.Console(file=file)
+
+
+def custom_show_warning(message, category, filename, lineno, file=None, line=None):
+    """Custom function to print rich and visible warnings"""
+    # Delay imports until we need it
+    from rich.markup import escape
+
+    msg = f"[bold]{line}" if line else f"[bold][yellow]{filename}:{lineno}"
+    msg += f" {category.__name__}[/bold]: {escape(str(message))}[/yellow]"
+    write_console = _get_rich_console(file or sys.stderr)
+    write_console.print(msg, soft_wrap=True)
+
+
+warnings.showwarning = custom_show_warning
 
 
 def policy(task):  # pylint: disable=unused-argument
@@ -400,3 +425,9 @@ USE_JOB_SCHEDULE = conf.getboolean('scheduler', 'use_job_schedule', fallback=Tru
 # By default Airflow plugins are lazily-loaded (only loaded when required). Set it to False,
 # if you want to load plugins whenever 'airflow' is invoked via cli or loaded from module.
 LAZY_LOAD_PLUGINS = conf.getboolean('core', 'lazy_load_plugins', fallback=True)
+
+# Determines if the executor utilizes Kubernetes
+IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get('core', 'EXECUTOR') in {
+    executor_constants.KUBERNETES_EXECUTOR,
+    executor_constants.CELERY_KUBERNETES_EXECUTOR,
+}

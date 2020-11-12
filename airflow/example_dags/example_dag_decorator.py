@@ -17,17 +17,27 @@
 # under the License.
 
 
-import json
-from typing import Dict
+from typing import Any, Dict
+
+import requests
 
 from airflow.decorators import dag, task
+from airflow.models.baseoperator import BaseOperator
 from airflow.operators.email import EmailOperator
-from airflow.providers.http.operators.http import SimpleHttpOperator
 from airflow.utils.dates import days_ago
 
-DEFAULT_ARGS = {
-    "owner": "airflow",
-}
+DEFAULT_ARGS = {"owner": "airflow"}
+
+
+class GetRequestOperator(BaseOperator):
+    """Custom operator to sand GET request to provided url"""
+
+    def __init__(self, *, url: str, **kwargs):
+        super().__init__(**kwargs)
+        self.url = url
+
+    def execute(self, context):
+        return requests.get(self.url).json()
 
 
 # [START dag_decorator_usage]
@@ -39,12 +49,11 @@ def example_dag_decorator(email: str = 'example@example.com'):
     :param email: Email to send IP to. Defaults to example@example.com.
     :type email: str
     """
-    # Using default connection as it's set to httpbin.org by default
-    get_ip = SimpleHttpOperator(task_id='get_ip', endpoint='get', method='GET')
+    get_ip = GetRequestOperator(task_id='get_ip', url="http://httpbin.org/get")
 
     @task(multiple_outputs=True)
-    def prepare_email(raw_json: str) -> Dict[str, str]:
-        external_ip = json.loads(raw_json)['origin']
+    def prepare_email(raw_json: Dict[str, Any]) -> Dict[str, str]:
+        external_ip = raw_json['origin']
         return {
             'subject': f'Server connected from {external_ip}',
             'body': f'Seems like today your server executing Airflow is connected from IP {external_ip}<br>',

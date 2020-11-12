@@ -20,6 +20,7 @@
 
 import unittest
 from datetime import date, timedelta
+from unittest import mock
 
 from parameterized import parameterized
 
@@ -31,6 +32,7 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.bash import BashOperator
 from airflow.utils.session import create_session
 from airflow.utils.timezone import datetime
+from airflow.version import version
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_rendered_ti_fields
 
@@ -224,3 +226,78 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
         self.assertEqual(
             ('test_write', 'test', {'bash_command': 'echo test_val_updated', 'env': None}), result_updated
         )
+
+    @mock.patch("airflow.models.renderedtifields.IS_K8S_OR_K8SCELERY_EXECUTOR", new=True)
+    @mock.patch("airflow.settings.pod_mutation_hook")
+    def test_get_k8s_pod_yaml(self, mock_pod_mutation_hook):
+        """
+        Test that k8s_pod_yaml is rendered correctly, stored in the Database,
+        and are correctly fetched using RTIF.get_k8s_pod_yaml
+        """
+        dag = DAG("test_get_k8s_pod_yaml", start_date=START_DATE)
+        with dag:
+            task = BashOperator(task_id="test", bash_command="echo hi")
+
+        ti = TI(task=task, execution_date=EXECUTION_DATE)
+        rtif = RTIF(ti=ti)
+
+        # Test that pod_mutation_hook is called
+        mock_pod_mutation_hook.assert_called_once_with(mock.ANY)
+
+        self.assertEqual(ti.dag_id, rtif.dag_id)
+        self.assertEqual(ti.task_id, rtif.task_id)
+        self.assertEqual(ti.execution_date, rtif.execution_date)
+
+        expected_pod_yaml = {
+            'metadata': {
+                'annotations': {
+                    'dag_id': 'test_get_k8s_pod_yaml',
+                    'execution_date': '2019-01-01T00:00:00+00:00',
+                    'task_id': 'test',
+                    'try_number': '1',
+                },
+                'labels': {
+                    'airflow-worker': 'worker-config',
+                    'airflow_version': version,
+                    'dag_id': 'test_get_k8s_pod_yaml',
+                    'execution_date': '2019-01-01T00_00_00_plus_00_00',
+                    'kubernetes_executor': 'True',
+                    'task_id': 'test',
+                    'try_number': '1',
+                },
+                'name': mock.ANY,
+                'namespace': 'default',
+            },
+            'spec': {
+                'containers': [
+                    {
+                        'command': [
+                            'airflow',
+                            'tasks',
+                            'run',
+                            'test_get_k8s_pod_yaml',
+                            'test',
+                            '2019-01-01T00:00:00+00:00',
+                        ],
+                        'image': ':',
+                        'name': 'base',
+                    }
+                ]
+            },
+        }
+
+        self.assertEqual(expected_pod_yaml, rtif.k8s_pod_yaml)
+
+        with create_session() as session:
+            session.add(rtif)
+
+        self.assertEqual(expected_pod_yaml, RTIF.get_k8s_pod_yaml(ti=ti))
+
+        # Test the else part of get_k8s_pod_yaml
+        # i.e. for the TIs that are not stored in RTIF table
+        # Fetching them will return None
+        with dag:
+            task_2 = BashOperator(task_id="test2", bash_command="echo hello")
+
+        ti2 = TI(task_2, EXECUTION_DATE)
+        self.assertIsNone(RTIF.get_k8s_pod_yaml(ti=ti2))

@@ -258,7 +258,7 @@ class TestDataflowHook(unittest.TestCase):
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
     @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
-    def test_start_python_dataflow_with_custom_region_as_paramater(
+    def test_start_python_dataflow_with_custom_region_as_parameter(
         self, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid
     ):
         mock_uuid.return_value = MOCK_UUID

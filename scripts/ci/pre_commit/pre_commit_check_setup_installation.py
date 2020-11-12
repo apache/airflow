@@ -26,6 +26,10 @@ import sys
 from os.path import dirname
 from typing import Dict, List
 
+from rich import print as rprint
+from rich.console import Console
+from rich.table import Table
+
 AIRFLOW_SOURCES_DIR = os.path.join(dirname(__file__), os.pardir, os.pardir, os.pardir)
 SETUP_PY_FILE = 'setup.py'
 DOCS_FILE = 'installation.rst'
@@ -81,32 +85,35 @@ if __name__ == '__main__':
     setup_packages = get_extras_from_setup()
     docs_packages = get_extras_from_docs()
 
-    output_table = ""
+    table = Table()
+    table.add_column("NAME", justify="right", style="cyan")
+    table.add_column("SETUP", justify="center", style="magenta")
+    table.add_column("INSTALLATION", justify="center", style="green")
 
     for extras in sorted(setup_packages.keys()):
         if not set(setup_packages[extras]).intersection(docs_packages):
-            output_table += "| {:20} | {:^10} | {:^10} |\n".format(extras, "V", "")
+            table.add_row(extras, "V", "")
 
     setup_packages_str = str(setup_packages)
     for extras in sorted(docs_packages):
         if f"'{extras}'" not in setup_packages_str:
-            output_table += "| {:20} | {:^10} | {:^10} |\n".format(extras, "", "V")
+            table.add_row(extras, "", "V")
 
-    if output_table == "":
+    if table.row_count == 0:
         sys.exit(0)
 
-    print(
-        f"""
-ERROR
+    rprint(
+        f"""\
+[red bold]ERROR!![/red bold]
 
-"EXTRAS_REQUIREMENTS" section in {SETUP_PY_FILE} should be synchronized
-with "Extra Packages" section in documentation file doc/{DOCS_FILE}.
+"EXTRAS_REQUIREMENTS" section in [bold yellow]{SETUP_PY_FILE}[/bold yellow] should be synchronized
+with "Extra Packages" section in documentation file [bold yellow]doc/{DOCS_FILE}[/bold yellow].
 
-here is a list of packages that are used but are not documented, or
+Here is a list of packages that are used but are not documented, or
 documented although not used.
     """
     )
-    print(".{:_^22}.{:_^12}.{:_^12}.".format("NAME", "SETUP", "INSTALLATION"))
-    print(output_table)
+    console = Console()
+    console.print(table)
 
     sys.exit(1)

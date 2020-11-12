@@ -408,6 +408,15 @@
       type: boolean
       example: ~
       default: "True"
+    - name: max_db_retries
+      description: |
+        Number of times the code should be retried in case of DB Operational Errors.
+        Not all transactions will be retried as it can cause undesired state.
+        Currently it is only used in ``DagFileProcessor.process_file`` to retry ``dagbag.sync_to_db``.
+      version_added: ~
+      type: int
+      example: ~
+      default: "3"
 
 - name: logging
   description: ~
@@ -568,15 +577,78 @@
       type: string
       example: "connexion,sqlalchemy"
       default: ""
-    - name: max_db_retries
+- name: metrics
+  description: |
+    StatsD (https://github.com/etsy/statsd) integration settings.
+  options:
+    - name: statsd_on
       description: |
-        Number of times the code should be retried in case of DB Operational Errors.
-        Not all transactions will be retried as it can cause undesired state.
-        Currently it is only used in ``DagFileProcessor.process_file`` to retry ``dagbag.sync_to_db``.
+        Enables sending metrics to StatsD.
       version_added: ~
-      type: int
+      type: string
       example: ~
-      default: "3"
+      default: "False"
+    - name: statsd_host
+      description: ~
+      version_added: ~
+      type: string
+      example: ~
+      default: "localhost"
+    - name: statsd_port
+      description: ~
+      version_added: ~
+      type: string
+      example: ~
+      default: "8125"
+    - name: statsd_prefix
+      description: ~
+      version_added: ~
+      type: string
+      example: ~
+      default: "airflow"
+    - name: statsd_allow_list
+      description: |
+        If you want to avoid sending all the available metrics to StatsD,
+        you can configure an allow list of prefixes (comma separated) to send only the metrics that
+        start with the elements of the list (e.g: "scheduler,executor,dagrun")
+      version_added: 1.10.6
+      type: string
+      example: ~
+      default: ""
+    - name: stat_name_handler
+      description: |
+        A function that validate the statsd stat name, apply changes to the stat name if necessary and return
+        the transformed stat name.
+
+        The function should have the following signature:
+        def func_name(stat_name: str) -> str:
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
+    - name: statsd_datadog_enabled
+      description: |
+        To enable datadog integration to send airflow metrics.
+      version_added: ~
+      type: string
+      example: ~
+      default: "False"
+    - name: statsd_datadog_tags
+      description: |
+        List of datadog tags attached to all metrics(e.g: key1:value1,key2:value2)
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
+    - name: statsd_custom_client_path
+      description: |
+        If you want to utilise your own custom Statsd client set the relevant
+        module path below.
+        Note: The module path must exist on your PYTHONPATH for Airflow to pick it up
+      version_added: ~
+      type: string
+      example: ~
+      default: ~
 - name: secrets
   description: ~
   options:
@@ -1107,21 +1179,14 @@
       type: string
       example: ~
       default: "True"
-    - name: force_log_out_after
+    - name: session_lifetime_minutes
       description: |
-        Minutes of non-activity before logged out from UI
-        0 means never get forcibly logged out
-      version_added: 1.10.8
-      type: string
+        The UI cookie lifetime in minutes. User will be logged out from UI after
+        `session_lifetime_minutes` of non-activity
+      version_added: 2.0.0
+      type: int
       example: ~
-      default: "0"
-    - name: session_lifetime_days
-      description: |
-        The UI cookie lifetime in days
-      version_added: 1.10.8
-      type: string
-      example: ~
-      default: "30"
+      default: "43200"
 
 - name: email
   description: |
@@ -1500,6 +1565,14 @@
       type: string
       example: ~
       default: "5"
+    - name: clean_tis_without_dagrun
+      description: |
+        How often (in seconds) to check and tidy up 'running' TaskInstancess
+        that no longer have a matching DagRun
+      version_added: 2.0.0
+      type: float
+      example: ~
+      default: "15.0"
     - name: scheduler_heartbeat_sec
       description: |
         The scheduler constantly tries to trigger new tasks (look at the
@@ -1545,6 +1618,13 @@
       type: string
       example: ~
       default: "30"
+    - name: pool_metrics_interval
+      description: |
+        How often (in seconds) should pool usage stats be sent to statsd (if statsd_on is enabled)
+      version_added: 2.0.0
+      type: float
+      example: ~
+      default: "5.0"
     - name: scheduler_health_check_threshold
       description: |
         If the last scheduler heartbeat happened more than scheduler_health_check_threshold
@@ -1554,6 +1634,13 @@
       type: string
       example: ~
       default: "30"
+    - name: orphaned_tasks_check_interval
+      description: |
+        How often (in seconds) should the scheduler check for orphaned tasks and SchedulerJobs
+      version_added: 2.0.0
+      type: float
+      example: ~
+      default: "300.0"
     - name: child_process_log_directory
       description: ~
       version_added: ~
@@ -1635,74 +1722,6 @@
       example: ~
       version_added: 2.0.0
       type: boolean
-      default: ~
-    - name: statsd_on
-      description: |
-        Statsd (https://github.com/etsy/statsd) integration settings
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
-    - name: statsd_host
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "localhost"
-    - name: statsd_port
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "8125"
-    - name: statsd_prefix
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "airflow"
-    - name: statsd_allow_list
-      description: |
-        If you want to avoid send all the available metrics to StatsD,
-        you can configure an allow list of prefixes to send only the metrics that
-        start with the elements of the list (e.g: scheduler,executor,dagrun)
-      version_added: 1.10.6
-      type: string
-      example: ~
-      default: ""
-    - name: stat_name_handler
-      description: |
-        A function that validate the statsd stat name, apply changes to the stat name if necessary and return
-        the transformed stat name.
-
-        The function should have the following signature:
-        def func_name(stat_name: str) -> str:
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    - name: statsd_datadog_enabled
-      description: |
-        To enable datadog integration to send airflow metrics.
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
-    - name: statsd_datadog_tags
-      description: |
-        List of datadog tags attached to all metrics(e.g: key1:value1,key2:value2)
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    - name: statsd_custom_client_path
-      description: |
-        If you want to utilise your own custom Statsd client set the relevant
-        module path below.
-        Note: The module path must exist on your PYTHONPATH for Airflow to pick it up
-      version_added: ~
-      type: string
-      example: ~
       default: ~
     - name: max_threads
       description: |

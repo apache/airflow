@@ -330,9 +330,11 @@ function build_images::get_docker_image_names() {
     export AIRFLOW_CI_BASE_TAG="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci"
     # CI image to build
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}"
-
     # Default CI image
-    export AIRFLOW_CI_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}-ci"
+    export AIRFLOW_CI_PYTHON_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:python${PYTHON_MAJOR_MINOR_VERSION}-${BRANCH_NAME}"
+    # CI image to build
+    export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}"
+
 
     # Base production image tag - used to build kubernetes tag as well
     if [[ ${FORCE_AIRFLOW_PROD_BASE_TAG=} == "" ]]; then
@@ -373,11 +375,6 @@ function build_images::prepare_ci_build() {
         github_repository_lowercase="$(echo "${GITHUB_REPOSITORY}" |tr '[:upper:]' '[:lower:]')"
         export GITHUB_REGISTRY_AIRFLOW_CI_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/${AIRFLOW_CI_BASE_TAG}"
         export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
-    fi
-    if [[ "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}" == "${PYTHON_MAJOR_MINOR_VERSION}" ]]; then
-        export DEFAULT_PROD_IMAGE="${AIRFLOW_CI_IMAGE_DEFAULT}"
-    else
-        export DEFAULT_PROD_IMAGE=""
     fi
     export THE_IMAGE_TYPE="CI"
     export IMAGE_DESCRIPTION="Airflow CI"

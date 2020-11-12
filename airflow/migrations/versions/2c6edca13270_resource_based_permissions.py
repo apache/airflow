@@ -301,9 +301,7 @@ def remap_permissions():
         if not appbuilder.sm.find_permission(old_perm_name):
             continue
         view_menus = appbuilder.sm.get_all_view_menu()
-        if not any(
-            [appbuilder.sm.find_permission_view_menu(old_perm_name, view.name) for view in view_menus]
-        ):
+        if not any(appbuilder.sm.find_permission_view_menu(old_perm_name, view.name) for view in view_menus):
             appbuilder.sm.del_permission(old_perm_name)
 
 

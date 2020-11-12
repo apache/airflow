@@ -34,6 +34,7 @@ determine what actually executes when your DAG runs.
     bash
     amazon/aws/index
     apache/index
+    databricks
     dingding
     google/index
     http

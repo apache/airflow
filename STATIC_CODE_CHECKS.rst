@@ -44,9 +44,11 @@ This table lists pre-commit hooks used by Airflow and indicates which hooks
 require Breeze Docker images to be installed locally:
 
 =================================== ================================================================ ============
-**Hooks**                             **Description**                                                 **Breeze**
+**Hooks**                            **Description**                                                 **Breeze**
 =================================== ================================================================ ============
 ``airflow-config-yaml``               Checks that airflow config yaml is 1-1 with the code
+----------------------------------- ---------------------------------------------------------------- ------------
+``airflow-providers-available``       Checks that providers are properly declared by extras
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``base-operator``                     Checks that BaseOperator is imported properly
 ----------------------------------- ---------------------------------------------------------------- ------------
@@ -88,6 +90,8 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``dont-use-safe-filter``              Don't use safe in templates.
 ----------------------------------- ---------------------------------------------------------------- ------------
+``no-providers-in-core-examples``     Don't use providers imports in core example DAGs
+----------------------------------- ---------------------------------------------------------------- ------------
 ``no-relative-imports``               Use absolute imports, not relative
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``end-of-file-fixer``                 Makes sure that there is an empty line at the end.
@@ -114,9 +118,11 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``lint-openapi``                      Lints openapi specification.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``mixed-line-ending``                 Detects if mixed line ending is used (\r vs. \r\n).
+``markdownlint``                      Lints Markdown files.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``mermaid``                           Generates diagrams from mermaid files.
+----------------------------------- ---------------------------------------------------------------- ------------
+``mixed-line-ending``                 Detects if mixed line ending is used (\r vs. \r\n).
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``mypy``                              Runs mypy.                                                           *
 ----------------------------------- ---------------------------------------------------------------- ------------
@@ -125,6 +131,8 @@ require Breeze Docker images to be installed locally:
 ``pre-commit-descriptions``           Check if all pre-commits are described in docs.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``provide-create-sessions``           Make sure provide-session and create-session imports are OK.
+----------------------------------- ---------------------------------------------------------------- ------------
+``providers-init-file``               Check that provider's __init__.py file is removed
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``pydevd``                            Check for accidentally committed pydevd statements.
 ----------------------------------- ---------------------------------------------------------------- ------------
@@ -156,9 +164,11 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``update-local-yml-file``             Updates mounts in local.yml file.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``update-setup-cfg-file``            Update setup.cfg file with all licenses.
+``update-setup-cfg-file``             Update setup.cfg file with all licenses.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``update-extras``                     Updates extras in the documentation.
+----------------------------------- ---------------------------------------------------------------- ------------
+``version-sync``                      Synchronizes versions setup.py <-> airflow/version.py.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``yamllint``                          Checks yaml files with yamllint.
 =================================== ================================================================ ============

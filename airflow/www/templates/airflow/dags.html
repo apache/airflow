@@ -104,7 +104,7 @@
                 {# Column 1: Turn dag on/off #}
                 <td style="padding-right:0;">
                   <label class="switch-label js-tooltip" title="Pause/Unpause DAG">
-                    <input class="switch-input" id="toggle-{{ dag.dag_id }}" dag_id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }} method="post">
+                    <input class="switch-input" id="toggle-{{ dag.dag_id }}" data-dag-id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }}>
                     <span class="switch" aria-hidden="true"></span>
                   </label>
                 </td>
@@ -125,7 +125,15 @@
                   </div>
                 </td>
                 {# Column 3: Dag Owners #}
-                <td>{{ dag.owners }}</td>
+                <td>
+                  {% for owner in dag.owners.split(",") %}
+                  <a class="label label-default"
+                     href="?search={{ owner | trim }}"
+                     style="margin: 3px 6px 3px 0;">
+                     {{ owner | trim }}
+                  </a>
+                  {% endfor %}
+                </td>
                 {# Column 4: Dag Runs #}
                 <td style="padding:0; width:120px;">
                   {{ loading_dots(classes='js-loading-dag-stats text-muted') }}
@@ -133,7 +141,7 @@
                 </td>
                 {# Column 5: Dag Schedule #}
                 <td>
-                  <a class="label label-default schedule" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}">
+                  <a class="label label-default schedule" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}" data-dag-id="{{ dag.dag_id }}">
                     {{ dag.schedule_interval }}
                   </a>
                 </td>
@@ -294,27 +302,20 @@
 
     var encoded_dag_ids = new URLSearchParams();
 
-    $.each($('[id^=toggle]'), function(i, v) {
-      var $input = $(v);
-      var dag_id = $input.attr('dag_id');
-      encoded_dag_ids.append('dag_ids', dag_id);
+    $.each($('[id^=toggle]'), function() {
+      var $input = $(this);
+      var dagId = $input.data('dag-id');
+      encoded_dag_ids.append('dag_ids', dagId);
 
       $input.change(function() {
-        var $buttons = $input.parent('.toggle').find('.btn');
-        $buttons.removeClass('btn-danger');
-        if ($input.prop('checked')) {
-          is_paused = 'true'
-        } else {
-          is_paused = 'false'
-        }
-        var url = 'paused?is_paused=' + is_paused + '&dag_id=' + encodeURIComponent(dag_id);
+        var isPaused = $input.is(':checked');
+        var url = `{{ url_for('Airflow.paused') }}?is_paused=${isPaused}&dag_id=${encodeURIComponent(dagId)}`;
+        $input.removeClass('switch-input--error');
         $.post(url).fail(function() {
-          if (is_paused === 'true') {
-            $input.data('bs.toggle').off(true);
-          } else {
-            $input.data('bs.toggle').on(true);
-          }
-          $buttons.addClass('btn-danger');
+          setTimeout(() => {
+            $input.prop('checked', !isPaused);
+            $input.addClass('switch-input--error');
+          }, 500 );
         });
       });
     });
@@ -356,12 +357,10 @@
 
     function blockedHandler(error, json) {
       $.each(json, function() {
-        $('.label.schedule.' + this.dag_id)
-        .attr('title', this.active_dag_run + '/' + this.max_active_runs + ' active dag runs')
-        .tooltip();
+        a = document.querySelector(`[data-dag-id="${this.dag_id}"]`);
+        a.title = `${this.active_dag_run}/${this.max_active_runs} active dag runs`;
         if(this.active_dag_run >= this.max_active_runs) {
-          $('.label.schedule.' + this.dag_id)
-          .css('background-color', 'red');
+          a.style.color = '#e43921';
         }
       });
     }

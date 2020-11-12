@@ -336,6 +336,7 @@ def get_attr_renderer():
         'bash': lambda x: render(x, lexers.BashLexer),
         'bash_command': lambda x: render(x, lexers.BashLexer),
         'hql': lambda x: render(x, lexers.SqlLexer),
+        'html': lambda x: render(x, lexers.HtmlLexer),
         'sql': lambda x: render(x, lexers.SqlLexer),
         'doc': lambda x: render(x, lexers.TextLexer),
         'doc_json': lambda x: render(x, lexers.JsonLexer),

@@ -33,9 +33,11 @@ from urllib.parse import unquote, urlparse
 import lazy_object_proxy
 import nvd3
 import sqlalchemy as sqla
+import yaml
 from flask import (
     Markup,
     Response,
+    abort,
     current_app,
     escape,
     flash,
@@ -866,7 +868,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             tags=tags,
         )
 
-    @expose('/rendered')
+    @expose('/rendered-templates')
     @auth.has_access(
         [
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
@@ -874,7 +876,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         ]
     )
     @action_logging
-    def rendered(self):
+    def rendered_templates(self):
         """Get rendered Dag."""
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
@@ -912,6 +914,60 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(
                     pformat(content)
                 )  # noqa
+
+        return self.render_template(
+            'airflow/ti_code.html',
+            html_dict=html_dict,
+            dag=dag,
+            task_id=task_id,
+            execution_date=execution_date,
+            form=form,
+            root=root,
+            title=title,
+        )
+
+    @expose('/rendered-k8s')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+        ]
+    )
+    @action_logging
+    def rendered_k8s(self):
+        """Get rendered k8s yaml."""
+        if not settings.IS_K8S_OR_K8SCELERY_EXECUTOR:
+            abort(404)
+        dag_id = request.args.get('dag_id')
+        task_id = request.args.get('task_id')
+        execution_date = request.args.get('execution_date')
+        dttm = timezone.parse(execution_date)
+        form = DateTimeForm(data={'execution_date': dttm})
+        root = request.args.get('root', '')
+        logging.info("Retrieving rendered templates.")
+        dag = current_app.dag_bag.get_dag(dag_id)
+        task = dag.get_task(task_id)
+        ti = models.TaskInstance(task=task, execution_date=dttm)
+
+        pod_spec = None
+        try:
+            pod_spec = ti.get_rendered_k8s_spec()
+        except AirflowException as e:
+            msg = "Error rendering Kubernetes POD Spec: " + escape(e)
+            if e.__cause__:  # pylint: disable=using-constant-test
+                msg += Markup("<br><br>OriginalError: ") + escape(e.__cause__)
+            flash(msg, "error")
+        except Exception as e:  # pylint: disable=broad-except
+            flash("Error rendering Kubernetes Pod Spec: " + str(e), "error")
+        title = "Rendered K8s Pod Spec"
+        html_dict = {}
+        renderers = wwwutils.get_attr_renderer()
+        if pod_spec:
+            content = yaml.dump(pod_spec)
+            content = renderers["yaml"](content)
+        else:
+            content = Markup("<pre><code>Error rendering Kubernetes POD Spec</pre></code>")
+        html_dict['k8s'] = content
 
         return self.render_template(
             'airflow/ti_code.html',
@@ -1448,7 +1504,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
             response = self.render_template(
                 'airflow/confirm.html',
-                message=("Here's the list of task instances you are about to clear:"),
+                message="Here's the list of task instances you are about to clear:",
                 details=details,
             )
 
@@ -1717,7 +1773,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         response = self.render_template(
             "airflow/confirm.html",
-            message=(f"Here's the list of task instances you are about to mark as {state}:"),
+            message=f"Here's the list of task instances you are about to mark as {state}:",
             details=details,
         )
 
@@ -2689,6 +2745,8 @@ class XComModelView(AirflowModelView):
 
     route_base = '/xcom'
 
+    list_title = 'List XComs'
+
     datamodel = AirflowModelView.CustomSQLAInterface(XCom)
 
     class_permission_name = permissions.RESOURCE_XCOM
@@ -2818,7 +2876,11 @@ class ConnectionModelView(AirflowModelView):
     def prefill_form(self, form, pk):
         """Prefill the form."""
         try:
-            extra_dictionary = json.loads(form.data.get('extra', '{}'))
+            extra = form.data.get('extra')
+            if extra is None:
+                extra_dictionary = {}
+            else:
+                extra_dictionary = json.loads(extra)
         except JSONDecodeError:
             extra_dictionary = {}
 

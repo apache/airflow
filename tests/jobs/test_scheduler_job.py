@@ -1919,18 +1919,21 @@ class TestSchedulerJob(unittest.TestCase):
         ti.state = initial_task_state
         session.commit()
 
-        # Create scheduler and mock calls to processor. Run duration is set
-        # to a high value to ensure loop is entered. Poll interval is 0 to
-        # avoid sleep. Done flag is set to true to exist the loop immediately.
-        scheduler = SchedulerJob(num_runs=0, processor_poll_interval=0)
+        # This poll interval is large, bug the scheduler doesn't sleep that
+        # long, instead we hit the clean_tis_without_dagrun interval instead
+        scheduler = SchedulerJob(num_runs=2, processor_poll_interval=30)
+        scheduler.dagbag = dagbag
         executor = MockExecutor(do_update=False)
         executor.queued_tasks
         scheduler.executor = executor
         processor = mock.MagicMock()
-        processor.done = True
+        processor.done = False
         scheduler.processor_agent = processor
 
-        scheduler._run_scheduler_loop()
+        with mock.patch.object(settings, "USE_JOB_SCHEDULE", False), conf_vars(
+            {('scheduler', 'clean_tis_without_dagrun'): '0.001'}
+        ):
+            scheduler._run_scheduler_loop()
 
         ti = dr.get_task_instance(task_id=op1.task_id, session=session)
         self.assertEqual(ti.state, expected_task_state)
@@ -3743,35 +3746,35 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
             # pylint: disable=bad-whitespace
             # expected, dag_count, task_count, start_ago, schedule_interval, shape
             # One DAG with one task per DAG file
-            ([10, 10, 10, 10], 1, 1, "1d", "None", "no_structure"),  # noqa
-            ([10, 10, 10, 10], 1, 1, "1d", "None", "linear"),  # noqa
-            ([22, 14, 14, 14], 1, 1, "1d", "@once", "no_structure"),  # noqa
-            ([22, 14, 14, 14], 1, 1, "1d", "@once", "linear"),  # noqa
-            ([22, 24, 27, 30], 1, 1, "1d", "30m", "no_structure"),  # noqa
-            ([22, 24, 27, 30], 1, 1, "1d", "30m", "linear"),  # noqa
-            ([22, 24, 27, 30], 1, 1, "1d", "30m", "binary_tree"),  # noqa
-            ([22, 24, 27, 30], 1, 1, "1d", "30m", "star"),  # noqa
-            ([22, 24, 27, 30], 1, 1, "1d", "30m", "grid"),  # noqa
+            ([8, 8, 8, 8], 1, 1, "1d", "None", "no_structure"),  # noqa
+            ([8, 8, 8, 8], 1, 1, "1d", "None", "linear"),  # noqa
+            ([20, 11, 11, 11], 1, 1, "1d", "@once", "no_structure"),  # noqa
+            ([20, 11, 11, 11], 1, 1, "1d", "@once", "linear"),  # noqa
+            ([20, 21, 23, 25], 1, 1, "1d", "30m", "no_structure"),  # noqa
+            ([20, 21, 23, 25], 1, 1, "1d", "30m", "linear"),  # noqa
+            ([20, 21, 23, 25], 1, 1, "1d", "30m", "binary_tree"),  # noqa
+            ([20, 21, 23, 25], 1, 1, "1d", "30m", "star"),  # noqa
+            ([20, 21, 23, 25], 1, 1, "1d", "30m", "grid"),  # noqa
             # One DAG with five tasks per DAG  file
-            ([10, 10, 10, 10], 1, 5, "1d", "None", "no_structure"),  # noqa
-            ([10, 10, 10, 10], 1, 5, "1d", "None", "linear"),  # noqa
-            ([22, 14, 14, 14], 1, 5, "1d", "@once", "no_structure"),  # noqa
-            ([23, 15, 15, 15], 1, 5, "1d", "@once", "linear"),  # noqa
-            ([22, 24, 27, 30], 1, 5, "1d", "30m", "no_structure"),  # noqa
-            ([23, 26, 30, 34], 1, 5, "1d", "30m", "linear"),  # noqa
-            ([23, 26, 30, 34], 1, 5, "1d", "30m", "binary_tree"),  # noqa
-            ([23, 26, 30, 34], 1, 5, "1d", "30m", "star"),  # noqa
-            ([23, 26, 30, 34], 1, 5, "1d", "30m", "grid"),  # noqa
+            ([8, 8, 8, 8], 1, 5, "1d", "None", "no_structure"),  # noqa
+            ([8, 8, 8, 8], 1, 5, "1d", "None", "linear"),  # noqa
+            ([20, 11, 11, 11], 1, 5, "1d", "@once", "no_structure"),  # noqa
+            ([21, 12, 12, 12], 1, 5, "1d", "@once", "linear"),  # noqa
+            ([20, 21, 23, 25], 1, 5, "1d", "30m", "no_structure"),  # noqa
+            ([21, 23, 26, 29], 1, 5, "1d", "30m", "linear"),  # noqa
+            ([21, 23, 26, 29], 1, 5, "1d", "30m", "binary_tree"),  # noqa
+            ([21, 23, 26, 29], 1, 5, "1d", "30m", "star"),  # noqa
+            ([21, 23, 26, 29], 1, 5, "1d", "30m", "grid"),  # noqa
             # 10 DAGs with 10 tasks per DAG file
-            ([10, 10, 10, 10], 10, 10, "1d", "None", "no_structure"),  # noqa
-            ([10, 10, 10, 10], 10, 10, "1d", "None", "linear"),  # noqa
-            ([85, 38, 38, 38], 10, 10, "1d", "@once", "no_structure"),  # noqa
-            ([95, 51, 51, 51], 10, 10, "1d", "@once", "linear"),  # noqa
-            ([85, 99, 99, 99], 10, 10, "1d", "30m", "no_structure"),  # noqa
-            ([95, 125, 125, 125], 10, 10, "1d", "30m", "linear"),  # noqa
-            ([95, 119, 119, 119], 10, 10, "1d", "30m", "binary_tree"),  # noqa
-            ([95, 119, 119, 119], 10, 10, "1d", "30m", "star"),  # noqa
-            ([95, 119, 119, 119], 10, 10, "1d", "30m", "grid"),  # noqa
+            ([8, 8, 8, 8], 10, 10, "1d", "None", "no_structure"),  # noqa
+            ([8, 8, 8, 8], 10, 10, "1d", "None", "linear"),  # noqa
+            ([83, 26, 26, 26], 10, 10, "1d", "@once", "no_structure"),  # noqa
+            ([93, 39, 39, 39], 10, 10, "1d", "@once", "linear"),  # noqa
+            ([83, 87, 87, 87], 10, 10, "1d", "30m", "no_structure"),  # noqa
+            ([93, 113, 113, 113], 10, 10, "1d", "30m", "linear"),  # noqa
+            ([93, 107, 107, 107], 10, 10, "1d", "30m", "binary_tree"),  # noqa
+            ([93, 107, 107, 107], 10, 10, "1d", "30m", "star"),  # noqa
+            ([93, 107, 107, 107], 10, 10, "1d", "30m", "grid"),  # noqa
             # pylint: enable=bad-whitespace
         ]
     )
@@ -3793,8 +3796,6 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
                 ('scheduler', 'use_job_schedule'): 'True',
                 ('core', 'store_serialized_dags'): 'True',
             }
-        ), mock.patch.object(
-            settings, 'STORE_SERIALIZED_DAGS', True
         ):
 
             dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)

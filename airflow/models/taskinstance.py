@@ -71,6 +71,15 @@ from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 
+try:
+    from kubernetes.client.api_client import ApiClient
+
+    from airflow.kubernetes.kube_config import KubeConfig
+    from airflow.kubernetes.kubernetes_helper_functions import create_pod_id
+    from airflow.kubernetes.pod_generator import PodGenerator
+except ImportError:
+    ApiClient = None
+
 TR = TaskReschedule
 Context = Dict[str, Any]
 
@@ -1655,6 +1664,18 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                     "rendering of template_fields."
                 ) from e
 
+    def get_rendered_k8s_spec(self):
+        """Fetch rendered template fields from DB"""
+        from airflow.models.renderedtifields import RenderedTaskInstanceFields
+
+        rendered_k8s_spec = RenderedTaskInstanceFields.get_k8s_pod_yaml(self)
+        if not rendered_k8s_spec:
+            try:
+                self.render_k8s_pod_yaml()
+            except (TemplateAssertionError, UndefinedError) as e:
+                raise AirflowException(f"Unable to render a k8s spec for this taskinstance: {e}") from e
+        return rendered_k8s_spec
+
     def overwrite_params_with_dag_run_conf(self, params, dag_run):
         """Overwrite Task Params with DagRun.conf"""
         if dag_run and dag_run.conf:
@@ -1667,6 +1688,26 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             context = self.get_template_context()
 
         self.task.render_template_fields(context)
+
+    def render_k8s_pod_yaml(self) -> Optional[dict]:
+        """Render k8s pod yaml"""
+        kube_config = KubeConfig()
+        pod = PodGenerator.construct_pod(
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            pod_id=create_pod_id(self.dag_id, self.task_id),
+            try_number=self.try_number,
+            kube_image=kube_config.kube_image,
+            date=self.execution_date,
+            command=self.command_as_list(),
+            pod_override_object=PodGenerator.from_obj(self.executor_config),
+            scheduler_job_id="worker-config",
+            namespace=kube_config.executor_namespace,
+            base_worker_pod=PodGenerator.deserialize_model_file(kube_config.pod_template_file),
+        )
+        settings.pod_mutation_hook(pod)
+        sanitized_pod = ApiClient().sanitize_for_serialization(pod)
+        return sanitized_pod
 
     def get_email_subject_content(self, exception):
         """Get the email subject content for exceptions."""

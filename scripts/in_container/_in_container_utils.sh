@@ -259,11 +259,15 @@ function install_released_airflow_version() {
         export SLUGIFY_USES_TEXT_UNIDECODE=yes
     fi
     rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
-    INSTALLS=("apache-airflow==${1}" "werkzeug<1.0.0")
-    pip install --upgrade "${INSTALLS[@]}"
+    if [[ ${INSTALL_AIRFLOW_VERSION} == "wheel" ]]; then
+        pip install /dist/apache_airflow-*.whl
+    else
+        INSTALLS=("apache-airflow==${1}")
+        pip install --upgrade "${INSTALLS[@]}"
+    fi
 }
 
-function setup_backport_packages() {
+function setup_provider_packages() {
     if [[ ${BACKPORT_PACKAGES:=} == "true" ]]; then
         export PACKAGE_TYPE="backport"
         export PACKAGE_PREFIX_UPPERCASE="BACKPORT_"

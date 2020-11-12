@@ -61,3 +61,11 @@
 .dropdown-menu > li > a > .material-icons {
   margin-right: 6px;
 }
+
+.custom-icon {
+  position: relative;
+  top: -0.1em;
+  vertical-align: middle;
+  fill: currentColor;
+  stroke-width: 0;
+}

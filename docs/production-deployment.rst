@@ -666,3 +666,46 @@ This concept is implemented in the development version of the Helm Chart that is
 
    pypirc
    dockerignore
+
+
+Secured Server and Service Access on Google Cloud
+=================================================
+
+This section describes techniques and solutions for securely accessing servers and services when your Airflow environment is deployed on Google Cloud, or you connect to Google services, or you are connecting to the Google API.
+
+IAM and Service Accounts
+------------------------
+
+You should do not rely on internal network segmentation or firewalling as our primary security mechanisms. To protect your organization's data, every request you make should contain sender identity. In the case of Google Cloud, the identity is provided by `the IAM and Service account <https://cloud.google.com/iam/docs/service-accounts>`__. Each Compute Engine instance has an associated service account identity. It provides cryptographic credentials that your workload can use to prove its identity when making calls to Google APIs or third-party services. Each instance has access only to short-lived credentials. If you use Google-managed service account keys, then the private key is always held in escrow and is never directly accessible.
+
+If you are using Kubernetes Engine, you can use `Workload Identity <https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity>`__ to assign an identity to individual pods.
+
+For more information about service accounts in the Airflow, see :ref:`howto/connection:gcp`
+
+Impersonate Service Accounts
+----------------------------
+
+If you need access to other service accounts, you can :ref:`impersonate other service accounts <howto/connection:gcp:impersonation>` to exchange the token with the default identity to another service account. Thus, the account keys are still managed by Google and cannot be read by your workload.
+
+It is not recommended to generate service account keys and store them in the metadata database or the secrets backend. Even with the use of the backend secret, the service account key is available for your workload.
+
+Access to Compute Engine Instance
+---------------------------------
+
+If you want to establish an SSH connection to the Compute Engine instance, you must have the network address of this instance and credentials to access it. To simplify this task, you can use :class:`~airflow.providers.google.cloud.hooks.compute.ComputeEngineHook` instead of :class:`~airflow.providers.ssh.hooks.ssh.SSHHook`
+
+The :class:ʻ~airflow.providers.google.cloud.hooks.compute.ComputeEngineHook` support authorization with Google OS Login service. It is an extremely robust way to manage Linux access properly as it stores short-lived ssh keys in the metadata service, offers PAM modules for access and sudo privilege checking and offers nsswitch user lookup into the metadata service as well.
+
+It also solves the discovery problem that arises as your infrastructure grows. You can use the instance name instead of the network address.
+
+Access to Amazon Web Service
+----------------------------
+
+Thanks to `Web Identity Federation <https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_oidc.html>`__, you can exchange the Google Cloud Platform identity to the Amazon Web Service identity, which effectively means access to Amazon Web Service platform. For more information, see: :ref:`howto/connection:aws:gcp-federation`
+
+.. spelling::
+
+    nsswitch
+    cryptographic
+    firewalling
+    ComputeEngineHook

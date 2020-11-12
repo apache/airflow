@@ -1194,7 +1194,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
         if len(dags) > 1:
             raise AirflowException(
-                'Tried to set relationships between tasks in ' 'more than one DAG: {}'.format(dags.values())
+                f'Tried to set relationships between tasks in more than one DAG: {dags.values()}'
             )
         elif len(dags) == 1:
             dag = dags.popitem()[1]

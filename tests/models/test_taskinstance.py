@@ -22,6 +22,7 @@ import time
 import unittest
 import urllib
 from typing import List, Optional, Union, cast
+from unittest import mock
 from unittest.mock import call, mock_open, patch
 
 import pendulum
@@ -58,6 +59,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+from airflow.version import version
 from tests.models import DEFAULT_DATE
 from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
@@ -1611,8 +1613,6 @@ class TestTaskInstance(unittest.TestCase):
         assert ti.state == State.SUCCESS
 
     def test_handle_failure(self):
-        from unittest import mock
-
         start_date = timezone.datetime(2016, 6, 1)
         dag = models.DAG(dag_id="test_handle_failure", schedule_interval=None, start_date=start_date)
 
@@ -1809,6 +1809,69 @@ class TestTaskInstance(unittest.TestCase):
         new_ti.get_rendered_template_fields()
 
         self.assertEqual("op1", ti.task.bash_command)
+
+        # CleanUp
+        with create_session() as session:
+            session.query(RenderedTaskInstanceFields).delete()
+
+    @patch("airflow.models.renderedtifields.IS_K8S_OR_K8SCELERY_EXECUTOR", new=True)
+    def test_get_rendered_k8s_spec(self):
+        with DAG('test_get_rendered_k8s_spec', start_date=DEFAULT_DATE):
+            task = BashOperator(task_id='op1', bash_command="{{ task.task_id }}")
+
+        ti = TI(task=task, execution_date=DEFAULT_DATE)
+
+        expected_pod_spec = {
+            'metadata': {
+                'annotations': {
+                    'dag_id': 'test_get_rendered_k8s_spec',
+                    'execution_date': '2016-01-01T00:00:00+00:00',
+                    'task_id': 'op1',
+                    'try_number': '1',
+                },
+                'labels': {
+                    'airflow-worker': 'worker-config',
+                    'airflow_version': version,
+                    'dag_id': 'test_get_rendered_k8s_spec',
+                    'execution_date': '2016-01-01T00_00_00_plus_00_00',
+                    'kubernetes_executor': 'True',
+                    'task_id': 'op1',
+                    'try_number': '1',
+                },
+                'name': mock.ANY,
+                'namespace': 'default',
+            },
+            'spec': {
+                'containers': [
+                    {
+                        'command': [
+                            'airflow',
+                            'tasks',
+                            'run',
+                            'test_get_rendered_k8s_spec',
+                            'op1',
+                            '2016-01-01T00:00:00+00:00',
+                        ],
+                        'image': ':',
+                        'name': 'base',
+                    }
+                ]
+            },
+        }
+
+        with create_session() as session:
+            rtif = RenderedTaskInstanceFields(ti)
+            session.add(rtif)
+            self.assertEqual(rtif.k8s_pod_yaml, expected_pod_spec)
+
+        # Create new TI for the same Task
+        with DAG('test_get_rendered_k8s_spec', start_date=DEFAULT_DATE):
+            new_task = BashOperator(task_id='op1', bash_command="{{ task.task_id }}")
+
+        new_ti = TI(task=new_task, execution_date=DEFAULT_DATE)
+        pod_spec = new_ti.get_rendered_k8s_spec()
+
+        self.assertEqual(expected_pod_spec, pod_spec)
 
         # CleanUp
         with create_session() as session:

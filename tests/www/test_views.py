@@ -62,6 +62,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from airflow.www import app as application
+from airflow.www.views import ConnectionModelView
 from tests.test_utils import fab_utils
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
@@ -103,6 +104,7 @@ class TemplateWithContext(NamedTuple):
             'state_color_mapping',
             'airflow_version',
             'git_version',
+            'k8s_or_k8scelery_executor',
             # airflow.www.static_config.configure_manifest_files
             'url_for_asset',
             # airflow.www.views.AirflowBaseView.render_template
@@ -241,6 +243,13 @@ class TestConnectionModelView(TestBase):
     def test_create_connection(self):
         resp = self.client.post('/connection/add', data=self.connection, follow_redirects=True)
         self.check_content_in_response('Added Row', resp)
+
+    def test_prefill_form_null_extra(self):
+        mock_form = mock.Mock()
+        mock_form.data = {"conn_id": "test", "extra": None}
+
+        cmv = ConnectionModelView()
+        cmv.prefill_form(form=mock_form, pk=1)
 
 
 class TestVariableModelView(TestBase):
@@ -676,12 +685,32 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('XCom', resp)
 
-    def test_rendered(self):
-        url = 'rendered?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'.format(
+    def test_xcom_list_view_title(self):
+        resp = self.client.get('xcom/list', follow_redirects=True)
+        self.check_content_in_response('List XComs', resp)
+
+    def test_rendered_template(self):
+        url = 'rendered-templates?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'.format(
             self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)
         )
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('Rendered Template', resp)
+
+    def test_rendered_k8s(self):
+        url = 'rendered-k8s?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'.format(
+            self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)
+        )
+        with mock.patch.object(settings, "IS_K8S_OR_K8SCELERY_EXECUTOR", True):
+            resp = self.client.get(url, follow_redirects=True)
+            self.check_content_in_response('K8s Pod Spec', resp)
+
+    @conf_vars({('core', 'executor'): 'LocalExecutor'})
+    def test_rendered_k8s_without_k8s(self):
+        url = 'rendered-k8s?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'.format(
+            self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)
+        )
+        resp = self.client.get(url, follow_redirects=True)
+        self.assertEqual(404, resp.status_code)
 
     def test_blocked(self):
         url = 'blocked'
@@ -798,7 +827,6 @@ class TestAirflowBaseViews(TestBase):
             data={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
             follow_redirects=True,
         )
-        self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
         self.assertIn('example_bash_operator', stats)
         self.assertIn('example_subdag_operator', stats)
@@ -1965,7 +1993,6 @@ class TestDagACLView(TestBase):
             data={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
             follow_redirects=True,
         )
-        self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
         self.assertIn('example_bash_operator', stats)
         self.assertIn('example_subdag_operator', stats)
@@ -2037,7 +2064,6 @@ class TestDagACLView(TestBase):
             data={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
             follow_redirects=True,
         )
-        self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
         self.assertIn('example_bash_operator', stats)
         self.assertIn('example_subdag_operator', stats)
@@ -2132,7 +2158,7 @@ class TestDagACLView(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('example_subdag_operator', resp)
 
-    def test_rendered_success(self):
+    def test_rendered_template_success(self):
         self.logout()
         username = 'rendered_success_user'
         self.create_user_and_login(
@@ -2145,34 +2171,25 @@ class TestDagACLView(TestBase):
             ],
         )
         self.login(username=username, password=username)
-
-        url = 'rendered?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'.format(
+        url = 'rendered-templates?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'.format(
             self.percent_encode(self.default_date)
         )
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('Rendered Template', resp)
 
-    def test_rendered_failure(self):
+    def test_rendered_template_failure(self):
         self.logout()
         self.login(username='dag_faker', password='dag_faker')
-        url = 'rendered?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'.format(
+        url = 'rendered-templates?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'.format(
             self.percent_encode(self.default_date)
         )
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_not_in_response('Rendered Template', resp)
 
-    def test_rendered_success_for_all_dag_user(self):
-        self.create_user_and_login(
-            username='rendered_success_for_all_dag_user_user',
-            role_name='rendered_success_for_all_dag_user_role',
-            perms=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
-            ],
-        )
-
-        url = 'rendered?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'.format(
+    def test_rendered_template_success_for_all_dag_user(self):
+        self.logout()
+        self.login(username='all_dag_user', password='all_dag_user')
+        url = 'rendered-templates?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'.format(
             self.percent_encode(self.default_date)
         )
         resp = self.client.get(url, follow_redirects=True)
@@ -2341,7 +2358,6 @@ class TestDagACLView(TestBase):
             data={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
             follow_redirects=True,
         )
-        self.assertEqual(resp.status_code, 200)
         blocked_dags = {blocked['dag_id'] for blocked in json.loads(resp.data.decode('utf-8'))}
         self.assertIn('example_bash_operator', blocked_dags)
         self.assertIn('example_subdag_operator', blocked_dags)
@@ -2632,7 +2648,7 @@ class TestRenderedView(TestBase):
         with create_session() as session:
             session.query(RTIF).delete()
 
-    def test_rendered_view(self):
+    def test_rendered_template_view(self):
         """
         Test that the Rendered View contains the values from RenderedTaskInstanceFields
         """
@@ -2642,21 +2658,21 @@ class TestRenderedView(TestBase):
         with create_session() as session:
             session.add(RTIF(ti))
 
-        url = 'rendered?task_id=task1&dag_id=testdag&execution_date={}'.format(
+        url = 'rendered-templates?task_id=task1&dag_id=testdag&execution_date={}'.format(
             self.percent_encode(self.default_date)
         )
 
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response("testdag__task1__20200301", resp)
 
-    def test_rendered_view_for_unexecuted_tis(self):
+    def test_rendered_template_view_for_unexecuted_tis(self):
         """
         Test that the Rendered View is able to show rendered values
         even for TIs that have not yet executed
         """
         self.assertEqual(self.task1.bash_command, '{{ task_instance_key_str }}')
 
-        url = 'rendered?task_id=task1&dag_id=task1&execution_date={}'.format(
+        url = 'rendered-templates?task_id=task1&dag_id=task1&execution_date={}'.format(
             self.percent_encode(self.default_date)
         )
 
@@ -2673,7 +2689,7 @@ class TestRenderedView(TestBase):
         )
         self.assertEqual(self.task2.bash_command, 'echo {{ fullname("Apache", "Airflow") | hello }}')
 
-        url = 'rendered?task_id=task2&dag_id=testdag&execution_date={}'.format(
+        url = 'rendered-templates?task_id=task2&dag_id=testdag&execution_date={}'.format(
             self.percent_encode(self.default_date)
         )
 

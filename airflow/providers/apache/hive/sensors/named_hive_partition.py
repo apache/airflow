@@ -63,7 +63,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
         self.hook = hook
         if self.hook and metastore_conn_id != 'metastore_default':
             self.log.warning(
-                'A hook was passed but a non defaul metastore_conn_id=%s was used', metastore_conn_id
+                'A hook was passed but a non default metastore_conn_id=%s was used', metastore_conn_id
             )
 
     @staticmethod

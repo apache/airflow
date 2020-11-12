@@ -21,12 +21,13 @@ import tempfile
 from datetime import datetime
 from unittest import TestCase
 
-from airflow.exceptions import DagRunAlreadyExists
+from airflow.exceptions import AirflowException, DagRunAlreadyExists
 from airflow.models import DAG, DagBag, DagModel, DagRun, Log, TaskInstance
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
+from airflow.utils.state import State
 
 DEFAULT_DATE = datetime(2019, 1, 1, tzinfo=timezone.utc)
 TEST_DAG_ID = "testdag"
@@ -178,3 +179,36 @@ class TestDagRunOperator(TestCase):
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
             self.assertEqual(len(dagruns), 1)
             self.assertTrue(dagruns[0].external_trigger)
+
+    def test_trigger_dagrun_with_wait_for_completion_true(self):
+        """Test TriggerDagRunOperator with wait_for_completion."""
+        execution_date = DEFAULT_DATE
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            execution_date=execution_date,
+            wait_for_completion=True,
+            poke_interval=10,
+            allowed_states=[State.RUNNING],
+            dag=self.dag,
+        )
+        task.run(start_date=execution_date, end_date=execution_date)
+
+        with create_session() as session:
+            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            self.assertEqual(len(dagruns), 1)
+
+    def test_trigger_dagrun_with_wait_for_completion_true_fail(self):
+        """Test TriggerDagRunOperator with wait_for_completion but triggered dag fails."""
+        execution_date = DEFAULT_DATE
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            execution_date=execution_date,
+            wait_for_completion=True,
+            poke_interval=10,
+            failed_states=[State.RUNNING],
+            dag=self.dag,
+        )
+        with self.assertRaises(AirflowException):
+            task.run(start_date=execution_date, end_date=execution_date)

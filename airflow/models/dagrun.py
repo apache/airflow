@@ -135,7 +135,7 @@ class DagRun(Base, LoggingMixin):
 
     def __repr__(self):
         return (
-            '<DagRun {dag_id} @ {execution_date}: {run_id}, ' 'externally triggered: {external_trigger}>'
+            '<DagRun {dag_id} @ {execution_date}: {run_id}, externally triggered: {external_trigger}>'
         ).format(
             dag_id=self.dag_id,
             execution_date=self.execution_date,

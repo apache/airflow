@@ -150,7 +150,7 @@ class TestCore(unittest.TestCase):
                 illegal_argument_1234='hello?',
             )
         self.assertIn(
-            ('Invalid arguments were passed to BashOperator (task_id: test_illegal_args).'),
+            'Invalid arguments were passed to BashOperator (task_id: test_illegal_args).',
             str(ctx.exception),
         )
 

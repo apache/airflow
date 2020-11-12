@@ -102,3 +102,42 @@ class TestAzureKeyVaultBackend(TestCase):
         secret_val = backend._get_secret('af-secrets', 'test_mysql_password')
         mock_client.get_secret.assert_called_with(name='af-secrets-test-mysql-password')
         self.assertEqual(secret_val, 'super-secret')
+
+    @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend._get_secret')
+    def test_connection_prefix_none_value(self, mock_get_secret):
+        """
+        Test that if Connections prefix is None,
+        AzureKeyVaultBackend.get_connections should return None
+        AzureKeyVaultBackend._get_secret should not be called
+        """
+        kwargs = {'connections_prefix': None}
+
+        backend = AzureKeyVaultBackend(**kwargs)
+        self.assertIsNone(backend.get_conn_uri('test_mysql'))
+        mock_get_secret._get_secret.assert_not_called()
+
+    @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend._get_secret')
+    def test_variable_prefix_none_value(self, mock_get_secret):
+        """
+        Test that if Variables prefix is None,
+        AzureKeyVaultBackend.get_variables should return None
+        AzureKeyVaultBackend._get_secret should not be called
+        """
+        kwargs = {'variables_prefix': None}
+
+        backend = AzureKeyVaultBackend(**kwargs)
+        self.assertIsNone(backend.get_variable('hello'))
+        mock_get_secret._get_secret.assert_not_called()
+
+    @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend._get_secret')
+    def test_config_prefix_none_value(self, mock_get_secret):
+        """
+        Test that if Config prefix is None,
+        AzureKeyVaultBackend.get_config should return None
+        AzureKeyVaultBackend._get_secret should not be called
+        """
+        kwargs = {'config_prefix': None}
+
+        backend = AzureKeyVaultBackend(**kwargs)
+        self.assertIsNone(backend.get_config('test_mysql'))
+        mock_get_secret._get_secret.assert_not_called()

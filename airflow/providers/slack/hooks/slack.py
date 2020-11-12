@@ -80,7 +80,7 @@ class SlackHook(BaseHook):  # noqa
                 raise AirflowException('Missing token(password) in Slack connection')
             return conn.password
 
-        raise AirflowException('Cannot get token: ' 'No valid Slack token nor slack_conn_id supplied.')
+        raise AirflowException('Cannot get token: No valid Slack token nor slack_conn_id supplied.')
 
     def call(self, api_method: str, *args, **kwargs) -> None:
         """
