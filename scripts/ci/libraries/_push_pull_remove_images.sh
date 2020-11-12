@@ -154,7 +154,8 @@ function push_pull_remove_images::pull_prod_images_if_needed() {
                 fi
                 push_pull_remove_images::pull_image_github_dockerhub "${PYTHON_BASE_IMAGE}" "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
             else
-                docker pull "${PYTHON_BASE_IMAGE}"
+                docker pull "${AIRFLOW_CI_PYTHON_IMAGE}"
+                docker tag "${AIRFLOW_CI_PYTHON_IMAGE}" "${PYTHON_BASE_IMAGE}"
             fi
             echo
         fi
