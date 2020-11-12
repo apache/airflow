@@ -58,9 +58,10 @@ class TriggerDagRunOperator(BaseOperator):
         When reset_dag_run=False and dag run exists, DagRunAlreadyExists will be raised.
         When reset_dag_run=True and dag run exists, existing dag run will be cleared to rerun.
     :type reset_dag_run: bool
-    :param wait_for_completion: Whether or not wait for dag run completion.
+    :param wait_for_completion: Whether or not wait for dag run completion. (default: False)
     :type wait_for_completion: bool
-    :param poke_interval: Poke internal to check dag run status when wait_for_completion=True.
+    :param poke_interval: Poke interval to check dag run status when wait_for_completion=True.
+        (default: 60)
     :type poke_interval: int
     :param allowed_states: list of allowed states, default is ``['success']``
     :type allowed_states: list
@@ -155,6 +156,8 @@ class TriggerDagRunOperator(BaseOperator):
                     dag_run.execution_date,
                     self.allowed_states,
                 )
+                time.sleep(self.poke_interval)
+
                 dag_run.refresh_from_db()
                 state = dag_run.state
                 if state in self.failed_states:
@@ -162,5 +165,3 @@ class TriggerDagRunOperator(BaseOperator):
                 elif state in self.allowed_states:
                     self.log.info("%s finished with allowed state %s", self.trigger_dag_id, state)
                     return
-
-                time.sleep(self.poke_interval)
