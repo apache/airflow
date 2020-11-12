@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 from typing import Any, Dict, Optional, Tuple
+import json
+import os
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -75,7 +77,12 @@ class SnowflakeHook(DbApiHook):
             "region": self.region or region,
             "role": self.role or role,
             "authenticator": self.authenticator or authenticator,
-            "session_parameters": self.session_parameters or session_parameters,
+            "session_parameters": {"QUERY_TAG": json.dumps({
+                                           'airflow': {
+                                               'dag': os.getenv('AIRFLOW_CTX_DAG_ID'),
+                                               'task': os.getenv('AIRFLOW_CTX_TASK_ID')
+                                           }
+                                       })}
         }
 
         # If private_key_file is specified in the extra json, load the contents of the file as a private
