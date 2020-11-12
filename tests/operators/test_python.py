@@ -45,6 +45,7 @@ from airflow.utils import timezone
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs
 
@@ -486,6 +487,23 @@ class TestAirflowTaskDecorator(TestPythonBase):
 
         assert do_run_1.operator.task_id == 'do_run__1'  # pylint: disable=maybe-no-member
         assert do_run_2.operator.task_id == 'do_run__2'  # pylint: disable=maybe-no-member
+
+    def test_multiple_calls_in_task_group(self):
+        """Test calling task multiple times in a TaskGroup"""
+
+        @task_decorator
+        def do_run():
+            return 4
+
+        group_id = "KnightsOfNii"
+        with self.dag:
+            with TaskGroup(group_id=group_id):
+                do_run()
+                assert [f"{group_id}.do_run"] == self.dag.task_ids
+                do_run()
+                assert [f"{group_id}.do_run", f"{group_id}.do_run__1"] == self.dag.task_ids
+
+        assert len(self.dag.task_ids) == 2
 
     def test_call_20(self):
         """Test calling decorated function 21 times in a DAG"""
