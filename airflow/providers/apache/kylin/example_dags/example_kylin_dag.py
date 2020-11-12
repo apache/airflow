@@ -27,20 +27,20 @@ from airflow.utils.dates import days_ago
 
 args = {
     'owner': 'airflow',
-    'start_date': days_ago(1),
 }
 
 dag = DAG(
     dag_id='example_kylin_operator',
     default_args=args,
     schedule_interval=None,
-    tags=['example']
+    start_date=days_ago(1),
+    tags=['example'],
 )
 
 
 def gen_build_time(**kwargs):
     """
-    gen build time and push to xcom
+    Gen build time and push to xcom
     :param kwargs:
     :return:
     """
@@ -49,11 +49,7 @@ def gen_build_time(**kwargs):
     ti.xcom_push(key='date_end', value='1325433600000')
 
 
-gen_build_time_task = PythonOperator(
-    python_callable=gen_build_time,
-    task_id='gen_build_time',
-    dag=dag
-)
+gen_build_time_task = PythonOperator(python_callable=gen_build_time, task_id='gen_build_time', dag=dag)
 
 build_task1 = KylinCubeOperator(
     task_id="kylin_build_1",

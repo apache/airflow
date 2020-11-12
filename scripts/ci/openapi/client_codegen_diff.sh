@@ -15,29 +15,42 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$(dirname "${BASH_SOURCE[0]}")/../libraries/_script_init.sh"
 
-SCRIPTS_CI_DIR=$(dirname "${BASH_SOURCE[0]}")
+set -eu
 
-# shellcheck source=scripts/ci/libraries/_initialization.sh
-. "${SCRIPTS_CI_DIR}"/../libraries/_initialization.sh
-get_environment_for_builds_on_ci
+# HEAD^1 says the "first" parent. For PR merge commits, or master commits, this is the "right" commit.
+#
+# In this example, 9c532b6 is the PR commit (HEAD^2), 4840892 is the head github checks-out for us, and db121f7 is the
+# "merge target" (HEAD^1) -- i.e. mainline
+#
+# *   4840892 (HEAD, pull/11906/merge) Merge 9c532b6a2c56cd5d4c2a80ecbed60f9dfd1f5fe6 into db121f726b3c7a37aca1ea05eb4714f884456005 [Ephraim Anierobi]
+# |\
+# | * 9c532b6 (grafted) make taskinstances pid and duration nullable [EphraimBuddy]
+# * db121f7 (grafted) Add truncate table (before copy) option to S3ToRedshiftOperator (#9246) [JavierLopezT]
 
-git remote add target "https://github.com/${CI_TARGET_REPO}"
-git fetch target "${CI_TARGET_BRANCH}:${CI_TARGET_BRANCH}" --depth=1
+previous_mainline_commit="$(git rev-parse --short HEAD^1)"
 
-echo "Diffing openapi spec against ${CI_TARGET_BRANCH}..."
+echo "Diffing openapi spec against ${previous_mainline_commit}..."
 
-SPEC_FILE=airflow/api_connexion/openapi/v1.yaml
-if ! git diff --name-only "${CI_TARGET_BRANCH}" HEAD | grep "${SPEC_FILE}" ; then
-    echo "no openapi spec change detected, going to skip client code gen validation."
-    exit 0
-fi
+SPEC_FILE="airflow/api_connexion/openapi/v1.yaml"
+readonly SPEC_FILE
 
-echo "openapi spec change detected. comparing codegen diff..."
+GO_CLIENT_PATH="clients/go/airflow"
+readonly GO_CLIENT_PATH
 
-mkdir -p ./clients/go/airflow
-./clients/gen/go.sh ./airflow/api_connexion/openapi/v1.yaml ./clients/go/airflow
-mkdir -p ./clients/go_target_branch/airflow
-git checkout "${CI_TARGET_BRANCH}" ./airflow/api_connexion/openapi/v1.yaml
-./clients/gen/go.sh ./airflow/api_connexion/openapi/v1.yaml ./clients/go_target_branch/airflow
-diff ./clients/go_target_branch/airflow ./clients/go/airflow || true
+GO_TARGET_CLIENT_PATH="clients/go_target_branch/airflow"
+readonly GO_TARGET_CLIENT_PATH
+
+# generate client for current patch
+mkdir -p "${GO_CLIENT_PATH}"
+
+./clients/gen/go.sh "${SPEC_FILE}" "${GO_CLIENT_PATH}"
+# generate client for target patch
+mkdir -p "${GO_TARGET_CLIENT_PATH}"
+
+git reset --hard "${previous_mainline_commit}"
+./clients/gen/go.sh "${SPEC_FILE}" "${GO_TARGET_CLIENT_PATH}"
+
+diff -u "${GO_TARGET_CLIENT_PATH}" "${GO_CLIENT_PATH}" || true

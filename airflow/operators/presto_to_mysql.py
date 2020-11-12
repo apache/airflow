@@ -27,7 +27,8 @@ from airflow.providers.mysql.transfers.presto_to_mysql import PrestoToMySqlOpera
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.mysql.transfers.presto_to_mysql`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 
@@ -38,11 +39,12 @@ class PrestoToMySqlTransfer(PrestoToMySqlOperator):
     `airflow.providers.mysql.transfers.presto_to_mysql.PrestoToMySqlOperator`.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use
             `airflow.providers.mysql.transfers.presto_to_mysql.PrestoToMySqlOperator`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning,
+            stacklevel=3,
         )
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)

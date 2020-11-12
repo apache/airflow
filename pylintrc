@@ -38,7 +38,7 @@ limit-inference-results=100
 
 # List of plugins (as comma separated values of python modules names) to load,
 # usually to register additional checkers.
-load-plugins=tests.airflow_pylint.do_not_use_asserts
+load-plugins=tests.airflow_pylint.do_not_use_asserts,tests.airflow_pylint.disable_checks_for_tests
 
 # Pickle collected data for later comparisons.
 persistent=yes
@@ -570,7 +570,7 @@ max-branches=22
 max-locals=24
 
 # Maximum number of parents for a class (see R0901).
-max-parents=7
+max-parents=8
 
 # Maximum number of public methods for a class (see R0904).
 # BasPH: choose 27 because this was 50% of the sorted list of 30 number of public methods above 20 (Pylint default)

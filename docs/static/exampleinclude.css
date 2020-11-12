@@ -1,4 +1,4 @@
-/**
+/*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -83,4 +83,16 @@
 .viewcode-button:focus {
   color: #404040;
   background-color: #d6d6d6;
+}
+
+/* override the maximum width restriction for large screen */
+.wy-nav-content {
+   max-width: none;
+}
+
+/* override table width restrictions */
+@media screen and (min-width: 720px) {
+   .wy-table-responsive table td {
+      white-space: normal !important;
+   }
 }

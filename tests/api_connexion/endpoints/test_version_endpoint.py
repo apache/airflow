@@ -29,13 +29,11 @@ class TestGetHealthTest(unittest.TestCase):
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
 
-    @mock.patch(
-        "airflow.api_connexion.endpoints.version_endpoint.airflow.__version__", "MOCK_VERSION"
-    )
+    @mock.patch("airflow.api_connexion.endpoints.version_endpoint.airflow.__version__", "MOCK_VERSION")
     @mock.patch(
         "airflow.api_connexion.endpoints.version_endpoint.get_airflow_git_version", return_value="GIT_COMMIT"
     )
-    def test_should_response_200(self, mock_get_airflow_get_commit):
+    def test_should_respond_200(self, mock_get_airflow_get_commit):
         response = self.client.get("/api/v1/version")
 
         self.assertEqual(200, response.status_code)

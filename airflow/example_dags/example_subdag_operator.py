@@ -29,14 +29,10 @@ DAG_NAME = 'example_subdag_operator'
 
 args = {
     'owner': 'airflow',
-    'start_date': days_ago(2),
 }
 
 dag = DAG(
-    dag_id=DAG_NAME,
-    default_args=args,
-    schedule_interval="@once",
-    tags=['example']
+    dag_id=DAG_NAME, default_args=args, start_date=days_ago(2), schedule_interval="@once", tags=['example']
 )
 
 start = DummyOperator(

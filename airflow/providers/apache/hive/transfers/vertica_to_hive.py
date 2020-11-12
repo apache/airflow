@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains operator to move data from Vertica to Hive.
-"""
+"""This module contains operator to move data from Vertica to Hive."""
 
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
@@ -73,17 +71,19 @@ class VerticaToHiveOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
-            sql,
-            hive_table,
-            create=True,
-            recreate=False,
-            partition=None,
-            delimiter=chr(1),
-            vertica_conn_id='vertica_default',
-            hive_cli_conn_id='hive_cli_default',
-            *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        self,
+        *,
+        sql,
+        hive_table,
+        create=True,
+        recreate=False,
+        partition=None,
+        delimiter=chr(1),
+        vertica_conn_id='vertica_default',
+        hive_cli_conn_id='hive_cli_default',
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
         self.sql = sql
         self.hive_table = hive_table
         self.partition = partition
@@ -125,9 +125,8 @@ class VerticaToHiveOperator(BaseOperator):
             col_count = 0
             for field in cursor.description:
                 col_count += 1
-                col_position = "Column{position}".format(position=col_count)
-                field_dict[col_position if field[0] == '' else field[0]] = \
-                    self.type_map(field[1])
+                col_position = f"Column{col_count}"
+                field_dict[col_position if field[0] == '' else field[0]] = self.type_map(field[1])
             csv_writer.writerows(cursor.iterate())
             f.flush()
             cursor.close()
@@ -140,4 +139,5 @@ class VerticaToHiveOperator(BaseOperator):
                 create=self.create,
                 partition=self.partition,
                 delimiter=self.delimiter,
-                recreate=self.recreate)
+                recreate=self.recreate,
+            )

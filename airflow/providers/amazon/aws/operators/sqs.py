@@ -16,6 +16,7 @@
 # under the License.
 
 """Publish message to SQS queue"""
+from typing import Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sqs import SQSHook
@@ -38,19 +39,22 @@ class SQSPublishOperator(BaseOperator):
     :param aws_conn_id: AWS connection id (default: aws_default)
     :type aws_conn_id: str
     """
+
     template_fields = ('sqs_queue', 'message_content', 'delay_seconds')
     ui_color = '#6ad3fa'
 
     @apply_defaults
-    def __init__(self,
-                 sqs_queue,
-                 message_content,
-                 message_attributes=None,
-                 delay_seconds=0,
-                 aws_conn_id='aws_default',
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        *,
+        sqs_queue: str,
+        message_content: str,
+        message_attributes: Optional[dict] = None,
+        delay_seconds: int = 0,
+        aws_conn_id: str = 'aws_default',
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
         self.sqs_queue = sqs_queue
         self.aws_conn_id = aws_conn_id
         self.message_content = message_content
@@ -67,13 +71,14 @@ class SQSPublishOperator(BaseOperator):
             For details of the returned dict see :py:meth:`botocore.client.SQS.send_message`
         :rtype: dict
         """
-
         hook = SQSHook(aws_conn_id=self.aws_conn_id)
 
-        result = hook.send_message(queue_url=self.sqs_queue,
-                                   message_body=self.message_content,
-                                   delay_seconds=self.delay_seconds,
-                                   message_attributes=self.message_attributes)
+        result = hook.send_message(
+            queue_url=self.sqs_queue,
+            message_body=self.message_content,
+            delay_seconds=self.delay_seconds,
+            message_attributes=self.message_attributes,
+        )
 
         self.log.info('result is send_message is %s', result)
 

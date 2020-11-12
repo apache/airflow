@@ -1,4 +1,4 @@
-/**
+/*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,7 @@
  */
 
 circle {
-  stroke: blue;
+  stroke: #017cee;
   fill: #fff;
   stroke-width: 1.5px;
 }
@@ -36,7 +36,7 @@ path.link {
 }
 
 rect.state {
-  stroke: #000;
+  stroke: #51504f;
   shape-rendering: crispEdges;
   cursor: pointer;
 }
@@ -83,6 +83,10 @@ rect.skipped {
   fill: pink;
 }
 
+rect.sensing {
+  fill: lightseagreen;
+}
+
 .tooltip.in {
   opacity: 1;
   filter: alpha(opacity=100);
@@ -91,7 +95,7 @@ rect.skipped {
 .axis path,
 .axis line {
   fill: none;
-  stroke: #000;
+  stroke: #51504f;
 }
 
 .axis text {

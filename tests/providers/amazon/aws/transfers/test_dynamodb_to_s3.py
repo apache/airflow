@@ -24,7 +24,6 @@ from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Op
 
 
 class DynamodbToS3Test(unittest.TestCase):
-
     def setUp(self):
         self.output_queue = []
 

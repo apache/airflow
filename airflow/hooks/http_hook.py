@@ -24,5 +24,6 @@ from airflow.providers.http.hooks.http import HttpHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.http.hooks.http`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

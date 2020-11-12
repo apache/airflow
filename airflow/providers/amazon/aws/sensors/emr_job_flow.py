@@ -46,13 +46,15 @@ class EmrJobFlowSensor(EmrBaseSensor):
     template_ext = ()
 
     @apply_defaults
-    def __init__(self,
-                 job_flow_id: str,
-                 target_states: Optional[Iterable[str]] = None,
-                 failed_states: Optional[Iterable[str]] = None,
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        *,
+        job_flow_id: str,
+        target_states: Optional[Iterable[str]] = None,
+        failed_states: Optional[Iterable[str]] = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
         self.job_flow_id = job_flow_id
         self.target_states = target_states or ['TERMINATED']
         self.failed_states = failed_states or ['TERMINATED_WITH_ERRORS']
@@ -98,6 +100,6 @@ class EmrJobFlowSensor(EmrBaseSensor):
         state_change_reason = cluster_status.get('StateChangeReason')
         if state_change_reason:
             return 'for code: {} with message {}'.format(
-                state_change_reason.get('Code', 'No code'),
-                state_change_reason.get('Message', 'Unknown'))
+                state_change_reason.get('Code', 'No code'), state_change_reason.get('Message', 'Unknown')
+            )
         return None

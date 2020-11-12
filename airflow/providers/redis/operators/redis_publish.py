@@ -38,14 +38,9 @@ class RedisPublishOperator(BaseOperator):
     template_fields = ('channel', 'message')
 
     @apply_defaults
-    def __init__(
-            self,
-            channel: str,
-            message: str,
-            redis_conn_id: str = 'redis_default',
-            *args, **kwargs) -> None:
+    def __init__(self, *, channel: str, message: str, redis_conn_id: str = 'redis_default', **kwargs) -> None:
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.redis_conn_id = redis_conn_id
         self.channel = channel
         self.message = message
@@ -57,10 +52,9 @@ class RedisPublishOperator(BaseOperator):
         :param context: the context object
         :type context: dict
         """
-
         redis_hook = RedisHook(redis_conn_id=self.redis_conn_id)
 
-        self.log.info('Sending messsage %s to Redis on channel %s', self.message, self.channel)
+        self.log.info('Sending message %s to Redis on channel %s', self.message, self.channel)
 
         result = redis_hook.get_conn().publish(channel=self.channel, message=self.message)
 

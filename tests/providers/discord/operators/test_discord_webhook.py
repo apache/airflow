@@ -33,22 +33,15 @@ class TestDiscordWebhookOperator(unittest.TestCase):
         'username': 'Airflow Webhook',
         'avatar_url': 'https://static-cdn.avatars.com/my-avatar-path',
         'tts': False,
-        'proxy': 'https://proxy.proxy.com:8888'
+        'proxy': 'https://proxy.proxy.com:8888',
     }
 
     def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG('test_dag_id', default_args=args)
 
     def test_execute(self):
-        operator = DiscordWebhookOperator(
-            task_id='discord_webhook_task',
-            dag=self.dag,
-            **self._config
-        )
+        operator = DiscordWebhookOperator(task_id='discord_webhook_task', dag=self.dag, **self._config)
 
         self.assertEqual(self._config['http_conn_id'], operator.http_conn_id)
         self.assertEqual(self._config['webhook_endpoint'], operator.webhook_endpoint)

@@ -38,14 +38,12 @@ AUDIO_CONFIG = {"audio_encoding": "LINEAR16"}
 
 # [START howto_operator_speech_to_text_api_arguments]
 CONFIG = {"encoding": "LINEAR16", "language_code": "en_US"}
-AUDIO = {"uri": "gs://{bucket}/{object}".format(bucket=BUCKET_NAME, object=FILENAME)}
+AUDIO = {"uri": f"gs://{BUCKET_NAME}/{FILENAME}"}
 # [END howto_operator_speech_to_text_api_arguments]
-
-default_args = {"start_date": dates.days_ago(1)}
 
 with models.DAG(
     "example_gcp_speech_to_text",
-    default_args=default_args,
+    start_date=dates.days_ago(1),
     schedule_interval=None,  # Override to match your needs
     tags=['example'],
 ) as dag:
@@ -60,9 +58,7 @@ with models.DAG(
     )
     # [START howto_operator_speech_to_text_recognize]
     speech_to_text_recognize_task2 = CloudSpeechToTextRecognizeSpeechOperator(
-        config=CONFIG,
-        audio=AUDIO,
-        task_id="speech_to_text_recognize_task"
+        config=CONFIG, audio=AUDIO, task_id="speech_to_text_recognize_task"
     )
     # [END howto_operator_speech_to_text_recognize]
 

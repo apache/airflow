@@ -24,5 +24,6 @@ from airflow.providers.jdbc.operators.jdbc import JdbcOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.jdbc.operators.jdbc`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

@@ -35,9 +35,7 @@ def _gethash(string: str):
 
 
 def _user_cache_dir(appname=None):
-    """
-    Return full path to the user-specific cache dir for this application
-    """
+    """Return full path to the user-specific cache dir for this application"""
     if sys.platform == "win32":
         # Windows has a complex procedure to download the App Dir directory because this directory can be
         # changed in window registry, so i use temporary directory for cache
@@ -62,7 +60,7 @@ def fetch_and_cache(script_url: str, output_filename: str):
     cache_metadata: Dict[str, str] = {}
     if os.path.exists(cache_metadata_filepath):
         try:
-            with open(cache_metadata_filepath, "r") as cache_file:
+            with open(cache_metadata_filepath) as cache_file:
                 cache_metadata = json.load(cache_file)
         except json.JSONDecodeError:
             os.remove(cache_metadata_filepath)

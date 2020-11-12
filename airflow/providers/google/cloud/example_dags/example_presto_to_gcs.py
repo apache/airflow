@@ -23,7 +23,9 @@ import re
 
 from airflow import models
 from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryCreateEmptyDatasetOperator, BigQueryCreateExternalTableOperator, BigQueryDeleteDatasetOperator,
+    BigQueryCreateEmptyDatasetOperator,
+    BigQueryCreateExternalTableOperator,
+    BigQueryDeleteDatasetOperator,
     BigQueryExecuteQueryOperator,
 )
 from airflow.providers.google.cloud.transfers.presto_to_gcs import PrestoToGCSOperator
@@ -44,12 +46,10 @@ def safe_name(s: str) -> str:
     return re.sub("[^0-9a-zA-Z_]+", "_", s)
 
 
-default_args = {"start_date": days_ago(1)}
-
 with models.DAG(
     dag_id="example_presto_to_gcs",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=["example"],
 ) as dag:
 

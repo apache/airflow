@@ -28,7 +28,6 @@ from airflow.providers.apache.pinot.hooks.pinot import PinotAdminHook, PinotDbAp
 
 
 class TestPinotAdminHook(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
         self.conn = conn = mock.MagicMock()
@@ -46,19 +45,33 @@ class TestPinotAdminHook(unittest.TestCase):
     def test_add_schema(self, mock_run_cli):
         params = ["schema_file", False]
         self.db_hook.add_schema(*params)
-        mock_run_cli.assert_called_once_with(['AddSchema',
-                                              '-controllerHost', self.conn.host,
-                                              '-controllerPort', self.conn.port,
-                                              '-schemaFile', params[0]])
+        mock_run_cli.assert_called_once_with(
+            [
+                'AddSchema',
+                '-controllerHost',
+                self.conn.host,
+                '-controllerPort',
+                self.conn.port,
+                '-schemaFile',
+                params[0],
+            ]
+        )
 
     @mock.patch('airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook.run_cli')
     def test_add_table(self, mock_run_cli):
         params = ["config_file", False]
         self.db_hook.add_table(*params)
-        mock_run_cli.assert_called_once_with(['AddTable',
-                                              '-controllerHost', self.conn.host,
-                                              '-controllerPort', self.conn.port,
-                                              '-filePath', params[0]])
+        mock_run_cli.assert_called_once_with(
+            [
+                'AddTable',
+                '-controllerHost',
+                self.conn.host,
+                '-controllerPort',
+                self.conn.port,
+                '-filePath',
+                params[0],
+            ]
+        )
 
     @mock.patch('airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook.run_cli')
     def test_create_segment(self, mock_run_cli):
@@ -85,34 +98,61 @@ class TestPinotAdminHook(unittest.TestCase):
 
         self.db_hook.create_segment(**params)
 
-        mock_run_cli.assert_called_once_with([
-            'CreateSegment',
-            '-generatorConfigFile', params["generator_config_file"],
-            '-dataDir', params["data_dir"],
-            '-format', params["segment_format"],
-            '-outDir', params["out_dir"],
-            '-overwrite', params["overwrite"],
-            '-tableName', params["table_name"],
-            '-segmentName', params["segment_name"],
-            '-timeColumnName', params["time_column_name"],
-            '-schemaFile', params["schema_file"],
-            '-readerConfigFile', params["reader_config_file"],
-            '-starTreeIndexSpecFile', params["star_tree_index_spec_file"],
-            '-hllSize', params["hll_size"],
-            '-hllColumns', params["hll_columns"],
-            '-hllSuffix', params["hll_suffix"],
-            '-numThreads', params["num_threads"],
-            '-postCreationVerification', params["post_creation_verification"],
-            '-retry', params["retry"]])
+        mock_run_cli.assert_called_once_with(
+            [
+                'CreateSegment',
+                '-generatorConfigFile',
+                params["generator_config_file"],
+                '-dataDir',
+                params["data_dir"],
+                '-format',
+                params["segment_format"],
+                '-outDir',
+                params["out_dir"],
+                '-overwrite',
+                params["overwrite"],
+                '-tableName',
+                params["table_name"],
+                '-segmentName',
+                params["segment_name"],
+                '-timeColumnName',
+                params["time_column_name"],
+                '-schemaFile',
+                params["schema_file"],
+                '-readerConfigFile',
+                params["reader_config_file"],
+                '-starTreeIndexSpecFile',
+                params["star_tree_index_spec_file"],
+                '-hllSize',
+                params["hll_size"],
+                '-hllColumns',
+                params["hll_columns"],
+                '-hllSuffix',
+                params["hll_suffix"],
+                '-numThreads',
+                params["num_threads"],
+                '-postCreationVerification',
+                params["post_creation_verification"],
+                '-retry',
+                params["retry"],
+            ]
+        )
 
     @mock.patch('airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook.run_cli')
     def test_upload_segment(self, mock_run_cli):
         params = ["segment_dir", False]
         self.db_hook.upload_segment(*params)
-        mock_run_cli.assert_called_once_with(['UploadSegment',
-                                              '-controllerHost', self.conn.host,
-                                              '-controllerPort', self.conn.port,
-                                              '-segmentDir', params[0]])
+        mock_run_cli.assert_called_once_with(
+            [
+                'UploadSegment',
+                '-controllerHost',
+                self.conn.host,
+                '-controllerPort',
+                self.conn.port,
+                '-segmentDir',
+                params[0],
+            ]
+        )
 
     @mock.patch('subprocess.Popen')
     def test_run_cli_success(self, mock_popen):
@@ -124,11 +164,9 @@ class TestPinotAdminHook(unittest.TestCase):
         params = ["foo", "bar", "baz"]
         self.db_hook.run_cli(params)
         params.insert(0, self.conn.extra_dejson.get('cmd_path'))
-        mock_popen.assert_called_once_with(params,
-                                           stderr=subprocess.STDOUT,
-                                           stdout=subprocess.PIPE,
-                                           close_fds=True,
-                                           env=None)
+        mock_popen.assert_called_once_with(
+            params, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, close_fds=True, env=None
+        )
 
     @mock.patch('subprocess.Popen')
     def test_run_cli_failure_error_message(self, mock_popen):
@@ -142,11 +180,9 @@ class TestPinotAdminHook(unittest.TestCase):
         with self.assertRaises(AirflowException, msg=msg):
             self.db_hook.run_cli(params)
         params.insert(0, self.conn.extra_dejson.get('cmd_path'))
-        mock_popen.assert_called_once_with(params,
-                                           stderr=subprocess.STDOUT,
-                                           stdout=subprocess.PIPE,
-                                           close_fds=True,
-                                           env=None)
+        mock_popen.assert_called_once_with(
+            params, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, close_fds=True, env=None
+        )
 
     @mock.patch('subprocess.Popen')
     def test_run_cli_failure_status_code(self, mock_popen):
@@ -162,15 +198,12 @@ class TestPinotAdminHook(unittest.TestCase):
         params.insert(0, self.conn.extra_dejson.get('cmd_path'))
         env = os.environ.copy()
         env.update({"JAVA_OPTS": "-Dpinot.admin.system.exit=true "})
-        mock_popen.assert_called_once_with(params,
-                                           stderr=subprocess.STDOUT,
-                                           stdout=subprocess.PIPE,
-                                           close_fds=True,
-                                           env=env)
+        mock_popen.assert_called_once_with(
+            params, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, close_fds=True, env=env
+        )
 
 
 class TestPinotDbApiHook(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
         self.conn = conn = mock.MagicMock()

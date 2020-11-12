@@ -210,7 +210,7 @@ TaskArn creation behaviour
 When creating a Task, the
 :class:`~airflow.providers.amazon.aws.operators.datasync.AWSDataSyncOperator` will try to find
 and use existing LocationArns rather than creating new ones. If multiple LocationArns match the
-specied URIs then we need to choose one to use. In this scenario, the operator behaves similarly
+specified URIs then we need to choose one to use. In this scenario, the operator behaves similarly
 to how it chooses a single Task from many Tasks:
 
 The operator will raise an Exception. To avoid this, you can set ``allow_random_location_choice=True``

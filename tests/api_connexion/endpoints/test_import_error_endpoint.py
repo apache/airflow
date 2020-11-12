@@ -18,10 +18,13 @@ import unittest
 
 from parameterized import parameterized
 
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models.errors import ImportError  # pylint: disable=redefined-builtin
+from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.www import app
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_import_errors
 
@@ -30,7 +33,20 @@ class TestBaseImportError(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        cls.app = app.create_app(testing=True)  # type:ignore
+        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
+            cls.app = app.create_app(testing=True)  # type:ignore
+        create_user(
+            cls.app,  # type: ignore
+            username="test",
+            role_name="Test",
+            permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR)],
+        )
+        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        delete_user(cls.app, username="test")  # type: ignore
+        delete_user(cls.app, username="test_no_permissions")  # type: ignore
 
     def setUp(self) -> None:
         super().setUp()
@@ -58,7 +74,9 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         session.add(import_error)
         session.commit()
 
-        response = self.client.get(f"/api/v1/importErrors/{import_error.id}")
+        response = self.client.get(
+            f"/api/v1/importErrors/{import_error.id}", environ_overrides={'REMOTE_USER': "test"}
+        )
 
         assert response.status_code == 200
         response_data = response.json
@@ -74,17 +92,37 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         )
 
     def test_response_404(self):
-        response = self.client.get("/api/v1/importErrors/2")
+        response = self.client.get("/api/v1/importErrors/2", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
         self.assertEqual(
             {
-                "detail": None,
+                "detail": "The ImportError with import_error_id: `2` was not found",
                 "status": 404,
                 "title": "Import error not found",
-                "type": "about:blank",
+                "type": EXCEPTIONS_LINK_MAP[404],
             },
             response.json,
         )
+
+    @provide_session
+    def test_should_raises_401_unauthenticated(self, session):
+        import_error = ImportError(
+            filename="Lorem_ipsum.py",
+            stacktrace="Lorem ipsum",
+            timestamp=timezone.parse(self.timestamp, timezone="UTC"),
+        )
+        session.add(import_error)
+        session.commit()
+
+        response = self.client.get(f"/api/v1/importErrors/{import_error.id}")
+
+        assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        response = self.client.get(
+            "/api/v1/importErrors", environ_overrides={'REMOTE_USER': "test_no_permissions"}
+        )
+        assert response.status_code == 403
 
 
 class TestGetImportErrorsEndpoint(TestBaseImportError):
@@ -101,7 +139,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
         session.add_all(import_error)
         session.commit()
 
-        response = self.client.get("/api/v1/importErrors")
+        response = self.client.get("/api/v1/importErrors", environ_overrides={'REMOTE_USER': "test"})
 
         assert response.status_code == 200
         response_data = response.json
@@ -126,6 +164,23 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
             },
             response_data,
         )
+
+    @provide_session
+    def test_should_raises_401_unauthenticated(self, session):
+        import_error = [
+            ImportError(
+                filename="Lorem_ipsum.py",
+                stacktrace="Lorem ipsum",
+                timestamp=timezone.parse(self.timestamp, timezone="UTC"),
+            )
+            for _ in range(2)
+        ]
+        session.add_all(import_error)
+        session.commit()
+
+        response = self.client.get("/api/v1/importErrors")
+
+        assert_401(response)
 
 
 class TestGetImportErrorsEndpointPagination(TestBaseImportError):
@@ -154,12 +209,10 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
         session.add_all(import_errors)
         session.commit()
 
-        response = self.client.get(url)
+        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
 
         assert response.status_code == 200
-        import_ids = [
-            pool["filename"] for pool in response.json["import_errors"]
-        ]
+        import_ids = [pool["filename"] for pool in response.json["import_errors"]]
         self.assertEqual(import_ids, expected_import_error_ids)
 
     @provide_session
@@ -174,7 +227,7 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
         ]
         session.add_all(import_errors)
         session.commit()
-        response = self.client.get("/api/v1/importErrors")
+        response = self.client.get("/api/v1/importErrors", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         self.assertEqual(len(response.json['import_errors']), 100)
 
@@ -191,6 +244,8 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
         ]
         session.add_all(import_errors)
         session.commit()
-        response = self.client.get("/api/v1/importErrors?limit=180")
+        response = self.client.get(
+            "/api/v1/importErrors?limit=180", environ_overrides={'REMOTE_USER': "test"}
+        )
         assert response.status_code == 200
         self.assertEqual(len(response.json['import_errors']), 150)

@@ -15,9 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains the Apache Livy operator.
-"""
+"""This module contains the Apache Livy operator."""
 from time import sleep
 from typing import Any, Dict, Optional, Sequence, Union
 
@@ -75,6 +73,7 @@ class LivyOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
+        *,
         file: str,
         class_name: Optional[str] = None,
         args: Optional[Sequence[Union[str, int, float]]] = None,
@@ -93,7 +92,7 @@ class LivyOperator(BaseOperator):
         proxy_user: Optional[str] = None,
         livy_conn_id: str = 'livy_default',
         polling_interval: int = 0,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> None:
         # pylint: disable-msg=too-many-arguments
 
@@ -115,7 +114,7 @@ class LivyOperator(BaseOperator):
             'queue': queue,
             'name': name,
             'conf': conf,
-            'proxy_user': proxy_user
+            'proxy_user': proxy_user,
         }
 
         self._livy_conn_id = livy_conn_id
@@ -158,14 +157,12 @@ class LivyOperator(BaseOperator):
             state = hook.get_batch_state(batch_id)
         self.log.info("Batch with id %s terminated with state: %s", batch_id, state.value)
         if state != BatchState.SUCCESS:
-            raise AirflowException("Batch {} did not succeed".format(batch_id))
+            raise AirflowException(f"Batch {batch_id} did not succeed")
 
     def on_kill(self) -> None:
         self.kill()
 
     def kill(self) -> None:
-        """
-        Delete the current batch session.
-        """
+        """Delete the current batch session."""
         if self._batch_id is not None:
             self.get_hook().delete_batch(self._batch_id)

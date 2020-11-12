@@ -24,7 +24,6 @@ from airflow.ti_deps.deps.dag_unpaused_dep import DagUnpausedDep
 
 
 class TestDagUnpausedDep(unittest.TestCase):
-
     def test_concurrency_reached(self):
         """
         Test paused DAG should fail dependency

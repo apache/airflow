@@ -26,7 +26,7 @@ from base64 import b64encode
 from datetime import datetime
 from decimal import Decimal
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 from uuid import UUID
 
 from cassandra.util import Date, OrderedMapSerializedKey, SortedSet, Time
@@ -67,40 +67,62 @@ class CassandraToGCSOperator(BaseOperator):
     :type cassandra_conn_id: str
     :param gzip: Option to compress file for upload
     :type gzip: bool
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
-    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
-        Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
+    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
+        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to
-        work, the service account making the request must have domain-wide
-        delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ('cql', 'bucket', 'filename', 'schema_filename',)
+
+    template_fields = (
+        'cql',
+        'bucket',
+        'filename',
+        'schema_filename',
+        'impersonation_chain',
+    )
     template_ext = ('.cql',)
     ui_color = '#a0e08c'
 
     @apply_defaults
-    def __init__(self,  # pylint: disable=too-many-arguments
-                 cql: str,
-                 bucket: str,
-                 filename: str,
-                 schema_filename: Optional[str] = None,
-                 approx_max_file_size_bytes: int = 1900000000,
-                 gzip: bool = False,
-                 cassandra_conn_id: str = 'cassandra_default',
-                 gcp_conn_id: str = 'google_cloud_default',
-                 google_cloud_storage_conn_id: Optional[str] = None,
-                 delegate_to: Optional[str] = None,
-                 *args,
-                 **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        *,  # pylint: disable=too-many-arguments
+        cql: str,
+        bucket: str,
+        filename: str,
+        schema_filename: Optional[str] = None,
+        approx_max_file_size_bytes: int = 1900000000,
+        gzip: bool = False,
+        cassandra_conn_id: str = 'cassandra_default',
+        gcp_conn_id: str = 'google_cloud_default',
+        google_cloud_storage_conn_id: Optional[str] = None,
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
 
         if google_cloud_storage_conn_id:
             warnings.warn(
                 "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+                "the gcp_conn_id parameter.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
             gcp_conn_id = google_cloud_storage_conn_id
 
         self.cql = cql
@@ -112,6 +134,7 @@ class CassandraToGCSOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.gzip = gzip
+        self.impersonation_chain = impersonation_chain
 
     # Default Cassandra to BigQuery type mapping
     CQL_TYPE_MAP = {
@@ -210,31 +233,28 @@ class CassandraToGCSOperator(BaseOperator):
     def _upload_to_gcs(self, files_to_upload: Dict[str, Any]):
         hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to)
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
         for obj, tmp_file_handle in files_to_upload.items():
             hook.upload(
                 bucket_name=self.bucket,
                 object_name=obj,
                 filename=tmp_file_handle.name,
                 mime_type='application/json',
-                gzip=self.gzip
+                gzip=self.gzip,
             )
 
     @classmethod
     def generate_data_dict(cls, names: Iterable[str], values: Any) -> Dict[str, Any]:
-        """
-        Generates data structure that will be stored as file in GCS.
-        """
+        """Generates data structure that will be stored as file in GCS."""
         return {n: cls.convert_value(v) for n, v in zip(names, values)}
 
     @classmethod
     def convert_value(  # pylint: disable=too-many-return-statements
-        cls,
-        value: Optional[Any]
+        cls, value: Optional[Any]
     ) -> Optional[Any]:
-        """
-        Convert value to BQ type.
-        """
+        """Convert value to BQ type."""
         if not value:
             return value
         elif isinstance(value, (str, int, float, bool, dict)):
@@ -262,9 +282,7 @@ class CassandraToGCSOperator(BaseOperator):
 
     @classmethod
     def convert_array_types(cls, value: Union[List[Any], SortedSet]) -> List[Any]:
-        """
-        Maps convert_value over array.
-        """
+        """Maps convert_value over array."""
         return [cls.convert_value(nested_value) for nested_value in value]
 
     @classmethod
@@ -296,17 +314,12 @@ class CassandraToGCSOperator(BaseOperator):
         """
         converted_map = []
         for k, v in zip(value.keys(), value.values()):
-            converted_map.append({
-                'key': cls.convert_value(k),
-                'value': cls.convert_value(v)
-            })
+            converted_map.append({'key': cls.convert_value(k), 'value': cls.convert_value(v)})
         return converted_map
 
     @classmethod
     def generate_schema_dict(cls, name: str, type_: Any) -> Dict[str, Any]:
-        """
-        Generates BQ schema.
-        """
+        """Generates BQ schema."""
         field_schema: Dict[str, Any] = {}
         field_schema.update({'name': name})
         field_schema.update({'type_': cls.get_bq_type(type_)})
@@ -318,9 +331,7 @@ class CassandraToGCSOperator(BaseOperator):
 
     @classmethod
     def get_bq_fields(cls, type_: Any) -> List[Dict[str, Any]]:
-        """
-        Converts non simple type value to BQ representation.
-        """
+        """Converts non simple type value to BQ representation."""
         if cls.is_simple_type(type_):
             return []
 
@@ -343,30 +354,22 @@ class CassandraToGCSOperator(BaseOperator):
 
     @staticmethod
     def is_simple_type(type_: Any) -> bool:
-        """
-        Check if type is a simple type.
-        """
+        """Check if type is a simple type."""
         return type_.cassname in CassandraToGCSOperator.CQL_TYPE_MAP
 
     @staticmethod
     def is_array_type(type_: Any) -> bool:
-        """
-        Check if type is an array type.
-        """
+        """Check if type is an array type."""
         return type_.cassname in ['ListType', 'SetType']
 
     @staticmethod
     def is_record_type(type_: Any) -> bool:
-        """
-        Checks the record type.
-        """
+        """Checks the record type."""
         return type_.cassname in ['UserType', 'TupleType', 'MapType']
 
     @classmethod
     def get_bq_type(cls, type_: Any) -> str:
-        """
-        Converts type to equivalent BQ type.
-        """
+        """Converts type to equivalent BQ type."""
         if cls.is_simple_type(type_):
             return CassandraToGCSOperator.CQL_TYPE_MAP[type_.cassname]
         elif cls.is_record_type(type_):
@@ -378,9 +381,7 @@ class CassandraToGCSOperator(BaseOperator):
 
     @classmethod
     def get_bq_mode(cls, type_: Any) -> str:
-        """
-        Converts type to equivalent BQ mode.
-        """
+        """Converts type to equivalent BQ mode."""
         if cls.is_array_type(type_) or type_.cassname == 'MapType':
             return 'REPEATED'
         elif cls.is_record_type(type_) or cls.is_simple_type(type_):

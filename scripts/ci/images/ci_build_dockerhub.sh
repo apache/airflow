@@ -39,13 +39,17 @@ echo
 
 echo "DOCKER_TAG=${DOCKER_TAG}"
 
-
 [[ ${DOCKER_TAG:=} =~ .*-python([0-9.]*)(.*) ]] && export PYTHON_MAJOR_MINOR_VERSION=${BASH_REMATCH[1]}
 
 : "${PYTHON_MAJOR_MINOR_VERSION:?"The tag '${DOCKER_TAG}' should follow the pattern .*-pythonX.Y[-ci]"}"
 
 echo "Detected PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION}"
 echo
+
+FORCE_AIRFLOW_PROD_BASE_TAG="${DOCKER_TAG}"
+export FORCE_AIRFLOW_PROD_BASE_TAG
+
+readonly FORCE_AIRFLOW_PROD_BASE_TAG
 
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
@@ -55,17 +59,17 @@ if [[ ${DOCKER_TAG} == *python*-ci ]]; then
     echo "Building CI image"
     echo
     rm -rf "${BUILD_CACHE_DIR}"
-    prepare_ci_build
-    rebuild_ci_image_if_needed
-    push_ci_image
+    build_images::prepare_ci_build
+    build_images::rebuild_ci_image_if_needed
+    push_pull_remove_images::push_ci_images
 elif [[ ${DOCKER_TAG} == *python* ]]; then
     echo
     echo "Building prod image"
     echo
     rm -rf "${BUILD_CACHE_DIR}"
-    prepare_prod_build
-    build_prod_image
-    push_prod_images
+    build_images::prepare_prod_build
+    build_images::build_prod_images
+    push_pull_remove_images::push_prod_images
 else
     echo
     echo "Skipping the build in Dockerhub. The tag is not good: ${DOCKER_TAG}"

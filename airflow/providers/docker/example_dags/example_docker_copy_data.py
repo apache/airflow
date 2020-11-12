@@ -36,7 +36,6 @@ from airflow.utils.dates import days_ago
 default_args = {
     "owner": "airflow",
     "depends_on_past": False,
-    "start_date": days_ago(2),
     "email": ["airflow@example.com"],
     "email_on_failure": False,
     "email_on_retry": False,
@@ -44,7 +43,12 @@ default_args = {
     "retry_delay": timedelta(minutes=5),
 }
 
-dag = DAG("docker_sample_copy_data", default_args=default_args, schedule_interval=timedelta(minutes=10))
+dag = DAG(
+    "docker_sample_copy_data",
+    default_args=default_args,
+    schedule_interval=timedelta(minutes=10),
+    start_date=days_ago(2),
+)
 
 locate_file_cmd = """
     sleep 10

@@ -18,4 +18,7 @@
 
 
 [mysqld]
-explicit_defaults_for_timestamp=1
+explicit_defaults_for_timestamp = 1
+secure_file_priv = "/var/lib/mysql"
+local_infile = 1
+innodb_print_all_deadlocks = 1

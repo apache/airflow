@@ -19,19 +19,25 @@ from flask import Response, current_app, request
 from itsdangerous.exc import BadSignature
 from itsdangerous.url_safe import URLSafeSerializer
 
+from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.schemas.log_schema import LogResponseObject, logs_schema
 from airflow.models import DagRun
+from airflow.security import permissions
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import provide_session
 
 
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+    ]
+)
 @provide_session
-def get_log(session, dag_id, dag_run_id, task_id, task_try_number,
-            full_content=False, token=None):
-    """
-    Get logs for specific task instance
-    """
+def get_log(session, dag_id, dag_run_id, task_id, task_try_number, full_content=False, token=None):
+    """Get logs for specific task instance"""
     key = current_app.config["SECRET_KEY"]
     if not token:
         metadata = {}
@@ -41,7 +47,7 @@ def get_log(session, dag_id, dag_run_id, task_id, task_try_number,
         except BadSignature:
             raise BadRequest("Bad Signature. Please use only the tokens provided by the API.")
 
-    if metadata.get('download_logs', None) and metadata['download_logs']:
+    if metadata.get('download_logs') and metadata['download_logs']:
         full_content = True
 
     if full_content:
@@ -75,13 +81,8 @@ def get_log(session, dag_id, dag_run_id, task_id, task_try_number,
         logs, metadata = task_log_reader.read_log_chunks(ti, task_try_number, metadata)
         logs = logs[0] if task_try_number is not None else logs
         token = URLSafeSerializer(key).dumps(metadata)
-        return logs_schema.dump(LogResponseObject(continuation_token=token,
-                                                  content=logs)
-                                )
+        return logs_schema.dump(LogResponseObject(continuation_token=token, content=logs))
     # text/plain. Stream
     logs = task_log_reader.read_log_stream(ti, task_try_number, metadata)
 
-    return Response(
-        logs,
-        headers={"Content-Type": return_type}
-    )
+    return Response(logs, headers={"Content-Type": return_type})

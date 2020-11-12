@@ -186,8 +186,14 @@ dmypy.json
 /.kube
 /.inputrc
 log.txt*
-/backport_packages/CHANGELOG.txt
 
+# Provider-related ignores
+/provider_packages/CHANGELOG.txt
+/provider_packages/MANIFEST.in
+/airflow/providers/__init__.py
+
+# Docker context files
+/docker-context-files
 # Local .terraform directories
 **/.terraform/*
 
@@ -202,3 +208,8 @@ Chart.lock
 
 # Chart dependencies
 **/charts/*.tgz
+
+# Might be generated when you build wheels
+pip-wheel-metadata
+
+.pypirc

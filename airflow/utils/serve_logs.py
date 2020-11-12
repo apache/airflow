@@ -32,10 +32,8 @@ def serve_logs():
     def serve_logs_view(filename):  # pylint: disable=unused-variable
         log_directory = os.path.expanduser(conf.get('logging', 'BASE_LOG_FOLDER'))
         return flask.send_from_directory(
-            log_directory,
-            filename,
-            mimetype="application/json",
-            as_attachment=False)
+            log_directory, filename, mimetype="application/json", as_attachment=False
+        )
 
     worker_log_server_port = conf.getint('celery', 'WORKER_LOG_SERVER_PORT')
     flask_app.run(host='0.0.0.0', port=worker_log_server_port)

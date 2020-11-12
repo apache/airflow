@@ -16,16 +16,21 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import datetime
 import hashlib
 import os
 from datetime import timedelta
 from time import sleep
 from typing import Any, Dict, Iterable
 
+from airflow.configuration import conf
 from airflow.exceptions import (
-    AirflowException, AirflowRescheduleException, AirflowSensorTimeout, AirflowSkipException,
+    AirflowException,
+    AirflowRescheduleException,
+    AirflowSensorTimeout,
+    AirflowSkipException,
 )
-from airflow.models import BaseOperator
+from airflow.models import BaseOperator, SensorInstance
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
@@ -64,40 +69,64 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         pokes by using exponential backoff algorithm
     :type exponential_backoff: bool
     """
+
     ui_color = '#e6f1f2'  # type: str
     valid_modes = ['poke', 'reschedule']  # type: Iterable[str]
 
+    # As the poke context in smart sensor defines the poking job signature only,
+    # The execution_fields defines other execution details
+    # for this tasks such as the customer defined timeout, the email and the alert
+    # setup. Smart sensor serialize these attributes into a different DB column so
+    # that smart sensor service is able to handle corresponding execution details
+    # without breaking the sensor poking logic with dedup.
+    execution_fields = (
+        'poke_interval',
+        'retries',
+        'execution_timeout',
+        'timeout',
+        'email',
+        'email_on_retry',
+        'email_on_failure',
+    )
+
     @apply_defaults
-    def __init__(self,
-                 poke_interval: float = 60,
-                 timeout: float = 60 * 60 * 24 * 7,
-                 soft_fail: bool = False,
-                 mode: str = 'poke',
-                 exponential_backoff: bool = False,
-                 *args,
-                 **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        *,
+        poke_interval: float = 60,
+        timeout: float = 60 * 60 * 24 * 7,
+        soft_fail: bool = False,
+        mode: str = 'poke',
+        exponential_backoff: bool = False,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
         self.poke_interval = poke_interval
         self.soft_fail = soft_fail
         self.timeout = timeout
         self.mode = mode
         self.exponential_backoff = exponential_backoff
         self._validate_input_values()
+        self.sensor_service_enabled = conf.getboolean('smart_sensor', 'use_smart_sensor')
+        self.sensors_support_sensor_service = set(
+            map(lambda l: l.strip(), conf.get('smart_sensor', 'sensors_enabled').split(','))
+        )
 
     def _validate_input_values(self) -> None:
         if not isinstance(self.poke_interval, (int, float)) or self.poke_interval < 0:
-            raise AirflowException(
-                "The poke_interval must be a non-negative number")
+            raise AirflowException("The poke_interval must be a non-negative number")
         if not isinstance(self.timeout, (int, float)) or self.timeout < 0:
-            raise AirflowException(
-                "The timeout must be a non-negative number")
+            raise AirflowException("The timeout must be a non-negative number")
         if self.mode not in self.valid_modes:
             raise AirflowException(
                 "The mode must be one of {valid_modes},"
-                "'{d}.{t}'; received '{m}'."
-                .format(valid_modes=self.valid_modes,
-                        d=self.dag.dag_id if self.dag else "",
-                        t=self.task_id, m=self.mode))
+                "'{d}.{t}'; received '{m}'.".format(
+                    valid_modes=self.valid_modes,
+                    d=self.dag.dag_id if self.dag else "",
+                    t=self.task_id,
+                    m=self.mode,
+                )
+            )
 
     def poke(self, context: Dict) -> bool:
         """
@@ -105,6 +134,67 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         override.
         """
         raise AirflowException('Override me.')
+
+    def is_smart_sensor_compatible(self):
+        check_list = [
+            not self.sensor_service_enabled,
+            self.on_success_callback,
+            self.on_retry_callback,
+            self.on_failure_callback,
+        ]
+        for status in check_list:
+            if status:
+                return False
+
+        operator = self.__class__.__name__
+        return operator in self.sensors_support_sensor_service
+
+    def register_in_sensor_service(self, ti, context):
+        """
+        Register ti in smart sensor service
+
+        :param ti: Task instance object.
+        :param context: TaskInstance template context from the ti.
+        :return: boolean
+        """
+        poke_context = self.get_poke_context(context)
+        execution_context = self.get_execution_context(context)
+
+        return SensorInstance.register(ti, poke_context, execution_context)
+
+    def get_poke_context(self, context):
+        """
+        Return a dictionary with all attributes in poke_context_fields. The
+        poke_context with operator class can be used to identify a unique
+        sensor job.
+
+        :param context: TaskInstance template context.
+        :return: A dictionary with key in poke_context_fields.
+        """
+        if not context:
+            self.log.info("Function get_poke_context doesn't have a context input.")
+
+        poke_context_fields = getattr(self.__class__, "poke_context_fields", None)
+        result = {key: getattr(self, key, None) for key in poke_context_fields}
+        return result
+
+    def get_execution_context(self, context):
+        """
+        Return a dictionary with all attributes in execution_fields. The
+        execution_context include execution requirement for each sensor task
+        such as timeout setup, email_alert setup.
+
+        :param context: TaskInstance template context.
+        :return: A dictionary with key in execution_fields.
+        """
+        if not context:
+            self.log.info("Function get_execution_context doesn't have a context input.")
+        execution_fields = self.__class__.execution_fields
+
+        result = {key: getattr(self, key, None) for key in execution_fields}
+        if result['execution_timeout'] and isinstance(result['execution_timeout'], datetime.timedelta):
+            result['execution_timeout'] = result['execution_timeout'].total_seconds()
+        return result
 
     def execute(self, context: Dict) -> Any:
         started_at = timezone.utcnow()
@@ -122,50 +212,51 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 # give it a chance and fail with timeout.
                 # This gives the ability to set up non-blocking AND soft-fail sensors.
                 if self.soft_fail and not context['ti'].is_eligible_to_retry():
-                    self._do_skip_downstream_tasks(context)
-                    raise AirflowSkipException(
-                        f"Snap. Time is OUT. DAG id: {log_dag_id}")
+                    raise AirflowSkipException(f"Snap. Time is OUT. DAG id: {log_dag_id}")
                 else:
-                    raise AirflowSensorTimeout(
-                        f"Snap. Time is OUT. DAG id: {log_dag_id}")
+                    raise AirflowSensorTimeout(f"Snap. Time is OUT. DAG id: {log_dag_id}")
             if self.reschedule:
                 reschedule_date = timezone.utcnow() + timedelta(
-                    seconds=self._get_next_poke_interval(started_at, try_number))
+                    seconds=self._get_next_poke_interval(started_at, try_number)
+                )
                 raise AirflowRescheduleException(reschedule_date)
             else:
                 sleep(self._get_next_poke_interval(started_at, try_number))
                 try_number += 1
         self.log.info("Success criteria met. Exiting.")
 
-    def _do_skip_downstream_tasks(self, context: Dict) -> None:
-        downstream_tasks = context['task'].get_flat_relatives(upstream=False)
-        self.log.debug("Downstream task_ids %s", downstream_tasks)
-        if downstream_tasks:
-            self.skip(context['dag_run'], context['ti'].execution_date, downstream_tasks)
-
     def _get_next_poke_interval(self, started_at, try_number):
-        """
-        Using the similar logic which is used for exponential backoff retry delay for operators.
-        """
+        """Using the similar logic which is used for exponential backoff retry delay for operators."""
         if self.exponential_backoff:
             min_backoff = int(self.poke_interval * (2 ** (try_number - 2)))
             current_time = timezone.utcnow()
 
-            run_hash = int(hashlib.sha1("{}#{}#{}#{}".format(
-                self.dag_id, self.task_id, started_at, try_number
-            ).encode("utf-8")).hexdigest(), 16)
+            run_hash = int(
+                hashlib.sha1(
+                    f"{self.dag_id}#{self.task_id}#{started_at}#{try_number}".encode("utf-8")
+                ).hexdigest(),
+                16,
+            )
             modded_hash = min_backoff + run_hash % min_backoff
 
-            delay_backoff_in_seconds = min(
-                modded_hash,
-                timedelta.max.total_seconds() - 1
+            delay_backoff_in_seconds = min(modded_hash, timedelta.max.total_seconds() - 1)
+            new_interval = min(
+                self.timeout - int((current_time - started_at).total_seconds()), delay_backoff_in_seconds
             )
-            new_interval = min(self.timeout - int((current_time - started_at).total_seconds()),
-                               delay_backoff_in_seconds)
             self.log.info("new %s interval is %s", self.mode, new_interval)
             return new_interval
         else:
             return self.poke_interval
+
+    def prepare_for_execution(self) -> BaseOperator:
+        task = super().prepare_for_execution()
+        # Sensors in `poke` mode can block execution of DAGs when running
+        # with single process executor, thus we change the mode to`reschedule`
+        # to allow parallel task being scheduled and executed
+        if conf.get('core', 'executor') == "DebugExecutor":
+            self.log.warning("DebugExecutor changes sensor mode to 'reschedule'.")
+            task.mode = 'reschedule'
+        return task
 
     @property
     def reschedule(self):
@@ -195,6 +286,7 @@ def poke_mode_only(cls):
     :param cls: BaseSensor class to enforce methods only use 'poke' mode.
     :type cls: type
     """
+
     def decorate(cls_type):
         def mode_getter(_):
             return 'poke'
@@ -204,9 +296,11 @@ def poke_mode_only(cls):
                 raise ValueError("cannot set mode to 'poke'.")
 
         if not issubclass(cls_type, BaseSensorOperator):
-            raise ValueError(f"poke_mode_only decorator should only be "
-                             f"applied to subclasses of BaseSensorOperator,"
-                             f" got:{cls_type}.")
+            raise ValueError(
+                f"poke_mode_only decorator should only be "
+                f"applied to subclasses of BaseSensorOperator,"
+                f" got:{cls_type}."
+            )
 
         cls_type.mode = property(mode_getter, mode_setter)
 

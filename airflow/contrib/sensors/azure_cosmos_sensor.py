@@ -24,5 +24,6 @@ from airflow.providers.microsoft.azure.sensors.azure_cosmos import AzureCosmosDo
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.sensors.azure_cosmos`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

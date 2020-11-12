@@ -15,11 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import mock
+from unittest import mock
 
 from airflow.providers.google.suite.transfers.gcs_to_sheets import GCSToGoogleSheetsOperator
 
 GCP_CONN_ID = "test"
+IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 SPREADSHEET_ID = "1234567890"
 VALUES = [[1, 2, 3]]
 BUCKET = "destination_bucket"
@@ -44,13 +45,20 @@ class TestGCSToGoogleSheets:
             bucket_name=BUCKET,
             object_name=PATH,
             gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(None)
 
         mock_sheet_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
-        mock_gcs_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, delegate_to=None)
+        mock_gcs_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
 
         mock_gcs_hook.return_value.download.assert_called_once_with(
             bucket_name=BUCKET, object_name=PATH, filename=filename

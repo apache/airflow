@@ -34,25 +34,23 @@ from airflow.utils.state import State
 
 
 class LocalTaskJob(BaseJob):
-    """
-    LocalTaskJob runs a single task instance.
-    """
+    """LocalTaskJob runs a single task instance."""
 
-    __mapper_args__ = {
-        'polymorphic_identity': 'LocalTaskJob'
-    }
+    __mapper_args__ = {'polymorphic_identity': 'LocalTaskJob'}
 
     def __init__(
-            self,
-            task_instance: TaskInstance,
-            ignore_all_deps: bool = False,
-            ignore_depends_on_past: bool = False,
-            ignore_task_deps: bool = False,
-            ignore_ti_state: bool = False,
-            mark_success: bool = False,
-            pickle_id: Optional[str] = None,
-            pool: Optional[str] = None,
-            *args, **kwargs):
+        self,
+        task_instance: TaskInstance,
+        ignore_all_deps: bool = False,
+        ignore_depends_on_past: bool = False,
+        ignore_task_deps: bool = False,
+        ignore_ti_state: bool = False,
+        mark_success: bool = False,
+        pickle_id: Optional[str] = None,
+        pool: Optional[str] = None,
+        *args,
+        **kwargs,
+    ):
         self.task_instance = task_instance
         self.dag_id = task_instance.dag_id
         self.ignore_all_deps = ignore_all_deps
@@ -84,24 +82,38 @@ class LocalTaskJob(BaseJob):
         signal.signal(signal.SIGTERM, signal_handler)
 
         if not self.task_instance.check_and_change_state_before_execution(
-                mark_success=self.mark_success,
-                ignore_all_deps=self.ignore_all_deps,
-                ignore_depends_on_past=self.ignore_depends_on_past,
-                ignore_task_deps=self.ignore_task_deps,
-                ignore_ti_state=self.ignore_ti_state,
-                job_id=self.id,
-                pool=self.pool):
+            mark_success=self.mark_success,
+            ignore_all_deps=self.ignore_all_deps,
+            ignore_depends_on_past=self.ignore_depends_on_past,
+            ignore_task_deps=self.ignore_task_deps,
+            ignore_ti_state=self.ignore_ti_state,
+            job_id=self.id,
+            pool=self.pool,
+        ):
             self.log.info("Task is not able to be run")
             return
 
         try:
             self.task_runner.start()
 
-            heartbeat_time_limit = conf.getint('scheduler',
-                                               'scheduler_zombie_task_threshold')
+            heartbeat_time_limit = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
+
             while True:
-                # Monitor the task to see if it's done
-                return_code = self.task_runner.return_code()
+                # Monitor the task to see if it's done. Wait in a syscall
+                # (`os.wait`) for as long as possible so we notice the
+                # subprocess finishing as quick as we can
+                max_wait_time = max(
+                    0,  # Make sure this value is never negative,
+                    min(
+                        (
+                            heartbeat_time_limit
+                            - (timezone.utcnow() - self.latest_heartbeat).total_seconds() * 0.75
+                        ),
+                        self.heartrate,
+                    ),
+                )
+
+                return_code = self.task_runner.return_code(timeout=max_wait_time)
                 if return_code is not None:
                     self.log.info("Task exited with return code %s", return_code)
                     return
@@ -115,10 +127,10 @@ class LocalTaskJob(BaseJob):
                 if time_since_last_heartbeat > heartbeat_time_limit:
                     Stats.incr('local_task_job_prolonged_heartbeat_failure', 1, 1)
                     self.log.error("Heartbeat time limit exceeded!")
-                    raise AirflowException("Time since last heartbeat({:.2f}s) "
-                                           "exceeded limit ({}s)."
-                                           .format(time_since_last_heartbeat,
-                                                   heartbeat_time_limit))
+                    raise AirflowException(
+                        "Time since last heartbeat({:.2f}s) "
+                        "exceeded limit ({}s).".format(time_since_last_heartbeat, heartbeat_time_limit)
+                    )
         finally:
             self.on_kill()
 
@@ -129,7 +141,6 @@ class LocalTaskJob(BaseJob):
     @provide_session
     def heartbeat_callback(self, session=None):
         """Self destruct task if state has been moved away from running externally"""
-
         if self.terminating:
             # ensure termination if processes are created later
             self.task_runner.terminate()
@@ -142,25 +153,21 @@ class LocalTaskJob(BaseJob):
             fqdn = get_hostname()
             same_hostname = fqdn == ti.hostname
             if not same_hostname:
-                self.log.warning("The recorded hostname %s "
-                                 "does not match this instance's hostname "
-                                 "%s", ti.hostname, fqdn)
+                self.log.warning(
+                    "The recorded hostname %s " "does not match this instance's hostname " "%s",
+                    ti.hostname,
+                    fqdn,
+                )
                 raise AirflowException("Hostname of job runner does not match")
 
             current_pid = os.getpid()
             same_process = ti.pid == current_pid
             if not same_process:
-                self.log.warning("Recorded pid %s does not match "
-                                 "the current pid %s", ti.pid, current_pid)
+                self.log.warning("Recorded pid %s does not match " "the current pid %s", ti.pid, current_pid)
                 raise AirflowException("PID of job runner does not match")
-        elif (
-                self.task_runner.return_code() is None and
-                hasattr(self.task_runner, 'process')
-        ):
+        elif self.task_runner.return_code() is None and hasattr(self.task_runner, 'process'):
             self.log.warning(
-                "State of this instance has been externally set to %s. "
-                "Terminating instance.",
-                ti.state
+                "State of this instance has been externally set to %s. " "Terminating instance.", ti.state
             )
             if ti.state == State.FAILED and ti.task.on_failure_callback:
                 context = ti.get_template_context()

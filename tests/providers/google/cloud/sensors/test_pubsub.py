@@ -18,8 +18,8 @@
 
 import unittest
 from typing import Any, Dict, List
+from unittest import mock
 
-import mock
 from google.cloud.pubsub_v1.types import ReceivedMessage
 from google.protobuf.json_format import MessageToDict, ParseDict
 
@@ -38,7 +38,7 @@ class TestPubSubPullSensor(unittest.TestCase):
                 {
                     "ack_id": "%s" % i,
                     "message": {
-                        "data": 'Message {}'.format(i).encode('utf8'),
+                        "data": f'Message {i}'.encode('utf8'),
                         "attributes": {"type": "generated message"},
                     },
                 },
@@ -48,10 +48,7 @@ class TestPubSubPullSensor(unittest.TestCase):
         ]
 
     def _generate_dicts(self, count):
-        return [
-            MessageToDict(m)
-            for m in self._generate_messages(count)
-        ]
+        return [MessageToDict(m) for m in self._generate_messages(count)]
 
     @mock.patch('airflow.providers.google.cloud.sensors.pubsub.PubSubHook')
     def test_poke_no_messages(self, mock_hook):
@@ -99,10 +96,7 @@ class TestPubSubPullSensor(unittest.TestCase):
 
         response = operator.execute({})
         mock_hook.return_value.pull.assert_called_once_with(
-            project_id=TEST_PROJECT,
-            subscription=TEST_SUBSCRIPTION,
-            max_messages=5,
-            return_immediately=True
+            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=5, return_immediately=True
         )
         self.assertEqual(generated_dicts, response)
 
@@ -124,7 +118,7 @@ class TestPubSubPullSensor(unittest.TestCase):
                 project_id=TEST_PROJECT,
                 subscription=TEST_SUBSCRIPTION,
                 max_messages=5,
-                return_immediately=False
+                return_immediately=False,
             )
 
     @mock.patch('airflow.providers.google.cloud.sensors.pubsub.PubSubHook')
@@ -158,10 +152,7 @@ class TestPubSubPullSensor(unittest.TestCase):
 
         response = operator.execute({})
         mock_hook.return_value.pull.assert_called_once_with(
-            project_id=TEST_PROJECT,
-            subscription=TEST_SUBSCRIPTION,
-            max_messages=5,
-            return_immediately=True
+            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=5, return_immediately=True
         )
 
         messages_callback.assert_called_once()

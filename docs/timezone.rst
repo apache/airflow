@@ -47,19 +47,19 @@ By default the Web UI will show times in UTC. It is possible to change the timez
 
 .. image:: img/ui-timezone-chooser.png
 
-"Local" is detected from the browser's timezone. The "Server" value comes from the ``default_timezone`` setting under the ``core`` section.
+"Local" is detected from the browser's timezone. The "Server" value comes from the ``default_timezone`` setting in the ``[core]`` section.
 
 The users' selected timezone is stored in LocalStorage so is a pre-browser setting.
 
 .. note::
 
-  If you have configured your Airflow install to use a different default timezone and want the UI to use this same timezone, set ``default_ui_timezone`` under the ``webserver`` section to either an empty string, or the same value.
+  If you have configured your Airflow install to use a different default timezone and want the UI to use this same timezone, set ``default_ui_timezone`` in the ``[webserver]`` section to either an empty string, or the same value.
 
-  (It currently defaults to UTC to keep behavoiur of the UI consistent by default between point-releases.)
+  (It currently defaults to UTC to keep behaviour of the UI consistent by default between point-releases.)
 
 Concepts
 --------
-Naïve and aware datetime objects
+Naive and aware datetime objects
 ''''''''''''''''''''''''''''''''
 
 Python’s datetime.datetime objects have a tzinfo attribute that can be used to store time zone information,
@@ -113,7 +113,7 @@ Default time zone
 
 The default time zone is the time zone defined by the ``default_timezone`` setting under ``[core]``. If
 you just installed Airflow it will be set to ``utc``, which is recommended. You can also set it to
-``system`` or an IANA time zone (e.g.``Europe/Amsterdam``). DAGs are also evaluated on Airflow workers,
+``system`` or an IANA time zone (e.g. ``Europe/Amsterdam``). DAGs are also evaluated on Airflow workers,
 it is therefore important to make sure this setting is equal on all Airflow nodes.
 
 

@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains AWS Lambda hook
-"""
+"""This module contains AWS Lambda hook"""
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
@@ -42,26 +40,30 @@ class AwsLambdaHook(AwsBaseHook):
     :type invocation_type: str
     """
 
-    def __init__(self, function_name,
-                 log_type='None', qualifier='$LATEST',
-                 invocation_type='RequestResponse', *args, **kwargs):
+    def __init__(
+        self,
+        function_name: str,
+        log_type: str = 'None',
+        qualifier: str = '$LATEST',
+        invocation_type: str = 'RequestResponse',
+        *args,
+        **kwargs,
+    ) -> None:
         self.function_name = function_name
         self.log_type = log_type
         self.invocation_type = invocation_type
         self.qualifier = qualifier
-        super().__init__(client_type='lambda', *args, **kwargs)
+        kwargs["client_type"] = "lambda"
+        super().__init__(*args, **kwargs)
 
-    def invoke_lambda(self, payload):
-        """
-        Invoke Lambda Function
-        """
-
+    def invoke_lambda(self, payload: str) -> str:
+        """Invoke Lambda Function"""
         response = self.conn.invoke(
             FunctionName=self.function_name,
             InvocationType=self.invocation_type,
             LogType=self.log_type,
             Payload=payload,
-            Qualifier=self.qualifier
+            Qualifier=self.qualifier,
         )
 
         return response

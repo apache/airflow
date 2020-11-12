@@ -16,6 +16,7 @@
 # under the License.
 
 import json
+from typing import Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
@@ -36,13 +37,21 @@ class StepFunctionGetExecutionOutputOperator(BaseOperator):
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
     :type aws_conn_id: str
     """
+
     template_fields = ['execution_arn']
     template_ext = ()
     ui_color = '#f9c915'
 
     @apply_defaults
-    def __init__(self, execution_arn: str, aws_conn_id='aws_default', region_name=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        *,
+        execution_arn: str,
+        aws_conn_id: str = 'aws_default',
+        region_name: Optional[str] = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
         self.execution_arn = execution_arn
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name

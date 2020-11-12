@@ -24,5 +24,6 @@ from airflow.providers.celery.sensors.celery_queue import CeleryQueueSensor  # n
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.celery.sensors.celery_queue`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

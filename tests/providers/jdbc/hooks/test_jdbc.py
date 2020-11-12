@@ -25,22 +25,27 @@ from airflow.models import Connection
 from airflow.providers.jdbc.hooks.jdbc import JdbcHook
 from airflow.utils import db
 
-jdbc_conn_mock = Mock(
-    name="jdbc_conn"
-)
+jdbc_conn_mock = Mock(name="jdbc_conn")
 
 
 class TestJdbcHook(unittest.TestCase):
     def setUp(self):
         db.merge_conn(
             Connection(
-                conn_id='jdbc_default', conn_type='jdbc',
-                host='jdbc://localhost/', port=443,
-                extra=json.dumps({"extra__jdbc__drv_path": "/path1/test.jar,/path2/t.jar2",
-                                  "extra__jdbc__drv_clsname": "com.driver.main"})))
+                conn_id='jdbc_default',
+                conn_type='jdbc',
+                host='jdbc://localhost/',
+                port=443,
+                extra=json.dumps(
+                    {
+                        "extra__jdbc__drv_path": "/path1/test.jar,/path2/t.jar2",
+                        "extra__jdbc__drv_clsname": "com.driver.main",
+                    }
+                ),
+            )
+        )
 
-    @patch("airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect", autospec=True,
-           return_value=jdbc_conn_mock)
+    @patch("airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect", autospec=True, return_value=jdbc_conn_mock)
     def test_jdbc_conn_connection(self, jdbc_mock):
         jdbc_hook = JdbcHook()
         jdbc_conn = jdbc_hook.get_conn()

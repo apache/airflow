@@ -15,10 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Translate Hook.
-"""
-from typing import Dict, List, Optional, Union
+"""This module contains a Google Cloud Translate Hook."""
+from typing import List, Optional, Sequence, Union
 
 from google.cloud.translate_v2 import Client
 
@@ -33,8 +31,17 @@ class CloudTranslateHook(GoogleBaseHook):
     keyword arguments rather than positional.
     """
 
-    def __init__(self, gcp_conn_id: str = 'google_cloud_default') -> None:
-        super().__init__(gcp_conn_id)
+    def __init__(
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+    ) -> None:
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
         self._client = None  # type: Optional[Client]
 
     def get_conn(self) -> Client:
@@ -55,8 +62,8 @@ class CloudTranslateHook(GoogleBaseHook):
         target_language: str,
         format_: Optional[str] = None,
         source_language: Optional[str] = None,
-        model: Optional[Union[str, List[str]]] = None
-    ) -> Dict:
+        model: Optional[Union[str, List[str]]] = None,
+    ) -> dict:
         """Translate a string or list of strings.
 
         See https://cloud.google.com/translate/docs/translating-text
@@ -98,7 +105,7 @@ class CloudTranslateHook(GoogleBaseHook):
         """
         client = self.get_conn()
 
-        return client.translate(  # type: ignore
+        return client.translate(
             values=values,
             target_language=target_language,
             format_=format_,

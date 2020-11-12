@@ -17,8 +17,10 @@
 
 from flask import Response, request
 
+from airflow.api_connexion import security
 from airflow.api_connexion.schemas.config_schema import Config, ConfigOption, ConfigSection, config_schema
 from airflow.configuration import conf
+from airflow.security import permissions
 from airflow.settings import json
 
 LINE_SEP = '\n'  # `\n` cannot appear in f-strings
@@ -29,11 +31,7 @@ def _conf_dict_to_config(conf_dict: dict) -> Config:
     config = Config(
         sections=[
             ConfigSection(
-                name=section,
-                options=[
-                    ConfigOption(key=key, value=value)
-                    for key, value in options.items()
-                ]
+                name=section, options=[ConfigOption(key=key, value=value) for key, value in options.items()]
             )
             for section, options in conf_dict.items()
         ]
@@ -48,8 +46,10 @@ def _option_to_text(config_option: ConfigOption) -> str:
 
 def _section_to_text(config_section: ConfigSection) -> str:
     """Convert a single config section to text"""
-    return (f'[{config_section.name}]{LINE_SEP}'
-            f'{LINE_SEP.join(_option_to_text(option) for option in config_section.options)}{LINE_SEP}')
+    return (
+        f'[{config_section.name}]{LINE_SEP}'
+        f'{LINE_SEP.join(_option_to_text(option) for option in config_section.options)}{LINE_SEP}'
+    )
 
 
 def _config_to_text(config: Config) -> str:
@@ -62,10 +62,9 @@ def _config_to_json(config: Config) -> str:
     return json.dumps(config_schema.dump(config), indent=4)
 
 
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG)])
 def get_config() -> Response:
-    """
-    Get current configuration.
-    """
+    """Get current configuration."""
     serializer = {
         'text/plain': _config_to_text,
         'application/json': _config_to_json,

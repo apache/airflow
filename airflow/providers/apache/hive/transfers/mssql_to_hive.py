@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains operator to move data from MSSQL to Hive.
-"""
+"""This module contains operator to move data from MSSQL to Hive."""
 
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
@@ -76,18 +74,21 @@ class MsSqlToHiveOperator(BaseOperator):
     ui_color = '#a0e08c'
 
     @apply_defaults
-    def __init__(self,
-                 sql: str,
-                 hive_table: str,
-                 create: bool = True,
-                 recreate: bool = False,
-                 partition: Optional[Dict] = None,
-                 delimiter: str = chr(1),
-                 mssql_conn_id: str = 'mssql_default',
-                 hive_cli_conn_id: str = 'hive_cli_default',
-                 tblproperties: Optional[Dict] = None,
-                 *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        *,
+        sql: str,
+        hive_table: str,
+        create: bool = True,
+        recreate: bool = False,
+        partition: Optional[Dict] = None,
+        delimiter: str = chr(1),
+        mssql_conn_id: str = 'mssql_default',
+        hive_cli_conn_id: str = 'hive_cli_default',
+        tblproperties: Optional[Dict] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
         self.sql = sql
         self.hive_table = hive_table
         self.partition = partition
@@ -101,9 +102,7 @@ class MsSqlToHiveOperator(BaseOperator):
 
     @classmethod
     def type_map(cls, mssql_type: int) -> str:
-        """
-        Maps MsSQL type to Hive type.
-        """
+        """Maps MsSQL type to Hive type."""
         map_dict = {
             pymssql.BINARY.value: 'INT',  # pylint: disable=c-extension-no-member
             pymssql.DECIMAL.value: 'FLOAT',  # pylint: disable=c-extension-no-member
@@ -119,11 +118,11 @@ class MsSqlToHiveOperator(BaseOperator):
                 cursor.execute(self.sql)
                 with NamedTemporaryFile("w") as tmp_file:
                     csv_writer = csv.writer(tmp_file, delimiter=self.delimiter, encoding='utf-8')
-                    field_dict = OrderedDict()  # type:ignore
+                    field_dict = OrderedDict()
                     col_count = 0
                     for field in cursor.description:
                         col_count += 1
-                        col_position = "Column{position}".format(position=col_count)
+                        col_position = f"Column{col_count}"
                         field_dict[col_position if field[0] == '' else field[0]] = self.type_map(field[1])
                     csv_writer.writerows(cursor)
                     tmp_file.flush()
@@ -138,4 +137,5 @@ class MsSqlToHiveOperator(BaseOperator):
                 partition=self.partition,
                 delimiter=self.delimiter,
                 recreate=self.recreate,
-                tblproperties=self.tblproperties)
+                tblproperties=self.tblproperties,
+            )

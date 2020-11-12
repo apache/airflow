@@ -19,14 +19,16 @@ from unittest import TestCase, mock
 
 from moto import mock_ssm
 
+from airflow.configuration import initialize_secrets_backends
 from airflow.providers.amazon.aws.secrets.systems_manager import SystemsManagerParameterStoreBackend
-from airflow.secrets import initialize_secrets_backends
 from tests.test_utils.config import conf_vars
 
 
 class TestSsmSecrets(TestCase):
-    @mock.patch("airflow.providers.amazon.aws.secrets.systems_manager."
-                "SystemsManagerParameterStoreBackend.get_conn_uri")
+    @mock.patch(
+        "airflow.providers.amazon.aws.secrets.systems_manager."
+        "SystemsManagerParameterStoreBackend.get_conn_uri"
+    )
     def test_aws_ssm_get_connections(self, mock_get_uri):
         mock_get_uri.return_value = "scheme://user:pass@host:100"
         conn_list = SystemsManagerParameterStoreBackend().get_connections("fake_conn")
@@ -38,7 +40,7 @@ class TestSsmSecrets(TestCase):
         param = {
             'Name': '/airflow/connections/test_postgres',
             'Type': 'String',
-            'Value': 'postgresql://airflow:airflow@host:5432/airflow'
+            'Value': 'postgresql://airflow:airflow@host:5432/airflow',
         }
 
         ssm_backend = SystemsManagerParameterStoreBackend()
@@ -57,7 +59,7 @@ class TestSsmSecrets(TestCase):
         param = {
             'Name': '/airflow/connections/test_postgres',
             'Type': 'String',
-            'Value': 'postgresql://airflow:airflow@host:5432/airflow'
+            'Value': 'postgresql://airflow:airflow@host:5432/airflow',
         }
 
         ssm_backend = SystemsManagerParameterStoreBackend()
@@ -68,11 +70,7 @@ class TestSsmSecrets(TestCase):
 
     @mock_ssm
     def test_get_variable(self):
-        param = {
-            'Name': '/airflow/variables/hello',
-            'Type': 'String',
-            'Value': 'world'
-        }
+        param = {'Name': '/airflow/variables/hello', 'Type': 'String', 'Value': 'world'}
 
         ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
@@ -81,12 +79,22 @@ class TestSsmSecrets(TestCase):
         self.assertEqual('world', returned_uri)
 
     @mock_ssm
-    def test_get_variable_secret_string(self):
+    def test_get_config(self):
         param = {
-            'Name': '/airflow/variables/hello',
-            'Type': 'SecureString',
-            'Value': 'world'
+            'Name': '/airflow/config/sql_alchemy_conn',
+            'Type': 'String',
+            'Value': 'sqlite:///Users/test_user/airflow.db',
         }
+
+        ssm_backend = SystemsManagerParameterStoreBackend()
+        ssm_backend.client.put_parameter(**param)
+
+        returned_uri = ssm_backend.get_config('sql_alchemy_conn')
+        self.assertEqual('sqlite:///Users/test_user/airflow.db', returned_uri)
+
+    @mock_ssm
+    def test_get_variable_secret_string(self):
+        param = {'Name': '/airflow/variables/hello', 'Type': 'SecureString', 'Value': 'world'}
         ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
         returned_uri = ssm_backend.get_variable('hello')
@@ -98,29 +106,79 @@ class TestSsmSecrets(TestCase):
         Test that if Variable key is not present in SSM,
         SystemsManagerParameterStoreBackend.get_variables should return None
         """
-        param = {
-            'Name': '/airflow/variables/hello',
-            'Type': 'String',
-            'Value': 'world'
-        }
+        param = {'Name': '/airflow/variables/hello', 'Type': 'String', 'Value': 'world'}
 
         ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
 
         self.assertIsNone(ssm_backend.get_variable("test_mysql"))
 
-    @conf_vars({
-        ('secrets', 'backend'): 'airflow.providers.amazon.aws.secrets.systems_manager.'
-                                'SystemsManagerParameterStoreBackend',
-        ('secrets', 'backend_kwargs'): '{"use_ssl": false}'
-    })
+    @conf_vars(
+        {
+            ('secrets', 'backend'): 'airflow.providers.amazon.aws.secrets.systems_manager.'
+            'SystemsManagerParameterStoreBackend',
+            ('secrets', 'backend_kwargs'): '{"use_ssl": false}',
+        }
+    )
     @mock.patch("airflow.providers.amazon.aws.secrets.systems_manager.boto3.Session.client")
     def test_passing_client_kwargs(self, mock_ssm_client):
         backends = initialize_secrets_backends()
         systems_manager = [
-            backend for backend in backends
+            backend
+            for backend in backends
             if backend.__class__.__name__ == 'SystemsManagerParameterStoreBackend'
         ][0]
 
         systems_manager.client
         mock_ssm_client.assert_called_once_with('ssm', use_ssl=False)
+
+    @mock.patch(
+        "airflow.providers.amazon.aws.secrets.systems_manager."
+        "SystemsManagerParameterStoreBackend._get_secret"
+    )
+    def test_connection_prefix_none_value(self, mock_get_secret):
+        """
+        Test that if Variable key is not present in SSM,
+        SystemsManagerParameterStoreBackend.get_conn_uri should return None,
+        SystemsManagerParameterStoreBackend._get_secret should not be called
+        """
+        kwargs = {'connections_prefix': None}
+
+        ssm_backend = SystemsManagerParameterStoreBackend(**kwargs)
+
+        self.assertIsNone(ssm_backend.get_conn_uri("test_mysql"))
+        mock_get_secret.assert_not_called()
+
+    @mock.patch(
+        "airflow.providers.amazon.aws.secrets.systems_manager."
+        "SystemsManagerParameterStoreBackend._get_secret"
+    )
+    def test_variable_prefix_none_value(self, mock_get_secret):
+        """
+        Test that if Variable key is not present in SSM,
+        SystemsManagerParameterStoreBackend.get_variables should return None,
+        SystemsManagerParameterStoreBackend._get_secret should not be called
+        """
+        kwargs = {'variables_prefix': None}
+
+        ssm_backend = SystemsManagerParameterStoreBackend(**kwargs)
+
+        self.assertIsNone(ssm_backend.get_variable("hello"))
+        mock_get_secret.assert_not_called()
+
+    @mock.patch(
+        "airflow.providers.amazon.aws.secrets.systems_manager."
+        "SystemsManagerParameterStoreBackend._get_secret"
+    )
+    def test_config_prefix_none_value(self, mock_get_secret):
+        """
+        Test that if Variable key is not present in SSM,
+        SystemsManagerParameterStoreBackend.get_config should return None,
+        SystemsManagerParameterStoreBackend._get_secret should not be called
+        """
+        kwargs = {'config_prefix': None}
+
+        ssm_backend = SystemsManagerParameterStoreBackend(**kwargs)
+
+        self.assertIsNone(ssm_backend.get_config("config"))
+        mock_get_secret.assert_not_called()

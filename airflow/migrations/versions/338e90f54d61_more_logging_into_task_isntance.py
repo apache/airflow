@@ -33,11 +33,11 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():   # noqa: D103
+def upgrade():  # noqa: D103
     op.add_column('task_instance', sa.Column('operator', sa.String(length=1000), nullable=True))
     op.add_column('task_instance', sa.Column('queued_dttm', sa.DateTime(), nullable=True))
 
 
-def downgrade():   # noqa: D103
+def downgrade():  # noqa: D103
     op.drop_column('task_instance', 'queued_dttm')
     op.drop_column('task_instance', 'operator')

@@ -32,7 +32,7 @@ with models.DAG(
     'example_local_to_gcs',
     default_args=dict(start_date=dates.days_ago(1)),
     schedule_interval=None,
-    tags=['example']
+    tags=['example'],
 ) as dag:
     # [START howto_operator_local_filesystem_to_gcs]
     upload_file = LocalFilesystemToGCSOperator(

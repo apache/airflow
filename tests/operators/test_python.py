@@ -34,7 +34,11 @@ from airflow.models.taskinstance import clear_task_instances, set_current_contex
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import (
-    BranchPythonOperator, PythonOperator, PythonVirtualenvOperator, ShortCircuitOperator, get_current_context,
+    BranchPythonOperator,
+    PythonOperator,
+    PythonVirtualenvOperator,
+    ShortCircuitOperator,
+    get_current_context,
     task as task_decorator,
 )
 from airflow.utils import timezone
@@ -49,10 +53,12 @@ END_DATE = timezone.datetime(2016, 1, 2)
 INTERVAL = timedelta(hours=12)
 FROZEN_NOW = timezone.datetime(2016, 1, 2, 12, 1, 1)
 
-TI_CONTEXT_ENV_VARS = ['AIRFLOW_CTX_DAG_ID',
-                       'AIRFLOW_CTX_TASK_ID',
-                       'AIRFLOW_CTX_EXECUTION_DATE',
-                       'AIRFLOW_CTX_DAG_RUN_ID']
+TI_CONTEXT_ENV_VARS = [
+    'AIRFLOW_CTX_DAG_ID',
+    'AIRFLOW_CTX_TASK_ID',
+    'AIRFLOW_CTX_EXECUTION_DATE',
+    'AIRFLOW_CTX_DAG_RUN_ID',
+]
 
 
 class Call:
@@ -68,13 +74,16 @@ def build_recording_function(calls_collection):
     Then using this custom function recording custom Call objects for further testing
     (replacing Mock.assert_called_with assertion method)
     """
+
     def recording_function(*args, **kwargs):
         calls_collection.append(Call(*args, **kwargs))
+
     return recording_function
 
 
 class TestPythonBase(unittest.TestCase):
     """Base test class for TestPythonOperator and TestPythonSensor classes"""
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -85,11 +94,7 @@ class TestPythonBase(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
-        self.dag = DAG(
-            'test_dag',
-            default_args={
-                'owner': 'airflow',
-                'start_date': DEFAULT_DATE})
+        self.dag = DAG('test_dag', default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
         self.addCleanup(self.dag.clear)
         self.clear_run()
         self.addCleanup(self.clear_run)
@@ -110,21 +115,12 @@ class TestPythonBase(unittest.TestCase):
         self.assertTupleEqual(first.args, second.args)
         # eliminate context (conf, dag_run, task_instance, etc.)
         test_args = ["an_int", "a_date", "a_templated_string"]
-        first.kwargs = {
-            key: value
-            for (key, value) in first.kwargs.items()
-            if key in test_args
-        }
-        second.kwargs = {
-            key: value
-            for (key, value) in second.kwargs.items()
-            if key in test_args
-        }
+        first.kwargs = {key: value for (key, value) in first.kwargs.items() if key in test_args}
+        second.kwargs = {key: value for (key, value) in second.kwargs.items() if key in test_args}
         self.assertDictEqual(first.kwargs, second.kwargs)
 
 
 class TestPythonOperator(TestPythonBase):
-
     def do_run(self):
         self.run = True
 
@@ -133,10 +129,7 @@ class TestPythonOperator(TestPythonBase):
 
     def test_python_operator_run(self):
         """Tests that the python callable is invoked on task run."""
-        task = PythonOperator(
-            python_callable=self.do_run,
-            task_id='python_operator',
-            dag=self.dag)
+        task = PythonOperator(python_callable=self.do_run, task_id='python_operator', dag=self.dag)
         self.assertFalse(self.is_run())
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         self.assertTrue(self.is_run())
@@ -146,16 +139,10 @@ class TestPythonOperator(TestPythonBase):
         the python_callable argument is callable."""
         not_callable = {}
         with self.assertRaises(AirflowException):
-            PythonOperator(
-                python_callable=not_callable,
-                task_id='python_operator',
-                dag=self.dag)
+            PythonOperator(python_callable=not_callable, task_id='python_operator', dag=self.dag)
         not_callable = None
         with self.assertRaises(AirflowException):
-            PythonOperator(
-                python_callable=not_callable,
-                task_id='python_operator',
-                dag=self.dag)
+            PythonOperator(python_callable=not_callable, task_id='python_operator', dag=self.dag)
 
     def test_python_callable_arguments_are_templatized(self):
         """Test PythonOperator op_args are templatized"""
@@ -171,19 +158,15 @@ class TestPythonOperator(TestPythonBase):
             # a Mock instance cannot be used as a callable function or test fails with a
             # TypeError: Object of type Mock is not JSON serializable
             python_callable=build_recording_function(recorded_calls),
-            op_args=[
-                4,
-                date(2019, 1, 1),
-                "dag {{dag.dag_id}} ran on {{ds}}.",
-                named_tuple
-            ],
-            dag=self.dag)
+            op_args=[4, date(2019, 1, 1), "dag {{dag.dag_id}} ran on {{ds}}.", named_tuple],
+            dag=self.dag,
+        )
 
         self.dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
-            state=State.RUNNING
+            state=State.RUNNING,
         )
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -191,10 +174,12 @@ class TestPythonOperator(TestPythonBase):
         self.assertEqual(1, len(recorded_calls))
         self._assert_calls_equal(
             recorded_calls[0],
-            Call(4,
-                 date(2019, 1, 1),
-                 "dag {} ran on {}.".format(self.dag.dag_id, ds_templated),
-                 Named(ds_templated, 'unchanged'))
+            Call(
+                4,
+                date(2019, 1, 1),
+                f"dag {self.dag.dag_id} ran on {ds_templated}.",
+                Named(ds_templated, 'unchanged'),
+            ),
         )
 
     def test_python_callable_keyword_arguments_are_templatized(self):
@@ -209,25 +194,29 @@ class TestPythonOperator(TestPythonBase):
             op_kwargs={
                 'an_int': 4,
                 'a_date': date(2019, 1, 1),
-                'a_templated_string': "dag {{dag.dag_id}} ran on {{ds}}."
+                'a_templated_string': "dag {{dag.dag_id}} ran on {{ds}}.",
             },
-            dag=self.dag)
+            dag=self.dag,
+        )
 
         self.dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
-            state=State.RUNNING
+            state=State.RUNNING,
         )
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         self.assertEqual(1, len(recorded_calls))
         self._assert_calls_equal(
             recorded_calls[0],
-            Call(an_int=4,
-                 a_date=date(2019, 1, 1),
-                 a_templated_string="dag {} ran on {}.".format(
-                     self.dag.dag_id, DEFAULT_DATE.date().isoformat()))
+            Call(
+                an_int=4,
+                a_date=date(2019, 1, 1),
+                a_templated_string="dag {} ran on {}.".format(
+                    self.dag.dag_id, DEFAULT_DATE.date().isoformat()
+                ),
+            ),
         )
 
     def test_python_operator_shallow_copy_attr(self):
@@ -236,15 +225,15 @@ class TestPythonOperator(TestPythonBase):
             python_callable=not_callable,
             task_id='python_operator',
             op_kwargs={'certain_attrs': ''},
-            dag=self.dag
+            dag=self.dag,
         )
         new_task = copy.deepcopy(original_task)
         # shallow copy op_kwargs
-        self.assertEqual(id(original_task.op_kwargs['certain_attrs']),
-                         id(new_task.op_kwargs['certain_attrs']))
+        self.assertEqual(
+            id(original_task.op_kwargs['certain_attrs']), id(new_task.op_kwargs['certain_attrs'])
+        )
         # shallow copy python_callable
-        self.assertEqual(id(original_task.python_callable),
-                         id(new_task.python_callable))
+        self.assertEqual(id(original_task.python_callable), id(new_task.python_callable))
 
     def test_conflicting_kwargs(self):
         self.dag.create_dagrun(
@@ -259,20 +248,20 @@ class TestPythonOperator(TestPythonBase):
         def func(dag):
             # An ValueError should be triggered since we're using dag as a
             # reserved keyword
-            raise RuntimeError("Should not be triggered, dag: {}".format(dag))
+            raise RuntimeError(f"Should not be triggered, dag: {dag}")
 
         python_operator = PythonOperator(
-            task_id='python_operator',
-            op_args=[1],
-            python_callable=func,
-            dag=self.dag
+            task_id='python_operator', op_args=[1], python_callable=func, dag=self.dag
         )
 
         with self.assertRaises(ValueError) as context:
             python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
             self.assertTrue('dag' in context.exception, "'dag' not found in the exception")
 
-    def test_context_with_conflicting_op_args(self):
+    def test_provide_context_does_not_fail(self):
+        """
+        ensures that provide_context doesn't break dags in 2.0
+        """
         self.dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
@@ -289,7 +278,26 @@ class TestPythonOperator(TestPythonBase):
             task_id='python_operator',
             op_kwargs={'custom': 1},
             python_callable=func,
-            dag=self.dag
+            provide_context=True,
+            dag=self.dag,
+        )
+        python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_context_with_conflicting_op_args(self):
+        self.dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            external_trigger=False,
+        )
+
+        def func(custom, dag):
+            self.assertEqual(1, custom, "custom should be 1")
+            self.assertIsNotNone(dag, "dag should be set")
+
+        python_operator = PythonOperator(
+            task_id='python_operator', op_kwargs={'custom': 1}, python_callable=func, dag=self.dag
         )
         python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -307,16 +315,12 @@ class TestPythonOperator(TestPythonBase):
             self.assertGreater(len(context), 0, "Context has not been injected")
 
         python_operator = PythonOperator(
-            task_id='python_operator',
-            op_kwargs={'custom': 1},
-            python_callable=func,
-            dag=self.dag
+            task_id='python_operator', op_kwargs={'custom': 1}, python_callable=func, dag=self.dag
         )
         python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
 
 class TestAirflowTaskDecorator(TestPythonBase):
-
     def test_python_operator_python_callable_is_callable(self):
         """Tests that @task will only instantiate if
         the python_callable argument is callable."""
@@ -326,9 +330,11 @@ class TestAirflowTaskDecorator(TestPythonBase):
 
     def test_fails_bad_signature(self):
         """Tests that @task will fail if signature is not binding."""
+
         @task_decorator
         def add_number(num: int) -> int:
             return num + 2
+
         with pytest.raises(TypeError):
             add_number(2, 3)  # pylint: disable=too-many-function-args
         with pytest.raises(TypeError):
@@ -339,25 +345,28 @@ class TestAirflowTaskDecorator(TestPythonBase):
         """Tests that @task will fail if signature is not binding."""
 
         with pytest.raises(AirflowException):
+
             class Test:
                 num = 2
 
                 @task_decorator
                 def add_number(self, num: int) -> int:
                     return self.num + num
+
             Test().add_number(2)
 
     def test_fail_multiple_outputs_key_type(self):
         @task_decorator(multiple_outputs=True)
         def add_number(num: int):
             return {2: num}
+
         with self.dag:
             ret = add_number(2)
         self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL.value,
+            run_id=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
-            state=State.RUNNING
+            state=State.RUNNING,
         )
 
         with pytest.raises(AirflowException):
@@ -372,10 +381,10 @@ class TestAirflowTaskDecorator(TestPythonBase):
         with self.dag:
             ret = add_number(2)
         self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL.value,
+            run_id=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
-            state=State.RUNNING
+            state=State.RUNNING,
         )
 
         with pytest.raises(AirflowException):
@@ -395,14 +404,15 @@ class TestAirflowTaskDecorator(TestPythonBase):
             # a Mock instance cannot be used as a callable function or test fails with a
             # TypeError: Object of type Mock is not JSON serializable
             build_recording_function(recorded_calls),
-            dag=self.dag)
+            dag=self.dag,
+        )
         ret = task(4, date(2019, 1, 1), "dag {{dag.dag_id}} ran on {{ds}}.", named_tuple)
 
         self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL.value,
+            run_id=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
-            state=State.RUNNING
+            state=State.RUNNING,
         )
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
 
@@ -410,10 +420,12 @@ class TestAirflowTaskDecorator(TestPythonBase):
         assert len(recorded_calls) == 1
         self._assert_calls_equal(
             recorded_calls[0],
-            Call(4,
-                 date(2019, 1, 1),
-                 "dag {} ran on {}.".format(self.dag.dag_id, ds_templated),
-                 Named(ds_templated, 'unchanged'))
+            Call(
+                4,
+                date(2019, 1, 1),
+                f"dag {self.dag.dag_id} ran on {ds_templated}.",
+                Named(ds_templated, 'unchanged'),
+            ),
         )
 
     def test_python_callable_keyword_arguments_are_templatized(self):
@@ -424,24 +436,27 @@ class TestAirflowTaskDecorator(TestPythonBase):
             # a Mock instance cannot be used as a callable function or test fails with a
             # TypeError: Object of type Mock is not JSON serializable
             build_recording_function(recorded_calls),
-            dag=self.dag
+            dag=self.dag,
         )
         ret = task(an_int=4, a_date=date(2019, 1, 1), a_templated_string="dag {{dag.dag_id}} ran on {{ds}}.")
         self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL.value,
+            run_id=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
-            state=State.RUNNING
+            state=State.RUNNING,
         )
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
 
         assert len(recorded_calls) == 1
         self._assert_calls_equal(
             recorded_calls[0],
-            Call(an_int=4,
-                 a_date=date(2019, 1, 1),
-                 a_templated_string="dag {} ran on {}.".format(
-                     self.dag.dag_id, DEFAULT_DATE.date().isoformat()))
+            Call(
+                an_int=4,
+                a_date=date(2019, 1, 1),
+                a_templated_string="dag {} ran on {}.".format(
+                    self.dag.dag_id, DEFAULT_DATE.date().isoformat()
+                ),
+            ),
         )
 
     def test_manual_task_id(self):
@@ -450,6 +465,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
         @task_decorator(task_id='some_name')
         def do_run():
             return 4
+
         with self.dag:
             do_run()
             assert ['some_name'] == self.dag.task_ids
@@ -460,6 +476,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
         @task_decorator
         def do_run():
             return 4
+
         with self.dag:
             do_run()
             assert ['do_run'] == self.dag.task_ids
@@ -472,6 +489,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
 
     def test_call_20(self):
         """Test calling decorated function 21 times in a DAG"""
+
         @task_decorator
         def __do_run():
             return 4
@@ -488,20 +506,17 @@ class TestAirflowTaskDecorator(TestPythonBase):
 
         @task_decorator(multiple_outputs=True)
         def return_dict(number: int):
-            return {
-                'number': number + 1,
-                '43': 43
-            }
+            return {'number': number + 1, '43': 43}
 
         test_number = 10
         with self.dag:
             ret = return_dict(test_number)
 
         dr = self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL.value,
+            run_id=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
-            state=State.RUNNING
+            state=State.RUNNING,
         )
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
@@ -513,6 +528,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
 
     def test_default_args(self):
         """Test that default_args are captured when calling the function correctly"""
+
         @task_decorator
         def do_run():
             return 4
@@ -539,10 +555,10 @@ class TestAirflowTaskDecorator(TestPythonBase):
             ret = add_num(bigger_number, XComArg(bigger_number.operator))  # pylint: disable=maybe-no-member
 
         dr = self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL.value,
+            run_id=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
-            state=State.RUNNING
+            state=State.RUNNING,
         )
 
         bigger_number.operator.run(  # pylint: disable=maybe-no-member
@@ -592,6 +608,22 @@ class TestAirflowTaskDecorator(TestPythonBase):
 
         assert 'add_2' in self.dag.task_ids
 
+    def test_task_documentation(self):
+        """Tests that task_decorator loads doc_md from function doc"""
+
+        @task_decorator
+        def add_2(number: int):
+            """
+            Adds 2 to number.
+            """
+            return number + 2
+
+        test_number = 10
+        with self.dag:
+            ret = add_2(test_number)
+
+        assert ret.operator.doc_md.strip(), "Adds 2 to number."  # pylint: disable=maybe-no-member
+
 
 class TestBranchOperator(unittest.TestCase):
     @classmethod
@@ -603,11 +635,11 @@ class TestBranchOperator(unittest.TestCase):
             session.query(TI).delete()
 
     def setUp(self):
-        self.dag = DAG('branch_operator_test',
-                       default_args={
-                           'owner': 'airflow',
-                           'start_date': DEFAULT_DATE},
-                       schedule_interval=INTERVAL)
+        self.dag = DAG(
+            'branch_operator_test',
+            default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
+            schedule_interval=INTERVAL,
+        )
 
         self.branch_1 = DummyOperator(task_id='branch_1', dag=self.dag)
         self.branch_2 = DummyOperator(task_id='branch_2', dag=self.dag)
@@ -622,9 +654,9 @@ class TestBranchOperator(unittest.TestCase):
 
     def test_without_dag_run(self):
         """This checks the defensive against non existent tasks in a dag run"""
-        branch_op = BranchPythonOperator(task_id='make_choice',
-                                         dag=self.dag,
-                                         python_callable=lambda: 'branch_1')
+        branch_op = BranchPythonOperator(
+            task_id='make_choice', dag=self.dag, python_callable=lambda: 'branch_1'
+        )
         self.branch_1.set_upstream(branch_op)
         self.branch_2.set_upstream(branch_op)
         self.dag.clear()
@@ -632,10 +664,7 @@ class TestBranchOperator(unittest.TestCase):
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         with create_session() as session:
-            tis = session.query(TI).filter(
-                TI.dag_id == self.dag.dag_id,
-                TI.execution_date == DEFAULT_DATE
-            )
+            tis = session.query(TI).filter(TI.dag_id == self.dag.dag_id, TI.execution_date == DEFAULT_DATE)
 
             for ti in tis:
                 if ti.task_id == 'make_choice':
@@ -650,9 +679,9 @@ class TestBranchOperator(unittest.TestCase):
 
     def test_branch_list_without_dag_run(self):
         """This checks if the BranchPythonOperator supports branching off to a list of tasks."""
-        branch_op = BranchPythonOperator(task_id='make_choice',
-                                         dag=self.dag,
-                                         python_callable=lambda: ['branch_1', 'branch_2'])
+        branch_op = BranchPythonOperator(
+            task_id='make_choice', dag=self.dag, python_callable=lambda: ['branch_1', 'branch_2']
+        )
         self.branch_1.set_upstream(branch_op)
         self.branch_2.set_upstream(branch_op)
         self.branch_3 = DummyOperator(task_id='branch_3', dag=self.dag)
@@ -662,10 +691,7 @@ class TestBranchOperator(unittest.TestCase):
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         with create_session() as session:
-            tis = session.query(TI).filter(
-                TI.dag_id == self.dag.dag_id,
-                TI.execution_date == DEFAULT_DATE
-            )
+            tis = session.query(TI).filter(TI.dag_id == self.dag.dag_id, TI.execution_date == DEFAULT_DATE)
 
             expected = {
                 "make_choice": State.SUCCESS,
@@ -681,9 +707,9 @@ class TestBranchOperator(unittest.TestCase):
                     raise ValueError(f'Invalid task id {ti.task_id} found!')
 
     def test_with_dag_run(self):
-        branch_op = BranchPythonOperator(task_id='make_choice',
-                                         dag=self.dag,
-                                         python_callable=lambda: 'branch_1')
+        branch_op = BranchPythonOperator(
+            task_id='make_choice', dag=self.dag, python_callable=lambda: 'branch_1'
+        )
 
         self.branch_1.set_upstream(branch_op)
         self.branch_2.set_upstream(branch_op)
@@ -693,7 +719,7 @@ class TestBranchOperator(unittest.TestCase):
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
-            state=State.RUNNING
+            state=State.RUNNING,
         )
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -710,9 +736,9 @@ class TestBranchOperator(unittest.TestCase):
                 raise ValueError(f'Invalid task id {ti.task_id} found!')
 
     def test_with_skip_in_branch_downstream_dependencies(self):
-        branch_op = BranchPythonOperator(task_id='make_choice',
-                                         dag=self.dag,
-                                         python_callable=lambda: 'branch_1')
+        branch_op = BranchPythonOperator(
+            task_id='make_choice', dag=self.dag, python_callable=lambda: 'branch_1'
+        )
 
         branch_op >> self.branch_1 >> self.branch_2
         branch_op >> self.branch_2
@@ -722,7 +748,7 @@ class TestBranchOperator(unittest.TestCase):
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
-            state=State.RUNNING
+            state=State.RUNNING,
         )
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -739,9 +765,9 @@ class TestBranchOperator(unittest.TestCase):
                 raise ValueError(f'Invalid task id {ti.task_id} found!')
 
     def test_with_skip_in_branch_downstream_dependencies2(self):
-        branch_op = BranchPythonOperator(task_id='make_choice',
-                                         dag=self.dag,
-                                         python_callable=lambda: 'branch_2')
+        branch_op = BranchPythonOperator(
+            task_id='make_choice', dag=self.dag, python_callable=lambda: 'branch_2'
+        )
 
         branch_op >> self.branch_1 >> self.branch_2
         branch_op >> self.branch_2
@@ -751,7 +777,7 @@ class TestBranchOperator(unittest.TestCase):
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
-            state=State.RUNNING
+            state=State.RUNNING,
         )
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -768,9 +794,9 @@ class TestBranchOperator(unittest.TestCase):
                 raise ValueError(f'Invalid task id {ti.task_id} found!')
 
     def test_xcom_push(self):
-        branch_op = BranchPythonOperator(task_id='make_choice',
-                                         dag=self.dag,
-                                         python_callable=lambda: 'branch_1')
+        branch_op = BranchPythonOperator(
+            task_id='make_choice', dag=self.dag, python_callable=lambda: 'branch_1'
+        )
 
         self.branch_1.set_upstream(branch_op)
         self.branch_2.set_upstream(branch_op)
@@ -780,7 +806,7 @@ class TestBranchOperator(unittest.TestCase):
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
-            state=State.RUNNING
+            state=State.RUNNING,
         )
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -788,17 +814,16 @@ class TestBranchOperator(unittest.TestCase):
         tis = dr.get_task_instances()
         for ti in tis:
             if ti.task_id == 'make_choice':
-                self.assertEqual(
-                    ti.xcom_pull(task_ids='make_choice'), 'branch_1')
+                self.assertEqual(ti.xcom_pull(task_ids='make_choice'), 'branch_1')
 
     def test_clear_skipped_downstream_task(self):
         """
         After a downstream task is skipped by BranchPythonOperator, clearing the skipped task
         should not cause it to be executed.
         """
-        branch_op = BranchPythonOperator(task_id='make_choice',
-                                         dag=self.dag,
-                                         python_callable=lambda: 'branch_1')
+        branch_op = BranchPythonOperator(
+            task_id='make_choice', dag=self.dag, python_callable=lambda: 'branch_1'
+        )
         branches = [self.branch_1, self.branch_2]
         branch_op >> branches
         self.dag.clear()
@@ -807,7 +832,7 @@ class TestBranchOperator(unittest.TestCase):
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
-            state=State.RUNNING
+            state=State.RUNNING,
         )
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -867,15 +892,12 @@ class TestShortCircuitOperator(unittest.TestCase):
     def test_without_dag_run(self):
         """This checks the defensive against non existent tasks in a dag run"""
         value = False
-        dag = DAG('shortcircuit_operator_test_without_dag_run',
-                  default_args={
-                      'owner': 'airflow',
-                      'start_date': DEFAULT_DATE
-                  },
-                  schedule_interval=INTERVAL)
-        short_op = ShortCircuitOperator(task_id='make_choice',
-                                        dag=dag,
-                                        python_callable=lambda: value)
+        dag = DAG(
+            'shortcircuit_operator_test_without_dag_run',
+            default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
+            schedule_interval=INTERVAL,
+        )
+        short_op = ShortCircuitOperator(task_id='make_choice', dag=dag, python_callable=lambda: value)
         branch_1 = DummyOperator(task_id='branch_1', dag=dag)
         branch_1.set_upstream(short_op)
         branch_2 = DummyOperator(task_id='branch_2', dag=dag)
@@ -887,10 +909,7 @@ class TestShortCircuitOperator(unittest.TestCase):
         short_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         with create_session() as session:
-            tis = session.query(TI).filter(
-                TI.dag_id == dag.dag_id,
-                TI.execution_date == DEFAULT_DATE
-            )
+            tis = session.query(TI).filter(TI.dag_id == dag.dag_id, TI.execution_date == DEFAULT_DATE)
 
             for ti in tis:
                 if ti.task_id == 'make_choice':
@@ -920,15 +939,12 @@ class TestShortCircuitOperator(unittest.TestCase):
 
     def test_with_dag_run(self):
         value = False
-        dag = DAG('shortcircuit_operator_test_with_dag_run',
-                  default_args={
-                      'owner': 'airflow',
-                      'start_date': DEFAULT_DATE
-                  },
-                  schedule_interval=INTERVAL)
-        short_op = ShortCircuitOperator(task_id='make_choice',
-                                        dag=dag,
-                                        python_callable=lambda: value)
+        dag = DAG(
+            'shortcircuit_operator_test_with_dag_run',
+            default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
+            schedule_interval=INTERVAL,
+        )
+        short_op = ShortCircuitOperator(task_id='make_choice', dag=dag, python_callable=lambda: value)
         branch_1 = DummyOperator(task_id='branch_1', dag=dag)
         branch_1.set_upstream(short_op)
         branch_2 = DummyOperator(task_id='branch_2', dag=dag)
@@ -942,7 +958,7 @@ class TestShortCircuitOperator(unittest.TestCase):
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
-            state=State.RUNNING
+            state=State.RUNNING,
         )
 
         upstream.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -983,15 +999,12 @@ class TestShortCircuitOperator(unittest.TestCase):
         After a downstream task is skipped by ShortCircuitOperator, clearing the skipped task
         should not cause it to be executed.
         """
-        dag = DAG('shortcircuit_clear_skipped_downstream_task',
-                  default_args={
-                      'owner': 'airflow',
-                      'start_date': DEFAULT_DATE
-                  },
-                  schedule_interval=INTERVAL)
-        short_op = ShortCircuitOperator(task_id='make_choice',
-                                        dag=dag,
-                                        python_callable=lambda: False)
+        dag = DAG(
+            'shortcircuit_clear_skipped_downstream_task',
+            default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
+            schedule_interval=INTERVAL,
+        )
+        short_op = ShortCircuitOperator(task_id='make_choice', dag=dag, python_callable=lambda: False)
         downstream = DummyOperator(task_id='downstream', dag=dag)
 
         short_op >> downstream
@@ -1002,7 +1015,7 @@ class TestShortCircuitOperator(unittest.TestCase):
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
-            state=State.RUNNING
+            state=State.RUNNING,
         )
 
         short_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -1020,9 +1033,7 @@ class TestShortCircuitOperator(unittest.TestCase):
 
         # Clear downstream
         with create_session() as session:
-            clear_task_instances([t for t in tis if t.task_id == "downstream"],
-                                 session=session,
-                                 dag=dag)
+            clear_task_instances([t for t in tis if t.task_id == "downstream"], session=session, dag=dag)
 
         # Run downstream again
         downstream.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -1041,41 +1052,35 @@ virtualenv_string_args: List[str] = []
 
 
 class TestPythonVirtualenvOperator(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
         self.dag = DAG(
             'test_dag',
-            default_args={
-                'owner': 'airflow',
-                'start_date': DEFAULT_DATE},
-            schedule_interval=INTERVAL)
+            default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
+            schedule_interval=INTERVAL,
+        )
         self.addCleanup(self.dag.clear)
 
     def _run_as_operator(self, fn, python_version=sys.version_info[0], **kwargs):
         task = PythonVirtualenvOperator(
-            python_callable=fn,
-            python_version=python_version,
-            task_id='task',
-            dag=self.dag,
-            **kwargs)
+            python_callable=fn, python_version=python_version, task_id='task', dag=self.dag, **kwargs
+        )
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        return task
 
-    def test_dill_warning(self):
+    def test_add_dill(self):
         def f():
             pass
-        with self.assertRaises(AirflowException):
-            PythonVirtualenvOperator(
-                python_callable=f,
-                task_id='task',
-                dag=self.dag,
-                use_dill=True,
-                system_site_packages=False)
+
+        task = self._run_as_operator(f, use_dill=True, system_site_packages=False)
+        assert 'dill' in task.requirements
 
     def test_no_requirements(self):
         """Tests that the python callable is invoked on task run."""
+
         def f():
             pass
+
         self._run_as_operator(f)
 
     def test_no_system_site_packages(self):
@@ -1085,19 +1090,21 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             except ImportError:
                 return True
             raise Exception
+
         self._run_as_operator(f, system_site_packages=False, requirements=['dill'])
 
     def test_system_site_packages(self):
         def f():
             import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
+
         self._run_as_operator(f, requirements=['funcsigs'], system_site_packages=True)
 
     def test_with_requirements_pinned(self):
-        self.assertNotEqual(
-            '0.4', funcsigs.__version__, 'Please update this string if this fails')
+        self.assertNotEqual('0.4', funcsigs.__version__, 'Please update this string if this fails')
 
         def f():
             import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported
+
             if funcsigs.__version__ != '0.4':
                 raise Exception
 
@@ -1106,41 +1113,46 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
     def test_unpinned_requirements(self):
         def f():
             import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
-        self._run_as_operator(
-            f, requirements=['funcsigs', 'dill'], system_site_packages=False)
+
+        self._run_as_operator(f, requirements=['funcsigs', 'dill'], system_site_packages=False)
 
     def test_range_requirements(self):
         def f():
             import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
-        self._run_as_operator(
-            f, requirements=['funcsigs>1.0', 'dill'], system_site_packages=False)
+
+        self._run_as_operator(f, requirements=['funcsigs>1.0', 'dill'], system_site_packages=False)
 
     def test_fail(self):
         def f():
             raise Exception
+
         with self.assertRaises(CalledProcessError):
             self._run_as_operator(f)
 
     def test_python_2(self):
         def f():
             {}.iteritems()  # pylint: disable=no-member
+
         self._run_as_operator(f, python_version=2, requirements=['dill'])
 
     def test_python_2_7(self):
         def f():
             {}.iteritems()  # pylint: disable=no-member
             return True
+
         self._run_as_operator(f, python_version='2.7', requirements=['dill'])
 
     def test_python_3(self):
         def f():
             import sys  # pylint: disable=reimported,unused-import,redefined-outer-name
+
             print(sys.version)
             try:
                 {}.iteritems()  # pylint: disable=no-member
             except AttributeError:
                 return
             raise Exception
+
         self._run_as_operator(f, python_version=3, use_dill=False, requirements=['dill'])
 
     @staticmethod
@@ -1165,6 +1177,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
     def test_without_dill(self):
         def f(a):
             return a
+
         self._run_as_operator(f, system_site_packages=False, use_dill=False, op_args=[4])
 
     def test_string_args(self):
@@ -1173,8 +1186,8 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             print(virtualenv_string_args)
             if virtualenv_string_args[0] != virtualenv_string_args[2]:
                 raise Exception
-        self._run_as_operator(
-            f, python_version=self._invert_python_major_version(), string_args=[1, 2, 1])
+
+        self._run_as_operator(f, python_version=self._invert_python_major_version(), string_args=[1, 2, 1])
 
     def test_with_args(self):
         def f(a, b, c=False, d=False):
@@ -1182,29 +1195,134 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
                 return True
             else:
                 raise Exception
+
         self._run_as_operator(f, op_args=[0, 1], op_kwargs={'c': True})
 
     def test_return_none(self):
         def f():
             return None
+
         self._run_as_operator(f)
 
     def test_lambda(self):
         with self.assertRaises(AirflowException):
-            PythonVirtualenvOperator(
-                python_callable=lambda x: 4,
-                task_id='task',
-                dag=self.dag)
+            PythonVirtualenvOperator(python_callable=lambda x: 4, task_id='task', dag=self.dag)
 
     def test_nonimported_as_arg(self):
         def f(_):
             return None
+
         self._run_as_operator(f, op_args=[datetime.utcnow()])
 
     def test_context(self):
         def f(templates_dict):
             return templates_dict['ds']
+
         self._run_as_operator(f, templates_dict={'ds': '{{ ds }}'})
+
+    def test_airflow_context(self):
+        def f(
+            # basic
+            ds_nodash,
+            inlets,
+            next_ds,
+            next_ds_nodash,
+            outlets,
+            params,
+            prev_ds,
+            prev_ds_nodash,
+            run_id,
+            task_instance_key_str,
+            test_mode,
+            tomorrow_ds,
+            tomorrow_ds_nodash,
+            ts,
+            ts_nodash,
+            ts_nodash_with_tz,
+            yesterday_ds,
+            yesterday_ds_nodash,
+            # pendulum-specific
+            execution_date,
+            next_execution_date,
+            prev_execution_date,
+            prev_execution_date_success,
+            prev_start_date_success,
+            # airflow-specific
+            macros,
+            conf,
+            dag,
+            dag_run,
+            task,
+            # other
+            **context,
+        ):  # pylint: disable=unused-argument,too-many-arguments,too-many-locals
+            pass
+
+        self._run_as_operator(f, use_dill=True, system_site_packages=True, requirements=None)
+
+    def test_pendulum_context(self):
+        def f(
+            # basic
+            ds_nodash,
+            inlets,
+            next_ds,
+            next_ds_nodash,
+            outlets,
+            params,
+            prev_ds,
+            prev_ds_nodash,
+            run_id,
+            task_instance_key_str,
+            test_mode,
+            tomorrow_ds,
+            tomorrow_ds_nodash,
+            ts,
+            ts_nodash,
+            ts_nodash_with_tz,
+            yesterday_ds,
+            yesterday_ds_nodash,
+            # pendulum-specific
+            execution_date,
+            next_execution_date,
+            prev_execution_date,
+            prev_execution_date_success,
+            prev_start_date_success,
+            # other
+            **context,
+        ):  # pylint: disable=unused-argument,too-many-arguments,too-many-locals
+            pass
+
+        self._run_as_operator(
+            f, use_dill=True, system_site_packages=False, requirements=['pendulum', 'lazy_object_proxy']
+        )
+
+    def test_base_context(self):
+        def f(
+            # basic
+            ds_nodash,
+            inlets,
+            next_ds,
+            next_ds_nodash,
+            outlets,
+            params,
+            prev_ds,
+            prev_ds_nodash,
+            run_id,
+            task_instance_key_str,
+            test_mode,
+            tomorrow_ds,
+            tomorrow_ds_nodash,
+            ts,
+            ts_nodash,
+            ts_nodash_with_tz,
+            yesterday_ds,
+            yesterday_ds_nodash,
+            # other
+            **context,
+        ):  # pylint: disable=unused-argument,too-many-arguments,too-many-locals
+            pass
+
+        self._run_as_operator(f, use_dill=True, system_site_packages=False, requirements=None)
 
 
 DEFAULT_ARGS = {
@@ -1234,7 +1352,9 @@ class TestCurrentContext:
 
         with set_current_context(example_context):
             pass
-        with pytest.raises(AirflowException, ):
+        with pytest.raises(
+            AirflowException,
+        ):
             get_current_context()
 
     def test_nested_context(self):
@@ -1288,3 +1408,42 @@ class TestCurrentContextRuntime:
         with DAG(dag_id="edge_case_context_dag", default_args=DEFAULT_ARGS):
             op = PythonOperator(python_callable=get_all_the_context, task_id="get_all_the_context")
             op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)
+
+
+@pytest.mark.parametrize(
+    "choice,expected_states",
+    [
+        ("task1", [State.SUCCESS, State.SUCCESS, State.SUCCESS]),
+        ("join", [State.SUCCESS, State.SKIPPED, State.SUCCESS]),
+    ],
+)
+def test_empty_branch(choice, expected_states):
+    """
+    Tests that BranchPythonOperator handles empty branches properly.
+    """
+    with DAG(
+        'test_empty_branch',
+        start_date=DEFAULT_DATE,
+    ) as dag:
+        branch = BranchPythonOperator(task_id='branch', python_callable=lambda: choice)
+        task1 = DummyOperator(task_id='task1')
+        join = DummyOperator(task_id='join', trigger_rule="none_failed_or_skipped")
+
+        branch >> [task1, join]
+        task1 >> join
+
+    dag.clear(start_date=DEFAULT_DATE)
+
+    task_ids = ["branch", "task1", "join"]
+
+    tis = {}
+    for task_id in task_ids:
+        task_instance = TI(dag.get_task(task_id), execution_date=DEFAULT_DATE)
+        tis[task_id] = task_instance
+        task_instance.run()
+
+    def get_state(ti):
+        ti.refresh_from_db()
+        return ti.state
+
+    assert [get_state(tis[task_id]) for task_id in task_ids] == expected_states

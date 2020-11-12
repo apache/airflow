@@ -15,11 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-MsSQL to GCS operator.
-"""
+"""MsSQL to GCS operator."""
 
 import decimal
+from typing import Dict
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
@@ -49,20 +48,14 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
                 dag=dag
             )
     """
+
     ui_color = '#e0a98c'
 
-    type_map = {
-        3: 'INTEGER',
-        4: 'TIMESTAMP',
-        5: 'NUMERIC'
-    }
+    type_map = {3: 'INTEGER', 4: 'TIMESTAMP', 5: 'NUMERIC'}
 
     @apply_defaults
-    def __init__(self,
-                 mssql_conn_id='mssql_default',
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *, mssql_conn_id='mssql_default', **kwargs):
+        super().__init__(**kwargs)
         self.mssql_conn_id = mssql_conn_id
 
     def query(self):
@@ -77,7 +70,7 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
         cursor.execute(self.sql)
         return cursor
 
-    def field_to_bigquery(self, field):
+    def field_to_bigquery(self, field) -> Dict[str, str]:
         return {
             'name': field[0].replace(" ", "_"),
             'type': self.type_map.get(field[1], "STRING"),

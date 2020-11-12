@@ -24,5 +24,6 @@ from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook  #
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.spark.hooks.spark_submit`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Pools sub-commands
-"""
+"""Pools sub-commands"""
 import json
 import os
 from json import JSONDecodeError
@@ -29,8 +27,7 @@ from airflow.utils import cli as cli_utils
 
 
 def _tabulate_pools(pools, tablefmt="fancy_grid"):
-    return "\n%s" % tabulate(pools, ['Pool', 'Slots', 'Description'],
-                             tablefmt=tablefmt)
+    return "\n%s" % tabulate(pools, ['Pool', 'Slots', 'Description'], tablefmt=tablefmt)
 
 
 def pool_list(args):
@@ -51,9 +48,7 @@ def pool_get(args):
 def pool_set(args):
     """Creates new pool with a given name and slots"""
     api_client = get_current_api_client()
-    pools = [api_client.create_pool(name=args.pool,
-                                    slots=args.slots,
-                                    description=args.description)]
+    pools = [api_client.create_pool(name=args.pool, slots=args.slots, description=args.description)]
     print(_tabulate_pools(pools=pools, tablefmt=args.output))
 
 
@@ -87,7 +82,7 @@ def pool_import_helper(filepath):
     """Helps import pools from the json file"""
     api_client = get_current_api_client()
 
-    with open(filepath, 'r') as poolfile:
+    with open(filepath) as poolfile:
         data = poolfile.read()
     try:  # pylint: disable=too-many-nested-blocks
         pools_json = json.loads(data)
@@ -99,9 +94,9 @@ def pool_import_helper(filepath):
             counter = 0
             for k, v in pools_json.items():
                 if isinstance(v, dict) and len(v) == 2:
-                    pools.append(api_client.create_pool(name=k,
-                                                        slots=v["slots"],
-                                                        description=v["description"]))
+                    pools.append(
+                        api_client.create_pool(name=k, slots=v["slots"], description=v["description"])
+                    )
                     counter += 1
                 else:
                     pass

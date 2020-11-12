@@ -32,10 +32,9 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():   # noqa: D103
-    op.create_index('idx_job_state_heartbeat', 'job',
-                    ['state', 'latest_heartbeat'], unique=False)
+def upgrade():  # noqa: D103
+    op.create_index('idx_job_state_heartbeat', 'job', ['state', 'latest_heartbeat'], unique=False)
 
 
-def downgrade():   # noqa: D103
+def downgrade():  # noqa: D103
     op.drop_index('idx_job_state_heartbeat', table_name='job')

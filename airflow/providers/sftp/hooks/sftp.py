@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains SFTP hook.
-"""
+"""This module contains SFTP hook."""
 import datetime
 import stat
 from typing import Dict, List, Optional, Tuple
@@ -53,6 +51,7 @@ class SFTPHook(SSHHook):
 
         self.conn = None
         self.private_key_pass = None
+        self.ciphers = None
 
         # Fail for unverified hosts, unless this is explicitly allowed
         self.no_host_key_check = False
@@ -62,11 +61,12 @@ class SFTPHook(SSHHook):
             if conn.extra is not None:
                 extra_options = conn.extra_dejson
                 if 'private_key_pass' in extra_options:
-                    self.private_key_pass = extra_options.get('private_key_pass', None)
+                    self.private_key_pass = extra_options.get('private_key_pass')
 
                 # For backward compatibility
                 # TODO: remove in Airflow 2.1
                 import warnings
+
                 if 'ignore_hostkey_verification' in extra_options:
                     warnings.warn(
                         'Extra option `ignore_hostkey_verification` is deprecated.'
@@ -75,13 +75,15 @@ class SFTPHook(SSHHook):
                         DeprecationWarning,
                         stacklevel=2,
                     )
-                    self.no_host_key_check = str(
-                        extra_options['ignore_hostkey_verification']
-                    ).lower() == 'true'
+                    self.no_host_key_check = (
+                        str(extra_options['ignore_hostkey_verification']).lower() == 'true'
+                    )
 
                 if 'no_host_key_check' in extra_options:
-                    self.no_host_key_check = str(
-                        extra_options['no_host_key_check']).lower() == 'true'
+                    self.no_host_key_check = str(extra_options['no_host_key_check']).lower() == 'true'
+
+                if 'ciphers' in extra_options:
+                    self.ciphers = extra_options['ciphers']
 
                 if 'private_key' in extra_options:
                     warnings.warn(
@@ -94,19 +96,18 @@ class SFTPHook(SSHHook):
                     self.key_file = extra_options.get('private_key')
 
     def get_conn(self) -> pysftp.Connection:
-        """
-        Returns an SFTP connection object
-        """
+        """Returns an SFTP connection object"""
         if self.conn is None:
             cnopts = pysftp.CnOpts()
             if self.no_host_key_check:
                 cnopts.hostkeys = None
             cnopts.compression = self.compress
+            cnopts.ciphers = self.ciphers
             conn_params = {
                 'host': self.remote_host,
                 'port': self.port,
                 'username': self.username,
-                'cnopts': cnopts
+                'cnopts': cnopts,
             }
             if self.password and self.password.strip():
                 conn_params['password'] = self.password
@@ -119,9 +120,7 @@ class SFTPHook(SSHHook):
         return self.conn
 
     def close_conn(self) -> None:
-        """
-        Closes the connection
-        """
+        """Closes the connection"""
         if self.conn is not None:
             self.conn.close()
             self.conn = None
@@ -138,12 +137,12 @@ class SFTPHook(SSHHook):
         flist = conn.listdir_attr(path)
         files = {}
         for f in flist:
-            modify = datetime.datetime.fromtimestamp(
-                f.st_mtime).strftime('%Y%m%d%H%M%S')
+            modify = datetime.datetime.fromtimestamp(f.st_mtime).strftime('%Y%m%d%H%M%S')
             files[f.filename] = {
                 'size': f.st_size,
                 'type': 'dir' if stat.S_ISDIR(f.st_mode) else 'file',
-                'modify': modify}
+                'modify': modify,
+            }
         return files
 
     def list_directory(self, path: str) -> List[str]:
@@ -278,11 +277,7 @@ class SFTPHook(SSHHook):
         files, dirs, unknowns = [], [], []  # type: List[str], List[str], List[str]
 
         def append_matching_path_callback(list_):
-            return (
-                lambda item: list_.append(item)
-                if self._is_path_match(item, prefix, delimiter)
-                else None
-            )
+            return lambda item: list_.append(item) if self._is_path_match(item, prefix, delimiter) else None
 
         conn.walktree(
             remotepath=path,

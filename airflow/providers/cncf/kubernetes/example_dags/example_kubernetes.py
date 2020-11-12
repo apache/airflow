@@ -22,10 +22,7 @@ This is an example dag for using the KubernetesPodOperator.
 from kubernetes.client import models as k8s
 
 from airflow import DAG
-from airflow.kubernetes.pod import Port
 from airflow.kubernetes.secret import Secret
-from airflow.kubernetes.volume import Volume
-from airflow.kubernetes.volume_mount import VolumeMount
 from airflow.operators.bash import BashOperator
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.utils.dates import days_ago
@@ -34,35 +31,27 @@ from airflow.utils.dates import days_ago
 secret_file = Secret('volume', '/etc/sql_conn', 'airflow-secrets', 'sql_alchemy_conn')
 secret_env = Secret('env', 'SQL_CONN', 'airflow-secrets', 'sql_alchemy_conn')
 secret_all_keys = Secret('env', None, 'airflow-secrets-2')
-volume_mount = VolumeMount('test-volume',
-                           mount_path='/root/mount_file',
-                           sub_path=None,
-                           read_only=True)
-configmaps = ['test-configmap-1', 'test-configmap-2']
-volume_config = {
-    'persistentVolumeClaim': {
-        'claimName': 'test-volume'
-    }
-}
-volume = Volume(name='test-volume', configs=volume_config)
-# [END howto_operator_k8s_cluster_resources]
+volume_mount = k8s.V1VolumeMount(
+    name='test-volume', mount_path='/root/mount_file', sub_path=None, read_only=True
+)
 
-port = Port('http', 80)
+configmaps = [
+    k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name='test-configmap-1')),
+    k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name='test-configmap-2')),
+]
 
-init_container_volume_mounts = [k8s.V1VolumeMount(
-    mount_path='/etc/foo',
+volume = k8s.V1Volume(
     name='test-volume',
-    sub_path=None,
-    read_only=True
-)]
+    persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(claim_name='test-volume'),
+)
 
-init_environments = [k8s.V1EnvVar(
-    name='key1',
-    value='value1'
-), k8s.V1EnvVar(
-    name='key2',
-    value='value2'
-)]
+port = k8s.V1ContainerPort(name='http', container_port=80)
+
+init_container_volume_mounts = [
+    k8s.V1VolumeMount(mount_path='/etc/foo', name='test-volume', sub_path=None, read_only=True)
+]
+
+init_environments = [k8s.V1EnvVar(name='key1', value='value1'), k8s.V1EnvVar(name='key2', value='value2')]
 
 init_container = k8s.V1Container(
     name="init-container",
@@ -70,64 +59,53 @@ init_container = k8s.V1Container(
     env=init_environments,
     volume_mounts=init_container_volume_mounts,
     command=["bash", "-cx"],
-    args=["echo 10"]
+    args=["echo 10"],
 )
 
 affinity = {
     'nodeAffinity': {
-        'preferredDuringSchedulingIgnoredDuringExecution': [{
-            "weight": 1,
-            "preference": {
-                "matchExpressions": {
-                    "key": "disktype",
-                    "operator": "In",
-                    "values": ["ssd"]
-                }
+        'preferredDuringSchedulingIgnoredDuringExecution': [
+            {
+                "weight": 1,
+                "preference": {"matchExpressions": {"key": "disktype", "operator": "In", "values": ["ssd"]}},
             }
-        }]
+        ]
     },
     "podAffinity": {
-        "requiredDuringSchedulingIgnoredDuringExecution": [{
-            "labelSelector": {
-                "matchExpressions": [{
-                    "key": "security",
-                    "operator": "In",
-                    "values": ["S1"]
-                }]
-            },
-            "topologyKey": "failure-domain.beta.kubernetes.io/zone"
-        }]
+        "requiredDuringSchedulingIgnoredDuringExecution": [
+            {
+                "labelSelector": {
+                    "matchExpressions": [{"key": "security", "operator": "In", "values": ["S1"]}]
+                },
+                "topologyKey": "failure-domain.beta.kubernetes.io/zone",
+            }
+        ]
     },
     "podAntiAffinity": {
-        "requiredDuringSchedulingIgnoredDuringExecution": [{
-            "labelSelector": {
-                "matchExpressions": [{
-                    "key": "security",
-                    "operator": "In",
-                    "values": ["S2"]
-                }]
-            },
-            "topologyKey": "kubernetes.io/hostname"
-        }]
-    }
+        "requiredDuringSchedulingIgnoredDuringExecution": [
+            {
+                "labelSelector": {
+                    "matchExpressions": [{"key": "security", "operator": "In", "values": ["S2"]}]
+                },
+                "topologyKey": "kubernetes.io/hostname",
+            }
+        ]
+    },
 }
 
-tolerations = [{
-    'key': "key",
-    'operator': 'Equal',
-    'value': 'value'
-}]
+tolerations = [{'key': "key", 'operator': 'Equal', 'value': 'value'}]
+# [END howto_operator_k8s_cluster_resources]
 
 
 default_args = {
     'owner': 'airflow',
-    'start_date': days_ago(2)
 }
 
 with DAG(
     dag_id='example_kubernetes_operator',
     default_args=default_args,
     schedule_interval=None,
+    start_date=days_ago(2),
     tags=['example'],
 ) as dag:
     k = KubernetesPodOperator(
@@ -140,13 +118,13 @@ with DAG(
         ports=[port],
         volumes=[volume],
         volume_mounts=[volume_mount],
+        env_from=configmaps,
         name="airflow-test-pod",
         task_id="task",
         affinity=affinity,
         is_delete_operator_pod=True,
         hostnetwork=False,
         tolerations=tolerations,
-        configmaps=configmaps,
         init_containers=[init_container],
         priority_class_name="medium",
     )
@@ -155,7 +133,7 @@ with DAG(
     quay_k8s = KubernetesPodOperator(
         namespace='default',
         image='quay.io/apache/bash',
-        image_pull_secrets='testquay',
+        image_pull_secrets=[k8s.V1LocalObjectReference('testquay')],
         cmds=["bash", "-cx"],
         arguments=["echo", "10", "echo pwd"],
         labels={"foo": "bar"},
@@ -163,7 +141,7 @@ with DAG(
         is_delete_operator_pod=True,
         in_cluster=True,
         task_id="task-two",
-        get_logs=True
+        get_logs=True,
     )
     # [END howto_operator_k8s_private_image]
 
@@ -177,7 +155,7 @@ with DAG(
         is_delete_operator_pod=True,
         in_cluster=True,
         task_id="write-xcom",
-        get_logs=True
+        get_logs=True,
     )
 
     pod_task_xcom_result = BashOperator(

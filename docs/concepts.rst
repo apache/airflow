@@ -57,10 +57,12 @@ the ``DAG`` objects. You can have as many DAGs as you want, each describing an
 arbitrary number of tasks. In general, each one should correspond to a single
 logical workflow.
 
-.. note:: When searching for DAGs, Airflow only considers python files
-   that contain the strings "airflow" and "DAG" by default. To consider
-   all python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE``
+.. note:: When searching for DAGs, Airflow only considers Python files
+   that contain the strings "airflow" and "dag" by default (case-insensitive).
+   To consider all Python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE``
    configuration flag.
+
+.. _concepts:scope:
 
 Scope
 -----
@@ -80,7 +82,7 @@ scope.
     my_function()
 
 Sometimes this can be put to good use. For example, a common pattern with
-``SubDagOperator`` is to define the subdag inside a function so that Airflow
+:class:`~airflow.operators.subdag_operator.SubDagOperator` is to define the subdag inside a function so that Airflow
 doesn't try to load it as a standalone DAG.
 
 .. _default-args:
@@ -102,6 +104,8 @@ any of its operators. This makes it easy to apply a common parameter to many ope
     op = DummyOperator(task_id='dummy', dag=dag)
     print(op.owner) # Airflow
 
+.. _concepts:context_manager:
+
 Context Manager
 ---------------
 
@@ -116,17 +120,23 @@ DAGs can be used as context managers to automatically assign new operators to th
 
     op.dag is dag # True
 
-.. _concepts:functional_dags:
+.. _concepts:task_flow_api:
 
-Functional DAGs
----------------
+TaskFlow API
+------------
 
-DAGs can be defined using functional abstractions. Outputs and inputs are sent between tasks using
-:ref:`XCom values <concepts:xcom>`. In addition, you can wrap functions as tasks using the
-:ref:`task decorator <concepts:task_decorator>`. Airflow will also automatically add dependencies between
-tasks to ensure that XCom messages are available when operators are executed.
+.. versionadded:: 2.0.0
 
-Example DAG with functional abstraction
+Airflow 2.0 adds a new style of authoring dags called the TaskFlow API which removes a lot of the boilerplate
+around creating PythonOperators, managing dependencies between task and accessing XCom values. (During
+development this feature was called "Functional DAGs", so if you see or hear any references to that, it's the
+same thing)
+
+Outputs and inputs are sent between tasks using :ref:`XCom values <concepts:xcom>`. In addition, you can wrap
+functions as tasks using the :ref:`task decorator <concepts:task_decorator>`. Airflow will also automatically
+add dependencies between tasks to ensure that XCom messages are available when operators are executed.
+
+Example DAG built with the TaskFlow API
 
 .. code-block:: python
 
@@ -155,6 +165,41 @@ Example DAG with functional abstraction
         subject=email_info['subject'],
         html_content=email_info['body']
     )
+
+DAG decorator
+-------------
+
+.. versionadded:: 2.0.0
+
+In addition to creating DAGs using :ref:`context manager <concepts:context_manager>`, in Airflow 2.0 you can also
+create DAGs from a function. DAG decorator creates a DAG generator function. Any function decorated with ``@dag``
+returns a DAG object.
+
+DAG decorator also sets up the parameters you have in the function as DAG params. This allows you to parameterize
+your DAGs and set the parameters when triggering the DAG manually. See
+:ref:`Passing Parameters when triggering dags <dagrun:parameters>` to learn how to pass parameters when triggering DAGs.
+
+You can also use the parameters on jinja templates by using the ``{{context.params}}`` dictionary.
+
+Example DAG with decorator:
+
+.. exampleinclude:: /../airflow/example_dags/example_dag_decorator.py
+    :language: python
+    :start-after: [START dag_decorator_usage]
+    :end-before: [END dag_decorator_usage]
+
+.. note:: Note that Airflow will only load DAGs that appear in ``globals()`` as noted in :ref:`scope section <concepts:scope>`.
+  This means you need to make sure to have a variable for your returned DAG is in the module scope.
+  Otherwise Airflow won't detect your decorated DAG.
+
+.. _concepts:executor_config:
+
+executor_config
+===============
+
+The executor_config is an argument placed into operators that allow airflow users to override tasks
+before launch. Currently this is primarily used by the :class:`KubernetesExecutor`, but will soon be available
+for other overrides.
 
 .. _concepts:dagruns:
 
@@ -218,9 +263,10 @@ When a DAG Run is created, task_1 will start running and task_2 waits for task_1
 Python task decorator
 ---------------------
 
+.. versionadded:: 2.0.0
+
 Airflow ``task`` decorator converts any Python function to an Airflow operator.
 The decorated function can be called once to set the arguments and key arguments for operator execution.
-
 
 .. code-block:: python
 
@@ -241,10 +287,10 @@ The decorated function can be called once to set the arguments and key arguments
 
       hello_name('Airflow users')
 
-Task decorator captures returned values and sends them to the :ref:`XCom backend <concepts:xcom>`. By default, returned
-value is saved as a single XCom value. You can set ``multiple_outputs`` key argument to ``True`` to unroll dictionaries,
-lists or tuples into seprate XCom values. This can be used with regular operators to create
-:ref:`functional DAGs <concepts:functional_dags>`.
+Task decorator captures returned values and sends them to the :ref:`XCom backend <concepts:xcom>`. By default,
+the returned value is saved as a single XCom value. You can set ``multiple_outputs`` key argument to ``True``
+to unroll dictionaries, lists or tuples into separate XCom values. This can be used with regular operators to
+create :ref:`DAGs with Task Flow API <concepts:task_flow_api>`.
 
 Calling a decorated function returns an ``XComArg`` instance. You can use it to set templated fields on downstream
 operators.
@@ -380,7 +426,7 @@ Airflow provides operators for many common tasks, including:
 
 - :class:`~airflow.operators.bash.BashOperator` - executes a bash command
 - :class:`~airflow.operators.python.PythonOperator` - calls an arbitrary Python function
-- :class:`~airflow.providers.email.operators.email.EmailOperator` - sends an email
+- :class:`~airflow.operators.email.EmailOperator` - sends an email
 - :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` - sends an HTTP request
 - :class:`~airflow.providers.mysql.operators.mysql.MySqlOperator`,
   :class:`~airflow.providers.sqlite.operators.sqlite.SqliteOperator`,
@@ -675,11 +721,6 @@ managed in the UI (``Menu -> Admin -> Connections``).  A ``conn_id`` is defined 
 password / schema information attached to it.  Airflow pipelines retrieve centrally-managed connections
 information by specifying the relevant ``conn_id``.
 
-You may add more than one connection with the same ``conn_id``.  When there is more than one connection
-with the same ``conn_id``, the :py:meth:`~airflow.hooks.base_hook.BaseHook.get_connection` method on
-:py:class:`~airflow.hooks.base_hook.BaseHook` will choose one connection randomly. This can be be used to
-provide basic load balancing and fault tolerance, when used in conjunction with retries.
-
 Airflow also provides a mechanism to store connections outside the database, e.g. in :ref:`environment variables <environment_variables_secrets_backend>`.
 Additional sources may be enabled, e.g. :ref:`AWS SSM Parameter Store <ssm_parameter_store_secrets>`, or you may
 :ref:`roll your own secrets backend <roll_your_own_secrets_backend>`.
@@ -690,27 +731,6 @@ need to supply an explicit connection ID. For example, the default
 ``postgres_default``.
 
 See :doc:`howto/connection/index` for details on creating and managing connections.
-
-Queues
-======
-
-When using the CeleryExecutor, the Celery queues that tasks are sent to
-can be specified. ``queue`` is an attribute of BaseOperator, so any
-task can be assigned to any queue. The default queue for the environment
-is defined in the ``airflow.cfg``'s ``celery -> default_queue``. This defines
-the queue that tasks get assigned to when not specified, as well as which
-queue Airflow workers listen to when started.
-
-Workers can listen to one or multiple queues of tasks. When a worker is
-started (using the command ``airflow celery worker``), a set of comma-delimited
-queue names can be specified (e.g. ``airflow celery worker -q spark``). This worker
-will then only pick up tasks wired to the specified queue(s).
-
-This can be useful if you need specialized workers, either from a
-resource perspective (for say very lightweight tasks where one worker
-could take thousands of tasks without a problem), or from an environment
-perspective (you want a worker running from within the Spark cluster
-itself because it needs a very specific environment and security rights).
 
 .. _concepts:xcom:
 
@@ -767,11 +787,13 @@ for inter-task communication rather than global settings.
 Custom XCom backend
 -------------------
 
-It is possible to change ``XCom`` behaviour os serialization and deserialization of tasks' result.
+It is possible to change ``XCom`` behaviour of serialization and deserialization of tasks' result.
 To do this one have to change ``xcom_backend`` parameter in Airflow config. Provided value should point
-to a class that is subclass of :class:`~airflow.models.xcom.BaseXCom`. To alter the serialaization /
+to a class that is subclass of :class:`~airflow.models.xcom.BaseXCom`. To alter the serialization /
 deserialization mechanism the custom class should override ``serialize_value`` and ``deserialize_value``
 methods.
+
+See :doc:`modules_management` for details on how Python and Airflow manage modules.
 
 .. _concepts:variables:
 
@@ -814,38 +836,7 @@ or if you need to deserialize a json object from the variable :
 
     echo {{ var.json.<variable_name> }}
 
-Storing Variables in Environment Variables
-------------------------------------------
-
-.. versionadded:: 1.10.10
-
-Airflow Variables can also be created and managed using Environment Variables. The environment variable
-naming convention is :envvar:`AIRFLOW_VAR_{VARIABLE_NAME}`, all uppercase.
-So if your variable key is ``FOO`` then the variable name should be ``AIRFLOW_VAR_FOO``.
-
-For example,
-
-.. code-block:: bash
-
-    export AIRFLOW_VAR_FOO=BAR
-
-    # To use JSON, store them as JSON strings
-    export AIRFLOW_VAR_FOO_BAZ='{"hello":"world"}'
-
-You can use them in your DAGs as:
-
-.. code-block:: python
-
-    from airflow.models import Variable
-    foo = Variable.get("foo")
-    foo_json = Variable.get("foo_baz", deserialize_json=True)
-
-.. note::
-
-    Single underscores surround ``VAR``.  This is in contrast with the way ``airflow.cfg``
-    parameters are stored, where double underscores surround the config section name.
-    Variables set using Environment Variables would not appear in the Airflow UI but you will
-    be able to use it in your DAG file.
+See :doc:`howto/variable` for details on managing variables.
 
 Branching
 =========
@@ -955,7 +946,7 @@ This SubDAG can then be referenced in your main DAG file:
     :start-after: [START example_subdag_operator]
     :end-before: [END example_subdag_operator]
 
-You can zoom into a SubDagOperator from the graph view of the main DAG to show
+You can zoom into a :class:`~airflow.operators.subdag_operator.SubDagOperator` from the graph view of the main DAG to show
 the tasks contained within the SubDAG:
 
 .. image:: img/subdag_zoom.png
@@ -969,8 +960,8 @@ Some other tips when using SubDAGs:
 -  SubDAGs must have a schedule and be enabled. If the SubDAG's schedule is
    set to ``None`` or ``@once``, the SubDAG will succeed without having done
    anything
--  clearing a SubDagOperator also clears the state of the tasks within
--  marking success on a SubDagOperator does not affect the state of the tasks
+-  clearing a :class:`~airflow.operators.subdag_operator.SubDagOperator` also clears the state of the tasks within
+-  marking success on a :class:`~airflow.operators.subdag_operator.SubDagOperator` does not affect the state of the tasks
    within
 -  refrain from using ``depends_on_past=True`` in tasks within the SubDAG as
    this can be confusing
@@ -982,8 +973,50 @@ Some other tips when using SubDAGs:
 
 See ``airflow/example_dags`` for a demonstration.
 
-Note that airflow pool is not honored by SubDagOperator. Hence resources could be
-consumed by SubdagOperators.
+Note that airflow pool is not honored by :class:`~airflow.operators.subdag_operator.SubDagOperator`. Hence
+resources could be consumed by SubdagOperators.
+
+
+TaskGroup
+=========
+TaskGroup can be used to organize tasks into hierarchical groups in Graph View. It is
+useful for creating repeating patterns and cutting down visual clutter. Unlike
+:class:`~airflow.operators.subdag_operator.SubDagOperator`, TaskGroup is a UI grouping concept.
+Tasks in TaskGroups live on the same original DAG. They honor all the pool configurations.
+
+Dependency relationships can be applied across all tasks in a TaskGroup with the ``>>`` and ``<<``
+operators. For example, the following code puts ``task1`` and ``task2`` in TaskGroup ``group1``
+and then puts both tasks upstream of ``task3``:
+
+.. code-block:: python
+
+    with TaskGroup("group1") as group1:
+        task1 = DummyOperator(task_id="task1")
+        task2 = DummyOperator(task_id="task2")
+
+    task3 = DummyOperator(task_id="task3")
+
+    group1 >> task3
+
+.. note::
+   By default, child tasks and TaskGroups have their task_id and group_id prefixed with the
+   group_id of their parent TaskGroup. This ensures uniqueness of group_id and task_id throughout
+   the DAG. To disable the prefixing, pass ``prefix_group_id=False`` when creating the TaskGroup.
+   This then gives the user full control over the actual group_id and task_id. They have to ensure
+   group_id and task_id are unique throughout the DAG. The option ``prefix_group_id=False`` is
+   mainly useful for putting tasks on existing DAGs into TaskGroup without altering their task_id.
+
+Here is a more complicated example DAG with multiple levels of nested TaskGroups:
+
+.. exampleinclude:: /../airflow/example_dags/example_task_group.py
+    :language: python
+    :start-after: [START howto_task_group]
+    :end-before: [END howto_task_group]
+
+This animated gif shows the UI interactions. TaskGroups are expanded or collapsed when clicked:
+
+.. image:: img/task_group.gif
+
 
 SLAs
 ====
@@ -1161,7 +1194,11 @@ state.
 
 Cluster Policy
 ==============
+Cluster policies provide an interface for taking action on every Airflow task
+either at DAG load time or just before task execution.
 
+Cluster Policies for Task Mutation
+-----------------------------------
 In case you want to apply cluster-wide mutations to the Airflow tasks,
 you can either mutate the task right after the DAG is loaded or
 mutate the task instance before task execution.
@@ -1184,7 +1221,7 @@ may look like inside your ``airflow_local_settings.py``:
 .. code-block:: python
 
     def policy(task):
-        if task.__class__.__name__ == 'HivePartitionSensor':
+        if task.task_type == 'HivePartitionSensor':
             task.queue = "sensor_queue"
         if task.timeout > timedelta(hours=48):
             task.timeout = timedelta(hours=48)
@@ -1212,11 +1249,45 @@ queue during retries:
             ti.queue = 'retry_queue'
 
 
+Cluster Policies for Custom Task Checks
+-------------------------------------------
+You may also use Cluster Policies to apply cluster-wide checks on Airflow
+tasks. You can raise :class:`~airflow.exceptions.AirflowClusterPolicyViolation`
+in a policy or task mutation hook (described below) to prevent a DAG from being
+imported or prevent a task from being executed if the task is not compliant with
+your check.
+
+These checks are intended to help teams using Airflow to protect against common
+beginner errors that may get past a code reviewer, rather than as technical
+security controls.
+
+For example, don't run tasks without airflow owners:
+
+.. literalinclude:: /../tests/cluster_policies/__init__.py
+      :language: python
+      :start-after: [START example_cluster_policy_rule]
+      :end-before: [END example_cluster_policy_rule]
+
+If you have multiple checks to apply, it is best practice to curate these rules
+in a separate python module and have a single policy / task mutation hook that
+performs multiple of these custom checks and aggregates the various error
+messages so that a single ``AirflowClusterPolicyViolation`` can be reported in
+the UI (and import errors table in the database).
+
+For Example in ``airflow_local_settings.py``:
+
+.. literalinclude:: /../tests/cluster_policies/__init__.py
+      :language: python
+      :start-after: [START example_list_of_cluster_policy_rules]
+      :end-before: [END example_list_of_cluster_policy_rules]
+
 Where to put ``airflow_local_settings.py``?
 -------------------------------------------
 
 Add a ``airflow_local_settings.py`` file to your ``$PYTHONPATH``
 or to ``$AIRFLOW_HOME/config`` folder.
+
+See :doc:`modules_management` for details on how Python and Airflow manage modules.
 
 
 Documentation & Notes
@@ -1367,8 +1438,8 @@ Exceptions
 ==========
 
 Airflow defines a number of exceptions; most of these are used internally, but a few
-are relevant to authors of custom operators or python callables called from ``PythonOperator``
-tasks. Normally any exception raised from an ``execute`` method or python callable will either
+are relevant to authors of custom operators or Python callables called from ``PythonOperator``
+tasks. Normally any exception raised from an ``execute`` method or Python callable will either
 cause a task instance to fail if it is not configured to retry or has reached its limit on
 retry attempts, or to be marked as "up for retry". A few exceptions can be used when different
 behavior is desired:
@@ -1453,7 +1524,7 @@ do the same, but then it is more suitable to use a virtualenv and pip.
 
 .. note:: packaged dags cannot contain dynamic libraries (eg. libz.so) these need
    to be available on the system if a module needs those. In other words only
-   pure python modules can be packaged.
+   pure Python modules can be packaged.
 
 
 .airflowignore
@@ -1463,7 +1534,7 @@ A ``.airflowignore`` file specifies the directories or files in ``DAG_FOLDER``
 or ``PLUGINS_FOLDER`` that Airflow should intentionally ignore.
 Each line in ``.airflowignore`` specifies a regular expression pattern,
 and directories or files whose names (not DAG id) match any of the patterns
-would be ignored (under the hood,``re.findall()`` is used to match the pattern).
+would be ignored (under the hood,``Pattern.search()`` is used to match the pattern).
 Overall it works like a ``.gitignore`` file.
 Use the ``#`` character to indicate a comment; all characters
 on a line following a ``#`` will be ignored.

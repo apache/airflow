@@ -31,15 +31,20 @@ class TestPluginsRBAC(unittest.TestCase):
 
     def test_flaskappbuilder_views(self):
         from tests.plugins.test_plugin import v_appbuilder_package
+
         appbuilder_class_name = str(v_appbuilder_package['view'].__class__.__name__)
-        plugin_views = [view for view in self.appbuilder.baseviews
-                        if view.blueprint.name == appbuilder_class_name]
+        plugin_views = [
+            view for view in self.appbuilder.baseviews if view.blueprint.name == appbuilder_class_name
+        ]
 
         self.assertTrue(len(plugin_views) == 1)
 
         # view should have a menu item matching category of v_appbuilder_package
-        links = [menu_item for menu_item in self.appbuilder.menu.menu
-                 if menu_item.name == v_appbuilder_package['category']]
+        links = [
+            menu_item
+            for menu_item in self.appbuilder.menu.menu
+            if menu_item.name == v_appbuilder_package['category']
+        ]
 
         self.assertTrue(len(links) == 1)
 
@@ -52,8 +57,11 @@ class TestPluginsRBAC(unittest.TestCase):
         from tests.plugins.test_plugin import appbuilder_mitem
 
         # menu item should exist matching appbuilder_mitem
-        links = [menu_item for menu_item in self.appbuilder.menu.menu
-                 if menu_item.name == appbuilder_mitem['category']]
+        links = [
+            menu_item
+            for menu_item in self.appbuilder.menu.menu
+            if menu_item.name == appbuilder_mitem['category']
+        ]
 
         self.assertTrue(len(links) == 1)
 
@@ -100,26 +108,19 @@ class TestPluginsManager(unittest.TestCase):
             name = "test_property_plugin"
 
             @property
-            def operators(self):
-                from airflow.models.baseoperator import BaseOperator
-
-                class PluginPropertyOperator(BaseOperator):
+            def hooks(self):
+                class TestPropertyHook(BaseHook):
                     pass
 
-                return [PluginPropertyOperator]
-
-            class TestNonPropertyHook(BaseHook):
-                pass
-
-            hooks = [TestNonPropertyHook]
+                return [TestPropertyHook]
 
         with mock_plugin_manager(plugins=[AirflowTestPropertyPlugin()]):
             from airflow import plugins_manager
-            plugins_manager.integrate_dag_plugins()
+
+            plugins_manager.ensure_plugins_loaded()
 
             self.assertIn('AirflowTestPropertyPlugin', str(plugins_manager.plugins))
-            self.assertIn('PluginPropertyOperator', str(plugins_manager.operators_modules[0].__dict__))
-            self.assertIn("TestNonPropertyHook", str(plugins_manager.hooks_modules[0].__dict__))
+            self.assertIn("TestPropertyHook", str(plugins_manager.registered_hooks))
 
     def test_should_warning_about_incompatible_plugins(self):
         class AirflowAdminViewsPlugin(AirflowPlugin):
@@ -132,24 +133,24 @@ class TestPluginsManager(unittest.TestCase):
 
             menu_links = [mock.MagicMock()]
 
-        with mock_plugin_manager(plugins=[
-            AirflowAdminViewsPlugin(),
-            AirflowAdminMenuLinksPlugin()
-        ]):
+        with mock_plugin_manager(plugins=[AirflowAdminViewsPlugin(), AirflowAdminMenuLinksPlugin()]):
             from airflow import plugins_manager
 
             # assert not logs
             with self.assertLogs(plugins_manager.log) as cm:
                 plugins_manager.initialize_web_ui_plugins()
 
-        self.assertEqual(cm.output, [
-            'WARNING:airflow.plugins_manager:Plugin \'test_admin_views_plugin\' may not be '
-            'compatible with the current Airflow version. Please contact the author of '
-            'the plugin.',
-            'WARNING:airflow.plugins_manager:Plugin \'test_menu_links_plugin\' may not be '
-            'compatible with the current Airflow version. Please contact the author of '
-            'the plugin.'
-        ])
+        self.assertEqual(
+            cm.output,
+            [
+                'WARNING:airflow.plugins_manager:Plugin \'test_admin_views_plugin\' may not be '
+                'compatible with the current Airflow version. Please contact the author of '
+                'the plugin.',
+                'WARNING:airflow.plugins_manager:Plugin \'test_menu_links_plugin\' may not be '
+                'compatible with the current Airflow version. Please contact the author of '
+                'the plugin.',
+            ],
+        )
 
     def test_should_not_warning_about_fab_plugins(self):
         class AirflowAdminViewsPlugin(AirflowPlugin):
@@ -162,10 +163,7 @@ class TestPluginsManager(unittest.TestCase):
 
             appbuilder_menu_items = [mock.MagicMock()]
 
-        with mock_plugin_manager(plugins=[
-            AirflowAdminViewsPlugin(),
-            AirflowAdminMenuLinksPlugin()
-        ]):
+        with mock_plugin_manager(plugins=[AirflowAdminViewsPlugin(), AirflowAdminMenuLinksPlugin()]):
             from airflow import plugins_manager
 
             # assert not logs
@@ -185,12 +183,38 @@ class TestPluginsManager(unittest.TestCase):
             menu_links = [mock.MagicMock()]
             appbuilder_menu_items = [mock.MagicMock()]
 
-        with mock_plugin_manager(plugins=[
-            AirflowAdminViewsPlugin(),
-            AirflowAdminMenuLinksPlugin()
-        ]):
+        with mock_plugin_manager(plugins=[AirflowAdminViewsPlugin(), AirflowAdminMenuLinksPlugin()]):
             from airflow import plugins_manager
 
             # assert not logs
             with self.assertRaises(AssertionError), self.assertLogs(plugins_manager.log):
                 plugins_manager.initialize_web_ui_plugins()
+
+
+class TestPluginsDirectorySource(unittest.TestCase):
+    def test_should_return_correct_path_name(self):
+        from airflow import plugins_manager
+
+        source = plugins_manager.PluginsDirectorySource(__file__)
+        self.assertEqual("test_plugins_manager.py", source.path)
+        self.assertEqual("$PLUGINS_FOLDER/test_plugins_manager.py", str(source))
+        self.assertEqual("<em>$PLUGINS_FOLDER/</em>test_plugins_manager.py", source.__html__())
+
+
+class TestEntryPointSource(unittest.TestCase):
+    @mock.patch('airflow.plugins_manager.pkg_resources.iter_entry_points')
+    def test_should_return_correct_source_details(self, mock_ep_plugins):
+        from airflow import plugins_manager
+
+        mock_entrypoint = mock.Mock()
+        mock_entrypoint.name = 'test-entrypoint-plugin'
+        mock_entrypoint.module_name = 'module_name_plugin'
+        mock_entrypoint.dist = 'test-entrypoint-plugin==1.0.0'
+        mock_ep_plugins.return_value = [mock_entrypoint]
+
+        plugins_manager.load_entrypoint_plugins()
+
+        source = plugins_manager.EntryPointSource(mock_entrypoint)
+        self.assertEqual(str(mock_entrypoint), source.entrypoint)
+        self.assertEqual("test-entrypoint-plugin==1.0.0: " + str(mock_entrypoint), str(source))
+        self.assertEqual("<em>test-entrypoint-plugin==1.0.0:</em> " + str(mock_entrypoint), source.__html__())

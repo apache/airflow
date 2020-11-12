@@ -23,7 +23,9 @@ import os
 
 from airflow import models
 from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryDeleteDatasetOperator,
+    BigQueryCreateEmptyDatasetOperator,
+    BigQueryCreateEmptyTableOperator,
+    BigQueryDeleteDatasetOperator,
 )
 from airflow.providers.google.cloud.transfers.bigquery_to_bigquery import BigQueryToBigQueryOperator
 from airflow.utils.dates import days_ago
@@ -33,12 +35,10 @@ DATASET_NAME = os.environ.get("GCP_BIGQUERY_DATASET_NAME", "test_dataset_transfe
 ORIGIN = "origin"
 TARGET = "target"
 
-default_args = {"start_date": days_ago(1)}
-
 with models.DAG(
     "example_bigquery_to_bigquery",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=["example"],
 ) as dag:
     copy_selected_data = BigQueryToBigQueryOperator(
@@ -47,9 +47,7 @@ with models.DAG(
         destination_project_dataset_table=f"{DATASET_NAME}.{TARGET}",
     )
 
-    create_dataset = BigQueryCreateEmptyDatasetOperator(
-        task_id="create_dataset", dataset_id=DATASET_NAME
-    )
+    create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET_NAME)
 
     for table in [ORIGIN, TARGET]:
         create_table = BigQueryCreateEmptyTableOperator(

@@ -26,14 +26,14 @@ from airflow.utils.dates import days_ago
 
 args = {
     'owner': 'airflow',
-    'start_date': days_ago(2),
 }
 
 dag = DAG(
     dag_id='example_python_operator',
     default_args=args,
     schedule_interval=None,
-    tags=['example']
+    start_date=days_ago(2),
+    tags=['example'],
 )
 
 
@@ -72,6 +72,7 @@ for i in range(5):
 # [END howto_operator_python_kwargs]
 
 
+# [START howto_operator_python_venv]
 def callable_virtualenv():
     """
     Example function that will be performed in a virtual environment.
@@ -82,6 +83,7 @@ def callable_virtualenv():
     from time import sleep
 
     from colorama import Back, Fore, Style
+
     print(Fore.RED + 'some red text')
     print(Back.GREEN + 'and with a green background')
     print(Style.DIM + 'and in dim text')
@@ -95,9 +97,8 @@ def callable_virtualenv():
 virtualenv_task = PythonVirtualenvOperator(
     task_id="virtualenv_python",
     python_callable=callable_virtualenv,
-    requirements=[
-        "colorama==0.4.0"
-    ],
+    requirements=["colorama==0.4.0"],
     system_site_packages=False,
     dag=dag,
 )
+# [END howto_operator_python_venv]

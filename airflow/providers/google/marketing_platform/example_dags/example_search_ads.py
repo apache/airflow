@@ -22,7 +22,8 @@ import os
 
 from airflow import models
 from airflow.providers.google.marketing_platform.operators.search_ads import (
-    GoogleSearchAdsDownloadReportOperator, GoogleSearchAdsInsertReportOperator,
+    GoogleSearchAdsDownloadReportOperator,
+    GoogleSearchAdsInsertReportOperator,
 )
 from airflow.providers.google.marketing_platform.sensors.search_ads import GoogleSearchAdsReportSensor
 from airflow.utils import dates
@@ -43,17 +44,13 @@ REPORT = {
 }
 # [END howto_search_ads_env_variables]
 
-default_args = {"start_date": dates.days_ago(1)}
-
 with models.DAG(
     "example_search_ads",
-    default_args=default_args,
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval=None,  # Override to match your needs,
+    start_date=dates.days_ago(1),
 ) as dag:
     # [START howto_search_ads_generate_report_operator]
-    generate_report = GoogleSearchAdsInsertReportOperator(
-        report=REPORT, task_id="generate_report"
-    )
+    generate_report = GoogleSearchAdsInsertReportOperator(report=REPORT, task_id="generate_report")
     # [END howto_search_ads_generate_report_operator]
 
     # [START howto_search_ads_get_report_id]
@@ -61,9 +58,7 @@ with models.DAG(
     # [END howto_search_ads_get_report_id]
 
     # [START howto_search_ads_get_report_operator]
-    wait_for_report = GoogleSearchAdsReportSensor(
-        report_id=report_id, task_id="wait_for_report"
-    )
+    wait_for_report = GoogleSearchAdsReportSensor(report_id=report_id, task_id="wait_for_report")
     # [END howto_search_ads_get_report_operator]
 
     # [START howto_search_ads_getfile_report_operator]

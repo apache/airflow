@@ -15,34 +15,50 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Airflow module for emailer using sendgrid
-"""
+"""Airflow module for emailer using sendgrid"""
 
 import base64
 import logging
 import mimetypes
 import os
+from typing import Dict, Iterable, Optional, Union
 
 import sendgrid
 from sendgrid.helpers.mail import (
-    Attachment, Category, Content, CustomArg, Email, Mail, MailSettings, Personalization, SandBoxMode,
+    Attachment,
+    Category,
+    Content,
+    CustomArg,
+    Email,
+    Mail,
+    MailSettings,
+    Personalization,
+    SandBoxMode,
 )
 
 from airflow.utils.email import get_email_address_list
 
 log = logging.getLogger(__name__)
 
+AddressesType = Union[str, Iterable[str]]
 
-def send_email(to, subject, html_content, files=None, cc=None,
-               bcc=None, sandbox_mode=False, **kwargs):
+
+def send_email(
+    to: AddressesType,
+    subject: str,
+    html_content: str,
+    files: Optional[AddressesType] = None,
+    cc: Optional[AddressesType] = None,
+    bcc: Optional[AddressesType] = None,
+    sandbox_mode: bool = False,
+    **kwargs,
+) -> None:
     """
     Send an email with html content using `Sendgrid <https://sendgrid.com/>`__.
 
     .. note::
         For more information, see :ref:`email-configuration-sendgrid`
     """
-
     if files is None:
         files = []
 
@@ -71,7 +87,7 @@ def send_email(to, subject, html_content, files=None, cc=None,
             personalization.add_bcc(Email(bcc_address))
 
     # Add custom_args to personalization if present
-    pers_custom_args = kwargs.get('personalization_custom_args', None)
+    pers_custom_args = kwargs.get('personalization_custom_args')
     if isinstance(pers_custom_args, dict):
         for key in pers_custom_args.keys():
             personalization.add_custom_arg(CustomArg(key, pers_custom_args[key]))
@@ -95,20 +111,26 @@ def send_email(to, subject, html_content, files=None, cc=None,
             file_type=mimetypes.guess_type(basename)[0],
             file_name=basename,
             disposition="attachment",
-            content_id=f"<{basename}>"
+            content_id=f"<{basename}>",
         )
 
         mail.add_attachment(attachment)
     _post_sendgrid_mail(mail.get())
 
 
-def _post_sendgrid_mail(mail_data):
+def _post_sendgrid_mail(mail_data: Dict) -> None:
     sendgrid_client = sendgrid.SendGridAPIClient(api_key=os.environ.get('SENDGRID_API_KEY'))
     response = sendgrid_client.client.mail.send.post(request_body=mail_data)
     # 2xx status code.
     if 200 <= response.status_code < 300:
-        log.info('Email with subject %s is successfully sent to recipients: %s',
-                 mail_data['subject'], mail_data['personalizations'])
+        log.info(
+            'Email with subject %s is successfully sent to recipients: %s',
+            mail_data['subject'],
+            mail_data['personalizations'],
+        )
     else:
-        log.error('Failed to send out email with subject %s, status code: %s',
-                  mail_data['subject'], response.status_code)
+        log.error(
+            'Failed to send out email with subject %s, status code: %s',
+            mail_data['subject'],
+            response.status_code,
+        )

@@ -15,12 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Cloud Storage to SFTP operator.
-"""
+"""This module contains Google Cloud Storage to SFTP operator."""
 import os
 from tempfile import NamedTemporaryFile
-from typing import Optional
+from typing import Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -56,24 +54,39 @@ class GCSToSFTPOperator(BaseOperator):
         of copied to the new location. This is the equivalent of a mv command
         as opposed to a cp command.
     :type move_object: bool
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param sftp_conn_id: The sftp connection id. The name or identifier for
         establishing a connection to the SFTP server.
     :type sftp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("source_bucket", "source_object", "destination_path")
+    template_fields = (
+        "source_bucket",
+        "source_object",
+        "destination_path",
+        "impersonation_chain",
+    )
     ui_color = "#f0eee4"
 
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
         self,
+        *,
         source_bucket: str,
         source_object: str,
         destination_path: str,
@@ -81,10 +94,10 @@ class GCSToSFTPOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         sftp_conn_id: str = "ssh_default",
         delegate_to: Optional[str] = None,
-        *args,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.source_bucket = source_bucket
         self.source_object = source_object
@@ -93,11 +106,14 @@ class GCSToSFTPOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.sftp_conn_id = sftp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
         self.sftp_dirs = None
 
     def execute(self, context):
         gcs_hook = GCSHook(
-            gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
         )
 
         sftp_hook = SFTPHook(self.sftp_conn_id)
@@ -111,27 +127,17 @@ class GCSToSFTPOperator(BaseOperator):
                 )
 
             prefix, delimiter = self.source_object.split(WILDCARD, 1)
-            objects = gcs_hook.list(
-                self.source_bucket, prefix=prefix, delimiter=delimiter
-            )
+            objects = gcs_hook.list(self.source_bucket, prefix=prefix, delimiter=delimiter)
 
             for source_object in objects:
                 destination_path = os.path.join(self.destination_path, source_object)
-                self._copy_single_object(
-                    gcs_hook, sftp_hook, source_object, destination_path
-                )
+                self._copy_single_object(gcs_hook, sftp_hook, source_object, destination_path)
 
-            self.log.info(
-                "Done. Uploaded '%d' files to %s", len(objects), self.destination_path
-            )
+            self.log.info("Done. Uploaded '%d' files to %s", len(objects), self.destination_path)
         else:
             destination_path = os.path.join(self.destination_path, self.source_object)
-            self._copy_single_object(
-                gcs_hook, sftp_hook, self.source_object, destination_path
-            )
-            self.log.info(
-                "Done. Uploaded '%s' file to %s", self.source_object, destination_path
-            )
+            self._copy_single_object(gcs_hook, sftp_hook, self.source_object, destination_path)
+            self.log.info("Done. Uploaded '%s' file to %s", self.source_object, destination_path)
 
     def _copy_single_object(
         self,
@@ -140,9 +146,7 @@ class GCSToSFTPOperator(BaseOperator):
         source_object: str,
         destination_path: str,
     ) -> None:
-        """
-        Helper function to copy single object.
-        """
+        """Helper function to copy single object."""
         self.log.info(
             "Executing copy of gs://%s/%s to %s",
             self.source_bucket,
@@ -162,7 +166,5 @@ class GCSToSFTPOperator(BaseOperator):
             sftp_hook.store_file(destination_path, tmp.name)
 
         if self.move_object:
-            self.log.info(
-                "Executing delete of gs://%s/%s", self.source_bucket, source_object
-            )
+            self.log.info("Executing delete of gs://%s/%s", self.source_bucket, source_object)
             gcs_hook.delete(self.source_bucket, source_object)

@@ -47,8 +47,8 @@ Let's implement an example ``HelloOperator`` in a new file ``hello_operator.py``
             def __init__(
                     self,
                     name: str,
-                    *args, **kwargs) -> None:
-                super().__init__(*args, **kwargs)
+                    **kwargs) -> None:
+                super().__init__(**kwargs)
                 self.name = name
 
             def execute(self, context):
@@ -61,7 +61,8 @@ Let's implement an example ``HelloOperator`` in a new file ``hello_operator.py``
     For imports to work, you should place the file in a directory that
     is present in the :envvar:`PYTHONPATH` env. Airflow adds ``dags/``, ``plugins/``, and ``config/`` directories
     in the Airflow home to :envvar:`PYTHONPATH` by default. e.g., In our example,
-    the file is placed in the ``custom_operator`` directory.
+    the file is placed in the ``custom_operator/`` directory.
+    See :doc:`../modules_management` for details on how Python and Airflow manage modules.
 
 You can now use the derived custom operator as follows:
 
@@ -104,8 +105,8 @@ Let's extend our previous example to fetch name from MySQL:
                     name: str,
                     mysql_conn_id: str,
                     database: str,
-                    *args, **kwargs) -> None:
-                super().__init__(*args, **kwargs)
+                    **kwargs) -> None:
+                super().__init__(**kwargs)
                 self.name = name
                 self.mysql_conn_id = mysql_conn_id
                 self.database = database
@@ -157,8 +158,8 @@ the operator.
             def __init__(
                     self,
                     name: str,
-                    *args, **kwargs) -> None:
-                super().__init__(*args, **kwargs)
+                    **kwargs) -> None:
+                super().__init__(**kwargs)
                 self.name = name
 
             def execute(self, context):
@@ -193,12 +194,41 @@ with actual value. Note that Jinja substitutes the operator attributes and not t
             def __init__(
                     self,
                     name: str,
-                    *args, **kwargs) -> None:
-                super().__init__(*args, **kwargs)
+                    **kwargs) -> None:
+                super().__init__(**kwargs)
                 self.guest_name = name
 
 In the example, the ``template_fields`` should be ``['guest_name']`` and not  ``['name']``
 
+Additionally you may provide ``template_fields_renderers`` dictionary which defines in what style the value
+from template field renders in Web UI. For example:
+
+.. code-block:: python
+
+        class MyRequestOperator(BaseOperator):
+            template_fields = ['request_body']
+            template_fields_renderers = {'request_body': 'json'}
+
+            @apply_defaults
+            def __init__(
+                    self,
+                    request_body: str,
+                    **kwargs) -> None:
+                super().__init__(**kwargs)
+                self.request_body = request_body
+
+Currently available lexers:
+
+  - bash
+  - doc
+  - json
+  - md
+  - py
+  - rst
+  - sql
+  - yaml
+
+If you use a non existing lexer then the value of the template field will be rendered as a pretty printed object.
 
 Define an operator extra link
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

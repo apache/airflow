@@ -23,7 +23,9 @@ import os
 
 from airflow import models
 from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryDeleteDatasetOperator,
+    BigQueryCreateEmptyDatasetOperator,
+    BigQueryCreateEmptyTableOperator,
+    BigQueryDeleteDatasetOperator,
 )
 from airflow.providers.google.cloud.transfers.bigquery_to_bigquery import BigQueryToBigQueryOperator
 from airflow.providers.google.cloud.transfers.bigquery_to_gcs import BigQueryToGCSOperator
@@ -31,18 +33,14 @@ from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 DATASET_NAME = os.environ.get("GCP_BIGQUERY_DATASET_NAME", "test_dataset_transfer")
-DATA_EXPORT_BUCKET_NAME = os.environ.get(
-    "GCP_BIGQUERY_EXPORT_BUCKET_NAME", "test-bigquery-sample-data"
-)
+DATA_EXPORT_BUCKET_NAME = os.environ.get("GCP_BIGQUERY_EXPORT_BUCKET_NAME", "test-bigquery-sample-data")
 ORIGIN = "origin"
 TARGET = "target"
 
-default_args = {"start_date": days_ago(1)}
-
 with models.DAG(
     "example_bigquery_transfer",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=["example"],
 ) as dag:
     copy_selected_data = BigQueryToBigQueryOperator(
@@ -54,14 +52,10 @@ with models.DAG(
     bigquery_to_gcs = BigQueryToGCSOperator(
         task_id="bigquery_to_gcs",
         source_project_dataset_table=f"{DATASET_NAME}.{ORIGIN}",
-        destination_cloud_storage_uris=[
-            f"gs://{DATA_EXPORT_BUCKET_NAME}/export-bigquery.csv"
-        ],
+        destination_cloud_storage_uris=[f"gs://{DATA_EXPORT_BUCKET_NAME}/export-bigquery.csv"],
     )
 
-    create_dataset = BigQueryCreateEmptyDatasetOperator(
-        task_id="create_dataset", dataset_id=DATASET_NAME
-    )
+    create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET_NAME)
 
     for table in [ORIGIN, TARGET]:
         create_table = BigQueryCreateEmptyTableOperator(

@@ -17,9 +17,9 @@
 # under the License.
 
 import unittest
+from unittest.mock import patch
 
 import pytest
-from mock import patch
 
 from airflow.providers.google.cloud.transfers.postgres_to_gcs import PostgresToGCSOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
@@ -35,11 +35,13 @@ FILENAME = 'test_{}.ndjson'
 NDJSON_LINES = [
     b'{"some_num": 42, "some_str": "mock_row_content_1"}\n',
     b'{"some_num": 43, "some_str": "mock_row_content_2"}\n',
-    b'{"some_num": 44, "some_str": "mock_row_content_3"}\n'
+    b'{"some_num": 44, "some_str": "mock_row_content_3"}\n',
 ]
 SCHEMA_FILENAME = 'schema_test.json'
-SCHEMA_JSON = b'[{"mode": "NULLABLE", "name": "some_str", "type": "STRING"}, ' \
-              b'{"mode": "NULLABLE", "name": "some_num", "type": "INTEGER"}]'
+SCHEMA_JSON = (
+    b'[{"mode": "NULLABLE", "name": "some_str", "type": "STRING"}, '
+    b'{"mode": "NULLABLE", "name": "some_num", "type": "INTEGER"}]'
+)
 
 
 @pytest.mark.backend("postgres")
@@ -50,21 +52,17 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
         with postgres.get_conn() as conn:
             with conn.cursor() as cur:
                 for table in TABLES:
-                    cur.execute("DROP TABLE IF EXISTS {} CASCADE;".format(table))
-                    cur.execute("CREATE TABLE {}(some_str varchar, some_num integer);"
-                                .format(table))
+                    cur.execute(f"DROP TABLE IF EXISTS {table} CASCADE;")
+                    cur.execute(f"CREATE TABLE {table}(some_str varchar, some_num integer);")
 
                 cur.execute(
-                    "INSERT INTO postgres_to_gcs_operator VALUES(%s, %s);",
-                    ('mock_row_content_1', 42)
+                    "INSERT INTO postgres_to_gcs_operator VALUES(%s, %s);", ('mock_row_content_1', 42)
                 )
                 cur.execute(
-                    "INSERT INTO postgres_to_gcs_operator VALUES(%s, %s);",
-                    ('mock_row_content_2', 43)
+                    "INSERT INTO postgres_to_gcs_operator VALUES(%s, %s);", ('mock_row_content_2', 43)
                 )
                 cur.execute(
-                    "INSERT INTO postgres_to_gcs_operator VALUES(%s, %s);",
-                    ('mock_row_content_3', 44)
+                    "INSERT INTO postgres_to_gcs_operator VALUES(%s, %s);", ('mock_row_content_3', 44)
                 )
 
     @classmethod
@@ -73,39 +71,49 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
         with postgres.get_conn() as conn:
             with conn.cursor() as cur:
                 for table in TABLES:
-                    cur.execute("DROP TABLE IF EXISTS {} CASCADE;".format(table))
+                    cur.execute(f"DROP TABLE IF EXISTS {table} CASCADE;")
 
     def test_init(self):
         """Test PostgresToGoogleCloudStorageOperator instance is properly initialized."""
-        op = PostgresToGCSOperator(
-            task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=FILENAME)
+        op = PostgresToGCSOperator(task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=FILENAME)
         self.assertEqual(op.task_id, TASK_ID)
         self.assertEqual(op.sql, SQL)
         self.assertEqual(op.bucket, BUCKET)
         self.assertEqual(op.filename, FILENAME)
 
+    def _assert_uploaded_file_content(self, bucket, obj, tmp_filename, mime_type, gzip):
+        self.assertEqual(BUCKET, bucket)
+        self.assertEqual(FILENAME.format(0), obj)
+        self.assertEqual('application/json', mime_type)
+        self.assertFalse(gzip)
+        with open(tmp_filename, 'rb') as file:
+            self.assertEqual(b''.join(NDJSON_LINES), file.read())
+
     @patch('airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook')
     def test_exec_success(self, gcs_hook_mock_class):
         """Test the execute function in case where the run is successful."""
+        op = PostgresToGCSOperator(
+            task_id=TASK_ID, postgres_conn_id=POSTGRES_CONN_ID, sql=SQL, bucket=BUCKET, filename=FILENAME
+        )
+
+        gcs_hook_mock = gcs_hook_mock_class.return_value
+        gcs_hook_mock.upload.side_effect = self._assert_uploaded_file_content
+        op.execute(None)
+
+    @patch('airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook')
+    def test_exec_success_server_side_cursor(self, gcs_hook_mock_class):
+        """Test the execute in case where the run is successful while using server side cursor."""
         op = PostgresToGCSOperator(
             task_id=TASK_ID,
             postgres_conn_id=POSTGRES_CONN_ID,
             sql=SQL,
             bucket=BUCKET,
-            filename=FILENAME)
-
+            filename=FILENAME,
+            use_server_side_cursor=True,
+            cursor_itersize=100,
+        )
         gcs_hook_mock = gcs_hook_mock_class.return_value
-
-        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):
-            self.assertEqual(BUCKET, bucket)
-            self.assertEqual(FILENAME.format(0), obj)
-            self.assertEqual('application/json', mime_type)
-            self.assertFalse(gzip)
-            with open(tmp_filename, 'rb') as file:
-                self.assertEqual(b''.join(NDJSON_LINES), file.read())
-
-        gcs_hook_mock.upload.side_effect = _assert_upload
-
+        gcs_hook_mock.upload.side_effect = self._assert_uploaded_file_content
         op.execute(None)
 
     @patch('airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook')
@@ -132,7 +140,8 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
             sql=SQL,
             bucket=BUCKET,
             filename=FILENAME,
-            approx_max_file_size_bytes=len(expected_upload[FILENAME.format(0)]))
+            approx_max_file_size_bytes=len(expected_upload[FILENAME.format(0)]),
+        )
         op.execute(None)
 
     @patch('airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook')
@@ -149,11 +158,8 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
         gcs_hook_mock.upload.side_effect = _assert_upload
 
         op = PostgresToGCSOperator(
-            task_id=TASK_ID,
-            sql=SQL,
-            bucket=BUCKET,
-            filename=FILENAME,
-            schema_filename=SCHEMA_FILENAME)
+            task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=FILENAME, schema_filename=SCHEMA_FILENAME
+        )
         op.execute(None)
 
         # once for the file and once for the schema

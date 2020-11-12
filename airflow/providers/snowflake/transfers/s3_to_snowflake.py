@@ -16,9 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains AWS S3 to Snowflake operator.
-"""
+"""This module contains AWS S3 to Snowflake operator."""
+from typing import Any, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
@@ -46,17 +45,20 @@ class S3ToSnowflakeOperator(BaseOperator):
     """
 
     @apply_defaults
-    def __init__(self,
-                 s3_keys,
-                 table,
-                 stage,
-                 file_format,
-                 schema,  # TODO: shouldn't be required, rely on session/user defaults
-                 columns_array=None,
-                 autocommit=True,
-                 snowflake_conn_id='snowflake_default',
-                 *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        *,
+        s3_keys: list,
+        table: str,
+        stage: Any,
+        file_format: str,
+        schema: str,  # TODO: shouldn't be required, rely on session/user defaults
+        columns_array: Optional[list] = None,
+        autocommit: bool = True,
+        snowflake_conn_id: str = 'snowflake_default',
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
         self.s3_keys = s3_keys
         self.table = table
         self.stage = stage
@@ -66,7 +68,7 @@ class S3ToSnowflakeOperator(BaseOperator):
         self.autocommit = autocommit
         self.snowflake_conn_id = snowflake_conn_id
 
-    def execute(self, context):
+    def execute(self, context: Any) -> None:
         snowflake_hook = SnowflakeHook(snowflake_conn_id=self.snowflake_conn_id)
 
         # Snowflake won't accept list of files it has to be tuple only.
@@ -81,27 +83,20 @@ class S3ToSnowflakeOperator(BaseOperator):
                     files={files}
                     file_format={file_format}
                 """.format(
-            stage=self.stage,
-            files=files,
-            file_format=self.file_format
+            stage=self.stage, files=files, file_format=self.file_format
         )
 
         if self.columns_array:
             copy_query = """
                 COPY INTO {schema}.{table}({columns}) {base_sql}
             """.format(
-                schema=self.schema,
-                table=self.table,
-                columns=",".join(self.columns_array),
-                base_sql=base_sql
+                schema=self.schema, table=self.table, columns=",".join(self.columns_array), base_sql=base_sql
             )
         else:
             copy_query = """
                 COPY INTO {schema}.{table} {base_sql}
             """.format(
-                schema=self.schema,
-                table=self.table,
-                base_sql=base_sql
+                schema=self.schema, table=self.table, base_sql=base_sql
             )
 
         self.log.info('Executing COPY command...')

@@ -34,7 +34,7 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():   # noqa: D103
+def upgrade():  # noqa: D103
     # There can be data truncation here as LargeBinary can be smaller than the pickle
     # type.
     # use batch_alter_table to support SQLite workaround
@@ -42,7 +42,7 @@ def upgrade():   # noqa: D103
         batch_op.alter_column('value', type_=sa.LargeBinary())
 
 
-def downgrade():   # noqa: D103
+def downgrade():  # noqa: D103
     # use batch_alter_table to support SQLite workaround
     with op.batch_alter_table("xcom") as batch_op:
         batch_op.alter_column('value', type_=sa.PickleType(pickler=dill))

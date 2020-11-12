@@ -27,14 +27,14 @@ from airflow.utils.dates import days_ago
 
 args = {
     'owner': 'Airflow',
-    'start_date': days_ago(2)
 }
 
 with DAG(
     dag_id='example_cassandra_operator',
     default_args=args,
     schedule_interval=None,
-    tags=['example']
+    start_date=days_ago(2),
+    tags=['example'],
 ) as dag:
     # [START howto_operator_cassandra_table_sensor]
     table_sensor = CassandraTableSensor(

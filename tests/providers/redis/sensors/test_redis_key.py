@@ -31,19 +31,12 @@ DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 @pytest.mark.integration("redis")
 class TestRedisSensor(unittest.TestCase):
-
     def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
 
         self.dag = DAG('test_dag_id', default_args=args)
         self.sensor = RedisKeySensor(
-            task_id='test_task',
-            redis_conn_id='redis_default',
-            dag=self.dag,
-            key='test_key'
+            task_id='test_task', redis_conn_id='redis_default', dag=self.dag, key='test_key'
         )
 
     def test_poke(self):
