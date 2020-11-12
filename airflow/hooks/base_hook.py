@@ -18,10 +18,13 @@
 """Base class for all hooks"""
 import logging
 import random
+import os
+import yaml
 from typing import Any, List
 
 from airflow.models.connection import Connection
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.exceptions import AirflowException
 
 log = logging.getLogger(__name__)
 
@@ -34,6 +37,30 @@ class BaseHook(LoggingMixin):
     instances of these systems, and expose consistent methods to interact
     with them.
     """
+
+    @classmethod
+    def is_connection_permitted(cls, conn_id: str, dag_conns = None) -> bool:
+        """
+        Checks if the DAG has access to use the connection
+
+        :param conn_id: connection id
+        :param dag_conns: Dag connection rules. If not specified then it will be loaded from common paths
+        :return: boolean
+        """
+        dag_conns_yaml = os.path.join(os.getenv('AIRFLOW__CORE__PLUGINS_FOLDER'), 'dag_connections.yml')
+        if not dag_conns and os.path.isfile(dag_conns_yaml):
+            try:
+                with open(dag_conns_yaml) as f:
+                    dag_conns = yaml.load(f, Loader=yaml.FullLoader)
+            except:
+                raise AirflowException(f'Invalid YAML format in DAG to connection spec at {dag_conns}')
+
+        if dag_conns:
+            permitted_dags = next((x for x in dag_conns if x.get('connection') == conn_id), {}).get('dags', [])
+            if os.getenv('AIRFLOW_CTX_DAG_ID') not in permitted_dags:
+                return False
+
+        return True
 
     @classmethod
     def get_connections(cls, conn_id: str) -> List[Connection]:
@@ -66,6 +93,10 @@ class BaseHook(LoggingMixin):
                 "XXXXXXXX" if conn.password else None,
                 "XXXXXXXX" if conn.extra_dejson else None,
             )
+
+        if not cls.is_connection_permitted(conn_id):
+            raise AirflowException(f'This DAG has no access to "{conn_id}" connection"')
+
         return conn
 
     @classmethod

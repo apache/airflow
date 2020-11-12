@@ -1,0 +1,14 @@
+---
+
+- connection: conn_1
+  dags:
+    - dag_1
+    - dag_2
+
+- connection: conn_2
+  dags:
+    - dag_3
+
+- connection: snowflake_analysts
+  dags:
+    - test_secure_dag
