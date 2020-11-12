@@ -90,12 +90,20 @@ def fetch_and_cache(script_url: str, output_filename: str):
 
 
 def build_inited(app):
-    """Sphinx "build_finished" event handler."""
+    """Sphinx "build-inited" event handler."""
     if not isinstance(app.builder, builders.StandaloneHTMLBuilder):
         log.warning(
             F"The plugin is support only 'html' builder, but you are using '{type(app.builder)}'. Skipping..."
         )
         return
+    script_url = app.config.redoc_script_url
+    output_filename = "script.js"
+
+    fetch_and_cache(script_url, output_filename)
+
+
+def build_finished(app):
+    """Sphinx "build-finished" event handler."""
     script_url = app.config.redoc_script_url
     output_filename = "script.js"
 
@@ -107,3 +115,4 @@ def setup(app):
     """Setup plugin"""
     app.add_config_value("redoc_script_url", None, "env")
     app.connect("builder-inited", build_inited)
+    app.connect("builder-finished", build_finished)
