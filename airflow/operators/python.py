@@ -196,7 +196,7 @@ class _PythonDecoratedOperator(BaseOperator):
         if not dag:
             return task_id
 
-        # We need check if we are in context of TaskGroup as the task_id may
+        # We need to check if we are in the context of TaskGroup as the task_id may
         # already be altered
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
         tg_task_id = task_group.child_id(task_id) if task_group else None
