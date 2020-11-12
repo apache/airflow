@@ -662,12 +662,12 @@ class DAG(LoggingMixin):
         )
 
     @provide_session
-    def has_no_dag_runs(self, session=None, include_externally_triggered=True) -> bool:
+    def has_dag_runs(self, session=None, include_externally_triggered=True) -> bool:
         return (
             get_last_dagrun(
                 self.dag_id, session=session, include_externally_triggered=include_externally_triggered
             )
-            == None
+            != None
         )
 
     @property
