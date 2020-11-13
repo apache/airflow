@@ -186,9 +186,9 @@ function initialization::initialize_files_for_rebuild_check() {
         "Dockerfile.ci"
         ".dockerignore"
         "airflow/version.py"
-        "airflow/www/package.json"
-        "airflow/www/yarn.lock"
-        "airflow/www/webpack.config.js"
+        "airflow/www_rbac/package.json"
+        "airflow/www_rbac/yarn.lock"
+        "airflow/www_rbac/webpack.config.js"
     )
 }
 
@@ -452,6 +452,12 @@ function initialization::initialize_test_variables() {
     export TEST_TYPE=${TEST_TYPE:=""}
 }
 
+function initialization::initialize_build_image_variables() {
+    REMOTE_IMAGE_CONTAINER_ID_FILE="${AIRFLOW_SOURCES}/manifests/remote-airflow-manifest-image"
+    LOCAL_IMAGE_BUILD_CACHE_HASH_FILE="${AIRFLOW_SOURCES}/manifests/local-build-cache-hash"
+    REMOTE_IMAGE_BUILD_CACHE_HASH_FILE="${AIRFLOW_SOURCES}/manifests/remote-build-cache-hash"
+}
+
 # Common environment that is initialized by both Breeze and CI scripts
 function initialization::initialize_common_environment() {
     initialization::create_directories
@@ -469,6 +475,7 @@ function initialization::initialize_common_environment() {
     initialization::initialize_git_variables
     initialization::initialize_github_variables
     initialization::initialize_test_variables
+    initialization::initialize_build_image_variables
 }
 
 function initialization::set_default_python_version_if_empty() {
@@ -750,6 +757,10 @@ function initialization::make_constants_read_only() {
     readonly BUILT_CI_IMAGE_FLAG_FILE
     readonly INIT_SCRIPT_FILE
 
+    readonly REMOTE_IMAGE_CONTAINER_ID_FILE
+    readonly LOCAL_IMAGE_BUILD_CACHE_HASH_FILE
+    readonly REMOTE_IMAGE_BUILD_CACHE_HASH_FILE
+
 }
 
 # converts parameters to json array
@@ -772,7 +783,7 @@ function initialization::ga_output() {
 
 function initialization::ga_env() {
     if [[ ${GITHUB_ENV=} != "" ]]; then
-        echo "${1}=${2}" >> "${GITHUB_ENV}"
+        echo "${1}=${2}" >>"${GITHUB_ENV}"
     fi
 }
 
