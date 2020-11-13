@@ -316,6 +316,8 @@ class DatabricksHook(BaseHook):  # noqa
 
     def install(self, json: dict) -> None:
         """
+        Install libraries on the cluster.
+
         Utility function to call the ``2.0/libraries/install`` endpoint.
 
         :param json: json dictionary containing cluster_id and an array of library
@@ -325,6 +327,8 @@ class DatabricksHook(BaseHook):  # noqa
 
     def uninstall(self, json: dict) -> None:
         """
+        Uninstall libraries on the cluster.
+
         Utility function to call the ``2.0/libraries/uninstall`` endpoint.
 
         :param json: json dictionary containing cluster_id and an array of library
