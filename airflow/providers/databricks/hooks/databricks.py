@@ -46,6 +46,7 @@ USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
 INSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/install')
 UNINSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/uninstall')
 
+
 class RunState:
     """Utility class for the run state concept of Databricks runs."""
 
@@ -330,6 +331,7 @@ class DatabricksHook(BaseHook):  # noqa
         :type json: dict
         """
         self._do_api_call(UNINSTALL_LIBS_ENDPOINT, json)
+
 
 def _retryable_error(exception) -> bool:
     return (

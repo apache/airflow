@@ -109,17 +109,20 @@ def terminate_cluster_endpoint(host):
     """
     return f'https://{host}/api/2.0/clusters/delete'
 
+
 def install_endpoint(host):
     """
     Utility function to generate the install endpoint given the host.
     """
     return f'https://{host}/api/2.0/libraries/install'
 
+
 def uninstall_endpoint(host):
     """
     Utility function to generate the uninstall endpoint given the host.
     """
     return f'https://{host}/api/2.0/libraries/uninstall'
+
 
 def create_valid_response_mock(content):
     response = mock.MagicMock()
@@ -476,6 +479,7 @@ class TestDatabricksHook(unittest.TestCase):
             headers=USER_AGENT_HEADER,
             timeout=self.hook.timeout_seconds,
         )
+
 
 class TestDatabricksHookToken(unittest.TestCase):
     """
