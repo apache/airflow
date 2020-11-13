@@ -127,10 +127,6 @@ class TestPodGenerator(unittest.TestCase):
                                     secret_key_ref=k8s.V1SecretKeySelector(name='secret_b', key='source_b')
                                 ),
                             ),
-                            k8s.V1EnvVar(
-                                name="AIRFLOW_IS_K8S_EXECUTOR_POD",
-                                value='True',
-                            ),
                         ],
                         env_from=[
                             k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name='configmap_a')),
@@ -369,6 +365,7 @@ class TestPodGenerator(unittest.TestCase):
                         image='',
                         name='name',
                         command=['/bin/command2.sh', 'arg2'],
+                        env=[],
                         volume_mounts=[
                             k8s.V1VolumeMount(mount_path="/foo/", name="example-kubernetes-test-volume2")
                         ],
@@ -444,6 +441,12 @@ class TestPodGenerator(unittest.TestCase):
         expected.spec.containers[0].command = ['command']
         expected.spec.containers[0].image = 'airflow_image'
         expected.spec.containers[0].resources = {'limits': {'cpu': '1m', 'memory': '1G'}}
+        expected.spec.containers[0].env.append(
+            k8s.V1EnvVar(
+                name="AIRFLOW_IS_K8S_EXECUTOR_POD",
+                value='True',
+            )
+        )
         result_dict = self.k8s_client.sanitize_for_serialization(result)
         expected_dict = self.k8s_client.sanitize_for_serialization(self.expected)
 
@@ -477,6 +480,9 @@ class TestPodGenerator(unittest.TestCase):
         worker_config.metadata.labels['app'] = 'myapp'
         worker_config.metadata.name = 'pod_id-' + self.static_uuid.hex
         worker_config.metadata.namespace = 'namespace'
+        worker_config.spec.containers[0].env.append(
+            k8s.V1EnvVar(name="AIRFLOW_IS_K8S_EXECUTOR_POD", value='True')
+        )
         worker_config_result = self.k8s_client.sanitize_for_serialization(worker_config)
         self.assertEqual(worker_config_result, sanitized_result)
 
