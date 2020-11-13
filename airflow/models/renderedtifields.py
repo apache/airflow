@@ -103,7 +103,7 @@ class RenderedTaskInstanceFields(Base):
             )
             .one_or_none()
         )
-        return result.k8s_pod_yaml if result else ti.render_k8s_pod_yaml()
+        return result.k8s_pod_yaml if result else None
 
     @provide_session
     def write(self, session: Session = None):

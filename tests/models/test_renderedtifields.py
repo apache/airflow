@@ -294,3 +294,12 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
             session.add(rtif)
 
         self.assertEqual(expected_pod_yaml, RTIF.get_k8s_pod_yaml(ti=ti))
+
+        # Test the else part of get_k8s_pod_yaml
+        # i.e. for the TIs that are not stored in RTIF table
+        # Fetching them will return None
+        with dag:
+            task_2 = BashOperator(task_id="test2", bash_command="echo hello")
+
+        ti2 = TI(task_2, EXECUTION_DATE)
+        self.assertIsNone(RTIF.get_k8s_pod_yaml(ti=ti2))
