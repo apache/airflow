@@ -155,6 +155,22 @@ the dependencies as shown below.
     :end-before: [END main_flow]
 
 
+Multiple outputs inference
+--------------------------
+Tasks can also infer multiple outputs by using dict python typing.
+
+.. code-block:: python
+
+    @task
+    def identity_dict(x: int, y: int) -> Dict[str, int]:
+        return {"x": x, "y": y}
+
+By using the typing ``Dict`` for the function return type, the ``multiple_outputs`` parameter
+is automatically set to true.
+
+Note, If you manually set the ``multiple_outputs`` parameter the inference is disabled and
+the parameter value is used.
+
 What's Next?
 ------------
 
