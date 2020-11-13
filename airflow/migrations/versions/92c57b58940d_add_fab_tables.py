@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Create FAB Tables & Increase length of ab_view_menu.name column
+"""Create FAB Tables
 
 Revision ID: 92c57b58940d
 Revises: 45ba3f1493b9
@@ -148,26 +148,35 @@ def upgrade():
             sa.UniqueConstraint('username'),
         )
 
-    # Increase length of ab_view_menu.name column
-    with op.batch_alter_table('ab_view_menu') as batch_op:
-        batch_op.alter_column('name', type_=sa.String(length=250), nullable=False)
-
 
 def downgrade():
     """Drop FAB Tables"""
     conn = op.get_bind()
     inspector = Inspector.from_engine(conn)
-    fab_tables = [table for table in inspector.get_table_names() if table.startswith("ab_")]
+    tables = inspector.get_table_names()
+    fab_tables = [
+        "ab_permission",
+        "ab_view_menu",
+        "ab_role",
+        "ab_permission_view",
+        "ab_permission_view_role",
+        "ab_user",
+        "ab_user_role",
+        "ab_register_user",
+    ]
 
-    if fab_tables:
-        print()
-        for table in fab_tables:
-            print(f"Dropping Table: {table}")
+    print()
+    for table in fab_tables:
+        if table in tables:
+
             indexes = inspector.get_foreign_keys(table)
             for index in indexes:
                 index_name = index.get('name')
-                print(f"\tDropping Index: {index_name}")
+                print(f"Dropping Index: {index_name}")
                 op.drop_constraint(index.get('name'), table, type_='foreignkey')
 
-        for table in fab_tables:
+    print()
+    for table in fab_tables:
+        if table in tables:
+            print(f"Dropping Table: {table}")
             op.drop_table(table)
