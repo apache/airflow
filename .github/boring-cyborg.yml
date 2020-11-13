@@ -47,7 +47,7 @@ labelPRBasedOnFilePath:
     - tests/providers/apache/*
     - tests/providers/apache/**/*
 
-  k8s:
+  area:kubernetes:
     - airflow/**/kubernetes_*.py
     - airflow/example_dags/example_kubernetes_executor.py
     - airflow/example_dags/example_kubernetes_executor_config.py
@@ -75,7 +75,7 @@ labelPRBasedOnFilePath:
     - tests/www/api/*
     - tests/www/api/**/*
 
-  area:dev:
+  area:dev-tools:
     - airflow/mypy/*
     - airflow/mypy/**/*
     - scripts/**/*
@@ -108,7 +108,7 @@ labelPRBasedOnFilePath:
     - airflow/www/.stylelintignore
     - airflow/www/.stylelintrc
 
-  area:docs:
+  kind:documentation:
     - docs/**/*
     - docs/*
 

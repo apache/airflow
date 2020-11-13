@@ -640,6 +640,7 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'virtualenv': virtualenv,
     'webhdfs': webhdfs,  # TODO: remove this in Airflow 2.1
     'winrm': winrm,  # TODO: remove this in Airflow 2.1
+    'yandex': yandexcloud,  # TODO: remove this in Airflow 2.1
     'yandexcloud': yandexcloud,
 }
 
