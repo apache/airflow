@@ -63,7 +63,7 @@ class BaseXCom(Base, LoggingMixin):
         i.e automatically deserialize Xcom value when loading from DB.
         """
         try:
-            self.value = XCom.orm_deserialize_value(self)
+            self.value = self.orm_deserialize_value(self)
         except (UnicodeEncodeError, ValueError):
             # For backward-compatibility.
             # Preventing errors in webserver
