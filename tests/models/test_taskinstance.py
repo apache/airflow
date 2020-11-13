@@ -1814,6 +1814,7 @@ class TestTaskInstance(unittest.TestCase):
         with create_session() as session:
             session.query(RenderedTaskInstanceFields).delete()
 
+    @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
     def test_get_rendered_k8s_spec(self):
         with DAG('test_get_rendered_k8s_spec', start_date=DEFAULT_DATE):
             task = BashOperator(task_id='op1', bash_command="{{ task.task_id }}")
@@ -1853,6 +1854,7 @@ class TestTaskInstance(unittest.TestCase):
                         ],
                         'image': ':',
                         'name': 'base',
+                        'env': [{'name': 'AIRFLOW_IS_K8S_EXECUTOR_POD', 'value': 'True'}],
                     }
                 ]
             },
