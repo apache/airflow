@@ -193,7 +193,7 @@ class PodTemplateFileTest(unittest.TestCase):
 
         self.assertRegex(docs[0]["kind"], "Pod")
         self.assertDictEqual(
-            {'configMap': {'name': 'RELEASE-NAME-airflow-config'}, 'name': 'airflow-config'},
+            {'configMap': {'name': 'RELEASE-NAME-airflow-config'}, 'name': 'config'},
             jmespath.search("spec.volumes[1]", docs[0]),
         )
         self.assertDictEqual(
