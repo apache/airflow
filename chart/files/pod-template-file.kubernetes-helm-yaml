@@ -102,7 +102,4 @@ spec:
 {{- end }}
   - configMap:
       name: {{ include "airflow_config" . }}
-    name: airflow-config
-  - configMap:
-      name: {{ include "airflow_config" . }}
-    name: airflow-local-settings
+    name: config
