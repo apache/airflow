@@ -320,6 +320,7 @@ class DagRun(Base, LoggingMixin):
         else:
             self.set_state(State.RUNNING)
 
+        self._emit_true_scheduling_delay_stats_for_finished_state(finished_tasks)
         self._emit_duration_stats_for_finished_state()
 
         # todo: determine we want to use with_for_update to make sure to lock the run
@@ -355,6 +356,41 @@ class DagRun(Base, LoggingMixin):
                     finished_tasks=finished_tasks),
                     session=session):
                 return True
+
+    def _emit_true_scheduling_delay_stats_for_finished_state(self, finished_tis):
+        """
+        This is a helper method to emit the true scheduling delay stats, which is defined as
+        the time when the first task in DAG starts minus the expected DAG run datetime.
+        This method will be used in the update_state method when the state of the DagRun
+        is updated to a completed status (either success or failure). The method will find the first
+        started task within the DAG and calculate the expected DagRun start time (based on
+        dag.execution_date & dag.schedule_interval), and minus these two values to get the delay.
+        The emitted data may contains outlier (e.g. when the first task was cleared, so
+        the second task's start_date will be used), but we can get rid of the the outliers
+        on the stats side through the dashboards tooling built.
+        Note, the stat will only be emitted if the DagRun is a scheduler triggered one
+        (i.e. external_trigger is False).
+        """
+        try:
+            if self.state == State.RUNNING:
+                return
+            if self.external_trigger:
+                return
+            if not finished_tis:
+                return
+            dag = self.get_dag()
+            ordered_tis_by_start_date = [ti for ti in finished_tis if ti.start_date]
+            ordered_tis_by_start_date.sort(key=lambda ti: ti.start_date, reverse=False)
+            first_start_date = ordered_tis_by_start_date[0].start_date
+            if first_start_date:
+                # dag.following_schedule calculates the expected start datetime for a scheduled dagrun
+                # i.e. a daily flow for execution date 1/1/20 actually runs on 1/2/20 hh:mm:ss,
+                # and ti.start_date will be 1/2/20 hh:mm:ss so the following schedule is comparison
+                true_delay = (first_start_date - dag.following_schedule(self.execution_date)).total_seconds()
+                if true_delay >= 0:
+                    Stats.timing('dagrun.{}.first_task_scheduling_delay'.format(dag.dag_id), true_delay)
+        except Exception as e:
+            self.log.warning('Failed to record first_task_scheduling_delay metric:\n', e)
 
     def _emit_duration_stats_for_finished_state(self):
         if self.state == State.RUNNING:
