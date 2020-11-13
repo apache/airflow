@@ -104,6 +104,7 @@ class TestBasicAuth(unittest.TestCase):
             assert response.headers["WWW-Authenticate"] == "Basic"
             assert_401(response)
 
+    @conf_vars({('api', 'enable_experimental_api'): 'true'})
     def test_experimental_api(self):
         with self.app.test_client() as test_client:
             response = test_client.get("/api/experimental/pools", headers={"Authorization": "Basic"})

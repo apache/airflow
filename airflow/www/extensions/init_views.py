@@ -16,6 +16,7 @@
 # under the License.
 
 import logging
+import warnings
 from os import path
 
 import connexion
@@ -23,6 +24,7 @@ from connexion import ProblemException
 from flask import Flask, request
 
 from airflow.api_connexion.exceptions import common_error_handler
+from airflow.configuration import conf
 from airflow.security import permissions
 from airflow.www.views import lazy_add_provider_discovered_options_to_connection_form
 
@@ -169,7 +171,15 @@ def init_api_connexion(app: Flask) -> None:
 
 def init_api_experimental(app):
     """Initialize Experimental API"""
+    if not conf.getboolean('api', 'enable_experimental_api', fallback=False):
+        return
     from airflow.www.api.experimental import endpoints
 
+    warnings.warn(
+        "The experimental REST API is deprecated. Please migrate to the stable REST API. "
+        "Please note that the experimental API do not have access control. "
+        "The authenticated user has full access.",
+        DeprecationWarning,
+    )
     app.register_blueprint(endpoints.api_experimental, url_prefix='/api/experimental')
     app.extensions['csrf'].exempt(endpoints.api_experimental)

@@ -52,6 +52,14 @@ assists users migrating to a new version.
 
 ## Master
 
+### The experimental REST API is disabled by default
+
+The experimental REST API is disabled by default. To restore these APIs while migrating to
+the stable REST API, set `enable_experimental_api` option in `[api]` section to `True`.
+
+Please note that the experimental REST API do not have access control.
+The authenticated user has full access.
+
 ### SparkJDBCHook default connection
 
 For SparkJDBCHook default connection was `spark-default`, and for SparkSubmitHook it was
