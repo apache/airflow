@@ -253,7 +253,7 @@ class PinotDbApiHook(DbApiHook):
     """
     Interact with Pinot Broker Query API
 
-    This hook uses standard-SQL endpoint since PQL endpoint is soon to be depricated.
+    This hook uses standard-SQL endpoint since PQL endpoint is soon to be deprecated.
     https://docs.pinot.apache.org/users/api/querying-pinot-using-standard-sql
     """
 
