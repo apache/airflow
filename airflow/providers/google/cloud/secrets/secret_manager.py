@@ -52,11 +52,14 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
     The full secret id should follow the pattern "[a-zA-Z0-9-_]".
 
     :param connections_prefix: Specifies the prefix of the secret to read to get Connections.
+        If set to None (null), requests for connections will not be sent to GCP Secrets Manager
     :type connections_prefix: str
     :param variables_prefix: Specifies the prefix of the secret to read to get Variables.
+        If set to None (null), requests for variables will not be sent to GCP Secrets Manager
     :type variables_prefix: str
     :param config_prefix: Specifies the prefix of the secret to read to get Airflow Configurations
         containing secrets.
+        If set to None (null), requests for configurations will not be sent to GCP Secrets Manager
     :type config_prefix: str
     :param gcp_key_path: Path to Google Cloud Service Account key file (JSON). Mutually exclusive with
         gcp_keyfile_dict. use default credentials in the current environment if not provided.
@@ -89,11 +92,12 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         self.variables_prefix = variables_prefix
         self.config_prefix = config_prefix
         self.sep = sep
-        if not self._is_valid_prefix_and_sep():
-            raise AirflowException(
-                "`connections_prefix`, `variables_prefix` and `sep` should "
-                f"follows that pattern {SECRET_ID_PATTERN}"
-            )
+        if connections_prefix is not None:
+            if not self._is_valid_prefix_and_sep():
+                raise AirflowException(
+                    "`connections_prefix`, `variables_prefix` and `sep` should "
+                    f"follows that pattern {SECRET_ID_PATTERN}"
+                )
         self.credentials, self.project_id = get_credentials_and_project_id(
             keyfile_dict=gcp_keyfile_dict, key_path=gcp_key_path, scopes=gcp_scopes
         )
@@ -121,6 +125,9 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: connection id
         :type conn_id: str
         """
+        if self.connections_prefix is None:
+            return None
+
         return self._get_secret(self.connections_prefix, conn_id)
 
     def get_variable(self, key: str) -> Optional[str]:
@@ -130,6 +137,9 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param key: Variable Key
         :return: Variable Value
         """
+        if self.variables_prefix is None:
+            return None
+
         return self._get_secret(self.variables_prefix, key)
 
     def get_config(self, key: str) -> Optional[str]:
@@ -139,6 +149,9 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param key: Configuration Option Key
         :return: Configuration Option Value
         """
+        if self.config_prefix is None:
+            return None
+
         return self._get_secret(self.config_prefix, key)
 
     def _get_secret(self, path_prefix: str, secret_id: str) -> Optional[str]:
