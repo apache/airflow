@@ -49,3 +49,7 @@ class TestErrorHandling(unittest.TestCase):
         # Then we do not have JSON as response, rather standard HTML
 
         self.assertIsNone(resp_json)
+
+        resp_json = self.client.put("/api/v1/variables").json
+
+        self.assertEqual('Method Not Allowed', resp_json["title"])

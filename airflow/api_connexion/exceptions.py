@@ -29,6 +29,7 @@ else:
 EXCEPTIONS_LINK_MAP = {
     400: f"{doc_link}#section/Errors/BadRequest",
     404: f"{doc_link}#section/Errors/NotFound",
+    405: f"{doc_link}#section/Errors/MethodNotAllowed",
     401: f"{doc_link}#section/Errors/Unauthenticated",
     409: f"{doc_link}#section/Errors/AlreadyExists",
     403: f"{doc_link}#section/Errors/PermissionDenied",

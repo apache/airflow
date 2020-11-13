@@ -135,7 +135,6 @@ def init_error_handlers(app: Flask):
 
 def init_api_connexion(app: Flask) -> None:
     """Initialize Stable API"""
-
     base_path = '/api/v1'
 
     from airflow.www import views
