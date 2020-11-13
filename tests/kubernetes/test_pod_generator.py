@@ -127,6 +127,10 @@ class TestPodGenerator(unittest.TestCase):
                                     secret_key_ref=k8s.V1SecretKeySelector(name='secret_b', key='source_b')
                                 ),
                             ),
+                            k8s.V1EnvVar(
+                                name="AIRFLOW_IS_K8S_EXECUTOR_POD",
+                                value='True',
+                            ),
                         ],
                         env_from=[
                             k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name='configmap_a')),
