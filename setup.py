@@ -281,7 +281,8 @@ hashicorp = [
     'hvac~=0.10',
 ]
 hdfs = [
-    'snakebite>=2.7.8',
+    'snakebite>=2.7.8;python_version<"3.0"',
+    'snakebite-py3;python_version>="3.0"'
 ]
 hive = [
     'hmsclient>=0.1.0',
