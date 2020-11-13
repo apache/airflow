@@ -468,12 +468,12 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
 
         run_task_mock.side_effect = task_inner
 
-        conf = {
+        config = {
             ('core', 'dags_folder'): self.dag_path,
             ('logging', 'logging_level'): "INFO",
         }
 
-        with conf_vars(conf):
+        with conf_vars(config):
             with self.assertLogs(level=logging.WARNING) as captured:
                 logger.warning("not redirected")
                 task_command.task_run(self.parser.parse_args(self.task_args))
@@ -495,14 +495,14 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
 
         run_task_mock.side_effect = task_inner
 
-        conf = {
+        config = {
             ('core', 'dags_folder'): self.dag_path,
             ('logging', 'logging_level'): "INFO",
         }
         old_value = settings.DONOT_MODIFY_HANDLERS
         settings.DONOT_MODIFY_HANDLERS = True
 
-        with conf_vars(conf):
+        with conf_vars(config):
             with self.assertLogs(level=logging.WARNING) as captured:
                 task_command.task_run(self.parser.parse_args(self.task_args))
 
