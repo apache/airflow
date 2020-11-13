@@ -165,18 +165,13 @@ def downgrade():
         "ab_register_user",
     ]
 
-    print()
     for table in fab_tables:
         if table in tables:
 
             indexes = inspector.get_foreign_keys(table)
             for index in indexes:
-                index_name = index.get('name')
-                print(f"Dropping Index: {index_name}")
                 op.drop_constraint(index.get('name'), table, type_='foreignkey')
 
-    print()
     for table in fab_tables:
         if table in tables:
-            print(f"Dropping Table: {table}")
             op.drop_table(table)
