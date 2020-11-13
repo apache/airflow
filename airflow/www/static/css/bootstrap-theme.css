@@ -3193,6 +3193,7 @@ select[multiple].input-group-sm > .input-group-btn > .btn {
   padding: 10px 15px;
 }
 .nav > li > a:hover,
+.nav > li:focus-within > a,
 .nav > li > a:focus {
   text-decoration: none;
   background-color: #eee;
@@ -3409,7 +3410,7 @@ select[multiple].input-group-sm > .input-group-btn > .btn {
   -webkit-overflow-scrolling: touch;
 }
 .navbar-collapse.in {
-  overflow-y: auto;
+  overflow-y: visible;
 }
 
 @media (min-width: 768px) {
@@ -3437,7 +3438,7 @@ select[multiple].input-group-sm > .input-group-btn > .btn {
 }
 .navbar-fixed-top .navbar-collapse,
 .navbar-fixed-bottom .navbar-collapse {
-  max-height: 340px;
+  max-height: none;
 }
 
 @media (max-device-width: 480px) and (orientation: landscape) {
@@ -3549,7 +3550,8 @@ select[multiple].input-group-sm > .input-group-btn > .btn {
 }
 
 @media (max-width: 767px) {
-  .navbar-nav .open .dropdown-menu {
+  .navbar-nav .dropdown:hover > .dropdown-menu,
+  .navbar-nav .dropdown:focus-within > .dropdown-menu {
     position: static;
     float: none;
     width: auto;
@@ -3558,15 +3560,20 @@ select[multiple].input-group-sm > .input-group-btn > .btn {
     border: 0;
     box-shadow: none;
   }
-  .navbar-nav .open .dropdown-menu > li > a,
-  .navbar-nav .open .dropdown-menu .dropdown-header {
+  .navbar-nav .dropdown:hover > .dropdown-menu > li > a,
+  .navbar-nav .dropdown:hover > .dropdown-menu .dropdown-header,
+  .navbar-nav .dropdown:focus-within > .dropdown-menu > li > a,
+  .navbar-nav .dropdown:focus-within > .dropdown-menu .dropdown-header {
     padding: 5px 15px 5px 25px;
   }
-  .navbar-nav .open .dropdown-menu > li > a {
+  .navbar-nav .dropdown:hover > .dropdown-menu > li > a,
+  .navbar-nav .dropdown:focus-within > .dropdown-menu > li > a {
     line-height: 20px;
   }
-  .navbar-nav .open .dropdown-menu > li > a:hover,
-  .navbar-nav .open .dropdown-menu > li > a:focus {
+  .navbar-nav .dropdown:hover > .dropdown-menu > li > a:hover,
+  .navbar-nav .dropdown:hover > .dropdown-menu > li > a:focus,
+  .navbar-nav .dropdown:focus-within > .dropdown-menu > li > a:hover,
+  .navbar-nav .dropdown:focus-within > .dropdown-menu > li > a:focus {
     background-image: none;
   }
 }

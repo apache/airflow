@@ -162,13 +162,6 @@ function initializeUITimezone() {
     changDisplayedTimezone($(evt.target).data('timezone'));
   });
 
-  $('#timezone-dropdown').on('hide.bs.dropdown', (evt) => {
-    if (document.activeElement.id === 'timezone-other') {
-      // Don't let the dropdown close if the input is active
-      evt.preventDefault();
-    }
-  });
-
   $('#timezone-other').typeahead({
     source: $(moment.tz.names().map((tzName) => {
       const category = tzName.split('/', 1)[0];
@@ -192,7 +185,6 @@ function initializeUITimezone() {
         // Bug in typeahed, it thinks it's still shown!
         this.shown = false;
         this.focused = false;
-        $('#timezone-menu').dropdown('toggle');
       }, 1);
     },
   });
