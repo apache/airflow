@@ -1780,6 +1780,9 @@ class TestSchedulerJob(unittest.TestCase):
         scheduler._change_state_for_tis_without_dagrun(
             old_states=[State.SCHEDULED, State.QUEUED], new_state=State.NONE, session=session
         )
+
+        # Clear the session objects
+        session.expunge_all()
         ti1a.refresh_from_db(session=session)
         self.assertEqual(ti1a.state, State.NONE)
 
