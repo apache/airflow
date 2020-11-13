@@ -20,7 +20,7 @@ from os import path
 
 import connexion
 from connexion import ProblemException
-from flask import Flask, request, render_template
+from flask import Flask, request
 
 from airflow.api_connexion.exceptions import common_error_handler
 from airflow.security import permissions

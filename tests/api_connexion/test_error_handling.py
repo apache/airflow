@@ -28,9 +28,6 @@ class TestErrorHandling(unittest.TestCase):
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
 
-    def tearDown(self):
-        super().tearDown()
-
     def test_incorrect_endpoint_should_return_json(self):
 
         # Given we have application with Connexion added
