@@ -36,7 +36,7 @@ command, or as a configuration item in your ``airflow.cfg``. For both cases, ple
 
 .. code-block:: bash
 
-    airflow flower --basic-auth=user1:password1,user2:password2
+    airflow celery flower --basic-auth=user1:password1,user2:password2
 
 .. code-block:: ini
 

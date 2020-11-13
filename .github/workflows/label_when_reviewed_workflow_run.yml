@@ -30,7 +30,7 @@ jobs:
       labelSet: ${{ steps.label-when-reviewed.outputs.labelSet }}
     steps:
       - name: "Get information about the original trigger of the run"
-        uses: potiuk/get-workflow-origin@2ef0b065db6b688a2231f8a7f464df1aac254328  # v1_2
+        uses: potiuk/get-workflow-origin@588cc14f9f1cdf1b8be3db816855e96422204fec  # v1_3
         id: source-run-info
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

@@ -93,6 +93,7 @@ extensions = [
     'removemarktransform',
     'sphinx_copybutton',
     'redirects',
+    'providers_packages_ref',
     # First, generate redoc
     'sphinxcontrib.redoc',
     # Second, update redoc script
@@ -114,15 +115,9 @@ exclude_patterns: List[str] = [
     # We have custom page - operators-and-hooks-ref.rst
     '_api/airflow/providers/index.rst',
     # Packages with subpackages
-    "_api/airflow/providers/amazon/index.rst",
-    "_api/airflow/providers/facebook/index.rst",
     "_api/airflow/providers/microsoft/index.rst",
-    "_api/airflow/providers/google/index.rst",
     "_api/airflow/providers/apache/index.rst",
-    "_api/airflow/providers/yandex/index.rst",
     "_api/airflow/providers/cncf/index.rst",
-    # Packages without operators
-    "_api/airflow/providers/sendgrid",
     # Templates or partials
     'autoapi_templates',
     'howto/operator/google/_partials',
@@ -138,9 +133,7 @@ def _get_rst_filepath_from_path(filepath: str):
     elif os.path.isfile(filepath) and filepath.endswith('/__init__.py'):
         result = filepath.rpartition("/")[0]
     else:
-        result = filepath.rpartition(
-            ".",
-        )[0]
+        result = filepath.rpartition(".")[0]
     result += "/index.rst"
 
     result = f"_api/{os.path.relpath(result, ROOT_DIR)}"
@@ -158,36 +151,6 @@ for path in glob(f"{ROOT_DIR}/airflow/*"):
     browsable_packages = ["operators", "hooks", "sensors", "providers", "executors", "models", "secrets"]
     if os.path.isdir(path) and name not in browsable_packages:
         exclude_patterns.append(f"_api/airflow/{name}")
-
-# Exclude package index
-_providers_packages_roots = {
-    name.rpartition("/")[0]
-    for entity in ["hooks", "operators", "secrets", "sensors"]
-    for name in glob(f"{ROOT_DIR}/airflow/providers/**/{entity}", recursive=True)
-}
-
-_providers_package_indexes = {
-    f"_api/{os.path.relpath(name, ROOT_DIR)}/index.rst" for name in _providers_packages_roots
-}
-
-exclude_patterns.extend(_providers_package_indexes)
-
-# Exclude auth_backend, utils, _internal_client, example_dags in providers packages
-_excluded_packages_in_providers = {
-    name
-    for entity in ['auth_backend', 'utils', '_internal_client', 'example_dags']
-    for name in glob(f"{ROOT_DIR}/airflow/providers/**/{entity}/", recursive=True)
-}
-_excluded_files_in_providers = {
-    _get_rst_filepath_from_path(path)
-    for p in _excluded_packages_in_providers
-    for path in glob(f"{p}/**/*", recursive=True)
-}
-_excluded_files_in_providers |= {
-    _get_rst_filepath_from_path(name) for name in _excluded_packages_in_providers
-}
-
-exclude_patterns.extend(_excluded_files_in_providers)
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['templates']
@@ -421,8 +384,9 @@ autoapi_template_dir = 'autoapi_templates'
 autoapi_ignore = [
     '*/airflow/kubernetes/kubernetes_request_factory/*',
     '*/_internal*',
+    '*/airflow/**/providers/**/utils/*',
     '*/node_modules/*',
-    '*/example_dags/*,',
+    '*/example_dags/*',
     '*/migrations/*',
 ]
 # Keep the AutoAPI generated files on the filesystem after the run.

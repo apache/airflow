@@ -55,8 +55,8 @@ key, changing the key will cause decryption of existing credentials to fail. To
 rotate the fernet key without invalidating existing encrypted values, prepend
 the new key to the ``fernet_key`` setting, run
 ``airflow rotate-fernet-key``, and then drop the original key from
-``fernet_keys``:
+``fernet_key``:
 
 #. Set ``fernet_key`` to ``new_fernet_key,old_fernet_key``
-#. Run ``airflow rotate_fernet_key`` to re-encrypt existing credentials with the new fernet key
+#. Run ``airflow rotate-fernet-key`` to re-encrypt existing credentials with the new fernet key
 #. Set ``fernet_key`` to ``new_fernet_key``

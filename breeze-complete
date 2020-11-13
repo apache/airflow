@@ -118,7 +118,7 @@ pyupgrade
 restrict-start_date
 rst-backticks
 setup-order
-setup-installation
+setup-extra-packages
 shellcheck
 sort-in-the-wild
 stylelint

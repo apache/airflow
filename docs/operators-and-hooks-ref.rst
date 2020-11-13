@@ -1359,7 +1359,7 @@ These integrations allow you to perform various operations within various servic
      - :mod:`airflow.providers.salesforce.operators.tableau_refresh_workbook`
      - :mod:`airflow.providers.salesforce.sensors.tableau_job_status`
 
-   * - `Segment <https://oapi.dingtalk.com>`__
+   * - `Segment <https://segment.com/>`__
      -
      - :mod:`airflow.providers.segment.hooks.segment`
      - :mod:`airflow.providers.segment.operators.segment_track_event`

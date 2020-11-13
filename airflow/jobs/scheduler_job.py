@@ -852,9 +852,9 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 )
                 .update(ti_prop_update, synchronize_session=False)
             )
-            session.flush()
 
         if tis_changed > 0:
+            session.flush()
             self.log.warning(
                 "Set %s task instances to state=%s as their associated DagRun was not in RUNNING state",
                 tis_changed,

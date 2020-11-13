@@ -102,13 +102,6 @@ div.container {
   background-color: #c0defb;
 }
 
-div.rich_doc {
-  padding: 5px 10px;
-  border: 1px solid #ddd;
-  background: #fff;
-  border-radius: 4px;
-}
-
 span.status_square {
   width: 10px;
   height: 10px;
@@ -317,8 +310,12 @@ label[for="timezone-other"],
   display: block;
 }
 
-.dag-doc {
-  margin-bottom: 15px;
+.accordion-toggle {
+  display: block;
+}
+
+.accordion-toggle.collapsed > .toggle-direction {
+  transform: rotate(180deg);
 }
 
 .dag-import-error {

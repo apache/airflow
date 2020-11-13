@@ -431,3 +431,74 @@ All task log handlers are derived from :class:`~airflow.utils.log.file_task_hand
   airflow/providers/elasticsearch/log/index
   airflow/providers/google/cloud/log/index
   airflow/providers/microsoft/azure/log/index
+
+Providers
+---------
+
+Third party integrations are in a separate package :mod:`airflow.providers`.
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  airflow/providers/amazon/index
+  airflow/providers/apache/cassandra/index
+  airflow/providers/apache/druid/index
+  airflow/providers/apache/hdfs/index
+  airflow/providers/apache/hive/index
+  airflow/providers/apache/kylin/index
+  airflow/providers/apache/livy/index
+  airflow/providers/apache/pig/index
+  airflow/providers/apache/pinot/index
+  airflow/providers/apache/spark/index
+  airflow/providers/apache/sqoop/index
+  airflow/providers/celery/index
+  airflow/providers/cloudant/index
+  airflow/providers/cncf/kubernetes/index
+  airflow/providers/databricks/index
+  airflow/providers/datadog/index
+  airflow/providers/dingding/index
+  airflow/providers/discord/index
+  airflow/providers/docker/index
+  airflow/providers/elasticsearch/index
+  airflow/providers/exasol/index
+  airflow/providers/facebook/index
+  airflow/providers/ftp/index
+  airflow/providers/google/index
+  airflow/providers/grpc/index
+  airflow/providers/hashicorp/index
+  airflow/providers/http/index
+  airflow/providers/imap/index
+  airflow/providers/jdbc/index
+  airflow/providers/jenkins/index
+  airflow/providers/jira/index
+  airflow/providers/microsoft/azure/index
+  airflow/providers/microsoft/mssql/index
+  airflow/providers/microsoft/winrm/index
+  airflow/providers/mongo/index
+  airflow/providers/mysql/index
+  airflow/providers/odbc/index
+  airflow/providers/openfaas/index
+  airflow/providers/opsgenie/index
+  airflow/providers/oracle/index
+  airflow/providers/pagerduty/index
+  airflow/providers/papermill/index
+  airflow/providers/plexus/index
+  airflow/providers/postgres/index
+  airflow/providers/presto/index
+  airflow/providers/qubole/index
+  airflow/providers/redis/index
+  airflow/providers/salesforce/index
+  airflow/providers/samba/index
+  airflow/providers/segment/index
+  airflow/providers/sendgrid/index
+  airflow/providers/sftp/index
+  airflow/providers/singularity/index
+  airflow/providers/slack/index
+  airflow/providers/snowflake/index
+  airflow/providers/sqlite/index
+  airflow/providers/ssh/index
+  airflow/providers/vertica/index
+  airflow/providers/yandex/index
+  airflow/providers/zendesk/index

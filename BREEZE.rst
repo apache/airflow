@@ -2017,7 +2017,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  no-providers-in-core-examples no-relative-imports pre-commit-descriptions
                  provide-create-sessions providers-init-file pydevd pydocstyle pylint pylint-tests
                  python-no-log-warn pyupgrade restrict-start_date rst-backticks setup-order
-                 setup-installation shellcheck sort-in-the-wild stylelint trailing-whitespace
+                 setup-extra-packages shellcheck sort-in-the-wild stylelint trailing-whitespace
                  update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
                  version-sync yamllint
 

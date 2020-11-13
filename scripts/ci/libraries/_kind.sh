@@ -19,10 +19,8 @@
 function kind::get_kind_cluster_name() {
     # Name of the KinD cluster to connect to
     export KIND_CLUSTER_NAME=${KIND_CLUSTER_NAME:="airflow-python-${PYTHON_MAJOR_MINOR_VERSION}-${KUBERNETES_VERSION}"}
-    readonly KIND_CLUSTER_NAME
     # Name of the KinD cluster to connect to when referred to via kubectl
     export KUBECTL_CLUSTER_NAME=kind-${KIND_CLUSTER_NAME}
-    readonly KUBECTL_CLUSTER_NAME
     export KUBECONFIG="${BUILD_CACHE_DIR}/.kube/config"
     mkdir -pv "${BUILD_CACHE_DIR}/.kube/"
     touch "${KUBECONFIG}"
@@ -173,7 +171,6 @@ function kind::perform_kind_cluster_operation() {
             echo "Deploying Airflow to KinD"
             echo
             kind::build_image_for_kubernetes_tests
-            kind::get_kind_cluster_name
             kind::load_image_to_kind_cluster
             kind::deploy_airflow_with_helm
             kind::deploy_test_kubernetes_resources

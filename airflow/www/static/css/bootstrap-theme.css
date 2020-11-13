@@ -1889,6 +1889,7 @@ output {
 .form-control[readonly],
 fieldset[disabled] .form-control {
   cursor: not-allowed;
+  color: #cbcbcb;
   background-color: #eee;
   opacity: 1;
 }
@@ -2320,7 +2321,7 @@ select[multiple].form-group-lg .form-control {
 fieldset[disabled] .btn {
   cursor: not-allowed;
   pointer-events: none;
-  opacity: 0.65;
+  opacity: 0.5;
   -webkit-box-shadow: none;
   box-shadow: none;
 }

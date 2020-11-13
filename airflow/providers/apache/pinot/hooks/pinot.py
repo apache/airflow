@@ -250,7 +250,12 @@ class PinotAdminHook(BaseHook):
 
 
 class PinotDbApiHook(DbApiHook):
-    """Connect to pinot db (https://github.com/apache/incubator-pinot) to issue pql"""
+    """
+    Interact with Pinot Broker Query API
+
+    This hook uses standard-SQL endpoint since PQL endpoint is soon to be deprecated.
+    https://docs.pinot.apache.org/users/api/querying-pinot-using-standard-sql
+    """
 
     conn_name_attr = 'pinot_broker_conn_id'
     default_conn_name = 'pinot_broker_default'
@@ -264,7 +269,7 @@ class PinotDbApiHook(DbApiHook):
         pinot_broker_conn = connect(
             host=conn.host,
             port=conn.port,
-            path=conn.extra_dejson.get('endpoint', '/pql'),
+            path=conn.extra_dejson.get('endpoint', '/query/sql'),
             scheme=conn.extra_dejson.get('schema', 'http'),
         )
         self.log.info('Get the connection to pinot broker on %s', conn.host)
@@ -274,14 +279,14 @@ class PinotDbApiHook(DbApiHook):
         """
         Get the connection uri for pinot broker.
 
-        e.g: http://localhost:9000/pql
+        e.g: http://localhost:9000/query/sql
         """
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         host = conn.host
         if conn.port is not None:
             host += f':{conn.port}'
         conn_type = 'http' if not conn.conn_type else conn.conn_type
-        endpoint = conn.extra_dejson.get('endpoint', 'pql')
+        endpoint = conn.extra_dejson.get('endpoint', 'query/sql')
         return f'{conn_type}://{host}/{endpoint}'
 
     def get_records(self, sql: str, parameters: Optional[Union[Dict[str, Any], Iterable[Any]]] = None) -> Any:
