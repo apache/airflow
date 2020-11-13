@@ -132,7 +132,9 @@ ARG RUNTIME_APT_DEPS="\
       sqlite3 \
       tmux \
       unzip \
-      vim"
+      vim \
+      xxd"
+ENV RUNTIME_APT_DEP=${RUNTIME_APT_DEPS}
 
 ARG ADDITIONAL_RUNTIME_APT_DEPS=""
 ENV ADDITIONAL_RUNTIME_APT_DEPS=${ADDITIONAL_RUNTIME_APT_DEPS}
@@ -248,7 +250,7 @@ ENV AIRFLOW_CONSTRAINTS_URL=${AIRFLOW_CONSTRAINTS_URL}
 
 # By changing the CI build epoch we can force reinstalling Airflow from the current master
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
-ARG AIRFLOW_CI_BUILD_EPOCH="1"
+ARG AIRFLOW_CI_BUILD_EPOCH="2"
 ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
 
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
@@ -274,6 +276,11 @@ RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
                 --constraint "${AIRFLOW_CONSTRAINTS_URL}" && pip uninstall --yes apache-airflow; \
     fi
 
+
+# Generate random hex dump file so that we can determine whether it's faster to rebuild the image
+# using current cache (when our dump is the same as the remote onb) or better to pull
+# the new image (when it is different)
+RUN head -c 30 /dev/urandom | xxd -ps >/build-cache-hash
 
 # Link dumb-init for backwards compatibility (so that older images also work)
 RUN ln -sf /usr/bin/dumb-init /usr/local/bin/dumb-init
