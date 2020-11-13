@@ -28,7 +28,7 @@ import sys
 import threading
 import time
 from collections import defaultdict
-from contextlib import ExitStack, redirect_stderr, redirect_stdout, suppress
+from contextlib import redirect_stderr, redirect_stdout, suppress
 from datetime import timedelta
 from multiprocessing.connection import Connection as MultiprocessingConnection
 from typing import Any, Callable, DefaultDict, Dict, Iterable, List, Optional, Set, Tuple
@@ -167,9 +167,9 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
 
         try:
             # redirect stdout/stderr to log
-            with ExitStack() as exit_stack:
-                exit_stack.enter_context(redirect_stdout(StreamLogWriter(log, logging.INFO)))  # type: ignore
-                exit_stack.enter_context(redirect_stderr(StreamLogWriter(log, logging.WARN)))  # type: ignore
+            with redirect_stdout(StreamLogWriter(log, logging.INFO)), redirect_stderr(
+                StreamLogWriter(log, logging.WARN)
+            ), Stats.timer() as timer:
                 # Re-configure the ORM engine as there are issues with multiple processes
                 settings.configure_orm()
 
@@ -177,7 +177,6 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
                 # really a separate process, but changing the name of the
                 # process doesn't work, so changing the thread name instead.
                 threading.current_thread().name = thread_name
-                start_time = time.time()
 
                 log.info("Started process (PID=%s) to work on %s", os.getpid(), file_path)
                 dag_file_processor = DagFileProcessor(dag_ids=dag_ids, log=log)
@@ -187,8 +186,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
                     callback_requests=callback_requests,
                 )
                 result_channel.send(result)
-                end_time = time.time()
-                log.info("Processing %s took %.3f seconds", file_path, end_time - start_time)
+            log.info("Processing %s took %.3f seconds", file_path, timer.duration)
         except Exception:  # pylint: disable=broad-except
             # Log exceptions through the logging framework.
             log.exception("Got an exception! Propagating...")
@@ -1372,34 +1370,32 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         )
 
         for loop_count in itertools.count(start=1):
-            loop_start_time = time.time()
+            with Stats.timer() as timer:
 
-            if self.using_sqlite:
-                self.processor_agent.run_single_parsing_loop()
-                # For the sqlite case w/ 1 thread, wait until the processor
-                # is finished to avoid concurrent access to the DB.
-                self.log.debug("Waiting for processors to finish since we're using sqlite")
-                self.processor_agent.wait_until_finished()
+                if self.using_sqlite:
+                    self.processor_agent.run_single_parsing_loop()
+                    # For the sqlite case w/ 1 thread, wait until the processor
+                    # is finished to avoid concurrent access to the DB.
+                    self.log.debug("Waiting for processors to finish since we're using sqlite")
+                    self.processor_agent.wait_until_finished()
 
-            with create_session() as session:
-                num_queued_tis = self._do_scheduling(session)
+                with create_session() as session:
+                    num_queued_tis = self._do_scheduling(session)
 
-                self.executor.heartbeat()
-                session.expunge_all()
-                num_finished_events = self._process_executor_events(session=session)
+                    self.executor.heartbeat()
+                    session.expunge_all()
+                    num_finished_events = self._process_executor_events(session=session)
 
-            self.processor_agent.heartbeat()
+                self.processor_agent.heartbeat()
 
-            # Heartbeat the scheduler periodically
-            self.heartbeat(only_if_necessary=True)
+                # Heartbeat the scheduler periodically
+                self.heartbeat(only_if_necessary=True)
 
-            # Run any pending timed events
-            next_event = timers.run(blocking=False)
-            self.log.debug("Next timed event is in %f", next_event)
+                # Run any pending timed events
+                next_event = timers.run(blocking=False)
+                self.log.debug("Next timed event is in %f", next_event)
 
-            loop_end_time = time.time()
-            loop_duration = loop_end_time - loop_start_time
-            self.log.debug("Ran scheduling loop in %.2f seconds", loop_duration)
+            self.log.debug("Ran scheduling loop in %.2f seconds", timer.duration)
 
             if not is_unit_test and not num_queued_tis and not num_finished_events:
                 # If the scheduler is doing things, don't sleep. This means when there is work to do, the

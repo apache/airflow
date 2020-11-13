@@ -400,29 +400,26 @@ class DagRun(Base, LoggingMixin):
 
         start_dttm = timezone.utcnow()
         self.last_scheduling_decision = start_dttm
+        with Stats.timer(f"dagrun.dependency-check.{self.dag_id}"):
+            dag = self.get_dag()
+            info = self.task_instance_scheduling_decisions(session)
 
-        dag = self.get_dag()
-        info = self.task_instance_scheduling_decisions(session)
+            tis = info.tis
+            schedulable_tis = info.schedulable_tis
+            changed_tis = info.changed_tis
+            finished_tasks = info.finished_tasks
+            unfinished_tasks = info.unfinished_tasks
 
-        tis = info.tis
-        schedulable_tis = info.schedulable_tis
-        changed_tis = info.changed_tis
-        finished_tasks = info.finished_tasks
-        unfinished_tasks = info.unfinished_tasks
+            none_depends_on_past = all(not t.task.depends_on_past for t in unfinished_tasks)
+            none_task_concurrency = all(t.task.task_concurrency is None for t in unfinished_tasks)
 
-        none_depends_on_past = all(not t.task.depends_on_past for t in unfinished_tasks)
-        none_task_concurrency = all(t.task.task_concurrency is None for t in unfinished_tasks)
-
-        if unfinished_tasks and none_depends_on_past and none_task_concurrency:
-            # small speed up
-            are_runnable_tasks = (
-                schedulable_tis
-                or self._are_premature_tis(unfinished_tasks, finished_tasks, session)
-                or changed_tis
-            )
-
-        duration = timezone.utcnow() - start_dttm
-        Stats.timing(f"dagrun.dependency-check.{self.dag_id}", duration)
+            if unfinished_tasks and none_depends_on_past and none_task_concurrency:
+                # small speed up
+                are_runnable_tasks = (
+                    schedulable_tis
+                    or self._are_premature_tis(unfinished_tasks, finished_tasks, session)
+                    or changed_tis
+                )
 
         leaf_task_ids = {t.task_id for t in dag.leaves}
         leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids]

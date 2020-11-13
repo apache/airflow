@@ -23,7 +23,6 @@ import inspect
 import logging
 import os
 import sys
-import time
 import types
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
@@ -252,6 +251,8 @@ def ensure_plugins_loaded():
 
     Plugins are only loaded if they have not been previously loaded.
     """
+    from airflow.stats import Stats
+
     global plugins, registered_hooks  # pylint: disable=global-statement
 
     if plugins is not None:
@@ -263,24 +264,21 @@ def ensure_plugins_loaded():
 
     log.debug("Loading plugins")
 
-    start = time.monotonic()
+    with Stats.timer() as timer:
+        plugins = []
+        registered_hooks = []
 
-    plugins = []
-    registered_hooks = []
+        load_plugins_from_plugin_directory()
+        load_entrypoint_plugins()
 
-    load_plugins_from_plugin_directory()
-    load_entrypoint_plugins()
-
-    # We don't do anything with these for now, but we want to keep track of
-    # them so we can integrate them in to the UI's Connection screens
-    for plugin in plugins:
-        registered_hooks.extend(plugin.hooks)
-
-    end = time.monotonic()
+        # We don't do anything with these for now, but we want to keep track of
+        # them so we can integrate them in to the UI's Connection screens
+        for plugin in plugins:
+            registered_hooks.extend(plugin.hooks)
 
     num_loaded = len(plugins)
     if num_loaded > 0:
-        log.info("Loading %d plugin(s) took %.2f seconds", num_loaded, end - start)
+        log.info("Loading %d plugin(s) took %.2f seconds", num_loaded, timer.duration)
 
 
 def initialize_web_ui_plugins():

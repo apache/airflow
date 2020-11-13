@@ -492,7 +492,7 @@ class TestSageMakerHook(unittest.TestCase):
 
     @mock.patch.object(AwsLogsHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'get_conn')
-    @mock.patch.object(time, 'time')
+    @mock.patch.object(time, 'monotonic')
     def test_describe_training_job_with_logs_in_progress(self, mock_time, mock_client, mock_log_client):
         mock_session = mock.Mock()
         mock_log_session = mock.Mock()

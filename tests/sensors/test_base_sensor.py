@@ -501,8 +501,12 @@ class TestBaseSensor(unittest.TestCase):
         sensor = self._make_sensor(return_value=None, poke_interval=5, timeout=60, exponential_backoff=False)
 
         started_at = timezone.utcnow() - timedelta(seconds=10)
-        self.assertEqual(sensor._get_next_poke_interval(started_at, 1), sensor.poke_interval)
-        self.assertEqual(sensor._get_next_poke_interval(started_at, 2), sensor.poke_interval)
+
+        def run_duration():
+            return (timezone.utcnow - started_at).total_seconds()
+
+        self.assertEqual(sensor._get_next_poke_interval(started_at, run_duration, 1), sensor.poke_interval)
+        self.assertEqual(sensor._get_next_poke_interval(started_at, run_duration, 2), sensor.poke_interval)
 
     def test_sensor_with_exponential_backoff_on(self):
 
@@ -512,10 +516,12 @@ class TestBaseSensor(unittest.TestCase):
             mock_utctime.return_value = DEFAULT_DATE
 
             started_at = timezone.utcnow() - timedelta(seconds=10)
-            print(started_at)
 
-            interval1 = sensor._get_next_poke_interval(started_at, 1)
-            interval2 = sensor._get_next_poke_interval(started_at, 2)
+            def run_duration():
+                return (timezone.utcnow - started_at).total_seconds()
+
+            interval1 = sensor._get_next_poke_interval(started_at, run_duration, 1)
+            interval2 = sensor._get_next_poke_interval(started_at, run_duration, 2)
 
             self.assertTrue(interval1 >= 0)
             self.assertTrue(interval1 <= sensor.poke_interval)

@@ -25,7 +25,6 @@ from kylinpy import kylinpy
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.kylin.hooks.kylin import KylinHook
-from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 
 
@@ -169,7 +168,7 @@ class KylinCubeOperator(BaseOperator):
         }
         rsp_data = _hook.cube_run(self.cube, self.command.lower(), **kylinpy_params)
         if self.is_track_job and self.command.lower() in self.build_command:
-            started_at = timezone.utcnow()
+            started_at = time.monotonic()
             job_id = rsp_data.get("uuid")
             if job_id is None:
                 raise AirflowException("kylin job id is None")
@@ -177,7 +176,7 @@ class KylinCubeOperator(BaseOperator):
 
             job_status = None
             while job_status not in self.jobs_end_status:
-                if (timezone.utcnow() - started_at).total_seconds() > self.timeout:
+                if time.monotonic() - started_at > self.timeout:
                     raise AirflowException(f'kylin job {job_id} timeout')
                 time.sleep(self.interval)
 

@@ -66,11 +66,11 @@ def setup_event_handlers(engine):
 
         @event.listens_for(engine, "before_cursor_execute")
         def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
-            conn.info.setdefault('query_start_time', []).append(time.time())
+            conn.info.setdefault('query_start_time', []).append(time.perf_counter())
 
         @event.listens_for(engine, "after_cursor_execute")
         def after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
-            total = time.time() - conn.info['query_start_time'].pop()
+            total = time.perf_counter() - conn.info['query_start_time'].pop()
             file_name = [
                 f"'{f.name}':{f.filename}:{f.lineno}"
                 for f in traceback.extract_stack()

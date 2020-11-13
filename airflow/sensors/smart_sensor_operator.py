@@ -20,7 +20,6 @@
 import datetime
 import json
 import logging
-import time
 import traceback
 from logging.config import DictConfigurator  # type: ignore
 from time import sleep
@@ -348,15 +347,15 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
 
         """
         SI = SensorInstance
-        start_query_time = time.time()
-        query = (
-            session.query(SI)
-            .filter(SI.state == State.SENSING)
-            .filter(SI.shardcode < self.shard_max, SI.shardcode >= self.shard_min)
-        )
-        tis = query.all()
+        with Stats.timer() as timer:
+            query = (
+                session.query(SI)
+                .filter(SI.state == State.SENSING)
+                .filter(SI.shardcode < self.shard_max, SI.shardcode >= self.shard_min)
+            )
+            tis = query.all()
 
-        self.log.info("Performance query %s tis, time: %s", len(tis), time.time() - start_query_time)
+        self.log.info("Performance query %s tis, time: %.3f", len(tis), timer.duration)
 
         # Query without checking dagrun state might keep some failed dag_run tasks alive.
         # Join with DagRun table will be very slow based on the number of sensor tasks we

@@ -508,7 +508,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         self._pickle_dags = pickle_dags
         self._dag_ids = dag_ids
         self._async_mode = async_mode
-        self._parsing_start_time: Optional[datetime] = None
+        self._parsing_start_time: Optional[int] = None
 
         self._parallelism = conf.getint('scheduler', 'parsing_processes')
         if 'sqlite' in conf.get('core', 'sql_alchemy_conn') and self._parallelism > 1:
@@ -541,7 +541,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         # Last time that the DAG dir was traversed to look for files
         self.last_dag_dir_refresh_time = timezone.make_aware(datetime.fromtimestamp(0))
         # Last time stats were printed
-        self.last_stat_print_time = timezone.datetime(2000, 1, 1)
+        self.last_stat_print_time = 0
         # TODO: Remove magic number
         self._zombie_query_interval = 10
         # How long to wait before timing out a process to parse a DAG file
@@ -612,7 +612,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             self.start_new_processes()
 
         while True:
-            loop_start_time = time.time()
+            loop_start_time = time.monotonic()
 
             # pylint: disable=no-else-break
             ready = multiprocessing.connection.wait(self.waitables.keys(), timeout=poll_time)
@@ -704,7 +704,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 break
 
             if self._async_mode:
-                loop_duration = time.time() - loop_start_time
+                loop_duration = time.monotonic() - loop_start_time
                 if loop_duration < 1:
                     poll_time = 1 - loop_duration
                 else:
@@ -745,10 +745,10 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
 
     def _print_stat(self):
         """Occasionally print out stats about how fast the files are getting processed"""
-        if 0 < self.print_stats_interval < (timezone.utcnow() - self.last_stat_print_time).total_seconds():
+        if 0 < self.print_stats_interval < time.monotonic() - self.last_stat_print_time:
             if self._file_paths:
                 self._log_file_processing_stats(self._file_paths)
-            self.last_stat_print_time = timezone.utcnow()
+            self.last_stat_print_time = time.monotonic()
 
     @provide_session
     def clear_nonexistent_import_errors(self, session):
@@ -1005,7 +1005,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
 
     def prepare_file_path_queue(self):
         """Generate more file paths to process. Result are saved in _file_path_queue."""
-        self._parsing_start_time = timezone.utcnow()
+        self._parsing_start_time = time.perf_counter()
         # If the file path is already being processed, or if a file was
         # processed recently, wait until the next batch
         file_paths_in_progress = self._processors.keys()
@@ -1146,7 +1146,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         This is called once every time around the parsing "loop" - i.e. after
         all files have been parsed.
         """
-        parse_time = (timezone.utcnow() - self._parsing_start_time).total_seconds()
+        parse_time = time.perf_counter() - self._parsing_start_time
         Stats.gauge('dag_processing.total_parse_time', parse_time)
         Stats.gauge('dagbag_size', sum(stat.num_dags for stat in self._file_stats.values()))
         Stats.gauge(

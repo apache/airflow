@@ -22,7 +22,6 @@ import logging
 import math
 import os
 import signal
-import time
 import warnings
 from datetime import datetime, timedelta
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
@@ -1220,55 +1219,49 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
 
         # Don't clear Xcom until the task is certain to execute
         self.clear_xcom_data()
-        start_time = time.time()
+        with Stats.timer(f'dag.{task_copy.dag_id}.{task_copy.task_id}.duration'):
 
-        self.render_templates(context=context)
-        RenderedTaskInstanceFields.write(RenderedTaskInstanceFields(ti=self, render_templates=False))
-        RenderedTaskInstanceFields.delete_old_records(self.task_id, self.dag_id)
+            self.render_templates(context=context)
+            RenderedTaskInstanceFields.write(RenderedTaskInstanceFields(ti=self, render_templates=False))
+            RenderedTaskInstanceFields.delete_old_records(self.task_id, self.dag_id)
 
-        # Export context to make it available for operators to use.
-        airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
-        self.log.info(
-            "Exporting the following env vars:\n%s",
-            '\n'.join([f"{k}={v}" for k, v in airflow_context_vars.items()]),
-        )
+            # Export context to make it available for operators to use.
+            airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+            self.log.info(
+                "Exporting the following env vars:\n%s",
+                '\n'.join([f"{k}={v}" for k, v in airflow_context_vars.items()]),
+            )
 
-        os.environ.update(airflow_context_vars)
+            os.environ.update(airflow_context_vars)
 
-        # Run pre_execute callback
-        task_copy.pre_execute(context=context)
+            # Run pre_execute callback
+            task_copy.pre_execute(context=context)
 
-        # Run on_execute callback
-        self._run_execute_callback(context, task)
+            # Run on_execute callback
+            self._run_execute_callback(context, task)
 
-        if task_copy.is_smart_sensor_compatible():
-            # Try to register it in the smart sensor service.
-            registered = False
-            try:
-                registered = task_copy.register_in_sensor_service(self, context)
-            except Exception as e:
-                self.log.warning(
-                    "Failed to register in sensor service.Continue to run task in non smart sensor mode."
-                )
-                self.log.exception(e, exc_info=True)
+            if task_copy.is_smart_sensor_compatible():
+                # Try to register it in the smart sensor service.
+                registered = False
+                try:
+                    registered = task_copy.register_in_sensor_service(self, context)
+                except Exception as e:
+                    self.log.warning(
+                        "Failed to register in sensor service.Continue to run task in non smart sensor mode."
+                    )
+                    self.log.exception(e, exc_info=True)
 
-            if registered:
-                # Will raise AirflowSmartSensorException to avoid long running execution.
-                self._update_ti_state_for_sensing()
+                if registered:
+                    # Will raise AirflowSmartSensorException to avoid long running execution.
+                    self._update_ti_state_for_sensing()
 
-        # Execute the task
-        with set_current_context(context):
-            result = self._execute_task(context, task_copy)
+            # Execute the task
+            with set_current_context(context):
+                result = self._execute_task(context, task_copy)
 
-        # Run post_execute callback
-        task_copy.post_execute(context=context, result=result)
+            # Run post_execute callback
+            task_copy.post_execute(context=context, result=result)
 
-        end_time = time.time()
-        duration = timedelta(seconds=end_time - start_time)
-        Stats.timing(
-            f'dag.{task_copy.dag_id}.{task_copy.task_id}.duration',
-            duration,
-        )
         Stats.incr(f'operator_successes_{self.task.task_type}', 1, 1)
         Stats.incr('ti_successes')
 

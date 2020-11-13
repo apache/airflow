@@ -774,6 +774,47 @@ If this function is designed to be called by "end-users" (i.e. DAG authors) then
       ...
       # You SHOULD not commit the session here. The wrapper will take care of commit()/rollback() if exception
 
+Don't use time() for duration calcuations
+-----------------------------------------
+
+If you wish to compute the time difference between two events with in the same process, use
+``time.monotonic()``, not ``time.time()`` nor ``timzeone.utcnow()``.
+
+If you are measuring duration for performance reasons, then ``time.perf_counter()`` should be used. (On many
+platforms, this uses the same underlying clock mechanism as monotonic, but ``perf_counter`` is guaranteed to be
+the highest accuracy clock on the system, monotonic is simply "guaranteed" to not go backwards.)
+
+If you wish to time how long a block of code takes, use ``Stats.timer()`` -- either with a metric name, which
+will be timed and submitted automatically:
+
+.. code-block:: python
+
+    from airflow.stats import Stats
+
+    ...
+
+    with Stats.timer("my_timer_metric"):
+        ...
+
+or to time but not send a metric:
+
+.. code-block:: python
+
+    from airflow.stats import Stats
+
+    ...
+
+    with Stats.timer() as timer:
+        ...
+
+    log.info("Code took %.3f seconds", timer.duration)
+
+For full docs on ``timer()`` check out `airflow/stats.py`_.
+
+If the start_date of a duration calculation needs to be stored in a database, then this has to be done using
+datetime objects. In all other cases, using datetime for duration calculation MUST be avoided as creating and
+diffing datetime operations are (comparatively) slow.
+
 Naming Conventions for provider packages
 ----------------------------------------
 

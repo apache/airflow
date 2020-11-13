@@ -438,38 +438,37 @@ class DagBag(LoggingMixin):
             return
 
         self.log.info("Filling up the DagBag from %s", dag_folder)
-        start_dttm = timezone.utcnow()
-        dag_folder = dag_folder or self.dag_folder
-        # Used to store stats around DagBag processing
-        stats = []
+        with Stats.timer('collect_dags'):
+            dag_folder = dag_folder or self.dag_folder
+            # Used to store stats around DagBag processing
+            stats = []
 
-        dag_folder = correct_maybe_zipped(dag_folder)
-        for filepath in list_py_file_paths(
-            dag_folder,
-            safe_mode=safe_mode,
-            include_examples=include_examples,
-            include_smart_sensor=include_smart_sensor,
-        ):
-            try:
-                file_parse_start_dttm = timezone.utcnow()
-                found_dags = self.process_file(filepath, only_if_updated=only_if_updated, safe_mode=safe_mode)
-
-                file_parse_end_dttm = timezone.utcnow()
-                stats.append(
-                    FileLoadStat(
-                        file=filepath.replace(settings.DAGS_FOLDER, ''),
-                        duration=file_parse_end_dttm - file_parse_start_dttm,
-                        dag_num=len(found_dags),
-                        task_num=sum([len(dag.tasks) for dag in found_dags]),
-                        dags=str([dag.dag_id for dag in found_dags]),
+            dag_folder = correct_maybe_zipped(dag_folder)
+            for filepath in list_py_file_paths(
+                dag_folder,
+                safe_mode=safe_mode,
+                include_examples=include_examples,
+                include_smart_sensor=include_smart_sensor,
+            ):
+                try:
+                    file_parse_start_dttm = timezone.utcnow()
+                    found_dags = self.process_file(
+                        filepath, only_if_updated=only_if_updated, safe_mode=safe_mode
                     )
-                )
-            except Exception as e:  # pylint: disable=broad-except
-                self.log.exception(e)
 
-        end_dttm = timezone.utcnow()
-        durations = (end_dttm - start_dttm).total_seconds()
-        Stats.gauge('collect_dags', durations, 1)
+                    file_parse_end_dttm = timezone.utcnow()
+                    stats.append(
+                        FileLoadStat(
+                            file=filepath.replace(settings.DAGS_FOLDER, ''),
+                            duration=file_parse_end_dttm - file_parse_start_dttm,
+                            dag_num=len(found_dags),
+                            task_num=sum([len(dag.tasks) for dag in found_dags]),
+                            dags=str([dag.dag_id for dag in found_dags]),
+                        )
+                    )
+                except Exception as e:  # pylint: disable=broad-except
+                    self.log.exception(e)
+
         Stats.gauge('dagbag_size', len(self.dags), 1)
         Stats.gauge('dagbag_import_errors', len(self.import_errors), 1)
         self.dagbag_stats = sorted(stats, key=lambda x: x.duration, reverse=True)
@@ -483,23 +482,21 @@ class DagBag(LoggingMixin):
         """Collects DAGs from database."""
         from airflow.models.serialized_dag import SerializedDagModel
 
-        start_dttm = timezone.utcnow()
-        self.log.info("Filling up the DagBag from database")
+        with Stats.timer('collect_db_dags'):
+            self.log.info("Filling up the DagBag from database")
 
-        # The dagbag contains all rows in serialized_dag table. Deleted DAGs are deleted
-        # from the table by the scheduler job.
-        self.dags = SerializedDagModel.read_all_dags()
+            # The dagbag contains all rows in serialized_dag table. Deleted DAGs are deleted
+            # from the table by the scheduler job.
+            self.dags = SerializedDagModel.read_all_dags()
 
-        # Adds subdags.
-        # DAG post-processing steps such as self.bag_dag and croniter are not needed as
-        # they are done by scheduler before serialization.
-        subdags = {}
-        for dag in self.dags.values():
-            for subdag in dag.subdags:
-                subdags[subdag.dag_id] = subdag
-        self.dags.update(subdags)
-
-        Stats.timing('collect_db_dags', timezone.utcnow() - start_dttm)
+            # Adds subdags.
+            # DAG post-processing steps such as self.bag_dag and croniter are not needed as
+            # they are done by scheduler before serialization.
+            subdags = {}
+            for dag in self.dags.values():
+                for subdag in dag.subdags:
+                    subdags[subdag.dag_id] = subdag
+            self.dags.update(subdags)
 
     def dagbag_report(self):
         """Prints a report around DagBag loading stats"""
