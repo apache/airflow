@@ -20,7 +20,7 @@
 /* global window, dagTZ, moment, convertSecsToHumanReadable */
 
 // We don't re-import moment again, otherwise webpack will include it twice in the bundle!
-import { escapeHtml } from './base';
+import { escapeHtml } from './main';
 import { defaultFormat, formatDateTime } from './datetime-utils';
 
 function makeDateTimeHTML(start, end) {
