@@ -163,7 +163,7 @@ class TestS3TaskHandler(unittest.TestCase):
             result = handler.s3_read(url, return_error=True)
             msg = (
                 f'Could not read logs from {url} with error: An error occurred (NoSuchBucket) when '
-                f'calling the HeadObject operation: The specified bucket does not exist '
+                f'calling the HeadObject operation: The specified bucket does not exist'
             )
             self.assertEqual(result, msg)
             mock_error.assert_called_once_with(msg, exc_info=True)
