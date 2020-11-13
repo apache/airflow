@@ -1983,7 +1983,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         form = DateTimeWithNumRunsForm(data={'base_date': max_date, 'num_runs': num_runs})
 
-        doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None), css_class='dag-doc')
+        doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None))
 
         task_log_reader = TaskLogReader()
         if task_log_reader.supports_external_link:
@@ -2069,7 +2069,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         if not tasks:
             flash("No tasks found", "error")
         session.commit()
-        doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None), css_class='dag-doc')
+        doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None))
 
         task_log_reader = TaskLogReader()
         if task_log_reader.supports_external_link:
