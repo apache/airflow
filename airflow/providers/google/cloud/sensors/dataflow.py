@@ -106,7 +106,10 @@ class DataflowJobStatusSensor(BaseSensorOperator):
             project_id=self.project_id,
             location=self.location,
         )
+
         job_status = job["currentState"]
+        self.log.debug("Current job status for job %s: %s.", self.job_id, job_status)
+
         if job_status in self.expected_statuses:
             return True
         elif job_status in DataflowJobStatus.TERMINAL_STATES:

@@ -150,7 +150,7 @@ class _DataflowJobsController(LoggingMixin):
         instead of canceling.
     :param cancel_timeout: wait time in seconds for successful job canceling
     :param wait_until_finished: If True, wait for the end of pipeline execution before exiting. If False,
-        it only waits for it to starts (``JOB_STATE_RUNNING``).
+        it only submits job and check once is job not in terminal state.
 
         The default behavior depends on the type of pipeline:
 
@@ -297,9 +297,9 @@ class _DataflowJobsController(LoggingMixin):
         :raise: Exception
         """
         if self._wait_until_finished is None:
-            wait_until_finished = job['type'] != DataflowJobType.JOB_TYPE_STREAMING
+            wait_for_running = job['type'] == DataflowJobType.JOB_TYPE_STREAMING
         else:
-            wait_until_finished = self._wait_until_finished
+            wait_for_running = not self._wait_until_finished
 
         if job['currentState'] == DataflowJobStatus.JOB_STATE_DONE:
             return True
@@ -311,10 +311,10 @@ class _DataflowJobsController(LoggingMixin):
             raise Exception("Google Cloud Dataflow job {} was drained.".format(job['name']))
         elif job['currentState'] == DataflowJobStatus.JOB_STATE_UPDATED:
             raise Exception("Google Cloud Dataflow job {} was updated.".format(job['name']))
-        elif job['currentState'] == DataflowJobStatus.JOB_STATE_RUNNING and not wait_until_finished:
+        elif job['currentState'] == DataflowJobStatus.JOB_STATE_RUNNING and wait_for_running:
             return True
         elif job['currentState'] in DataflowJobStatus.AWAITING_STATES:
-            return False
+            return self._wait_until_finished is False
         self.log.debug("Current job: %s", str(job))
         raise Exception(
             "Google Cloud Dataflow job {} was unknown state: {}".format(job["name"], job["currentState"])

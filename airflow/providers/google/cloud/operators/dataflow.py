@@ -137,8 +137,9 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         successfully cancelled when task is being killed.
     :type cancel_timeout: Optional[int]
     :param wait_until_finished: (Optional)
-        If True, wait for the end of pipeline execution before exiting. If False,
-        it only waits for it to starts (``JOB_STATE_RUNNING``).
+        If True, wait for the end of pipeline execution before exiting.
+        If False, only submits job.
+        If None, default behavior.
 
         The default behavior depends on the type of pipeline:
 
@@ -166,8 +167,8 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         If you in your pipeline do not call the wait_for_pipeline method but pass wait_until_finish=True
         to the operator, the second loop will wait for the job's terminal state.
 
-        If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish =False
-        to the operator, the second loop will wait for the running state only.
+        If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish=False
+        to the operator, the second loop will check once is job not in terminal state and exit the loop.
     :type wait_until_finished: Optional[bool]
 
     Note that both
@@ -372,8 +373,9 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         successfully cancelled when task is being killed.
     :type cancel_timeout: Optional[int]
     :param wait_until_finished: (Optional)
-        If True, wait for the end of pipeline execution before exiting. If False,
-        it only waits for it to starts (``JOB_STATE_RUNNING``).
+        If True, wait for the end of pipeline execution before exiting.
+        If False, only submits job.
+        If None, default behavior.
 
         The default behavior depends on the type of pipeline:
 
@@ -401,8 +403,8 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         If you in your pipeline do not call the wait_for_pipeline method but pass wait_until_finish=True
         to the operator, the second loop will wait for the job's terminal state.
 
-        If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish =False
-        to the operator, the second loop will wait for the running state only.
+        If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish=False
+        to the operator, the second loop will check once is job not in terminal state and exit the loop.
     :type wait_until_finished: Optional[bool]
 
     It's a good practice to define dataflow_* parameters in the default_args of the dag
@@ -563,8 +565,9 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
         successfully cancelled when task is being killed.
     :type cancel_timeout: Optional[int]
     :param wait_until_finished: (Optional)
-        If True, wait for the end of pipeline execution before exiting. If False,
-        it only waits for it to starts (``JOB_STATE_RUNNING``).
+        If True, wait for the end of pipeline execution before exiting.
+        If False, only submits job.
+        If None, default behavior.
 
         The default behavior depends on the type of pipeline:
 
@@ -592,8 +595,9 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
         If you in your pipeline do not call the wait_for_pipeline method but pass wait_until_finish=True
         to the operator, the second loop will wait for the job's terminal state.
 
-        If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish =False
-        to the operator, the second loop will wait for the running state only.
+        If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish=False
+        to the operator, the second loop will check once is job not in terminal state and exit the loop.
+    :type wait_until_finished: Optional[bool]
     """
 
     template_fields = ["body", "location", "project_id", "gcp_conn_id"]
@@ -823,8 +827,9 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         successfully cancelled when task is being killed.
     :type cancel_timeout: Optional[int]
     :param wait_until_finished: (Optional)
-        If True, wait for the end of pipeline execution before exiting. If False,
-        it only waits for it to starts (``JOB_STATE_RUNNING``).
+        If True, wait for the end of pipeline execution before exiting.
+        If False, only submits job.
+        If None, default behavior.
 
         The default behavior depends on the type of pipeline:
 
@@ -852,8 +857,8 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         If you in your pipeline do not call the wait_for_pipeline method but pass wait_until_finish=True
         to the operator, the second loop will wait for the job's terminal state.
 
-        If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish =False
-        to the operator, the second loop will wait for the running state only.
+        If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish=False
+        to the operator, the second loop will check once is job not in terminal state and exit the loop.
     :type wait_until_finished: Optional[bool]
     """
 

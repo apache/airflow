@@ -1236,6 +1236,81 @@ class TestDataflowJob(unittest.TestCase):
 
         self.assertEqual(False, result)
 
+    # fmt: off
+    @parameterized.expand([
+        # RUNNING
+        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_RUNNING, None, False),
+        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_RUNNING, None, True),
+        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_RUNNING, True, False),
+        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_RUNNING, True, False),
+        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_RUNNING, False, True),
+        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_RUNNING, False, True),
+        # AWAITING STATE
+        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_PENDING, None, False),
+        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_PENDING, None, False),
+        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_PENDING, True, False),
+        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_PENDING, True, False),
+        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_PENDING, False, True),
+        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_PENDING, False, True),
+    ])
+    # fmt: on
+    def test_check_dataflow_job_state_wait_until_finished(
+        self, job_type, job_state, wait_until_finished, expected_result
+    ):
+        job = {"id": "id-2", "name": "name-2", "type": job_type, "currentState": job_state}
+        dataflow_job = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name="name-",
+            location=TEST_LOCATION,
+            poll_sleep=0,
+            job_id=None,
+            num_retries=20,
+            multiple_jobs=True,
+            wait_until_finished=wait_until_finished,
+        )
+        result = dataflow_job._check_dataflow_job_state(job)
+        self.assertEqual(result, expected_result)
+
+    # fmt: off
+    @parameterized.expand([
+        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_FAILED,
+            "Google Cloud Dataflow job name-2 has failed\\."),
+        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_FAILED,
+         "Google Cloud Dataflow job name-2 has failed\\."),
+        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_UNKNOWN,
+         "Google Cloud Dataflow job name-2 was unknown state: JOB_STATE_UNKNOWN"),
+        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_UNKNOWN,
+         "Google Cloud Dataflow job name-2 was unknown state: JOB_STATE_UNKNOWN"),
+        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_CANCELLED,
+            "Google Cloud Dataflow job name-2 was cancelled\\."),
+        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_CANCELLED,
+         "Google Cloud Dataflow job name-2 was cancelled\\."),
+        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_DRAINED,
+            "Google Cloud Dataflow job name-2 was drained\\."),
+        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_DRAINED,
+         "Google Cloud Dataflow job name-2 was drained\\."),
+        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_UPDATED,
+            "Google Cloud Dataflow job name-2 was updated\\."),
+        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_UPDATED,
+         "Google Cloud Dataflow job name-2 was updated\\."),
+    ])
+    # fmt: on
+    def test_check_dataflow_job_state_terminal_state(self, job_type, job_state, exception_regex):
+        job = {"id": "id-2", "name": "name-2", "type": job_type, "currentState": job_state}
+        dataflow_job = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name="name-",
+            location=TEST_LOCATION,
+            poll_sleep=0,
+            job_id=None,
+            num_retries=20,
+            multiple_jobs=True,
+        )
+        with self.assertRaisesRegex(Exception, exception_regex):
+            dataflow_job._check_dataflow_job_state(job)
+
     def test_dataflow_job_cancel_job(self):
         mock_jobs = self.mock_dataflow.projects.return_value.locations.return_value.jobs
         get_method = mock_jobs.return_value.get
