@@ -63,7 +63,7 @@ class BaseXCom(Base, LoggingMixin):
         i.e automatically deserialize Xcom value when loading from DB.
         """
         try:
-            self.value = self.orm_deserialize_value(self)
+            self.value = self.orm_deserialize_value()
         except (UnicodeEncodeError, ValueError):
             # For backward-compatibility.
             # Preventing errors in webserver
@@ -259,8 +259,7 @@ class BaseXCom(Base, LoggingMixin):
             )
             raise
 
-    @staticmethod
-    def orm_deserialize_value(result) -> Any:
+    def orm_deserialize_value(self) -> Any:
         """
         Deserialize method which is used to reconstruct ORM XCom object.
 
@@ -268,7 +267,7 @@ class BaseXCom(Base, LoggingMixin):
         unnecessary request or other resource consuming operations when
         creating XCom orm model
         """
-        return BaseXCom.deserialize_value(result)
+        return BaseXCom.deserialize_value(self)
 
 
 def resolve_xcom_backend():
