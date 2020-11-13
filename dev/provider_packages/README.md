@@ -15,7 +15,22 @@
  KIND, either express or implied.  See the License for the
  specific language governing permissions and limitations
  under the License.
- -->
+-->
+
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [Backport packages](#backport-packages)
+- [What the backport packages are](#what-the-backport-packages-are)
+- [Content of the release notes](#content-of-the-release-notes)
+  - [Generating release notes](#generating-release-notes)
+  - [Preparing backport packages](#preparing-backport-packages)
+- [Testing provider package scripts](#testing-provider-package-scripts)
+  - [Backport packages](#backport-packages-1)
+  - [Regular packages](#regular-packages)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 # Backport packages
 
