@@ -40,6 +40,16 @@ spec:
       volumeMounts:
         - mountPath: {{ template "airflow_logs" . }}
           name: airflow-logs
+        - name: config
+          mountPath: {{ template "airflow_config_path" . }}
+          subPath: airflow.cfg
+          readOnly: true
+{{- if .Values.scheduler.airflowLocalSettings }}
+        - name: config
+          mountPath: {{ template "airflow_local_setting_path" . }}
+          subPath: airflow_local_settings.py
+          readOnly: true
+{{- end }}
 {{- if .Values.dags.gitSync.knownHosts }}
         - mountPath: /etc/git-secret/known_hosts
           name: {{ .Values.dags.gitSync.knownHosts }}
@@ -92,7 +102,4 @@ spec:
 {{- end }}
   - configMap:
       name: {{ include "airflow_config" . }}
-    name: airflow-config
-  - configMap:
-      name: {{ include "airflow_config" . }}
-    name: airflow-local-settings
+    name: config

@@ -185,6 +185,27 @@ class PodTemplateFileTest(unittest.TestCase):
         self.assertEqual("dummy_image:latest", jmespath.search("spec.containers[0].image", docs[0]))
         self.assertEqual("base", jmespath.search("spec.containers[0].name", docs[0]))
 
+    def test_mount_airflow_cfg(self):
+        docs = render_chart(
+            values={},
+            show_only=["templates/pod-template-file.yaml"],
+        )
+
+        self.assertRegex(docs[0]["kind"], "Pod")
+        self.assertDictEqual(
+            {'configMap': {'name': 'RELEASE-NAME-airflow-config'}, 'name': 'airflow-config'},
+            jmespath.search("spec.volumes[1]", docs[0]),
+        )
+        self.assertDictEqual(
+            {
+                'name': 'config',
+                'mountPath': '/opt/airflow/airflow.cfg',
+                'subPath': 'airflow.cfg',
+                'readOnly': True,
+            },
+            jmespath.search("spec.containers[0].volumeMounts[1]", docs[0]),
+        )
+
     def test_should_create_valid_affinity_and_node_selector(self):
         docs = render_chart(
             values={
