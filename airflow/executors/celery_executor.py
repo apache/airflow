@@ -35,7 +35,7 @@ from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Set, Tupl
 
 from celery import Celery, Task, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
-from celery.backends.database import DatabaseBackend, Task as TaskDb, session_cleanup
+from celery.backends.database import DatabaseBackend, session_cleanup
 from celery.result import AsyncResult
 from celery.signals import import_modules as celery_import_modules
 from setproctitle import setproctitle  # pylint: disable=no-name-in-module
@@ -562,8 +562,9 @@ class BulkStateFetcher(LoggingMixin):
     def _get_many_from_db_backend(self, async_tasks) -> Mapping[str, EventBufferValueType]:
         task_ids = _tasks_list_to_task_ids(async_tasks)
         session = app.backend.ResultSession()
+        task_cls = app.backend.task_cls
         with session_cleanup(session):
-            tasks = session.query(TaskDb).filter(TaskDb.task_id.in_(task_ids)).all()
+            tasks = session.query(task_cls).filter(task_cls.task_id.in_(task_ids)).all()
 
         task_results = [app.backend.meta_from_decoded(task.to_dict()) for task in tasks]
         task_results_by_task_id = {task_result["task_id"]: task_result for task_result in task_results}
