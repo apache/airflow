@@ -365,7 +365,6 @@ class TestPodGenerator(unittest.TestCase):
                         image='',
                         name='name',
                         command=['/bin/command2.sh', 'arg2'],
-                        env=[],
                         volume_mounts=[
                             k8s.V1VolumeMount(mount_path="/foo/", name="example-kubernetes-test-volume2")
                         ],
