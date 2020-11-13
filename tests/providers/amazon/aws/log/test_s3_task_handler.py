@@ -151,7 +151,7 @@ class TestS3TaskHandler(unittest.TestCase):
             result = handler.s3_read(url, return_error=True)
             msg = (
                 f'Could not read logs from {url} with error: An error occurred (404) when calling the '
-                f'HeadObject operation: Not Found '
+                f'HeadObject operation: Not Found'
             )
             self.assertEqual(result, msg)
             mock_error.assert_called_once_with(msg, exc_info=True)
