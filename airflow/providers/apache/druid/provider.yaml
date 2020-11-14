@@ -18,7 +18,7 @@
 ---
 package-name: apache-airflow-providers-apache-druid
 description: |
-    `Apache Cassandra <https://druid.apache.org/>`__.
+    `Apache Druid <https://druid.apache.org/>`__.
 
 versions:
   - 1.0.0b1

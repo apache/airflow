@@ -18,7 +18,7 @@
 ---
 package-name: apache-airflow-providers-vertica
 description: |
-    `Verticaa <https://www.vertica.com/>`__
+    `Vertica <https://www.vertica.com/>`__
 
 versions:
   - 1.0.0b1

@@ -18,7 +18,7 @@
 ---
 package-name: apache-airflow-providers-dingding
 description: |
-    `Datadog <https://oapi.dingtalk.com/>`__
+    `Dingding <https://oapi.dingtalk.com/>`__
 
 versions:
   - 1.0.0b1
