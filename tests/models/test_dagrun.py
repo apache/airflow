@@ -770,3 +770,21 @@ class TestDagRun(unittest.TestCase):
         stats_mock.assert_called()
         sched_delay_stat_call = call(f'dagrun.{dag.dag_id}.first_task_scheduling_delay', true_delay)
         self.assertIn(sched_delay_stat_call, stats_mock.mock_calls)
+
+    def test_states_sets(self):
+        """
+        Tests that adding State.failed_states and State.success_states work as expected.
+        """
+        dag = DAG(dag_id='test_dagrun_states', start_date=days_ago(1))
+        dag_task_success = DummyOperator(task_id='dummy', dag=dag)
+        dag_task_failed = DummyOperator(task_id='dummy2', dag=dag)
+
+        initial_task_states = {
+            dag_task_success.task_id: State.SUCCESS,
+            dag_task_failed.task_id: State.FAILED,
+        }
+        dag_run = self.create_dag_run(dag=dag, state=State.RUNNING, task_states=initial_task_states)
+        ti_success = dag_run.get_task_instance(dag_task_success.task_id)
+        ti_failed = dag_run.get_task_instance(dag_task_failed.task_id)
+        self.assertIn(ti_success.state, State.success_states)
+        self.assertIn(ti_failed.state, State.failed_states)

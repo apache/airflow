@@ -428,9 +428,7 @@ class DagRun(Base, LoggingMixin):
         leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids]
 
         # if all roots finished and at least one failed, the run failed
-        if not unfinished_tasks and any(
-            leaf_ti.state in {State.FAILED, State.UPSTREAM_FAILED} for leaf_ti in leaf_tis
-        ):
+        if not unfinished_tasks and any(leaf_ti.state in State.failed_states for leaf_ti in leaf_tis):
             self.log.error('Marking run %s failed', self)
             self.set_state(State.FAILED)
             if execute_callbacks:
@@ -445,9 +443,7 @@ class DagRun(Base, LoggingMixin):
                 )
 
         # if all leafs succeeded and no unfinished tasks, the run succeeded
-        elif not unfinished_tasks and all(
-            leaf_ti.state in {State.SUCCESS, State.SKIPPED} for leaf_ti in leaf_tis
-        ):
+        elif not unfinished_tasks and all(leaf_ti.state in State.success_states for leaf_ti in leaf_tis):
             self.log.info('Marking run %s successful', self)
             self.set_state(State.SUCCESS)
             if execute_callbacks:

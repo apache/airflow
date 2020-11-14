@@ -134,6 +134,16 @@ class State:
     a run or has not even started.
     """
 
+    failed_states = frozenset([FAILED, UPSTREAM_FAILED])
+    """
+    A list of states indicating that a task or dag is a failed state.
+    """
+
+    success_states = frozenset([SUCCESS, SKIPPED])
+    """
+    A list of states indicating that a task or dag is a success state.
+    """
+
 
 class PokeState:
     """Static class with poke states constants used in smart operator."""
