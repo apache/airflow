@@ -38,7 +38,7 @@ if [[ ${#@} == "0" ]]; then
     -path "./airflow/www_rbac/node_modules" -prune -o \
     -path "./airflow/migrations/versions" -prune -o \
     -path "./.eggs" -prune -o \
-    -path "./docs" -prune -o \
+    -path "./docs/_build" -prune -o \
     -path "./build" -prune -o \
     -name "*.py" \
     -not -name 'webserver_config.py' | \
