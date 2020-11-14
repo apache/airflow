@@ -648,9 +648,7 @@ class TestCliAddConnections(unittest.TestCase):
 
     def test_cli_connections_add_invalid_uri(self):
         # Attempt to add with invalid uri
-        with self.assertRaisesRegex(
-            SystemExit, r"The URI provided to --conn-uri is invalid: nonsense_uri"
-        ):
+        with self.assertRaisesRegex(SystemExit, r"The URI provided to --conn-uri is invalid: nonsense_uri"):
             connection_command.connections_add(
                 self.parser.parse_args(["connections", "add", "new1", "--conn-uri=%s" % "nonsense_uri"])
             )
