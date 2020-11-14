@@ -266,14 +266,14 @@ function build_images::get_remote_image_build_cache_hash() {
         return
     fi
     set -e
+    rm -f "${REMOTE_IMAGE_CONTAINER_ID_FILE}"
     # Create container dump out of the manifest image without actually running it
-    docker create --cidfile "${REMOTE_IMAGE_CONTAINER_ID_FILE}" "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}" \
-        2>/dev/null >/dev/null || true
+    docker create --cidfile "${REMOTE_IMAGE_CONTAINER_ID_FILE}" "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
     # Extract manifest and store it in local file
     docker cp "$(cat "${REMOTE_IMAGE_CONTAINER_ID_FILE}"):/build-cache-hash" \
-        "${REMOTE_IMAGE_BUILD_CACHE_HASH_FILE}" 2> /dev/null \
-        || touch "${REMOTE_IMAGE_BUILD_CACHE_HASH_FILE}"
-    docker rm --force "$(cat "${REMOTE_IMAGE_CONTAINER_ID_FILE}")" 2>/dev/null || true
+        "${REMOTE_IMAGE_BUILD_CACHE_HASH_FILE}"
+    docker rm --force "$(cat "${REMOTE_IMAGE_CONTAINER_ID_FILE}")"
+    rm -f "${REMOTE_IMAGE_CONTAINER_ID_FILE}"
     echo
     echo "Remote build cache hash: '$(cat "${REMOTE_IMAGE_BUILD_CACHE_HASH_FILE}")'"
     echo
