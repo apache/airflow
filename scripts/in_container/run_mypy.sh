@@ -27,7 +27,7 @@ mypy_args=()
 # So we instead need to convert the file names in to module names to check
 for filename in "$@";
 do
-    if [[ "${filename}" =~ docs/* ]]; then
+    if [[ "${filename}" == docs/* ]]; then
         mypy_args+=("$filename")
     else
         mypy_args+=("-m" "$(filename_to_python_module "$filename")")
