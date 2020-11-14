@@ -27,7 +27,7 @@ from docutils.statemachine import StringList
 from sphinx.util import nested_parse_with_titles
 from sphinx.util.docutils import switch_source_input
 
-from docs.exts.provider_yaml_utils import get_provider_yaml_paths, load_package_data
+from .provider_yaml_utils import get_provider_yaml_paths, load_package_data
 
 CMD_OPERATORS_AND_HOOKS = "operators-and-hooks"
 

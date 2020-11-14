@@ -308,7 +308,7 @@ repos:
         entry: "^\\s*from\\s+\\."
         pass_filenames: true
         files: \.py$
-        exclude: ^tests/
+        exclude: ^tests/|^docs/ext
       - id: language-matters
         language: pygrep
         name: Check for language that we do not accept as community

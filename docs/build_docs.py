@@ -548,6 +548,7 @@ def check_spelling() -> None:
         "docroles",
         "removemarktransform",
         'providers_packages_ref',
+        'operators_and_hooks_ref',
     ]
 
     with NamedTemporaryFile() as tmp_file:
