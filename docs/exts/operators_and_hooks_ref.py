@@ -27,7 +27,7 @@ from docutils.statemachine import StringList
 from sphinx.util import nested_parse_with_titles
 from sphinx.util.docutils import switch_source_input
 
-from .provider_yaml_utils import get_provider_yaml_paths, load_package_data
+from provider_yaml_utils import get_provider_yaml_paths, load_package_data
 
 CMD_OPERATORS_AND_HOOKS = "operators-and-hooks"
 
@@ -106,9 +106,12 @@ def _prepare_operators_data(tags: Optional[Set[str]]):
         operators = all_operators_by_integration.get(integration['integration-name'])
         sensors = all_sensors_by_integration.get(integration['integration-name'])
         hooks = all_hooks_by_integration.get(integration['integration-name'])
+
+        if 'how-to-guide' in item['integration']:
+            item['integration']['how-to-guide'] = [
+                _docs_path(d) for d in item['integration']['how-to-guide']
+            ]
         if operators:
-            if 'how-to-guide' in operators:
-                operators['how-to-guide'] = [_docs_path(d) for d in operators['how-to-guide']]
             item['operators'] = operators
         if sensors:
             item['hooks'] = sensors
@@ -149,8 +152,8 @@ def _prepare_transfer_data(tags: Optional[Set[str]]):
         to_display_transfers = [
             transfer
             for transfer in all_transfers
-            if transfer['source-integration']['tags'].intersection(tags)
-            or transfer['target-integration']['tags'].intersection(tags)
+            if tags.intersection(transfer['source-integration'].get('tags', set()))
+            or tags.intersection(transfer['target-integration'].get('tags', set()))
         ]
 
     for transfer in to_display_transfers:
@@ -233,7 +236,10 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Render tables with integrations.')
     parser.add_argument(
-        '--tag', nargs='+', dest='tags', help='If passed, displays integrations that have a matching tag.'
+        '--tag',
+        dest='tags',
+        action="append",
+        help='If passed, displays integrations that have a matching tag.'
     )
     parser.add_argument('--header-separator', default=DEFAULT_HEADER_SEPARATOR)
     subparsers = parser.add_subparsers(help='sub-command help', metavar="COMMAND")
@@ -246,8 +252,8 @@ if __name__ == "__main__":
     parser_b.set_defaults(cmd=CMD_TRANSFERS)
 
     args = parser.parse_args()
-
-    if args.cmd == "transfers":
+    print(args)
+    if args.cmd == CMD_OPERATORS_AND_HOOKS:
         content = _render_operator_content(
             tags=set(args.tags) if args.tags else None, header_separator=args.header_separator
         )
