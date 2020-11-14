@@ -3,7 +3,7 @@
   "type": "object",
   "properties": {
     "package-name": {
-      "description": "Package name available under which the package is available in the PyPi repository.",
+      "description": "Package name available under which the package is available in the PyPI repository.",
       "type": "string"
     },
     "python-module": {

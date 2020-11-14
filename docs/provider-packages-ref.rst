@@ -43,7 +43,7 @@ Here's the list of the :doc:`provider packages <provider-packages>` and what the
 
     :Available versions: {% for version in package["versions"] %}``{{ version }}``{% if not loop.last %}, {% else %}.{% endif %}{%- endfor %}
 
-    :Reference: `PyPi repository <https://pypi.org/project/{{ package["package-name"] }}/>`__
+    :Reference: `PyPI Repository <https://pypi.org/project/{{ package["package-name"] }}/>`__
     {% if package["python-module"] %}
     :Python API Reference: :mod:`{{ package["python-module"] }}`
     {% endif %}
