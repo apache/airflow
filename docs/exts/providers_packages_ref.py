@@ -15,9 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from provider_yaml_utils import load_package_data  # pylint: disable=no-name-in-module
 from sphinx.application import Sphinx
-
-from docs.exts.provider_yaml_utils import load_package_data  # pylint: disable=no-name-in-module
 
 
 def _on_config_inited(app, config):
