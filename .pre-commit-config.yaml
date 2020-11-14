@@ -506,7 +506,7 @@ repos:
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_pylint.sh"
         files: \.py$
-        exclude: ^scripts/.*\.py$|^dev|^provider_packages|^chart
+        exclude: ^scripts/.*\.py$|^dev|^provider_packages|^chart|^docs
         pass_filenames: true
         require_serial: true
       - id: pylint
