@@ -26,7 +26,7 @@ touch airflow/providers/__init__.py
 export PYTHONPATH=${AIRFLOW_SOURCES}
 if [[ ${#@} == "0" ]]; then
     echo
-    echo "Running pylint for all sources except 'tests', 'docs' and 'kubernetes_tests' folder"
+    echo "Running pylint for all sources except 'tests' and 'kubernetes_tests' folder"
     echo
 
     # Using path -prune is much better in the local environment on OSX because we have host
