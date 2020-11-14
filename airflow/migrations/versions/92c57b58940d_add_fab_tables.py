@@ -43,7 +43,7 @@ def upgrade():
     if "ab_permission" not in tables:
         op.create_table(
             'ab_permission',
-            sa.Column('id', sa.INTEGER(), nullable=False, primary_key=True),
+            sa.Column('id', sa.Integer(), nullable=False, primary_key=True),
             sa.Column('name', sa.String(length=100), nullable=False),
             sa.PrimaryKeyConstraint('id'),
             sa.UniqueConstraint('name'),
@@ -52,7 +52,7 @@ def upgrade():
     if "ab_view_menu" not in tables:
         op.create_table(
             'ab_view_menu',
-            sa.Column('id', sa.INTEGER(), nullable=False, primary_key=True),
+            sa.Column('id', sa.Integer(), nullable=False, primary_key=True),
             sa.Column('name', sa.String(length=100), nullable=False),
             sa.PrimaryKeyConstraint('id'),
             sa.UniqueConstraint('name'),
@@ -61,7 +61,7 @@ def upgrade():
     if "ab_role" not in tables:
         op.create_table(
             'ab_role',
-            sa.Column('id', sa.INTEGER(), nullable=False, primary_key=True),
+            sa.Column('id', sa.Integer(), nullable=False, primary_key=True),
             sa.Column('name', sa.String(length=64), nullable=False),
             sa.PrimaryKeyConstraint('id'),
             sa.UniqueConstraint('name'),
@@ -70,9 +70,9 @@ def upgrade():
     if "ab_permission_view" not in tables:
         op.create_table(
             'ab_permission_view',
-            sa.Column('id', sa.INTEGER(), nullable=False, primary_key=True),
-            sa.Column('permission_id', sa.INTEGER(), nullable=True),
-            sa.Column('view_menu_id', sa.INTEGER(), nullable=True),
+            sa.Column('id', sa.Integer(), nullable=False, primary_key=True),
+            sa.Column('permission_id', sa.Integer(), nullable=True),
+            sa.Column('view_menu_id', sa.Integer(), nullable=True),
             sa.ForeignKeyConstraint(['permission_id'], ['ab_permission.id']),
             sa.ForeignKeyConstraint(['view_menu_id'], ['ab_view_menu.id']),
             sa.PrimaryKeyConstraint('id'),
@@ -82,9 +82,9 @@ def upgrade():
     if "ab_permission_view_role" not in tables:
         op.create_table(
             'ab_permission_view_role',
-            sa.Column('id', sa.INTEGER(), nullable=False, primary_key=True),
-            sa.Column('permission_view_id', sa.INTEGER(), nullable=True),
-            sa.Column('role_id', sa.INTEGER(), nullable=True),
+            sa.Column('id', sa.Integer(), nullable=False, primary_key=True),
+            sa.Column('permission_view_id', sa.Integer(), nullable=True),
+            sa.Column('role_id', sa.Integer(), nullable=True),
             sa.ForeignKeyConstraint(['permission_view_id'], ['ab_permission_view.id']),
             sa.ForeignKeyConstraint(['role_id'], ['ab_role.id']),
             sa.PrimaryKeyConstraint('id'),
@@ -94,20 +94,20 @@ def upgrade():
     if "ab_user" not in tables:
         op.create_table(
             'ab_user',
-            sa.Column('id', sa.INTEGER(), nullable=False, primary_key=True),
+            sa.Column('id', sa.Integer(), nullable=False, primary_key=True),
             sa.Column('first_name', sa.String(length=64), nullable=False),
             sa.Column('last_name', sa.String(length=64), nullable=False),
             sa.Column('username', sa.String(length=64), nullable=False),
             sa.Column('password', sa.String(length=256), nullable=True),
-            sa.Column('active', sa.BOOLEAN(), nullable=True),
+            sa.Column('active', sa.Boolean(), nullable=True),
             sa.Column('email', sa.String(length=64), nullable=False),
-            sa.Column('last_login', sa.DATETIME(), nullable=True),
-            sa.Column('login_count', sa.INTEGER(), nullable=True),
-            sa.Column('fail_login_count', sa.INTEGER(), nullable=True),
-            sa.Column('created_on', sa.DATETIME(), nullable=True),
-            sa.Column('changed_on', sa.DATETIME(), nullable=True),
-            sa.Column('created_by_fk', sa.INTEGER(), nullable=True),
-            sa.Column('changed_by_fk', sa.INTEGER(), nullable=True),
+            sa.Column('last_login', sa.DateTime(), nullable=True),
+            sa.Column('login_count', sa.Integer(), nullable=True),
+            sa.Column('fail_login_count', sa.Integer(), nullable=True),
+            sa.Column('created_on', sa.DateTime(), nullable=True),
+            sa.Column('changed_on', sa.DateTime(), nullable=True),
+            sa.Column('created_by_fk', sa.Integer(), nullable=True),
+            sa.Column('changed_by_fk', sa.Integer(), nullable=True),
             sa.ForeignKeyConstraint(['changed_by_fk'], ['ab_user.id']),
             sa.ForeignKeyConstraint(['created_by_fk'], ['ab_user.id']),
             sa.PrimaryKeyConstraint('id'),
@@ -118,9 +118,9 @@ def upgrade():
     if "ab_user_role" not in tables:
         op.create_table(
             'ab_user_role',
-            sa.Column('id', sa.INTEGER(), nullable=False, primary_key=True),
-            sa.Column('user_id', sa.INTEGER(), nullable=True),
-            sa.Column('role_id', sa.INTEGER(), nullable=True),
+            sa.Column('id', sa.Integer(), nullable=False, primary_key=True),
+            sa.Column('user_id', sa.Integer(), nullable=True),
+            sa.Column('role_id', sa.Integer(), nullable=True),
             sa.ForeignKeyConstraint(
                 ['role_id'],
                 ['ab_role.id'],
@@ -136,13 +136,13 @@ def upgrade():
     if "ab_register_user" not in tables:
         op.create_table(
             'ab_register_user',
-            sa.Column('id', sa.INTEGER(), nullable=False, primary_key=True),
+            sa.Column('id', sa.Integer(), nullable=False, primary_key=True),
             sa.Column('first_name', sa.String(length=64), nullable=False),
             sa.Column('last_name', sa.String(length=64), nullable=False),
             sa.Column('username', sa.String(length=64), nullable=False),
             sa.Column('password', sa.String(length=256), nullable=True),
             sa.Column('email', sa.String(length=64), nullable=False),
-            sa.Column('registration_date', sa.DATETIME(), nullable=True),
+            sa.Column('registration_date', sa.DateTime(), nullable=True),
             sa.Column('registration_hash', sa.String(length=256), nullable=True),
             sa.PrimaryKeyConstraint('id'),
             sa.UniqueConstraint('username'),

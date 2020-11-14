@@ -42,13 +42,6 @@ def upgrade():
     tables = inspector.get_table_names()
 
     if "ab_view_menu" in tables:
-        # Get Column and check if its length is already 250
-        get_ab_view_menu_name_column = [
-            col for col in inspector.get_columns('ab_view_menu') if col.get('name') == 'name'
-        ]
-        if get_ab_view_menu_name_column and get_ab_view_menu_name_column[0]['type'].length == 250:
-            # Do nothing if the left is already 250
-            return
         if conn.dialect.name == "sqlite":
             op.execute("PRAGMA foreign_keys=off")
             op.execute(
@@ -76,13 +69,6 @@ def downgrade():
     inspector = Inspector.from_engine(conn)
     tables = inspector.get_table_names()
     if "ab_view_menu" in tables:
-        # Get Column and check if its length is already 100
-        get_ab_view_menu_name_column = [
-            col for col in inspector.get_columns('ab_view_menu') if col.get('name') == 'name'
-        ]
-        if get_ab_view_menu_name_column and get_ab_view_menu_name_column[0]['type'].length == 100:
-            # Do nothing if the left is already 100
-            return
         if conn.dialect.name == "sqlite":
             op.execute("PRAGMA foreign_keys=off")
             op.execute(
