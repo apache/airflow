@@ -484,6 +484,7 @@ repos:
         pass_filenames: false
         files: ^chart
         require_serial: true
+
       - id: airflow-providers-available
         name: Checks for providers being available when declared by extras in setup.py
         language: python
@@ -499,6 +500,17 @@ repos:
         types: [markdown]
         files: \.(md|mdown|markdown)$
         additional_dependencies: ['markdownlint-cli']
+      - id: json-schema
+        name: Lint .github/worklows files
+        entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
+        args:
+          - --spec-url
+          - https://json.schemastore.org/github-workflow
+        language: python
+        pass_filenames: true
+        files: ^\.github/workflows
+        require_serial: true
+        additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: build
