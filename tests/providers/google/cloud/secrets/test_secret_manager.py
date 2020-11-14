@@ -215,7 +215,9 @@ class TestCloudSecretManagerBackend(TestCase):
         mock_client_callable.return_value = mock_client
 
         with mock.patch(MODULE_NAME + '.CloudSecretManagerBackend._get_secret') as mock_get_secret:
-            with mock.patch(MODULE_NAME + '.CloudSecretManagerBackend._is_valid_prefix_and_sep') as mock_is_valid_prefix_sep:
+            with mock.patch(
+                MODULE_NAME + '.CloudSecretManagerBackend._is_valid_prefix_and_sep'
+            ) as mock_is_valid_prefix_sep:
                 secrets_manager_backend = CloudSecretManagerBackend(connections_prefix=None)
 
                 mock_is_valid_prefix_sep.assert_not_called()
