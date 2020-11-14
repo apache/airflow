@@ -42,7 +42,7 @@ def _filepath_to_module(filepath: str):
 def _load_package_data():
     schema = _load_schema()
     result = []
-    for provider_yaml_path in sorted(glob(f"{ROOT_DIR}/airflow/providers/**/provider.yaml")):
+    for provider_yaml_path in sorted(glob(f"{ROOT_DIR}/airflow/providers/**/provider.yaml", recursive=True)):
         with open(provider_yaml_path) as yaml_file:
             provider = yaml.safe_load(yaml_file)
         provider['python-module'] = _filepath_to_module(os.path.dirname(provider_yaml_path))
