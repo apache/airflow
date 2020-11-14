@@ -308,7 +308,7 @@ repos:
         entry: "^\\s*from\\s+\\."
         pass_filenames: true
         files: \.py$
-        exclude: ^tests/|^docs/ext
+        exclude: ^tests/
       - id: language-matters
         language: pygrep
         name: Check for language that we do not accept as community
@@ -512,7 +512,7 @@ repos:
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_pylint.sh"
         files: \.py$
-        exclude: ^scripts/.*\.py$|^dev|^provider_packages|^chart|^docs
+        exclude: ^scripts/.*\.py$|^dev|^provider_packages|^chart
         pass_filenames: true
         require_serial: true
       - id: pylint
