@@ -804,7 +804,7 @@ deserialization mechanism the custom class should override ``serialize_value`` a
 methods.
 
 It is also possible to override the ``orm_deserialize_value`` method which is used for deserialization when
-recreating ORM XCom object. This happens everytime we query the XCom table, for example when we want to populate
+recreating ORM XCom object. This happens every time we query the XCom table, for example when we want to populate
 XCom list view in webserver. By default Airflow will use ``BaseXCom.orm_deserialize_value`` method which returns the
 value stored in Airflow database. In this way Airflow is avoiding unnecessary requests that may occur in custom
 ``deserialize`` methods of custom XCom backend.
