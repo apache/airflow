@@ -573,6 +573,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             status_count_active=status_count_active,
             status_count_paused=status_count_paused,
             tags_filter=arg_tags_filter,
+            default_collapse_import_error=conf.getboolean('webserver', 'default_collapse_import_error'),
         )
 
     @expose('/dag_stats', methods=['POST'])
