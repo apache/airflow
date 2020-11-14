@@ -27,10 +27,10 @@ mypy_args=()
 # So we instead need to convert the file names in to module names to check
 for filename in "$@";
 do
-    if [[ "${filename}" =~ airflow/* || "${filename}" =~ tests/* ]]; then
-        mypy_args+=("-m" "$(filename_to_python_module "$filename")")
-    else
+    if [[ "${filename}" =~ docs/* ]]; then
         mypy_args+=("$filename")
+    else
+        mypy_args+=("-m" "$(filename_to_python_module "$filename")")
     fi
 done
 
