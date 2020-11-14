@@ -167,11 +167,16 @@ def downgrade():
 
     for table in fab_tables:
         if table in tables:
-
             indexes = inspector.get_foreign_keys(table)
             for index in indexes:
-                op.drop_constraint(index.get('name'), table, type_='foreignkey')
+                if conn.dialect.name != "sqlite":
+                    op.drop_constraint(index.get('name'), table, type_='foreignkey')
 
     for table in fab_tables:
         if table in tables:
-            op.drop_table(table)
+            if conn.dialect.name == "sqlite":
+                op.execute("PRAGMA foreign_keys=off")
+                op.drop_table(table)
+                op.execute("PRAGMA foreign_keys=on")
+            else:
+                op.drop_table(table)

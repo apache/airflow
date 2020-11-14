@@ -41,8 +41,26 @@ def upgrade():
     inspector = Inspector.from_engine(conn)
     tables = inspector.get_table_names()
     if "ab_view_menu" in tables:
-        with op.batch_alter_table('ab_view_menu') as batch_op:
-            batch_op.alter_column('name', type_=sa.String(length=250), nullable=False)
+        with op.batch_alter_table('ab_view_menu', table_args=(sa.UniqueConstraint('name'),)) as batch_op:
+            if conn.dialect.name == "sqlite":
+                batch_op.execute("PRAGMA foreign_keys=off")
+                batch_op.execute(
+                    """
+                CREATE TABLE IF NOT EXISTS ab_view_menu_dg_tmp
+                (
+                    id INTEGER NOT NULL PRIMARY KEY,
+                    name VARCHAR(250) NOT NULL UNIQUE
+                );
+                """
+                )
+                batch_op.execute(
+                    "INSERT INTO ab_view_menu_dg_tmp(id, name) select id, name from ab_view_menu;"
+                )
+                batch_op.execute("DROP TABLE ab_view_menu")
+                batch_op.execute("ALTER TABLE ab_view_menu_dg_tmp rename to ab_view_menu;")
+                batch_op.execute("PRAGMA foreign_keys=on")
+            else:
+                batch_op.alter_column('name', type=sa.String(length=250), nullable=False)
 
 
 def downgrade():
@@ -51,5 +69,23 @@ def downgrade():
     inspector = Inspector.from_engine(conn)
     tables = inspector.get_table_names()
     if "ab_view_menu" in tables:
-        with op.batch_alter_table('ab_view_menu') as batch_op:
-            batch_op.alter_column('name', type_=sa.String(length=100), nullable=False)
+        with op.batch_alter_table('ab_view_menu', table_args=(sa.UniqueConstraint('name'),)) as batch_op:
+            if conn.dialect.name == "sqlite":
+                batch_op.execute("PRAGMA foreign_keys=off")
+                batch_op.execute(
+                    """
+                CREATE TABLE IF NOT EXISTS ab_view_menu_dg_tmp
+                (
+                    id INTEGER NOT NULL PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL UNIQUE
+                );
+                """
+                )
+                batch_op.execute(
+                    "INSERT INTO ab_view_menu_dg_tmp(id, name) select id, name from ab_view_menu;"
+                )
+                batch_op.execute("DROP TABLE ab_view_menu")
+                batch_op.execute("ALTER TABLE ab_view_menu_dg_tmp rename to ab_view_menu;")
+                batch_op.execute("PRAGMA foreign_keys=on")
+            else:
+                batch_op.alter_column('name', type=sa.String(length=100), nullable=False)
