@@ -24,10 +24,9 @@ from docutils import nodes
 from docutils.nodes import Element
 from docutils.parsers.rst import Directive, directives
 from docutils.statemachine import StringList
+from provider_yaml_utils import get_provider_yaml_paths, load_package_data
 from sphinx.util import nested_parse_with_titles
 from sphinx.util.docutils import switch_source_input
-
-from provider_yaml_utils import get_provider_yaml_paths, load_package_data
 
 CMD_OPERATORS_AND_HOOKS = "operators-and-hooks"
 
@@ -108,9 +107,7 @@ def _prepare_operators_data(tags: Optional[Set[str]]):
         hooks = all_hooks_by_integration.get(integration['integration-name'])
 
         if 'how-to-guide' in item['integration']:
-            item['integration']['how-to-guide'] = [
-                _docs_path(d) for d in item['integration']['how-to-guide']
-            ]
+            item['integration']['how-to-guide'] = [_docs_path(d) for d in item['integration']['how-to-guide']]
         if operators:
             item['operators'] = operators
         if sensors:
@@ -198,7 +195,7 @@ class BaseJinjaReferenceDirective(Directive):
 
         return node.children
 
-    def render_content(self, tags, header_separator):
+    def render_content(self, *, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
         """Return content in RST format"""
         raise NotImplementedError("Tou need to override render_content method.")
 
@@ -239,7 +236,7 @@ if __name__ == "__main__":
         '--tag',
         dest='tags',
         action="append",
-        help='If passed, displays integrations that have a matching tag.'
+        help='If passed, displays integrations that have a matching tag.',
     )
     parser.add_argument('--header-separator', default=DEFAULT_HEADER_SEPARATOR)
     subparsers = parser.add_subparsers(help='sub-command help', metavar="COMMAND")

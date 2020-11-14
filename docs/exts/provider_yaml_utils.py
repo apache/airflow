@@ -18,7 +18,7 @@
 import json
 import os
 from glob import glob
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import jsonschema
 import yaml
@@ -43,7 +43,7 @@ def get_provider_yaml_paths():
     return sorted(glob(f"{ROOT_DIR}/airflow/providers/**/provider.yaml", recursive=True))
 
 
-def load_package_data() -> Dict[str, Dict]:
+def load_package_data() -> List[Dict[str, Dict]]:
     """
     Load all data from providers files
 
@@ -54,10 +54,10 @@ def load_package_data() -> Dict[str, Dict]:
     for provider_yaml_path in get_provider_yaml_paths():
         with open(provider_yaml_path) as yaml_file:
             provider = yaml.safe_load(yaml_file)
-        provider['python-module'] = _filepath_to_module(os.path.dirname(provider_yaml_path))
         try:
             jsonschema.validate(provider, schema=schema)
         except jsonschema.ValidationError:
             raise Exception(f"Unable to parse: {provider_yaml_path}.")
+        provider['python-module'] = _filepath_to_module(os.path.dirname(provider_yaml_path))
         result.append(provider)
     return result

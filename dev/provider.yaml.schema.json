@@ -6,10 +6,6 @@
       "description": "Package name available under which the package is available in the PyPI repository.",
       "type": "string"
     },
-    "python-module": {
-      "description": "Information about the package in RST format",
-      "type": "string"
-    },
     "description": {
       "description": "Information about the package in RST format",
       "type": "string"
