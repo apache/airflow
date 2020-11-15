@@ -34,6 +34,21 @@ Here is a sample configuration:
 For client authentication, the ``DefaultAzureCredential`` from the Azure Python SDK is used as credential provider,
 which supports service principal, managed identity and user credentials.
 
+Optional lookup
+"""""""""""""""
+
+Optionally connections, variables, or config may be looked up exclusive of each other or in any combination.
+This will prevent requests being sent to Azure Key Vault for the excluded type.
+
+If you want to look up some and not others in Azure Key Vault you may do so by setting the relevant ``*_prefix`` parameter of the ones to be excluded as ``null``.
+
+For example, if you want to set parameter ``connections_prefix`` to ``"airflow-connections"`` and not look up variables, your configuration file should look like this:
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend
+    backend_kwargs = {"connections_prefix": "airflow-connections", "variables_prefix": null, "vault_url": "https://example-akv-resource-name.vault.azure.net/"}
 
 Storing and Retrieving Connections
 """"""""""""""""""""""""""""""""""

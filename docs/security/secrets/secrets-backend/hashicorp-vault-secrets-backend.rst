@@ -44,6 +44,21 @@ key to ``backend_kwargs``:
 
     export VAULT_ADDR="http://127.0.0.1:8200"
 
+Optional lookup
+"""""""""""""""
+
+Optionally connections, variables, or config may be looked up exclusive of each other or in any combination.
+This will prevent requests being sent to Vault for the excluded type.
+
+If you want to look up some and not others in Vault you may do so by setting the relevant ``*_path`` parameter of the ones to be excluded as ``null``.
+
+For example, if you want to set parameter ``connections_path`` to ``"airflow-connections"`` and not look up variables, your configuration file should look like this:
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.providers.hashicorp.secrets.vault.VaultBackend
+    backend_kwargs = {"connections_path": "airflow-connections", "variables_path": null, "mount_point": "airflow", "url": "http://127.0.0.1:8200"}
 
 Storing and Retrieving Connections
 """"""""""""""""""""""""""""""""""
