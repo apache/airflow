@@ -26,6 +26,7 @@ import unittest
 from typing import Dict
 
 import time
+from uuid import UUID
 
 from airflow.contrib.hooks.gcp_dataproc_hook import _DataProcJobBuilder
 from airflow.models.taskinstance import TaskInstance
@@ -77,6 +78,8 @@ WORKER_MACHINE_TYPE = 'n1-standard-4'
 WORKER_DISK_SIZE = 200
 WORKER_DISK_TYPE = 'pd-ssd'
 NUM_PREEMPTIBLE_WORKERS = 2
+MOCK_UUID = UUID('cf4a56d2-8101-4217-b027-2af6216feb48')
+MOCK_UUID_PREFIX = str(MOCK_UUID)[:8]
 GET_INIT_ACTION_TIMEOUT = "600s"  # 10m
 LABEL1 = {}  # type: Dict
 LABEL2 = {'application': 'test', 'year': 2017}
@@ -796,13 +799,13 @@ class DataProcHadoopOperatorTest(unittest.TestCase):
             schedule_interval='@daily')
 
     @mock.patch('airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator.execute')
-    @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value='test')
+    @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value=MOCK_UUID)
     def test_correct_job_definition(self, mock_hook, mock_uuid):
         # Expected job
         job_definition = deepcopy(DATAPROC_JOB_TO_SUBMIT)
         job_definition['job']['hadoopJob'] = {'mainClass': None}
         job_definition['job']['reference']['projectId'] = None
-        job_definition['job']['reference']['jobId'] = DATAPROC_JOB_ID + "_test"
+        job_definition['job']['reference']['jobId'] = DATAPROC_JOB_ID + "_" + MOCK_UUID_PREFIX
 
         # Prepare job using operator
         task = DataProcHadoopOperator(
@@ -880,13 +883,13 @@ class DataProcHiveOperatorTest(unittest.TestCase):
             schedule_interval='@daily')
 
     @mock.patch('airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator.execute')
-    @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value='test')
+    @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value=MOCK_UUID)
     def test_correct_job_definition(self, mock_hook, mock_uuid):
         # Expected job
         job_definition = deepcopy(DATAPROC_JOB_TO_SUBMIT)
         job_definition['job']['hiveJob'] = {'queryFileUri': None}
         job_definition['job']['reference']['projectId'] = None
-        job_definition['job']['reference']['jobId'] = DATAPROC_JOB_ID + "_test"
+        job_definition['job']['reference']['jobId'] = DATAPROC_JOB_ID + "_" + MOCK_UUID_PREFIX
 
         # Prepare job using operator
         task = DataProcHiveOperator(
@@ -963,13 +966,13 @@ class DataProcPigOperatorTest(unittest.TestCase):
             schedule_interval='@daily')
 
     @mock.patch('airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator.execute')
-    @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value='test')
+    @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value=MOCK_UUID)
     def test_correct_job_definition(self, mock_hook, mock_uuid):
         # Expected job
         job_definition = deepcopy(DATAPROC_JOB_TO_SUBMIT)
         job_definition['job']['pigJob'] = {'queryFileUri': None}
         job_definition['job']['reference']['projectId'] = None
-        job_definition['job']['reference']['jobId'] = DATAPROC_JOB_ID + "_test"
+        job_definition['job']['reference']['jobId'] = DATAPROC_JOB_ID + "_" + MOCK_UUID_PREFIX
 
         # Prepare job using operator
         task = DataProcPigOperator(
@@ -1052,13 +1055,13 @@ class DataProcPySparkOperatorTest(unittest.TestCase):
             schedule_interval='@daily')
 
     @mock.patch('airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator.execute')
-    @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value='test')
+    @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value=MOCK_UUID)
     def test_correct_job_definition(self, mock_hook, mock_uuid):
         # Expected job
         job_definition = deepcopy(DATAPROC_JOB_TO_SUBMIT)
         job_definition['job']['pysparkJob'] = {'mainPythonFileUri': 'main_class'}
         job_definition['job']['reference']['projectId'] = None
-        job_definition['job']['reference']['jobId'] = DATAPROC_JOB_ID + "_test"
+        job_definition['job']['reference']['jobId'] = DATAPROC_JOB_ID + "_" + MOCK_UUID_PREFIX
 
         # Prepare job using operator
         task = DataProcPySparkOperator(
@@ -1139,13 +1142,13 @@ class DataProcSparkOperatorTest(unittest.TestCase):
             schedule_interval='@daily')
 
     @mock.patch('airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator.execute')
-    @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value='test')
+    @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value=MOCK_UUID)
     def test_correct_job_definition(self, mock_hook, mock_uuid):
         # Expected job
         job_definition = deepcopy(DATAPROC_JOB_TO_SUBMIT)
         job_definition['job']['sparkJob'] = {'mainClass': 'main_class'}
         job_definition['job']['reference']['projectId'] = None
-        job_definition['job']['reference']['jobId'] = DATAPROC_JOB_ID + "_test"
+        job_definition['job']['reference']['jobId'] = DATAPROC_JOB_ID + "_" + MOCK_UUID_PREFIX
 
         # Prepare job using operator
         task = DataProcSparkOperator(
