@@ -762,7 +762,7 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare PROD Image"
@@ -776,17 +776,19 @@ jobs:
       - name: "Cache virtualenv for kubernetes testing"
         uses: actions/cache@v2
         env:
-          cache-name: cache-kubernetes-tests-virtualenv-v6
+          cache-name: cache-kubernetes-tests-v7-master
         with:
-          path: .build/.kubernetes_venv
-          key: "${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}"
+          path: ".build/.kubernetes_venv*"
+          key: "venv-${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}\
+-${{ needs.build-info.outputs.defaultPythonVersion }}"
       - name: "Cache bin folder with tools for kubernetes testing"
         uses: actions/cache@v2
         env:
-          cache-name: cache-kubernetes-tests-bin-v6
+          cache-name: cache-kubernetes-tests-v7-master
         with:
-          path: .build/bin
-          key: "${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}\
+          path: ".build/bin"
+          key: "bin-${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}\
+-${{ needs.build-info.outputs.defaultPythonVersion }}\
 -${{ needs.build-info.outputs.defaultKindVersion }}\
 -${{ needs.build-info.outputs.defaultHelmVersion }}\
 -${{ matrix.kubernetes-version }}"

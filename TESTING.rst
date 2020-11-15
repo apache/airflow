@@ -635,7 +635,7 @@ The virtualenv required will be created automatically when the scripts are run.
 
 4b) You can enter an interactive shell to run tests one-by-one
 
-This prepares and enters the virtualenv in ``.build/.kubernetes_venv`` folder:
+This prepares and enters the virtualenv in ``.build/.kubernetes_venv_<YOUR_CURRENT_PYTHON_VERSION>`` folder:
 
 .. code-block:: bash
 
@@ -678,7 +678,8 @@ a) Add the virtualenv as interpreter for the project:
     :align: center
     :alt: Kubernetes testing virtualenv
 
-The virtualenv is created in your "Airflow" source directory in ``.build/.kubernetes_venv/`` folder and you
+The virtualenv is created in your "Airflow" source directory in the
+``.build/.kubernetes_venv_<YOUR_CURRENT_PYTHON_VERSION>`` folder and you
 have to find ``python`` binary and choose it when selecting interpreter.
 
 b) Choose pytest as test runner:
