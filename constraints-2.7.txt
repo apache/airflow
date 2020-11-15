@@ -103,7 +103,7 @@ cookies==2.2.1
 coverage==5.3
 crcmod==1.7
 croniter==0.3.36
-cryptography==3.2.1
+cryptography==3.1.1
 cx-Oracle==7.3.0
 datadog==0.39.0
 decorator==4.4.2
