@@ -626,18 +626,15 @@ class TestCliAddConnections(unittest.TestCase):
             self.assertEqual(expected_conn, {attr: getattr(current_conn, attr) for attr in comparable_attrs})
 
     def test_cli_connections_add_duplicate(self):
-        # Attempt to add duplicate
+        conn_id = "to_be_duplicated"
         connection_command.connections_add(
-            self.parser.parse_args(["connections", "add", "new1", "--conn-uri=%s" % TEST_URL])
+            self.parser.parse_args(["connections", "add", conn_id, "--conn-uri=%s" % TEST_URL])
         )
-        with redirect_stdout(io.StringIO()) as stdout:
+        # Check for addition attempt
+        with self.assertRaisesRegex(SystemExit, rf"A connection with `conn_id`={conn_id} already exists"):
             connection_command.connections_add(
-                self.parser.parse_args(["connections", "add", "new1", "--conn-uri=%s" % TEST_URL])
+                self.parser.parse_args(["connections", "add", conn_id, "--conn-uri=%s" % TEST_URL])
             )
-            stdout = stdout.getvalue()
-
-        # Check stdout for addition attempt
-        self.assertIn("\tA connection with `conn_id`=new1 already exists", stdout)
 
     def test_cli_connections_add_delete_with_missing_parameters(self):
         # Attempt to add without providing conn_uri
@@ -687,9 +684,5 @@ class TestCliDeleteConnections(unittest.TestCase):
 
     def test_cli_delete_invalid_connection(self):
         # Attempt to delete a non-existing connection
-        with redirect_stdout(io.StringIO()) as stdout:
+        with self.assertRaisesRegex(SystemExit, r"Did not find a connection with `conn_id`=fake"):
             connection_command.connections_delete(self.parser.parse_args(["connections", "delete", "fake"]))
-            stdout = stdout.getvalue()
-
-        # Check deletion attempt stdout
-        self.assertIn("\tDid not find a connection with `conn_id`=fake", stdout)
