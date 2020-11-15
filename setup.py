@@ -604,6 +604,7 @@ INSTALL_REQUIREMENTS = [
     'jsonschema~=3.0',
     'lazy_object_proxy~=1.3',
     'markdown>=2.5.2, <3.0',
+    'marshmallow-sqlalchemy>=0.16.1, <0.24.0;python_version>="3.6"',
     'marshmallow-sqlalchemy>=0.16.1, <0.19.0;python_version<"3.6"',
     'pandas>=0.17.1, <2.0',
     'pendulum==1.4.4',
