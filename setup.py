@@ -219,7 +219,12 @@ cgroups = [
 cloudant = [
     'cloudant>=0.5.9,<2.0',
 ]
-crypto = ['cryptography>=0.9.3']
+crypto = [
+    # Cryptography 3.2 for python 2.7 is broken
+    # https://github.com/pyca/cryptography/issues/5359#issuecomment-727622403
+    'cryptography>=0.9.3,<3.2; python_version<"3.0"',
+    'cryptography>=0.9.3;python_version>="3.0"',
+]
 dask = [
     'distributed>=1.17.1, <2',
 ]
