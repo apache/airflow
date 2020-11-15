@@ -18,9 +18,14 @@
 from unittest import mock
 
 from airflow.providers.google.cloud.operators.datastore import (
-    CloudDatastoreAllocateIdsOperator, CloudDatastoreBeginTransactionOperator, CloudDatastoreCommitOperator,
-    CloudDatastoreDeleteOperationOperator, CloudDatastoreExportEntitiesOperator,
-    CloudDatastoreGetOperationOperator, CloudDatastoreImportEntitiesOperator, CloudDatastoreRollbackOperator,
+    CloudDatastoreAllocateIdsOperator,
+    CloudDatastoreBeginTransactionOperator,
+    CloudDatastoreCommitOperator,
+    CloudDatastoreDeleteOperationOperator,
+    CloudDatastoreExportEntitiesOperator,
+    CloudDatastoreGetOperationOperator,
+    CloudDatastoreImportEntitiesOperator,
+    CloudDatastoreRollbackOperator,
     CloudDatastoreRunQueryOperator,
 )
 
@@ -37,9 +42,7 @@ OPERATION_ID = "1234"
 class TestCloudDatastoreExportEntitiesOperator:
     @mock.patch(HOOK_PATH)
     def test_execute(self, mock_hook):
-        mock_hook.return_value.export_to_storage_bucket.return_value = {
-            "name": OPERATION_ID
-        }
+        mock_hook.return_value.export_to_storage_bucket.return_value = {"name": OPERATION_ID}
         mock_hook.return_value.poll_operation_until_done.return_value = {
             "metadata": {"common": {"state": "SUCCESSFUL"}}
         }
@@ -52,7 +55,7 @@ class TestCloudDatastoreExportEntitiesOperator:
         )
         op.execute({})
 
-        mock_hook.assert_called_once_with(CONN_ID, None)
+        mock_hook.assert_called_once_with(CONN_ID, None, impersonation_chain=None)
         mock_hook.return_value.export_to_storage_bucket.assert_called_once_with(
             project_id=PROJECT_ID,
             bucket=BUCKET,
@@ -61,17 +64,13 @@ class TestCloudDatastoreExportEntitiesOperator:
             namespace=None,
         )
 
-        mock_hook.return_value.poll_operation_until_done.assert_called_once_with(
-            OPERATION_ID, 10
-        )
+        mock_hook.return_value.poll_operation_until_done.assert_called_once_with(OPERATION_ID, 10)
 
 
 class TestCloudDatastoreImportEntitiesOperator:
     @mock.patch(HOOK_PATH)
     def test_execute(self, mock_hook):
-        mock_hook.return_value.import_from_storage_bucket.return_value = {
-            "name": OPERATION_ID
-        }
+        mock_hook.return_value.import_from_storage_bucket.return_value = {"name": OPERATION_ID}
         mock_hook.return_value.poll_operation_until_done.return_value = {
             "metadata": {"common": {"state": "SUCCESSFUL"}}
         }
@@ -85,7 +84,7 @@ class TestCloudDatastoreImportEntitiesOperator:
         )
         op.execute({})
 
-        mock_hook.assert_called_once_with(CONN_ID, None)
+        mock_hook.assert_called_once_with(CONN_ID, None, impersonation_chain=None)
         mock_hook.return_value.import_from_storage_bucket.assert_called_once_with(
             project_id=PROJECT_ID,
             bucket=BUCKET,
@@ -95,9 +94,7 @@ class TestCloudDatastoreImportEntitiesOperator:
             namespace=None,
         )
 
-        mock_hook.return_value.export_to_storage_bucketassert_called_once_with(
-            OPERATION_ID, 10
-        )
+        mock_hook.return_value.export_to_storage_bucketassert_called_once_with(OPERATION_ID, 10)
 
 
 class TestCloudDatastoreAllocateIds:
@@ -112,7 +109,7 @@ class TestCloudDatastoreAllocateIds:
         )
         op.execute({})
 
-        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID, impersonation_chain=None)
         mock_hook.return_value.allocate_ids.assert_called_once_with(
             project_id=PROJECT_ID, partial_keys=partial_keys
         )
@@ -129,7 +126,7 @@ class TestCloudDatastoreBeginTransaction:
         )
         op.execute({})
 
-        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID, impersonation_chain=None)
         mock_hook.return_value.begin_transaction.assert_called_once_with(
             project_id=PROJECT_ID, transaction_options=BODY
         )
@@ -143,35 +140,27 @@ class TestCloudDatastoreCommit:
         )
         op.execute({})
 
-        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID)
-        mock_hook.return_value.commit.assert_called_once_with(
-            project_id=PROJECT_ID, body=BODY
-        )
+        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID, impersonation_chain=None)
+        mock_hook.return_value.commit.assert_called_once_with(project_id=PROJECT_ID, body=BODY)
 
 
 class TestCloudDatastoreDeleteOperation:
     @mock.patch(HOOK_PATH)
     def test_execute(self, mock_hook):
-        op = CloudDatastoreDeleteOperationOperator(
-            task_id="test_task", gcp_conn_id=CONN_ID, name=TRANSACTION
-        )
+        op = CloudDatastoreDeleteOperationOperator(task_id="test_task", gcp_conn_id=CONN_ID, name=TRANSACTION)
         op.execute({})
 
-        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID)
-        mock_hook.return_value.delete_operation.assert_called_once_with(
-            name=TRANSACTION
-        )
+        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID, impersonation_chain=None)
+        mock_hook.return_value.delete_operation.assert_called_once_with(name=TRANSACTION)
 
 
 class TestCloudDatastoreGetOperation:
     @mock.patch(HOOK_PATH)
     def test_execute(self, mock_hook):
-        op = CloudDatastoreGetOperationOperator(
-            task_id="test_task", gcp_conn_id=CONN_ID, name=TRANSACTION
-        )
+        op = CloudDatastoreGetOperationOperator(task_id="test_task", gcp_conn_id=CONN_ID, name=TRANSACTION)
         op.execute({})
 
-        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID, impersonation_chain=None)
         mock_hook.return_value.get_operation.assert_called_once_with(name=TRANSACTION)
 
 
@@ -186,7 +175,7 @@ class TestCloudDatastoreRollback:
         )
         op.execute({})
 
-        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID, impersonation_chain=None)
         mock_hook.return_value.rollback.assert_called_once_with(
             project_id=PROJECT_ID, transaction=TRANSACTION
         )
@@ -200,7 +189,5 @@ class TestCloudDatastoreRunQuery:
         )
         op.execute({})
 
-        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID)
-        mock_hook.return_value.run_query.assert_called_once_with(
-            project_id=PROJECT_ID, body=BODY
-        )
+        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID, impersonation_chain=None)
+        mock_hook.return_value.run_query.assert_called_once_with(project_id=PROJECT_ID, body=BODY)

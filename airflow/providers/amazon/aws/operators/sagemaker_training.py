@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -54,18 +55,21 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
     integer_fields = [
         ['ResourceConfig', 'InstanceCount'],
         ['ResourceConfig', 'VolumeSizeInGB'],
-        ['StoppingCondition', 'MaxRuntimeInSeconds']
+        ['StoppingCondition', 'MaxRuntimeInSeconds'],
     ]
 
     @apply_defaults
-    def __init__(self, *,
-                 config,
-                 wait_for_completion=True,
-                 print_log=True,
-                 check_interval=30,
-                 max_ingestion_time=None,
-                 action_if_job_exists: str = "increment",  # TODO use typing.Literal for this in Python 3.8
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        config: dict,
+        wait_for_completion: bool = True,
+        print_log: bool = True,
+        check_interval: int = 30,
+        max_ingestion_time: Optional[int] = None,
+        action_if_job_exists: str = "increment",  # TODO use typing.Literal for this in Python 3.8
+        **kwargs,
+    ):
         super().__init__(config=config, **kwargs)
 
         self.wait_for_completion = wait_for_completion
@@ -81,12 +85,12 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
                 f"Provided value: '{action_if_job_exists}'."
             )
 
-    def expand_role(self):
+    def expand_role(self) -> None:
         if 'RoleArn' in self.config:
             hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
             self.config['RoleArn'] = hook.expand_role(self.config['RoleArn'])
 
-    def execute(self, context):
+    def execute(self, context) -> dict:
         self.preprocess_config()
 
         training_job_name = self.config["TrainingJobName"]
@@ -110,13 +114,9 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
             wait_for_completion=self.wait_for_completion,
             print_log=self.print_log,
             check_interval=self.check_interval,
-            max_ingestion_time=self.max_ingestion_time
+            max_ingestion_time=self.max_ingestion_time,
         )
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             raise AirflowException('Sagemaker Training Job creation failed: %s' % response)
         else:
-            return {
-                'Training': self.hook.describe_training_job(
-                    self.config['TrainingJobName']
-                )
-            }
+            return {'Training': self.hook.describe_training_job(self.config['TrainingJobName'])}

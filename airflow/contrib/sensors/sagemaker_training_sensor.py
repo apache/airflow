@@ -21,10 +21,12 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.providers.amazon.aws.sensors.sagemaker_training import (  # noqa
-    SageMakerHook, SageMakerTrainingSensor,
+    SageMakerHook,
+    SageMakerTrainingSensor,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.sagemaker_training`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

@@ -25,11 +25,7 @@ from airflow import DAG
 from airflow.providers.apache.livy.operators.livy import LivyOperator
 from airflow.utils.dates import days_ago
 
-args = {
-    'owner': 'airflow',
-    'email': ['airflow@example.com'],
-    'depends_on_past': False
-}
+args = {'owner': 'airflow', 'email': ['airflow@example.com'], 'depends_on_past': False}
 
 with DAG(
     dag_id='example_livy_operator',

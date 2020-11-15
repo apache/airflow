@@ -34,6 +34,7 @@ from sphinx.util.nodes import set_source_info
 
 try:
     import sphinx_airflow_theme  # pylint: disable=unused-import
+
     airflow_theme_is_available = True
 except ImportError:
     airflow_theme_is_available = False
@@ -42,9 +43,7 @@ logger = logging.getLogger(__name__)
 
 
 class ExampleHeader(nodes.reference, nodes.FixedTextElement):  # pylint: disable=too-many-ancestors
-    """
-    Header for examples.
-    """
+    """Header for examples."""
 
 
 class ExampleInclude(SphinxDirective):
@@ -130,7 +129,6 @@ class ExampleInclude(SphinxDirective):
 
 
 # pylint: disable=protected-access
-# noinspection PyProtectedMember
 def register_source(app, env, modname):
     """
     Registers source code.
@@ -147,12 +145,12 @@ def register_source(app, env, modname):
 
     code_tags = app.emit_firstresult("viewcode-find-source", modname)
     if code_tags is None:
-        # noinspection PyBroadException
         try:
             analyzer = ModuleAnalyzer.for_module(modname)
         except Exception as ex:  # pylint: disable=broad-except
-            logger.info("Module \"%s\" could not be loaded. Full source will not be available. \"%s\"",
-                        modname, ex)
+            logger.info(
+                "Module \"%s\" could not be loaded. Full source will not be available. \"%s\"", modname, ex
+            )
             env._viewcode_modules[modname] = False
             return False
 
@@ -172,6 +170,8 @@ def register_source(app, env, modname):
         env._viewcode_modules[modname] = entry
 
     return True
+
+
 # pylint: enable=protected-access
 
 
@@ -208,7 +208,6 @@ def create_node(env, relative_path, show_button):
     return paragraph
 
 
-# noinspection PyProtectedMember
 # pylint: disable=protected-access
 def doctree_read(app, doctree):
     """
@@ -237,6 +236,8 @@ def doctree_read(app, doctree):
         onlynode = create_node(env, relative_path, show_button)
 
         objnode.replace_self(onlynode)
+
+
 # pylint: enable=protected-access
 
 

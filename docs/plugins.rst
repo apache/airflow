@@ -24,12 +24,17 @@ Airflow has a simple plugin manager built-in that can integrate external
 features to its core by simply dropping files in your
 ``$AIRFLOW_HOME/plugins`` folder.
 
-The python modules in the ``plugins`` folder get imported,
-and **hooks**, **operators**, **sensors**, **macros** and web **views**
+The python modules in the ``plugins`` folder get imported, and **macros** and web **views**
 get integrated to Airflow's main collections and become available for use.
 
 To troubleshoot issue with plugins, you can use ``airflow plugins`` command.
 This command dumps information about loaded plugins.
+
+.. versionchanged:: 2.0
+    Importing operators, sensors, hooks added in plugins via
+   ``airflow.{operators,sensors,hooks}.<plugin_name>`` is no longer supported, and these extensions should
+   just be imported as regular python modules. For more information, see: :doc:`/modules_management` and
+   :doc:`/howto/custom-operator`
 
 What for?
 ---------
@@ -66,6 +71,27 @@ Airflow has many components that can be reused when building an application:
 * Airflow is deployed, you can just piggy back on its deployment logistics
 * Basic charting capabilities, underlying libraries and abstractions
 
+.. _plugins:loading:
+
+When are plugins (re)loaded?
+----------------------------
+
+Plugins are by default lazily loaded and once loaded, they are never reloaded (except the UI plugins are
+automatically loaded in Webserver). To load them at the
+start of each Airflow process, set ``[core] lazy_load_plugins = False`` in ``airflow.cfg``.
+
+This means that if you make any changes to plugins and you want the webserver or scheduler to use that new
+code you will need to restart those processes.
+
+By default, task execution will use forking to avoid the slow down of having to create a whole new python
+interpreter and re-parse all of the Airflow code and start up routines -- this is a big benefit for shorter
+running tasks. This does mean that if you use plugins in your tasks, and want them to update you will either
+need to restart the worker (if using CeleryExecutor) or scheduler (Local or Sequential executors). The other
+option is you can accept the speed hit at start up set the ``core.execute_tasks_new_python_interpreter``
+config setting to True, resulting in launching a whole new python interpreter for tasks.
+
+(Modules only imported by DAG files on the other hand do not suffer this problem, as DAG files are not
+loaded/parsed in any long-running Airflow process.)
 
 Interface
 ---------
@@ -81,10 +107,6 @@ looks like:
     class AirflowPlugin:
         # The name of your plugin (str)
         name = None
-        # A list of class(es) derived from BaseOperator
-        operators = []
-        # A list of class(es) derived from BaseSensorOperator
-        sensors = []
         # A list of class(es) derived from BaseHook
         hooks = []
         # A list of references to inject into the macros namespace
@@ -122,22 +144,6 @@ You can derive it by inheritance (please refer to the example below). In the exa
 defined as class attributes, but you can also define them as properties if you need to perform
 additional initialization. Please note ``name`` inside this class must be specified.
 
-After the plugin is imported into Airflow,
-you can invoke it using statement like
-
-
-.. code-block:: python
-
-    from airflow.{type, like "operators", "sensors"}.{name specified inside the plugin class} import *
-
-
-When you write your own plugins, make sure you understand them well.
-There are some essential properties for each type of plugin.
-For example,
-
-* For ``Operator`` plugin, an ``execute`` method is compulsory.
-* For ``Sensor`` plugin, a ``poke`` method returning a Boolean value is compulsory.
-
 Make sure you restart the webserver and scheduler after making changes to plugins so that they take effect.
 
 
@@ -159,21 +165,11 @@ definitions in Airflow.
 
     # Importing base classes that we need to derive
     from airflow.hooks.base_hook import BaseHook
-    from airflow.models import BaseOperator
     from airflow.models.baseoperator import BaseOperatorLink
     from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
-    from airflow.sensors.base_sensor_operator import BaseSensorOperator
 
-    # Will show up under airflow.hooks.test_plugin.PluginHook
+    # Will show up in Connections screen in a future version
     class PluginHook(BaseHook):
-        pass
-
-    # Will show up under airflow.operators.test_plugin.PluginOperator
-    class PluginOperator(BaseOperator):
-        pass
-
-    # Will show up under airflow.sensors.test_plugin.PluginSensorOperator
-    class PluginSensorOperator(BaseSensorOperator):
         pass
 
     # Will show up under airflow.macros.test_plugin.plugin_macro
@@ -234,8 +230,6 @@ definitions in Airflow.
     # Defining the plugin class
     class AirflowTestPlugin(AirflowPlugin):
         name = "test_plugin"
-        operators = [PluginOperator]
-        sensors = [PluginSensorOperator]
         hooks = [PluginHook]
         macros = [plugin_macro]
         flask_blueprints = [bp]
@@ -277,27 +271,24 @@ will automatically load the registered plugins from the entrypoint list.
 .. note::
     Neither the entrypoint name (eg, ``my_plugin``) nor the name of the
     plugin class will contribute towards the module and class name of the plugin
-    itself. The structure is determined by
-    ``airflow.plugins_manager.AirflowPlugin.name`` and the class name of the plugin
-    component with the pattern ``airflow.{component}.{name}.{component_class_name}``.
+    itself.
 
 .. code-block:: python
 
     # my_package/my_plugin.py
     from airflow.plugins_manager import AirflowPlugin
-    from airflow.models import BaseOperator
-    from airflow.hooks.base_hook import BaseHook
+    from flask import Blueprint
 
-    class MyOperator(BaseOperator):
-      pass
-
-    class MyHook(BaseHook):
-      pass
+    # Creating a flask blueprint to integrate the templates and static folder
+    bp = Blueprint(
+        "test_plugin", __name__,
+        template_folder='templates', # registers airflow/plugins/templates as a Jinja template folder
+        static_folder='static',
+        static_url_path='/static/test_plugin')
 
     class MyAirflowPlugin(AirflowPlugin):
       name = 'my_namespace'
-      operators = [MyOperator]
-      hooks = [MyHook]
+      flask_blueprints = [bp]
 
 .. code-block:: python
 
@@ -313,11 +304,6 @@ will automatically load the registered plugins from the entrypoint list.
         }
     )
 
-This will create a hook, and an operator accessible at:
-
-- ``airflow.hooks.my_namespace.MyHook``
-- ``airflow.operators.my_namespace.MyOperator``
-
 Automatic reloading webserver
 -----------------------------
 
@@ -326,3 +312,6 @@ you should set ``reload_on_plugin_change`` option in ``[webserver]`` section to 
 
 .. note::
     For more information on setting the configuration, see :doc:`/howto/set-config`
+
+.. note::
+    See :doc:`modules_management` for details on how Python and Airflow manage modules.

@@ -65,17 +65,14 @@ class BaseTaskRunner(LoggingMixin):
             cfg_path = tmp_configuration_copy(chmod=0o600)
 
             # Give ownership of file to user; only they can read and write
-            subprocess.call(
-                ['sudo', 'chown', self.run_as_user, cfg_path],
-                close_fds=True
-            )
+            subprocess.call(['sudo', 'chown', self.run_as_user, cfg_path], close_fds=True)
 
             # propagate PYTHONPATH environment variable
             pythonpath_value = os.environ.get(PYTHONPATH_VAR, '')
             popen_prepend = ['sudo', '-E', '-H', '-u', self.run_as_user]
 
             if pythonpath_value:
-                popen_prepend.append('{}={}'.format(PYTHONPATH_VAR, pythonpath_value))
+                popen_prepend.append(f'{PYTHONPATH_VAR}={pythonpath_value}')
 
         else:
             # Always provide a copy of the configuration file settings. Since
@@ -102,9 +99,12 @@ class BaseTaskRunner(LoggingMixin):
                 line = line.decode('utf-8')
             if not line:
                 break
-            self.log.info('Job %s: Subtask %s %s',
-                          self._task_instance.job_id, self._task_instance.task_id,
-                          line.rstrip('\n'))
+            self.log.info(
+                'Job %s: Subtask %s %s',
+                self._task_instance.job_id,
+                self._task_instance.task_id,
+                line.rstrip('\n'),
+            )
 
     def run_command(self, run_with=None):
         """
@@ -128,7 +128,7 @@ class BaseTaskRunner(LoggingMixin):
             universal_newlines=True,
             close_fds=True,
             env=os.environ.copy(),
-            preexec_fn=os.setsid
+            preexec_fn=os.setsid,
         )
 
         # Start daemon thread to read subprocess logging output
@@ -141,9 +141,7 @@ class BaseTaskRunner(LoggingMixin):
         return proc
 
     def start(self):
-        """
-        Start running the task instance in a subprocess.
-        """
+        """Start running the task instance in a subprocess."""
         raise NotImplementedError()
 
     def return_code(self):
@@ -155,15 +153,11 @@ class BaseTaskRunner(LoggingMixin):
         raise NotImplementedError()
 
     def terminate(self):
-        """
-        Kill the running task instance.
-        """
+        """Kill the running task instance."""
         raise NotImplementedError()
 
     def on_finish(self):
-        """
-        A callback that should be called when this is done running.
-        """
+        """A callback that should be called when this is done running."""
         if self._cfg_path and os.path.isfile(self._cfg_path):
             if self.run_as_user:
                 subprocess.call(['sudo', 'rm', self._cfg_path], close_fds=True)

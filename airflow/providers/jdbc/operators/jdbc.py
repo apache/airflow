@@ -46,12 +46,15 @@ class JdbcOperator(BaseOperator):
     ui_color = '#ededed'
 
     @apply_defaults
-    def __init__(self, *,
-                 sql: str,
-                 jdbc_conn_id: str = 'jdbc_default',
-                 autocommit: bool = False,
-                 parameters: Optional[Union[Mapping, Iterable]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        sql: str,
+        jdbc_conn_id: str = 'jdbc_default',
+        autocommit: bool = False,
+        parameters: Optional[Union[Mapping, Iterable]] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.parameters = parameters
         self.sql = sql
@@ -59,7 +62,7 @@ class JdbcOperator(BaseOperator):
         self.autocommit = autocommit
         self.hook = None
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         self.log.info('Executing: %s', self.sql)
         hook = JdbcHook(jdbc_conn_id=self.jdbc_conn_id)
         hook.run(self.sql, self.autocommit, parameters=self.parameters)

@@ -49,9 +49,7 @@ class TestGoogleOpenID(unittest.TestCase):
         clear_db_pools()
 
         with self.app.test_client() as test_client:
-            response = test_client.get(
-                "/api/experimental/pools", environ_overrides={'REMOTE_USER': "test"}
-            )
+            response = test_client.get("/api/experimental/pools", environ_overrides={'REMOTE_USER': "test"})
             self.assertEqual("test@fab.org", current_user.email)
 
         self.assertEqual(200, response.status_code)

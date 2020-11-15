@@ -20,7 +20,7 @@
 Google Cloud Build Operators
 ============================
 
-The `GoogleCloud Build <https://cloud.google.com/cloud-build/>`__ is a service that executes your builds on Google Cloud Platform
+The `GoogleCloud Build <https://cloud.google.com/cloud-build/>`__ is a service that executes your builds on Google Cloud
 infrastructure. Cloud Build can import source code from Google Cloud Storage,
 Cloud Source Repositories, execute a build to your specifications, and produce
 artifacts such as Docker containers or Java archives.

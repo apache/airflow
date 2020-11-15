@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -41,12 +41,15 @@ class WasbBlobSensor(BaseSensorOperator):
     template_fields = ('container_name', 'blob_name')
 
     @apply_defaults
-    def __init__(self, *,
-                 container_name: str,
-                 blob_name: str,
-                 wasb_conn_id: str = 'wasb_default',
-                 check_options: Optional[dict] = None,
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        container_name: str,
+        blob_name: str,
+        wasb_conn_id: str = 'wasb_default',
+        check_options: Optional[dict] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         if check_options is None:
             check_options = {}
@@ -55,13 +58,10 @@ class WasbBlobSensor(BaseSensorOperator):
         self.blob_name = blob_name
         self.check_options = check_options
 
-    def poke(self, context: Dict[Any, Any]):
-        self.log.info(
-            'Poking for blob: %s\nin wasb://%s', self.blob_name, self.container_name
-        )
+    def poke(self, context: dict):
+        self.log.info('Poking for blob: %s\nin wasb://%s', self.blob_name, self.container_name)
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
-        return hook.check_for_blob(self.container_name, self.blob_name,
-                                   **self.check_options)
+        return hook.check_for_blob(self.container_name, self.blob_name, **self.check_options)
 
 
 class WasbPrefixSensor(BaseSensorOperator):
@@ -82,12 +82,15 @@ class WasbPrefixSensor(BaseSensorOperator):
     template_fields = ('container_name', 'prefix')
 
     @apply_defaults
-    def __init__(self, *,
-                 container_name: str,
-                 prefix: str,
-                 wasb_conn_id: str = 'wasb_default',
-                 check_options: Optional[dict] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        container_name: str,
+        prefix: str,
+        wasb_conn_id: str = 'wasb_default',
+        check_options: Optional[dict] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         if check_options is None:
             check_options = {}
@@ -96,9 +99,7 @@ class WasbPrefixSensor(BaseSensorOperator):
         self.prefix = prefix
         self.check_options = check_options
 
-    def poke(self,
-             context: Dict[Any, Any]) -> bool:
+    def poke(self, context: dict) -> bool:
         self.log.info('Poking for prefix: %s in wasb://%s', self.prefix, self.container_name)
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
-        return hook.check_for_prefix(self.container_name, self.prefix,
-                                     **self.check_options)
+        return hook.check_for_prefix(self.container_name, self.prefix, **self.check_options)

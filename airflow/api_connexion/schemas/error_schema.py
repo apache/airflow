@@ -33,7 +33,9 @@ class ImportErrorSchema(SQLAlchemySchema):
     import_error_id = auto_field("id", dump_only=True)
     timestamp = auto_field(format="iso")
     filename = auto_field()
-    stack_trace = auto_field("stacktrace",)
+    stack_trace = auto_field(
+        "stacktrace",
+    )
 
 
 class ImportErrorCollection(NamedTuple):
@@ -44,7 +46,7 @@ class ImportErrorCollection(NamedTuple):
 
 
 class ImportErrorCollectionSchema(Schema):
-    """ Import error collection schema """
+    """Import error collection schema"""
 
     import_errors = fields.List(fields.Nested(ImportErrorSchema))
     total_entries = fields.Int()

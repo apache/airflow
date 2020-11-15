@@ -43,8 +43,7 @@ class TestEmrHook(unittest.TestCase):
         hook = EmrHook(aws_conn_id='aws_default', emr_conn_id='emr_default')
         cluster = hook.create_job_flow({'Name': 'test_cluster'})
 
-        self.assertEqual(client.list_clusters()['Clusters'][0]['Id'],
-                         cluster['JobFlowId'])
+        self.assertEqual(client.list_clusters()['Clusters'][0]['Id'], cluster['JobFlowId'])
 
     @mock_emr
     def test_create_job_flow_extra_args(self):
@@ -60,9 +59,7 @@ class TestEmrHook(unittest.TestCase):
         # AmiVersion is really old and almost no one will use it anymore, but
         # it's one of the "optional" request params that moto supports - it's
         # coverage of EMR isn't 100% it turns out.
-        cluster = hook.create_job_flow({'Name': 'test_cluster',
-                                        'ReleaseLabel': '',
-                                        'AmiVersion': '3.2'})
+        cluster = hook.create_job_flow({'Name': 'test_cluster', 'ReleaseLabel': '', 'AmiVersion': '3.2'})
 
         cluster = client.describe_cluster(ClusterId=cluster['JobFlowId'])['Cluster']
 
@@ -76,8 +73,9 @@ class TestEmrHook(unittest.TestCase):
         """
         hook = EmrHook(aws_conn_id='aws_default', emr_conn_id='emr_default')
 
-        job_flow = hook.create_job_flow({'Name': 'test_cluster',
-                                         'Instances': {'KeepJobFlowAliveWhenNoSteps': True}})
+        job_flow = hook.create_job_flow(
+            {'Name': 'test_cluster', 'Instances': {'KeepJobFlowAliveWhenNoSteps': True}}
+        )
 
         job_flow_id = job_flow['JobFlowId']
 

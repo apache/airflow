@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module is deprecated. Please use `airflow.providers.google.cloud.hooks.speech_to_text`.
-"""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.hooks.speech_to_text`."""
 
 import warnings
 
@@ -25,7 +23,8 @@ from airflow.providers.google.cloud.hooks.speech_to_text import CloudSpeechToTex
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.speech_to_text`",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 
@@ -39,7 +38,8 @@ class GCPSpeechToTextHook(CloudSpeechToTextHook):
         warnings.warn(
             "This class is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.speech_to_text.CloudSpeechToTextHook`.",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning,
+            stacklevel=2,
         )
 
         super().__init__(*args, **kwargs)

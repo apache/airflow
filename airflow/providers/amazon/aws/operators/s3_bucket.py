@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains AWS S3 operators.
-"""
+"""This module contains AWS S3 operators."""
 from typing import Optional
 
 from airflow.models import BaseOperator
@@ -40,12 +38,16 @@ class S3CreateBucketOperator(BaseOperator):
     :param region_name: AWS region_name. If not specified fetched from connection.
     :type region_name: Optional[str]
     """
+
     @apply_defaults
-    def __init__(self, *,
-                 bucket_name,
-                 aws_conn_id: Optional[str] = "aws_default",
-                 region_name: Optional[str] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        bucket_name: str,
+        aws_conn_id: Optional[str] = "aws_default",
+        region_name: Optional[str] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.bucket_name = bucket_name
         self.region_name = region_name
@@ -65,7 +67,7 @@ class S3DeleteBucketOperator(BaseOperator):
     """
     This operator deletes an S3 bucket
 
-    :param bucket_name: This is bucket name you want to create
+    :param bucket_name: This is bucket name you want to delete
     :type bucket_name: str
     :param force_delete: Forcibly delete all objects in the bucket before deleting the bucket
     :type force_delete: bool
@@ -76,11 +78,14 @@ class S3DeleteBucketOperator(BaseOperator):
         maintained on each worker node).
     :type aws_conn_id: Optional[str]
     """
-    def __init__(self,
-                 bucket_name,
-                 force_delete: Optional[bool] = False,
-                 aws_conn_id: Optional[str] = "aws_default",
-                 **kwargs) -> None:
+
+    def __init__(
+        self,
+        bucket_name: str,
+        force_delete: bool = False,
+        aws_conn_id: Optional[str] = "aws_default",
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.bucket_name = bucket_name
         self.force_delete = force_delete

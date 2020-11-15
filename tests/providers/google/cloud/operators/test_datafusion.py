@@ -15,15 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import mock
+from unittest import mock
 
 from airflow import DAG
 from airflow.providers.google.cloud.operators.datafusion import (
-    CloudDataFusionCreateInstanceOperator, CloudDataFusionCreatePipelineOperator,
-    CloudDataFusionDeleteInstanceOperator, CloudDataFusionDeletePipelineOperator,
-    CloudDataFusionGetInstanceOperator, CloudDataFusionListPipelinesOperator,
-    CloudDataFusionRestartInstanceOperator, CloudDataFusionStartPipelineOperator,
-    CloudDataFusionStopPipelineOperator, CloudDataFusionUpdateInstanceOperator,
+    CloudDataFusionCreateInstanceOperator,
+    CloudDataFusionCreatePipelineOperator,
+    CloudDataFusionDeleteInstanceOperator,
+    CloudDataFusionDeletePipelineOperator,
+    CloudDataFusionGetInstanceOperator,
+    CloudDataFusionListPipelinesOperator,
+    CloudDataFusionRestartInstanceOperator,
+    CloudDataFusionStartPipelineOperator,
+    CloudDataFusionStopPipelineOperator,
+    CloudDataFusionUpdateInstanceOperator,
 )
 
 HOOK_STR = "airflow.providers.google.cloud.operators.datafusion.DataFusionHook"
@@ -198,7 +203,7 @@ class TestCloudDataFusionStartPipelineOperator:
             namespace=NAMESPACE,
             location=LOCATION,
             project_id=PROJECT_ID,
-            runtime_args=RUNTIME_ARGS
+            runtime_args=RUNTIME_ARGS,
         )
         op.dag = mock.MagicMock(spec=DAG, task_dict={}, dag_id="test")
 

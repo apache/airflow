@@ -16,10 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module allows you to connect to the Google Discovery API Service and query it.
-"""
-from typing import Dict, Optional, Sequence, Union
+"""This module allows you to connect to the Google Discovery API Service and query it."""
+from typing import Optional, Sequence, Union
 
 from googleapiclient.discovery import Resource, build
 
@@ -51,6 +49,7 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
         account from the list granting this role to the originating account.
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     _conn = None  # type: Optional[Resource]
 
     def __init__(
@@ -69,7 +68,7 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
         self.api_service_name = api_service_name
         self.api_version = api_version
 
-    def get_conn(self):
+    def get_conn(self) -> Resource:
         """
         Creates an authenticated api client for the given api service name and credentials.
 
@@ -84,11 +83,11 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
                 serviceName=self.api_service_name,
                 version=self.api_version,
                 http=http_authorized,
-                cache_discovery=False
+                cache_discovery=False,
             )
         return self._conn
 
-    def query(self, endpoint: str, data: Dict, paginate: bool = False, num_retries: int = 0) -> Dict:
+    def query(self, endpoint: str, data: dict, paginate: bool = False, num_retries: int = 0) -> dict:
         """
         Creates a dynamic API call to any Google API registered in Google's API Client Library
         and queries it.
@@ -117,9 +116,7 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
         api_endpoint_parts = endpoint.split('.')
 
         google_api_endpoint_instance = self._build_api_request(
-            google_api_conn_client,
-            api_sub_functions=api_endpoint_parts[1:],
-            api_endpoint_params=data
+            google_api_conn_client, api_sub_functions=api_endpoint_parts[1:], api_endpoint_params=data
         )
 
         if paginate:

@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Objects relating to sourcing connections & variables from Hashicorp Vault
-"""
+"""Objects relating to sourcing connections & variables from Hashicorp Vault"""
 from typing import Optional
 
 from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient  # noqa
@@ -46,14 +44,14 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     would be accessible if you provide ``{"connections_path": "connections"}`` and request
     conn_id ``smtp_default``.
 
-    :param connections_path: Specifies the path of the secret to read to get Connections
-        (default: 'connections').
+    :param connections_path: Specifies the path of the secret to read to get Connections.
+        (default: 'connections'). If set to None (null), requests for connections will not be sent to Vault.
     :type connections_path: str
-    :param variables_path: Specifies the path of the secret to read to get Variables
-        (default: 'variables').
+    :param variables_path: Specifies the path of the secret to read to get Variable.
+        (default: 'variables'). If set to None (null), requests for variables will not be sent to Vault.
     :type variables_path: str
     :param config_path: Specifies the path of the secret to read Airflow Configurations
-        (default: 'configs').
+        (default: 'configs'). If set to None (null), requests for configurations will not be sent to Vault.
     :type config_path: str
     :param url: Base URL for the Vault instance being addressed.
     :type url: str
@@ -90,13 +88,13 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
     :type kubernetes_jwt_path: str
-    :param gcp_key_path: Path to GCP Credential JSON file (for ``gcp`` auth_type).
+    :param gcp_key_path: Path to Google Cloud Service Account key file (JSON) (for ``gcp`` auth_type).
            Mutually exclusive with gcp_keyfile_dict.
     :type gcp_key_path: str
     :param gcp_keyfile_dict: Dictionary of keyfile parameters. (for ``gcp`` auth_type).
            Mutually exclusive with gcp_key_path.
     :type gcp_keyfile_dict: dict
-    :param gcp_scopes: Comma-separated string containing GCP scopes (for ``gcp`` auth_type).
+    :param gcp_scopes: Comma-separated string containing OAuth2 scopes (for ``gcp`` auth_type).
     :type gcp_scopes: str
     :param azure_tenant_id: The tenant id for the Azure Active Directory (for ``azure`` auth_type).
     :type azure_tenant_id: str
@@ -110,6 +108,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :param radius_port: Port for radius (for ``radius`` auth_type).
     :type radius_port: str
     """
+
     def __init__(  # pylint: disable=too-many-arguments
         self,
         connections_path: str = 'connections',
@@ -137,12 +136,21 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         radius_host: Optional[str] = None,
         radius_secret: Optional[str] = None,
         radius_port: Optional[int] = None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__()
-        self.connections_path = connections_path.rstrip('/')
-        self.variables_path = variables_path.rstrip('/')
-        self.config_path = config_path.rstrip('/')
+        if connections_path is not None:
+            self.connections_path = connections_path.rstrip('/')
+        else:
+            self.connections_path = connections_path
+        if variables_path is not None:
+            self.variables_path = variables_path.rstrip('/')
+        else:
+            self.variables_path = variables_path
+        if config_path is not None:
+            self.config_path = config_path.rstrip('/')
+        else:
+            self.config_path = config_path
         self.mount_point = mount_point
         self.kv_engine_version = kv_engine_version
         self.vault_client = _VaultClient(
@@ -168,7 +176,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             radius_host=radius_host,
             radius_secret=radius_secret,
             radius_port=radius_port,
-            **kwargs
+            **kwargs,
         )
 
     def get_conn_uri(self, conn_id: str) -> Optional[str]:
@@ -180,9 +188,12 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         :rtype: str
         :return: The connection uri retrieved from the secret
         """
-        secret_path = self.build_path(self.connections_path, conn_id)
-        response = self.vault_client.get_secret(secret_path=secret_path)
-        return response.get("conn_uri") if response else None
+        if self.connections_path is None:
+            return None
+        else:
+            secret_path = self.build_path(self.connections_path, conn_id)
+            response = self.vault_client.get_secret(secret_path=secret_path)
+            return response.get("conn_uri") if response else None
 
     def get_variable(self, key: str) -> Optional[str]:
         """
@@ -193,9 +204,12 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         :rtype: str
         :return: Variable Value retrieved from the vault
         """
-        secret_path = self.build_path(self.variables_path, key)
-        response = self.vault_client.get_secret(secret_path=secret_path)
-        return response.get("value") if response else None
+        if self.variables_path is None:
+            return None
+        else:
+            secret_path = self.build_path(self.variables_path, key)
+            response = self.vault_client.get_secret(secret_path=secret_path)
+            return response.get("value") if response else None
 
     def get_config(self, key: str) -> Optional[str]:
         """
@@ -206,6 +220,9 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         :rtype: str
         :return: Configuration Option Value retrieved from the vault
         """
-        secret_path = self.build_path(self.config_path, key)
-        response = self.vault_client.get_secret(secret_path=secret_path)
-        return response.get("value") if response else None
+        if self.config_path is None:
+            return None
+        else:
+            secret_path = self.build_path(self.config_path, key)
+            response = self.vault_client.get_secret(secret_path=secret_path)
+            return response.get("value") if response else None

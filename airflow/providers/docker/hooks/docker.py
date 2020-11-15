@@ -33,12 +33,14 @@ class DockerHook(BaseHook, LoggingMixin):
         credentials and extra configuration are stored
     :type docker_conn_id: str
     """
-    def __init__(self,
-                 docker_conn_id='docker_default',
-                 base_url: Optional[str] = None,
-                 version: Optional[str] = None,
-                 tls: Optional[str] = None
-                 ) -> None:
+
+    def __init__(
+        self,
+        docker_conn_id='docker_default',
+        base_url: Optional[str] = None,
+        version: Optional[str] = None,
+        tls: Optional[str] = None,
+    ) -> None:
         super().__init__()
         if not base_url:
             raise AirflowException('No Docker base URL provided')
@@ -56,7 +58,7 @@ class DockerHook(BaseHook, LoggingMixin):
         self.__version = version
         self.__tls = tls
         if conn.port:
-            self.__registry = "{}:{}".format(conn.host, conn.port)
+            self.__registry = f"{conn.host}:{conn.port}"
         else:
             self.__registry = conn.host
         self.__username = conn.login
@@ -65,15 +67,11 @@ class DockerHook(BaseHook, LoggingMixin):
         self.__reauth = extra_options.get('reauth') != 'no'
 
     def get_conn(self) -> APIClient:
-        client = APIClient(
-            base_url=self.__base_url,
-            version=self.__version,
-            tls=self.__tls
-        )
+        client = APIClient(base_url=self.__base_url, version=self.__version, tls=self.__tls)
         self.__login(client)
         return client
 
-    def __login(self, client) -> None:
+    def __login(self, client) -> int:
         self.log.debug('Logging into Docker registry')
         try:
             client.login(
@@ -81,7 +79,7 @@ class DockerHook(BaseHook, LoggingMixin):
                 password=self.__password,
                 registry=self.__registry,
                 email=self.__email,
-                reauth=self.__reauth
+                reauth=self.__reauth,
             )
             self.log.debug('Login successful')
         except APIError as docker_error:

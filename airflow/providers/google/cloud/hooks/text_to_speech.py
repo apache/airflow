@@ -15,15 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Text to Speech Hook.
-"""
+"""This module contains a Google Cloud Text to Speech Hook."""
 from typing import Dict, Optional, Sequence, Union
 
 from google.api_core.retry import Retry
 from google.cloud.texttospeech_v1 import TextToSpeechClient
 from google.cloud.texttospeech_v1.types import (
-    AudioConfig, SynthesisInput, SynthesizeSpeechResponse, VoiceSelectionParams,
+    AudioConfig,
+    SynthesisInput,
+    SynthesizeSpeechResponse,
+    VoiceSelectionParams,
 )
 
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
@@ -76,8 +77,7 @@ class CloudTextToSpeechHook(GoogleBaseHook):
         if not self._client:
             # pylint: disable=unexpected-keyword-arg
             self._client = TextToSpeechClient(
-                credentials=self._get_credentials(),
-                client_info=self.client_info
+                credentials=self._get_credentials(), client_info=self.client_info
             )
             # pylint: enable=unexpected-keyword-arg
 
@@ -90,7 +90,7 @@ class CloudTextToSpeechHook(GoogleBaseHook):
         voice: Union[Dict, VoiceSelectionParams],
         audio_config: Union[Dict, AudioConfig],
         retry: Optional[Retry] = None,
-        timeout: Optional[float] = None
+        timeout: Optional[float] = None,
     ) -> SynthesizeSpeechResponse:
         """
         Synthesizes text input

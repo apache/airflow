@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains operator to move data from Hive to Samba.
-"""
+"""This module contains operator to move data from Hive to Samba."""
 
 from tempfile import NamedTemporaryFile
 
@@ -45,15 +43,21 @@ class HiveToSambaOperator(BaseOperator):
     """
 
     template_fields = ('hql', 'destination_filepath')
-    template_ext = ('.hql', '.sql',)
+    template_ext = (
+        '.hql',
+        '.sql',
+    )
 
     @apply_defaults
-    def __init__(self, *,
-                 hql: str,
-                 destination_filepath: str,
-                 samba_conn_id: str = 'samba_default',
-                 hiveserver2_conn_id: str = 'hiveserver2_default',
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        hql: str,
+        destination_filepath: str,
+        samba_conn_id: str = 'samba_default',
+        hiveserver2_conn_id: str = 'hiveserver2_default',
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.hiveserver2_conn_id = hiveserver2_conn_id
         self.samba_conn_id = samba_conn_id

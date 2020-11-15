@@ -38,7 +38,7 @@ AUDIO_CONFIG = {"audio_encoding": "LINEAR16"}
 
 # [START howto_operator_translate_speech_arguments]
 CONFIG = {"encoding": "LINEAR16", "language_code": "en_US"}
-AUDIO = {"uri": "gs://{bucket}/{object}".format(bucket=BUCKET_NAME, object=FILENAME)}
+AUDIO = {"uri": f"gs://{BUCKET_NAME}/{FILENAME}"}
 TARGET_LANGUAGE = 'pl'
 FORMAT = 'text'
 MODEL = 'base'
@@ -70,7 +70,7 @@ with models.DAG(
         format_=FORMAT,
         source_language=SOURCE_LANGUAGE,
         model=MODEL,
-        task_id='translate_speech_task'
+        task_id='translate_speech_task',
     )
     translate_speech_task2 = CloudTranslateSpeechOperator(
         audio=AUDIO,
@@ -79,7 +79,7 @@ with models.DAG(
         format_=FORMAT,
         source_language=SOURCE_LANGUAGE,
         model=MODEL,
-        task_id='translate_speech_task2'
+        task_id='translate_speech_task2',
     )
     # [END howto_operator_translate_speech]
     text_to_speech_synthesize_task >> translate_speech_task >> translate_speech_task2

@@ -32,6 +32,7 @@ class RedisPubSubSensor(BaseSensorOperator):
     :param redis_conn_id: the redis connection id
     :type redis_conn_id: str
     """
+
     template_fields = ('channels',)
     ui_color = '#f0eee4'
 

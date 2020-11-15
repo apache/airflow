@@ -37,7 +37,6 @@ class DummySubClass(DummyClass):
 
 
 class TestApplyDefault(unittest.TestCase):
-
     def test_apply(self):
         dummy = DummyClass(test_param=True)
         self.assertTrue(dummy.test_param)
@@ -60,8 +59,7 @@ class TestApplyDefault(unittest.TestCase):
         self.assertTrue(dummy_class.test_param)
         self.assertTrue(dummy_subclass.test_sub_param)
 
-        with self.assertRaisesRegex(AirflowException,
-                                    'Argument.*test_sub_param.*required'):
+        with self.assertRaisesRegex(AirflowException, 'Argument.*test_sub_param.*required'):
             DummySubClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
 
     def test_incorrect_default_args(self):

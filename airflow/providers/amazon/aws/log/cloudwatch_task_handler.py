@@ -38,7 +38,8 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
     :param filename_template: template for file name (local storage) or log stream name (remote)
     :type filename_template: str
     """
-    def __init__(self, base_log_folder, log_group_arn, filename_template):
+
+    def __init__(self, base_log_folder: str, log_group_arn: str, filename_template: str):
         super().__init__(base_log_folder, filename_template)
         split_arn = log_group_arn.split(':')
 
@@ -49,18 +50,18 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
 
     @cached_property
     def hook(self):
-        """
-        Returns AwsLogsHook.
-        """
+        """Returns AwsLogsHook."""
         remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
+
             return AwsLogsHook(aws_conn_id=remote_conn_id, region_name=self.region_name)
         except Exception:  # pylint: disable=broad-except
             self.log.error(
                 'Could not create an AwsLogsHook with connection id "%s". '
                 'Please make sure that airflow[aws] is installed and '
-                'the Cloudwatch logs connection exists.', remote_conn_id
+                'the Cloudwatch logs connection exists.',
+                remote_conn_id,
             )
 
     def _render_filename(self, ti, try_number):
@@ -72,13 +73,11 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         self.handler = watchtower.CloudWatchLogHandler(
             log_group=self.log_group,
             stream_name=self._render_filename(ti, ti.try_number),
-            boto3_session=self.hook.get_session(self.region_name)
+            boto3_session=self.hook.get_session(self.region_name),
         )
 
     def close(self):
-        """
-        Close the handler responsible for the upload of the local log file to Cloudwatch.
-        """
+        """Close the handler responsible for the upload of the local log file to Cloudwatch."""
         # When application exit, system shuts down all handlers by
         # calling close method. Here we check if logger is already
         # closed to prevent uploading the log to remote storage multiple
@@ -93,11 +92,14 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
 
     def _read(self, task_instance, try_number, metadata=None):
         stream_name = self._render_filename(task_instance, try_number)
-        return '*** Reading remote log from Cloudwatch log_group: {} log_stream: {}.\n{}\n'.format(
-            self.log_group, stream_name, self.get_cloudwatch_logs(stream_name=stream_name)
-        ), {'end_of_log': True}
+        return (
+            '*** Reading remote log from Cloudwatch log_group: {} log_stream: {}.\n{}\n'.format(
+                self.log_group, stream_name, self.get_cloudwatch_logs(stream_name=stream_name)
+            ),
+            {'end_of_log': True},
+        )
 
-    def get_cloudwatch_logs(self, stream_name):
+    def get_cloudwatch_logs(self, stream_name: str) -> str:
         """
         Return all logs from the given log stream.
 

@@ -27,16 +27,11 @@ custom_task_runner = mock.MagicMock()
 
 
 class GetTaskRunner(unittest.TestCase):
-
-    @parameterized.expand([
-        (import_path, ) for import_path in CORE_TASK_RUNNERS.values()
-    ])
+    @parameterized.expand([(import_path,) for import_path in CORE_TASK_RUNNERS.values()])
     def test_should_have_valid_imports(self, import_path):
         self.assertIsNotNone(import_string(import_path))
 
-    @mock.patch(
-        'airflow.task.task_runner.base_task_runner.subprocess'
-    )
+    @mock.patch('airflow.task.task_runner.base_task_runner.subprocess')
     @mock.patch('airflow.task.task_runner._TASK_RUNNER_NAME', "StandardTaskRunner")
     def test_should_support_core_task_runner(self, mock_subprocess):
         local_task_job = mock.MagicMock(
@@ -48,7 +43,7 @@ class GetTaskRunner(unittest.TestCase):
 
     @mock.patch(
         'airflow.task.task_runner._TASK_RUNNER_NAME',
-        "tests.task.task_runner.test_task_runner.custom_task_runner"
+        "tests.task.task_runner.test_task_runner.custom_task_runner",
     )
     def test_should_support_custom_task_runner(self):
         local_task_job = mock.MagicMock(

@@ -15,9 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains the Apache Livy sensor.
-"""
+"""This module contains the Apache Livy sensor."""
 from typing import Any, Dict, Optional, Union
 
 from airflow.providers.apache.livy.hooks.livy import LivyHook
@@ -39,10 +37,7 @@ class LivySensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
-        batch_id: Union[int, str],
-        livy_conn_id: str = 'livy_default',
-        **kwargs: Any
+        self, *, batch_id: Union[int, str], livy_conn_id: str = 'livy_default', **kwargs: Any
     ) -> None:
         super().__init__(**kwargs)
         self._livy_conn_id = livy_conn_id

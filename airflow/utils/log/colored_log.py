@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Class responsible for colouring logs based on log level.
-"""
+"""Class responsible for colouring logs based on log level."""
 import re
 import sys
 from logging import LogRecord
@@ -44,6 +42,7 @@ class CustomTTYColoredFormatter(TTYColoredFormatter):
     by adding attributes to message arguments and coloring error
     traceback.
     """
+
     def __init__(self, *args, **kwargs):
         kwargs["stream"] = sys.stdout or kwargs.get("stream")
         kwargs["log_colors"] = DEFAULT_COLORS
@@ -67,12 +66,10 @@ class CustomTTYColoredFormatter(TTYColoredFormatter):
         elif isinstance(record.args, dict):
             if self._count_number_of_arguments_in_message(record) > 1:
                 # Case of logging.debug("a %(a)d b %(b)s", {'a':1, 'b':2})
-                record.args = {
-                    key: self._color_arg(value) for key, value in record.args.items()
-                }
+                record.args = {key: self._color_arg(value) for key, value in record.args.items()}
             else:
                 # Case of single dict passed to formatted string
-                record.args = self._color_arg(record.args)   # type: ignore
+                record.args = self._color_arg(record.args)  # type: ignore
         elif isinstance(record.args, str):
             record.args = self._color_arg(record.args)
         return record
@@ -85,8 +82,9 @@ class CustomTTYColoredFormatter(TTYColoredFormatter):
                 record.exc_text = self.formatException(record.exc_info)
 
             if record.exc_text:
-                record.exc_text = self.color(self.log_colors, record.levelname) + \
-                    record.exc_text + escape_codes['reset']
+                record.exc_text = (
+                    self.color(self.log_colors, record.levelname) + record.exc_text + escape_codes['reset']
+                )
 
         return record
 
@@ -97,4 +95,5 @@ class CustomTTYColoredFormatter(TTYColoredFormatter):
             return super().format(record)
         except ValueError:  # I/O operation on closed file
             from logging import Formatter
+
             return Formatter().format(record)

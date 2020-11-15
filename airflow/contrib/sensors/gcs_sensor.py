@@ -20,13 +20,16 @@
 import warnings
 
 from airflow.providers.google.cloud.sensors.gcs import (
-    GCSObjectExistenceSensor, GCSObjectsWtihPrefixExistenceSensor, GCSObjectUpdateSensor,
+    GCSObjectExistenceSensor,
+    GCSObjectsWtihPrefixExistenceSensor,
+    GCSObjectUpdateSensor,
     GCSUploadSessionCompleteSensor,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.sensors.gcs`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 
@@ -40,7 +43,8 @@ class GoogleCloudStorageObjectSensor(GCSObjectExistenceSensor):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)
 
@@ -55,7 +59,8 @@ class GoogleCloudStorageObjectUpdatedSensor(GCSObjectUpdateSensor):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.sensors.gcs.GCSObjectUpdateSensor`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)
 
@@ -70,7 +75,8 @@ class GoogleCloudStoragePrefixSensor(GCSObjectsWtihPrefixExistenceSensor):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)
 
@@ -85,6 +91,7 @@ class GoogleCloudStorageUploadSessionCompleteSensor(GCSUploadSessionCompleteSens
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)

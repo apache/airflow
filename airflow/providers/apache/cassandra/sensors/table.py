@@ -51,6 +51,7 @@ class CassandraTableSensor(BaseSensorOperator):
         when connecting to Cassandra cluster
     :type cassandra_conn_id: str
     """
+
     template_fields = ('table',)
 
     @apply_defaults

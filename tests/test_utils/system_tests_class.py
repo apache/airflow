@@ -28,7 +28,7 @@ from airflow.models.dagbag import DagBag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
-from tests.utils.logging_command_executor import get_executor
+from tests.test_utils.logging_command_executor import get_executor
 
 DEFAULT_DAG_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "example_dags")
 
@@ -115,7 +115,7 @@ class SystemTest(TestCase, LoggingMixin):
                     print()
                     print(f" ================ Content of {filepath} ===============================")
                     print()
-                    with open(filepath, "r") as f:
+                    with open(filepath) as f:
                         print(f.read())
 
     def run_dag(self, dag_id: str, dag_folder: str = DEFAULT_DAG_FOLDER) -> None:
@@ -150,7 +150,10 @@ class SystemTest(TestCase, LoggingMixin):
             )
 
         self.log.info("Attempting to run DAG: %s", dag_id)
-        dag.clear(dag_run_state=State.NONE)
+        if os.environ.get("RUN_AIRFLOW_1_10") == "true":
+            dag.clear()
+        else:
+            dag.clear(dag_run_state=State.NONE)
         try:
             dag.run(ignore_first_depends_on_past=True, verbose=True)
         except Exception:

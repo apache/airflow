@@ -24,7 +24,9 @@ import os
 from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
-    GKECreateClusterOperator, GKEDeleteClusterOperator, GKEStartPodOperator,
+    GKECreateClusterOperator,
+    GKEDeleteClusterOperator,
+    GKEStartPodOperator,
 )
 from airflow.utils.dates import days_ago
 

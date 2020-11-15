@@ -17,9 +17,9 @@
 # under the License.
 
 from datetime import datetime, time
+from unittest.mock import patch
 
 import pendulum
-from mock import patch
 from parameterized import parameterized
 
 from airflow.models.dag import DAG
@@ -28,9 +28,7 @@ from airflow.utils import timezone
 
 DEFAULT_TIMEZONE = "Asia/Singapore"  # UTC+08:00
 DEFAULT_DATE_WO_TZ = datetime(2015, 1, 1)
-DEFAULT_DATE_WITH_TZ = datetime(
-    2015, 1, 1, tzinfo=pendulum.tz.timezone(DEFAULT_TIMEZONE)
-)
+DEFAULT_DATE_WITH_TZ = datetime(2015, 1, 1, tzinfo=pendulum.tz.timezone(DEFAULT_TIMEZONE))
 
 
 @patch(

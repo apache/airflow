@@ -23,18 +23,19 @@ from wtforms.widgets import html_params
 
 class AirflowModelListWidget(RenderTemplateWidget):
     """Airflow model list"""
+
     template = 'airflow/model_list.html'
 
 
 class AirflowDateTimePickerWidget:
     """Airflow date time picker widget"""
+
     data_template = (
         '<div class="input-group datetime datetimepicker">'
-        '<span class="input-group-addon"><i class="fa fa-calendar cursor-hand"></i>'
+        '<span class="input-group-addon"><span class="material-icons cursor-hand">calendar_today</span>'
         "</span>"
         '<input class="form-control" %(text)s />'
         "</div>"
-
     )
 
     def __call__(self, field, **kwargs):
@@ -44,6 +45,4 @@ class AirflowDateTimePickerWidget:
             field.data = ""
         template = self.data_template
 
-        return Markup(
-            template % {"text": html_params(type="text", value=field.data, **kwargs)}
-        )
+        return Markup(template % {"text": html_params(type="text", value=field.data, **kwargs)})

@@ -27,16 +27,11 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GCP_LIFE_SCIENCES_KEY)
 class CloudLifeSciencesExampleDagsSystemTest(GoogleSystemTest):
-
     @provide_gcp_context(GCP_LIFE_SCIENCES_KEY)
     def setUp(self):
         super().setUp()
         self.create_gcs_bucket(BUCKET, LOCATION)
-        self.upload_content_to_gcs(
-            lines=f"{os.urandom(1 * 1024 * 1024)}",
-            bucket=BUCKET,
-            filename=FILENAME
-        )
+        self.upload_content_to_gcs(lines=f"{os.urandom(1 * 1024 * 1024)}", bucket=BUCKET, filename=FILENAME)
 
     @provide_gcp_context(GCP_LIFE_SCIENCES_KEY)
     def test_run_example_dag_function(self):

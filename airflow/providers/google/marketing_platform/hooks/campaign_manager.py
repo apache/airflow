@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Campaign Manager hook.
-"""
+"""This module contains Google Campaign Manager hook."""
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 from googleapiclient import http
@@ -28,9 +26,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 class GoogleCampaignManagerHook(GoogleBaseHook):
-    """
-    Hook for Google Campaign Manager.
-    """
+    """Hook for Google Campaign Manager."""
 
     _conn = None  # type: Optional[Resource]
 
@@ -49,9 +45,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         self.api_version = api_version
 
     def get_conn(self) -> Resource:
-        """
-        Retrieves connection to Campaign Manager.
-        """
+        """Retrieves connection to Campaign Manager."""
         if not self._conn:
             http_authorized = self._authorize()
             self._conn = build(
@@ -103,7 +97,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         scope: Optional[str] = None,
         sort_field: Optional[str] = None,
         sort_order: Optional[str] = None,
-    ) -> List[Dict]:
+    ) -> List[dict]:
         """
         Retrieves list of reports.
 
@@ -118,7 +112,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         :param sort_order: Order of sorted results.
         :type sort_order: Optional[str]
         """
-        reports = []  # type: List[Dict]
+        reports: List[dict] = []
         conn = self.get_conn()
         request = conn.reports().list(  # pylint: disable=no-member
             profileId=profile_id,
@@ -136,7 +130,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
 
         return reports
 
-    def patch_report(self, profile_id: str, report_id: str, update_mask: Dict) -> Any:
+    def patch_report(self, profile_id: str, report_id: str, update_mask: dict) -> Any:
         """
         Updates a report. This method supports patch semantics.
 
@@ -156,9 +150,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         )
         return response
 
-    def run_report(
-        self, profile_id: str, report_id: str, synchronous: Optional[bool] = None
-    ) -> Any:
+    def run_report(self, profile_id: str, report_id: str, synchronous: Optional[bool] = None) -> Any:
         """
         Runs a report.
 
@@ -214,9 +206,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         )
         return response
 
-    def get_report_file(
-        self, file_id: str, profile_id: str, report_id: str
-    ) -> http.HttpRequest:
+    def get_report_file(self, file_id: str, profile_id: str, report_id: str) -> http.HttpRequest:
         """
         Retrieves a media part of report file.
 
@@ -331,7 +321,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         :param encryption_source: Describes whether the encrypted cookie was received from ad serving
             (the %m macro) or from Data Transfer.
         :type encryption_source: str
-        :param max_failed_updates: The maximum number of conversions that failed to be updateed
+        :param max_failed_updates: The maximum number of conversions that failed to be updated
         :type max_failed_updates: int
         """
         response = (

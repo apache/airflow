@@ -16,8 +16,7 @@
 # under the License.
 
 import unittest
-
-import mock
+from unittest import mock
 
 from airflow.providers.oracle.hooks.oracle import OracleHook
 from airflow.providers.oracle.operators.oracle import OracleOperator
@@ -33,8 +32,13 @@ class TestOracleOperator(unittest.TestCase):
         context = "test_context"
         task_id = "test_task_id"
 
-        operator = OracleOperator(sql=sql, oracle_conn_id=oracle_conn_id, parameters=parameters,
-                                  autocommit=autocommit, task_id=task_id)
+        operator = OracleOperator(
+            sql=sql,
+            oracle_conn_id=oracle_conn_id,
+            parameters=parameters,
+            autocommit=autocommit,
+            task_id=task_id,
+        )
         operator.execute(context=context)
 
         mock_run.assert_called_once_with(sql, autocommit=autocommit, parameters=parameters)

@@ -23,7 +23,8 @@ from airflow.providers.google.cloud.transfers.postgres_to_gcs import PostgresToG
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.transfers.postgres_to_gcs`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 
@@ -32,10 +33,12 @@ class PostgresToGoogleCloudStorageOperator(PostgresToGCSOperator):
     This class is deprecated.
     Please use `airflow.providers.google.cloud.transfers.postgres_to_gcs.PostgresToGCSOperator`.
     """
+
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.transfers.postgres_to_gcs.PostgresToGCSOperator`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)

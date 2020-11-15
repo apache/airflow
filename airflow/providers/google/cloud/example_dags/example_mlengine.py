@@ -25,9 +25,14 @@ from typing import Dict
 from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.mlengine import (
-    MLEngineCreateModelOperator, MLEngineCreateVersionOperator, MLEngineDeleteModelOperator,
-    MLEngineDeleteVersionOperator, MLEngineGetModelOperator, MLEngineListVersionsOperator,
-    MLEngineSetDefaultVersionOperator, MLEngineStartBatchPredictionJobOperator,
+    MLEngineCreateModelOperator,
+    MLEngineCreateVersionOperator,
+    MLEngineDeleteModelOperator,
+    MLEngineDeleteVersionOperator,
+    MLEngineGetModelOperator,
+    MLEngineListVersionsOperator,
+    MLEngineSetDefaultVersionOperator,
+    MLEngineStartBatchPredictionJobOperator,
     MLEngineStartTrainingJobOperator,
 )
 from airflow.providers.google.cloud.utils import mlengine_operator_utils
@@ -39,21 +44,19 @@ MODEL_NAME = os.environ.get("GCP_MLENGINE_MODEL_NAME", "model_name")
 
 SAVED_MODEL_PATH = os.environ.get("GCP_MLENGINE_SAVED_MODEL_PATH", "gs://test-airflow-mlengine/saved-model/")
 JOB_DIR = os.environ.get("GCP_MLENGINE_JOB_DIR", "gs://test-airflow-mlengine/keras-job-dir")
-PREDICTION_INPUT = os.environ.get("GCP_MLENGINE_PREDICTION_INPUT",
-                                  "gs://test-airflow-mlengine/prediction_input.json")
-PREDICTION_OUTPUT = os.environ.get("GCP_MLENGINE_PREDICTION_OUTPUT",
-                                   "gs://test-airflow-mlengine/prediction_output")
+PREDICTION_INPUT = os.environ.get(
+    "GCP_MLENGINE_PREDICTION_INPUT", "gs://test-airflow-mlengine/prediction_input.json"
+)
+PREDICTION_OUTPUT = os.environ.get(
+    "GCP_MLENGINE_PREDICTION_OUTPUT", "gs://test-airflow-mlengine/prediction_output"
+)
 TRAINER_URI = os.environ.get("GCP_MLENGINE_TRAINER_URI", "gs://test-airflow-mlengine/trainer.tar.gz")
 TRAINER_PY_MODULE = os.environ.get("GCP_MLENGINE_TRAINER_TRAINER_PY_MODULE", "trainer.task")
 
 SUMMARY_TMP = os.environ.get("GCP_MLENGINE_DATAFLOW_TMP", "gs://test-airflow-mlengine/tmp/")
 SUMMARY_STAGING = os.environ.get("GCP_MLENGINE_DATAFLOW_STAGING", "gs://test-airflow-mlengine/staging/")
 
-default_args = {
-    "params": {
-        "model_name": MODEL_NAME
-    }
-}
+default_args = {"params": {"model_name": MODEL_NAME}}
 
 with models.DAG(
     "example_gcp_mlengine",
@@ -110,12 +113,12 @@ with models.DAG(
         version={
             "name": "v1",
             "description": "First-version",
-            "deployment_uri": '{}/keras_export/'.format(JOB_DIR),
+            "deployment_uri": f'{JOB_DIR}/keras_export/',
             "runtime_version": "1.15",
             "machineType": "mls1-c1-m2",
             "framework": "TENSORFLOW",
-            "pythonVersion": "3.7"
-        }
+            "pythonVersion": "3.7",
+        },
     )
     # [END howto_operator_gcp_mlengine_create_version1]
 
@@ -131,8 +134,8 @@ with models.DAG(
             "runtime_version": "1.15",
             "machineType": "mls1-c1-m2",
             "framework": "TENSORFLOW",
-            "pythonVersion": "3.7"
-        }
+            "pythonVersion": "3.7",
+        },
     )
     # [END howto_operator_gcp_mlengine_create_version2]
 
@@ -176,19 +179,13 @@ with models.DAG(
 
     # [START howto_operator_gcp_mlengine_delete_version]
     delete_version = MLEngineDeleteVersionOperator(
-        task_id="delete-version",
-        project_id=PROJECT_ID,
-        model_name=MODEL_NAME,
-        version_name="v1"
+        task_id="delete-version", project_id=PROJECT_ID, model_name=MODEL_NAME, version_name="v1"
     )
     # [END howto_operator_gcp_mlengine_delete_version]
 
     # [START howto_operator_gcp_mlengine_delete_model]
     delete_model = MLEngineDeleteModelOperator(
-        task_id="delete-model",
-        project_id=PROJECT_ID,
-        model_name=MODEL_NAME,
-        delete_contents=True
+        task_id="delete-model", project_id=PROJECT_ID, model_name=MODEL_NAME, delete_contents=True
     )
     # [END howto_operator_gcp_mlengine_delete_model]
 
@@ -208,10 +205,13 @@ with models.DAG(
         """
         Gets metric function and keys used to generate summary
         """
+
         def normalize_value(inst: Dict):
             val = float(inst['dense_4'][0])
             return tuple([val])  # returns a tuple.
+
         return normalize_value, ['val']  # key order must match.
+
     # [END howto_operator_gcp_mlengine_get_metric]
 
     # [START howto_operator_gcp_mlengine_validate_error]
@@ -220,12 +220,13 @@ with models.DAG(
         Validate summary result
         """
         if summary['val'] > 1:
-            raise ValueError('Too high val>1; summary={}'.format(summary))
+            raise ValueError(f'Too high val>1; summary={summary}')
         if summary['val'] < 0:
-            raise ValueError('Too low val<0; summary={}'.format(summary))
+            raise ValueError(f'Too low val<0; summary={summary}')
         if summary['count'] != 20:
-            raise ValueError('Invalid value val != 20; summary={}'.format(summary))
+            raise ValueError(f'Invalid value val != 20; summary={summary}')
         return summary
+
     # [END howto_operator_gcp_mlengine_validate_error]
 
     # [START howto_operator_gcp_mlengine_evaluate]

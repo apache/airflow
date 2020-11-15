@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Bigtable Hook.
-"""
+"""This module contains a Google Cloud Bigtable Hook."""
+import enum
+import warnings
 from typing import Dict, List, Optional, Sequence, Union
 
 from google.cloud.bigtable import Client
@@ -58,7 +58,7 @@ class BigtableHook(GoogleBaseHook):
                 project=project_id,
                 credentials=self._get_credentials(),
                 client_info=self.client_info,
-                admin=True
+                admin=True,
             )
         return self._client
 
@@ -70,9 +70,9 @@ class BigtableHook(GoogleBaseHook):
 
         :param instance_id: The ID of the Cloud Bigtable instance.
         :type instance_id: str
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud  project ID where the
             BigTable exists. If set to None or missing,
-            the default project_id from the GCP connection is used.
+            the default project_id from the Google Cloud connection is used.
         :type project_id: str
         """
         instance = self._get_client(project_id=project_id).instance(instance_id)
@@ -87,9 +87,9 @@ class BigtableHook(GoogleBaseHook):
         Raises google.api_core.exceptions.NotFound if the Cloud Bigtable instance does
         not exist.
 
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             BigTable exists. If set to None or missing,
-            the default project_id from the GCP connection is used.
+            the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param instance_id: The ID of the Cloud Bigtable instance.
         :type instance_id: str
@@ -98,8 +98,9 @@ class BigtableHook(GoogleBaseHook):
         if instance:
             instance.delete()
         else:
-            self.log.warning("The instance '%s' does not exist in project '%s'. Exiting",
-                             instance_id, project_id)
+            self.log.warning(
+                "The instance '%s' does not exist in project '%s'. Exiting", instance_id, project_id
+            )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_instance(
@@ -108,6 +109,7 @@ class BigtableHook(GoogleBaseHook):
         main_cluster_id: str,
         main_cluster_zone: str,
         project_id: str,
+        replica_clusters: Optional[List[Dict[str, str]]] = None,
         replica_cluster_id: Optional[str] = None,
         replica_cluster_zone: Optional[str] = None,
         instance_display_name: Optional[str] = None,
@@ -115,7 +117,7 @@ class BigtableHook(GoogleBaseHook):
         instance_labels: Optional[Dict] = None,
         cluster_nodes: Optional[int] = None,
         cluster_storage_type: enums.StorageType = enums.StorageType.STORAGE_TYPE_UNSPECIFIED,
-        timeout: Optional[float] = None
+        timeout: Optional[float] = None,
     ) -> Instance:
         """
         Creates new instance.
@@ -128,14 +130,18 @@ class BigtableHook(GoogleBaseHook):
         :param main_cluster_zone: The zone for main cluster.
             See https://cloud.google.com/bigtable/docs/locations for more details.
         :type project_id: str
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             BigTable exists. If set to None or missing,
-            the default project_id from the GCP connection is used.
+            the default project_id from the Google Cloud connection is used.
+        :type replica_clusters: List[Dict[str, str]]
+        :param replica_clusters: (optional) A list of replica clusters for the new
+            instance. Each cluster dictionary contains an id and a zone.
+            Example: [{"id": "replica-1", "zone": "us-west1-a"}]
         :type replica_cluster_id: str
-        :param replica_cluster_id: (optional) The ID for replica cluster for the new
+        :param replica_cluster_id: (deprecated) The ID for replica cluster for the new
             instance.
         :type replica_cluster_zone: str
-        :param replica_cluster_zone: (optional)  The zone for replica cluster.
+        :param replica_cluster_zone: (deprecated)  The zone for replica cluster.
         :type instance_type: enums.Instance.Type
         :param instance_type: (optional) The type of the instance.
         :type instance_display_name: str
@@ -163,25 +169,77 @@ class BigtableHook(GoogleBaseHook):
             instance_labels,
         )
 
-        clusters = [
-            instance.cluster(
-                main_cluster_id,
-                main_cluster_zone,
-                cluster_nodes,
-                cluster_storage_type
-            )
-        ]
+        clusters = [instance.cluster(main_cluster_id, main_cluster_zone, cluster_nodes, cluster_storage_type)]
         if replica_cluster_id and replica_cluster_zone:
-            clusters.append(instance.cluster(
-                replica_cluster_id,
-                replica_cluster_zone,
-                cluster_nodes,
-                cluster_storage_type
-            ))
-        operation = instance.create(
-            clusters=clusters
-        )
+            warnings.warn(
+                "The replica_cluster_id and replica_cluster_zone parameter have been deprecated."
+                "You should pass the replica_clusters parameter.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            clusters.append(
+                instance.cluster(
+                    replica_cluster_id, replica_cluster_zone, cluster_nodes, cluster_storage_type
+                )
+            )
+        if replica_clusters:
+            for replica_cluster in replica_clusters:
+                if "id" in replica_cluster and "zone" in replica_cluster:
+                    clusters.append(
+                        instance.cluster(
+                            replica_cluster["id"],
+                            replica_cluster["zone"],
+                            cluster_nodes,
+                            cluster_storage_type,
+                        )
+                    )
+        operation = instance.create(clusters=clusters)
         operation.result(timeout)
+        return instance
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def update_instance(
+        self,
+        instance_id: str,
+        project_id: str,
+        instance_display_name: Optional[str] = None,
+        instance_type: Optional[Union[enums.Instance.Type, enum.IntEnum]] = None,
+        instance_labels: Optional[Dict] = None,
+        timeout: Optional[float] = None,
+    ) -> Instance:
+        """
+        Update an existing instance.
+
+        :type instance_id: str
+        :param instance_id: The ID for the existing instance.
+        :type project_id: str
+        :param project_id: Optional, Google Cloud project ID where the
+            BigTable exists. If set to None or missing,
+            the default project_id from the Google Cloud connection is used.
+        :type instance_display_name: str
+        :param instance_display_name: (optional) Human-readable name of the instance.
+        :type instance_type: enums.Instance.Type or enum.IntEnum
+        :param instance_type: (optional) The type of the instance.
+        :type instance_labels: dict
+        :param instance_labels: (optional) Dictionary of labels to associate with the
+            instance.
+        :type timeout: int
+        :param timeout: (optional) timeout (in seconds) for instance update.
+            If None is not specified, Operator will wait indefinitely.
+        """
+        instance_type = enums.Instance.Type(instance_type)
+
+        instance = Instance(
+            instance_id=instance_id,
+            client=self._get_client(project_id=project_id),
+            display_name=instance_display_name,
+            instance_type=instance_type,
+            labels=instance_labels,
+        )
+
+        operation = instance.update()
+        operation.result(timeout)
+
         return instance
 
     @staticmethod
@@ -189,7 +247,7 @@ class BigtableHook(GoogleBaseHook):
         instance: Instance,
         table_id: str,
         initial_split_keys: Optional[List] = None,
-        column_families: Optional[Dict[str, GarbageCollectionRule]] = None
+        column_families: Optional[Dict[str, GarbageCollectionRule]] = None,
     ) -> None:
         """
         Creates the specified Cloud Bigtable table.
@@ -225,9 +283,9 @@ class BigtableHook(GoogleBaseHook):
         :type table_id: str
         :param table_id: The ID of the table in Cloud Bigtable.
         :type project_id: str
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             BigTable exists. If set to None or missing,
-            the default project_id from the GCP connection is used.
+            the default project_id from the Google Cloud connection is used.
         """
         table = self.get_instance(instance_id=instance_id, project_id=project_id).table(table_id=table_id)
         table.delete()
@@ -260,7 +318,6 @@ class BigtableHook(GoogleBaseHook):
         :param table_id: The ID of the table in Cloud Bigtable to fetch Column Families
             from.
         """
-
         table = Table(table_id, instance)
         return table.list_column_families()
 
@@ -276,6 +333,5 @@ class BigtableHook(GoogleBaseHook):
         :param table_id: The ID of the table in Cloud Bigtable to fetch Cluster States
             from.
         """
-
         table = Table(table_id, instance)
         return table.get_cluster_states()

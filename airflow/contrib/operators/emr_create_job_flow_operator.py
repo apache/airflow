@@ -24,5 +24,6 @@ from airflow.providers.amazon.aws.operators.emr_create_job_flow import EmrCreate
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.emr_create_job_flow`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

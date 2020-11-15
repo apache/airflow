@@ -50,7 +50,7 @@ The code to create the operator:
     :end-before: [END howto_operator_gce_start]
 
 You can also create the operator without project id - project id will be retrieved
-from the GCP connection id used:
+from the Google Cloud connection id used:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_compute.py
     :language: python
@@ -96,7 +96,7 @@ The code to create the operator:
     :end-before: [END howto_operator_gce_stop]
 
 You can also create the operator without project id - project id will be retrieved
-from the GCP connection used:
+from the Google Cloud connection used:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_compute.py
     :language: python
@@ -146,7 +146,7 @@ The code to create the operator:
     :end-before: [END howto_operator_gce_set_machine_type]
 
 You can also create the operator without project id - project id will be retrieved
-from the GCP connection used:
+from the Google Cloud connection used:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_compute.py
     :language: python
@@ -197,7 +197,7 @@ The code to create the operator:
     :end-before: [END howto_operator_gce_igm_copy_template]
 
 You can also create the operator without project id - project id will be retrieved
-from the GCP connection used:
+from the Google Cloud connection used:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_compute_igm.py
     :language: python
@@ -251,7 +251,7 @@ The code to create the operator:
     :end-before: [END howto_operator_gce_igm_update_template]
 
 You can also create the operator without project id - project id will be retrieved
-from the GCP connection used:
+from the Google Cloud connection used:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_compute_igm.py
     :language: python

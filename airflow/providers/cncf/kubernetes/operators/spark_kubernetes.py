@@ -43,11 +43,14 @@ class SparkKubernetesOperator(BaseOperator):
     ui_color = '#f4a460'
 
     @apply_defaults
-    def __init__(self, *,
-                 application_file: str,
-                 namespace: Optional[str] = None,
-                 kubernetes_conn_id: str = 'kubernetes_default',
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        application_file: str,
+        namespace: Optional[str] = None,
+        kubernetes_conn_id: str = 'kubernetes_default',
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.application_file = application_file
         self.namespace = namespace
@@ -56,10 +59,11 @@ class SparkKubernetesOperator(BaseOperator):
     def execute(self, context):
         self.log.info("Creating sparkApplication")
         hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
-        response = hook.create_custom_resource_definition(
+        response = hook.create_custom_object(
             group="sparkoperator.k8s.io",
             version="v1beta2",
             plural="sparkapplications",
             body=self.application_file,
-            namespace=self.namespace)
+            namespace=self.namespace,
+        )
         return response

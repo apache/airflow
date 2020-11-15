@@ -35,15 +35,13 @@ DEFAULT_DATE = datetime(2017, 1, 1)
 
 class TestQuboleSensor(unittest.TestCase):
     def setUp(self):
-        db.merge_conn(
-            Connection(conn_id=DEFAULT_CONN, conn_type='HTTP'))
+        db.merge_conn(Connection(conn_id=DEFAULT_CONN, conn_type='HTTP'))
 
     @patch('airflow.providers.qubole.sensors.qubole.QuboleFileSensor.poke')
     def test_file_sensore(self, patched_poke):
         patched_poke.return_value = True
         sensor = QuboleFileSensor(
-            task_id='test_qubole_file_sensor',
-            data={"files": ["s3://some_bucket/some_file"]}
+            task_id='test_qubole_file_sensor', data={"files": ["s3://some_bucket/some_file"]}
         )
         self.assertTrue(sensor.poke({}))
 
@@ -56,8 +54,8 @@ class TestQuboleSensor(unittest.TestCase):
             data={
                 "schema": "default",
                 "table": "my_partitioned_table",
-                "columns": [{"column": "month", "values": ["1", "2"]}]
-            }
+                "columns": [{"column": "month", "values": ["1", "2"]}],
+            },
         )
 
         self.assertTrue(sensor.poke({}))
@@ -75,7 +73,7 @@ class TestQuboleSensor(unittest.TestCase):
                 data={
                     "schema": "default",
                     "table": "my_partitioned_table",
-                    "columns": [{"column": "month", "values": ["1", "2"]}]
+                    "columns": [{"column": "month", "values": ["1", "2"]}],
                 },
-                dag=dag
+                dag=dag,
             )

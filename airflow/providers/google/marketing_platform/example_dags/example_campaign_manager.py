@@ -23,9 +23,12 @@ import time
 
 from airflow import models
 from airflow.providers.google.marketing_platform.operators.campaign_manager import (
-    GoogleCampaignManagerBatchInsertConversionsOperator, GoogleCampaignManagerBatchUpdateConversionsOperator,
-    GoogleCampaignManagerDeleteReportOperator, GoogleCampaignManagerDownloadReportOperator,
-    GoogleCampaignManagerInsertReportOperator, GoogleCampaignManagerRunReportOperator,
+    GoogleCampaignManagerBatchInsertConversionsOperator,
+    GoogleCampaignManagerBatchUpdateConversionsOperator,
+    GoogleCampaignManagerDeleteReportOperator,
+    GoogleCampaignManagerDownloadReportOperator,
+    GoogleCampaignManagerInsertReportOperator,
+    GoogleCampaignManagerRunReportOperator,
 )
 from airflow.providers.google.marketing_platform.sensors.campaign_manager import (
     GoogleCampaignManagerReportSensor,
@@ -48,9 +51,7 @@ REPORT = {
             "kind": "dfareporting#dateRange",
             "relativeDateRange": "LAST_365_DAYS",
         },
-        "dimensions": [
-            {"kind": "dfareporting#sortedDimension", "name": "dfa:advertiser"}
-        ],
+        "dimensions": [{"kind": "dfareporting#sortedDimension", "name": "dfa:advertiser"}],
         "metricNames": ["dfa:activeViewImpressionDistributionViewable"],
     },
 }
@@ -86,7 +87,7 @@ CONVERSION_UPDATE = {
 with models.DAG(
     "example_campaign_manager",
     schedule_interval=None,  # Override to match your needs,
-    start_date=dates.days_ago(1)
+    start_date=dates.days_ago(1),
 ) as dag:
     # [START howto_campaign_manager_insert_report_operator]
     create_report = GoogleCampaignManagerInsertReportOperator(

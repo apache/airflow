@@ -199,19 +199,15 @@ class AwsBatchClientHook(AwsBaseHook):
     DEFAULT_DELAY_MAX = 10
 
     def __init__(
-        self,
-        *args,
-        max_retries: Optional[int] = None,
-        status_retries: Optional[int] = None,
-        **kwargs
-    ):
+        self, *args, max_retries: Optional[int] = None, status_retries: Optional[int] = None, **kwargs
+    ) -> None:
         # https://github.com/python/mypy/issues/6799 hence type: ignore
         super().__init__(client_type='batch', *args, **kwargs)  # type: ignore
         self.max_retries = max_retries or self.MAX_RETRIES
         self.status_retries = status_retries or self.STATUS_RETRIES
 
     @property
-    def client(self) -> Union[AwsBatchProtocol, botocore.client.BaseClient]:   # noqa: D402
+    def client(self) -> Union[AwsBatchProtocol, botocore.client.BaseClient]:  # noqa: D402
         """
         An AWS API client for batch services, like ``boto3.client('batch')``
 
@@ -257,14 +253,14 @@ class AwsBatchClientHook(AwsBaseHook):
             return True
 
         if job_status == "FAILED":
-            raise AirflowException("AWS Batch job ({}) failed: {}".format(job_id, job))
+            raise AirflowException(f"AWS Batch job ({job_id}) failed: {job}")
 
         if job_status in ["SUBMITTED", "PENDING", "RUNNABLE", "STARTING", "RUNNING"]:
-            raise AirflowException("AWS Batch job ({}) is not complete: {}".format(job_id, job))
+            raise AirflowException(f"AWS Batch job ({job_id}) is not complete: {job}")
 
-        raise AirflowException("AWS Batch job ({}) has unknown status: {}".format(job_id, job))
+        raise AirflowException(f"AWS Batch job ({job_id}) has unknown status: {job}")
 
-    def wait_for_job(self, job_id: str, delay: Union[int, float, None] = None):
+    def wait_for_job(self, job_id: str, delay: Union[int, float, None] = None) -> None:
         """
         Wait for batch job to complete
 
@@ -281,7 +277,7 @@ class AwsBatchClientHook(AwsBaseHook):
         self.poll_for_job_complete(job_id, delay)
         self.log.info("AWS Batch job (%s) has completed", job_id)
 
-    def poll_for_job_running(self, job_id: str, delay: Union[int, float, None] = None):
+    def poll_for_job_running(self, job_id: str, delay: Union[int, float, None] = None) -> None:
         """
         Poll for job running. The status that indicates a job is running or
         already complete are: 'RUNNING'|'SUCCEEDED'|'FAILED'.
@@ -305,7 +301,7 @@ class AwsBatchClientHook(AwsBaseHook):
         running_status = ["RUNNING", "SUCCEEDED", "FAILED"]
         self.poll_job_status(job_id, running_status)
 
-    def poll_for_job_complete(self, job_id: str, delay: Union[int, float, None] = None):
+    def poll_for_job_complete(self, job_id: str, delay: Union[int, float, None] = None) -> None:
         """
         Poll for job completion. The status that indicates job completion
         are: 'SUCCEEDED'|'FAILED'.
@@ -346,16 +342,17 @@ class AwsBatchClientHook(AwsBaseHook):
             job = self.get_job_description(job_id)
             job_status = job.get("status")
             self.log.info(
-                "AWS Batch job (%s) check status (%s) in %s", job_id, job_status, match_status,
+                "AWS Batch job (%s) check status (%s) in %s",
+                job_id,
+                job_status,
+                match_status,
             )
 
             if job_status in match_status:
                 return True
 
             if retries >= self.max_retries:
-                raise AirflowException(
-                    "AWS Batch job ({}) status checks exceed max_retries".format(job_id)
-                )
+                raise AirflowException(f"AWS Batch job ({job_id}) status checks exceed max_retries")
 
             retries += 1
             pause = self.exponential_delay(retries)
@@ -391,9 +388,7 @@ class AwsBatchClientHook(AwsBaseHook):
                 if error.get("Code") == "TooManyRequestsException":
                     pass  # allow it to retry, if possible
                 else:
-                    raise AirflowException(
-                        "AWS Batch job ({}) description error: {}".format(job_id, err)
-                    )
+                    raise AirflowException(f"AWS Batch job ({job_id}) description error: {err}")
 
             retries += 1
             if retries >= self.status_retries:
@@ -431,9 +426,7 @@ class AwsBatchClientHook(AwsBaseHook):
         jobs = response.get("jobs", [])
         matching_jobs = [job for job in jobs if job.get("jobId") == job_id]
         if len(matching_jobs) != 1:
-            raise AirflowException(
-                "AWS Batch job ({}) description error: response: {}".format(job_id, response)
-            )
+            raise AirflowException(f"AWS Batch job ({job_id}) description error: response: {response}")
 
         return matching_jobs[0]
 
@@ -472,7 +465,7 @@ class AwsBatchClientHook(AwsBaseHook):
         return uniform(lower, upper)
 
     @staticmethod
-    def delay(delay: Union[int, float, None] = None):
+    def delay(delay: Union[int, float, None] = None) -> None:
         """
         Pause execution for ``delay`` seconds.
 

@@ -38,12 +38,13 @@ class TestRedisHook(unittest.TestCase):
         self.assertIs(hook.get_conn(), hook.get_conn(), 'Connection initialized only if None.')
 
     @mock.patch('airflow.providers.redis.hooks.redis.Redis')
-    @mock.patch('airflow.providers.redis.hooks.redis.RedisHook.get_connection',
-                return_value=Connection(
-                    password='password',
-                    host='remote_host',
-                    port=1234,
-                    extra="""{
+    @mock.patch(
+        'airflow.providers.redis.hooks.redis.RedisHook.get_connection',
+        return_value=Connection(
+            password='password',
+            host='remote_host',
+            port=1234,
+            extra="""{
                         "db": 2,
                         "ssl": true,
                         "ssl_cert_reqs": "required",
@@ -51,8 +52,9 @@ class TestRedisHook(unittest.TestCase):
                         "ssl_keyfile": "/path/to/key-file",
                         "ssl_cert_file": "/path/to/cert-file",
                         "ssl_check_hostname": true
-                    }"""
-                ))
+                    }""",
+        ),
+    )
     def test_get_conn_with_extra_config(self, mock_get_connection, mock_redis):
         connection = mock_get_connection.return_value
         hook = RedisHook()
@@ -68,7 +70,7 @@ class TestRedisHook(unittest.TestCase):
             ssl_ca_certs=connection.extra_dejson["ssl_ca_certs"],
             ssl_keyfile=connection.extra_dejson["ssl_keyfile"],
             ssl_cert_file=connection.extra_dejson["ssl_cert_file"],
-            ssl_check_hostname=connection.extra_dejson["ssl_check_hostname"]
+            ssl_check_hostname=connection.extra_dejson["ssl_check_hostname"],
         )
 
     def test_get_conn_password_stays_none(self):

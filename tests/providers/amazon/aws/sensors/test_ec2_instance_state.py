@@ -26,7 +26,6 @@ from airflow.providers.amazon.aws.sensors.ec2_instance_state import EC2InstanceS
 
 
 class TestEC2InstanceStateSensor(unittest.TestCase):
-
     def test_init(self):
         ec2_operator = EC2InstanceStateSensor(
             task_id="task_test",

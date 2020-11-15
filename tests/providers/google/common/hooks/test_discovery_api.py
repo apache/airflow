@@ -26,7 +26,6 @@ from airflow.utils import db
 
 
 class TestGoogleDiscoveryApiHook(unittest.TestCase):
-
     def setUp(self):
         load_test_config()
 
@@ -37,7 +36,7 @@ class TestGoogleDiscoveryApiHook(unittest.TestCase):
                 host='google',
                 schema='refresh_token',
                 login='client_id',
-                password='client_secret'
+                password='client_secret',
             )
         )
 
@@ -45,9 +44,7 @@ class TestGoogleDiscoveryApiHook(unittest.TestCase):
     @patch('airflow.providers.google.common.hooks.discovery_api.GoogleDiscoveryApiHook._authorize')
     def test_get_conn(self, mock_authorize, mock_build):
         google_discovery_api_hook = GoogleDiscoveryApiHook(
-            gcp_conn_id='google_test',
-            api_service_name='youtube',
-            api_version='v2'
+            gcp_conn_id='google_test', api_service_name='youtube', api_version='v2'
         )
 
         google_discovery_api_hook.get_conn()
@@ -56,26 +53,26 @@ class TestGoogleDiscoveryApiHook(unittest.TestCase):
             serviceName=google_discovery_api_hook.api_service_name,
             version=google_discovery_api_hook.api_version,
             http=mock_authorize.return_value,
-            cache_discovery=False
+            cache_discovery=False,
         )
 
     @patch('airflow.providers.google.common.hooks.discovery_api.getattr')
     @patch('airflow.providers.google.common.hooks.discovery_api.GoogleDiscoveryApiHook.get_conn')
     def test_query(self, mock_get_conn, mock_getattr):
         google_discovery_api_hook = GoogleDiscoveryApiHook(
-            gcp_conn_id='google_test',
-            api_service_name='analyticsreporting',
-            api_version='v4'
+            gcp_conn_id='google_test', api_service_name='analyticsreporting', api_version='v4'
         )
         endpoint = 'analyticsreporting.reports.batchGet'
         data = {
             'body': {
-                'reportRequests': [{
-                    'viewId': '180628393',
-                    'dateRanges': [{'startDate': '7daysAgo', 'endDate': 'today'}],
-                    'metrics': [{'expression': 'ga:sessions'}],
-                    'dimensions': [{'name': 'ga:country'}]
-                }]
+                'reportRequests': [
+                    {
+                        'viewId': '180628393',
+                        'dateRanges': [{'startDate': '7daysAgo', 'endDate': 'today'}],
+                        'metrics': [{'expression': 'ga:sessions'}],
+                        'dimensions': [{'name': 'ga:country'}],
+                    }
+                ]
             }
         }
         num_retries = 1
@@ -83,13 +80,15 @@ class TestGoogleDiscoveryApiHook(unittest.TestCase):
         google_discovery_api_hook.query(endpoint, data, num_retries=num_retries)
 
         google_api_endpoint_name_parts = endpoint.split('.')
-        mock_getattr.assert_has_calls([
-            call(mock_get_conn.return_value, google_api_endpoint_name_parts[1]),
-            call()(),
-            call(mock_getattr.return_value.return_value, google_api_endpoint_name_parts[2]),
-            call()(**data),
-            call()().execute(num_retries=num_retries)
-        ])
+        mock_getattr.assert_has_calls(
+            [
+                call(mock_get_conn.return_value, google_api_endpoint_name_parts[1]),
+                call()(),
+                call(mock_getattr.return_value.return_value, google_api_endpoint_name_parts[2]),
+                call()(**data),
+                call()().execute(num_retries=num_retries),
+            ]
+        )
 
     @patch('airflow.providers.google.common.hooks.discovery_api.getattr')
     @patch('airflow.providers.google.common.hooks.discovery_api.GoogleDiscoveryApiHook.get_conn')
@@ -101,22 +100,22 @@ class TestGoogleDiscoveryApiHook(unittest.TestCase):
             google_api_conn_client_sub_call,
             google_api_conn_client_sub_call,
             google_api_conn_client_sub_call,
-            None
+            None,
         ]
         google_discovery_api_hook = GoogleDiscoveryApiHook(
-            gcp_conn_id='google_test',
-            api_service_name='analyticsreporting',
-            api_version='v4'
+            gcp_conn_id='google_test', api_service_name='analyticsreporting', api_version='v4'
         )
         endpoint = 'analyticsreporting.reports.batchGet'
         data = {
             'body': {
-                'reportRequests': [{
-                    'viewId': '180628393',
-                    'dateRanges': [{'startDate': '7daysAgo', 'endDate': 'today'}],
-                    'metrics': [{'expression': 'ga:sessions'}],
-                    'dimensions': [{'name': 'ga:country'}]
-                }]
+                'reportRequests': [
+                    {
+                        'viewId': '180628393',
+                        'dateRanges': [{'startDate': '7daysAgo', 'endDate': 'today'}],
+                        'metrics': [{'expression': 'ga:sessions'}],
+                        'dimensions': [{'name': 'ga:country'}],
+                    }
+                ]
             }
         }
         num_retries = 1
@@ -125,21 +124,23 @@ class TestGoogleDiscoveryApiHook(unittest.TestCase):
 
         api_endpoint_name_parts = endpoint.split('.')
         google_api_conn_client = mock_get_conn.return_value
-        mock_getattr.assert_has_calls([
-            call(google_api_conn_client, api_endpoint_name_parts[1]),
-            call()(),
-            call(google_api_conn_client_sub_call, api_endpoint_name_parts[2]),
-            call()(**data),
-            call()().__bool__(),
-            call()().execute(num_retries=num_retries),
-            call(google_api_conn_client, api_endpoint_name_parts[1]),
-            call()(),
-            call(google_api_conn_client_sub_call, api_endpoint_name_parts[2] + '_next'),
-            call()(google_api_conn_client_sub_call, google_api_conn_client_sub_call.execute.return_value),
-            call()().__bool__(),
-            call()().execute(num_retries=num_retries),
-            call(google_api_conn_client, api_endpoint_name_parts[1]),
-            call()(),
-            call(google_api_conn_client_sub_call, api_endpoint_name_parts[2] + '_next'),
-            call()(google_api_conn_client_sub_call, google_api_conn_client_sub_call.execute.return_value)
-        ])
+        mock_getattr.assert_has_calls(
+            [
+                call(google_api_conn_client, api_endpoint_name_parts[1]),
+                call()(),
+                call(google_api_conn_client_sub_call, api_endpoint_name_parts[2]),
+                call()(**data),
+                call()().__bool__(),
+                call()().execute(num_retries=num_retries),
+                call(google_api_conn_client, api_endpoint_name_parts[1]),
+                call()(),
+                call(google_api_conn_client_sub_call, api_endpoint_name_parts[2] + '_next'),
+                call()(google_api_conn_client_sub_call, google_api_conn_client_sub_call.execute.return_value),
+                call()().__bool__(),
+                call()().execute(num_retries=num_retries),
+                call(google_api_conn_client, api_endpoint_name_parts[1]),
+                call()(),
+                call(google_api_conn_client_sub_call, api_endpoint_name_parts[2] + '_next'),
+                call()(google_api_conn_client_sub_call, google_api_conn_client_sub_call.execute.return_value),
+            ]
+        )

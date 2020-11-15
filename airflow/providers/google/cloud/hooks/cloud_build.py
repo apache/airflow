@@ -18,7 +18,7 @@
 """Hook for Google Cloud Build service"""
 
 import time
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Optional, Sequence, Union
 
 from googleapiclient.discovery import build
 
@@ -29,7 +29,6 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 TIME_TO_SLEEP_IN_SECONDS = 5
 
 
-# noinspection PyAbstractClass
 class CloudBuildHook(GoogleBaseHook):
     """
     Hook for the Google Cloud Build APIs.
@@ -73,7 +72,7 @@ class CloudBuildHook(GoogleBaseHook):
 
         self.api_version = api_version
 
-    def get_conn(self):
+    def get_conn(self) -> build:
         """
         Retrieves the connection to Cloud Build.
 
@@ -85,7 +84,7 @@ class CloudBuildHook(GoogleBaseHook):
         return self._conn
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def create_build(self, body: Dict, project_id: str) -> Dict:
+    def create_build(self, body: dict, project_id: str) -> dict:
         """
         Starts a build with the specified configuration.
 
@@ -93,7 +92,7 @@ class CloudBuildHook(GoogleBaseHook):
             See: https://cloud.google.com/cloud-build/docs/api/reference/rest/v1/projects.builds
         :type body: dict
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
-            If set to None or missing, the default project_id from the GCP connection is used.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :return: Dict
         """
@@ -138,7 +137,9 @@ class CloudBuildHook(GoogleBaseHook):
         while True:
             operation_response = (
                 # pylint: disable=no-member
-                service.operations().get(name=operation_name).execute(num_retries=self.num_retries)
+                service.operations()
+                .get(name=operation_name)
+                .execute(num_retries=self.num_retries)
             )
             if operation_response.get("done"):
                 response = operation_response.get("response")

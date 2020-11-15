@@ -15,22 +15,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Natural Language Hook.
-"""
-from typing import Dict, Optional, Sequence, Tuple, Union
+"""This module contains a Google Cloud Natural Language Hook."""
+from typing import Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.language_v1 import LanguageServiceClient, enums
 from google.cloud.language_v1.types import (
-    AnalyzeEntitiesResponse, AnalyzeEntitySentimentResponse, AnalyzeSentimentResponse, AnalyzeSyntaxResponse,
-    AnnotateTextRequest, AnnotateTextResponse, ClassifyTextResponse, Document,
+    AnalyzeEntitiesResponse,
+    AnalyzeEntitySentimentResponse,
+    AnalyzeSentimentResponse,
+    AnalyzeSyntaxResponse,
+    AnnotateTextRequest,
+    AnnotateTextResponse,
+    ClassifyTextResponse,
+    Document,
 )
 
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-# noinspection PyAbstractClass
 class CloudNaturalLanguageHook(GoogleBaseHook):
     """
     Hook for Google Cloud Natural Language Service.
@@ -74,19 +77,18 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         """
         if not self._conn:
             self._conn = LanguageServiceClient(
-                credentials=self._get_credentials(),
-                client_info=self.client_info
+                credentials=self._get_credentials(), client_info=self.client_info
             )
         return self._conn
 
     @GoogleBaseHook.quota_retry()
     def analyze_entities(
         self,
-        document: Union[Dict, Document],
+        document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> AnalyzeEntitiesResponse:
         """
         Finds named entities in the text along with entity types,
@@ -116,11 +118,11 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
     @GoogleBaseHook.quota_retry()
     def analyze_entity_sentiment(
         self,
-        document: Union[Dict, Document],
+        document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> AnalyzeEntitySentimentResponse:
         """
         Finds entities, similar to AnalyzeEntities in the text and analyzes sentiment associated with each
@@ -150,11 +152,11 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
     @GoogleBaseHook.quota_retry()
     def analyze_sentiment(
         self,
-        document: Union[Dict, Document],
+        document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> AnalyzeSentimentResponse:
         """
         Analyzes the sentiment of the provided text.
@@ -183,11 +185,11 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
     @GoogleBaseHook.quota_retry()
     def analyze_syntax(
         self,
-        document: Union[Dict, Document],
+        document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> AnalyzeSyntaxResponse:
         """
         Analyzes the syntax of the text and provides sentence boundaries and tokenization along with part
@@ -217,12 +219,12 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
     @GoogleBaseHook.quota_retry()
     def annotate_text(
         self,
-        document: Union[Dict, Document],
-        features: Union[Dict, AnnotateTextRequest.Features],
+        document: Union[dict, Document],
+        features: Union[dict, AnnotateTextRequest.Features],
         encoding_type: enums.EncodingType = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> AnnotateTextResponse:
         """
         A convenience method that provides all the features that analyzeSentiment,
@@ -260,10 +262,10 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
     @GoogleBaseHook.quota_retry()
     def classify_text(
         self,
-        document: Union[Dict, Document],
+        document: Union[dict, Document],
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> ClassifyTextResponse:
         """
         Classifies a document into categories.

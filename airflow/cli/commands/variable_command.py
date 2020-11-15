@@ -37,17 +37,10 @@ def variables_get(args):
     """Displays variable by a given name"""
     try:
         if args.default is None:
-            var = Variable.get(
-                args.key,
-                deserialize_json=args.json
-            )
+            var = Variable.get(args.key, deserialize_json=args.json)
             print(var)
         else:
-            var = Variable.get(
-                args.key,
-                deserialize_json=args.json,
-                default_var=args.default
-            )
+            var = Variable.get(args.key, deserialize_json=args.json, default_var=args.default)
             print(var)
     except (ValueError, KeyError) as e:
         print(str(e), file=sys.stderr)
@@ -72,7 +65,7 @@ def variables_import(args):
     if os.path.exists(args.file):
         _import_helper(args.file)
     else:
-        print("Missing variables file.")
+        raise SystemExit("Missing variables file.")
 
 
 def variables_export(args):
@@ -82,13 +75,13 @@ def variables_export(args):
 
 def _import_helper(filepath):
     """Helps import variables from the file"""
-    with open(filepath, 'r') as varfile:
+    with open(filepath) as varfile:
         data = varfile.read()
 
     try:
         var_json = json.loads(data)
     except JSONDecodeError:
-        print("Invalid variables file.")
+        raise SystemExit("Invalid variables file.")
     else:
         suc_count = fail_count = 0
         for k, v in var_json.items():
@@ -101,7 +94,7 @@ def _import_helper(filepath):
                 suc_count += 1
         print("{} of {} variables successfully updated.".format(suc_count, len(var_json)))
         if fail_count:
-            print("{} variable(s) failed to be updated.".format(fail_count))
+            print(f"{fail_count} variable(s) failed to be updated.")
 
 
 def _variable_export_helper(filepath):

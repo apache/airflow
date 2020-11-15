@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Transfers data from AWS Redshift into a S3 Bucket.
-"""
+"""Transfers data from AWS Redshift into a S3 Bucket."""
 from typing import List, Optional, Union
 
 from airflow.models import BaseOperator
@@ -65,25 +63,27 @@ class RedshiftToS3Operator(BaseOperator):
     :type table_as_file_name: bool
     """
 
-    template_fields = ()
+    template_fields = ('s3_bucket', 's3_key', 'schema', 'table', 'unload_options')
     template_ext = ()
     ui_color = '#ededed'
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-            self, *,
-            schema: str,
-            table: str,
-            s3_bucket: str,
-            s3_key: str,
-            redshift_conn_id: str = 'redshift_default',
-            aws_conn_id: str = 'aws_default',
-            verify: Optional[Union[bool, str]] = None,
-            unload_options: Optional[List] = None,
-            autocommit: bool = False,
-            include_header: bool = False,
-            table_as_file_name: bool = True,  # Set to True by default for not breaking current workflows
-            **kwargs) -> None:
+        self,
+        *,
+        schema: str,
+        table: str,
+        s3_bucket: str,
+        s3_key: str,
+        redshift_conn_id: str = 'redshift_default',
+        aws_conn_id: str = 'aws_default',
+        verify: Optional[Union[bool, str]] = None,
+        unload_options: Optional[List] = None,
+        autocommit: bool = False,
+        include_header: bool = False,
+        table_as_file_name: bool = True,  # Set to True by default for not breaking current workflows
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.schema = schema
         self.table = table
@@ -98,28 +98,32 @@ class RedshiftToS3Operator(BaseOperator):
         self.table_as_file_name = table_as_file_name
 
         if self.include_header and 'HEADER' not in [uo.upper().strip() for uo in self.unload_options]:
-            self.unload_options = list(self.unload_options) + ['HEADER', ]
+            self.unload_options = list(self.unload_options) + [
+                'HEADER',
+            ]
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         credentials = s3_hook.get_credentials()
         unload_options = '\n\t\t\t'.join(self.unload_options)
-        s3_key = '{}/{}_'.format(self.s3_key, self.table) if self.table_as_file_name else self.s3_key
-        select_query = "SELECT * FROM {schema}.{table}".format(schema=self.schema, table=self.table)
+        s3_key = f'{self.s3_key}/{self.table}_' if self.table_as_file_name else self.s3_key
+        select_query = f"SELECT * FROM {self.schema}.{self.table}"
         unload_query = """
                     UNLOAD ('{select_query}')
                     TO 's3://{s3_bucket}/{s3_key}'
                     with credentials
                     'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
                     {unload_options};
-                    """.format(select_query=select_query,
-                               s3_bucket=self.s3_bucket,
-                               s3_key=s3_key,
-                               access_key=credentials.access_key,
-                               secret_key=credentials.secret_key,
-                               unload_options=unload_options)
+                    """.format(
+            select_query=select_query,
+            s3_bucket=self.s3_bucket,
+            s3_key=s3_key,
+            access_key=credentials.access_key,
+            secret_key=credentials.secret_key,
+            unload_options=unload_options,
+        )
 
         self.log.info('Executing UNLOAD command...')
         postgres_hook.run(unload_query, self.autocommit)

@@ -24,5 +24,6 @@ from airflow.providers.google.cloud.sensors.pubsub import PubSubPullSensor  # no
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.sensors.pubsub`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

@@ -46,6 +46,7 @@ The installation is quick and straightforward.
     airflow webserver --port 8080
 
     # start the scheduler
+    # open a new terminal or else run webserver with ``-D`` option to run it as a daemon
     airflow scheduler
 
     # visit localhost:8080 in the browser and use the admin account you just
@@ -77,6 +78,38 @@ run the commands below.
     airflow dags backfill example_bash_operator \
         --start-date 2015-01-01 \
         --end-date 2015-01-02
+
+Basic Airflow architecture
+--------------------------
+
+Primarily intended for development use, the basic Airflow architecture with the Local and Sequential executors is an
+excellent starting point for understanding the architecture of Apache Airflow.
+
+.. image:: img/arch-diag-basic.png
+
+
+There are a few components to note:
+
+* **Metadata Database**: Airflow uses a SQL database to store metadata about the data pipelines being run. In the
+  diagram above, this is represented as Postgres which is extremely popular with Airflow.
+  Alternate databases supported with Airflow include MySQL.
+
+* **Web Server** and **Scheduler**: The Airflow web server and Scheduler are separate processes run (in this case)
+  on the local machine and interact with the database mentioned above.
+
+* The **Executor** is shown separately above, since it is commonly discussed within Airflow and in the documentation, but
+  in reality it is NOT a separate process, but run within the Scheduler.
+
+* The **Worker(s)** are separate processes which also interact with the other components of the Airflow architecture and
+  the metadata repository.
+
+* ``airflow.cfg`` is the Airflow configuration file which is accessed by the Web Server, Scheduler, and Workers.
+
+* **DAGs** refers to the DAG files containing Python code, representing the data pipelines to be run by Airflow. The
+  location of these files is specified in the Airflow configuration file, but they need to be accessible by the
+  Web Server, Scheduler, and Workers.
+
+
 
 What's Next?
 ''''''''''''

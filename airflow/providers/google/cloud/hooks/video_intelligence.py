@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Video Intelligence Hook.
-"""
+"""This module contains a Google Cloud Video Intelligence Hook."""
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.operation import Operation
@@ -73,8 +71,7 @@ class CloudVideoIntelligenceHook(GoogleBaseHook):
         """
         if not self._conn:
             self._conn = VideoIntelligenceServiceClient(
-                credentials=self._get_credentials(),
-                client_info=self.client_info
+                credentials=self._get_credentials(), client_info=self.client_info
             )
         return self._conn
 

@@ -35,30 +35,20 @@ class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
     :type aws_conn_id: str
     """
 
-    integer_fields = [
-        ['ProductionVariants', 'InitialInstanceCount']
-    ]
+    integer_fields = [['ProductionVariants', 'InitialInstanceCount']]
 
     @apply_defaults
-    def __init__(self, *,
-                 config,
-                 **kwargs):
-        super().__init__(config=config,
-                         **kwargs)
+    def __init__(self, *, config: dict, **kwargs):
+        super().__init__(config=config, **kwargs)
 
         self.config = config
 
-    def execute(self, context):
+    def execute(self, context) -> dict:
         self.preprocess_config()
 
         self.log.info('Creating SageMaker Endpoint Config %s.', self.config['EndpointConfigName'])
         response = self.hook.create_endpoint_config(self.config)
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-            raise AirflowException(
-                'Sagemaker endpoint config creation failed: %s' % response)
+            raise AirflowException('Sagemaker endpoint config creation failed: %s' % response)
         else:
-            return {
-                'EndpointConfig': self.hook.describe_endpoint_config(
-                    self.config['EndpointConfigName']
-                )
-            }
+            return {'EndpointConfig': self.hook.describe_endpoint_config(self.config['EndpointConfigName'])}

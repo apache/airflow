@@ -30,23 +30,19 @@ default_args = {
     "retry_delay": timedelta(minutes=5),
     "depends_on_past": False,
     "concurrency": 8,
-    "max_active_runs": 8
-
+    "max_active_runs": 8,
 }
 
 
 with DAG(
-    "test_jenkins",
-    default_args=default_args,
-    start_date=datetime(2017, 6, 1),
-    schedule_interval=None
+    "test_jenkins", default_args=default_args, start_date=datetime(2017, 6, 1), schedule_interval=None
 ) as dag:
     job_trigger = JenkinsJobTriggerOperator(
         task_id="trigger_job",
         job_name="generate-merlin-config",
         parameters={"first_parameter": "a_value", "second_parameter": "18"},
-        # parameters="resources/paremeter.json", You can also pass a path to a json file containing your param
-        jenkins_connection_id="your_jenkins_connection"  # T he connection must be configured first
+        # parameters="resources/parameter.json", You can also pass a path to a json file containing your param
+        jenkins_connection_id="your_jenkins_connection",  # T he connection must be configured first
     )
 
     def grab_artifact_from_jenkins(**context):
@@ -61,14 +57,11 @@ with DAG(
         # The JenkinsJobTriggerOperator store the job url in the xcom variable corresponding to the task
         # You can then use it to access things or to get the job number
         # This url looks like : http://jenkins_url/job/job_name/job_number/
-        url = url + "artifact/myartifact.xml"  # Or any other artifact name
+        url += "artifact/myartifact.xml"  # Or any other artifact name
         request = Request(url)
         response = jenkins_server.jenkins_open(request)
         return response  # We store the artifact content in a xcom variable for later use
 
-    artifact_grabber = PythonOperator(
-        task_id='artifact_grabber',
-        python_callable=grab_artifact_from_jenkins
-    )
+    artifact_grabber = PythonOperator(task_id='artifact_grabber', python_callable=grab_artifact_from_jenkins)
 
     job_trigger >> artifact_grabber

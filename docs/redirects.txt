@@ -62,11 +62,26 @@ howto/operator/gcp/translate.rst howto/operator/google/cloud/translate.rst
 howto/operator/gcp/translate_speech.rst howto/operator/google/cloud/translate_speech.rst
 howto/operator/gcp/video_intelligence.rst howto/operator/google/cloud/video_intelligence.rst
 howto/operator/gcp/vision.rst howto/operator/google/cloud/vision.rst
+
+# New URLs for CLI references
+cli-ref.rst cli-and-env-variables-ref.rst
+
 # Departments without a separate index yet
 howto/operator/google/suite/index.rst howto/operator/google/index.rst
 howto/operator/google/firebase/index.rst howto/operator/google/index.rst
 
-# Other redirects
+# Other operators guide redirects
 howto/operator/http/http.rst howto/operator/http.rst
 howto/operator/http/index.rst howto/operator/http.rst
-howto/use-alternative-secrets-backend.rst howto/secrets-backend/index.rst
+
+# Security
+howto/use-alternative-secrets-backend.rst security/secrets/secrets-backend/index.rst
+security.rst security/index.rst
+howto/add-new-role.rst security/access-control.rst
+
+# Logging & Monitoring
+howto/check-health.rst logging-monitoring/check-health.rst
+errors.rst logging-monitoring/errors.rst
+howto/write-logs.rst logging-monitoring/logging-tasks.rst
+metrics.rst logging-monitoring/metrics.rst
+howto/tracking-user-activity.rst logging-monitoring/tracking-user-activity.rst

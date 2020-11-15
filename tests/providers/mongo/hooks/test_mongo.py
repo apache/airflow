@@ -34,6 +34,7 @@ class MongoHookTest(MongoHook):
     Extending hook so that a mockmongo collection object can be passed in
     to get_collection()
     """
+
     def __init__(self, conn_id='mongo_default', *args, **kwargs):
         super().__init__(conn_id=conn_id, *args, **kwargs)
 
@@ -47,8 +48,13 @@ class TestMongoHook(unittest.TestCase):
         self.conn = self.hook.get_conn()
         db.merge_conn(
             Connection(
-                conn_id='mongo_default_with_srv', conn_type='mongo',
-                host='mongo', port='27017', extra='{"srv": true}'))
+                conn_id='mongo_default_with_srv',
+                conn_type='mongo',
+                host='mongo',
+                port='27017',
+                extra='{"srv": true}',
+            )
+        )
 
     @unittest.skipIf(mongomock is None, 'mongomock package not present')
     def test_get_conn(self):
@@ -73,10 +79,7 @@ class TestMongoHook(unittest.TestCase):
     @unittest.skipIf(mongomock is None, 'mongomock package not present')
     def test_insert_many(self):
         collection = mongomock.MongoClient().db.collection
-        objs = [
-            {'test_insert_many_1': 'test_value'},
-            {'test_insert_many_2': 'test_value'}
-        ]
+        objs = [{'test_insert_many_1': 'test_value'}, {'test_insert_many_2': 'test_value'}]
 
         self.hook.insert_many(collection, objs)
 
@@ -259,25 +262,14 @@ class TestMongoHook(unittest.TestCase):
     def test_aggregate(self):
         collection = mongomock.MongoClient().db.collection
         objs = [
-            {
-                'test_id': '1',
-                'test_status': 'success'
-            },
-            {
-                'test_id': '2',
-                'test_status': 'failure'
-            },
-            {
-                'test_id': '3',
-                'test_status': 'success'
-            }
+            {'test_id': '1', 'test_status': 'success'},
+            {'test_id': '2', 'test_status': 'failure'},
+            {'test_id': '3', 'test_status': 'success'},
         ]
 
         collection.insert(objs)
 
-        aggregate_query = [
-            {"$match": {'test_status': 'success'}}
-        ]
+        aggregate_query = [{"$match": {'test_status': 'success'}}]
 
         results = self.hook.aggregate(collection, aggregate_query)
         self.assertEqual(len(list(results)), 2)

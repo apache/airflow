@@ -1,0 +1,174 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "package-name": {
+      "description": "Package name available under which the package is available in the PyPI repository.",
+      "type": "string"
+    },
+    "description": {
+      "description": "Information about the package in RST format",
+      "type": "string"
+    },
+    "versions": {
+      "description": "List of available versions in Pypi",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "integrations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "integration-name": {
+            "type": "string"
+          },
+          "external-doc-url": {
+            "type": "string"
+          },
+          "how-to-guide": {
+            "description": "List of path to how-to-guide. The path must starts with '/docs/'",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tags": {
+            "description": "List of tags describing integrations. While we're using RST, only one tag is supported for integration.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "apache",
+                "aws",
+                "azure",
+                "gcp",
+                "gmp",
+                "google",
+                "protocol",
+                "service",
+                "software",
+                "yandex"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 1
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "integration-name",
+          "external-doc-url",
+          "tags"
+        ]
+      }
+    },
+    "operators": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "integration-name": {
+            "type": "string",
+            "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
+          },
+          "python-modules": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "integration-name",
+          "python-modules"
+        ]
+      }
+    },
+    "sensors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "integration-name": {
+            "type": "string",
+            "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
+          },
+          "python-modules": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "integration-name",
+          "python-modules"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "hooks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "integration-name": {
+            "type": "string",
+            "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
+          },
+          "python-modules": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "integration-name",
+          "python-modules"
+        ]
+      }
+    },
+    "transfers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "how-to-guide": {
+            "description": "Oath to how-to-guide. The path must starts with '/docs/'",
+            "type": "string"
+          },
+          "source-integration-name": {
+            "type": "string",
+            "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
+          },
+          "target-integration-name": {
+            "type": "string",
+            "description": "Target integration name. It must have a matching item in the 'integration' section of any provider."
+          },
+          "python-module": {
+            "type": "string",
+            "description": "Source integration name. It must have a matching item in the 'integration' section of any provider."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "source-integration-name",
+          "target-integration-name",
+          "python-module"
+        ]
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "package-name",
+    "description",
+    "versions"
+  ]
+}

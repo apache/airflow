@@ -22,6 +22,7 @@ from marshmallow import fields, pre_load
 from marshmallow.schema import Schema
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
+from airflow.api_connexion.parameters import validate_istimezone
 from airflow.api_connexion.schemas.enum_schemas import DagStateField
 from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
@@ -29,7 +30,8 @@ from airflow.utils.types import DagRunType
 
 
 class ConfObject(fields.Field):
-    """ The conf field"""
+    """The conf field"""
+
     def _serialize(self, value, attr, obj, **kwargs):
         if not value:
             return {}
@@ -42,19 +44,17 @@ class ConfObject(fields.Field):
 
 
 class DAGRunSchema(SQLAlchemySchema):
-    """
-    Schema for DAGRun
-    """
+    """Schema for DAGRun"""
 
     class Meta:
-        """ Meta """
+        """Meta"""
 
         model = DagRun
         dateformat = "iso"
 
     run_id = auto_field(data_key='dag_run_id')
     dag_id = auto_field(dump_only=True)
-    execution_date = auto_field()
+    execution_date = auto_field(validate=validate_istimezone)
     start_date = auto_field(dump_only=True)
     end_date = auto_field(dump_only=True)
     state = DagStateField(dump_only=True)
@@ -63,9 +63,7 @@ class DAGRunSchema(SQLAlchemySchema):
 
     @pre_load
     def autogenerate(self, data, **kwargs):
-        """
-        Auto generate run_id and execution_date if they are not loaded
-        """
+        """Auto generate run_id and execution_date if they are not loaded"""
         if "execution_date" not in data.keys():
             data["execution_date"] = str(timezone.utcnow())
         if "dag_run_id" not in data.keys():
@@ -90,22 +88,23 @@ class DAGRunCollectionSchema(Schema):
 
 
 class DagRunsBatchFormSchema(Schema):
-    """ Schema to validate and deserialize the Form(request payload) submitted to DagRun Batch endpoint"""
+    """Schema to validate and deserialize the Form(request payload) submitted to DagRun Batch endpoint"""
 
     class Meta:
-        """ Meta """
+        """Meta"""
+
         datetimeformat = 'iso'
         strict = True
 
     page_offset = fields.Int(missing=0, min=0)
     page_limit = fields.Int(missing=100, min=1)
     dag_ids = fields.List(fields.Str(), missing=None)
-    execution_date_gte = fields.DateTime(missing=None)
-    execution_date_lte = fields.DateTime(missing=None)
-    start_date_gte = fields.DateTime(missing=None)
-    start_date_lte = fields.DateTime(missing=None)
-    end_date_gte = fields.DateTime(missing=None)
-    end_date_lte = fields.DateTime(missing=None)
+    execution_date_gte = fields.DateTime(missing=None, validate=validate_istimezone)
+    execution_date_lte = fields.DateTime(missing=None, validate=validate_istimezone)
+    start_date_gte = fields.DateTime(missing=None, validate=validate_istimezone)
+    start_date_lte = fields.DateTime(missing=None, validate=validate_istimezone)
+    end_date_gte = fields.DateTime(missing=None, validate=validate_istimezone)
+    end_date_lte = fields.DateTime(missing=None, validate=validate_istimezone)
 
 
 dagrun_schema = DAGRunSchema()

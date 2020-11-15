@@ -28,15 +28,11 @@ MOCK_DATA = {
     'workgroup': 'primary',
     'query_execution_id': 'eac427d0-1c6d-4dfb-96aa-2835d3ac6595',
     'next_token_id': 'eac427d0-1c6d-4dfb-96aa-2835d3ac6595',
-    'max_items': 1000
+    'max_items': 1000,
 }
 
-mock_query_context = {
-    'Database': MOCK_DATA['database']
-}
-mock_result_configuration = {
-    'OutputLocation': MOCK_DATA['outputLocation']
-}
+mock_query_context = {'Database': MOCK_DATA['database']}
+mock_result_configuration = {'OutputLocation': MOCK_DATA['outputLocation']}
 
 MOCK_RUNNING_QUERY_EXECUTION = {'QueryExecution': {'Status': {'State': 'RUNNING'}}}
 MOCK_SUCCEEDED_QUERY_EXECUTION = {'QueryExecution': {'Status': {'State': 'SUCCEEDED'}}}
@@ -45,7 +41,6 @@ MOCK_QUERY_EXECUTION = {'QueryExecutionId': MOCK_DATA['query_execution_id']}
 
 
 class TestAWSAthenaHook(unittest.TestCase):
-
     def setUp(self):
         self.athena = AWSAthenaHook(sleep_time=0)
 
@@ -56,14 +51,16 @@ class TestAWSAthenaHook(unittest.TestCase):
     @mock.patch.object(AWSAthenaHook, 'get_conn')
     def test_hook_run_query_without_token(self, mock_conn):
         mock_conn.return_value.start_query_execution.return_value = MOCK_QUERY_EXECUTION
-        result = self.athena.run_query(query=MOCK_DATA['query'],
-                                       query_context=mock_query_context,
-                                       result_configuration=mock_result_configuration)
+        result = self.athena.run_query(
+            query=MOCK_DATA['query'],
+            query_context=mock_query_context,
+            result_configuration=mock_result_configuration,
+        )
         expected_call_params = {
             'QueryString': MOCK_DATA['query'],
             'QueryExecutionContext': mock_query_context,
             'ResultConfiguration': mock_result_configuration,
-            'WorkGroup': MOCK_DATA['workgroup']
+            'WorkGroup': MOCK_DATA['workgroup'],
         }
         mock_conn.return_value.start_query_execution.assert_called_with(**expected_call_params)
         self.assertEqual(result, MOCK_DATA['query_execution_id'])
@@ -71,16 +68,18 @@ class TestAWSAthenaHook(unittest.TestCase):
     @mock.patch.object(AWSAthenaHook, 'get_conn')
     def test_hook_run_query_with_token(self, mock_conn):
         mock_conn.return_value.start_query_execution.return_value = MOCK_QUERY_EXECUTION
-        result = self.athena.run_query(query=MOCK_DATA['query'],
-                                       query_context=mock_query_context,
-                                       result_configuration=mock_result_configuration,
-                                       client_request_token=MOCK_DATA['client_request_token'])
+        result = self.athena.run_query(
+            query=MOCK_DATA['query'],
+            query_context=mock_query_context,
+            result_configuration=mock_result_configuration,
+            client_request_token=MOCK_DATA['client_request_token'],
+        )
         expected_call_params = {
             'QueryString': MOCK_DATA['query'],
             'QueryExecutionContext': mock_query_context,
             'ResultConfiguration': mock_result_configuration,
             'ClientRequestToken': MOCK_DATA['client_request_token'],
-            'WorkGroup': MOCK_DATA['workgroup']
+            'WorkGroup': MOCK_DATA['workgroup'],
         }
         mock_conn.return_value.start_query_execution.assert_called_with(**expected_call_params)
         self.assertEqual(result, MOCK_DATA['query_execution_id'])
@@ -95,21 +94,19 @@ class TestAWSAthenaHook(unittest.TestCase):
     def test_hook_get_query_results_with_default_params(self, mock_conn):
         mock_conn.return_value.get_query_execution.return_value = MOCK_SUCCEEDED_QUERY_EXECUTION
         self.athena.get_query_results(query_execution_id=MOCK_DATA['query_execution_id'])
-        expected_call_params = {
-            'QueryExecutionId': MOCK_DATA['query_execution_id'],
-            'MaxResults': 1000
-        }
+        expected_call_params = {'QueryExecutionId': MOCK_DATA['query_execution_id'], 'MaxResults': 1000}
         mock_conn.return_value.get_query_results.assert_called_with(**expected_call_params)
 
     @mock.patch.object(AWSAthenaHook, 'get_conn')
     def test_hook_get_query_results_with_next_token(self, mock_conn):
         mock_conn.return_value.get_query_execution.return_value = MOCK_SUCCEEDED_QUERY_EXECUTION
-        self.athena.get_query_results(query_execution_id=MOCK_DATA['query_execution_id'],
-                                      next_token_id=MOCK_DATA['next_token_id'])
+        self.athena.get_query_results(
+            query_execution_id=MOCK_DATA['query_execution_id'], next_token_id=MOCK_DATA['next_token_id']
+        )
         expected_call_params = {
             'QueryExecutionId': MOCK_DATA['query_execution_id'],
             'NextToken': MOCK_DATA['next_token_id'],
-            'MaxResults': 1000
+            'MaxResults': 1000,
         }
         mock_conn.return_value.get_query_results.assert_called_with(**expected_call_params)
 
@@ -125,30 +122,26 @@ class TestAWSAthenaHook(unittest.TestCase):
         self.athena.get_query_results_paginator(query_execution_id=MOCK_DATA['query_execution_id'])
         expected_call_params = {
             'QueryExecutionId': MOCK_DATA['query_execution_id'],
-            'PaginationConfig': {
-                'MaxItems': None,
-                'PageSize': None,
-                'StartingToken': None
-
-            }
+            'PaginationConfig': {'MaxItems': None, 'PageSize': None, 'StartingToken': None},
         }
         mock_conn.return_value.get_paginator.return_value.paginate.assert_called_with(**expected_call_params)
 
     @mock.patch.object(AWSAthenaHook, 'get_conn')
     def test_hook_get_paginator_with_pagination_config(self, mock_conn):
         mock_conn.return_value.get_query_execution.return_value = MOCK_SUCCEEDED_QUERY_EXECUTION
-        self.athena.get_query_results_paginator(query_execution_id=MOCK_DATA['query_execution_id'],
-                                                max_items=MOCK_DATA['max_items'],
-                                                page_size=MOCK_DATA['max_items'],
-                                                starting_token=MOCK_DATA['next_token_id'])
+        self.athena.get_query_results_paginator(
+            query_execution_id=MOCK_DATA['query_execution_id'],
+            max_items=MOCK_DATA['max_items'],
+            page_size=MOCK_DATA['max_items'],
+            starting_token=MOCK_DATA['next_token_id'],
+        )
         expected_call_params = {
             'QueryExecutionId': MOCK_DATA['query_execution_id'],
             'PaginationConfig': {
                 'MaxItems': MOCK_DATA['max_items'],
                 'PageSize': MOCK_DATA['max_items'],
-                'StartingToken': MOCK_DATA['next_token_id']
-
-            }
+                'StartingToken': MOCK_DATA['next_token_id'],
+            },
         }
         mock_conn.return_value.get_paginator.return_value.paginate.assert_called_with(**expected_call_params)
 
@@ -162,8 +155,9 @@ class TestAWSAthenaHook(unittest.TestCase):
     @mock.patch.object(AWSAthenaHook, 'get_conn')
     def test_hook_poll_query_with_timeout(self, mock_conn):
         mock_conn.return_value.get_query_execution.return_value = MOCK_RUNNING_QUERY_EXECUTION
-        result = self.athena.poll_query_status(query_execution_id=MOCK_DATA['query_execution_id'],
-                                               max_tries=1)
+        result = self.athena.poll_query_status(
+            query_execution_id=MOCK_DATA['query_execution_id'], max_tries=1
+        )
         mock_conn.return_value.get_query_execution.assert_called_once()
         self.assertEqual(result, 'RUNNING')
 

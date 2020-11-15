@@ -42,8 +42,14 @@ class AthenaSensor(BaseSensorOperator):
     :type sleep_time: int
     """
 
-    INTERMEDIATE_STATES = ('QUEUED', 'RUNNING',)
-    FAILURE_STATES = ('FAILED', 'CANCELLED',)
+    INTERMEDIATE_STATES = (
+        'QUEUED',
+        'RUNNING',
+    )
+    FAILURE_STATES = (
+        'FAILED',
+        'CANCELLED',
+    )
     SUCCESS_STATES = ('SUCCEEDED',)
 
     template_fields = ['query_execution_id']
@@ -51,12 +57,15 @@ class AthenaSensor(BaseSensorOperator):
     ui_color = '#66c3ff'
 
     @apply_defaults
-    def __init__(self, *,
-                 query_execution_id: str,
-                 max_retries: Optional[int] = None,
-                 aws_conn_id: str = 'aws_default',
-                 sleep_time: int = 10,
-                 **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *,
+        query_execution_id: str,
+        max_retries: Optional[int] = None,
+        aws_conn_id: str = 'aws_default',
+        sleep_time: int = 10,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.query_execution_id = query_execution_id

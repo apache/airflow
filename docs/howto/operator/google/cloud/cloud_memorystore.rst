@@ -21,7 +21,7 @@ Google Cloud Memorystore Operators
 ==================================
 
 The `Cloud Memorystore for Redis <https://cloud.google.com/memorystore/docs/redis/>`__ is a fully managed
-Redis service for the Google Cloud Platform. Applications running on Google Cloud Platform can achieve
+Redis service for the Google Cloud. Applications running on Google Cloud can achieve
 extreme performance by leveraging the highly scalable, available, secure Redis service without the burden
 of managing complex Redis deployments.
 

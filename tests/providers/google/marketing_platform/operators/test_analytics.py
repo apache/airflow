@@ -20,9 +20,12 @@ from tempfile import NamedTemporaryFile
 from unittest import mock
 
 from airflow.providers.google.marketing_platform.operators.analytics import (
-    GoogleAnalyticsDataImportUploadOperator, GoogleAnalyticsDeletePreviousDataUploadsOperator,
-    GoogleAnalyticsGetAdsLinkOperator, GoogleAnalyticsListAccountsOperator,
-    GoogleAnalyticsModifyFileHeadersDataImportOperator, GoogleAnalyticsRetrieveAdsLinksListOperator,
+    GoogleAnalyticsDataImportUploadOperator,
+    GoogleAnalyticsDeletePreviousDataUploadsOperator,
+    GoogleAnalyticsGetAdsLinkOperator,
+    GoogleAnalyticsListAccountsOperator,
+    GoogleAnalyticsModifyFileHeadersDataImportOperator,
+    GoogleAnalyticsRetrieveAdsLinksListOperator,
 )
 
 WEB_PROPERTY_AD_WORDS_LINK_ID = "AAIIRRFFLLOOWW"
@@ -31,18 +34,19 @@ ACCOUNT_ID = "the_knight_who_says_ni!"
 DATA_SOURCE = "Monthy Python"
 API_VERSION = "v3"
 GCP_CONN_ID = "google_cloud_default"
+IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 BUCKET = "gs://bucket"
 BUCKET_OBJECT_NAME = "file.csv"
 
 
 class TestGoogleAnalyticsListAccountsOperator(unittest.TestCase):
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.operators."
-        "analytics.GoogleAnalyticsHook"
-    )
+    @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook")
     def test_execute(self, hook_mock):
         op = GoogleAnalyticsListAccountsOperator(
-            api_version=API_VERSION, gcp_conn_id=GCP_CONN_ID, task_id="test_task"
+            api_version=API_VERSION,
+            gcp_conn_id=GCP_CONN_ID,
+            task_id="test_task",
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=None)
         hook_mock.assert_called_once()
@@ -50,10 +54,7 @@ class TestGoogleAnalyticsListAccountsOperator(unittest.TestCase):
 
 
 class TestGoogleAnalyticsRetrieveAdsLinksListOperator(unittest.TestCase):
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.operators."
-        "analytics.GoogleAnalyticsHook"
-    )
+    @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook")
     def test_execute(self, hook_mock):
         op = GoogleAnalyticsRetrieveAdsLinksListOperator(
             account_id=ACCOUNT_ID,
@@ -61,12 +62,15 @@ class TestGoogleAnalyticsRetrieveAdsLinksListOperator(unittest.TestCase):
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
             task_id="test_task",
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=None)
         hook_mock.assert_called_once()
         hook_mock.return_value.list_ad_words_links.assert_called_once()
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, api_version=API_VERSION
+            gcp_conn_id=GCP_CONN_ID,
+            api_version=API_VERSION,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         hook_mock.return_value.list_ad_words_links.assert_called_once_with(
             account_id=ACCOUNT_ID, web_property_id=WEB_PROPERTY_ID
@@ -74,10 +78,7 @@ class TestGoogleAnalyticsRetrieveAdsLinksListOperator(unittest.TestCase):
 
 
 class TestGoogleAnalyticsGetAdsLinkOperator(unittest.TestCase):
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.operators."
-        "analytics.GoogleAnalyticsHook"
-    )
+    @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook")
     def test_execute(self, hook_mock):
         op = GoogleAnalyticsGetAdsLinkOperator(
             account_id=ACCOUNT_ID,
@@ -86,12 +87,15 @@ class TestGoogleAnalyticsGetAdsLinkOperator(unittest.TestCase):
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
             task_id="test_task",
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=None)
         hook_mock.assert_called_once()
         hook_mock.return_value.get_ad_words_link.assert_called_once()
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, api_version=API_VERSION
+            gcp_conn_id=GCP_CONN_ID,
+            api_version=API_VERSION,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         hook_mock.return_value.get_ad_words_link.assert_called_once_with(
             account_id=ACCOUNT_ID,
@@ -101,16 +105,9 @@ class TestGoogleAnalyticsGetAdsLinkOperator(unittest.TestCase):
 
 
 class TestGoogleAnalyticsDataImportUploadOperator(unittest.TestCase):
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.operators."
-        "analytics.GoogleAnalyticsHook"
-    )
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.operators." "analytics.GCSHook"
-    )
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.operators.analytics.NamedTemporaryFile"
-    )
+    @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GCSHook")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.NamedTemporaryFile")
     def test_execute(self, mock_tempfile, gcs_hook_mock, ga_hook_mock):
         filename = "file/"
         mock_tempfile.return_value.__enter__.return_value.name = filename
@@ -124,12 +121,20 @@ class TestGoogleAnalyticsDataImportUploadOperator(unittest.TestCase):
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
             task_id="test_task",
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=None)
 
-        gcs_hook_mock.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, delegate_to=None)
+        gcs_hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         ga_hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            api_version=API_VERSION,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
 
         gcs_hook_mock.return_value.download.assert_called_once_with(
@@ -142,10 +147,7 @@ class TestGoogleAnalyticsDataImportUploadOperator(unittest.TestCase):
 
 
 class TestGoogleAnalyticsDeletePreviousDataUploadsOperator:
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.operators."
-        "analytics.GoogleAnalyticsHook"
-    )
+    @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook")
     def test_execute(self, mock_hook):
         mock_hook.return_value.list_uploads.return_value = [
             {"id": 1},
@@ -163,7 +165,10 @@ class TestGoogleAnalyticsDeletePreviousDataUploadsOperator:
         )
         op.execute(context=None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            api_version=API_VERSION,
+            impersonation_chain=None,
         )
 
         mock_hook.return_value.list_uploads.assert_called_once_with(
@@ -223,16 +228,12 @@ how_to_make_doughnuts,2
             with open(tmp.name) as f:
                 assert expected_data == f.read()
 
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.operators." "analytics.GCSHook"
-    )
+    @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GCSHook")
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators."
         "analytics.GoogleAnalyticsModifyFileHeadersDataImportOperator._modify_column_headers"
     )
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.operators.analytics.NamedTemporaryFile"
-    )
+    @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.NamedTemporaryFile")
     def test_execute(self, mock_tempfile, mock_modify, mock_hook):
         mapping = {"a": "b"}
         filename = "file/"
@@ -244,10 +245,15 @@ how_to_make_doughnuts,2
             custom_dimension_header_mapping=mapping,
             gcp_conn_id=GCP_CONN_ID,
             task_id="test_task",
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=None)
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, delegate_to=None)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
 
         mock_hook.return_value.download.assert_called_once_with(
             bucket_name=BUCKET, object_name=BUCKET_OBJECT_NAME, filename=filename
@@ -257,6 +263,4 @@ how_to_make_doughnuts,2
             tmp_file_location=filename, custom_dimension_header_mapping=mapping
         )
 
-        mock_hook.return_value.upload(
-            bucket_name=BUCKET, object_name=BUCKET_OBJECT_NAME, filename=filename
-        )
+        mock_hook.return_value.upload(bucket_name=BUCKET, object_name=BUCKET_OBJECT_NAME, filename=filename)

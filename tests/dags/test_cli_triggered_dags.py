@@ -24,9 +24,7 @@ from airflow.operators.python import PythonOperator
 from airflow.utils.timezone import datetime
 
 DEFAULT_DATE = datetime(2016, 1, 1)
-default_args = dict(
-    start_date=DEFAULT_DATE,
-    owner='airflow')
+default_args = dict(start_date=DEFAULT_DATE, owner='airflow')
 
 
 def fail():
@@ -40,14 +38,9 @@ def success(ti=None, *args, **kwargs):
 
 # DAG tests that tasks ignore all dependencies
 
-dag1 = DAG(dag_id='test_run_ignores_all_dependencies',
-           default_args=dict(depends_on_past=True, **default_args))
-dag1_task1 = PythonOperator(
-    task_id='test_run_dependency_task',
-    python_callable=fail,
-    dag=dag1)
-dag1_task2 = PythonOperator(
-    task_id='test_run_dependent_task',
-    python_callable=success,
-    dag=dag1)
+dag1 = DAG(
+    dag_id='test_run_ignores_all_dependencies', default_args=dict(depends_on_past=True, **default_args)
+)
+dag1_task1 = PythonOperator(task_id='test_run_dependency_task', python_callable=fail, dag=dag1)
+dag1_task2 = PythonOperator(task_id='test_run_dependent_task', python_callable=success, dag=dag1)
 dag1_task1.set_downstream(dag1_task2)

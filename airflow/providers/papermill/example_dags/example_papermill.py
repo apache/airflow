@@ -48,7 +48,7 @@ with DAG(
         task_id="run_example_notebook",
         input_nb="/tmp/hello_world.ipynb",
         output_nb="/tmp/out-{{ execution_date }}.ipynb",
-        parameters={"msgs": "Ran from Airflow at {{ execution_date }}!"}
+        parameters={"msgs": "Ran from Airflow at {{ execution_date }}!"},
     )
     # [END howto_operator_papermill]
 
@@ -72,21 +72,16 @@ with DAG(
     default_args=default_args,
     schedule_interval='0 0 * * *',
     start_date=days_ago(2),
-    dagrun_timeout=timedelta(minutes=60)
+    dagrun_timeout=timedelta(minutes=60),
 ) as dag_2:
 
     run_this = PapermillOperator(
         task_id="run_example_notebook",
-        input_nb=os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                              "input_notebook.ipynb"),
+        input_nb=os.path.join(os.path.dirname(os.path.realpath(__file__)), "input_notebook.ipynb"),
         output_nb="/tmp/out-{{ execution_date }}.ipynb",
-        parameters={"msgs": "Ran from Airflow at {{ execution_date }}!"}
+        parameters={"msgs": "Ran from Airflow at {{ execution_date }}!"},
     )
 
-    check_output = PythonOperator(
-        task_id='check_out',
-        python_callable=check_notebook,
-        inlets=AUTO
-    )
+    check_output = PythonOperator(task_id='check_out', python_callable=check_notebook, inlets=AUTO)
 
     check_output.set_upstream(run_this)

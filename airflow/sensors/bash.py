@@ -45,11 +45,7 @@ class BashSensor(BaseSensorOperator):
     template_fields = ('bash_command', 'env')
 
     @apply_defaults
-    def __init__(self, *,
-                 bash_command,
-                 env=None,
-                 output_encoding='utf-8',
-                 **kwargs):
+    def __init__(self, *, bash_command, env=None, output_encoding='utf-8', **kwargs):
         super().__init__(**kwargs)
         self.bash_command = bash_command
         self.env = env
@@ -72,9 +68,13 @@ class BashSensor(BaseSensorOperator):
                 self.log.info("Running command: %s", bash_command)
                 resp = Popen(  # pylint: disable=subprocess-popen-preexec-fn
                     ['bash', fname],
-                    stdout=PIPE, stderr=STDOUT,
-                    close_fds=True, cwd=tmp_dir,
-                    env=self.env, preexec_fn=os.setsid)
+                    stdout=PIPE,
+                    stderr=STDOUT,
+                    close_fds=True,
+                    cwd=tmp_dir,
+                    env=self.env,
+                    preexec_fn=os.setsid,
+                )
 
                 self.log.info("Output:")
                 for line in iter(resp.stdout.readline, b''):

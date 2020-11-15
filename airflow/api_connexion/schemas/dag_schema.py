@@ -26,6 +26,7 @@ from airflow.models.dag import DagModel, DagTag
 
 class DagTagSchema(SQLAlchemySchema):
     """Dag Tag schema"""
+
     class Meta:
         """Meta"""
 
@@ -39,22 +40,22 @@ class DAGSchema(SQLAlchemySchema):
 
     class Meta:
         """Meta"""
+
         model = DagModel
 
     dag_id = auto_field(dump_only=True)
     root_dag_id = auto_field(dump_only=True)
-    is_paused = auto_field(dump_only=True)
+    is_paused = auto_field()
     is_subdag = auto_field(dump_only=True)
     fileloc = auto_field(dump_only=True)
     owners = fields.Method("get_owners", dump_only=True)
     description = auto_field(dump_only=True)
-    schedule_interval = fields.Nested(ScheduleIntervalSchema, dump_only=True)
+    schedule_interval = fields.Nested(ScheduleIntervalSchema)
     tags = fields.List(fields.Nested(DagTagSchema), dump_only=True)
 
     @staticmethod
     def get_owners(obj: DagModel):
         """Convert owners attribute to DAG representation"""
-
         if not getattr(obj, 'owners', None):
             return []
         return obj.owners.split(",")

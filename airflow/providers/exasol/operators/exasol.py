@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Mapping, Optional
+from typing import Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.exasol.hooks.exasol import ExasolHook
@@ -47,25 +47,23 @@ class ExasolOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, *,
-            sql: str,
-            exasol_conn_id: str = 'exasol_default',
-            autocommit: bool = False,
-            parameters: Optional[Mapping] = None,
-            schema: Optional[str] = None,
-            **kwargs):
-        super(ExasolOperator, self).__init__(**kwargs)
+        self,
+        *,
+        sql: str,
+        exasol_conn_id: str = 'exasol_default',
+        autocommit: bool = False,
+        parameters: Optional[dict] = None,
+        schema: Optional[str] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
         self.exasol_conn_id = exasol_conn_id
         self.sql = sql
         self.autocommit = autocommit
         self.parameters = parameters
         self.schema = schema
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         self.log.info('Executing: %s', self.sql)
-        hook = ExasolHook(exasol_conn_id=self.exasol_conn_id,
-                          schema=self.schema)
-        hook.run(
-            self.sql,
-            autocommit=self.autocommit,
-            parameters=self.parameters)
+        hook = ExasolHook(exasol_conn_id=self.exasol_conn_id, schema=self.schema)
+        hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)

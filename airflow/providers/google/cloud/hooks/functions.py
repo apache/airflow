@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Functions Hook.
-"""
+"""This module contains a Google Cloud Functions Hook."""
 import time
 from typing import Any, Dict, List, Optional, Sequence, Union
 
@@ -31,7 +29,6 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 TIME_TO_SLEEP_IN_SECONDS = 1
 
 
-# noinspection PyAbstractClass
 class CloudFunctionsHook(GoogleBaseHook):
     """
     Hook for the Google Cloud Functions APIs.
@@ -39,6 +36,7 @@ class CloudFunctionsHook(GoogleBaseHook):
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
     """
+
     _conn = None  # type: Optional[Any]
 
     def __init__(
@@ -67,9 +65,9 @@ class CloudFunctionsHook(GoogleBaseHook):
         :type location: str
         :return:
         """
-        return 'projects/{}/locations/{}'.format(project_id, location)
+        return f'projects/{project_id}/locations/{location}'
 
-    def get_conn(self):
+    def get_conn(self) -> build:
         """
         Retrieves the connection to Cloud Functions.
 
@@ -78,11 +76,12 @@ class CloudFunctionsHook(GoogleBaseHook):
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build('cloudfunctions', self.api_version,
-                               http=http_authorized, cache_discovery=False)
+            self._conn = build(
+                'cloudfunctions', self.api_version, http=http_authorized, cache_discovery=False
+            )
         return self._conn
 
-    def get_function(self, name: str) -> Dict:
+    def get_function(self, name: str) -> dict:
         """
         Returns the Cloud Function with the given name.
 
@@ -91,11 +90,13 @@ class CloudFunctionsHook(GoogleBaseHook):
         :return: A Cloud Functions object representing the function.
         :rtype: dict
         """
+        # fmt: off
         return self.get_conn().projects().locations().functions().get(  # pylint: disable=no-member
             name=name).execute(num_retries=self.num_retries)
+        # fmt: on
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def create_new_function(self, location: str, body: Dict, project_id: str) -> None:
+    def create_new_function(self, location: str, body: dict, project_id: str) -> None:
         """
         Creates a new function in Cloud Function in the location specified in the body.
 
@@ -104,18 +105,20 @@ class CloudFunctionsHook(GoogleBaseHook):
         :param body: The body required by the Cloud Functions insert API.
         :type body: dict
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
-            If set to None or missing, the default project_id from the GCP connection is used.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :return: None
         """
+        # fmt: off
         response = self.get_conn().projects().locations().functions().create(  # pylint: disable=no-member
             location=self._full_location(project_id, location),
             body=body
         ).execute(num_retries=self.num_retries)
+        # fmt: on
         operation_name = response["name"]
         self._wait_for_operation_to_complete(operation_name=operation_name)
 
-    def update_function(self, name: str, body: Dict, update_mask: List[str]) -> None:
+    def update_function(self, name: str, body: dict, update_mask: List[str]) -> None:
         """
         Updates Cloud Functions according to the specified update mask.
 
@@ -127,11 +130,13 @@ class CloudFunctionsHook(GoogleBaseHook):
         :type update_mask: [str]
         :return: None
         """
+        # fmt: off
         response = self.get_conn().projects().locations().functions().patch(  # pylint: disable=no-member
             updateMask=",".join(update_mask),
             name=name,
             body=body
         ).execute(num_retries=self.num_retries)
+        # fmt: on
         operation_name = response["name"]
         self._wait_for_operation_to_complete(operation_name=operation_name)
 
@@ -145,16 +150,18 @@ class CloudFunctionsHook(GoogleBaseHook):
         :param zip_path: The path of the valid .zip file to upload.
         :type zip_path: str
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
-            If set to None or missing, the default project_id from the GCP connection is used.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :return: The upload URL that was returned by generateUploadUrl method.
         :rtype: str
         """
+        # fmt: off
         # pylint: disable=no-member # noqa
         response = \
             self.get_conn().projects().locations().functions().generateUploadUrl(
                 parent=self._full_location(project_id, location)
             ).execute(num_retries=self.num_retries)
+        # fmt: on
 
         upload_url = response.get('uploadUrl')
         with open(zip_path, 'rb') as file:
@@ -167,7 +174,7 @@ class CloudFunctionsHook(GoogleBaseHook):
                 headers={
                     'Content-type': 'application/zip',
                     'x-goog-content-length-range': '0,104857600',
-                }
+                },
             )
         return upload_url
 
@@ -179,19 +186,21 @@ class CloudFunctionsHook(GoogleBaseHook):
         :type name: str
         :return: None
         """
+        # fmt: off
         response = self.get_conn().projects().locations().functions().delete(  # pylint: disable=no-member
             name=name).execute(num_retries=self.num_retries)
+        # fmt: on
         operation_name = response["name"]
         self._wait_for_operation_to_complete(operation_name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def call_function(
-            self,
-            function_id: str,
-            input_data: Dict,
-            location: str,
-            project_id: str,
-    ) -> Dict:
+        self,
+        function_id: str,
+        input_data: Dict,
+        location: str,
+        project_id: str,
+    ) -> dict:
         """
         Synchronously invokes a deployed Cloud Function. To be used for testing
         purposes as very limited traffic is allowed.
@@ -203,24 +212,24 @@ class CloudFunctionsHook(GoogleBaseHook):
         :param location: The location where the function is located.
         :type location: str
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
-            If set to None or missing, the default project_id from the GCP connection is used.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :return: None
         """
         name = "projects/{project_id}/locations/{location}/functions/{function_id}".format(
-            project_id=project_id,
-            location=location,
-            function_id=function_id
+            project_id=project_id, location=location, function_id=function_id
         )
+        # fmt: off
         response = self.get_conn().projects().locations().functions().call(  # pylint: disable=no-member
             name=name,
             body=input_data
         ).execute(num_retries=self.num_retries)
+        # fmt: on
         if 'error' in response:
             raise AirflowException(response['error'])
         return response
 
-    def _wait_for_operation_to_complete(self, operation_name: str) -> Dict:
+    def _wait_for_operation_to_complete(self, operation_name: str) -> dict:
         """
         Waits for the named operation to complete - checks status of the
         asynchronous call.
@@ -233,9 +242,11 @@ class CloudFunctionsHook(GoogleBaseHook):
         """
         service = self.get_conn()
         while True:
+            # fmt: off
             operation_response = service.operations().get(  # pylint: disable=no-member
                 name=operation_name,
             ).execute(num_retries=self.num_retries)
+            # fmt: on
             if operation_response.get("done"):
                 response = operation_response.get("response")
                 error = operation_response.get("error")

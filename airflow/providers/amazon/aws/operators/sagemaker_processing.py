@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -52,15 +53,18 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
     """
 
     @apply_defaults
-    def __init__(self, *,
-                 config,
-                 aws_conn_id,
-                 wait_for_completion=True,
-                 print_log=True,
-                 check_interval=30,
-                 max_ingestion_time=None,
-                 action_if_job_exists: str = "increment",  # TODO use typing.Literal for this in Python 3.8
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        config: dict,
+        aws_conn_id: str,
+        wait_for_completion: bool = True,
+        print_log: bool = True,
+        check_interval: int = 30,
+        max_ingestion_time: Optional[int] = None,
+        action_if_job_exists: str = "increment",  # TODO use typing.Literal for this in Python 3.8
+        **kwargs,
+    ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
 
         if action_if_job_exists not in ("increment", "fail"):
@@ -75,23 +79,21 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         self.max_ingestion_time = max_ingestion_time
         self._create_integer_fields()
 
-    def _create_integer_fields(self):
+    def _create_integer_fields(self) -> None:
         """Set fields which should be casted to integers."""
         self.integer_fields = [
             ['ProcessingResources', 'ClusterConfig', 'InstanceCount'],
-            ['ProcessingResources', 'ClusterConfig', 'VolumeSizeInGB']
+            ['ProcessingResources', 'ClusterConfig', 'VolumeSizeInGB'],
         ]
         if 'StoppingCondition' in self.config:
-            self.integer_fields += [
-                ['StoppingCondition', 'MaxRuntimeInSeconds']
-            ]
+            self.integer_fields += [['StoppingCondition', 'MaxRuntimeInSeconds']]
 
-    def expand_role(self):
+    def expand_role(self) -> None:
         if 'RoleArn' in self.config:
             hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
             self.config['RoleArn'] = hook.expand_role(self.config['RoleArn'])
 
-    def execute(self, context):
+    def execute(self, context) -> dict:
         self.preprocess_config()
 
         processing_job_name = self.config["ProcessingJobName"]
@@ -114,12 +116,8 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
             self.config,
             wait_for_completion=self.wait_for_completion,
             check_interval=self.check_interval,
-            max_ingestion_time=self.max_ingestion_time
+            max_ingestion_time=self.max_ingestion_time,
         )
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             raise AirflowException('Sagemaker Processing Job creation failed: %s' % response)
-        return {
-            'Processing': self.hook.describe_processing_job(
-                self.config['ProcessingJobName']
-            )
-        }
+        return {'Processing': self.hook.describe_processing_job(self.config['ProcessingJobName'])}

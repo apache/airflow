@@ -22,13 +22,32 @@ from pendulum import DateTime
 from pendulum.tz.timezone import Timezone
 
 from airflow.api_connexion.exceptions import BadRequest
-from airflow.api_connexion.parameters import check_limit, format_datetime, format_parameters
+from airflow.api_connexion.parameters import (
+    check_limit,
+    format_datetime,
+    format_parameters,
+    validate_istimezone,
+)
 from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
 
 
-class TestDateTimeParser(unittest.TestCase):
+class TestValidateIsTimezone(unittest.TestCase):
+    def setUp(self) -> None:
+        from datetime import datetime
 
+        self.naive = datetime.now()
+        self.timezoned = datetime.now(tz=timezone.utc)
+
+    def test_gives_400_for_naive(self):
+        with self.assertRaises(BadRequest):
+            validate_istimezone(self.naive)
+
+    def test_timezone_passes(self):
+        assert validate_istimezone(self.timezoned) is None
+
+
+class TestDateTimeParser(unittest.TestCase):
     def setUp(self) -> None:
         self.default_time = '2020-06-13T22:44:00+00:00'
         self.default_time_2 = '2020-06-13T22:44:00Z'
@@ -52,7 +71,6 @@ class TestDateTimeParser(unittest.TestCase):
 
 
 class TestMaximumPagelimit(unittest.TestCase):
-
     @conf_vars({("api", "maximum_page_limit"): "320"})
     def test_maximum_limit_return_val(self):
         limit = check_limit(300)
@@ -80,7 +98,6 @@ class TestMaximumPagelimit(unittest.TestCase):
 
 
 class TestFormatParameters(unittest.TestCase):
-
     def test_should_works_with_datetime_formatter(self):
         decorator = format_parameters({"param_a": format_datetime})
         endpoint = mock.MagicMock()

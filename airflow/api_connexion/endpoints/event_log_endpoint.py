@@ -22,35 +22,32 @@ from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.event_log_schema import (
-    EventLogCollection, event_log_collection_schema, event_log_schema,
+    EventLogCollection,
+    event_log_collection_schema,
+    event_log_schema,
 )
 from airflow.models import Log
+from airflow.security import permissions
 from airflow.utils.session import provide_session
 
 
-@security.requires_authentication
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG)])
 @provide_session
 def get_event_log(event_log_id, session):
-    """
-    Get a log entry
-    """
+    """Get a log entry"""
     event_log = session.query(Log).filter(Log.id == event_log_id).one_or_none()
     if event_log is None:
         raise NotFound("Event Log not found")
     return event_log_schema.dump(event_log)
 
 
-@security.requires_authentication
-@format_parameters({
-    'limit': check_limit
-})
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG)])
+@format_parameters({'limit': check_limit})
 @provide_session
 def get_event_logs(session, limit, offset=None):
-    """
-    Get all log entries from event log
-    """
-
+    """Get all log entries from event log"""
     total_entries = session.query(func.count(Log.id)).scalar()
     event_logs = session.query(Log).order_by(Log.id).offset(offset).limit(limit).all()
-    return event_log_collection_schema.dump(EventLogCollection(event_logs=event_logs,
-                                                               total_entries=total_entries))
+    return event_log_collection_schema.dump(
+        EventLogCollection(event_logs=event_logs, total_entries=total_entries)
+    )

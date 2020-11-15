@@ -30,4 +30,4 @@ To use these operators, you must do a few things:
 
     Detailed information is available for :doc:`/installation`.
 
-  * :doc:`Setup a GCP Connection </howto/connection/gcp>`.
+  * :doc:`Setup a Google Cloud Connection </howto/connection/gcp>`.

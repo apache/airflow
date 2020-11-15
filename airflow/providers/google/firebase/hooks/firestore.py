@@ -29,7 +29,6 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 TIME_TO_SLEEP_IN_SECONDS = 5
 
 
-# noinspection PyAbstractClass
 class CloudFirestoreHook(GoogleBaseHook):
     """
     Hook for the Google Firestore APIs.
@@ -88,8 +87,7 @@ class CloudFirestoreHook(GoogleBaseHook):
             # At the same time, the Non-Authorized Client has no problems.
             non_authorized_conn = build("firestore", self.api_version, cache_discovery=False)
             self._conn = build_from_document(
-                non_authorized_conn._rootDesc,  # pylint: disable=protected-access
-                http=http_authorized
+                non_authorized_conn._rootDesc, http=http_authorized  # pylint: disable=protected-access
             )
         return self._conn
 
@@ -107,7 +105,7 @@ class CloudFirestoreHook(GoogleBaseHook):
             https://firebase.google.com/docs/firestore/reference/rest/v1beta1/projects.databases/exportDocuments
         :type body: dict
         :param project_id: Optional, Google Cloud Project project_id where the database belongs.
-            If set to None or missing, the default project_id from the GCP connection is used.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         """
         service = self.get_conn()

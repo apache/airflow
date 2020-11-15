@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from unittest.mock import patch
+
 import pytest
-from mock import patch
 from parameterized import parameterized
 
 from airflow.models.dag import DAG
@@ -43,13 +44,19 @@ class TestDateTimeSensor:
         ]
     )
     def test_valid_input(self, task_id, target_time, expected):
-        op = DateTimeSensor(task_id=task_id, target_time=target_time, dag=self.dag,)
+        op = DateTimeSensor(
+            task_id=task_id,
+            target_time=target_time,
+            dag=self.dag,
+        )
         assert op.target_time == expected
 
     def test_invalid_input(self):
         with pytest.raises(TypeError):
             DateTimeSensor(
-                task_id="test", target_time=timezone.utcnow().time(), dag=self.dag,
+                task_id="test",
+                target_time=timezone.utcnow().time(),
+                dag=self.dag,
             )
 
     @parameterized.expand(

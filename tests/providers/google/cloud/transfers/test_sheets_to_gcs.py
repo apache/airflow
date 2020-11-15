@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import mock
+from unittest import mock
 
 from airflow.providers.google.cloud.transfers.sheets_to_gcs import GoogleSheetsToGCSOperator
 
@@ -28,6 +28,7 @@ VALUES = [[1, 2, 3]]
 BUCKET = "destination_bucket"
 PATH = "path/to/reports"
 GCP_CONN_ID = "test"
+IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
 class TestGoogleSheetsToGCSOperator:
@@ -40,9 +41,7 @@ class TestGoogleSheetsToGCSOperator:
         mock_tempfile.return_value.__enter__.return_value.name = filename
 
         mock_sheet_hook = mock.MagicMock()
-        mock_sheet_hook.get_spreadsheet.return_value = {
-            "properties": {"title": SHEET_TITLE}
-        }
+        mock_sheet_hook.get_spreadsheet.return_value = {"properties": {"title": SHEET_TITLE}}
         expected_dest_file = f"{PATH}/{SHEET_TITLE}_{RANGE}.csv"
 
         mock_gcs_hook = mock.MagicMock()
@@ -78,9 +77,7 @@ class TestGoogleSheetsToGCSOperator:
 
     @mock.patch("airflow.providers.google.cloud.transfers.sheets_to_gcs.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.sheets_to_gcs.GSheetsHook")
-    @mock.patch(
-        "airflow.providers.google.cloud.transfers.sheets_to_gcs.GoogleSheetsToGCSOperator.xcom_push"
-    )
+    @mock.patch("airflow.providers.google.cloud.transfers.sheets_to_gcs.GoogleSheetsToGCSOperator.xcom_push")
     @mock.patch(
         "airflow.providers.google.cloud.transfers.sheets_to_gcs.GoogleSheetsToGCSOperator._upload_data"
     )
@@ -97,13 +94,20 @@ class TestGoogleSheetsToGCSOperator:
             sheet_filter=FILTER,
             destination_path=PATH,
             gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context)
 
         mock_sheet_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
-        mock_gcs_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, delegate_to=None)
+        mock_gcs_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
 
         mock_sheet_hook.return_value.get_sheet_titles.assert_called_once_with(
             spreadsheet_id=SPREADSHEET_ID, sheet_filter=FILTER
@@ -112,10 +116,7 @@ class TestGoogleSheetsToGCSOperator:
         calls = [mock.call(spreadsheet_id=SPREADSHEET_ID, range_=r) for r in RANGES]
         mock_sheet_hook.return_value.get_values.has_calls(calls)
 
-        calls = [
-            mock.call(mock_gcs_hook, mock_sheet_hook, r, v)
-            for r, v in zip(RANGES, data)
-        ]
+        calls = [mock.call(mock_gcs_hook, mock_sheet_hook, r, v) for r, v in zip(RANGES, data)]
         mock_upload_data.has_calls(calls)
 
         mock_xcom.assert_called_once_with(context, "destination_objects", [PATH, PATH])

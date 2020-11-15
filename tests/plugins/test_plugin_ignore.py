@@ -36,12 +36,14 @@ class TestIgnorePluginFile(unittest.TestCase):
         """
         Make tmp folder and files that should be ignored. And set base path.
         """
-        self.test_dir = tempfile.mkdtemp()
+        # Temp dir name includes an ignored token "not", but it shouldn't matter since it's in the base path.
+        self.test_dir = tempfile.mkdtemp(prefix="onotole")
         self.test_file = os.path.join(self.test_dir, 'test_file.txt')
         self.plugin_folder_path = os.path.join(self.test_dir, 'test_ignore')
-        os.mkdir(os.path.join(self.test_dir, "test_ignore"))
+        os.mkdir(self.plugin_folder_path)
         os.mkdir(os.path.join(self.plugin_folder_path, "subdir1"))
         os.mkdir(os.path.join(self.plugin_folder_path, "subdir2"))
+        os.mkdir(os.path.join(self.plugin_folder_path, "subdir3"))
         files_content = [
             ["test_load.py", "#Should not be ignored file"],
             ["test_notload.py", 'raise Exception("This file should have been ignored!")'],
@@ -51,6 +53,7 @@ class TestIgnorePluginFile(unittest.TestCase):
             ["test_notload_sub.py", 'raise Exception("This file should have been ignored!")'],
             ["subdir1/test_noneload_sub1.py", 'raise Exception("This file should have been ignored!")'],
             ["subdir2/test_shouldignore.py", 'raise Exception("This file should have been ignored!")'],
+            ["subdir3/test_notload_sub3.py", 'raise Exception("This file should have been ignored!")'],
         ]
         for file_path, content in files_content:
             with open(os.path.join(self.plugin_folder_path, file_path), "w") as f:
