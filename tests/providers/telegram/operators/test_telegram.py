@@ -49,7 +49,7 @@ class TestTelegramOperator(unittest.TestCase):
     @mock.patch('airflow.providers.telegram.operators.telegram.TelegramHook')
     def test_should_send_message_when_all_parameters_are_provided(self, mock_telegram_hook):
         mock_telegram_hook.return_value = mock.Mock()
-        mock_telegram_hook.return_value.call.return_value = True
+        mock_telegram_hook.return_value.send_message.return_value = True
 
         hook = TelegramOperator(
             telegram_conn_id='telegram_default',
@@ -64,7 +64,7 @@ class TestTelegramOperator(unittest.TestCase):
             chat_id='-420913222',
             token=None,
         )
-        mock_telegram_hook.return_value.call.assert_called_once_with(
+        mock_telegram_hook.return_value.send_message.assert_called_once_with(
             {'text': 'some non empty text'},
         )
 
@@ -80,7 +80,7 @@ class TestTelegramOperator(unittest.TestCase):
             raise telegram.error.TelegramError("cosmic rays caused bit flips")
 
         mock_telegram_hook.return_value = mock.Mock()
-        mock_telegram_hook.return_value.call.side_effect = side_effect
+        mock_telegram_hook.return_value.send_message.side_effect = side_effect
 
         with self.assertRaises(telegram.error.TelegramError) as e:
             hook = TelegramOperator(
@@ -95,7 +95,7 @@ class TestTelegramOperator(unittest.TestCase):
     @mock.patch('airflow.providers.telegram.operators.telegram.TelegramHook')
     def test_should_forward_all_args_to_telegram(self, mock_telegram_hook):
         mock_telegram_hook.return_value = mock.Mock()
-        mock_telegram_hook.return_value.call.return_value = True
+        mock_telegram_hook.return_value.send_message.return_value = True
 
         hook = TelegramOperator(
             telegram_conn_id='telegram_default',
@@ -111,14 +111,14 @@ class TestTelegramOperator(unittest.TestCase):
             chat_id='-420913222',
             token=None,
         )
-        mock_telegram_hook.return_value.call.assert_called_once_with(
+        mock_telegram_hook.return_value.send_message.assert_called_once_with(
             {'custom_arg': 'value', 'text': 'some non empty text'},
         )
 
     @mock.patch('airflow.providers.telegram.operators.telegram.TelegramHook')
     def test_should_give_precedence_to_text_passed_in_constructor(self, mock_telegram_hook):
         mock_telegram_hook.return_value = mock.Mock()
-        mock_telegram_hook.return_value.call.return_value = True
+        mock_telegram_hook.return_value.send_message.return_value = True
 
         hook = TelegramOperator(
             telegram_conn_id='telegram_default',
@@ -134,7 +134,7 @@ class TestTelegramOperator(unittest.TestCase):
             chat_id='-420913222',
             token=None,
         )
-        mock_telegram_hook.return_value.call.assert_called_once_with(
+        mock_telegram_hook.return_value.send_message.assert_called_once_with(
             {'custom_arg': 'value', 'text': 'some non empty text - higher precedence'},
         )
 

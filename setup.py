@@ -794,6 +794,7 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'ssh': ["ssh"],
     'statsd': [],
     'tableau': [],
+    'telegram': ["telegram"],
     'vertica': ["vertica"],
     'virtualenv': [],
     'webhdfs': ["apache.hdfs"],  # TODO: remove this in Airflow 2.1

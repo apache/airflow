@@ -75,7 +75,7 @@ class TestTelegramHook(unittest.TestCase):
     def test_should_raise_exception_if_chat_id_is_not_provided_anywhere(self, mock_get_conn):
         with self.assertRaises(airflow.exceptions.AirflowException) as e:
             hook = TelegramHook(telegram_conn_id='telegram_default')
-            hook.call({"text": "test telegram message"})
+            hook.send_message({"text": "test telegram message"})
 
         self.assertEqual("'chat_id' must be provided for telegram message", str(e.exception))
 
@@ -83,7 +83,7 @@ class TestTelegramHook(unittest.TestCase):
     def test_should_raise_exception_if_message_text_is_not_provided(self, mock_get_conn):
         with self.assertRaises(airflow.exceptions.AirflowException) as e:
             hook = TelegramHook(telegram_conn_id='telegram_default')
-            hook.call({"chat_id": -420913222})
+            hook.send_message({"chat_id": -420913222})
 
         self.assertEqual("'text' must be provided for telegram message", str(e.exception))
 
@@ -92,7 +92,7 @@ class TestTelegramHook(unittest.TestCase):
         mock_get_conn.return_value = mock.Mock(password="some_token")
 
         hook = TelegramHook(telegram_conn_id='telegram_default')
-        hook.call({"chat_id": -420913222, "text": "test telegram message"})
+        hook.send_message({"chat_id": -420913222, "text": "test telegram message"})
 
         mock_get_conn.return_value.send_message.return_value = "OK."
 
@@ -111,7 +111,7 @@ class TestTelegramHook(unittest.TestCase):
         mock_get_conn.return_value = mock.Mock(password="some_token")
 
         hook = TelegramHook(telegram_conn_id='telegram_default', chat_id=-420913222)
-        hook.call({"text": "test telegram message"})
+        hook.send_message({"text": "test telegram message"})
 
         mock_get_conn.return_value.send_message.return_value = "OK."
 
@@ -130,7 +130,7 @@ class TestTelegramHook(unittest.TestCase):
         mock_get_conn.return_value = mock.Mock(password="some_token")
 
         hook = TelegramHook(telegram_conn_id='telegram-webhook-with-chat_id')
-        hook.call({"text": "test telegram message"})
+        hook.send_message({"text": "test telegram message"})
 
         mock_get_conn.return_value.send_message.return_value = "OK."
 
@@ -156,7 +156,7 @@ class TestTelegramHook(unittest.TestCase):
 
         with self.assertRaises(Exception) as e:
             hook = TelegramHook(telegram_conn_id='telegram-webhook-with-chat_id')
-            hook.call({"text": "test telegram message"})
+            hook.send_message({"text": "test telegram message"})
 
         self.assertTrue("RetryError" in str(e.exception))
         self.assertTrue("state=finished raised TelegramError" in str(e.exception))
@@ -177,7 +177,7 @@ class TestTelegramHook(unittest.TestCase):
         mock_get_conn.return_value = mock.Mock(password="some_token")
 
         hook = TelegramHook(token=TELEGRAM_TOKEN, chat_id=-420913222)
-        hook.call({"text": "test telegram message"})
+        hook.send_message({"text": "test telegram message"})
 
         mock_get_conn.return_value.send_message.return_value = "OK."
 

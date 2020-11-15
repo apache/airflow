@@ -48,8 +48,8 @@ class TelegramHook(BaseHook):
         # or telegram_hook = TelegramHook(token='xxx:xxx', chat_id='-1xxx')
 
         # Call method from telegram bot client
-        telegram_hook.call(None', {"text": "message", "chat_id": "-1xxx"})
-        # or telegram_hook.call(None', {"text": "message"})
+        telegram_hook.send_message(None', {"text": "message", "chat_id": "-1xxx"})
+        # or telegram_hook.send_message(None', {"text": "message"})
 
     :param telegram_conn_id: connection that optionally has Telegram API token in the password field
     :type telegram_conn_id: str
@@ -128,12 +128,10 @@ class TelegramHook(BaseHook):
         stop=tenacity.stop_after_attempt(5),
         wait=tenacity.wait_fixed(1),
     )
-    def call(self, api_params: dict) -> None:
+    def send_message(self, api_params: dict) -> None:
         """
         Sends the message to a telegram channel or chat.
 
-        :param method: not used
-        :type method: str
         :param api_params: params for telegram_instance.send_message. It can also be used to override chat_id
         :type api_params: dict
         """
@@ -150,4 +148,5 @@ class TelegramHook(BaseHook):
         if kwargs['chat_id'] is None:
             raise AirflowException("'chat_id' must be provided for telegram message")
 
-        self.log.debug(self.connection.send_message(**kwargs))
+        response = self.connection.send_message(**kwargs)
+        self.log.debug(response)

@@ -30,6 +30,10 @@ class TelegramOperator(BaseOperator):
     Takes both Telegram Bot API token directly or connection that has Telegram token in password field.
     If both supplied, token parameter will be given precedence.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:TelegramOperator`
+
     :param telegram_conn_id: Telegram connection ID which its password is Telegram API token
     :type telegram_conn_id: str
     :param token: Telegram API Token
@@ -48,12 +52,12 @@ class TelegramOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
+        *,
         telegram_conn_id: str = "telegram_default",
         token: Optional[str] = None,
         chat_id: Optional[str] = None,
         text: str = "No message has been set.",
         telegram_kwargs: Optional[dict] = None,
-        *args,
         **kwargs,
     ):
         self.chat_id = chat_id
@@ -68,7 +72,7 @@ class TelegramOperator(BaseOperator):
 
         self.telegram_conn_id = telegram_conn_id
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def execute(self, **kwargs) -> None:
         """Calls the TelegramHook to post the provided Telegram message"""
@@ -77,4 +81,4 @@ class TelegramOperator(BaseOperator):
             token=self.token,
             chat_id=self.chat_id,
         )
-        telegram_hook.call(self.telegram_kwargs)
+        telegram_hook.send_message(self.telegram_kwargs)
