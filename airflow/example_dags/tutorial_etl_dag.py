@@ -61,8 +61,9 @@ with DAG(
 
     # [START extract_function]
     def extract(**kwargs):
-        ti = kwargs['ti']
         data_string = '{"1001": 301.27, "1002": 433.21, "1003": 502.22}'
+
+        ti = kwargs['ti']
         ti.xcom_push('order_data', data_string)
 
     # [END extract_function]
@@ -75,9 +76,13 @@ with DAG(
         for value in order_data.values():
             total_order_value += value
 
-        total_order_value_string = json.dumps({
-            "total_order_value": total_order_value,
-        })
+        total_order_value_string = json.dumps(
+            {
+                "total_order_value": total_order_value,
+            }
+        )
+
+        ti = kwargs['ti']
         ti.xcom_push('total_order_value', total_order_value_string)
 
     # [END transform_function]

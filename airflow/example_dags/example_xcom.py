@@ -46,7 +46,6 @@ def push_by_returning(**kwargs):
 
 def puller(pulled_value_1, pulled_value_2, **kwargs):
     """Pull all previously pushed XComs and check if the pushed values match the pulled values."""
-    ti = kwargs['ti']
 
     # check pulled value 1
     if pulled_value_1 != value_1:
@@ -55,6 +54,7 @@ def puller(pulled_value_1, pulled_value_2, **kwargs):
     # check pulled value 2
     if pulled_value_2 != value_2:
         raise ValueError(f'The two values differ {pulled_value_2} and {value_2}')
+
 
 push1 = PythonOperator(
     task_id='push',
