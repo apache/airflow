@@ -68,26 +68,23 @@ with DAG(
     # [END extract_function]
 
     # [START transform_function]
-    def transform(**kwargs):
-        ti = kwargs['ti']
-        extract_data_string = ti.xcom_pull(task_ids='extract', key='order_data')
+    def transform(extract_data_string, **kwargs):
         order_data = json.loads(extract_data_string)
 
         total_order_value = 0
         for value in order_data.values():
             total_order_value += value
 
-        total_value = {"total_order_value": total_order_value}
-        total_value_json_string = json.dumps(total_value)
-        ti.xcom_push('total_order_value', total_value_json_string)
+        total_order_value_string = json.dumps({
+            "total_order_value": total_order_value,
+        })
+        ti.xcom_push('total_order_value', total_order_value_string)
 
     # [END transform_function]
 
     # [START load_function]
-    def load(**kwargs):
-        ti = kwargs['ti']
-        total_value_string = ti.xcom_pull(task_ids='transform', key='total_order_value')
-        total_order_value = json.loads(total_value_string)
+    def load(total_order_value_string, **kwargs):
+        total_order_value = json.loads(total_order_value_string)
 
         print(total_order_value)
 
@@ -108,6 +105,7 @@ This data is then put into xcom, so that it can be processed by the next task.
     transform_task = PythonOperator(
         task_id='transform',
         python_callable=transform,
+        op_args=[extract_task.output['order_data']],
     )
     transform_task.doc_md = """\
 #### Transform task
@@ -119,6 +117,7 @@ This computed value is then put into xcom, so that it can be processed by the ne
     load_task = PythonOperator(
         task_id='load',
         python_callable=load,
+        op_args=[transform_task.output['total_order_value']],
     )
     load_task.doc_md = """\
 #### Load task
