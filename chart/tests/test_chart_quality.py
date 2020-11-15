@@ -28,9 +28,9 @@ CHART_FOLDER = os.path.dirname(os.path.dirname(__file__))
 
 class ChartQualityTest(unittest.TestCase):
     def test_values_validate_schema(self):
-        with open(os.path.join(CHART_FOLDER, "values.yaml"), "r") as f:
+        with open(os.path.join(CHART_FOLDER, "values.yaml")) as f:
             values = yaml.safe_load(f)
-        with open(os.path.join(CHART_FOLDER, "values.schema.json"), "r") as f:
+        with open(os.path.join(CHART_FOLDER, "values.schema.json")) as f:
             schema = json.load(f)
 
         # Add extra restrictions just for the tests to make sure
