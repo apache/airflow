@@ -61,7 +61,7 @@ else
         "--durations=100"
         "--cov=airflow/"
         "--cov-config=.coveragerc"
-        "--cov-report=html:airflow/www/static/coverage/"
+        "--cov-report=xml:files/coverage.xml"
         "--color=yes"
         "--maxfail=50"
         "--pythonwarnings=ignore::DeprecationWarning"
@@ -72,29 +72,27 @@ fi
 
 cd "${AIRFLOW_SOURCES}" || exit 1
 
-virtualenv_path="${BUILD_CACHE_DIR}/.kubernetes_venv"
+HOST_PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}")')
+readonly HOST_PYTHON_VERSION
+
+virtualenv_path="${BUILD_CACHE_DIR}/.kubernetes_venv_${HOST_PYTHON_VERSION}"
 
 if [[ ! -d ${virtualenv_path} ]]; then
     echo
     echo "Creating virtualenv at ${virtualenv_path}"
     echo
-    python -m venv "${virtualenv_path}"
+    python3 -m venv "${virtualenv_path}"
 fi
-
-# In Python 3.5 activating virtualenv hits undefined variable
-set +u
 
 . "${virtualenv_path}/bin/activate"
 
-set -u
-
-pip install --upgrade pip==20.2.3
+pip install --upgrade pip==20.2.3 wheel==0.35.1
 
 pip install pytest freezegun pytest-cov \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+  --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${HOST_PYTHON_VERSION}.txt"
 
 pip install -e ".[kubernetes]" \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+  --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${HOST_PYTHON_VERSION}.txt"
 
 if [[ ${interactive} == "true" ]]; then
     echo
