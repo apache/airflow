@@ -241,9 +241,8 @@ def connections_add(args):
             )
             print(msg)
         else:
-            msg = '\n\tA connection with `conn_id`={conn_id} already exists\n'
-            msg = msg.format(conn_id=new_conn.conn_id)
-            print(msg)
+            msg = f'\n\tA connection with `conn_id`={new_conn.conn_id} already exists\n'
+            raise SystemExit(msg)
 
 
 @cli_utils.action_logging
@@ -253,18 +252,13 @@ def connections_delete(args):
         try:
             to_delete = session.query(Connection).filter(Connection.conn_id == args.conn_id).one()
         except exc.NoResultFound:
-            msg = '\n\tDid not find a connection with `conn_id`={conn_id}\n'
-            msg = msg.format(conn_id=args.conn_id)
-            print(msg)
-            return
+            msg = f'\n\tDid not find a connection with `conn_id`={args.conn_id}\n'
+            raise SystemExit(msg)
         except exc.MultipleResultsFound:
-            msg = '\n\tFound more than one connection with ' + '`conn_id`={conn_id}\n'
-            msg = msg.format(conn_id=args.conn_id)
-            print(msg)
-            return
+            msg = f'\n\tFound more than one connection with `conn_id`={args.conn_id}\n'
+            raise SystemExit(msg)
         else:
             deleted_conn_id = to_delete.conn_id
             session.delete(to_delete)
-            msg = '\n\tSuccessfully deleted `conn_id`={conn_id}\n'
-            msg = msg.format(conn_id=deleted_conn_id)
+            msg = f'\n\tSuccessfully deleted `conn_id`={deleted_conn_id}\n'
             print(msg)
