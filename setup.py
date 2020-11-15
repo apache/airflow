@@ -373,8 +373,10 @@ sendgrid = [
     'sendgrid>=5.2.0,<6',
 ]
 sentry = [
+    # Sentry SDK 0.19.0 introduces a breaking change
+    # https://github.com/getsentry/sentry-python/issues/920#issuecomment-727658274
     'blinker>=1.1',
-    'sentry-sdk>=0.8.0',
+    'sentry-sdk>=0.8.0, <0.19.0',
 ]
 slack = [
     'slackclient>=1.0.0,<2.0.0',
