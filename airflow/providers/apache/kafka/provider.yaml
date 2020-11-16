@@ -14,3 +14,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+---
+package-name: apache-airflow-providers-apache-kafka
+description: |
+    `Apache Kafka <http://kafka.apache.org/>`__.
+
+versions:
+  - 2.0.0b2
+
+integrations:
+  - integration-name: Apache Kafka
+    external-doc-url: http://kafka.apache.org/
+    tags: [apache]
+
+sensors:
+  - integration-name: Apache Kafka
+    python-modules:
+      - airflow.providers.apache.kafka.sensors.kafka
+
+hooks:
+  - integration-name: Apache Kafka
+    python-modules:
+      - airflow.providers.apache.kafka.hooks.kafka_consumer
+      - airflow.providers.apache.kafka.hooks.kafka_producer

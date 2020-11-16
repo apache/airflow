@@ -19,7 +19,7 @@
 from datetime import timedelta
 
 from airflow import DAG
-from airflow.providers.apache.kafka.sensors.kafka_sensor import KafkaSensor
+from airflow.providers.apache.kafka.sensors.kafka import KafkaSensor
 from airflow.utils.timezone import datetime
 
 DAG_ID = "example_kafka_dag"
