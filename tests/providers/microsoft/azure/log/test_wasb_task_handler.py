@@ -55,7 +55,7 @@ class TestWasbTaskHandler(unittest.TestCase):
         self.addCleanup(self.dag.clear)
 
     @conf_vars({('logging', 'remote_log_conn_id'): 'wasb_default'})
-    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlockBlobService")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient")
     def test_hook(self, mock_service):
         assert isinstance(self.wasb_task_handler.hook, WasbHook)
 
