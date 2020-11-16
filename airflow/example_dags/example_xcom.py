@@ -55,6 +55,12 @@ def puller(pulled_value_1, pulled_value_2, **kwargs):
     if pulled_value_2 != value_2:
         raise ValueError(f'The two values differ {pulled_value_2} and {value_2}')
 
+    # same using explicit xcom pull
+    ti = kwargs['ti']
+    from_xcom = ti.xcom_pull(key='value from pusher 1', task_ids='push')
+    if from_xcom != pulled_value_1:
+        raise ValueError(f'The two values differ {from_xcom} and {pulled_value_1}')
+
 
 push1 = PythonOperator(
     task_id='push',
