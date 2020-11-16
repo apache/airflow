@@ -26,6 +26,17 @@ from airflow.kubernetes import kube_client, pod_generator, pod_launcher
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
 from airflow.models import BaseOperator
+from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
+    convert_configmap,
+    convert_env_vars,
+    convert_image_pull_secrets,
+    convert_pod_runtime_info_env,
+    convert_port,
+    convert_resources,
+    convert_volume,
+    convert_volume_mount,
+)
+from airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env import PodRuntimeInfoEnv
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.helpers import validate_key
 from airflow.utils.state import State
@@ -67,7 +78,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :param volumes: volumes for launched pod. Includes ConfigMaps and PersistentVolumes.
     :type volumes: list[k8s.V1Volume]
     :param env_vars: Environment variables initialized in the container. (templated)
-    :type env_vars: dict
+    :type env_vars: list[k8s.V1EnvVar]
     :param secrets: Kubernetes secrets to inject in the container.
         They can be exposed as environment vars or files in a volume.
     :type secrets: list[airflow.kubernetes.secret.Secret]
@@ -194,7 +205,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         do_xcom_push: bool = False,
         pod_template_file: Optional[str] = None,
         priority_class_name: Optional[str] = None,
+        pod_runtime_info_envs: List[PodRuntimeInfoEnv] = None,
         termination_grace_period: Optional[int] = None,
+        configmaps: Optional[str] = None,
         **kwargs,
     ) -> None:
         if kwargs.get('xcom_push') is not None:
@@ -208,11 +221,15 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.arguments = arguments or []
         self.labels = labels or {}
         self.startup_timeout_seconds = startup_timeout_seconds
-        self.env_vars = env_vars or []
+        self.env_vars = convert_env_vars(env_vars) if env_vars else []
+        if pod_runtime_info_envs:
+            self.env_vars.extend([convert_pod_runtime_info_env(p) for p in pod_runtime_info_envs])
         self.env_from = env_from or []
-        self.ports = ports or []
-        self.volume_mounts = volume_mounts or []
-        self.volumes = volumes or []
+        if configmaps:
+            self.env_from.extend([convert_configmap(c) for c in configmaps])
+        self.ports = [convert_port(p) for p in ports] if ports else []
+        self.volume_mounts = [convert_volume_mount(v) for v in volume_mounts] if volume_mounts else []
+        self.volumes = [convert_volume(volume) for volume in volumes] if volumes else []
         self.secrets = secrets or []
         self.in_cluster = in_cluster
         self.cluster_context = cluster_context
@@ -222,9 +239,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.node_selectors = node_selectors or {}
         self.annotations = annotations or {}
         self.affinity = affinity or {}
-        self.k8s_resources = resources or {}
+        self.k8s_resources = convert_resources(resources) if resources else {}
         self.config_file = config_file
-        self.image_pull_secrets = image_pull_secrets or []
+        self.image_pull_secrets = convert_image_pull_secrets(image_pull_secrets) if image_pull_secrets else []
         self.service_account_name = service_account_name
         self.is_delete_operator_pod = is_delete_operator_pod
         self.hostnetwork = hostnetwork
