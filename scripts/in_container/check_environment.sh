@@ -93,19 +93,26 @@ function check_db_backend {
 
 function resetdb_if_requested() {
     if [[ ${DB_RESET:="false"} == "true" ]]; then
+        echo
+        echo "Resetting the DB"
+        echo
         if [[ ${RUN_AIRFLOW_1_10} == "true" ]]; then
             airflow resetdb -y
         else
             airflow db reset -y
         fi
+        echo
+        echo "Databsae has been reset"
+        echo
     fi
     return $?
 }
 
 function startairflow_if_requested() {
     if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
-
-
+        echo
+        echo "Starting Airflow"
+        echo
         export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
 
