@@ -120,7 +120,12 @@ class LocalTaskJob(BaseJob):
                     # self.heartbeat() instead of taskinstance._run_raw_task to
                     # avoid race conditions
                     self.task_instance.refresh_from_db()
-                    self.task_instance.run_finished_callback()
+                    # task exited by itself, so we need to check for error file
+                    # incase it failed due to runtime exception/error
+                    error = None
+                    if self.task_instance.state != State.SUCCESS:
+                        error = self.task_runner.deserialize_run_error()
+                    self.task_instance._run_finished_callback(error=error)  # pylint: disable=protected-access
                     return
 
                 self.heartbeat()
@@ -175,5 +180,6 @@ class LocalTaskJob(BaseJob):
                 "State of this instance has been externally set to %s. " "Terminating instance.", ti.state
             )
             self.task_runner.terminate()
-            ti.run_finished_callback()
+            error = None if ti.state == State.SUCCESS else "task marked as failed externally"
+            ti._run_finished_callback(error=error)  # pylint: disable=protected-access
             self.terminating = True

@@ -192,6 +192,8 @@ class TestCore(unittest.TestCase):
 
         def check_failure(context, test_case=self):  # pylint: disable=unused-argument
             data['called'] = True
+            error = context.get("exception")
+            test_case.assertIsInstance(error, AirflowException)
 
         op = BashOperator(
             task_id='check_on_failure_callback',
