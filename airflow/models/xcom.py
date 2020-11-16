@@ -265,7 +265,8 @@ class BaseXCom(Base, LoggingMixin):
 
         This method should be overridden in custom XCom backends to avoid
         unnecessary request or other resource consuming operations when
-        creating XCom orm model
+        creating XCom orm model. This is used when viewing XCom listing
+        in the webserver, for example.
         """
         return BaseXCom.deserialize_value(self)
 
