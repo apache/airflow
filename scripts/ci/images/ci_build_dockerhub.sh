@@ -51,6 +51,11 @@ export FORCE_AIRFLOW_PROD_BASE_TAG
 
 readonly FORCE_AIRFLOW_PROD_BASE_TAG
 
+if [[ "${FORCE_AIRFLOW_PROD_BASE_TAG}" =~ [0-9].* ]]; then
+    # Disable cache if we are building a tagged version
+    export DOCKER_CACHE="disabled"
+fi
+
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
