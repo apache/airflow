@@ -184,8 +184,10 @@ class TestLocalSettings(unittest.TestCase):
 
 
 class TestUpdatedConfigNames(unittest.TestCase):
-    @conf_vars({("webserver", "session_lifetime_days"): '5', ("webserver", "session_lifetime_minutes"): None})
-    def test_deprecated_session_timeout_config(self):
+    @conf_vars(
+        {("webserver", "session_lifetime_days"): '5', ("webserver", "session_lifetime_minutes"): '43200'}
+    )
+    def test_updates_deprecated_session_timeout_config_val_when_new_config_val_is_default(self):
         from airflow import settings
 
         with self.assertWarns(DeprecationWarning):
@@ -193,8 +195,17 @@ class TestUpdatedConfigNames(unittest.TestCase):
             minutes_in_five_days = 5 * 24 * 60
             self.assertEqual(session_lifetime_config, minutes_in_five_days)
 
-    @conf_vars({("webserver", "session_lifetime_days"): '5'})
-    def test_updated_session_timeout_config(self):
+    @conf_vars(
+        {("webserver", "session_lifetime_days"): '5', ("webserver", "session_lifetime_minutes"): '43201'}
+    )
+    def test_uses_updated_session_timeout_config_when_val_is_not_default(self):
+        from airflow import settings
+
+        session_lifetime_config = settings.get_session_lifetime_config()
+        self.assertEqual(session_lifetime_config, 43201)
+
+    @conf_vars({("webserver", "session_lifetime_days"): ''})
+    def test_uses_updated_session_timeout_config_by_default(self):
         from airflow import settings
 
         session_lifetime_config = settings.get_session_lifetime_config()

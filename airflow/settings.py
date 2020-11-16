@@ -372,7 +372,9 @@ def get_session_lifetime_config():
         'webserver', 'force_logout_after', fallback=None
     )
 
-    if uses_deprecated_lifetime_configs and not session_lifetime_minutes:
+    minutes_per_day = 24 * 60
+    default_lifetime_minutes = '43200'
+    if uses_deprecated_lifetime_configs and session_lifetime_minutes == default_lifetime_minutes:
         warnings.warn(
             '`session_lifetime_days` option from `[webserver]` section has been '
             'renamed to `session_lifetime_minutes`. The new option allows to configure '
@@ -380,10 +382,11 @@ def get_session_lifetime_config():
             'from `[webserver]` section. Please update your configuration.',
             category=DeprecationWarning,
         )
+        if session_lifetime_days:
+            session_lifetime_minutes = minutes_per_day * int(session_lifetime_days)
 
     if not session_lifetime_minutes:
-        minutes_per_day = 24 * 60
-        session_lifetime_days = int(session_lifetime_days) if session_lifetime_days else 30
+        session_lifetime_days = 30
         session_lifetime_minutes = minutes_per_day * session_lifetime_days
 
     logging.info('User session lifetime is set to %s minutes.', session_lifetime_minutes)
