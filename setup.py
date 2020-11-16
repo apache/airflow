@@ -302,6 +302,7 @@ jenkins = [
 jira = [
     'JIRA>1.0.7',
 ]
+kafka = ['kafka>=1.3.5']
 kerberos = [
     'pykerberos>=1.1.13',
     'requests_kerberos>=0.10.0',
@@ -519,6 +520,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'apache.druid': druid,
     'apache.hdfs': hdfs,
     'apache.hive': hive,
+    'apache.kafka': kafka,
     'apache.kylin': kylin,
     'apache.livy': [],
     'apache.pig': [],
