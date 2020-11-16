@@ -23,6 +23,7 @@ import unittest
 from unittest.mock import MagicMock, call
 
 from airflow.exceptions import AirflowClusterPolicyViolation
+from tests.test_utils.config import conf_vars
 
 SETTINGS_FILE_POLICY = """
 def test_policy(task_instance):
@@ -180,3 +181,22 @@ class TestLocalSettings(unittest.TestCase):
             task_instance.owner = 'airflow'
             with self.assertRaises(AirflowClusterPolicyViolation):
                 settings.task_must_have_owners(task_instance)  # pylint: disable=no-member
+
+
+class TestUpdatedConfigNames(unittest.TestCase):
+    @conf_vars({("webserver", "session_lifetime_days"): '5', ("webserver", "session_lifetime_minutes"): None})
+    def test_deprecated_session_timeout_config(self):
+        from airflow import settings
+
+        with self.assertWarns(DeprecationWarning):
+            session_lifetime_config = settings.get_session_lifetime_config()
+            minutes_in_five_days = 5 * 24 * 60
+            self.assertEqual(session_lifetime_config, minutes_in_five_days)
+
+    @conf_vars({("webserver", "session_lifetime_days"): '5'})
+    def test_updated_session_timeout_config(self):
+        from airflow import settings
+
+        session_lifetime_config = settings.get_session_lifetime_config()
+        default_timeout_minutes = 30 * 24 * 60
+        self.assertEqual(session_lifetime_config, default_timeout_minutes)
