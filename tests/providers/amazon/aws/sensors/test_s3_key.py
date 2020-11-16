@@ -32,8 +32,9 @@ class TestS3KeySensor(unittest.TestCase):
         and bucket_key is provided as relative path rather than s3:// url.
         :return:
         """
+        op = S3KeySensor(task_id='s3_key_sensor', bucket_key="file_in_bucket")
         with self.assertRaises(AirflowException):
-            S3KeySensor(task_id='s3_key_sensor', bucket_key="file_in_bucket")
+            op.poke(None)
 
     def test_bucket_name_provided_and_bucket_key_is_s3_url(self):
         """
@@ -41,10 +42,11 @@ class TestS3KeySensor(unittest.TestCase):
         while bucket_key is provided as a full s3:// url.
         :return:
         """
+        op = S3KeySensor(
+            task_id='s3_key_sensor', bucket_key="s3://test_bucket/file", bucket_name='test_bucket'
+        )
         with self.assertRaises(AirflowException):
-            S3KeySensor(
-                task_id='s3_key_sensor', bucket_key="s3://test_bucket/file", bucket_name='test_bucket'
-            )
+            op.poke(None)
 
     @parameterized.expand(
         [
@@ -58,6 +60,9 @@ class TestS3KeySensor(unittest.TestCase):
             bucket_key=key,
             bucket_name=bucket,
         )
+
+        op.poke(None)
+
         self.assertEqual(op.bucket_key, parsed_key)
         self.assertEqual(op.bucket_name, parsed_bucket)
 
