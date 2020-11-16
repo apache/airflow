@@ -123,6 +123,7 @@ EmrAddSteps
 EmrCreateJobFlow
 Enum
 Env
+EnvVar
 ExaConnection
 Exasol
 Failover

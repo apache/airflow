@@ -15,16 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `kubernetes.client.models.V1EnvVar`."""
+"""This module is deprecated. Please use `kubernetes.client.models.V1Volume`."""
 # flake8: noqa
 # pylint: disable=unused-import
+
 import warnings
 
 with warnings.catch_warnings():
-    from airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env import PodRuntimeInfoEnv
+    from airflow.providers.cncf.kubernetes.backcompat.volume import Volume
 
 warnings.warn(
-    "This module is deprecated. Please use `kubernetes.client.models.V1EnvVar`.",
+    "This module is deprecated. Please use `kubernetes.client.models.V1Volume`.",
     DeprecationWarning,
     stacklevel=2,
 )

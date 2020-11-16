@@ -146,6 +146,13 @@ class RefactorBackportPackages:
         for new, old in changes:
             self.qry.select_module(new).rename(old)
 
+        def is_not_k8spodop(node: LN, capture: Capture, filename: Filename) -> bool:
+            return not filename.endswith("/kubernetes_pod.py")
+
+        self.qry.select_module("airflow.providers.cncf.kubernetes.backcompat").filter(
+            callback=is_not_k8spodop
+        ).rename("airflow.kubernetes")
+
     def add_provide_context_to_python_operators(self) -> None:
         """
 
