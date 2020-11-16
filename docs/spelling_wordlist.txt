@@ -478,7 +478,6 @@ backticks
 balancer
 balancers
 baseOperator
-basedn
 basestring
 basetaskrunner
 bashrc
