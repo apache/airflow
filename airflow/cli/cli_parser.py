@@ -304,7 +304,7 @@ ARG_IMGCAT_DAGRUN = Arg(
 )
 ARG_SAVE_DAGRUN = Arg(
     ("--save-dagrun",),
-    help=("After completing the backfill, saves the diagram for current DAG Run to the indicated file.\n\n"),
+    help="After completing the backfill, saves the diagram for current DAG Run to the indicated file.\n\n",
 )
 
 # list_tasks
@@ -328,7 +328,7 @@ ARG_DAG_REGEX = Arg(
 # show_dag
 ARG_SAVE = Arg(("-s", "--save"), help="Saves the result to the indicated file.")
 
-ARG_IMGCAT = Arg(("--imgcat",), help=("Displays graph using the imgcat tool."), action='store_true')
+ARG_IMGCAT = Arg(("--imgcat",), help="Displays graph using the imgcat tool.", action='store_true')
 
 # trigger_dag
 ARG_RUN_ID = Arg(("-r", "--run-id"), help="Helps to identify this run")
@@ -491,7 +491,7 @@ ARG_CONCURRENCY = Arg(
 )
 ARG_CELERY_HOSTNAME = Arg(
     ("-H", "--celery-hostname"),
-    help=("Set the hostname of celery worker if you have multiple workers on a single machine"),
+    help="Set the hostname of celery worker if you have multiple workers on a single machine",
 )
 ARG_UMASK = Arg(
     ("-u", "--umask"),
@@ -632,7 +632,7 @@ ARG_ANONYMIZE = Arg(
     action='store_true',
 )
 ARG_FILE_IO = Arg(
-    ('--file-io',), help=('Send output to file.io service and returns link.'), action='store_true'
+    ('--file-io',), help='Send output to file.io service and returns link.', action='store_true'
 )
 
 # config
@@ -1055,7 +1055,7 @@ DB_COMMANDS = (
     ActionCommand(
         name="check-migrations",
         help="Check if migration have finished",
-        description=("Check if migration have finished (or continually check until timeout)"),
+        description="Check if migration have finished (or continually check until timeout)",
         func=lazy_load_command('airflow.cli.commands.db_command.check_migrations'),
         args=(ARG_MIGRATION_TIMEOUT,),
     ),
