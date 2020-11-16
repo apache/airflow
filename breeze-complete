@@ -69,6 +69,7 @@ all
 all-but-pylint
 airflow-config-yaml
 airflow-providers-available
+airflow-provider-yaml-files-ok
 base-operator
 bats-tests
 bats-in-container-tests

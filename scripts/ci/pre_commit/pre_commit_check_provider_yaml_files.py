@@ -23,7 +23,7 @@ import textwrap
 from collections import Counter
 from glob import glob
 from itertools import chain, product
-from typing import Any, Dict
+from typing import Any, Dict, Iterable
 
 import jsonschema
 import yaml
@@ -36,7 +36,7 @@ if __name__ != "__main__":
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
 DOCS_DIR = os.path.join(ROOT_DIR, 'docs')
-PROVIDER_DATA_SCHEMA_PATH = os.path.join(ROOT_DIR, "dev", "provider.yaml.schema.json")
+PROVIDER_DATA_SCHEMA_PATH = os.path.join(ROOT_DIR, "airflow", "provider.yaml.schema.json")
 CORE_INTEGRATIONS = ["SQL", "Local"]
 
 
@@ -53,10 +53,10 @@ def _load_schema() -> Dict[str, Any]:
     return content
 
 
-def _load_package_data():
+def _load_package_data(package_paths: Iterable[str]):
     schema = _load_schema()
     result = {}
-    for provider_yaml_path in sorted(glob(f"{ROOT_DIR}/airflow/providers/**/provider.yaml", recursive=True)):
+    for provider_yaml_path in package_paths:
         with open(provider_yaml_path) as yaml_file:
             provider = yaml.safe_load(yaml_file)
         rel_path = os.path.relpath(provider_yaml_path, ROOT_DIR)
@@ -259,10 +259,22 @@ def check_doc_files(yaml_files: Dict[str, Dict]):
         sys.exit(1)
 
 
-all_yaml_files: Dict[str, Dict] = _load_package_data()
+if __name__ == '__main__':
+    all_provider_files = sorted(glob(f"{ROOT_DIR}/airflow/providers/**/provider.yaml", recursive=True))
+    if len(sys.argv) > 1:
+        paths = sorted(sys.argv[1:])
+    else:
+        paths = all_provider_files
 
-check_integration_duplicates(all_yaml_files)
-check_completeness_of_list_of_hooks_sensors_hooks(all_yaml_files)
-check_completeness_of_list_of_transfers(all_yaml_files)
-check_invalid_integration(all_yaml_files)
-check_doc_files(all_yaml_files)
+    all_parsed_yaml_files: Dict[str, Dict] = _load_package_data(paths)
+
+    all_files_loaded = len(all_provider_files) == len(paths)
+    check_integration_duplicates(all_parsed_yaml_files)
+
+    check_completeness_of_list_of_hooks_sensors_hooks(all_parsed_yaml_files)
+    check_completeness_of_list_of_transfers(all_parsed_yaml_files)
+
+    if all_files_loaded:
+        # Only check those if all provider files are loaded
+        check_doc_files(all_parsed_yaml_files)
+        check_invalid_integration(all_parsed_yaml_files)

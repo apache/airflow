@@ -837,6 +837,7 @@ INSTALL_REQUIREMENTS = [
     'graphviz>=0.12',
     'gunicorn>=19.5.0, <20.0',
     'iso8601>=0.1.12',
+    'importlib_resources; python_version<"3.7"',
     'jinja2>=2.10.1, <2.12.0',
     'json-merge-patch==0.2',
     'jsonschema~=3.0',

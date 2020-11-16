@@ -382,6 +382,9 @@ sensors:
   - integration-name: Google Cloud Storage Transfer Service
     python-modules:
       - airflow.providers.google.cloud.sensors.cloud_storage_transfer_service
+  - integration-name: Google Dataflow
+    python-modules:
+      - airflow.providers.google.cloud.sensors.dataflow
   - integration-name: Google Dataproc
     python-modules:
       - airflow.providers.google.cloud.sensors.dataproc
