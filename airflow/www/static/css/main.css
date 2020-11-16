@@ -60,12 +60,22 @@ div.container {
   color: #e2d2e2;
 }
 
-.navbar-nav li.dropdown:hover > .dropdown-menu {
+.navbar-nav li.dropdown:hover > .dropdown-menu,
+.navbar-nav li.dropdown:focus-within > .dropdown-menu {
   display: block;
 }
 
+/* If a menu remains open due to focus, a menu
+  opened via hover will always be displayed on top */
+.navbar-nav li.dropdown:hover > .dropdown-menu {
+  z-index: 1001;
+}
+
 .navbar-brand {
-  padding: 10px 15px;
+  padding: 0 15px;
+  height: 60px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .brand-logo {
@@ -84,7 +94,7 @@ div.container {
   }
 }
 
-.brand-logo:hover .brand-logo-pinwheel {
+.navbar-brand:hover .brand-logo-pinwheel {
   transform-origin: 17.66px 17.66px;
   animation: pinSpin 1.5s linear infinite;
 }
@@ -100,13 +110,6 @@ div.container {
   border-radius: 50%;
   color: #017cee;
   background-color: #c0defb;
-}
-
-div.rich_doc {
-  padding: 5px 10px;
-  border: 1px solid #ddd;
-  background: #fff;
-  border-radius: 4px;
 }
 
 span.status_square {
@@ -317,8 +320,12 @@ label[for="timezone-other"],
   display: block;
 }
 
-.dag-doc {
-  margin-bottom: 15px;
+.accordion-toggle {
+  display: block;
+}
+
+.accordion-toggle.collapsed > .toggle-direction {
+  transform: rotate(180deg);
 }
 
 .dag-import-error {

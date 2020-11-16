@@ -383,6 +383,10 @@ slack = [
     'slackclient>=2.0.0,<3.0.0',
 ]
 snowflake = [
+    # snowflake is not compatible with latest version.
+    # This library monkey patches the requests library, so SSL is broken globally.
+    # See: https://github.com/snowflakedb/snowflake-connector-python/issues/324
+    'requests<2.24.0',
     'snowflake-connector-python>=1.5.2',
     'snowflake-sqlalchemy>=1.1.0',
 ]
@@ -640,6 +644,7 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'virtualenv': virtualenv,
     'webhdfs': webhdfs,  # TODO: remove this in Airflow 2.1
     'winrm': winrm,  # TODO: remove this in Airflow 2.1
+    'yandex': yandexcloud,  # TODO: remove this in Airflow 2.1
     'yandexcloud': yandexcloud,
 }
 

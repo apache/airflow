@@ -375,6 +375,10 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         if self.pod_template_file:
             self.log.debug("Pod template file found, will parse for base pod")
             pod_template = pod_generator.PodGenerator.deserialize_model_file(self.pod_template_file)
+            if self.full_pod_spec:
+                pod_template = PodGenerator.reconcile_pods(pod_template, self.full_pod_spec)
+        elif self.full_pod_spec:
+            pod_template = self.full_pod_spec
         else:
             pod_template = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="name"))
 

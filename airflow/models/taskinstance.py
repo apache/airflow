@@ -1671,7 +1671,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         rendered_k8s_spec = RenderedTaskInstanceFields.get_k8s_pod_yaml(self)
         if not rendered_k8s_spec:
             try:
-                self.render_k8s_pod_yaml()
+                rendered_k8s_spec = self.render_k8s_pod_yaml()
             except (TemplateAssertionError, UndefinedError) as e:
                 raise AirflowException(f"Unable to render a k8s spec for this taskinstance: {e}") from e
         return rendered_k8s_spec

@@ -19,7 +19,7 @@
 """Add creating_job_id to DagRun table
 
 Revision ID: 364159666cbd
-Revises: 849da589634d
+Revises: 52d53670a240
 Create Date: 2020-10-10 09:08:07.332456
 
 """
@@ -29,7 +29,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '364159666cbd'
-down_revision = '849da589634d'
+down_revision = '52d53670a240'
 branch_labels = None
 depends_on = None
 

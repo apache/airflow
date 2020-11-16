@@ -137,13 +137,6 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
     # When reading new option, the old option will be checked to see if it exists. If it does a
     # DeprecationWarning will be issued and the old option will be used instead
     deprecated_options = {
-        ('elasticsearch', 'host'): ('elasticsearch', 'elasticsearch_host'),
-        ('elasticsearch', 'log_id_template'): ('elasticsearch', 'elasticsearch_log_id_template'),
-        ('elasticsearch', 'end_of_log_mark'): ('elasticsearch', 'elasticsearch_end_of_log_mark'),
-        ('elasticsearch', 'frontend'): ('elasticsearch', 'elasticsearch_frontend'),
-        ('elasticsearch', 'write_stdout'): ('elasticsearch', 'elasticsearch_write_stdout'),
-        ('elasticsearch', 'json_format'): ('elasticsearch', 'elasticsearch_json_format'),
-        ('elasticsearch', 'json_fields'): ('elasticsearch', 'elasticsearch_json_fields'),
         ('logging', 'base_log_folder'): ('core', 'base_log_folder'),
         ('logging', 'remote_logging'): ('core', 'remote_logging'),
         ('logging', 'remote_log_conn_id'): ('core', 'remote_log_conn_id'),
@@ -177,8 +170,7 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
     # about. Mapping of section -> setting -> { old, replace, by_version }
     deprecated_values = {
         'core': {
-            'task_runner': (re.compile(r'\ABashTaskRunner\Z'), r'StandardTaskRunner', '2.0'),
-            'hostname_callable': (re.compile(r':'), r'.', '2.0'),
+            'hostname_callable': (re.compile(r':'), r'.', '2.1'),
         },
         'webserver': {
             'navbar_color': (re.compile(r'\A#007A87\Z', re.IGNORECASE), '#fff', '2.1'),
@@ -187,7 +179,7 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
             'email_backend': (
                 re.compile(r'^airflow\.contrib\.utils\.sendgrid\.send_email$'),
                 r'airflow.providers.sendgrid.utils.emailer.send_email',
-                '2.0',
+                '2.1',
             ),
         },
     }

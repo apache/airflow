@@ -149,6 +149,13 @@ class _DataflowJobsController(LoggingMixin):
     :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
         instead of canceling.
     :param cancel_timeout: wait time in seconds for successful job canceling
+    :param wait_until_finished: If True, wait for the end of pipeline execution before exiting. If False,
+        it only submits job and check once is job not in terminal state.
+
+        The default behavior depends on the type of pipeline:
+
+        * for the streaming pipeline, wait for jobs to start,
+        * for the batch pipeline, wait for the jobs to complete.
     """
 
     def __init__(  # pylint: disable=too-many-arguments
@@ -163,6 +170,7 @@ class _DataflowJobsController(LoggingMixin):
         multiple_jobs: bool = False,
         drain_pipeline: bool = False,
         cancel_timeout: Optional[int] = 5 * 60,
+        wait_until_finished: Optional[bool] = None,
     ) -> None:
 
         super().__init__()
@@ -177,6 +185,8 @@ class _DataflowJobsController(LoggingMixin):
         self._cancel_timeout = cancel_timeout
         self._jobs: Optional[List[dict]] = None
         self.drain_pipeline = drain_pipeline
+        self._wait_until_finished = wait_until_finished
+        self._jobs: Optional[List[dict]] = None
 
     def is_job_running(self) -> bool:
         """
@@ -203,7 +213,7 @@ class _DataflowJobsController(LoggingMixin):
         :rtype: list
         """
         if not self._multiple_jobs and self._job_id:
-            return [self._fetch_job_by_id(self._job_id)]
+            return [self.fetch_job_by_id(self._job_id)]
         elif self._job_name:
             jobs = self._fetch_jobs_by_prefix_name(self._job_name.lower())
             if len(jobs) == 1:
@@ -212,7 +222,15 @@ class _DataflowJobsController(LoggingMixin):
         else:
             raise Exception("Missing both dataflow job ID and name.")
 
-    def _fetch_job_by_id(self, job_id: str) -> dict:
+    def fetch_job_by_id(self, job_id: str) -> dict:
+        """
+        Helper method to fetch the job with the specified Job ID.
+
+        :param job_id: Job ID to get.
+        :type job_id: str
+        :return: the Job
+        :rtype: dict
+        """
         return (
             self._dataflow.projects()
             .locations()
@@ -278,19 +296,25 @@ class _DataflowJobsController(LoggingMixin):
         :rtype: bool
         :raise: Exception
         """
-        if DataflowJobStatus.JOB_STATE_DONE == job["currentState"]:
+        if self._wait_until_finished is None:
+            wait_for_running = job['type'] == DataflowJobType.JOB_TYPE_STREAMING
+        else:
+            wait_for_running = not self._wait_until_finished
+
+        if job['currentState'] == DataflowJobStatus.JOB_STATE_DONE:
             return True
-        elif DataflowJobStatus.JOB_STATE_FAILED == job["currentState"]:
-            raise Exception("Google Cloud Dataflow job {} has failed.".format(job["name"]))
-        elif DataflowJobStatus.JOB_STATE_CANCELLED == job["currentState"]:
-            raise Exception("Google Cloud Dataflow job {} was cancelled.".format(job["name"]))
-        elif (
-            DataflowJobStatus.JOB_STATE_RUNNING == job["currentState"]
-            and DataflowJobType.JOB_TYPE_STREAMING == job["type"]
-        ):
+        elif job['currentState'] == DataflowJobStatus.JOB_STATE_FAILED:
+            raise Exception("Google Cloud Dataflow job {} has failed.".format(job['name']))
+        elif job['currentState'] == DataflowJobStatus.JOB_STATE_CANCELLED:
+            raise Exception("Google Cloud Dataflow job {} was cancelled.".format(job['name']))
+        elif job['currentState'] == DataflowJobStatus.JOB_STATE_DRAINED:
+            raise Exception("Google Cloud Dataflow job {} was drained.".format(job['name']))
+        elif job['currentState'] == DataflowJobStatus.JOB_STATE_UPDATED:
+            raise Exception("Google Cloud Dataflow job {} was updated.".format(job['name']))
+        elif job['currentState'] == DataflowJobStatus.JOB_STATE_RUNNING and wait_for_running:
             return True
-        elif job["currentState"] in DataflowJobStatus.AWAITING_STATES:
-            return False
+        elif job['currentState'] in DataflowJobStatus.AWAITING_STATES:
+            return self._wait_until_finished is False
         self.log.debug("Current job: %s", str(job))
         raise Exception(
             "Google Cloud Dataflow job {} was unknown state: {}".format(job["name"], job["currentState"])
@@ -487,10 +511,12 @@ class DataflowHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         drain_pipeline: bool = False,
         cancel_timeout: Optional[int] = 5 * 60,
+        wait_until_finished: Optional[bool] = None,
     ) -> None:
         self.poll_sleep = poll_sleep
         self.drain_pipeline = drain_pipeline
         self.cancel_timeout = cancel_timeout
+        self.wait_until_finished = wait_until_finished
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
@@ -532,6 +558,7 @@ class DataflowHook(GoogleBaseHook):
             multiple_jobs=multiple_jobs,
             drain_pipeline=self.drain_pipeline,
             cancel_timeout=self.cancel_timeout,
+            wait_until_finished=self.wait_until_finished,
         )
         job_controller.wait_for_done()
 
@@ -1047,3 +1074,30 @@ class DataflowHook(GoogleBaseHook):
         jobs_controller.wait_for_done()
 
         return jobs_controller.get_jobs(refresh=True)[0]
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_job(
+        self,
+        job_id: str,
+        project_id: str,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+    ) -> dict:
+        """
+        Gets the job with the specified Job ID.
+
+        :param job_id: Job ID to get.
+        :type job_id: str
+        :param project_id: Optional, the Google Cloud project ID in which to start a job.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id:
+        :param location: The location of the Dataflow job (for example europe-west1). See:
+            https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
+        :return: the Job
+        :rtype: dict
+        """
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.get_conn(),
+            project_number=project_id,
+            location=location,
+        )
+        return jobs_controller.fetch_job_by_id(job_id)

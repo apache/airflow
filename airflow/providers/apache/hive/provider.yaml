@@ -1,0 +1,67 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+---
+package-name: apache-airflow-providers-apache-hive
+description: |
+    `Apache Hive <https://hive.apache.org/>`__
+
+versions:
+  - 1.0.0b1
+
+integrations:
+  - integration-name: Apache Hive
+    external-doc-url: https://hive.apache.org/
+    tags: [apache]
+
+operators:
+  - integration-name: Apache Hive
+    python-modules:
+      - airflow.providers.apache.hive.operators.hive
+      - airflow.providers.apache.hive.operators.hive_stats
+
+sensors:
+  - integration-name: Apache Hive
+    python-modules:
+      - airflow.providers.apache.hive.sensors.hive_partition
+      - airflow.providers.apache.hive.sensors.metastore_partition
+      - airflow.providers.apache.hive.sensors.named_hive_partition
+
+hooks:
+  - integration-name: Apache Hive
+    python-modules:
+      - airflow.providers.apache.hive.hooks.hive
+
+transfers:
+  - source-integration-name: Vertica
+    target-integration-name: Apache Hive
+    python-module: airflow.providers.apache.hive.transfers.vertica_to_hive
+  - source-integration-name: Apache Hive
+    target-integration-name: MySQL
+    python-module: airflow.providers.apache.hive.transfers.hive_to_mysql
+  - source-integration-name: Apache Hive
+    target-integration-name: Samba
+    python-module: airflow.providers.apache.hive.transfers.hive_to_samba
+  - source-integration-name: Amazon Simple Storage Service (S3)
+    target-integration-name: Apache Hive
+    python-module: airflow.providers.apache.hive.transfers.s3_to_hive
+  - source-integration-name: MySQL
+    target-integration-name: Apache Hive
+    python-module: airflow.providers.apache.hive.transfers.mysql_to_hive
+  - source-integration-name: Microsoft SQL Server (MSSQL)
+    target-integration-name: Apache Hive
+    python-module: airflow.providers.apache.hive.transfers.mssql_to_hive

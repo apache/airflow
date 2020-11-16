@@ -57,6 +57,9 @@ class SnowflakeOperator(BaseOperator):
         'https://<your_okta_account_name>.okta.com' to authenticate
         through native Okta.
     :type authenticator: str
+    :param session_parameters: You can set session-level parameters at
+        the time you connect to Snowflake
+    :type session_parameters: dict
     """
 
     template_fields = ('sql',)
@@ -76,6 +79,7 @@ class SnowflakeOperator(BaseOperator):
         role: Optional[str] = None,
         schema: Optional[str] = None,
         authenticator: Optional[str] = None,
+        session_parameters: Optional[dict] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -88,6 +92,7 @@ class SnowflakeOperator(BaseOperator):
         self.role = role
         self.schema = schema
         self.authenticator = authenticator
+        self.session_parameters = session_parameters
 
     def get_hook(self) -> SnowflakeHook:
         """
@@ -102,6 +107,7 @@ class SnowflakeOperator(BaseOperator):
             role=self.role,
             schema=self.schema,
             authenticator=self.authenticator,
+            session_parameters=self.session_parameters,
         )
 
     def execute(self, context: Any) -> None:

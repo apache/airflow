@@ -696,6 +696,68 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         self.assertEqual(k.pod.spec.containers[0].env, [k8s.V1EnvVar(name="env_name", value="value")])
         self.assertDictEqual(result, {"hello": "world"})
 
+    def test_pod_template_file_with_full_pod_spec(self):
+        fixture = sys.path[0] + '/tests/kubernetes/basic_pod.yaml'
+        pod_spec = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                labels={"foo": "bar", "fizz": "buzz"},
+            ),
+            spec=k8s.V1PodSpec(
+                containers=[
+                    k8s.V1Container(
+                        name="base",
+                        env=[k8s.V1EnvVar(name="env_name", value="value")],
+                    )
+                ]
+            ),
+        )
+        k = KubernetesPodOperator(
+            task_id="task" + self.get_current_task_name(),
+            in_cluster=False,
+            pod_template_file=fixture,
+            full_pod_spec=pod_spec,
+            do_xcom_push=True,
+        )
+
+        context = create_context(k)
+        result = k.execute(context)
+        self.assertIsNotNone(result)
+        self.assertEqual(k.pod.metadata.labels, {'fizz': 'buzz', 'foo': 'bar'})
+        self.assertEqual(k.pod.spec.containers[0].env, [k8s.V1EnvVar(name="env_name", value="value")])
+        self.assertDictEqual(result, {"hello": "world"})
+
+    def test_full_pod_spec(self):
+        pod_spec = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                labels={"foo": "bar", "fizz": "buzz"}, namespace="default", name="test-pod"
+            ),
+            spec=k8s.V1PodSpec(
+                containers=[
+                    k8s.V1Container(
+                        name="base",
+                        image="perl",
+                        command=["/bin/bash"],
+                        args=["-c", 'echo {\\"hello\\" : \\"world\\"} | cat > /airflow/xcom/return.json'],
+                        env=[k8s.V1EnvVar(name="env_name", value="value")],
+                    )
+                ],
+                restart_policy="Never",
+            ),
+        )
+        k = KubernetesPodOperator(
+            task_id="task" + self.get_current_task_name(),
+            in_cluster=False,
+            full_pod_spec=pod_spec,
+            do_xcom_push=True,
+        )
+
+        context = create_context(k)
+        result = k.execute(context)
+        self.assertIsNotNone(result)
+        self.assertEqual(k.pod.metadata.labels, {'fizz': 'buzz', 'foo': 'bar'})
+        self.assertEqual(k.pod.spec.containers[0].env, [k8s.V1EnvVar(name="env_name", value="value")])
+        self.assertDictEqual(result, {"hello": "world"})
+
     def test_init_container(self):
         # GIVEN
         volume_mounts = [

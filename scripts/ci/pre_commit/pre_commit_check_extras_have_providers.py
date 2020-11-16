@@ -20,7 +20,6 @@
 import os
 import sys
 from os.path import dirname
-from textwrap import wrap
 from typing import List
 
 AIRFLOW_SOURCES_DIR = os.path.abspath(os.path.join(dirname(__file__), os.pardir, os.pardir, os.pardir))

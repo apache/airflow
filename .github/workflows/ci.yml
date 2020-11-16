@@ -102,7 +102,7 @@ jobs:
       pullRequestLabels: ${{ steps.source-run-info.outputs.pullRequestLabels }}
     steps:
       - name: "Get information about the PR"
-        uses: potiuk/get-workflow-origin@2ef0b065db6b688a2231f8a7f464df1aac254328  # v1_2
+        uses: potiuk/get-workflow-origin@588cc14f9f1cdf1b8be3db816855e96422204fec  # v1_3
         id: source-run-info
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -762,7 +762,7 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare PROD Image"
@@ -776,17 +776,19 @@ jobs:
       - name: "Cache virtualenv for kubernetes testing"
         uses: actions/cache@v2
         env:
-          cache-name: cache-kubernetes-tests-virtualenv-v6
+          cache-name: cache-kubernetes-tests-v7-master
         with:
-          path: .build/.kubernetes_venv
-          key: "${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}"
+          path: ".build/.kubernetes_venv*"
+          key: "venv-${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}\
+-${{ needs.build-info.outputs.defaultPythonVersion }}"
       - name: "Cache bin folder with tools for kubernetes testing"
         uses: actions/cache@v2
         env:
-          cache-name: cache-kubernetes-tests-bin-v6
+          cache-name: cache-kubernetes-tests-v7-master
         with:
-          path: .build/bin
-          key: "${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}\
+          path: ".build/bin"
+          key: "bin-${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}\
+-${{ needs.build-info.outputs.defaultPythonVersion }}\
 -${{ needs.build-info.outputs.defaultKindVersion }}\
 -${{ needs.build-info.outputs.defaultHelmVersion }}\
 -${{ matrix.kubernetes-version }}"

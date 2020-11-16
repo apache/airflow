@@ -386,8 +386,11 @@ class DagBag(LoggingMixin):
         dag.resolve_template_files()
         dag.last_loaded = timezone.utcnow()
 
+        # Check policies
+        settings.dag_policy(dag)
+
         for task in dag.tasks:
-            settings.policy(task)
+            settings.task_policy(task)
 
         subdags = dag.subdags
 

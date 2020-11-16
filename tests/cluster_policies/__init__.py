@@ -15,10 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from datetime import timedelta
 from typing import Callable, List
 
+from airflow import DAG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowClusterPolicyViolation
+from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator
 
 
@@ -62,3 +65,34 @@ def cluster_policy(task: BaseOperator):
 
 
 # [END example_list_of_cluster_policy_rules]
+
+# [START example_dag_cluster_policy]
+def dag_policy(dag: DAG):
+    """Ensure that DAG has at least one tag"""
+    if not dag.tags:
+        raise AirflowClusterPolicyViolation(
+            f"DAG {dag.dag_id} has no tags. At least one tag required. File path: {dag.filepath}"
+        )
+
+
+# [END example_dag_cluster_policy]
+
+
+# [START example_task_cluster_policy]
+def task_policy(task: BaseOperator):
+    if task.task_type == 'HivePartitionSensor':
+        task.queue = "sensor_queue"
+    if task.timeout > timedelta(hours=48):
+        task.timeout = timedelta(hours=48)
+
+
+# [END example_task_cluster_policy]
+
+
+# [START example_task_mutation_hook]
+def task_instance_mutation_hook(task_instance: TaskInstance):
+    if task_instance.try_number >= 1:
+        task_instance.queue = 'retry_queue'
+
+
+# [END example_task_mutation_hook]

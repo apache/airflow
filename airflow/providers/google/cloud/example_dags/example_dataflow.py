@@ -23,12 +23,14 @@ import os
 from urllib.parse import urlparse
 
 from airflow import models
+from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
 from airflow.providers.google.cloud.operators.dataflow import (
     CheckJobRunning,
     DataflowCreateJavaJobOperator,
     DataflowCreatePythonJobOperator,
     DataflowTemplatedJobStartOperator,
 )
+from airflow.providers.google.cloud.sensors.dataflow import DataflowJobStatusSensor
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
 from airflow.utils.dates import days_ago
 
@@ -127,6 +129,38 @@ with models.DAG(
         py_interpreter='python3',
         py_system_site_packages=False,
     )
+
+with models.DAG(
+    "example_gcp_dataflow_native_python_async",
+    default_args=default_args,
+    start_date=days_ago(1),
+    schedule_interval=None,  # Override to match your needs
+    tags=['example'],
+) as dag_native_python_async:
+    start_python_job_async = DataflowCreatePythonJobOperator(
+        task_id="start-python-job-async",
+        py_file=GCS_PYTHON,
+        py_options=[],
+        job_name='{{task.task_id}}',
+        options={
+            'output': GCS_OUTPUT,
+        },
+        py_requirements=['apache-beam[gcp]==2.25.0'],
+        py_interpreter='python3',
+        py_system_site_packages=False,
+        location='europe-west3',
+        wait_until_finished=False,
+    )
+
+    wait_for_python_job_async_done = DataflowJobStatusSensor(
+        task_id="wait-for-python-job-async-done",
+        job_id="{{task_instance.xcom_pull('start-python-job-async')['job_id']}}",
+        expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
+        location='europe-west3',
+    )
+
+    start_python_job_async >> wait_for_python_job_async_done
+
 
 with models.DAG(
     "example_gcp_dataflow_template",

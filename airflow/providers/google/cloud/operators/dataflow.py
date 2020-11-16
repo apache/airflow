@@ -43,6 +43,7 @@ class CheckJobRunning(Enum):
     WaitForRun = 3
 
 
+# pylint: disable=too-many-instance-attributes
 class DataflowCreateJavaJobOperator(BaseOperator):
     """
     Start a Java Cloud DataFlow batch job. The parameters of the operation
@@ -135,6 +136,40 @@ class DataflowCreateJavaJobOperator(BaseOperator):
     :param cancel_timeout: How long (in seconds) operator should wait for the pipeline to be
         successfully cancelled when task is being killed.
     :type cancel_timeout: Optional[int]
+    :param wait_until_finished: (Optional)
+        If True, wait for the end of pipeline execution before exiting.
+        If False, only submits job.
+        If None, default behavior.
+
+        The default behavior depends on the type of pipeline:
+
+        * for the streaming pipeline, wait for jobs to start,
+        * for the batch pipeline, wait for the jobs to complete.
+
+        .. warning::
+
+            You cannot call ``PipelineResult.wait_until_finish`` method in your pipeline code for the operator
+            to work properly. i. e. you must use asynchronous execution. Otherwise, your pipeline will
+            always wait until finished. For more information, look at:
+            `Asynchronous execution
+            <https://cloud.google.com/dataflow/docs/guides/specifying-exec-params#python_10>`__
+
+        The process of starting the Dataflow job in Airflow consists of two steps:
+
+        * running a subprocess and reading the stderr/stderr log for the job id.
+        * loop waiting for the end of the job ID from the previous step.
+          This loop checks the status of the job.
+
+        Step two is started just after step one has finished, so if you have wait_until_finished in your
+        pipeline code, step two will not start until the process stops. When this process stops,
+        steps two will run, but it will only execute one iteration as the job will be in a terminal state.
+
+        If you in your pipeline do not call the wait_for_pipeline method but pass wait_until_finish=True
+        to the operator, the second loop will wait for the job's terminal state.
+
+        If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish=False
+        to the operator, the second loop will check once is job not in terminal state and exit the loop.
+    :type wait_until_finished: Optional[bool]
 
     Note that both
     ``dataflow_default_options`` and ``options`` will be merged to specify pipeline
@@ -197,6 +232,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         check_if_running: CheckJobRunning = CheckJobRunning.WaitForRun,
         multiple_jobs: Optional[bool] = None,
         cancel_timeout: Optional[int] = 10 * 60,
+        wait_until_finished: Optional[bool] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -219,6 +255,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         self.job_class = job_class
         self.check_if_running = check_if_running
         self.cancel_timeout = cancel_timeout
+        self.wait_until_finished = wait_until_finished
         self.job_id = None
         self.hook = None
 
@@ -228,6 +265,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
             delegate_to=self.delegate_to,
             poll_sleep=self.poll_sleep,
             cancel_timeout=self.cancel_timeout,
+            wait_until_finished=self.wait_until_finished,
         )
         dataflow_options = copy.copy(self.dataflow_default_options)
         dataflow_options.update(self.options)
@@ -277,9 +315,10 @@ class DataflowCreateJavaJobOperator(BaseOperator):
             self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id)
 
 
+# pylint: disable=too-many-instance-attributes
 class DataflowTemplatedJobStartOperator(BaseOperator):
     """
-    Start a Templated Cloud DataFlow batch job. The parameters of the operation
+    Start a Templated Cloud DataFlow job. The parameters of the operation
     will be passed to the job.
 
     :param template: The reference to the DataFlow template.
@@ -333,6 +372,40 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
     :param cancel_timeout: How long (in seconds) operator should wait for the pipeline to be
         successfully cancelled when task is being killed.
     :type cancel_timeout: Optional[int]
+    :param wait_until_finished: (Optional)
+        If True, wait for the end of pipeline execution before exiting.
+        If False, only submits job.
+        If None, default behavior.
+
+        The default behavior depends on the type of pipeline:
+
+        * for the streaming pipeline, wait for jobs to start,
+        * for the batch pipeline, wait for the jobs to complete.
+
+        .. warning::
+
+            You cannot call ``PipelineResult.wait_until_finish`` method in your pipeline code for the operator
+            to work properly. i. e. you must use asynchronous execution. Otherwise, your pipeline will
+            always wait until finished. For more information, look at:
+            `Asynchronous execution
+            <https://cloud.google.com/dataflow/docs/guides/specifying-exec-params#python_10>`__
+
+        The process of starting the Dataflow job in Airflow consists of two steps:
+
+        * running a subprocess and reading the stderr/stderr log for the job id.
+        * loop waiting for the end of the job ID from the previous step.
+          This loop checks the status of the job.
+
+        Step two is started just after step one has finished, so if you have wait_until_finished in your
+        pipeline code, step two will not start until the process stops. When this process stops,
+        steps two will run, but it will only execute one iteration as the job will be in a terminal state.
+
+        If you in your pipeline do not call the wait_for_pipeline method but pass wait_until_finish=True
+        to the operator, the second loop will wait for the job's terminal state.
+
+        If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish=False
+        to the operator, the second loop will check once is job not in terminal state and exit the loop.
+    :type wait_until_finished: Optional[bool]
 
     It's a good practice to define dataflow_* parameters in the default_args of the dag
     like the project, zone and staging location.
@@ -411,6 +484,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         environment: Optional[Dict] = None,
         cancel_timeout: Optional[int] = 10 * 60,
+        wait_until_finished: Optional[bool] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -429,6 +503,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.environment = environment
         self.cancel_timeout = cancel_timeout
+        self.wait_until_finished = wait_until_finished
 
     def execute(self, context) -> dict:
         self.hook = DataflowHook(
@@ -437,6 +512,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             poll_sleep=self.poll_sleep,
             impersonation_chain=self.impersonation_chain,
             cancel_timeout=self.cancel_timeout,
+            wait_until_finished=self.wait_until_finished,
         )
 
         def set_current_job_id(job_id):
@@ -465,7 +541,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
 
 class DataflowStartFlexTemplateOperator(BaseOperator):
     """
-    Starts flex templates with the Dataflow  pipeline.
+    Starts flex templates with the Dataflow pipeline.
 
     :param body: The request body. See:
         https://cloud.google.com/dataflow/docs/reference/rest/v1b3/projects.locations.flexTemplates/launch#request-body
@@ -488,6 +564,40 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
     :param cancel_timeout: How long (in seconds) operator should wait for the pipeline to be
         successfully cancelled when task is being killed.
     :type cancel_timeout: Optional[int]
+    :param wait_until_finished: (Optional)
+        If True, wait for the end of pipeline execution before exiting.
+        If False, only submits job.
+        If None, default behavior.
+
+        The default behavior depends on the type of pipeline:
+
+        * for the streaming pipeline, wait for jobs to start,
+        * for the batch pipeline, wait for the jobs to complete.
+
+        .. warning::
+
+            You cannot call ``PipelineResult.wait_until_finish`` method in your pipeline code for the operator
+            to work properly. i. e. you must use asynchronous execution. Otherwise, your pipeline will
+            always wait until finished. For more information, look at:
+            `Asynchronous execution
+            <https://cloud.google.com/dataflow/docs/guides/specifying-exec-params#python_10>`__
+
+        The process of starting the Dataflow job in Airflow consists of two steps:
+
+        * running a subprocess and reading the stderr/stderr log for the job id.
+        * loop waiting for the end of the job ID from the previous step.
+          This loop checks the status of the job.
+
+        Step two is started just after step one has finished, so if you have wait_until_finished in your
+        pipeline code, step two will not start until the process stops. When this process stops,
+        steps two will run, but it will only execute one iteration as the job will be in a terminal state.
+
+        If you in your pipeline do not call the wait_for_pipeline method but pass wait_until_finish=True
+        to the operator, the second loop will wait for the job's terminal state.
+
+        If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish=False
+        to the operator, the second loop will check once is job not in terminal state and exit the loop.
+    :type wait_until_finished: Optional[bool]
     """
 
     template_fields = ["body", "location", "project_id", "gcp_conn_id"]
@@ -502,6 +612,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
         delegate_to: Optional[str] = None,
         drain_pipeline: bool = False,
         cancel_timeout: Optional[int] = 10 * 60,
+        wait_until_finished: Optional[bool] = None,
         *args,
         **kwargs,
     ) -> None:
@@ -513,6 +624,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.drain_pipeline = drain_pipeline
         self.cancel_timeout = cancel_timeout
+        self.wait_until_finished = wait_until_finished
         self.job_id = None
         self.hook: Optional[DataflowHook] = None
 
@@ -522,6 +634,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
             delegate_to=self.delegate_to,
             drain_pipeline=self.drain_pipeline,
             cancel_timeout=self.cancel_timeout,
+            wait_until_finished=self.wait_until_finished,
         )
 
         def set_current_job_id(job_id):
@@ -713,6 +826,40 @@ class DataflowCreatePythonJobOperator(BaseOperator):
     :param cancel_timeout: How long (in seconds) operator should wait for the pipeline to be
         successfully cancelled when task is being killed.
     :type cancel_timeout: Optional[int]
+    :param wait_until_finished: (Optional)
+        If True, wait for the end of pipeline execution before exiting.
+        If False, only submits job.
+        If None, default behavior.
+
+        The default behavior depends on the type of pipeline:
+
+        * for the streaming pipeline, wait for jobs to start,
+        * for the batch pipeline, wait for the jobs to complete.
+
+        .. warning::
+
+            You cannot call ``PipelineResult.wait_until_finish`` method in your pipeline code for the operator
+            to work properly. i. e. you must use asynchronous execution. Otherwise, your pipeline will
+            always wait until finished. For more information, look at:
+            `Asynchronous execution
+            <https://cloud.google.com/dataflow/docs/guides/specifying-exec-params#python_10>`__
+
+        The process of starting the Dataflow job in Airflow consists of two steps:
+
+        * running a subprocess and reading the stderr/stderr log for the job id.
+        * loop waiting for the end of the job ID from the previous step.
+          This loop checks the status of the job.
+
+        Step two is started just after step one has finished, so if you have wait_until_finished in your
+        pipeline code, step two will not start until the process stops. When this process stops,
+        steps two will run, but it will only execute one iteration as the job will be in a terminal state.
+
+        If you in your pipeline do not call the wait_for_pipeline method but pass wait_until_finish=True
+        to the operator, the second loop will wait for the job's terminal state.
+
+        If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish=False
+        to the operator, the second loop will check once is job not in terminal state and exit the loop.
+    :type wait_until_finished: Optional[bool]
     """
 
     template_fields = ["options", "dataflow_default_options", "job_name", "py_file"]
@@ -736,6 +883,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         poll_sleep: int = 10,
         drain_pipeline: bool = False,
         cancel_timeout: Optional[int] = 10 * 60,
+        wait_until_finished: Optional[bool] = None,
         **kwargs,
     ) -> None:
 
@@ -759,6 +907,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         self.poll_sleep = poll_sleep
         self.drain_pipeline = drain_pipeline
         self.cancel_timeout = cancel_timeout
+        self.wait_until_finished = wait_until_finished
         self.job_id = None
         self.hook = None
 
@@ -778,6 +927,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
                 poll_sleep=self.poll_sleep,
                 drain_pipeline=self.drain_pipeline,
                 cancel_timeout=self.cancel_timeout,
+                wait_until_finished=self.wait_until_finished,
             )
             dataflow_options = self.dataflow_default_options.copy()
             dataflow_options.update(self.options)
@@ -800,6 +950,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
                 project_id=self.project_id,
                 location=self.location,
             )
+            return {"job_id": self.job_id}
 
     def on_kill(self) -> None:
         self.log.info("On kill.")

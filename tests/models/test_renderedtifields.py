@@ -18,6 +18,7 @@
 
 """Unit tests for RenderedTaskInstanceFields."""
 
+import os
 import unittest
 from datetime import date, timedelta
 from unittest import mock
@@ -227,7 +228,7 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
             ('test_write', 'test', {'bash_command': 'echo test_val_updated', 'env': None}), result_updated
         )
 
-    @mock.patch("airflow.models.renderedtifields.IS_K8S_OR_K8SCELERY_EXECUTOR", new=True)
+    @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
     @mock.patch("airflow.settings.pod_mutation_hook")
     def test_get_k8s_pod_yaml(self, mock_pod_mutation_hook):
         """
@@ -281,6 +282,7 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
                         ],
                         'image': ':',
                         'name': 'base',
+                        'env': [{'name': 'AIRFLOW_IS_K8S_EXECUTOR_POD', 'value': 'True'}],
                     }
                 ]
             },

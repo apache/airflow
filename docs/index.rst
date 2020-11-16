@@ -78,6 +78,7 @@ Content
     license
     start
     installation
+    provider-packages
     tutorial
     tutorial_taskflow_api
     howto/index
@@ -115,3 +116,5 @@ Content
     Experimental REST API <rest-api-ref>
     Stable REST API <stable-rest-api-ref>
     Configurations <configurations-ref>
+    Extra packages <extra-packages-ref>
+    Provider packages <provider-packages-ref>

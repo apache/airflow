@@ -142,7 +142,7 @@ repos:
     hooks:
       - id: doctoc
         name: Add TOC for md files
-        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.*.md$|^dev/README\.md$|^dev/PROVIDER_PACKAGES.md$
+        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.*.md$|^dev/.*.md$
         args:
           - "--maxlevel"
           - "2"
@@ -244,12 +244,12 @@ repos:
         files: ^setup.py$
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_order_setup.py
-      - id: setup-installation
-        name: Checks if all the libraries in setup.py are listed in installation.rst file
+      - id: setup-extra-packages
+        name: Checks if all the libraries in setup.py are listed in extra-packages-ref.rst file
         language: python
-        files: ^setup.py$|^docs/installation.rst$
+        files: ^setup.py$|^docs/extra-packages-ref.rst$
         pass_filenames: false
-        entry: ./scripts/ci/pre_commit/pre_commit_check_setup_installation.py
+        entry: ./scripts/ci/pre_commit/pre_commit_check_setup_extra_packages_ref.py
         additional_dependencies: ['rich==9.2.0']
       - id: update-breeze-file
         name: Update output of breeze command in BREEZE.rst
@@ -483,6 +483,16 @@ repos:
         files: "setup.py|^airflow/providers/.*.py"
         pass_filenames: false
         require_serial: true
+      - id: markdownlint
+        name: Run markdownlint
+        description: "Checks the style of Markdown files."
+        entry: markdownlint
+        language: node
+        types: [markdown]
+        files: \.(md|mdown|markdown)$
+        additional_dependencies: ['markdownlint-cli']
+        ## ADD MOST PRE-COMMITS ABOVE THAT LINE
+        # The below pre-commits are those requiring CI image to be built
       - id: build
         name: Check if image build is needed
         entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.6 false
@@ -494,12 +504,18 @@ repos:
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_mypy.sh"
         files: \.py$
-        exclude: ^dev|^provider_packages|^chart
+        exclude: ^dev|^provider_packages|^chart|^docs
       - id: mypy
         name: Run mypy for helm chart tests
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_mypy.sh"
         files: ^chart/.*\.py$
+        require_serial: true
+      - id: mypy
+        name: Run mypy for /docs/ folder
+        language: system
+        entry: "./scripts/ci/pre_commit/pre_commit_mypy.sh"
+        files: ^docs/.*\.py$
         require_serial: true
       - id: pylint
         name: Run pylint
@@ -528,11 +544,4 @@ repos:
         entry: "./scripts/ci/pre_commit/pre_commit_in_container_bats_test.sh"
         files: ^tests/bats/in_container/.*.bats$|^scripts/in_container/.*sh
         pass_filenames: false
-      - id: markdownlint
-        name: Run markdownlint
-        description: "Checks the style of Markdown files."
-        entry: markdownlint
-        language: node
-        types: [markdown]
-        files: \.(md|mdown|markdown)$
-        additional_dependencies: ['markdownlint-cli']
+        ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE

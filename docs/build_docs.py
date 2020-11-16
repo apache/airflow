@@ -114,7 +114,7 @@ def clean_files() -> None:
     shutil.rmtree(_BUILD_DIR, ignore_errors=True)
     os.makedirs(_API_DIR, exist_ok=True)
     os.makedirs(_BUILD_DIR, exist_ok=True)
-    print(f"Recreated content of the ${_BUILD_DIR} and ${_API_DIR} folders")
+    print(f"Recreated content of the {shlex.quote(_BUILD_DIR)} and {shlex.quote(_API_DIR)} folders")
 
 
 def display_errors_summary() -> None:
@@ -315,74 +315,6 @@ def find_modules(deprecated_only: bool = False) -> Set[str]:
     return modules_names
 
 
-def check_class_links_in_operators_and_hooks_ref() -> None:
-    """Checks classes and links in the operators and hooks ref."""
-    with open(os.path.join(DOCS_DIR, "operators-and-hooks-ref.rst")) as ref_file:
-        content = ref_file.read()
-    current_modules_in_file = set(re.findall(r":mod:`(.+?)`", content))
-
-    airflow_modules = find_modules() - find_modules(deprecated_only=True)
-    airflow_modules = {
-        o
-        for o in airflow_modules
-        if any(f".{d}." in o for d in ["operators", "hooks", "sensors", "transfers"])
-    }
-
-    missing_modules = airflow_modules - current_modules_in_file
-    missing_modules -= {"airflow.providers.google.common.hooks.base_google"}
-    if missing_modules:
-        module_text_list = " * " + "\n* ".join(missing_modules)
-        build_errors.append(
-            DocBuildError(
-                file_path="operators-and-hooks-ref.rst",
-                line_no=0,
-                message=(
-                    f"New module detected."
-                    f"Please add them to the list of operators and hooks - `operators-and-hooks-ref.rst` "
-                    f"file.\n"
-                    f"\n"
-                    f"New modules:\n"
-                    f"{module_text_list}"
-                ),
-            )
-        )
-
-
-def check_guide_links_in_operators_and_hooks_ref() -> None:
-    """Checks all guide links in operators and hooks references."""
-    all_guides = glob(f"{DOCS_DIR}/howto/operator/**/*.rst", recursive=True)
-    # Remove extension
-    all_guides = [
-        os.path.relpath(guide, DOCS_DIR).rpartition(".")[0]
-        for guide in all_guides
-        if "_partials" not in guide
-    ]
-    # Remove partials and index
-    all_guides = [guide for guide in all_guides if "/_partials/" not in guide and not guide.endswith("index")]
-
-    with open(os.path.join(DOCS_DIR, "operators-and-hooks-ref.rst")) as ref_file:
-        content = ref_file.read()
-
-    missing_guides = [guide for guide in all_guides if guide not in content]
-    if missing_guides:
-        guide_text_list = "\n".join(f":doc:`How to use <{guide}>`" for guide in missing_guides)
-
-        build_errors.append(
-            DocBuildError(
-                file_path="operators-and-hooks-ref.rst",
-                line_no=0,
-                message=(
-                    f"New guide detected. "
-                    f"Please add them to the list of operators and hooks - `operators-and-hooks-ref.rst` "
-                    f"file.\n"
-                    f"You can copy the relevant parts of the link from the section below:\n"
-                    f"\n"
-                    f"{guide_text_list}"
-                ),
-            )
-        )
-
-
 def check_exampleinclude_for_example_dags():
     """Checks all exampleincludes for  example dags."""
     all_docs_files = glob(f"${DOCS_DIR}/**/*rst", recursive=True)
@@ -421,7 +353,6 @@ MISSING_GOOGLE_DOC_GUIDES = {
     'bigquery_to_mysql',
     'cassandra_to_gcs',
     'dataflow',
-    'dlp',
     'gcs_to_bigquery',
     'mssql_to_gcs',
     'postgres_to_gcs',
@@ -616,12 +547,15 @@ def check_spelling() -> None:
         "sphinxcontrib.jinja",
         "docroles",
         "removemarktransform",
+        'providers_packages_ref',
+        'operators_and_hooks_ref',
     ]
 
     with NamedTemporaryFile() as tmp_file:
         build_cmd = [
             "sphinx-build",
-            "-W",
+            "-W",  # turn warnings into errors
+            "-T",  # show full traceback on exception
             "-b",  # builder to use
             "spelling",
             "-d",  # path for the cached environment and doctree files
@@ -659,12 +593,13 @@ def build_sphinx_docs() -> None:
     with NamedTemporaryFile() as tmp_file:
         build_cmd = [
             "sphinx-build",
+            "-T",  # show full traceback on exception
+            "--color",  # do emit colored output
             "-b",  # builder to use
             "html",
             "-d",  # path for the cached environment and doctree files
             "_build/doctrees",
-            "--color",  # do emit colored output
-            "-w",  # turn warnings into errors
+            "-w",  # write warnings (and errors) to given file
             tmp_file.name,
             ".",  # path to documentation source files
             "_build/html",  # path to output directory
@@ -732,8 +667,6 @@ if not args.docs_only:
 if not args.spellcheck_only:
     build_sphinx_docs()
     check_guide_links_in_operator_descriptions()
-    check_class_links_in_operators_and_hooks_ref()
-    check_guide_links_in_operators_and_hooks_ref()
     check_enforce_code_block()
     check_exampleinclude_for_example_dags()
     check_google_guides()

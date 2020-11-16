@@ -368,15 +368,13 @@ function verify_suffix_versions_for_package_preparation {
     export TARGET_VERSION_SUFFIX
 }
 
-function filenames_to_python_module() {
-  for file in "$@";
-  do
+function filename_to_python_module() {
     # Turn the file name into a python package name
+    file="$1"
     no_leading_dotslash="${file#./}"
     no_py="${no_leading_dotslash/.py/}"
     no_init="${no_py/\/__init__/}"
     echo "${no_init//\//.}"
-  done
 }
 
 export CI=${CI:="false"}
