@@ -355,6 +355,7 @@ class TestLocalTaskJob(unittest.TestCase):
         process.join(timeout=10)
         self.assertFalse(process.is_alive())
 
+    @pytest.mark.xfail(condition=True, reason="This test is expected to fail randomly due to timing issues")
     def test_localtaskjob_maintain_heart_rate(self):
         dagbag = models.DagBag(
             dag_folder=TEST_DAG_FOLDER,
