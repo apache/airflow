@@ -20,11 +20,19 @@
 import os
 import sys
 import tempfile
-import unittest
+import six
+
 from airflow.kubernetes import pod_generator
 from kubernetes.client import ApiClient
 import kubernetes.client.models as k8s
 from tests.compat import MagicMock, Mock, mock, call, patch
+from tests.test_utils.config import conf_vars
+
+if six.PY2:
+    # Need `assertWarns` back-ported from unittest2
+    import unittest2 as unittest
+else:
+    import unittest
 
 api_client = ApiClient()
 
@@ -440,6 +448,36 @@ class LocalSettingsTest(unittest.TestCase):
                                       {'name': 'airflow-secrets-mount',
                                        'secret': {'secretName': 'airflow-test-secrets'}}]}}
             )
+
+
+class TestUpdatedConfigNames(unittest.TestCase):
+    @conf_vars(
+        {("webserver", "session_lifetime_days"): '5', ("webserver", "session_lifetime_minutes"): '43200'}
+    )
+    def test_updates_deprecated_session_timeout_config_val_when_new_config_val_is_default(self):
+        from airflow import settings
+
+        with self.assertWarns(DeprecationWarning):
+            session_lifetime_config = settings.get_session_lifetime_config()
+            minutes_in_five_days = 5 * 24 * 60
+            self.assertEqual(session_lifetime_config, minutes_in_five_days)
+
+    @conf_vars(
+        {("webserver", "session_lifetime_days"): '5', ("webserver", "session_lifetime_minutes"): '43201'}
+    )
+    def test_uses_updated_session_timeout_config_when_val_is_not_default(self):
+        from airflow import settings
+
+        session_lifetime_config = settings.get_session_lifetime_config()
+        self.assertEqual(session_lifetime_config, 43201)
+
+    @conf_vars({("webserver", "session_lifetime_days"): ''})
+    def test_uses_updated_session_timeout_config_by_default(self):
+        from airflow import settings
+
+        session_lifetime_config = settings.get_session_lifetime_config()
+        default_timeout_minutes = 30 * 24 * 60
+        self.assertEqual(session_lifetime_config, default_timeout_minutes)
 
 
 class TestStatsWithAllowList(unittest.TestCase):

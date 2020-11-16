@@ -18,7 +18,6 @@
 # under the License.
 #
 import logging
-import sys
 import socket
 from datetime import timedelta
 from typing import Any
@@ -62,23 +61,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             x_prefix=conf.getint("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
         )
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
-
-    if conf.has_option('webserver', 'SESSION_LIFETIME_DAYS') or conf.has_option(
-        'webserver', 'FORCE_LOG_OUT_AFTER'
-    ):
-        logging.error(
-            '`SESSION_LIFETIME_DAYS` option from `webserver` section has been '
-            'renamed to `SESSION_LIFETIME_MINUTES`. New option allows to configure '
-            'session lifetime in minutes. FORCE_LOG_OUT_AFTER option has been removed '
-            'from `webserver` section. Please update your configuration.'
-        )
-        # Stop gunicorn server https://github.com/benoitc/gunicorn/blob/20.0.4/gunicorn/arbiter.py#L526
-        # sys.exit(4)
-    else:
-        session_lifetime_minutes = conf.getint('webserver', 'SESSION_LIFETIME_MINUTES', fallback=43200)
-        logging.info('User session lifetime is set to %s minutes.', session_lifetime_minutes)
-
-    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=session_lifetime_minutes)
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=settings.get_session_lifetime_config())
 
     app.config.from_pyfile(settings.WEBSERVER_CONFIG, silent=True)
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False

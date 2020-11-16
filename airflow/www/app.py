@@ -60,6 +60,7 @@ def create_app(config=None, testing=False):
             x_prefix=conf.getint("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
         )
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
+    app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(minutes=settings.get_session_lifetime_config())
     app.config['LOGIN_DISABLED'] = not conf.getboolean(
         'webserver', 'AUTHENTICATE')
 
@@ -69,6 +70,9 @@ def create_app(config=None, testing=False):
 
     if config:
         app.config.from_mapping(config)
+
+    if 'SQLALCHEMY_ENGINE_OPTIONS' not in app.config:
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = settings.prepare_engine_args()
 
     csrf.init_app(app)
 

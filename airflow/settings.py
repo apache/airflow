@@ -26,10 +26,11 @@ import atexit
 import json
 import logging
 import os
-import pendulum
 import sys
+import warnings
 from typing import Any
 
+import pendulum
 from sqlalchemy import create_engine, exc
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
@@ -378,6 +379,36 @@ def prepare_syspath():
 
     if PLUGINS_FOLDER not in sys.path:
         sys.path.append(PLUGINS_FOLDER)
+
+
+def get_session_lifetime_config():
+    """Gets session timeout configs and handles outdated configs gracefully."""
+    session_lifetime_minutes = conf.get('webserver', 'session_lifetime_minutes', fallback=None)
+    session_lifetime_days = conf.get('webserver', 'session_lifetime_days', fallback=None)
+    uses_deprecated_lifetime_configs = session_lifetime_days or conf.get(
+        'webserver', 'force_logout_after', fallback=None
+    )
+
+    minutes_per_day = 24 * 60
+    default_lifetime_minutes = '43200'
+    if uses_deprecated_lifetime_configs and session_lifetime_minutes == default_lifetime_minutes:
+        warnings.warn(
+            '`session_lifetime_days` option from `[webserver]` section has been '
+            'renamed to `session_lifetime_minutes`. The new option allows to configure '
+            'session lifetime in minutes. The `force_logout_after` option has been removed '
+            'from `[webserver]` section. Please update your configuration.',
+            category=DeprecationWarning,
+        )
+        if session_lifetime_days:
+            session_lifetime_minutes = minutes_per_day * int(session_lifetime_days)
+
+    if not session_lifetime_minutes:
+        session_lifetime_days = 30
+        session_lifetime_minutes = minutes_per_day * session_lifetime_days
+
+    logging.info('User session lifetime is set to %s minutes.', session_lifetime_minutes)
+
+    return int(session_lifetime_minutes)
 
 
 def import_local_settings():
