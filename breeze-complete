@@ -109,6 +109,7 @@ no-relative-imports
 pre-commit-descriptions
 provide-create-sessions
 providers-init-file
+provider-yamls
 pydevd
 pydocstyle
 pylint

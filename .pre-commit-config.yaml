@@ -451,6 +451,13 @@ repos:
         always_run: true
         entry: ./scripts/ci/pre_commit/pre_commit_check_providers_init.sh
         language: system
+      - id: provider-yamls
+        name: Validate providers.yaml files
+        pass_filenames: false
+        entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
+        language: python
+        require_serial: true
+        additional_dependencies: ['PyYAML==5.3.1', 'jsonschema==3.2.0', 'tabulate==0.8.7']
       - id: mermaid
         name: Generate mermaid images
         entry: ./scripts/ci/pre_commit/pre_commit_mermaid.sh
