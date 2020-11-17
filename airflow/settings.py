@@ -389,7 +389,7 @@ def get_session_lifetime_config():
         session_lifetime_days = 30
         session_lifetime_minutes = minutes_per_day * session_lifetime_days
 
-    logging.info('User session lifetime is set to %s minutes.', session_lifetime_minutes)
+    logging.debug('User session lifetime is set to %s minutes.', session_lifetime_minutes)
 
     return int(session_lifetime_minutes)
 
