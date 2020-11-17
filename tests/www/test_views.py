@@ -3267,7 +3267,7 @@ class TestDecorators(TestBase):
             only_failed="false",
         )
         resp = self.client.post("clear", data=form)
-        self.check_content_in_response(['example_bash_operator', 'Wait a minute'], resp)
+        self.check_content_in_response(['example_bash_operator', 'Wait a minute'], resp, 302)
         # In mysql backend, this commit() is needed to write down the logs
         self.session.commit()
         self.check_last_log(
