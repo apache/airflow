@@ -153,6 +153,13 @@ class RefactorBackportPackages:
             callback=is_not_k8spodop
         ).rename("airflow.kubernetes")
 
+        backcompat_target_folder = os.path.join(
+            get_target_providers_package_folder("cncf.kubernetes"), "backcompat"
+        )
+        # Remove backcompat classes that are imported from "airflow.kubernetes"
+        for file in ['pod.py', 'pod_runtime_info_env.py', 'volume.py', 'volume_mount.py']:
+            os.remove(os.path.join(backcompat_target_folder, file))
+
     def add_provide_context_to_python_operators(self) -> None:
         """
 
