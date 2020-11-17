@@ -177,27 +177,27 @@ following the ASF Policy.
 
 - **DAGs**: Overview of all DAGs in your environment.
 
-  ![](/docs/img/dags.png)
+  ![DAGs](/docs/img/dags.png)
 
 - **Tree View**: Tree representation of a DAG that spans across time.
 
-  ![](/docs/img/tree.png)
+  ![Tree View](/docs/img/tree.png)
 
 - **Graph View**: Visualization of a DAG's dependencies and their current status for a specific run.
 
-  ![](/docs/img/graph.png)
+  ![Graph View](/docs/img/graph.png)
 
 - **Task Duration**: Total time spent on different tasks over time.
 
-  ![](/docs/img/duration.png)
+  ![Task Duration](/docs/img/duration.png)
 
 - **Gantt View**: Duration and overlap of a DAG.
 
-  ![](/docs/img/gantt.png)
+  ![Gantt View](/docs/img/gantt.png)
 
 - **Code View**:  Quick way to view source code of a DAG.
 
-  ![](/docs/img/code.png)
+  ![Code View](/docs/img/code.png)
 
 
 ## Contributing
