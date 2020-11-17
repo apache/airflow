@@ -546,6 +546,9 @@ ARG_CONN_URI = Arg(
 ARG_CONN_TYPE = Arg(
     ('--conn-type',), help='Connection type, required to add a connection without conn_uri', type=str
 )
+ARG_CONN_DESCRIPTION = Arg(
+    ('--conn-description',), help='Connection description, optional when adding a connection', type=str
+)
 ARG_CONN_HOST = Arg(('--conn-host',), help='Connection host, optional when adding a connection', type=str)
 ARG_CONN_LOGIN = Arg(('--conn-login',), help='Connection login, optional when adding a connection', type=str)
 ARG_CONN_PASSWORD = Arg(
@@ -654,6 +657,7 @@ ARG_NAMESPACE = Arg(
 
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE,
+    ARG_CONN_DESCRIPTION,
     ARG_CONN_HOST,
     ARG_CONN_LOGIN,
     ARG_CONN_PASSWORD,

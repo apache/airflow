@@ -2852,10 +2852,19 @@ class ConnectionModelView(AirflowModelView):
         'extra__kubernetes__kube_config',
         'extra__kubernetes__namespace',
     ]
-    list_columns = ['conn_id', 'conn_type', 'host', 'port', 'is_encrypted', 'is_extra_encrypted']
+    list_columns = [
+        'conn_id',
+        'conn_type',
+        'description',
+        'host',
+        'port',
+        'is_encrypted',
+        'is_extra_encrypted',
+    ]
     add_columns = edit_columns = [
         'conn_id',
         'conn_type',
+        'description',
         'host',
         'schema',
         'login',

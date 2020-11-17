@@ -230,6 +230,7 @@ class TestConnectionModelView(TestBase):
         self.connection = {
             'conn_id': 'test_conn',
             'conn_type': 'http',
+            'description': 'description',
             'host': 'localhost',
             'port': 8080,
             'username': 'root',
