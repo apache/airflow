@@ -45,7 +45,7 @@ jobs:
   cancel-workflow-runs:
     timeout-minutes: 10
     name: "Cancel workflow runs"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     outputs:
       sourceHeadRepo: ${{ steps.source-run-info.outputs.sourceHeadRepo }}
       sourceHeadBranch: ${{ steps.source-run-info.outputs.sourceHeadBranch }}
@@ -193,7 +193,7 @@ jobs:
       Source Sha: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
       Merge commit Sha: ${{ needs.cancel-workflow-runs.outputs.mergeCommitSha }}
       Target commit Sha: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [cancel-workflow-runs]
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
@@ -248,7 +248,7 @@ jobs:
   build-images:
     timeout-minutes: 80
     name: "Build ${{matrix.image-type}} images ${{matrix.python-version}}"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [build-info, cancel-workflow-runs]
     strategy:
       matrix:
@@ -374,7 +374,7 @@ jobs:
 
   cancel-on-build-cancel:
     name: "Cancel 'CI Build' jobs on build image cancelling."
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     if: cancelled()
     needs: [build-images]
     steps:
@@ -389,7 +389,7 @@ jobs:
 
   cancel-on-build-failure:
     name: "Cancel 'CI Build' jobs on build image failing."
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     if: failure()
     needs: [build-images]
     steps:

@@ -23,7 +23,7 @@ on:  # yamllint disable-line rule:truthy
 
 jobs:
   delete-artifacts:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: kolpav/purge-artifacts-action@04c636a505f26ebc82f8d070b202fb87ff572b10  # v1.0
         with:
