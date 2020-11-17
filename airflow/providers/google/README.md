@@ -60,7 +60,6 @@ are in `airflow.providers.google` python package.
 You can install this package on top of an existing airflow 2.* installation via
 `pip install apache-airflow-providers-google`
 
-
 ## PIP requirements
 
 | PIP package                        | Version required   |
