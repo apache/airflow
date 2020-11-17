@@ -26,7 +26,6 @@ from airflow.providers.amazon.aws.sensors.s3_key import S3KeySensor
 
 
 class TestS3KeySensor(unittest.TestCase):
-
     @mock.patch('airflow.providers.amazon.aws.sensors.s3_key.S3Hook')
     def test_bucket_name_none_and_bucket_key_as_relative_path(self):
         """
