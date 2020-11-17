@@ -779,7 +779,8 @@ jobs:
           cache-name: cache-kubernetes-tests-v7-master
         with:
           path: ".build/.kubernetes_venv*"
-          key: "venv-${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}\
+          key: "venv-${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py')\
+-${{ hashFiles('setup.cfg') }}\
 -${{ needs.build-info.outputs.defaultPythonVersion }}"
       - name: "Cache bin folder with tools for kubernetes testing"
         uses: actions/cache@v2
@@ -788,6 +789,7 @@ jobs:
         with:
           path: ".build/bin"
           key: "bin-${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}\
+-${{ hashFiles('setup.cfg') }}\
 -${{ needs.build-info.outputs.defaultPythonVersion }}\
 -${{ needs.build-info.outputs.defaultKindVersion }}\
 -${{ needs.build-info.outputs.defaultHelmVersion }}\

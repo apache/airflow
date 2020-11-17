@@ -803,68 +803,6 @@ EXTRAS_REQUIREMENTS.update(
     }
 )
 
-#####################################################################################################
-# IMPORTANT NOTE!!!!!!!!!!!!!!!
-# IF you are removing dependencies from this list, please make sure that you also increase
-# DEPENDENCIES_EPOCH_NUMBER in the Dockerfile.ci
-#####################################################################################################
-INSTALL_REQUIREMENTS = [
-    'alembic>=1.2, <2.0',
-    'argcomplete~=1.10',
-    'attrs>=20.0, <21.0',
-    'cached_property~=1.5',
-    # cattrs >= 1.1.0 dropped support for Python 3.6
-    'cattrs>=1.0, <1.1.0;python_version<="3.6"',
-    'cattrs>=1.0, <2.0;python_version>"3.6"',
-    'colorlog==4.0.2',
-    'connexion[swagger-ui,flask]>=2.6.0,<3',
-    'croniter>=0.3.17, <0.4',
-    'cryptography>=0.9.3',
-    'dill>=0.2.2, <0.4',
-    'flask>=1.1.0, <2.0',
-    'flask-appbuilder~=3.1.1',
-    'flask-caching>=1.5.0, <2.0.0',
-    'flask-login>=0.3, <0.5',
-    'flask-swagger==0.2.13',
-    'flask-wtf>=0.14.3, <0.15',
-    'funcsigs>=1.0.0, <2.0.0',
-    'graphviz>=0.12',
-    'gunicorn>=19.5.0, <20.0',
-    'iso8601>=0.1.12',
-    'importlib_resources; python_version<"3.7"',
-    'jinja2>=2.10.1, <2.12.0',
-    'json-merge-patch==0.2',
-    'jsonschema~=3.0',
-    'lazy_object_proxy~=1.3',
-    'lockfile>=0.12.2',
-    'markdown>=2.5.2, <4.0',
-    'markupsafe>=1.1.1, <2.0',
-    'marshmallow-oneofschema>=2.0.1',
-    'pandas>=0.17.1, <2.0',
-    'pendulum~=2.0',
-    'pep562~=1.0;python_version<"3.7"',
-    'psutil>=4.2.0, <6.0.0',
-    'pygments>=2.0.1, <3.0',
-    'python-daemon>=2.1.1',
-    'python-dateutil>=2.3, <3',
-    'python-nvd3~=0.15.0',
-    'python-slugify>=3.0.0,<5.0',
-    'requests>=2.20.0, <3',
-    'rich==9.2.0',
-    'setproctitle>=1.1.8, <2',
-    'sqlalchemy>=1.3.18, <2',
-    'sqlalchemy_jsonfield~=0.9',
-    'tabulate>=0.7.5, <0.9',
-    'tenacity~=6.2.0',
-    'termcolor>=1.1.0',
-    'thrift>=0.9.2',
-    'typing;python_version<"3.6"',
-    'typing-extensions>=3.7.4;python_version<"3.8"',
-    'tzlocal>=1.4,<2.0.0',
-    'unicodecsv>=0.14.1',
-    'werkzeug~=1.0, >=1.0.1',
-]
-
 
 def get_provider_package_from_package_id(package_id: str):
     """
@@ -896,7 +834,6 @@ def do_setup():
         # Most values come from setup.cfg -- see
         # https://setuptools.readthedocs.io/en/latest/userguide/declarative_config.html
         version=version,
-        install_requires=INSTALL_REQUIREMENTS,
         extras_require=EXTRAS_REQUIREMENTS,
         download_url=('https://archive.apache.org/dist/airflow/' + version),
         cmdclass={
