@@ -98,7 +98,7 @@ function resetdb_if_requested() {
             airflow db reset -y
         fi
         echo
-        echo "Databsae has been reset"
+        echo "Database has been reset"
         echo
     fi
     return $?
