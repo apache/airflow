@@ -154,7 +154,7 @@ class RefactorBackportPackages:
         ).rename("airflow.kubernetes")
 
         self.qry.select_module("airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env").rename(
-            "airflow.kubernetes.pod_runtime_info"
+            "airflow.kubernetes.pod_runtime_info_env"
         )
 
         backcompat_target_folder = os.path.join(
