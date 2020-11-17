@@ -2493,38 +2493,33 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             )
         )
 
-        # determine bars to show in the gantt chart
-        gantt_bar_items = []
-
         tasks = []
         for ti in tis:
-            end_date = ti.end_date or timezone.utcnow()
             # prev_attempted_tries will reflect the currently running try_number
             # or the try_number of the last complete run
             # https://issues.apache.org/jira/browse/AIRFLOW-2143
-            try_count = ti.prev_attempted_tries
-            gantt_bar_items.append((ti.task_id, ti.start_date, end_date, ti.state, try_count))
+            try_count = ti.prev_attempted_tries if ti.prev_attempted_tries != 0 else ti.try_number
             task_dict = alchemy_to_dict(ti)
+            task_dict['end_date'] = task_dict['end_date'] or timezone.utcnow()
             task_dict['extraLinks'] = dag.get_task(ti.task_id).extra_links
+            task_dict['try_number'] = try_count
             tasks.append(task_dict)
 
         tf_count = 0
         try_count = 1
         prev_task_id = ""
         for failed_task_instance in ti_fails:
-            end_date = failed_task_instance.end_date or timezone.utcnow()
-            start_date = failed_task_instance.start_date or end_date
             if tf_count != 0 and failed_task_instance.task_id == prev_task_id:
                 try_count += 1
             else:
                 try_count = 1
             prev_task_id = failed_task_instance.task_id
-            gantt_bar_items.append(
-                (failed_task_instance.task_id, start_date, end_date, State.FAILED, try_count)
-            )
             tf_count += 1
             task = dag.get_task(failed_task_instance.task_id)
             task_dict = alchemy_to_dict(failed_task_instance)
+            end_date = task_dict['end_date'] or timezone.utcnow()
+            task_dict['end_date'] = end_date
+            task_dict['start_date'] = task_dict['start_date'] or end_date
             task_dict['state'] = State.FAILED
             task_dict['operator'] = task.task_type
             task_dict['try_number'] = try_count
