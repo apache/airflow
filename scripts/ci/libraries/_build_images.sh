@@ -225,9 +225,9 @@ function build_images::get_local_build_cache_hash() {
     # Remove the container just in case
     docker rm --force "local-airflow-ci-container" 2>/dev/null >/dev/null
     if ! docker create --name "local-airflow-ci-container" "${AIRFLOW_CI_IMAGE}" 2>/dev/null; then
-        >&2 echo
-        >&2 echo "Local airflow CI image not available"
-        >&2 echo
+        verbosity::print_info
+        verbosity::print_info "Local airflow CI image not available"
+        verbosity::print_info
         LOCAL_MANIFEST_IMAGE_UNAVAILABLE="true"
         export LOCAL_MANIFEST_IMAGE_UNAVAILABLE
         touch "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}"
@@ -237,9 +237,9 @@ function build_images::get_local_build_cache_hash() {
         "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}" 2> /dev/null \
         || touch "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}"
     set -e
-    echo
-    echo "Local build cache hash: '$(cat "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}")'"
-    echo
+    verbosity::print_info
+    verbosity::print_info "Local build cache hash: '$(cat "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}")'"
+    verbosity::print_info
 }
 
 # Retrieves information about the build cache hash random file from the remote image.
@@ -257,9 +257,9 @@ function build_images::get_remote_image_build_cache_hash() {
     set +e
     # Pull remote manifest image
     if ! docker pull "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}" 2>/dev/null >/dev/null; then
-        >&2 echo
-        >&2 echo "Remote docker registry unreachable"
-        >&2 echo
+        verbosity::print_info
+        verbosity::print_info "Remote docker registry unreachable"
+        verbosity::print_info
         REMOTE_DOCKER_REGISTRY_UNREACHABLE="true"
         export REMOTE_DOCKER_REGISTRY_UNREACHABLE
         touch "${REMOTE_IMAGE_BUILD_CACHE_HASH_FILE}"
@@ -274,9 +274,9 @@ function build_images::get_remote_image_build_cache_hash() {
         "${REMOTE_IMAGE_BUILD_CACHE_HASH_FILE}"
     docker rm --force "$(cat "${REMOTE_IMAGE_CONTAINER_ID_FILE}")"
     rm -f "${REMOTE_IMAGE_CONTAINER_ID_FILE}"
-    echo
-    echo "Remote build cache hash: '$(cat "${REMOTE_IMAGE_BUILD_CACHE_HASH_FILE}")'"
-    echo
+    verbosity::print_info
+    verbosity::print_info "Remote build cache hash: '$(cat "${REMOTE_IMAGE_BUILD_CACHE_HASH_FILE}")'"
+    verbosity::print_info
 }
 
 # Compares layers from both remote and local image and set FORCE_PULL_IMAGES to true in case
