@@ -54,7 +54,7 @@ Committers
 - @jlowin (Jeremiah Lowin)
 - @jmcarp (Joshua Carp)
 - @joygao (Joy Gao)
-- @kaxilnaik (Kaxil Naik)
+- @kaxil (Kaxil Naik)
 - @KevinYang21 (Kevin Yang)
 - @leahecole (Leah Cole)
 - @mik-laj (Kamil Breguła)
