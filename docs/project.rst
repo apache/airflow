@@ -40,7 +40,7 @@ Committers
 - @alexvanboxel (Alex Van Boxel)
 - @aoen (Dan Davydov)
 - @artwr (Arthur Wiedmer)
-- @ash (Ash Berlin-Taylor)
+- @ashb (Ash Berlin-Taylor)
 - @basph (Bas Harenslak)
 - @bolkedebruin (Bolke de Bruin)
 - @criccomini (Chris Riccomini)
