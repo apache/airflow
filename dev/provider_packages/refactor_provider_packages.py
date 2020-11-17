@@ -153,7 +153,7 @@ class RefactorBackportPackages:
             callback=is_not_k8spodop
         ).rename("airflow.kubernetes")
 
-        self.qry.select_module("airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info").rename(
+        self.qry.select_module("airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env").rename(
             "airflow.kubernetes.pod_runtime_info"
         )
 
