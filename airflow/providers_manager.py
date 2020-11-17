@@ -21,7 +21,6 @@ import json
 import logging
 import pkgutil
 import traceback
-from typing import Dict
 
 import jsonschema
 import yaml
@@ -36,8 +35,12 @@ except ImportError:
 log = logging.getLogger(__name__)
 
 
-def _load_schema() -> Dict:
-    return json.loads(importlib_resources.read_text('airflow', 'provider.yaml.schema.json'))
+def _create_validator():
+    schema = json.loads(importlib_resources.read_text('airflow', 'provider.yaml.schema.json'))
+    cls = jsonschema.validators.validator_for(schema)
+    cls.check_schema(schema)
+    validator = cls(schema)
+    return validator
 
 
 class ProvidersManager:
@@ -50,7 +53,7 @@ class ProvidersManager:
         except ImportError as e:
             log.warning("No providers are present or error when importing them! :%s", e)
             return
-        self._schema = _load_schema()
+        self._validator = _create_validator()
         self.__find_all_providers(providers.__path__)
 
     def __find_all_providers(self, paths: str):
@@ -67,7 +70,7 @@ class ProvidersManager:
             try:
                 provider = importlib_resources.read_text(imported_module, 'provider.yaml')
                 provider_info = yaml.safe_load(provider)
-                jsonschema.validate(provider_info, schema=self._schema)
+                self._validator.validate(provider_info)
                 self._provider_directory[provider_info['package-name']] = provider_info
             except FileNotFoundError:
                 # This is OK - this is not a provider package
