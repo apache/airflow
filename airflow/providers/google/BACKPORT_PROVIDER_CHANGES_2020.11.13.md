@@ -27,4 +27,4 @@
 | [240c7d4d7](https://github.com/apache/airflow/commit/240c7d4d72aac8f6aab98f5913e8f54c4f1372ff) | 2020-10-26  | Google Memcached hooks - improve protobuf messages handling (#11743)                                        |
 | [8afdb6ac6](https://github.com/apache/airflow/commit/8afdb6ac6a7997cb14806bc2734c81c00ed8da97) | 2020-10-26  | Fix spellings (#11825)                                                                                      |
 | [872b1566a](https://github.com/apache/airflow/commit/872b1566a11cb73297e657ff325161721b296574) | 2020-10-25  | Generated backport providers readmes/setup for 2020.10.29 (#11826)                                          |
-| [b680bbc0b](https://github.com/apache/airflow/commit/b680bbc0b05ad71d403a5d58bc7023a2453b9a48) | 2020-10-24  | Generated backport providers readmes/setup for 2020.10.29                                                   |
+| [b680bbc0b](https://github.com/apache/airflow/commit/872b1566a11cb73297e657ff325161721b296574) | 2020-10-24  | Generated backport providers readmes/setup for 2020.10.29                                                   |

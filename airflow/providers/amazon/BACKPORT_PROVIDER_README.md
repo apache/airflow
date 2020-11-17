@@ -268,7 +268,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 | Commit                                                                                         | Committed   | Subject                                                                                  |
 |:-----------------------------------------------------------------------------------------------|:------------|:-----------------------------------------------------------------------------------------|
-| [b680bbc0b](https://github.com/apache/airflow/commit/b680bbc0b05ad71d403a5d58bc7023a2453b9a48) | 2020-10-24  | Generated backport providers readmes/setup for 2020.10.29                                |
+| [b680bbc0b](https://github.com/apache/airflow/commit/872b1566a11cb73297e657ff325161721b296574) | 2020-10-24  | Generated backport providers readmes/setup for 2020.10.29                                |
 | [6ce855af1](https://github.com/apache/airflow/commit/6ce855af118daeaa4c249669079ab9d9aad23945) | 2020-10-24  | Fix spelling (#11821)                                                                    |
 | [3934ef224](https://github.com/apache/airflow/commit/3934ef22494db6d9613c229aaa82ea6a366b7c2f) | 2020-10-24  | Remove redundant builtins imports (#11809)                                               |
 | [4c8e033c0](https://github.com/apache/airflow/commit/4c8e033c0ee7d28963d504a9216205155f20f58f) | 2020-10-24  | Fix spelling and grammar (#11814)                                                        |
