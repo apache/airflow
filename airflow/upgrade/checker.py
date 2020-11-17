@@ -65,5 +65,5 @@ def run(args):
 def __main__():
     parser = argparse.ArgumentParser()
     register_arguments(parser)
-    args.parser.parse_args()
+    args = parser.parse_args()
     args.func(args)
