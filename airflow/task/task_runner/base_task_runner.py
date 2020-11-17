@@ -18,7 +18,6 @@
 """Base task runner"""
 import getpass
 import os
-import pickle
 import subprocess
 import threading
 from tempfile import NamedTemporaryFile
@@ -26,6 +25,7 @@ from typing import Optional, Union
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
+from airflow.models.taskinstance import load_error_file
 from airflow.utils.configuration import tmp_configuration_copy
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -102,13 +102,7 @@ class BaseTaskRunner(LoggingMixin):
 
     def deserialize_run_error(self) -> Optional[Union[str, Exception]]:
         """Return task runtime error if its written to provided error file."""
-        data = self._error_file.read()
-        if not data:
-            return None
-        try:
-            return pickle.loads(data)
-        except Exception:  # pylint: disable=broad-except
-            return "Failed to load task run error"
+        return load_error_file(self._error_file)
 
     def _read_task_logs(self, stream):
         while True:

@@ -26,7 +26,7 @@ import signal
 import warnings
 from datetime import datetime, timedelta
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
+from typing import IO, Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 from urllib.parse import quote
 
 import dill
@@ -105,6 +105,29 @@ def set_current_context(context: Context):
                 context,
                 expected_state,
             )
+
+
+def load_error_file(fd: IO[bytes]) -> Optional[Union[str, Exception]]:
+    """Load and return error from error file"""
+    fd.seek(0, 0)
+    data = fd.read()
+    if not data:
+        return None
+    try:
+        return pickle.loads(data)
+    except Exception:  # pylint: disable=broad-except
+        return "Failed to load task run error"
+
+
+def set_error_file(error_file: str, error: Union[str, Exception]) -> None:
+    """Write error into error file by path"""
+    with open(error_file, "wb") as fd:
+        try:
+            pickle.dump(error, fd)
+        except Exception:  # pylint: disable=broad-except
+            # local class objects cannot be pickled, so we fallback
+            # to store the string representation instead
+            pickle.dump(str(error), fd)
 
 
 def clear_task_instances(
@@ -1359,22 +1382,18 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             return
 
         try:
-            error_file = NamedTemporaryFile(delete=True)
+            error_fd = NamedTemporaryFile(delete=True)
             self._run_raw_task(
                 mark_success=mark_success,
                 test_mode=test_mode,
                 job_id=job_id,
                 pool=pool,
-                error_file=error_file.name,
+                error_file=error_fd.name,
                 session=session,
             )
         finally:
-            error = None
-            if self.state != State.SUCCESS:
-                data = error_file.read()
-                if data:
-                    error = pickle.loads(data)
-            error_file.close()
+            error = None if self.state == State.SUCCESS else load_error_file(error_fd)
+            error_fd.close()
             self._run_finished_callback(error=error)
 
     def dry_run(self):
@@ -1433,11 +1452,10 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
 
         if error:
             self.log.exception(error)
-            # external monitoring process provides pickel file so _run_raw_task
+            # external monitoring process provides pickle file so _run_raw_task
             # can send its runtime errors for access by failure callback
-            if self.on_failure_callback is not None and error_file:
-                with open(error_file, "wb") as fd:
-                    pickle.dump(error, fd)
+            if error_file:
+                set_error_file(error_file, error)
 
         task = self.task
         self.end_date = timezone.utcnow()
@@ -1503,7 +1521,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         session=None,
     ) -> None:
         self.handle_failure(error=error, test_mode=test_mode, force_fail=force_fail, session=session)
-        self._run_finished_callback()
+        self._run_finished_callback(error=error)
 
     def is_eligible_to_retry(self):
         """Is task instance is eligible for retry"""

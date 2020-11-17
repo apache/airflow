@@ -98,6 +98,9 @@ class LocalTaskJob(BaseJob):
 
             heartbeat_time_limit = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
+            # task callback invocation happens either here or in
+            # self.heartbeat() instead of taskinstance._run_raw_task to
+            # avoid race conditions
             while not self.terminating:
                 # Monitor the task to see if it's done. Wait in a syscall
                 # (`os.wait`) for as long as possible so we notice the
@@ -115,17 +118,7 @@ class LocalTaskJob(BaseJob):
 
                 return_code = self.task_runner.return_code(timeout=max_wait_time)
                 if return_code is not None:
-                    self.log.info("Task exited with return code %s", return_code)
-                    # task callback invocation happens either here or in
-                    # self.heartbeat() instead of taskinstance._run_raw_task to
-                    # avoid race conditions
-                    self.task_instance.refresh_from_db()
-                    # task exited by itself, so we need to check for error file
-                    # incase it failed due to runtime exception/error
-                    error = None
-                    if self.task_instance.state != State.SUCCESS:
-                        error = self.task_runner.deserialize_run_error()
-                    self.task_instance._run_finished_callback(error=error)  # pylint: disable=protected-access
+                    self.handle_task_exit(return_code)
                     return
 
                 self.heartbeat()
@@ -143,6 +136,17 @@ class LocalTaskJob(BaseJob):
                     )
         finally:
             self.on_kill()
+
+    def handle_task_exit(self, return_code: int) -> None:
+        """Handle case where self.task_runner exits by itself"""
+        self.log.info("Task exited with return code %s", return_code)
+        self.task_instance.refresh_from_db()
+        # task exited by itself, so we need to check for error file
+        # incase it failed due to runtime exception/error
+        error = None
+        if self.task_instance.state != State.SUCCESS:
+            error = self.task_runner.deserialize_run_error()
+        self.task_instance._run_finished_callback(error=error)  # pylint: disable=protected-access
 
     def on_kill(self):
         self.task_runner.terminate()
@@ -180,6 +184,12 @@ class LocalTaskJob(BaseJob):
                 "State of this instance has been externally set to %s. " "Terminating instance.", ti.state
             )
             self.task_runner.terminate()
-            error = None if ti.state == State.SUCCESS else "task marked as failed externally"
+            if ti.state == State.SUCCESS:
+                error = None
+            else:
+                # if ti.state is not set by taskinstance.handle_failure, then
+                # error file will not be populated and it must be updated by
+                # external source suck as web UI
+                error = self.task_runner.deserialize_run_error() or "task marked as failed externally"
             ti._run_finished_callback(error=error)  # pylint: disable=protected-access
             self.terminating = True

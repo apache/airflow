@@ -318,6 +318,7 @@ class TestLocalTaskJob(unittest.TestCase):
             with failure_callback_called.get_lock():
                 failure_callback_called.value += 1
             assert context['dag_run'].dag_id == 'test_mark_failure'
+            assert context['exception'] == "task marked as failed externally"
 
         def task_function(ti):
             with create_session() as session:
@@ -378,6 +379,7 @@ class TestLocalTaskJob(unittest.TestCase):
             with callback_count_lock:
                 failure_callback_called.value += 1
             assert context['dag_run'].dag_id == 'test_failure_callback_race'
+            assert isinstance(context['exception'], AirflowFailException)
 
         def task_function(ti):
             raise AirflowFailException()
