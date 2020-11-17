@@ -26,6 +26,8 @@ from airflow.providers.amazon.aws.sensors.s3_key import S3KeySensor
 
 
 class TestS3KeySensor(unittest.TestCase):
+
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3_key.S3Hook')
     def test_bucket_name_none_and_bucket_key_as_relative_path(self):
         """
         Test if exception is raised when bucket_name is None
@@ -36,6 +38,7 @@ class TestS3KeySensor(unittest.TestCase):
         with self.assertRaises(AirflowException):
             op.poke(None)
 
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3_key.S3Hook')
     def test_bucket_name_provided_and_bucket_key_is_s3_url(self):
         """
         Test if exception is raised when bucket_name is provided
@@ -54,6 +57,7 @@ class TestS3KeySensor(unittest.TestCase):
             ['key', 'bucket', 'key', 'bucket'],
         ]
     )
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3_key.S3Hook')
     def test_parse_bucket_key(self, key, bucket, parsed_key, parsed_bucket):
         op = S3KeySensor(
             task_id='s3_key_sensor',
