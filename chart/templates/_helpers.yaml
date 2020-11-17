@@ -85,12 +85,25 @@
         name: {{ $config.secretName }}
         key: {{ default "value" $config.secretKey }}
   {{- end }}
-    {{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
+  {{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
     {{- range $i, $config := .Values.secret }}
   - name: AIRFLOW__KUBERNETES_SECRETS__{{ $config.envName }}
     value: {{ printf "%s=%s" $config.secretName $config.secretKey }}
     {{- end }}
   {{ end }}
+  # Extra env
+  {{- $Global := . }}
+  {{- with .Values.extraEnv }}
+  {{- tpl . $Global | nindent 2 }}
+  {{- end }}
+{{- end }}
+
+{{/* User defined Airflow environment from */}}
+{{- define "custom_airflow_environment_from" }}
+  {{- $Global := . }}
+  {{- with .Values.extraEnvFrom }}
+  {{- tpl . $Global | nindent 2 }}
+  {{- end }}
 {{- end }}
 
 {{/*  Git ssh key volume */}}
