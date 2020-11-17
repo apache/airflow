@@ -26,7 +26,7 @@ from os.path import dirname
 from textwrap import wrap
 from typing import Dict, Iterable, List
 
-from setuptools import Command, find_namespace_packages, find_packages, setup
+from setuptools import Command, find_namespace_packages, setup
 
 logger = logging.getLogger(__name__)
 
@@ -36,12 +36,6 @@ version = '2.0.0b2'
 PY3 = sys.version_info[0] == 3
 
 my_dir = dirname(__file__)
-
-try:
-    with open(os.path.join(my_dir, 'README.md'), encoding='utf-8') as f:
-        long_description = f.read()
-except FileNotFoundError:
-    long_description = ''
 
 
 def airflow_test_suite():
@@ -885,73 +879,25 @@ def get_provider_package_from_package_id(package_id: str):
 
 def do_setup():
     """Perform the Airflow package setup."""
-    install_providers_from_sources = os.getenv('INSTALL_PROVIDERS_FROM_SOURCES')
-    exclude_patterns = (
-        []
-        if install_providers_from_sources and install_providers_from_sources == 'true'
-        else ['airflow.providers', 'airflow.providers.*']
-    )
-    write_version()
-    if not install_providers_from_sources:
+    setup_kwargs = {}
+
+    if os.getenv('INSTALL_PROVIDERS_FROM_SOURCES') == 'true':
+        # Only specify this if we need this option, otherwise let default from
+        # setup.cfg control this (kwargs in setup() call take priority)
+        setup_kwargs['packages'] = find_namespace_packages(include=['airflow*'])
+    else:
         for key, value in EXTRAS_PROVIDERS_PACKAGES.items():
             EXTRAS_REQUIREMENTS[key].extend(
                 [get_provider_package_from_package_id(package_name) for package_name in value]
             )
-    packages_to_install = (
-        find_namespace_packages(include=['airflow*'], exclude=exclude_patterns)
-        if install_providers_from_sources
-        else find_packages(include=['airflow*'], exclude=exclude_patterns)
-    )
+
+    write_version()
     setup(
-        name='apache-airflow',
-        description='Programmatically author, schedule and monitor data pipelines',
-        long_description=long_description,
-        long_description_content_type='text/markdown',
-        license='Apache License 2.0',
+        # Most values come from setup.cfg -- see
+        # https://setuptools.readthedocs.io/en/latest/userguide/declarative_config.html
         version=version,
-        packages=packages_to_install,
-        package_data={
-            'airflow': ['py.typed'],
-            '': [
-                'airflow/alembic.ini',
-                "airflow/git_version",
-                "*.ipynb",
-                "airflow/providers/cncf/kubernetes/example_dags/*.yaml",
-            ],
-            'airflow.api_connexion.openapi': ['*.yaml'],
-            'airflow.serialization': ["*.json"],
-        },
-        include_package_data=True,
-        zip_safe=False,
-        entry_points={
-            "console_scripts": [
-                "airflow = airflow.__main__:main",
-            ],
-        },
         install_requires=INSTALL_REQUIREMENTS,
-        setup_requires=[
-            'bowler',
-            'docutils',
-            'gitpython',
-            'setuptools',
-            'wheel',
-        ],
         extras_require=EXTRAS_REQUIREMENTS,
-        classifiers=[
-            'Development Status :: 5 - Production/Stable',
-            'Environment :: Console',
-            'Environment :: Web Environment',
-            'Intended Audience :: Developers',
-            'Intended Audience :: System Administrators',
-            'License :: OSI Approved :: Apache Software License',
-            'Programming Language :: Python :: 3.6',
-            'Programming Language :: Python :: 3.7',
-            'Programming Language :: Python :: 3.8',
-            'Topic :: System :: Monitoring',
-        ],
-        author='Apache Software Foundation',
-        author_email='dev@airflow.apache.org',
-        url='http://airflow.apache.org/',
         download_url=('https://archive.apache.org/dist/airflow/' + version),
         cmdclass={
             'extra_clean': CleanCommand,
@@ -959,12 +905,7 @@ def do_setup():
             'list_extras': ListExtras,
         },
         test_suite='setup.airflow_test_suite',
-        python_requires='~=3.6',
-        project_urls={
-            'Documentation': 'https://airflow.apache.org/docs/',
-            'Bug Tracker': 'https://github.com/apache/airflow/issues',
-            'Source Code': 'https://github.com/apache/airflow',
-        },
+        **setup_kwargs,
     )
 
 
