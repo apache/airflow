@@ -42,12 +42,12 @@ class TestDataflowJobStatusSensor(unittest.TestCase):
         ],
     )
     @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowHook")
-    def test_poke(self, exptected_status, current_status, sensor_return, mock_hook):
+    def test_poke(self, expected_status, current_status, sensor_return, mock_hook):
         mock_get_job = mock_hook.return_value.get_job
         task = DataflowJobStatusSensor(
             task_id=TEST_TASK_ID,
             job_id=TEST_JOB_ID,
-            expected_statuses=exptected_status,
+            expected_statuses=expected_status,
             location=TEST_LOCATION,
             project_id=TEST_PROJECT_ID,
             gcp_conn_id=TEST_GCP_CONN_ID,

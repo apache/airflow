@@ -123,7 +123,7 @@ class TestGCSHook(unittest.TestCase):
     @mock.patch(GCS_STRING.format('GoogleBaseHook.get_connection'))
     @mock.patch('google.cloud.storage.Client')
     def test_storage_client_creation(
-        self, mock_client, mock_get_connetion, mock_get_creds_and_project_id, mock_client_info
+        self, mock_client, mock_get_connection, mock_get_creds_and_project_id, mock_client_info
     ):
         hook = gcs.GCSHook()
         result = hook.get_conn()
