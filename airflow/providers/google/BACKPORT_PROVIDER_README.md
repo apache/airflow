@@ -59,9 +59,6 @@ are in `airflow.providers.google` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
-Beginning with [Release 2020.11.13](#release-20201113), you will need to be running Airflow 1.10.12 or newer for this package to be compatiable with your environment. Previous releases are compatible with versions of Airflow 1.10.* prior to 1.10.12.
-
-
 
 ## Installation
 

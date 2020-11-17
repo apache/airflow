@@ -1,0 +1,1 @@
+Beginning with [Release 2020.11.13](#release-20201113), you will need to be running Airflow 1.10.12 or newer for this package to be compatiable with your environment. Previous releases are compatible with versions of Airflow 1.10.* prior to 1.10.12.
