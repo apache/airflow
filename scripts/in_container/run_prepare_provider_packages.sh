@@ -161,9 +161,21 @@ fi
 
 popd
 
-AIRFLOW_PACKAGES_TGZ_FILE="/files/airflow-packages-$(date +"%Y%m%d-%H%M%S")-${TARGET_VERSION_SUFFIX}.tar.gz"
 
-tar -cvzf "${AIRFLOW_PACKAGES_TGZ_FILE}" dist/*.whl dist/*.tar.gz
-echo
-echo "Airflow packages are in dist folder and tar-gzipped in ${AIRFLOW_PACKAGES_TGZ_FILE}"
-echo
+if [[ ${GITHUB_ACTIONS} == "true" ]]; then
+  # Don't create a tgz for Github actions -- it zips up artifacts anyway!
+
+  mkdir -p "/files/airflow-packages-${PACKAGE_TYPE}/"
+  cp dist/*.whl dist/*.tar.gz "/files/airflow-packages-${PACKAGE_TYPE}/"
+  echo
+  echo "Airflow packages are in dist folder and /files/"
+  echo
+else
+
+  AIRFLOW_PACKAGES_TGZ_FILE="/files/airflow-packages-$(date +"%Y%m%d-%H%M%S")-${TARGET_VERSION_SUFFIX}.tar.gz"
+
+  tar -cvzf "${AIRFLOW_PACKAGES_TGZ_FILE}" dist/*.whl dist/*.tar.gz
+  echo
+  echo "Airflow packages are in dist folder and tar-gzipped in ${AIRFLOW_PACKAGES_TGZ_FILE}"
+  echo
+fi

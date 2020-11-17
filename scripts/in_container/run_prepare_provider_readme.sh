@@ -39,18 +39,31 @@ PREPARE_PROVIDER_PACKAGES_PY="${AIRFLOW_SOURCES}/dev/provider_packages/prepare_p
 python3 "${PREPARE_PROVIDER_PACKAGES_PY}" --version-suffix "${TARGET_VERSION_SUFFIX}" \
     update-package-release-notes "$@"
 
-AIRFLOW_PROVIDER_README_TGZ_FILE="/files/airflow-readme-$(date +"%Y-%m-%d-%H.%M.%S").tar.gz"
-
 cd "${AIRFLOW_SOURCES}" || exit 1
 
-find airflow/providers \( \
-        -name "${PACKAGE_PREFIX_UPPERCASE}PROVIDERS_CHANGES*" \
-        -o -name "${PACKAGE_PREFIX_UPPERCASE}README.md" \
-        -o -name "${PACKAGE_PREFIX_UPPERCASE}setup.py" \
-        -o -name "${PACKAGE_PREFIX_UPPERCASE}setup.cfg" \
-        \) \
-        -print0 | \
-    tar --null --no-recursion -cvzf "${AIRFLOW_PROVIDER_README_TGZ_FILE}" -T -
-echo
-echo "Airflow readme for ${PACKAGE_TYPE} provider packages are tar-gzipped in ${AIRFLOW_PROVIDER_README_TGZ_FILE}"
-echo
+if [[ ${GITHUB_ACTIONS} == "true" ]]; then
+  # Don't create a tgz for Github actions -- it zips up artifacts anyway!
+  mkdir -p "/files/airflow-readmes-${PACKAGE_TYPE}"
+
+  shopt -s globstar
+  for f in airflow/providers/**/"${PACKAGE_PREFIX_UPPERCASE}{PROVIDERS_CHANGES*,README.md,setup.py,setup.cfg";
+  do
+    mkdir -p "/files/airflow-readmes-${PACKAGE_TYPE}/$(basename "$f")"
+    cp "$f" "/files/airflow-readmes-${PACKAGE_TYPE}/$f"
+  done
+else
+  AIRFLOW_PROVIDER_README_TGZ_FILE="/files/airflow-readme-$(date +"%Y-%m-%d-%H.%M.%S").tar.gz"
+
+
+  find airflow/providers \( \
+          -name "${PACKAGE_PREFIX_UPPERCASE}PROVIDERS_CHANGES*" \
+          -o -name "${PACKAGE_PREFIX_UPPERCASE}README.md" \
+          -o -name "${PACKAGE_PREFIX_UPPERCASE}setup.py" \
+          -o -name "${PACKAGE_PREFIX_UPPERCASE}setup.cfg" \
+          \) \
+          -print0 | \
+      tar --null --no-recursion -cvzf "${AIRFLOW_PROVIDER_README_TGZ_FILE}" -T -
+  echo
+  echo "Airflow readme for ${PACKAGE_TYPE} provider packages are tar-gzipped in ${AIRFLOW_PROVIDER_README_TGZ_FILE}"
+  echo
+fi
