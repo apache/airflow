@@ -14,6 +14,7 @@ Ansible
 AppBuilder
 Arg
 Args
+ashb
 Async
 Atlassian
 Auth
@@ -69,6 +70,7 @@ ComputeNodeState
 Computenodes
 Config
 Configs
+ContainerPort
 Cron
 Ctrl
 Daemonize
@@ -1115,6 +1117,7 @@ repo
 repos
 reqs
 resetdb
+ResourceRequirements
 resourceVersion
 resultset
 resumable
@@ -1343,6 +1346,7 @@ verticaql
 videointelligence
 virtualenv
 vm
+VolumeMount
 volumeMounts
 wasb
 webProperty
