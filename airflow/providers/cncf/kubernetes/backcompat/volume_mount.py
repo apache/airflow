@@ -55,7 +55,7 @@ class VolumeMount:
         """
         Converts to k8s object.
 
-        :return Volume Mount k8s object
+        :return: Volume Mount k8s object
         """
         return k8s.V1VolumeMount(
             name=self.name, mount_path=self.mount_path, sub_path=self.sub_path, read_only=self.read_only

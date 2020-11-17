@@ -36,9 +36,8 @@ class Volume:
 
         :param name: the name of the volume mount
         :type name: str
-        :param configs: dictionary of any features needed for volume.
-        We purposely keep this vague since there are multiple volume types with changing
-        configs.
+        :param configs: dictionary of any features needed for volume. We purposely keep this
+            vague since there are multiple volume types with changing configs.
         :type configs: dict
         """
         self.name = name
@@ -48,7 +47,7 @@ class Volume:
         """
         Converts to k8s object.
 
-        :return Volume Mount k8s object
+        :return: Volume Mount k8s object
         """
         resp = k8s.V1Volume(name=self.name)
         for k, v in self.configs.items():
