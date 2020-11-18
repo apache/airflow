@@ -31,9 +31,6 @@ MD012: false
 # MD013 Line length
 MD013: false
 
-# MD014/commands-show-output
-MD014: false
-
 # MD024/no-duplicate-heading/no-duplicate-header
 MD024: false
 
