@@ -16,6 +16,8 @@
 # under the License.
 
 from __future__ import absolute_import
+import argparse
+import sys
 from typing import List
 
 from airflow.upgrade.formatters import BaseFormatter
@@ -36,3 +38,32 @@ def check_upgrade(formatter):
         formatter.on_next_rule_status(rule_status)
     formatter.end_checking(all_rule_statuses)
     return all_rule_statuses
+
+
+def register_arguments(subparser):
+    subparser.add_argument(
+        "-s", "--save",
+        help="Saves the result to the indicated file. The file format is determined by the file extension."
+    )
+    subparser.set_defaults(func=run)
+
+
+def run(args):
+    from airflow.upgrade.formatters import (ConsoleFormatter, JSONFormatter)
+    if args.save:
+        filename = args.save
+        if not filename.lower().endswith(".json"):
+            exit("Only JSON files are supported")
+        formatter = JSONFormatter(args.save)
+    else:
+        formatter = ConsoleFormatter()
+    all_problems = check_upgrade(formatter)
+    if all_problems:
+        sys.exit(1)
+
+
+def __main__():
+    parser = argparse.ArgumentParser()
+    register_arguments(parser)
+    args = parser.parse_args()
+    args.func(args)
