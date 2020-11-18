@@ -1724,14 +1724,17 @@ components:
         start_date:
           type: string
           format: datetime
+          nullable: true
         end_date:
           type: string
           format: datetime
+          nullable: true
         duration:
           type: number
           nullable: true
         state:
           $ref: '#/components/schemas/TaskState'
+          nullable: true
         try_number:
           type: integer
         max_tries:
