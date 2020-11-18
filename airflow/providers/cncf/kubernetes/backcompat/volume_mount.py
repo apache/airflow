@@ -21,7 +21,7 @@ import warnings
 from kubernetes.client import models as k8s
 
 warnings.warn(
-    "This module is deprecated. Please use `kubernetes.client.models.V1Volume`.",
+    "This module is deprecated. Please use `kubernetes.client.models.V1VolumeMount`.",
     DeprecationWarning,
     stacklevel=2,
 )
