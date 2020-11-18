@@ -62,38 +62,37 @@ init_container = k8s.V1Container(
     args=["echo 10"],
 )
 
-affinity = {
-    'nodeAffinity': {
-        'preferredDuringSchedulingIgnoredDuringExecution': [
-            {
-                "weight": 1,
-                "preference": {"matchExpressions": {"key": "disktype", "operator": "In", "values": ["ssd"]}},
-            }
+affinity = k8s.V1Affinity(
+    node_affinity=k8s.V1NodeAffinity(
+        preferred_during_scheduling_ignored_during_execution=[
+            k8s.V1PreferredSchedulingTerm(
+                weight=1,
+                preference=k8s.V1NodeSelectorTerm(
+                    match_expressions=[
+                        k8s.V1NodeSelectorRequirement(key="disktype", operator="in", values=["ssd"])
+                    ]
+                ),
+            )
         ]
-    },
-    "podAffinity": {
-        "requiredDuringSchedulingIgnoredDuringExecution": [
-            {
-                "labelSelector": {
-                    "matchExpressions": [{"key": "security", "operator": "In", "values": ["S1"]}]
-                },
-                "topologyKey": "failure-domain.beta.kubernetes.io/zone",
-            }
+    ),
+    pod_affinity=k8s.V1PodAffinity(
+        required_during_scheduling_ignored_during_execution=[
+            k8s.V1WeightedPodAffinityTerm(
+                pod_affinity_term=k8s.V1PodAffinityTerm(
+                    label_selector=k8s.V1LabelSelector(
+                        match_expressions=[
+                            k8s.V1LabelSelectorRequirement(key="security", operator="In", values="S1")
+                        ]
+                    ),
+                    topology_key="failure-domain.beta.kubernetes.io/zone",
+                )
+            )
         ]
-    },
-    "podAntiAffinity": {
-        "requiredDuringSchedulingIgnoredDuringExecution": [
-            {
-                "labelSelector": {
-                    "matchExpressions": [{"key": "security", "operator": "In", "values": ["S2"]}]
-                },
-                "topologyKey": "kubernetes.io/hostname",
-            }
-        ]
-    },
-}
+    ),
+)
 
-tolerations = [{'key': "key", 'operator': 'Equal', 'value': 'value'}]
+tolerations = [k8s.V1Toleration(key="key", operator="Equal", value="value")]
+
 # [END howto_operator_k8s_cluster_resources]
 
 

@@ -16,6 +16,7 @@
 # under the License.
 """Executes task in a Kubernetes POD"""
 import re
+import warnings
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import yaml
@@ -27,12 +28,15 @@ from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
+    convert_affinity,
     convert_configmap,
     convert_env_vars,
     convert_image_pull_secrets,
+    convert_node_selector,
     convert_pod_runtime_info_env,
     convert_port,
     convert_resources,
+    convert_toleration,
     convert_volume,
     convert_volume_mount,
 )
@@ -107,7 +111,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         See also kubernetes.io/docs/concepts/configuration/manage-compute-resources-container
     :type resources: k8s.V1ResourceRequirements
     :param affinity: A dict containing a group of affinity scheduling rules.
-    :type affinity: dict
+    :type affinity: k8s.V1Affinity
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
     :type config_file: str
@@ -126,7 +130,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :param hostnetwork: If True enable host networking on the pod.
     :type hostnetwork: bool
     :param tolerations: A list of kubernetes tolerations.
-    :type tolerations: list tolerations
+    :type tolerations: List[k8s.V1Toleration]
     :param security_context: security options the pod should run with (PodSecurityContext).
     :type security_context: dict
     :param dnspolicy: dnspolicy for the pod.
@@ -188,14 +192,15 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         image_pull_policy: str = 'IfNotPresent',
         annotations: Optional[Dict] = None,
         resources: Optional[k8s.V1ResourceRequirements] = None,
-        affinity: Optional[Dict] = None,
+        affinity: Optional[k8s.V1Affinity] = None,
         config_file: Optional[str] = None,
-        node_selectors: Optional[Dict] = None,
+        node_selectors: Optional[k8s.V1NodeSelector] = None,
+        node_selector: Optional[k8s.V1NodeSelector] = None,
         image_pull_secrets: Optional[List[k8s.V1LocalObjectReference]] = None,
         service_account_name: str = 'default',
         is_delete_operator_pod: bool = False,
         hostnetwork: bool = False,
-        tolerations: Optional[List] = None,
+        tolerations: Optional[List[k8s.V1Toleration]] = None,
         security_context: Optional[Dict] = None,
         dnspolicy: Optional[str] = None,
         schedulername: Optional[str] = None,
@@ -236,16 +241,24 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.reattach_on_restart = reattach_on_restart
         self.get_logs = get_logs
         self.image_pull_policy = image_pull_policy
-        self.node_selectors = node_selectors or {}
+        if node_selectors:
+            # Node selectors is incorrect based on k8s API
+            warnings.warn("node_selectors is deprecated. Please use node_selector instead.")
+            self.node_selector = convert_node_selector(node_selectors)
+        elif node_selector:
+            self.node_selector = convert_node_selector(node_selector)
+        else:
+            self.node_selector = None
         self.annotations = annotations or {}
-        self.affinity = affinity or {}
+        self.affinity = convert_affinity(affinity) if affinity else k8s.V1Affinity()
         self.k8s_resources = convert_resources(resources) if resources else {}
         self.config_file = config_file
         self.image_pull_secrets = convert_image_pull_secrets(image_pull_secrets) if image_pull_secrets else []
         self.service_account_name = service_account_name
         self.is_delete_operator_pod = is_delete_operator_pod
         self.hostnetwork = hostnetwork
-        self.tolerations = tolerations or []
+        self.tolerations = [convert_toleration(toleration) for toleration in tolerations] \
+            if tolerations else []
         self.security_context = security_context or {}
         self.dnspolicy = dnspolicy
         self.schedulername = schedulername
@@ -409,7 +422,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 annotations=self.annotations,
             ),
             spec=k8s.V1PodSpec(
-                node_selector=self.node_selectors,
+                node_selector=self.node_selector,
                 affinity=self.affinity,
                 tolerations=self.tolerations,
                 init_containers=self.init_containers,

@@ -18,7 +18,7 @@
 
 from typing import List
 
-from kubernetes.client import models as k8s
+from kubernetes.client import ApiClient, models as k8s
 
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.backcompat.pod import Port, Resources
@@ -35,6 +35,16 @@ def _convert_kube_model_object(obj, old_class, new_class):
         return obj
     else:
         raise AirflowException(f"Expected {old_class} or {new_class}, got {type(obj)}")
+
+
+def _convert_from_dict(obj, new_class):
+    if isinstance(obj, new_class):
+        return obj
+    elif isinstance(obj, dict):
+        api_client = ApiClient()
+        return api_client._ApiClient__deserialize_model(obj, new_class)  # pylint: disable=W0212
+    else:
+        raise AirflowException(f"Expected dict or {new_class}, got {type(obj)}")
 
 
 def convert_volume(volume) -> k8s.V1Volume:
@@ -129,3 +139,33 @@ def convert_configmap(configmaps) -> k8s.V1EnvFromSource:
     :return:
     """
     return k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name=configmaps))
+
+
+def convert_affinity(affinity) -> k8s.V1Affinity:
+    """
+    Converts a dict into an k8s.V1Affinity
+
+    :param affinity:
+    :return:
+    """
+    return _convert_from_dict(affinity, k8s.V1Affinity)
+
+
+def convert_node_selector(node_selector) -> k8s.V1NodeSelector:
+    """
+    Converts a dict into an k8s.V1NodeSelector
+
+    :param node_selector:
+    :return:
+    """
+    return _convert_from_dict(node_selector, k8s.V1NodeSelector)
+
+
+def convert_toleration(toleration) -> k8s.V1Toleration:
+    """
+    Converts a dict into an k8s.V1Toleration
+
+    :param toleration:
+    :return:
+    """
+    return _convert_from_dict(toleration, k8s.V1Toleration)
