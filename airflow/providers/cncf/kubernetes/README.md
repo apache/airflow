@@ -119,6 +119,9 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 | Commit                                                                                         | Committed   | Subject                                                                        |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------|
+| [d84a52dc8](https://github.com/apache/airflow/commit/d84a52dc8fc597d89c5bb4941df67f5f35b70a29) | 2020-11-18  | Fix broken example_kubernetes DAG (#12455)                                     |
+| [7c8b71d20](https://github.com/apache/airflow/commit/7c8b71d2012d56888f21b24c4844a6838dc3e4b1) | 2020-11-18  | Fix backwards compatibility further (#12451)                                   |
+| [008035450](https://github.com/apache/airflow/commit/00803545023b096b8db4fbd6eb473843096d7ce4) | 2020-11-18  | Update provider READMEs for 1.0.0b2 batch release (#12449)                     |
 | [7ca0b6f12](https://github.com/apache/airflow/commit/7ca0b6f121c9cec6e25de130f86a56d7c7fbe38c) | 2020-11-18  | Enable Markdownlint rule MD003/heading-style/header-style (#12427) (#12438)    |
 | [763b40d22](https://github.com/apache/airflow/commit/763b40d223e5e5512494a97f8335e16960e6adc3) | 2020-11-18  | Raise correct Warning in kubernetes/backcompat/volume_mount.py (#12432)        |
 | [bc4bb3058](https://github.com/apache/airflow/commit/bc4bb30588607b10b069ab63ddf2ba7b7ee673ed) | 2020-11-18  | Fix docstrings for Kubernetes Backcompat module (#12422)                       |
