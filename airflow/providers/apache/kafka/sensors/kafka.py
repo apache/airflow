@@ -28,11 +28,7 @@ class KafkaSensor(BaseSensorOperator):
 
     DEFAULT_HOST = 'kafka1'
     DEFAULT_PORT = 9092
-    templated_fields = (
-        'topic',
-        'host',
-        'port',
-    )
+    templated_fields = ('topic', 'host', 'port', ß)
 
     @apply_defaults
     def __init__(self, topic, host=DEFAULT_HOST, port=DEFAULT_PORT, *args, **kwargs):

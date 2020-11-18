@@ -28,11 +28,17 @@ class KafkaProducerHook(BaseHook):
     DEFAULT_PORT = 9092
 
     def __init__(self, conn_id, topic):
+        """
+            Initializes an instance of the Kafka Producer Hook class.
+        :param conn_id
+            The airflow connection ID to use.
+        :param topic
+            The kafka topic you intend to produce on.
+        """
         super().__init__(None)
         self.conn_id = conn_id
         self._conn = None
         self.server = None
-        self.consumer = None
         self.producer = None
         self.topic = topic
 
@@ -50,7 +56,7 @@ class KafkaProducerHook(BaseHook):
             port = _conn.port or self.DEFAULT_PORT
 
             self.server = f"""{host}:{port}"""
-            self.consumer = KafkaProducer(bootstrap_servers=self.server, **service_options)
+            self.producer = KafkaProducer(bootstrap_servers=self.server, **service_options)
         return self.producer
 
     def send_message(self, topic, value=None, key=None, partition=None, timestamp_ms=None):
@@ -81,7 +87,7 @@ class KafkaProducerHook(BaseHook):
             A pretty version of the connection string.
         """
         connected = self.producer is not None
-        return '<KafkaProducerHook ' 'connected?=%s server=%s topic=%s>' % (
+        return '<KafkaProducerHook connected?={} server={} topic={}>'.format(
             connected,
             self.server,
             self.topic,
