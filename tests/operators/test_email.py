@@ -59,4 +59,4 @@ class TestEmailOperator(unittest.TestCase):
         with conf_vars({('email', 'email_backend'): 'tests.operators.test_email.send_email_test'}):
             self._run_as_operator()
         assert send_email_test.call_count == 1
-        assert send_email_test.call_args[1]['files'][0] == '/tmp/Report-A-2016-01-01.csv'
+        assert send_email_test.call_args[1]['files'][0] == '/tmp/Report-A-2016-01-01.csv' #pylint: disable=unsubscriptable-object
