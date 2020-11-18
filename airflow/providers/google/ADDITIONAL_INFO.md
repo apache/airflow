@@ -19,6 +19,8 @@
 
 ## Additional limitations
 
-This provider is only usable with Apache Airflow >= 1.10.12 version due to refactorings implemented in
+The [2020.11.13 release](#release-20201113) of this provider is only usable with Apache Airflow >= 1.10.12 version due to refactorings implemented in
 Apache Airflow 1.10.11 and fixes implemented in 1.10.11. The package has appropriate requirements
 set so you should not be able to install it with Apache Airflow < 1.10.12.
+
+Previous releases are compatible with Apache Airflow 1.10.*.
