@@ -17,11 +17,15 @@
 # under the License.
 
 import unittest
+from datetime import datetime
 from unittest import mock
 
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
+from airflow.models import TaskInstance
+from airflow.models.dag import DAG
+from airflow.models.variable import Variable
 from airflow.providers.amazon.aws.sensors.s3_key import S3KeySensor
 
 
@@ -68,6 +72,31 @@ class TestS3KeySensor(unittest.TestCase):
 
         self.assertEqual(op.bucket_key, parsed_key)
         self.assertEqual(op.bucket_name, parsed_bucket)
+
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3_key.S3Hook')
+    def test_parse_bucket_key_from_jinja(self, mock_hook):
+        mock_hook.return_value.check_for_key.return_value = False
+
+        Variable.set("test_bucket_key", "s3://bucket/key")
+
+        execution_date = datetime(2020, 1, 1)
+
+        dag = DAG("test_s3_key", start_date=execution_date)
+        op = S3KeySensor(
+            task_id='s3_key_sensor',
+            bucket_key='{{ var.value.test_bucket_key }}',
+            bucket_name=None,
+            dag=dag,
+        )
+
+        ti = TaskInstance(task=op, execution_date=execution_date)
+        context = ti.get_template_context()
+        ti.render_templates(context)
+
+        op.poke(None)
+
+        self.assertEqual(op.bucket_key, "key")
+        self.assertEqual(op.bucket_name, "bucket")
 
     @mock.patch('airflow.providers.amazon.aws.sensors.s3_key.S3Hook')
     def test_poke(self, mock_hook):

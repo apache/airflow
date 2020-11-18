@@ -82,9 +82,7 @@ class S3KeySensor(BaseSensorOperator):
         if self.bucket_name is None:
             parsed_url = urlparse(self.bucket_key)
             if parsed_url.netloc == '':
-                raise AirflowException(
-                    'If key is a relative path from root,' + ' please provide a bucket_name'
-                )
+                raise AirflowException('If key is a relative path from root, please provide a bucket_name')
             self.bucket_name = parsed_url.netloc
             self.bucket_key = parsed_url.path.lstrip('/')
         else:
