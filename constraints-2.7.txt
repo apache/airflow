@@ -304,7 +304,7 @@ sasl==0.2.1
 scandir==1.10.0
 sendgrid==5.6.0
 sentinels==1.0.0
-sentry-sdk==0.18.0
+sentry-sdk==0.19.3
 setproctitle==1.1.10
 simplegeneric==0.8.1
 singledispatch==3.4.0.3
