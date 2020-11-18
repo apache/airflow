@@ -33,7 +33,7 @@ class EmailOperator(BaseOperator):
     :param html_content: content of the email, html markup
         is allowed. (templated)
     :type html_content: str
-    :param files: file names to attach in email
+    :param files: file names to attach in email (templated)
     :type files: list
     :param cc: list of recipients to be added in CC field
     :type cc: list or string (comma or semicolon delimited)
