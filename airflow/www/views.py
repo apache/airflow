@@ -108,11 +108,12 @@ def get_safe_url(url):
     valid_schemes = ['http', 'https', '']
     valid_netlocs = [request.host, '']
 
-    # Remove single quotes
-    url = url.replace("'", "")
+    if not url:
+        return url_for('Airflow.index')
+
     parsed = urlparse(url)
 
-    query = parse_qsl(parsed.query)
+    query = parse_qsl(parsed.query, keep_blank_values=True)
     url = parsed._replace(query=urlencode(query)).geturl()
 
     if parsed.scheme in valid_schemes and parsed.netloc in valid_netlocs:

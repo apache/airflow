@@ -2772,7 +2772,10 @@ class TestTriggerDag(TestBase):
         [
             ("javascript:alert(1)", "/home"),
             ("http://google.com", "/home"),
-            ("%2Ftree%3Fdag_id%3Dexample_bash_operator%27;alert(33)//", "/tree?dag_id=example_bash_operator"),
+            (
+                "%2Ftree%3Fdag_id%3Dexample_bash_operator';alert(33)//",
+                "/tree?dag_id=example_bash_operator%27&amp;alert%2833%29%2F%2F=",
+            ),
             ("%2Ftree%3Fdag_id%3Dexample_bash_operator", "/tree?dag_id=example_bash_operator"),
             ("%2Fgraph%3Fdag_id%3Dexample_bash_operator", "/graph?dag_id=example_bash_operator"),
         ]
@@ -3299,10 +3302,12 @@ class TestDecorators(TestBase):
 class TestHelperFunctions(unittest.TestCase):
     @parameterized.expand(
         [
+            ("", "/home"),
             ("http://google.com", "/home"),
             (
                 "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%test_dag';alert(33)//",
-                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%25test_dag",
+                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3F"
+                "dag_id%25test_dag%27&alert%2833%29%2F%2F=",
             ),
             (
                 "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%test_dag",
