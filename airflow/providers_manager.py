@@ -38,7 +38,6 @@ log = logging.getLogger(__name__)
 def _create_validator():
     schema = json.loads(importlib_resources.read_text('airflow', 'provider.yaml.schema.json'))
     cls = jsonschema.validators.validator_for(schema)
-    cls.check_schema(schema)
     validator = cls(schema)
     return validator
 
