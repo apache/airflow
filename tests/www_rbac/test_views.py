@@ -2247,9 +2247,12 @@ class TestTriggerDag(TestBase):
     @parameterized.expand([
         ("javascript:alert(1)", "/home"),
         ("http://google.com", "/home"),
+        (
+            "%2Ftree%3Fdag_id%3Dexample_bash_operator';alert(33)//",
+            "/tree?dag_id=example_bash_operator%27&amp;alert%2833%29%2F%2F=",
+        ),
         ("%2Ftree%3Fdag_id%3Dexample_bash_operator", "/tree?dag_id=example_bash_operator"),
         ("%2Fgraph%3Fdag_id%3Dexample_bash_operator", "/graph?dag_id=example_bash_operator"),
-        ("", ""),
     ])
     def test_trigger_dag_form_origin_url(self, test_origin, expected_origin):
         test_dag_id = "example_bash_operator"

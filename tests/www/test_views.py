@@ -1120,6 +1120,11 @@ class TestTriggerDag(unittest.TestCase):
         ("javascript:alert(1)", "/admin/"),
         ("http://google.com", "/admin/"),
         (
+            "%2Fadmin%2Fairflow%2Ftree%3Fdag_id%3Dexample_bash_operator"
+            "&dag_id=example_bash_operator';alert(33)//",
+            "/admin/airflow/tree?dag_id=example_bash_operator"
+        ),
+        (
             "%2Fadmin%2Fairflow%2Ftree%3Fdag_id%3Dexample_bash_operator&dag_id=example_bash_operator",
             "/admin/airflow/tree?dag_id=example_bash_operator"
         ),
@@ -1127,7 +1132,6 @@ class TestTriggerDag(unittest.TestCase):
             "%2Fadmin%2Fairflow%2Fgraph%3Fdag_id%3Dexample_bash_operator&dag_id=example_bash_operator",
             "/admin/airflow/graph?dag_id=example_bash_operator"
         ),
-        ("", ""),
     ])
     def test_trigger_dag_form_origin_url(self, test_origin, expected_origin):
         test_dag_id = "example_bash_operator"

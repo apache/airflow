@@ -55,7 +55,7 @@ from past.builtins import basestring
 from pygments import highlight, lexers
 import six
 from pygments.formatters.html import HtmlFormatter
-from six.moves.urllib.parse import quote, unquote, urlparse
+from six.moves.urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
 from sqlalchemy import or_, desc, and_, union_all
 from wtforms import (
@@ -335,7 +335,13 @@ def get_safe_url(url):
         valid_schemes = ['http', 'https', '']
         valid_netlocs = [request.host, '']
 
+        if not url:
+            return "/admin/"
+
         parsed = urlparse(url)
+
+        query = parse_qsl(parsed.query, keep_blank_values=True)
+        url = parsed._replace(query=urlencode(query)).geturl()
         if parsed.scheme in valid_schemes and parsed.netloc in valid_netlocs:
             return url
     except Exception as e:  # pylint: disable=broad-except

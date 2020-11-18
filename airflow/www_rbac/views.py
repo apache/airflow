@@ -31,7 +31,7 @@ from datetime import timedelta
 from urllib.parse import unquote
 
 import six
-from six.moves.urllib.parse import quote, urlparse
+from six.moves.urllib.parse import parse_qsl, quote, urlencode, urlparse
 
 import pendulum
 import sqlalchemy as sqla
@@ -95,7 +95,13 @@ def get_safe_url(url):
         valid_schemes = ['http', 'https', '']
         valid_netlocs = [request.host, '']
 
+        if not url:
+            return url_for('Airflow.index')
+
         parsed = urlparse(url)
+
+        query = parse_qsl(parsed.query, keep_blank_values=True)
+        url = parsed._replace(query=urlencode(query)).geturl()
         if parsed.scheme in valid_schemes and parsed.netloc in valid_netlocs:
             return url
     except Exception as e:  # pylint: disable=broad-except
