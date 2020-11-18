@@ -39,6 +39,7 @@ from airflow.kubernetes.volume_mount import VolumeMount
 from airflow.models import DAG, TaskInstance
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.utils import timezone
+from airflow.utils.state import State
 from airflow.version import version as airflow_version
 
 
@@ -129,8 +130,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_image_pull_secrets_correctly_set(self, mock_client, monitor_mock, start_mock):
-        from airflow.utils.state import State
-
         fake_pull_secrets = "fakeSecret"
         k = KubernetesPodOperator(
             namespace='default',
@@ -489,8 +488,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_envs_from_configmaps(self, mock_client, mock_monitor, mock_start):
         # GIVEN
-        from airflow.utils.state import State
-
         configmap = 'test-configmap'
         # WHEN
         k = KubernetesPodOperator(
@@ -519,8 +516,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_envs_from_secrets(self, mock_client, monitor_mock, start_mock):
         # GIVEN
-        from airflow.utils.state import State
-
         secret_ref = 'secret_name'
         secrets = [Secret('env', None, secret_ref)]
         # WHEN
@@ -655,8 +650,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         self, mock_client, monitor_mock, start_mock
     ):  # pylint: disable=unused-argument
         """Test ability to assign priorityClassName to pod"""
-        from airflow.utils.state import State
-
         priority_class_name = "medium-test"
         k = KubernetesPodOperator(
             namespace='default',
