@@ -46,9 +46,10 @@ class TestJSONFormatter:
             }
         ]
         parser = cli.CLIFactory.get_parser()
-        with NamedTemporaryFile("w+") as temp:
+        with NamedTemporaryFile("w+", suffix=".json") as temp:
             with pytest.raises(SystemExit):
-                cli.upgrade_check(parser.parse_args(['upgrade_check', '-s', temp.name]))
+                args = parser.parse_args(['upgrade_check', '-s', temp.name])
+                args.func(args)
             content = temp.read()
 
         assert json.loads(content) == expected
