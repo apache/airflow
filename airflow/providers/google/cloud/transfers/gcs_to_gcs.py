@@ -33,7 +33,7 @@ class GCSToGCSOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:GCSToGCSOperator`
+        :ref:`howto/operator:GCSToGCSOperator`
 
     :param source_bucket: The source Google Cloud Storage bucket where the
          object is. (templated)

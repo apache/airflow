@@ -41,7 +41,7 @@ class PubSubCreateTopicOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:PubSubCreateTopicOperator`
+        :ref:`howto/operator:PubSubCreateTopicOperator`
 
     By default, if the topic already exists, this operator will
     not cause the DAG to fail. ::
@@ -198,7 +198,7 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:PubSubCreateSubscriptionOperator`
+        :ref:`howto/operator:PubSubCreateSubscriptionOperator`
 
     By default, the subscription will be created in ``topic_project``. If
     ``subscription_project`` is specified and the Google Cloud credentials allow, the
@@ -457,7 +457,7 @@ class PubSubDeleteTopicOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:PubSubDeleteTopicOperator`
+        :ref:`howto/operator:PubSubDeleteTopicOperator`
 
     By default, if the topic does not exist, this operator will
     not cause the DAG to fail. ::
@@ -588,7 +588,7 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:PubSubDeleteSubscriptionOperator`
+        :ref:`howto/operator:PubSubDeleteSubscriptionOperator`
 
     By default, if the subscription does not exist, this operator will
     not cause the DAG to fail. ::
@@ -721,7 +721,7 @@ class PubSubPublishMessageOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:PubSubPublishMessageOperator`
+        :ref:`howto/operator:PubSubPublishMessageOperator`
 
     Each Task publishes all provided messages to the same topic
     in a single Google Cloud project. If the topic does not exist, this
@@ -838,7 +838,7 @@ class PubSubPullOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:PubSubPullSensor`
+        :ref:`howto/operator:PubSubPullSensor`
 
     This sensor operator will pull up to ``max_messages`` messages from the
     specified PubSub subscription. When the subscription returns messages,

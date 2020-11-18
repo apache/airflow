@@ -999,6 +999,7 @@ orchestrator
 orgtbl
 os
 ot
+optionality
 overridable
 oversubscription
 pagerduty
@@ -1305,6 +1306,7 @@ unittests
 unix
 unpause
 unpausing
+unpredicted
 unqueued
 unterminated
 unutilized

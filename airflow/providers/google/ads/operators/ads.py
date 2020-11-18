@@ -41,7 +41,7 @@ class GoogleAdsListAccountsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:GoogleAdsListAccountsOperator`
+        :ref:`howto/operator:GoogleAdsListAccountsOperator`
 
     :param bucket: The GCS bucket to upload to
     :type bucket: str

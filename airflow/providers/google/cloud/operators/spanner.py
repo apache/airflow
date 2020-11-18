@@ -31,7 +31,7 @@ class SpannerDeployInstanceOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:SpannerDeployInstanceOperator`
+        :ref:`howto/operator:SpannerDeployInstanceOperator`
 
     :param instance_id: Cloud Spanner instance ID.
     :type instance_id: str
@@ -129,7 +129,7 @@ class SpannerDeleteInstanceOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:SpannerDeleteInstanceOperator`
+        :ref:`howto/operator:SpannerDeleteInstanceOperator`
 
     :param instance_id: The Cloud Spanner instance ID.
     :type instance_id: str
@@ -203,7 +203,7 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:SpannerQueryDatabaseInstanceOperator`
+        :ref:`howto/operator:SpannerQueryDatabaseInstanceOperator`
 
     :param instance_id: The Cloud Spanner instance ID.
     :type instance_id: str
@@ -314,7 +314,7 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:SpannerDeployDatabaseInstanceOperator`
+        :ref:`howto/operator:SpannerDeployDatabaseInstanceOperator`
 
     :param instance_id: The Cloud Spanner instance ID.
     :type instance_id: str
@@ -416,7 +416,7 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:SpannerUpdateDatabaseInstanceOperator`
+        :ref:`howto/operator:SpannerUpdateDatabaseInstanceOperator`
 
     :param instance_id: The Cloud Spanner instance ID.
     :type instance_id: str
@@ -517,7 +517,7 @@ class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:SpannerDeleteDatabaseInstanceOperator`
+        :ref:`howto/operator:SpannerDeleteDatabaseInstanceOperator`
 
     :param instance_id: Cloud Spanner instance ID.
     :type instance_id: str

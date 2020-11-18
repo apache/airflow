@@ -18,16 +18,18 @@
 import os
 import re
 from functools import total_ordering
-from typing import List, NamedTuple, Optional
+from typing import List, NamedTuple, Optional, Dict
 
 from airflow.utils.code_utils import prepare_code_snippet
+
+CURRENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
+DOCS_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))
 
 
 @total_ordering
 class SpellingError(NamedTuple):
     """Spelling errors found when building docs."""
 
-    package_name: Optional[str]
     file_path: Optional[str]
     line_no: Optional[int]
     spelling: Optional[str]
@@ -37,7 +39,6 @@ class SpellingError(NamedTuple):
 
     def __eq__(self, other):
         left = (
-            self.package_name,
             self.file_path,
             self.line_no,
             self.spelling,
@@ -45,7 +46,6 @@ class SpellingError(NamedTuple):
             self.message,
         )
         right = (
-            self.package_name,
             other.file_path,
             other.line_no,
             other.spelling,
@@ -75,7 +75,7 @@ class SpellingError(NamedTuple):
         return left < right
 
 
-def parse_spelling_warnings(warning_text: str, package_name: str) -> List[SpellingError]:
+def parse_spelling_warnings(warning_text: str, docs_dir) -> List[SpellingError]:
     """
     Parses warnings from Sphinx.
 
@@ -94,8 +94,7 @@ def parse_spelling_warnings(warning_text: str, package_name: str) -> List[Spelli
             try:
                 sphinx_spelling_errors.append(
                     SpellingError(
-                        package_name=package_name,
-                        file_path=warning_parts[0],
+                        file_path=os.path.join(docs_dir, warning_parts[0]),
                         line_no=int(warning_parts[1]) if warning_parts[1] not in ('None', '') else None,
                         spelling=warning_parts[2],
                         suggestion=warning_parts[3] if warning_parts[3] else None,
@@ -107,7 +106,6 @@ def parse_spelling_warnings(warning_text: str, package_name: str) -> List[Spelli
                 # If an exception occurred while parsing the warning message, display the raw warning message.
                 sphinx_spelling_errors.append(
                     SpellingError(
-                        package_name=package_name,
                         file_path=None,
                         line_no=None,
                         spelling=None,
@@ -119,7 +117,6 @@ def parse_spelling_warnings(warning_text: str, package_name: str) -> List[Spelli
         else:
             sphinx_spelling_errors.append(
                 SpellingError(
-                    package_name=package_name,
                     file_path=None,
                     line_no=None,
                     spelling=None,
@@ -131,25 +128,32 @@ def parse_spelling_warnings(warning_text: str, package_name: str) -> List[Spelli
     return sphinx_spelling_errors
 
 
-def display_spelling_error_summary(spelling_errors: List[SpellingError], docs_dir: str) -> None:
+def display_spelling_error_summary(spelling_errors: Dict[str, List[SpellingError]]) -> None:
     """Displays summary of Spelling errors"""
-    for warning_no, error in enumerate(sorted(spelling_errors), 1):
-        print("=" * 20, f"Error {warning_no:3}", "=" * 20)
-        print("Package: ", error.package_name)
+    print("#" * 20, f"Spelling errors summary", "#" * 20)
 
-        print(error.message)
-        print()
-        if error.file_path:
-            print(f"File path: {error.file_path}")
-            if error.spelling:
-                print(f"Incorrect Spelling: '{error.spelling}'")
-            if error.suggestion:
-                print(f"Suggested Spelling: '{error.suggestion}'")
-            if error.context_line:
-                print(f"Line with Error: '{error.context_line}'")
-            if error.line_no:
-                print(f"Line Number: {error.line_no}")
-                print(prepare_code_snippet(os.path.join(docs_dir, error.file_path), error.line_no))
+    for package_name, errors in sorted(spelling_errors.items()):
+        if package_name:
+            print("=" * 20, package_name, "=" * 20)
+        else:
+            print("=" * 20, "General", "=" * 20)
+
+        for warning_no, error in enumerate(sorted(errors), 1):
+            print("-" * 20, f"Error {warning_no:3}", "-" * 20)
+
+            print(error.message)
+            print()
+            if error.file_path:
+                print(f"File path: {os.path.relpath(error.file_path, start=DOCS_DIR)}")
+                if error.spelling:
+                    print(f"Incorrect Spelling: '{error.spelling}'")
+                if error.suggestion:
+                    print(f"Suggested Spelling: '{error.suggestion}'")
+                if error.context_line:
+                    print(f"Line with Error: '{error.context_line}'")
+                if error.line_no:
+                    print(f"Line Number: {error.line_no}")
+                    print(prepare_code_snippet(error.file_path, error.line_no))
 
     print("=" * 50)
     print()
@@ -161,3 +165,4 @@ for more details.
     """
     print(msg)
     print()
+    print("#" * 50)

@@ -63,7 +63,7 @@ def generate_provider_intersphinx_mapping():
             # In this case, the local index will be read. If unsuccessful, the remote index
             # will be fetched.
             (
-                f'{DOCS_PROVIDER_DIR}/_build/docs/{package_name}/latest/objects.inv',
+                f'{DOCS_DIR}/_build/docs/{package_name}/latest/objects.inv',
                 f'http://airflow-docs-build-dev-mik-laj.s3-website.eu-central-1.amazonaws.com/docs/{package_name}/latest/objects.inv',
             ),
         )
@@ -79,7 +79,7 @@ def generate_provider_intersphinx_mapping():
             # In this case, the local index will be read. If unsuccessful, the remote index
             # will be fetched.
             (
-                f'{DOCS_PROVIDER_DIR}/_build/html/latest/objects.inv',
+                f'{DOCS_DIR}/_build/docs/apache-airflow/latest/objects.inv',
                 f'https://airflow.readthedocs.io/en/latest/objects.inv',
             ),
         )

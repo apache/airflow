@@ -32,7 +32,7 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:BigQueryCreateDataTransferOperator`
+        :ref:`howto/operator:BigQueryCreateDataTransferOperator`
 
     :param transfer_config: Data transfer configuration to create.
     :type transfer_config: dict
@@ -122,7 +122,7 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:BigQueryDeleteDataTransferConfigOperator`
+        :ref:`howto/operator:BigQueryDeleteDataTransferConfigOperator`
 
     :param transfer_config_id: Id of transfer config to be used.
     :type transfer_config_id: str
@@ -202,7 +202,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:BigQueryDataTransferServiceStartTransferRunsOperator`
+        :ref:`howto/operator:BigQueryDataTransferServiceStartTransferRunsOperator`
 
     :param transfer_config_id: Id of transfer config to be used.
     :type transfer_config_id: str

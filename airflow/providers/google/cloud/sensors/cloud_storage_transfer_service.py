@@ -35,7 +35,7 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDataTransferServiceJobStatusSensor`
+        :ref:`howto/operator:CloudDataTransferServiceJobStatusSensor`
 
     :param job_name: The name of the transfer job
     :type job_name: str

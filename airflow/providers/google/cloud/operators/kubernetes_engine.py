@@ -54,7 +54,7 @@ class GKEDeleteClusterOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:GKEDeleteClusterOperator`
+        :ref:`howto/operator:GKEDeleteClusterOperator`
 
     :param project_id: The Google Developers Console [project ID or project number]
     :type project_id: str
@@ -156,7 +156,7 @@ class GKECreateClusterOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:GKECreateClusterOperator`
+        :ref:`howto/operator:GKECreateClusterOperator`
 
     :param project_id: The Google Developers Console [project ID or project number]
     :type project_id: str
@@ -254,7 +254,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:GKEStartPodOperator`
+        :ref:`howto/operator:GKEStartPodOperator`
 
     :param location: The name of the Google Kubernetes Engine zone in which the
         cluster resides, e.g. 'us-central1-a'

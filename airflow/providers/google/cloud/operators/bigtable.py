@@ -52,7 +52,7 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:BigtableCreateInstanceOperator`
+        :ref:`howto/operator:BigtableCreateInstanceOperator`
 
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance to create.
@@ -193,7 +193,7 @@ class BigtableUpdateInstanceOperator(BaseOperator, BigtableValidationMixin):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:BigtableUpdateInstanceOperator`
+        :ref:`howto/operator:BigtableUpdateInstanceOperator`
 
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance to update.
@@ -287,7 +287,7 @@ class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:BigtableDeleteInstanceOperator`
+        :ref:`howto/operator:BigtableDeleteInstanceOperator`
 
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance to delete.
@@ -358,7 +358,7 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:BigtableCreateTableOperator`
+        :ref:`howto/operator:BigtableCreateTableOperator`
 
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance that will
@@ -476,7 +476,7 @@ class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:BigtableDeleteTableOperator`
+        :ref:`howto/operator:BigtableDeleteTableOperator`
 
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance.
@@ -562,7 +562,7 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:BigtableUpdateClusterOperator`
+        :ref:`howto/operator:BigtableUpdateClusterOperator`
 
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance.

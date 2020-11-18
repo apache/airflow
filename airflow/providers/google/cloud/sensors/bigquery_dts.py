@@ -32,7 +32,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:BigQueryDataTransferServiceTransferRunSensor`
+        :ref:`howto/operator:BigQueryDataTransferServiceTransferRunSensor`
 
     :param expected_statuses: The expected state of the operation.
         See:

@@ -14,25 +14,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import os
 from functools import total_ordering
-from typing import List, NamedTuple, Optional
+from typing import List, NamedTuple, Optional, Dict
 
 from airflow.utils.code_utils import prepare_code_snippet
+
+CURRENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
+DOCS_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))
 
 
 @total_ordering
 class DocBuildError(NamedTuple):
     """Errors found in docs build."""
 
-    package_name: Optional[str]
     file_path: Optional[str]
     line_no: Optional[int]
     message: str
 
     def __eq__(self, other):
-        left = (self.package_name, self.file_path, self.line_no, self.message)
-        right = (other.package_name, other.file_path, other.line_no, other.message)
+        left = (self.file_path, self.line_no, self.message)
+        right = (other.file_path, other.line_no, other.message)
         return left == right
 
     def __ne__(self, other):
@@ -43,29 +45,36 @@ class DocBuildError(NamedTuple):
         file_path_b = right.file_path or ''
         line_no_a = self.line_no or 0
         line_no_b = right.line_no or 0
-        left = (self.package_name, file_path_a, line_no_a, self.message)
-        right = (right.package_name, file_path_b, line_no_b, right.message)
+        left = (file_path_a, line_no_a, self.message)
+        right = (file_path_b, line_no_b, right.message)
         return left < right
 
 
-def display_errors_summary(build_errors: List[DocBuildError]) -> None:
+def display_errors_summary(build_errors: Dict[str, List[DocBuildError]]) -> None:
     """Displays summary of errors"""
-    for warning_no, error in enumerate(sorted(build_errors), 1):
-        print("=" * 20, f"Error {warning_no:3}", "=" * 20)
-        print("Package: ", error.package_name)
-        print(error.message)
-        print()
-        if error.file_path and error.line_no:
-            print(f"File path: {error.file_path} ({error.line_no})")
+
+    print("#" * 20, f"Docs build errors summary", "#" * 20)
+
+    for package_name, errors in build_errors.items():
+        if package_name:
+            print("=" * 20, package_name, "=" * 20)
+        else:
+            print("=" * 20, "General", "=" * 20)
+        for warning_no, error in enumerate(sorted(errors), 1):
+            print("-" * 20, f"Error {warning_no:3}", "-" * 20)
+            print(error.message)
             print()
-            print(prepare_code_snippet(error.file_path, error.line_no))
-        elif error.file_path:
-            print(f"File path: {error.file_path}")
+            if error.file_path and error.line_no:
+                print(f"File path: {os.path.relpath(error.file_path, start=DOCS_DIR)} ({error.line_no})")
+                print()
+                print(prepare_code_snippet(error.file_path, error.line_no))
+            elif error.file_path:
+                print(f"File path: {error.file_path}")
 
-    print("=" * 50)
+    print("#" * 50)
 
 
-def parse_sphinx_warnings(warning_text: str, package_name: str) -> List[DocBuildError]:
+def parse_sphinx_warnings(warning_text: str, docs_dir: str) -> List[DocBuildError]:
     """
     Parses warnings from Sphinx.
     :param warning_text: warning to parse
@@ -80,8 +89,7 @@ def parse_sphinx_warnings(warning_text: str, package_name: str) -> List[DocBuild
             try:
                 sphinx_build_errors.append(
                     DocBuildError(
-                        package_name=package_name,
-                        file_path=warning_parts[0],
+                        file_path=os.path.join(docs_dir, warning_parts[0]),
                         line_no=int(warning_parts[1]),
                         message=warning_parts[2],
                     )
@@ -90,11 +98,11 @@ def parse_sphinx_warnings(warning_text: str, package_name: str) -> List[DocBuild
                 # If an exception occurred while parsing the warning message, display the raw warning message.
                 sphinx_build_errors.append(
                     DocBuildError(
-                        package_name=package_name, file_path=None, line_no=None, message=sphinx_warning
+                        file_path=None, line_no=None, message=sphinx_warning
                     )
                 )
         else:
             sphinx_build_errors.append(
-                DocBuildError(package_name=package_name, file_path=None, line_no=None, message=sphinx_warning)
+                DocBuildError(file_path=None, line_no=None, message=sphinx_warning)
             )
     return sphinx_build_errors

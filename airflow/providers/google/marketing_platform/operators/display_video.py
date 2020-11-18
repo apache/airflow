@@ -37,7 +37,7 @@ class GoogleDisplayVideo360CreateReportOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:GoogleDisplayVideo360CreateReportOperator`
+        :ref:`howto/operator:GoogleDisplayVideo360CreateReportOperator`
 
     .. seealso::
         Check also the official API docs:
@@ -116,7 +116,7 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:GoogleDisplayVideo360DeleteReportOperator`
+        :ref:`howto/operator:GoogleDisplayVideo360DeleteReportOperator`
 
     .. seealso::
         Check also the official API docs:
@@ -203,7 +203,7 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:GoogleDisplayVideo360DownloadReportOperator`
+        :ref:`howto/operator:GoogleDisplayVideo360DownloadReportOperator`
 
     .. seealso::
         Check also the official API docs:
@@ -334,7 +334,7 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:GoogleDisplayVideo360RunReportOperator`
+        :ref:`howto/operator:GoogleDisplayVideo360RunReportOperator`
 
     .. seealso::
         Check also the official API docs:
@@ -411,7 +411,7 @@ class GoogleDisplayVideo360DownloadLineItemsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:GoogleDisplayVideo360DownloadLineItemsOperator`
+        :ref:`howto/operator:GoogleDisplayVideo360DownloadLineItemsOperator`
 
     .. seealso::
         Check also the official API docs:
@@ -490,7 +490,7 @@ class GoogleDisplayVideo360UploadLineItemsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:GoogleDisplayVideo360UploadLineItemsOperator`
+        :ref:`howto/operator:GoogleDisplayVideo360UploadLineItemsOperator`
 
     .. seealso::
         Check also the official API docs:
@@ -566,7 +566,7 @@ class GoogleDisplayVideo360CreateSDFDownloadTaskOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:GoogleDisplayVideo360CreateSDFDownloadTaskOperator`
+        :ref:`howto/operator:GoogleDisplayVideo360CreateSDFDownloadTaskOperator`
 
     .. seealso::
         Check also the official API docs:
@@ -644,7 +644,7 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:GoogleDisplayVideo360SDFtoGCSOperator`
+        :ref:`howto/operator:GoogleDisplayVideo360SDFtoGCSOperator`
 
     .. seealso::
         Check also the official API docs:

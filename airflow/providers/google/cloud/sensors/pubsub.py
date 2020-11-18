@@ -33,7 +33,7 @@ class PubSubPullSensor(BaseSensorOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:PubSubPullSensor`
+        :ref:`howto/operator:PubSubPullSensor`
 
     .. seealso::
         If you don't want to wait for at least one message to come, use Operator instead:

@@ -54,7 +54,7 @@ ROOT_DIR = os.path.abspath(os.path.join(CONF_DIR, os.pardir))
 
 # By default (e.g. on RTD), build docs for `airflow` package
 PACKAGE_NAME = os.environ.get('AIRFLOW_PACKAGE_NAME', 'airflow')
-if PACKAGE_NAME == 'airflow':
+if PACKAGE_NAME == 'apache-airflow':
     os.environ['AIRFLOW_PACKAGE_NAME'] = 'airflow'
     os.environ['AIRFLOW_PACKAGE_DIR'] = os.path.abspath(os.getcwd())
     os.environ['AIRFLOW_PACKAGE_VERSION'] = airflow.__version__
@@ -63,9 +63,13 @@ if PACKAGE_NAME == 'airflow':
 else:
     PACKAGE_NAME = os.environ['AIRFLOW_PACKAGE_NAME']
     ALL_PROVIDER_YAMLS = load_package_data()
-    CURRENT_PROVIDER = next(
-        provider_yaml for provider_yaml in ALL_PROVIDER_YAMLS if provider_yaml['package-name'] == PACKAGE_NAME
-    )
+    try:
+        CURRENT_PROVIDER = next(
+            provider_yaml for provider_yaml in ALL_PROVIDER_YAMLS
+            if provider_yaml['package-name'] == PACKAGE_NAME
+        )
+    except StopIteration:
+        raise Exception(f"Could not find proviider.yaml file for package: {PACKAGE_NAME}")
     env = {}
     PACKAGE_DIR = CURRENT_PROVIDER['package-dir']
     PACKAGE_VERSION = 'master'
@@ -108,9 +112,10 @@ extensions = [
     'airflow_intersphinx',
     "sphinxcontrib.spelling",
 ]
-if PACKAGE_NAME == 'airflow':
+if PACKAGE_NAME == 'apache-airflow':
     extensions.extend(
         [
+            'sphinxcontrib.jinja',
             'sphinx.ext.graphviz',
             'sphinxcontrib.httpdomain',
             'sphinxcontrib.httpdomain',
@@ -166,7 +171,7 @@ def _get_rst_filepath_from_path(filepath: str):
     return result
 
 
-if PACKAGE_NAME == 'airflow':
+if PACKAGE_NAME == 'apache-airflow':
     # Exclude top-level packages
     # do not exclude these top-level modules from the doc build:
     _allowed_top_level = ("exceptions.py",)

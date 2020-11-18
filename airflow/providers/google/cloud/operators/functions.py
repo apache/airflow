@@ -102,7 +102,7 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudFunctionDeployFunctionOperator`
+        :ref:`howto/operator:CloudFunctionDeployFunctionOperator`
 
     :param location: Google Cloud region where the function should be created.
     :type location: str
@@ -331,7 +331,7 @@ class CloudFunctionDeleteFunctionOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudFunctionDeleteFunctionOperator`
+        :ref:`howto/operator:CloudFunctionDeleteFunctionOperator`
 
     :param name: A fully-qualified function name, matching
         the pattern: `^projects/[^/]+/locations/[^/]+/functions/[^/]+$`
@@ -409,7 +409,7 @@ class CloudFunctionInvokeFunctionOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudFunctionDeployFunctionOperator`
+        :ref:`howto/operator:CloudFunctionDeployFunctionOperator`
 
     :param function_id: ID of the function to be called
     :type function_id: str

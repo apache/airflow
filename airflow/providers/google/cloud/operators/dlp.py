@@ -53,7 +53,7 @@ class CloudDLPCancelDLPJobOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPCancelDLPJobOperator`
+        :ref:`howto/operator:CloudDLPCancelDLPJobOperator`
 
     :param dlp_job_id: ID of the DLP job resource to be cancelled.
     :type dlp_job_id: str
@@ -133,7 +133,7 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPCreateDeidentifyTemplateOperator`
+        :ref:`howto/operator:CloudDLPCreateDeidentifyTemplateOperator`
 
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
@@ -239,7 +239,7 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPCreateDLPJobOperator`
+        :ref:`howto/operator:CloudDLPCreateDLPJobOperator`
 
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
@@ -349,7 +349,7 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPCreateInspectTemplateOperator`
+        :ref:`howto/operator:CloudDLPCreateInspectTemplateOperator`
 
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
@@ -455,7 +455,7 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPCreateJobTriggerOperator`
+        :ref:`howto/operator:CloudDLPCreateJobTriggerOperator`
 
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
@@ -554,7 +554,7 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPCreateStoredInfoTypeOperator`
+        :ref:`howto/operator:CloudDLPCreateStoredInfoTypeOperator`
 
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
@@ -662,7 +662,7 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPDeidentifyContentOperator`
+        :ref:`howto/operator:CloudDLPDeidentifyContentOperator`
 
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
@@ -774,7 +774,7 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPDeleteDeidentifyTemplateOperator`
+        :ref:`howto/operator:CloudDLPDeleteDeidentifyTemplateOperator`
 
     :param template_id: The ID of deidentify template to be deleted.
     :type template_id: str
@@ -864,7 +864,7 @@ class CloudDLPDeleteDLPJobOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPDeleteDLPJobOperator`
+        :ref:`howto/operator:CloudDLPDeleteDLPJobOperator`
 
     :param dlp_job_id: The ID of the DLP job resource to be cancelled.
     :type dlp_job_id: str
@@ -946,7 +946,7 @@ class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPDeleteInspectTemplateOperator`
+        :ref:`howto/operator:CloudDLPDeleteInspectTemplateOperator`
 
     :param template_id: The ID of the inspect template to be deleted.
     :type template_id: str
@@ -1035,7 +1035,7 @@ class CloudDLPDeleteJobTriggerOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPDeleteJobTriggerOperator`
+        :ref:`howto/operator:CloudDLPDeleteJobTriggerOperator`
 
     :param job_trigger_id: The ID of the DLP job trigger to be deleted.
     :type job_trigger_id: str
@@ -1117,7 +1117,7 @@ class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPDeleteStoredInfoTypeOperator`
+        :ref:`howto/operator:CloudDLPDeleteStoredInfoTypeOperator`
 
     :param stored_info_type_id: The ID of the stored info type to be deleted.
     :type stored_info_type_id: str
@@ -1206,7 +1206,7 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPGetDeidentifyTemplateOperator`
+        :ref:`howto/operator:CloudDLPGetDeidentifyTemplateOperator`
 
     :param template_id: The ID of deidentify template to be read.
     :type template_id: str
@@ -1295,7 +1295,7 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPGetDLPJobOperator`
+        :ref:`howto/operator:CloudDLPGetDLPJobOperator`
 
     :param dlp_job_id: The ID of the DLP job resource to be read.
     :type dlp_job_id: str
@@ -1377,7 +1377,7 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPGetInspectTemplateOperator`
+        :ref:`howto/operator:CloudDLPGetInspectTemplateOperator`
 
     :param template_id: The ID of inspect template to be read.
     :type template_id: str
@@ -1466,7 +1466,7 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPGetDLPJobTriggerOperator`
+        :ref:`howto/operator:CloudDLPGetDLPJobTriggerOperator`
 
     :param job_trigger_id: The ID of the DLP job trigger to be read.
     :type job_trigger_id: str
@@ -1548,7 +1548,7 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPGetStoredInfoTypeOperator`
+        :ref:`howto/operator:CloudDLPGetStoredInfoTypeOperator`
 
     :param stored_info_type_id: The ID of the stored info type to be read.
     :type stored_info_type_id: str
@@ -1638,7 +1638,7 @@ class CloudDLPInspectContentOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPInspectContentOperator`
+        :ref:`howto/operator:CloudDLPInspectContentOperator`
 
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
@@ -1734,7 +1734,7 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPListDeidentifyTemplatesOperator`
+        :ref:`howto/operator:CloudDLPListDeidentifyTemplatesOperator`
 
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
@@ -1829,7 +1829,7 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPListDLPJobsOperator`
+        :ref:`howto/operator:CloudDLPListDLPJobsOperator`
 
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
@@ -1927,7 +1927,7 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPListInfoTypesOperator`
+        :ref:`howto/operator:CloudDLPListInfoTypesOperator`
 
     :param language_code: (Optional) Optional BCP-47 language code for localized infoType
         friendly names. If omitted, or if localized strings are not available, en-US
@@ -2008,7 +2008,7 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPListInspectTemplatesOperator`
+        :ref:`howto/operator:CloudDLPListInspectTemplatesOperator`
 
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
@@ -2103,7 +2103,7 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPListJobTriggersOperator`
+        :ref:`howto/operator:CloudDLPListJobTriggersOperator`
 
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
@@ -2196,7 +2196,7 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPListStoredInfoTypesOperator`
+        :ref:`howto/operator:CloudDLPListStoredInfoTypesOperator`
 
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
@@ -2292,7 +2292,7 @@ class CloudDLPRedactImageOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPRedactImageOperator`
+        :ref:`howto/operator:CloudDLPRedactImageOperator`
 
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
@@ -2396,7 +2396,7 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPReidentifyContentOperator`
+        :ref:`howto/operator:CloudDLPReidentifyContentOperator`
 
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
@@ -2506,7 +2506,7 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPUpdateDeidentifyTemplateOperator`
+        :ref:`howto/operator:CloudDLPUpdateDeidentifyTemplateOperator`
 
     :param template_id: The ID of deidentify template to be updated.
     :type template_id: str
@@ -2607,7 +2607,7 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPUpdateInspectTemplateOperator`
+        :ref:`howto/operator:CloudDLPUpdateInspectTemplateOperator`
 
     :param template_id: The ID of the inspect template to be updated.
     :type template_id: str
@@ -2708,7 +2708,7 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPUpdateJobTriggerOperator`
+        :ref:`howto/operator:CloudDLPUpdateJobTriggerOperator`
 
     :param job_trigger_id: The ID of the DLP job trigger to be updated.
     :type job_trigger_id: str
@@ -2802,7 +2802,7 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDLPUpdateStoredInfoTypeOperator`
+        :ref:`howto/operator:CloudDLPUpdateStoredInfoTypeOperator`
 
     :param stored_info_type_id: The ID of the stored info type to be updated.
     :type stored_info_type_id: str

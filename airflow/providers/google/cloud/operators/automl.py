@@ -37,7 +37,7 @@ class AutoMLTrainModelOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:AutoMLTrainModelOperator`
+        :ref:`howto/operator:AutoMLTrainModelOperator`
 
     :param model: Model definition.
     :type model: dict
@@ -127,7 +127,7 @@ class AutoMLPredictOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:AutoMLPredictOperator`
+        :ref:`howto/operator:AutoMLPredictOperator`
 
     :param model_id: Name of the model requested to serve the batch prediction.
     :type model_id: str
@@ -221,7 +221,7 @@ class AutoMLBatchPredictOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:AutoMLBatchPredictOperator`
+        :ref:`howto/operator:AutoMLBatchPredictOperator`
 
     :param project_id: ID of the Google Cloud project where model will be created if None then
         default project_id is used.
@@ -335,7 +335,7 @@ class AutoMLCreateDatasetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:AutoMLCreateDatasetOperator`
+        :ref:`howto/operator:AutoMLCreateDatasetOperator`
 
     :param dataset: The dataset to create. If a dict is provided, it must be of the
         same form as the protobuf message Dataset.
@@ -428,7 +428,7 @@ class AutoMLImportDataOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:AutoMLImportDataOperator`
+        :ref:`howto/operator:AutoMLImportDataOperator`
 
     :param dataset_id: ID of dataset to be updated.
     :type dataset_id: str
@@ -524,7 +524,7 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:AutoMLTablesListColumnSpecsOperator`
+        :ref:`howto/operator:AutoMLTablesListColumnSpecsOperator`
 
     :param dataset_id: Name of the dataset.
     :type dataset_id: str
@@ -639,7 +639,7 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:AutoMLTablesUpdateDatasetOperator`
+        :ref:`howto/operator:AutoMLTablesUpdateDatasetOperator`
 
     :param dataset: The dataset which replaces the resource on the server.
         If a dict is provided, it must be of the same form as the protobuf message Dataset.
@@ -727,7 +727,7 @@ class AutoMLGetModelOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:AutoMLGetModelOperator`
+        :ref:`howto/operator:AutoMLGetModelOperator`
 
     :param model_id: Name of the model requested to serve the prediction.
     :type model_id: str
@@ -813,7 +813,7 @@ class AutoMLDeleteModelOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:AutoMLDeleteModelOperator`
+        :ref:`howto/operator:AutoMLDeleteModelOperator`
 
     :param model_id: Name of the model requested to serve the prediction.
     :type model_id: str
@@ -905,7 +905,7 @@ class AutoMLDeployModelOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:AutoMLDeployModelOperator`
+        :ref:`howto/operator:AutoMLDeployModelOperator`
 
     :param model_id: Name of the model to be deployed.
     :type model_id: str
@@ -1002,7 +1002,7 @@ class AutoMLTablesListTableSpecsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:AutoMLTablesListTableSpecsOperator`
+        :ref:`howto/operator:AutoMLTablesListTableSpecsOperator`
 
     :param dataset_id: Name of the dataset.
     :type dataset_id: str
@@ -1104,7 +1104,7 @@ class AutoMLListDatasetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:AutoMLListDatasetOperator`
+        :ref:`howto/operator:AutoMLListDatasetOperator`
 
     :param project_id: ID of the Google Cloud project where datasets are located if None then
         default project_id is used.
@@ -1190,7 +1190,7 @@ class AutoMLDeleteDatasetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:AutoMLDeleteDatasetOperator`
+        :ref:`howto/operator:AutoMLDeleteDatasetOperator`
 
     :param dataset_id: Name of the dataset_id, list of dataset_id or string of dataset_id
         coma separated to be deleted.

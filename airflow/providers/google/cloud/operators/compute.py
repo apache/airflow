@@ -73,7 +73,7 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:ComputeEngineStartInstanceOperator`
+        :ref:`howto/operator:ComputeEngineStartInstanceOperator`
 
     :param zone: Google Cloud zone where the instance exists.
     :type zone: str
@@ -150,7 +150,7 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:ComputeEngineStopInstanceOperator`
+        :ref:`howto/operator:ComputeEngineStopInstanceOperator`
 
     :param zone: Google Cloud zone where the instance exists.
     :type zone: str
@@ -233,7 +233,7 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:ComputeEngineSetMachineTypeOperator`
+        :ref:`howto/operator:ComputeEngineSetMachineTypeOperator`
 
     :param zone: Google Cloud zone where the instance exists.
     :type zone: str
@@ -389,7 +389,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:ComputeEngineCopyInstanceTemplateOperator`
+        :ref:`howto/operator:ComputeEngineCopyInstanceTemplateOperator`
 
     :param resource_id: Name of the Instance Template
     :type resource_id: str
@@ -528,7 +528,7 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:ComputeEngineInstanceGroupUpdateManagerTemplateOperator`
+        :ref:`howto/operator:ComputeEngineInstanceGroupUpdateManagerTemplateOperator`
 
     :param resource_id: Name of the Instance Group Manager
     :type resource_id: str

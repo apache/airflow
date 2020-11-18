@@ -29,7 +29,7 @@ class DataprepGetJobsForJobGroupOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:DataprepGetJobsForJobGroupOperator`
+        :ref:`howto/operator:DataprepGetJobsForJobGroupOperator`
 
     :param job_id The ID of the job that will be requests
     :type job_id: int
@@ -60,7 +60,7 @@ class DataprepGetJobGroupOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:DataprepGetJobGroupOperator`
+        :ref:`howto/operator:DataprepGetJobGroupOperator`
 
     :param job_group_id: The ID of the job that will be requests
     :type job_group_id: int

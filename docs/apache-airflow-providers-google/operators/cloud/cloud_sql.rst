@@ -491,13 +491,13 @@ starting from public IP plain connection through public IP with SSL or both TCP 
 socket connection via Cloud SQL Proxy. The proxy is downloaded and started/stopped
 dynamically as needed by the operator.
 
-There is a *gcpcloudsql://* connection type that you should use to define what
+There is a ``gcpcloudsql://*`` connection type that you should use to define what
 kind of connectivity you want the operator to use. The connection is a "meta"
 type of connection. It is not used to make an actual connectivity on its own, but it
 determines whether Cloud SQL Proxy should be started by ``CloudSQLDatabaseHook``
 and what kind of database connection (Postgres or MySQL) should be created
 dynamically to connect to Cloud SQL via public IP address or via the proxy.
-The 'CloudSqlDatabaseHook` uses
+The ``CloudSqlDatabaseHook`` uses
 :class:`~airflow.providers.google.cloud.hooks.cloud_sql.CloudSqlProxyRunner` to manage Cloud SQL
 Proxy lifecycle (each task has its own Cloud SQL Proxy)
 

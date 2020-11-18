@@ -34,14 +34,14 @@ class CloudTranslateSpeechOperator(BaseOperator):
 
     Note that it uses the first result from the recognition api response - the one with the highest confidence
     In order to see other possible results please use
-    :ref:`apache-airflow:howto/operator:CloudSpeechToTextRecognizeSpeechOperator`
+    :ref:`howto/operator:CloudSpeechToTextRecognizeSpeechOperator`
     and
-    :ref:`apache-airflow:howto/operator:CloudTranslateTextOperator`
+    :ref:`howto/operator:CloudTranslateTextOperator`
     separately
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudTranslateSpeechOperator`
+        :ref:`howto/operator:CloudTranslateSpeechOperator`
 
     See https://cloud.google.com/translate/docs/translating-text
 

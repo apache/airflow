@@ -37,7 +37,7 @@ class GoogleSearchAdsInsertReportOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:GoogleSearchAdsInsertReportOperator`
+        :ref:`howto/operator:GoogleSearchAdsInsertReportOperator`
 
     :param report: Report to be generated
     :type report: Dict[str, Any]
@@ -115,7 +115,7 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:GoogleSearchAdsGetfileReportOperator`
+        :ref:`howto/operator:GoogleSearchAdsGetfileReportOperator`
 
     :param report_id: ID of the report.
     :type report_id: str

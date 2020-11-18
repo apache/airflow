@@ -35,7 +35,7 @@ class GCSToSFTPOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:GCSToSFTPOperator`
+        :ref:`howto/operator:GCSToSFTPOperator`
 
     :param source_bucket: The source Google Cloud Storage bucket where the
          object is. (templated)

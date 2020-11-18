@@ -179,7 +179,7 @@ class CloudDataTransferServiceCreateJobOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDataTransferServiceCreateJobOperator`
+        :ref:`howto/operator:CloudDataTransferServiceCreateJobOperator`
 
     :param body: (Required) The request body, as described in
         https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs#TransferJob
@@ -256,7 +256,7 @@ class CloudDataTransferServiceUpdateJobOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDataTransferServiceUpdateJobOperator`
+        :ref:`howto/operator:CloudDataTransferServiceUpdateJobOperator`
 
     :param job_name: (Required) Name of the job to be updated
     :type job_name: str
@@ -343,7 +343,7 @@ class CloudDataTransferServiceDeleteJobOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDataTransferServiceDeleteJobOperator`
+        :ref:`howto/operator:CloudDataTransferServiceDeleteJobOperator`
 
     :param job_name: (Required) Name of the TRANSFER operation
     :type job_name: str
@@ -416,7 +416,7 @@ class CloudDataTransferServiceGetOperationOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDataTransferServiceGetOperationOperator`
+        :ref:`howto/operator:CloudDataTransferServiceGetOperationOperator`
 
     :param operation_name: (Required) Name of the transfer operation.
     :type operation_name: str
@@ -482,7 +482,7 @@ class CloudDataTransferServiceListOperationsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDataTransferServiceListOperationsOperator`
+        :ref:`howto/operator:CloudDataTransferServiceListOperationsOperator`
 
     :param request_filter: (Required) A request filter, as described in
             https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/list#body.QUERY_PARAMETERS.filter
@@ -556,7 +556,7 @@ class CloudDataTransferServicePauseOperationOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDataTransferServicePauseOperationOperator`
+        :ref:`howto/operator:CloudDataTransferServicePauseOperationOperator`
 
     :param operation_name: (Required) Name of the transfer operation.
     :type operation_name: str
@@ -620,7 +620,7 @@ class CloudDataTransferServiceResumeOperationOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDataTransferServiceResumeOperationOperator`
+        :ref:`howto/operator:CloudDataTransferServiceResumeOperationOperator`
 
     :param operation_name: (Required) Name of the transfer operation.
     :type operation_name: str
@@ -684,7 +684,7 @@ class CloudDataTransferServiceCancelOperationOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudDataTransferServiceCancelOperationOperator`
+        :ref:`howto/operator:CloudDataTransferServiceCancelOperationOperator`
 
     :param operation_name: (Required) Name of the transfer operation.
     :type operation_name: str
@@ -909,7 +909,7 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:GCSToGCSOperator`
+        :ref:`howto/operator:GCSToGCSOperator`
 
     **Example**:
 

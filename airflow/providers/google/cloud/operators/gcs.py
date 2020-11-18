@@ -372,7 +372,7 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:GCSBucketCreateAclEntryOperator`
+        :ref:`howto/operator:GCSBucketCreateAclEntryOperator`
 
     :param bucket: Name of a bucket.
     :type bucket: str
@@ -459,7 +459,7 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:GCSObjectCreateAclEntryOperator`
+        :ref:`howto/operator:GCSObjectCreateAclEntryOperator`
 
     :param bucket: Name of a bucket.
     :type bucket: str
@@ -662,7 +662,7 @@ class GCSDeleteBucketOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:GCSDeleteBucketOperator`
+        :ref:`howto/operator:GCSDeleteBucketOperator`
 
     :param bucket_name: name of the bucket which will be deleted
     :type bucket_name: str
@@ -723,7 +723,7 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:GCSSynchronizeBuckets`
+        :ref:`howto/operator:GCSSynchronizeBuckets`
 
     :param source_bucket: The name of the bucket containing the source objects.
     :type source_bucket: str

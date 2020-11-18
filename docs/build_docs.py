@@ -22,10 +22,13 @@ import re
 import shlex
 import shutil
 import sys
+from collections import defaultdict
 from glob import glob
 from subprocess import run
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import List
+from typing import List, Dict, Tuple, Optional
+
+from tabulate import tabulate
 
 from docs.exts.docs_build import lint_checks
 from docs.exts.docs_build.errors import DocBuildError, display_errors_summary, parse_sphinx_warnings
@@ -60,18 +63,18 @@ class AirflowDocsBuilder:
 
     @property
     def _doctree_dir(self) -> str:
-        return f"{DOCS_DIR}/_doctrees/{self.package_name}"
+        return f"{DOCS_DIR}/_doctrees/docs/{self.package_name}"
 
     @property
     def _out_dir(self) -> str:
-        return f"{DOCS_DIR}/_build/{self.package_name}/latest"
+        return f"{DOCS_DIR}/_build/docs/{self.package_name}/latest"
 
     @property
     def _src_dir(self) -> str:
         # TODO(mik-laj):
         #  After migrating the content from the core to providers, we should move all documentation from .
         #  to /airflow/ to keep the directory structure more maintainable.
-        if self.package_name == 'airflow':
+        if self.package_name == 'apache-airflow':
             return DOCS_DIR
         elif self.package_name.startswith('apache-airflow-providers'):
             return f"{DOCS_DIR}/{self.package_name}"
@@ -117,7 +120,6 @@ class AirflowDocsBuilder:
             if completed_proc.returncode != 0:
                 spelling_errors.append(
                     SpellingError(
-                        package_name=self.package_name,
                         file_path=None,
                         line_no=None,
                         spelling=None,
@@ -133,7 +135,7 @@ class AirflowDocsBuilder:
                     with open(filepath) as speeling_file:
                         warning_text += speeling_file.read()
 
-                spelling_errors.extend(parse_spelling_warnings(warning_text, package_name=self.package_name))
+                spelling_errors.extend(parse_spelling_warnings(warning_text, self._src_dir))
         return spelling_errors
 
     def build_sphinx_docs(self) -> List[DocBuildError]:
@@ -163,7 +165,6 @@ class AirflowDocsBuilder:
             if completed_proc.returncode != 0:
                 build_errors.append(
                     DocBuildError(
-                        package_name=self.package_name,
                         file_path=None,
                         line_no=None,
                         message=f"Sphinx returned non-zero exit status: {completed_proc.returncode}.",
@@ -173,13 +174,13 @@ class AirflowDocsBuilder:
             warning_text = tmp_file.read().decode()
             # Remove 7-bit C1 ANSI escape sequences
             warning_text = re.sub(r"\x1B[@-_][0-?]*[ -/]*[@-~]", "", warning_text)
-            build_errors.extend(parse_sphinx_warnings(warning_text, package_name=self.package_name))
+            build_errors.extend(parse_sphinx_warnings(warning_text, self._src_dir))
         return build_errors
 
 
 def get_available_packages():
     provider_package_names = [provider['package-name'] for provider in ALL_PROVIDER_YAMLS]
-
+    provider_package_names = [p for p in provider_package_names if os.path.exists(f"{p}/index.rst")]
     return ["apache-airflow", *provider_package_names]
 
 
@@ -194,7 +195,9 @@ def _get_parser():
         '--disable-checks', dest='disable_checks', action='store_true', help='Disables extra checks'
     )
     parser.add_argument(
-        "--package-filter",
+        "--package-filter", help=(
+            "Filter specifying for which packages the documentation is to be built. Wildcaard is supported."
+        )
     )
     parser.add_argument('--docs-only', dest='docs_only', action='store_true', help='Only build documentation')
     parser.add_argument(
@@ -203,28 +206,47 @@ def _get_parser():
     return parser
 
 
-def build_docs_for_packages(current_packages, disable_checks, docs_only, spellcheck_only):
-    all_build_errors: List[DocBuildError] = []
-    all_spelling_errors: List[SpellingError] = []
+def build_docs_for_packages(current_packages: List[str], docs_only: bool, spellcheck_only: bool) -> Tuple[
+    Dict[str, List[DocBuildError]],
+    Dict[str, List[SpellingError]]
+]:
+    all_build_errors: Dict[str, List[DocBuildError]] = defaultdict(list)
+    all_spelling_errors: Dict[str, List[SpellingError]] = defaultdict(list)
     for package_name in current_packages:
         builder = AirflowDocsBuilder(package_name=package_name)
         builder.clean_files()
-
         if not docs_only:
-            all_spelling_errors.extend(builder.check_spelling())
+            spelling_errors = builder.check_spelling()
+            if spelling_errors:
+                all_spelling_errors[package_name].extend(spelling_errors)
 
         if not spellcheck_only:
-            all_build_errors.extend(builder.build_sphinx_docs())
+            docs_errors = builder.build_sphinx_docs()
+            if docs_errors:
+                all_build_errors[package_name].extend(docs_errors)
 
-        if not disable_checks:
-            all_build_errors.extend(lint_checks.check_guide_links_in_operator_descriptions())
-            all_build_errors.extend(lint_checks.check_enforce_code_block())
-            all_build_errors.extend(lint_checks.check_exampleinclude_for_example_dags())
     return all_build_errors, all_spelling_errors
 
 
+def display_packages_summary(
+    build_errors: Dict[str, List[DocBuildError]], spelling_errors: Dict[str, List[SpellingError]]
+):
+    packages_names = {*build_errors.keys(), *spelling_errors.keys()}
+    tabular_data = [
+        {
+            "Package name": package_name,
+            "Count of doc build errors": len(build_errors.get(package_name, [])),
+            "Count of spelling errors": len(spelling_errors.get(package_name, []))
+        }
+        for package_name in sorted(packages_names, key=lambda k: k or '')
+    ]
+    print("#" * 20, f"Packages errors summary", "#" * 20)
+    print(tabulate(tabular_data=tabular_data, headers="keys"))
+    print("#" * 50)
+
+
 def print_build_errors_and_exit(
-    message: str, build_errors: List[DocBuildError], spelling_errors: List[SpellingError]
+    message: str, build_errors: Dict[str, List[DocBuildError]], spelling_errors: Dict[str, List[SpellingError]]
 ) -> None:
     """
     Prints build errors and exists.
@@ -234,9 +256,10 @@ def print_build_errors_and_exit(
             display_errors_summary(build_errors)
             print()
         if spelling_errors:
-            display_spelling_error_summary(spelling_errors, DOCS_DIR)
+            display_spelling_error_summary(spelling_errors)
             print()
         print(message)
+        display_packages_summary(build_errors, spelling_errors)
         print()
         print(CHANNEL_INVITATION)
         sys.exit(1)
@@ -258,12 +281,25 @@ def main():
 
     print(f"Documentation will be built for {len(current_packages)} packages: {current_packages}")
 
-    all_build_errors, all_spelling_errors = build_docs_for_packages(
+    all_build_errors: Dict[Optional[str], List[DocBuildError]] = {}
+    all_spelling_errors: Dict[Optional[str], List[SpellingError]] = {}
+    package_build_errors, package_spelling_errors = build_docs_for_packages(
         current_packages=current_packages,
-        disable_checks=disable_checks,
         docs_only=docs_only,
         spellcheck_only=spellcheck_only,
     )
+    if package_build_errors:
+        all_build_errors.update(package_build_errors)
+    if package_spelling_errors:
+        all_spelling_errors.update(package_spelling_errors)
+
+    if not disable_checks:
+        general_errors = []
+        general_errors.extend(lint_checks.check_guide_links_in_operator_descriptions())
+        general_errors.extend(lint_checks.check_enforce_code_block())
+        general_errors.extend(lint_checks.check_exampleinclude_for_example_dags())
+        if general_errors:
+            all_build_errors[None] = general_errors
 
     print_build_errors_and_exit(
         "The documentation has errors.",

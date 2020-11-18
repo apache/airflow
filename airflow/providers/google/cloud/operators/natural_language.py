@@ -37,7 +37,7 @@ class CloudNaturalLanguageAnalyzeEntitiesOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudNaturalLanguageAnalyzeEntitiesOperator`
+        :ref:`howto/operator:CloudNaturalLanguageAnalyzeEntitiesOperator`
 
     :param document: Input document.
         If a dict is provided, it must be of the same form as the protobuf message Document
@@ -116,7 +116,7 @@ class CloudNaturalLanguageAnalyzeEntitySentimentOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudNaturalLanguageAnalyzeEntitySentimentOperator`
+        :ref:`howto/operator:CloudNaturalLanguageAnalyzeEntitySentimentOperator`
 
     :param document: Input document.
         If a dict is provided, it must be of the same form as the protobuf message Document
@@ -200,7 +200,7 @@ class CloudNaturalLanguageAnalyzeSentimentOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudNaturalLanguageAnalyzeSentimentOperator`
+        :ref:`howto/operator:CloudNaturalLanguageAnalyzeSentimentOperator`
 
     :param document: Input document.
         If a dict is provided, it must be of the same form as the protobuf message Document
@@ -280,7 +280,7 @@ class CloudNaturalLanguageClassifyTextOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudNaturalLanguageClassifyTextOperator`
+        :ref:`howto/operator:CloudNaturalLanguageClassifyTextOperator`
 
     :param document: Input document.
         If a dict is provided, it must be of the same form as the protobuf message Document

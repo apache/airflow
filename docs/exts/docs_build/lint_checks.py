@@ -84,6 +84,7 @@ def check_guide_links_in_operator_descriptions() -> List[DocBuildError]:
 
     def generate_build_error(path, line_no, operator_name):
         return DocBuildError(
+            package_name=None,
             file_path=path,
             line_no=line_no,
             message=(
@@ -152,7 +153,12 @@ def assert_file_not_contains(file_path: str, pattern: str, message: str) -> Opti
         for num, line in enumerate(doc_file, 1):
             line_decode = line.decode()
             if re.search(pattern_compiled, line_decode):
-                return DocBuildError(file_path=file_path, line_no=num, message=message)
+                return DocBuildError(
+                    package_name=None,
+                    file_path=file_path,
+                    line_no=num,
+                    message=message
+                )
     return None
 
 

@@ -38,7 +38,7 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:BigtableTableReplicationCompletedSensor`
+        :ref:`howto/operator:BigtableTableReplicationCompletedSensor`
 
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance.

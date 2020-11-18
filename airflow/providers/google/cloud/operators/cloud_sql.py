@@ -270,7 +270,7 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudSQLCreateInstanceOperator`
+        :ref:`howto/operator:CloudSQLCreateInstanceOperator`
 
     :param body: Body required by the Cloud SQL insert API, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/insert
@@ -375,7 +375,7 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudSQLInstancePatchOperator`
+        :ref:`howto/operator:CloudSQLInstancePatchOperator`
 
     :param body: Body required by the Cloud SQL patch API, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/patch#request-body
@@ -459,7 +459,7 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudSQLDeleteInstanceOperator`
+        :ref:`howto/operator:CloudSQLDeleteInstanceOperator`
 
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
@@ -530,7 +530,7 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudSQLCreateInstanceDatabaseOperator`
+        :ref:`howto/operator:CloudSQLCreateInstanceDatabaseOperator`
 
     :param instance: Database instance ID. This does not include the project ID.
     :type instance: str
@@ -637,7 +637,7 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudSQLPatchInstanceDatabaseOperator`
+        :ref:`howto/operator:CloudSQLPatchInstanceDatabaseOperator`
 
     :param instance: Database instance ID. This does not include the project ID.
     :type instance: str
@@ -743,7 +743,7 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudSQLDeleteInstanceDatabaseOperator`
+        :ref:`howto/operator:CloudSQLDeleteInstanceDatabaseOperator`
 
     :param instance: Database instance ID. This does not include the project ID.
     :type instance: str
@@ -833,7 +833,7 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudSQLExportInstanceOperator`
+        :ref:`howto/operator:CloudSQLExportInstanceOperator`
 
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
@@ -938,7 +938,7 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudSQLImportInstanceOperator`
+        :ref:`howto/operator:CloudSQLImportInstanceOperator`
 
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
@@ -1028,7 +1028,7 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CloudSQLExecuteQueryOperator`
+        :ref:`howto/operator:CloudSQLExecuteQueryOperator`
 
     :param sql: SQL query or list of queries to run (should be DML or DDL query -
         this operator does not return any data from the database,
@@ -1047,7 +1047,7 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
     :param gcp_cloudsql_conn_id: The connection ID used to connect to Google Cloud SQL
        its schema should be gcpcloudsql://.
        See :class:`~airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook` for
-       details on how to define gcpcloudsql:// connection.
+       details on how to define ``gcpcloudsql://`` connection.
     :type gcp_cloudsql_conn_id: str
     """
 

@@ -43,7 +43,7 @@ example:
 #. Make sure a Google Cloud account have read and write access to the Google Cloud Storage bucket defined above in ``remote_base_log_folder``.
 #. Install the ``google`` package, like so: ``pip install 'apache-airflow[google]'``.
 #. Restart the Airflow webserver and scheduler, and trigger (or wait for) a new task execution.
-#. Verify that logs are showing up for newly executed tasks in the bucket you've defined.
+#. Verify that logs are showing up for newly executed tasks in the bucket you have defined.
 #. Verify that the Google Cloud Storage viewer is working in the UI. Pull up a newly executed task, and verify that you see something like:
 
 .. code-block:: none
