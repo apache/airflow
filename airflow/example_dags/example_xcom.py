@@ -79,7 +79,7 @@ pull = PythonOperator(
     dag=dag,
     python_callable=puller,
     op_args=[
-        push1.output['value_from_pusher 1'],
+        push1.output['value from pusher 1'],
         push2.output,
     ],
 )
