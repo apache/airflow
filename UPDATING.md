@@ -280,6 +280,7 @@ The fix to `none_failed` trigger rule breaks workflows that depend on the previo
 ### Success Callback will be called when a task in marked as success from UI
 
 When a task is marked as success by a user from Airflow UI - `on_success_callback` will be called
+consistent with documentation (#7464) (#235))
 
 ## Airflow 1.10.9
 
