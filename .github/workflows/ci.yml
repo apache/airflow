@@ -329,7 +329,7 @@ jobs:
           aws-region: eu-central-1
       - name: "Upload documentation to S3"
         if: >
-          github.ref == 'refs/heads/master' && github.repository == 'apache/airflow' &&
+          github.ref == 'refs/heads/docs-v2' && github.repository == 'mik-laj/airflow' &&
           github.event_name != 'push'
         run: aws s3 sync ./files/documentation s3://apache-airflow-docs
 

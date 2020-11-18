@@ -26,11 +26,11 @@ from collections import defaultdict
 from glob import glob
 from subprocess import run
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import List, Dict, Tuple, Optional
+from typing import Dict, List, Optional, Tuple
 
 from tabulate import tabulate
 
-from docs.exts.docs_build import lint_checks
+from docs.exts.docs_build import dev_index_generator, lint_checks
 from docs.exts.docs_build.errors import DocBuildError, display_errors_summary, parse_sphinx_warnings
 from docs.exts.docs_build.spelling_checks import (
     SpellingError,
@@ -195,9 +195,10 @@ def _get_parser():
         '--disable-checks', dest='disable_checks', action='store_true', help='Disables extra checks'
     )
     parser.add_argument(
-        "--package-filter", help=(
+        "--package-filter",
+        help=(
             "Filter specifying for which packages the documentation is to be built. Wildcaard is supported."
-        )
+        ),
     )
     parser.add_argument('--docs-only', dest='docs_only', action='store_true', help='Only build documentation')
     parser.add_argument(
@@ -206,10 +207,9 @@ def _get_parser():
     return parser
 
 
-def build_docs_for_packages(current_packages: List[str], docs_only: bool, spellcheck_only: bool) -> Tuple[
-    Dict[str, List[DocBuildError]],
-    Dict[str, List[SpellingError]]
-]:
+def build_docs_for_packages(
+    current_packages: List[str], docs_only: bool, spellcheck_only: bool
+) -> Tuple[Dict[str, List[DocBuildError]], Dict[str, List[SpellingError]]]:
     all_build_errors: Dict[str, List[DocBuildError]] = defaultdict(list)
     all_spelling_errors: Dict[str, List[SpellingError]] = defaultdict(list)
     for package_name in current_packages:
@@ -236,7 +236,7 @@ def display_packages_summary(
         {
             "Package name": package_name,
             "Count of doc build errors": len(build_errors.get(package_name, [])),
-            "Count of spelling errors": len(spelling_errors.get(package_name, []))
+            "Count of spelling errors": len(spelling_errors.get(package_name, [])),
         }
         for package_name in sorted(packages_names, key=lambda k: k or '')
     ]
@@ -246,7 +246,9 @@ def display_packages_summary(
 
 
 def print_build_errors_and_exit(
-    message: str, build_errors: Dict[str, List[DocBuildError]], spelling_errors: Dict[str, List[SpellingError]]
+    message: str,
+    build_errors: Dict[str, List[DocBuildError]],
+    spelling_errors: Dict[str, List[SpellingError]],
 ) -> None:
     """
     Prints build errors and exists.
@@ -301,6 +303,7 @@ def main():
         if general_errors:
             all_build_errors[None] = general_errors
 
+    dev_index_generator.generate_index(f"{DOCS_DIR}/_build/index.html")
     print_build_errors_and_exit(
         "The documentation has errors.",
         all_build_errors,
