@@ -298,7 +298,7 @@ Step 4: Prepare PR
 
 5. Depending on "scope" of your changes, your Pull Request might go through one of few paths after approval.
    We run some non-standard workflow with high degree of automation that allows us to optimize the usage
-   of queue slots in Github Actions. Our automated workflows determine the "scope" of changes in your PR
+   of queue slots in GitHub Actions. Our automated workflows determine the "scope" of changes in your PR
    and send it through the right path:
 
    * In case of a "no-code" change, approval will generate a comment that the PR can be merged and no
