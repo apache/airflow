@@ -42,6 +42,8 @@ def upgrade():
     is_sqlite = bool(conn.dialect.name == "sqlite")
     timestamp = sa.TIMESTAMP(timezone=True) if not is_mysql else mysql.TIMESTAMP(fsp=6, timezone=True)
 
+    if is_sqlite:
+        op.execute("PRAGMA foreign_keys=off")
     with op.batch_alter_table('dag_run', schema=None) as batch_op:
         batch_op.add_column(sa.Column('last_scheduling_decision', timestamp, nullable=True))
         batch_op.create_index('idx_last_scheduling_decision', ['last_scheduling_decision'], unique=False)
@@ -56,6 +58,9 @@ def upgrade():
 
         batch_op.create_index('idx_next_dagrun_create_after', ['next_dagrun_create_after'], unique=False)
 
+    if is_sqlite:
+        op.execute("PRAGMA foreign_keys=on")
+
     try:
         from airflow.configuration import conf
 
@@ -65,6 +70,7 @@ def upgrade():
 
     # Set it to true here as it makes us take the slow/more complete path, and when it's next parsed by the
     # DagParser it will get set to correct value.
+
     op.execute(
         "UPDATE dag SET concurrency={}, has_task_concurrency_limits={} where concurrency IS NULL".format(
             concurrency, 1 if is_sqlite else sa.true()
