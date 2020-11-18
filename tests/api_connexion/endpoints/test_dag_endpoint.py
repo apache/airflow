@@ -34,7 +34,7 @@ from tests.test_utils.api_connexion_utils import assert_401, create_user, delete
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
-SERIALIZER = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))
+SERIALIZER = URLSafeSerializer(conf.get('webserver', 'secret_key'))
 FILE_TOKEN = SERIALIZER.dumps(__file__)
 
 
@@ -111,17 +111,17 @@ class TestDagEndpoint(unittest.TestCase):
 
 
 class TestGetDag(TestDagEndpoint):
+    @conf_vars({("webserver", "secret_key"): "mysecret"})
     def test_should_respond_200(self):
         self._create_dag_models(1)
         response = self.client.get("/api/v1/dags/TEST_DAG_1", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
-        file_token = SERIALIZER.dumps("/tmp/dag_1.py")
         self.assertEqual(
             {
                 "dag_id": "TEST_DAG_1",
                 "description": None,
                 "fileloc": "/tmp/dag_1.py",
-                "file_token": file_token,
+                "file_token": 'Ii90bXAvZGFnXzEucHki.EnmIdPaUPo26lHQClbWMbDFD1Pk',
                 "is_paused": False,
                 "is_subdag": False,
                 "owners": [],
@@ -132,6 +132,7 @@ class TestGetDag(TestDagEndpoint):
             response.json,
         )
 
+    @conf_vars({("webserver", "secret_key"): "mysecret"})
     @provide_session
     def test_should_respond_200_with_schedule_interval_none(self, session=None):
         dag_model = DagModel(
@@ -143,13 +144,12 @@ class TestGetDag(TestDagEndpoint):
         session.commit()
         response = self.client.get("/api/v1/dags/TEST_DAG_1", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
-        file_token = SERIALIZER.dumps("/tmp/dag_1.py")
         self.assertEqual(
             {
                 "dag_id": "TEST_DAG_1",
                 "description": None,
                 "fileloc": "/tmp/dag_1.py",
-                "file_token": file_token,
+                "file_token": 'Ii90bXAvZGFnXzEucHki.EnmIdPaUPo26lHQClbWMbDFD1Pk',
                 "is_paused": False,
                 "is_subdag": False,
                 "owners": [],
