@@ -28,7 +28,8 @@ import os
 import subprocess
 import time
 import traceback
-from multiprocessing import Pool, cpu_count
+from multiprocessing.dummy import Pool
+from multiprocessing import cpu_count
 
 from celery import Celery
 from celery import states as celery_states
