@@ -142,30 +142,15 @@ def convert_configmap(configmaps) -> k8s.V1EnvFromSource:
 
 
 def convert_affinity(affinity) -> k8s.V1Affinity:
-    """
-    Converts a dict into an k8s.V1Affinity
-
-    :param affinity:
-    :return:
-    """
+    """Converts a dict into an k8s.V1Affinity"""
     return _convert_from_dict(affinity, k8s.V1Affinity)
 
 
 def convert_node_selector(node_selector) -> k8s.V1NodeSelector:
-    """
-    Converts a dict into an k8s.V1NodeSelector
-
-    :param node_selector:
-    :return:
-    """
+    """Converts a dict into a k8s.V1NodeSelector"""
     return _convert_from_dict(node_selector, k8s.V1NodeSelector)
 
 
 def convert_toleration(toleration) -> k8s.V1Toleration:
-    """
-    Converts a dict into an k8s.V1Toleration
-
-    :param toleration:
-    :return:
-    """
+    """Converts a dict into an k8s.V1Toleration"""
     return _convert_from_dict(toleration, k8s.V1Toleration)
