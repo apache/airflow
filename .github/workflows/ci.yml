@@ -788,8 +788,7 @@ jobs:
           cache-name: cache-kubernetes-tests-v7-master
         with:
           path: ".build/bin"
-          key: "bin-${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}\
--${{ hashFiles('setup.cfg') }}\
+          key: "bin-${{ env.cache-name }}-${{ github.job }}\
 -${{ needs.build-info.outputs.defaultPythonVersion }}\
 -${{ needs.build-info.outputs.defaultKindVersion }}\
 -${{ needs.build-info.outputs.defaultHelmVersion }}\
