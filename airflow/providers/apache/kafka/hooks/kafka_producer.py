@@ -27,20 +27,17 @@ class KafkaProducerHook(BaseHook):
     DEFAULT_HOST = 'localhost'
     DEFAULT_PORT = 9092
 
-    def __init__(self, conn_id, topic):
+    def __init__(self, conn_id):
         """
             Initializes an instance of the Kafka Producer Hook class.
         :param conn_id
             The airflow connection ID to use.
-        :param topic
-            The kafka topic you intend to produce on.
         """
         super().__init__(None)
         self.conn_id = conn_id
         self._conn = None
         self.server = None
         self.producer = None
-        self.topic = topic
 
     def get_conn(self) -> KafkaProducer:
         """
@@ -64,9 +61,13 @@ class KafkaProducerHook(BaseHook):
             Sends a message on the specified topic and partition.  Keyed messages will be sent in order.
 
         :param topic:
+            The Kafka topic you wish to publish to.
         :param value:
+            The value of the message you are publishing.
         :param key:
+            The key to publish on.
         :param partition:
+            The partition to publish onto.
         :param timestamp_ms:
         :return:
         """
