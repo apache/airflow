@@ -37,7 +37,8 @@ from airflow.providers.google.cloud.sensors.dataflow import (
     DataflowJobMessagesSensor,
     DataflowJobMetricsSensor,
     DataflowJobStatusSensor,
-)from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
+)
+from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
 from airflow.utils.dates import days_ago
 
 GCS_TMP = os.environ.get('GCP_DATAFLOW_GCS_TMP', 'gs://test-dataflow-example/temp/')
@@ -195,7 +196,7 @@ with models.DAG(
         return False
 
     wait_for_python_job_async_message = DataflowJobMessagesSensor(
-        task_id="wait-for-python-job-async-metric",
+        task_id="wait-for-python-job-async-message",
         job_id="{{task_instance.xcom_pull('start-python-job-async')['job_id']}}",
         location='europe-west3',
         callback=check_message,
@@ -219,7 +220,6 @@ with models.DAG(
     start_python_job_async >> wait_for_python_job_async_metric
     start_python_job_async >> wait_for_python_job_async_message
     start_python_job_async >> wait_for_python_job_async_autoscaling_event
-
 
 
 with models.DAG(
