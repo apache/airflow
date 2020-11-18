@@ -314,23 +314,31 @@ to port-forward the Airflow UI to http://localhost:8080/ to confirm Airflow is w
 
 1. Start a project using [astro-cli](https://github.com/astronomer/astro-cli), which will generate a Dockerfile, and load your DAGs in. You can test locally before pushing to kind with `astro airflow start`.
 
-        mkdir my-airflow-project && cd my-airflow-project
-        astro dev init
+    ```shell script
+    mkdir my-airflow-project && cd my-airflow-project
+    astro dev init
+    ```
 
 2. Then build the image:
 
-        docker build -t my-dags:0.0.1 .
+    ```shell script
+    docker build -t my-dags:0.0.1 .
+    ```
 
 3. Load the image into kind:
 
-        kind load docker-image my-dags:0.0.1
+    ```shell script
+    kind load docker-image my-dags:0.0.1
+    ```
 
 4. Upgrade Helm deployment:
 
-        helm upgrade airflow -n airflow \
-            --set images.airflow.repository=my-dags \
-            --set images.airflow.tag=0.0.1 \
-            astronomer/airflow
+    ```shell script
+    helm upgrade airflow -n airflow \
+        --set images.airflow.repository=my-dags \
+        --set images.airflow.tag=0.0.1 \
+        astronomer/airflow
+    ```
 
 ## Contributing
 
