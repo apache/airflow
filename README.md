@@ -84,7 +84,7 @@ Apache Airflow is tested with:
 | PostgreSQL   | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      |
 | MySQL        | 5.7, 8                    | 5.6, 5.7                 |
 | SQLite       | latest stable             | latest stable            |
-| Kubernetes   | 1.16.2, 1.17.0            | 1.16.2, 1.17.0           |
+| Kubernetes   | v1.18.6 v1.17.5 v1.16.9   | v1.18.6 v1.17.5 v1.16.9  |
 
 **Note:** MariaDB and MySQL 5.x will work fine for a single scheduler, but don't work or have limitations
 running more than a single scheduler -- please see the "Scheduler" docs.
