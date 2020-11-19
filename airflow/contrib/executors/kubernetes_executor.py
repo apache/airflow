@@ -17,4 +17,4 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.executors import kubernetes_executor  # noqa
+from airflow.executors.kubernetes_executor import KubernetesExecutor  # noqa
