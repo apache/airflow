@@ -326,7 +326,7 @@ def _convert_to_airflow_pod(pod):
         resources=base_container.resources,
         service_account_name=pod.spec.service_account_name,
         secrets=secrets,
-        affinity=pod.spec.affinity,
+        affinity=api_client.sanitize_for_serialization(pod.spec.affinity),
         hostnetwork=pod.spec.host_network,
         security_context=_extract_security_context(pod.spec.security_context)
     )
