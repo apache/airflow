@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# https://cwiki.apache.org/confluence/display/INFRA/.asf.yaml+features+for+git+repositories
+# https://cwiki.apache.org/confluence/display/INFRA/git+-+.asf.yaml+features
 ---
 github:
   description: "Apache Airflow - A platform to programmatically author, schedule, and monitor workflows"

@@ -21,7 +21,7 @@ description: |
     `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
 
 versions:
-  - 1.0.0b1
+  - 1.0.0b2
 integrations:
   - integration-name: IBM Cloudant
     external-doc-url: https://www.ibm.com/cloud/cloudant

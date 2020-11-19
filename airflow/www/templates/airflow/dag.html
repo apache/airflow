@@ -177,7 +177,7 @@
             <input type="hidden" name="execution_date">
             <input type="hidden" name="origin" value="{{ request.base_url }}">
             <div class="row">
-              <span class="btn-group col-md-9" data-toggle="buttons">
+              <span class="btn-group col-xs-12 col-sm-9 task-instance-modal-column" data-toggle="buttons">
                 <label
                   class="btn btn-default"
                   title="Ignores all non-critical dependencies, including task state and task_deps">
@@ -194,14 +194,14 @@
                   Ignore Task Deps
                 </label>
               </span>
-              <span class="col-md-3">
+              <span class="col-xs-12 col-sm-3 task-instance-modal-column">
                 <button type="submit" id="btn_run" class="btn btn-primary btn-block" title="Runs a single task instance">
                   Run
                 </button>
               </span>
             </div>
           </form>
-          <hr>
+          <hr style="margin-bottom: 8px;">
           <form method="POST" data-action="{{ url_for('Airflow.clear') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
@@ -209,7 +209,7 @@
             <input type="hidden" name="execution_date">
             <input type="hidden" name="origin" value="{{ request.base_url }}">
             <div class="row">
-              <span class="btn-group col-md-9" data-toggle="buttons">
+              <span class="btn-group col-xs-12 col-sm-9 task-instance-modal-column" data-toggle="buttons">
                 <label class="btn btn-default btn-sm" title="Also include past task instances when clearing this one">
                   <input type="checkbox" value="true" name="past" autocomplete="off">
                   Past
@@ -235,7 +235,7 @@
                   Failed
                 </label>
               </span>
-              <span class="col-md-3">
+              <span class="col-xs-12 col-sm-3 task-instance-modal-column">
                 <button type="submit" id="btn_clear" class="btn btn-primary btn-block"
                     title="Clearing deletes the previous state of the task instance, allowing it to get re-triggered by the scheduler or a backfill command">
                   Clear
@@ -243,7 +243,7 @@
               </span>
             </div>
           </form>
-          <hr>
+          <hr style="margin-bottom: 8px;">
           <form method="POST" data-action="{{ url_for('Airflow.failed') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
@@ -251,7 +251,7 @@
             <input type="hidden" name="execution_date">
             <input type="hidden" name="origin" value="{{ request.base_url }}">
             <div class="row">
-              <span class="btn-group col-md-9" data-toggle="buttons">
+              <span class="btn-group col-xs-12 col-sm-9 task-instance-modal-column" data-toggle="buttons">
                 <label class="btn btn-default">
                   <input type="checkbox" value="true" name="failed_past" autocomplete="off">
                   Past
@@ -269,14 +269,14 @@
                   Downstream
                 </label>
               </span>
-              <span class="col-md-3">
+              <span class="col-xs-12 col-sm-3 task-instance-modal-column">
                 <button type="submit" id="btn_failed" class="btn btn-primary btn-block">
                   Mark Failed
                 </button>
               </span>
             </div>
           </form>
-          <hr>
+          <hr style="margin-bottom: 8px;">
           <form method="POST" data-action="{{ url_for('Airflow.success') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
@@ -284,7 +284,7 @@
             <input type="hidden" name="execution_date">
             <input type="hidden" name="origin" value="{{ request.base_url }}">
             <div class="row">
-              <span class="btn-group col-md-9" data-toggle="buttons">
+              <span class="btn-group col-xs-12 col-sm-9 task-instance-modal-column" data-toggle="buttons">
                 <label class="btn btn-default">
                   <input type="checkbox" value="true" name="success_past" autocomplete="off">
                   Past
@@ -302,7 +302,7 @@
                   Downstream
                 </label>
               </span>
-              <span class="col-md-3">
+              <span class="col-xs-12 col-sm-3 task-instance-modal-column">
                 <button type="submit" id="btn_success" class="btn btn-primary btn-block">
                   Mark Success
                 </button>

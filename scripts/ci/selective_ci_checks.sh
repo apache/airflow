@@ -207,6 +207,7 @@ function set_outputs_run_all_tests() {
     set_test_types "${ALL_TESTS}"
     set_basic_checks_only "false"
     set_image_build "true"
+    kubernetes_tests_needed="true"
 }
 
 function set_output_skip_all_tests_and_docs_and_exit() {

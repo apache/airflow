@@ -1030,7 +1030,7 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
         self.assertIsNone(result)
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_rowcunt(self, mock_get_service):
+    def test_rowcount(self, mock_get_service):
         bq_cursor = self.hook.get_cursor()
         result = bq_cursor.rowcount
         self.assertEqual(-1, result)

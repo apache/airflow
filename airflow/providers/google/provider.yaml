@@ -27,7 +27,7 @@ description: |
       - `Google Workspace <https://workspace.google.pl/>`__ (formerly Google Suite)
 
 versions:
-  - 1.0.0b1
+  - 1.0.0b2
 
 integrations:
   - integration-name: Google Analytics360
@@ -382,6 +382,9 @@ sensors:
   - integration-name: Google Cloud Storage Transfer Service
     python-modules:
       - airflow.providers.google.cloud.sensors.cloud_storage_transfer_service
+  - integration-name: Google Dataflow
+    python-modules:
+      - airflow.providers.google.cloud.sensors.dataflow
   - integration-name: Google Dataproc
     python-modules:
       - airflow.providers.google.cloud.sensors.dataproc
@@ -394,6 +397,9 @@ sensors:
   - integration-name: Google Campaign Manager
     python-modules:
       - airflow.providers.google.marketing_platform.sensors.campaign_manager
+  - integration-name: Google Dataflow
+    python-modules:
+      - airflow.providers.google.cloud.sensors.dataflow
   - integration-name: Google Display&Video 360
     python-modules:
       - airflow.providers.google.marketing_platform.sensors.display_video

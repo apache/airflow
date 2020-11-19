@@ -21,7 +21,7 @@ description: |
     `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
 
 versions:
-  - 1.0.0b1
+  - 1.0.0b2
 
 integrations:
   - integration-name: SSH File Transfer Protocol (SFTP)

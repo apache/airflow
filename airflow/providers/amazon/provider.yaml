@@ -21,7 +21,7 @@ description: |
     Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 versions:
-  - 1.0.0b1
+  - 1.0.0b2
 
 integrations:
   - integration-name: Amazon Athena

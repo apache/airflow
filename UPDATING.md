@@ -2234,14 +2234,18 @@ custom auth backends might need a small change: `is_active`,
 `is_authenticated`, and `is_anonymous` should now be properties. What this means is if
 previously you had this in your user class
 
-    def is_active(self):
-      return self.active
+```python
+def is_active(self):
+  return self.active
+```
 
 then you need to change it like this
 
-    @property
-    def is_active(self):
-      return self.active
+```python
+@property
+def is_active(self):
+  return self.active
+```
 
 ### Support autodetected schemas to GoogleCloudStorageToBigQueryOperator
 
@@ -2251,21 +2255,27 @@ If BigQuery tables are created outside of airflow and the schema is not defined 
 
 define a schema_fields:
 
-    gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
-      ...
-      schema_fields={...})
+```python
+gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
+  ...
+  schema_fields={...})
+```
 
 or define a schema_object:
 
-    gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
-      ...
-      schema_object='path/to/schema/object)
+```python
+gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
+  ...
+  schema_object='path/to/schema/object')
+```
 
 or enabled autodetect of schema:
 
-    gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
-      ...
-      autodetect=True)
+```python
+gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
+  ...
+  autodetect=True)
+```
 
 ## Airflow 1.10.1
 

@@ -190,7 +190,7 @@ Google Cloud to AWS authentication using Web Identity Federation
 Thanks to `Web Identity Federation <https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_oidc.html>`__, you can use the credentials from the Google Cloud platform to authorize
 access in the Amazon Web Service platform. If you additionally use authorizations with access token obtained
 from `metadata server <https://cloud.google.com/compute/docs/storing-retrieving-metadata>`__ or
-`Workfload Identity <https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity#gke_mds>`__,
+`Workload Identity <https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity#gke_mds>`__,
 you can improve the security of your environment by eliminating long-lived credentials.
 
 The Google Cloud credentials is exchanged for the Amazon Web Service

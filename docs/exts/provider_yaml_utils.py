@@ -24,7 +24,7 @@ import jsonschema
 import yaml
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
-PROVIDER_DATA_SCHEMA_PATH = os.path.join(ROOT_DIR, "dev", "provider.yaml.schema.json")
+PROVIDER_DATA_SCHEMA_PATH = os.path.join(ROOT_DIR, "airflow", "provider.yaml.schema.json")
 
 
 def _load_schema() -> Dict[str, Any]:

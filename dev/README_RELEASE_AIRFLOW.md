@@ -538,7 +538,7 @@ At this point we release an official package:
 - Get a diff between the last version and the current version:
 
     ```shell script
-    $ git log 1.8.0..1.9.0 --pretty=oneline
+    git log 1.8.0..1.9.0 --pretty=oneline
     ```
 
 - Update CHANGELOG.md with the details, and commit it.

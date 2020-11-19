@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import getpass
+import logging
 import os
 import time
 import unittest
@@ -60,6 +61,9 @@ class TestStandardTaskRunner(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        airflow_logger = logging.getLogger('airflow')
+        airflow_logger.handlers = []
+        airflow_logger.propagate = True
         try:
             clear_db_runs()
         except Exception:  # noqa pylint: disable=broad-except

@@ -21,7 +21,7 @@ description: |
     `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
 
 versions:
-  - 1.0.0b1
+  - 1.0.0b2
 
 integrations:
   - integration-name: Secure Shell (SSH)

@@ -42,6 +42,7 @@ def _tabulate_connection(conns: List[Connection], tablefmt: str):
         {
             'Conn Id': conn.conn_id,
             'Conn Type': conn.conn_type,
+            'Description': conn.description,
             'Host': conn.host,
             'Port': conn.port,
             'Is Encrypted': conn.is_encrypted,
@@ -60,6 +61,7 @@ def _yamulate_connection(conn: Connection):
         'Id': conn.id,
         'Conn Id': conn.conn_id,
         'Conn Type': conn.conn_type,
+        'Description': conn.description,
         'Host': conn.host,
         'Schema': conn.schema,
         'Login': conn.login,
@@ -113,6 +115,7 @@ def _format_connections(conns: List[Connection], fmt: str) -> str:
     for conn in conns:
         connections_dict[conn.conn_id] = {
             'conn_type': conn.conn_type,
+            'description': conn.description,
             'host': conn.host,
             'login': conn.login,
             'password': conn.password,
@@ -202,11 +205,12 @@ def connections_add(args):
         raise SystemExit(msg)
 
     if args.conn_uri:
-        new_conn = Connection(conn_id=args.conn_id, uri=args.conn_uri)
+        new_conn = Connection(conn_id=args.conn_id, description=args.conn_description, uri=args.conn_uri)
     else:
         new_conn = Connection(
             conn_id=args.conn_id,
             conn_type=args.conn_type,
+            description=args.conn_description,
             host=args.conn_host,
             login=args.conn_login,
             password=args.conn_password,

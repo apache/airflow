@@ -26,22 +26,16 @@ from os.path import dirname
 from textwrap import wrap
 from typing import Dict, Iterable, List
 
-from setuptools import Command, find_namespace_packages, find_packages, setup
+from setuptools import Command, find_namespace_packages, setup
 
 logger = logging.getLogger(__name__)
 
 # This is automatically maintained in sync via pre-commit from airflow/version.py
-version = '2.0.0b2'
+version = '2.0.0b3'
 
 PY3 = sys.version_info[0] == 3
 
 my_dir = dirname(__file__)
-
-try:
-    with open(os.path.join(my_dir, 'README.md'), encoding='utf-8') as f:
-        long_description = f.read()
-except FileNotFoundError:
-    long_description = ''
 
 
 def airflow_test_suite():
@@ -718,7 +712,7 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     "microsoft.winrm": ["microsoft.winrm"],
     'mongo': ["mongo"],
     'mssql': ["microsoft.mssql"],  # TODO: remove this in Airflow 2.1
-    'mysql': ["microsoft.mssql"],
+    'mysql': ["mysql"],
     'odbc': ["odbc"],
     'oracle': ["oracle"],
     'pagerduty': ["pagerduty"],
@@ -809,67 +803,6 @@ EXTRAS_REQUIREMENTS.update(
     }
 )
 
-#####################################################################################################
-# IMPORTANT NOTE!!!!!!!!!!!!!!!
-# IF you are removing dependencies from this list, please make sure that you also increase
-# DEPENDENCIES_EPOCH_NUMBER in the Dockerfile.ci
-#####################################################################################################
-INSTALL_REQUIREMENTS = [
-    'alembic>=1.2, <2.0',
-    'argcomplete~=1.10',
-    'attrs>=20.0, <21.0',
-    'cached_property~=1.5',
-    # cattrs >= 1.1.0 dropped support for Python 3.6
-    'cattrs>=1.0, <1.1.0;python_version<="3.6"',
-    'cattrs>=1.0, <2.0;python_version>"3.6"',
-    'colorlog==4.0.2',
-    'connexion[swagger-ui,flask]>=2.6.0,<3',
-    'croniter>=0.3.17, <0.4',
-    'cryptography>=0.9.3',
-    'dill>=0.2.2, <0.4',
-    'flask>=1.1.0, <2.0',
-    'flask-appbuilder~=3.1.1',
-    'flask-caching>=1.5.0, <2.0.0',
-    'flask-login>=0.3, <0.5',
-    'flask-swagger==0.2.13',
-    'flask-wtf>=0.14.3, <0.15',
-    'funcsigs>=1.0.0, <2.0.0',
-    'graphviz>=0.12',
-    'gunicorn>=19.5.0, <20.0',
-    'iso8601>=0.1.12',
-    'jinja2>=2.10.1, <2.12.0',
-    'json-merge-patch==0.2',
-    'jsonschema~=3.0',
-    'lazy_object_proxy~=1.3',
-    'lockfile>=0.12.2',
-    'markdown>=2.5.2, <4.0',
-    'markupsafe>=1.1.1, <2.0',
-    'marshmallow-oneofschema>=2.0.1',
-    'pandas>=0.17.1, <2.0',
-    'pendulum~=2.0',
-    'pep562~=1.0;python_version<"3.7"',
-    'psutil>=4.2.0, <6.0.0',
-    'pygments>=2.0.1, <3.0',
-    'python-daemon>=2.1.1',
-    'python-dateutil>=2.3, <3',
-    'python-nvd3~=0.15.0',
-    'python-slugify>=3.0.0,<5.0',
-    'requests>=2.20.0, <3',
-    'rich==9.2.0',
-    'setproctitle>=1.1.8, <2',
-    'sqlalchemy>=1.3.18, <2',
-    'sqlalchemy_jsonfield~=0.9',
-    'tabulate>=0.7.5, <0.9',
-    'tenacity~=6.2.0',
-    'termcolor>=1.1.0',
-    'thrift>=0.9.2',
-    'typing;python_version<"3.6"',
-    'typing-extensions>=3.7.4;python_version<"3.8"',
-    'tzlocal>=1.4,<2.0.0',
-    'unicodecsv>=0.14.1',
-    'werkzeug~=1.0, >=1.0.1',
-]
-
 
 def get_provider_package_from_package_id(package_id: str):
     """
@@ -884,73 +817,24 @@ def get_provider_package_from_package_id(package_id: str):
 
 def do_setup():
     """Perform the Airflow package setup."""
-    install_providers_from_sources = os.getenv('INSTALL_PROVIDERS_FROM_SOURCES')
-    exclude_patterns = (
-        []
-        if install_providers_from_sources and install_providers_from_sources == 'true'
-        else ['airflow.providers', 'airflow.providers.*']
-    )
-    write_version()
-    if not install_providers_from_sources:
+    setup_kwargs = {}
+
+    if os.getenv('INSTALL_PROVIDERS_FROM_SOURCES') == 'true':
+        # Only specify this if we need this option, otherwise let default from
+        # setup.cfg control this (kwargs in setup() call take priority)
+        setup_kwargs['packages'] = find_namespace_packages(include=['airflow*'])
+    else:
         for key, value in EXTRAS_PROVIDERS_PACKAGES.items():
             EXTRAS_REQUIREMENTS[key].extend(
                 [get_provider_package_from_package_id(package_name) for package_name in value]
             )
-    packages_to_install = (
-        find_namespace_packages(include=['airflow*'], exclude=exclude_patterns)
-        if install_providers_from_sources
-        else find_packages(include=['airflow*'], exclude=exclude_patterns)
-    )
+
+    write_version()
     setup(
-        name='apache-airflow',
-        description='Programmatically author, schedule and monitor data pipelines',
-        long_description=long_description,
-        long_description_content_type='text/markdown',
-        license='Apache License 2.0',
+        # Most values come from setup.cfg -- see
+        # https://setuptools.readthedocs.io/en/latest/userguide/declarative_config.html
         version=version,
-        packages=packages_to_install,
-        package_data={
-            'airflow': ['py.typed'],
-            '': [
-                'airflow/alembic.ini',
-                "airflow/git_version",
-                "*.ipynb",
-                "airflow/providers/cncf/kubernetes/example_dags/*.yaml",
-            ],
-            'airflow.api_connexion.openapi': ['*.yaml'],
-            'airflow.serialization': ["*.json"],
-        },
-        include_package_data=True,
-        zip_safe=False,
-        entry_points={
-            "console_scripts": [
-                "airflow = airflow.__main__:main",
-            ],
-        },
-        install_requires=INSTALL_REQUIREMENTS,
-        setup_requires=[
-            'bowler',
-            'docutils',
-            'gitpython',
-            'setuptools',
-            'wheel',
-        ],
         extras_require=EXTRAS_REQUIREMENTS,
-        classifiers=[
-            'Development Status :: 5 - Production/Stable',
-            'Environment :: Console',
-            'Environment :: Web Environment',
-            'Intended Audience :: Developers',
-            'Intended Audience :: System Administrators',
-            'License :: OSI Approved :: Apache Software License',
-            'Programming Language :: Python :: 3.6',
-            'Programming Language :: Python :: 3.7',
-            'Programming Language :: Python :: 3.8',
-            'Topic :: System :: Monitoring',
-        ],
-        author='Apache Software Foundation',
-        author_email='dev@airflow.apache.org',
-        url='http://airflow.apache.org/',
         download_url=('https://archive.apache.org/dist/airflow/' + version),
         cmdclass={
             'extra_clean': CleanCommand,
@@ -958,12 +842,7 @@ def do_setup():
             'list_extras': ListExtras,
         },
         test_suite='setup.airflow_test_suite',
-        python_requires='~=3.6',
-        project_urls={
-            'Documentation': 'https://airflow.apache.org/docs/',
-            'Bug Tracker': 'https://github.com/apache/airflow/issues',
-            'Source Code': 'https://github.com/apache/airflow',
-        },
+        **setup_kwargs,
     )
 
 

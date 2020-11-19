@@ -19,6 +19,7 @@ import subprocess
 import sys
 from functools import lru_cache
 from tempfile import NamedTemporaryFile
+from typing import Any, Dict, Tuple
 
 import jmespath
 import jsonschema
@@ -79,6 +80,17 @@ def render_chart(name="RELEASE-NAME", values=None, show_only=None):
         for k8s_object in k8s_objects:
             validate_k8s_object(k8s_object)
         return k8s_objects
+
+
+def prepare_k8s_lookup_dict(k8s_objects) -> Dict[Tuple[str, str], Dict[str, Any]]:
+    """
+    Helper to create a lookup dict from k8s_objects.
+    The keys of the dict are the k8s object's kind and name
+    """
+    k8s_obj_by_key = {
+        (k8s_object["kind"], k8s_object["metadata"]["name"]): k8s_object for k8s_object in k8s_objects
+    }
+    return k8s_obj_by_key
 
 
 def render_k8s_object(obj, type_to_render):

@@ -185,7 +185,7 @@ password=<API Upload Token>
 Set proper permissions for the pypirc file:
 
 ```shell script
-$ chmod 600 ~/.pypirc
+chmod 600 ~/.pypirc
 ```
 
 - Install [twine](https://pypi.org/project/twine/) if you do not have it already (it can be done

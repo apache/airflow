@@ -18,7 +18,7 @@
 #}
 
 {% macro dag_docs(doc_md) %}
-  {% if doc_md is defined %}
+  {% if doc_md is defined and doc_md is not none %}
     <div class="panel-group" id="accordion" role="tablist" aria-multiselectable="true" style="margin-top: 16px;">
       <div class="panel panel-default">
         <div class="panel-heading" role="tab" id="headingOne">

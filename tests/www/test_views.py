@@ -62,7 +62,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from airflow.www import app as application
-from airflow.www.views import ConnectionModelView
+from airflow.www.views import ConnectionModelView, get_safe_url
 from tests.test_utils import fab_utils
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
@@ -230,6 +230,7 @@ class TestConnectionModelView(TestBase):
         self.connection = {
             'conn_id': 'test_conn',
             'conn_type': 'http',
+            'description': 'description',
             'host': 'localhost',
             'port': 8080,
             'username': 'root',
@@ -2771,6 +2772,10 @@ class TestTriggerDag(TestBase):
         [
             ("javascript:alert(1)", "/home"),
             ("http://google.com", "/home"),
+            (
+                "%2Ftree%3Fdag_id%3Dexample_bash_operator';alert(33)//",
+                "/tree?dag_id=example_bash_operator%27&amp;alert%2833%29%2F%2F=",
+            ),
             ("%2Ftree%3Fdag_id%3Dexample_bash_operator", "/tree?dag_id=example_bash_operator"),
             ("%2Fgraph%3Fdag_id%3Dexample_bash_operator", "/graph?dag_id=example_bash_operator"),
         ]
@@ -3292,3 +3297,26 @@ class TestDecorators(TestBase):
         self.check_last_log(
             "example_bash_operator", event="clear", execution_date=self.EXAMPLE_DAG_DEFAULT_DATE
         )
+
+
+class TestHelperFunctions(TestBase):
+    @parameterized.expand(
+        [
+            ("", "/home"),
+            ("http://google.com", "/home"),
+            (
+                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%test_dag';alert(33)//",
+                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3F"
+                "dag_id%25test_dag%27&alert%2833%29%2F%2F=",
+            ),
+            (
+                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%test_dag",
+                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%25test_dag",
+            ),
+        ]
+    )
+    @mock.patch("airflow.www.views.url_for")
+    def test_get_safe_url(self, test_url, expected_url, mock_url_for):
+        mock_url_for.return_value = "/home"
+        with self.app.test_request_context(base_url="http://localhost:8080"):
+            self.assertEqual(get_safe_url(test_url), expected_url)

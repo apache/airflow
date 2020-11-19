@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import logging
 import unittest
 from unittest import mock
 
@@ -102,8 +103,17 @@ class TestPluginsRBAC(unittest.TestCase):
             assert ("test.plugins.test_plugins_manager", "Version Conflict") in import_errors.items()
 
 
-class TestPluginsManager(unittest.TestCase):
-    def test_should_load_plugins_from_property(self):
+class TestPluginsManager:
+    def test_no_log_when_no_plugins(self, caplog):
+
+        with mock_plugin_manager(plugins=[]):
+            from airflow import plugins_manager
+
+            plugins_manager.ensure_plugins_loaded()
+
+        assert caplog.record_tuples == []
+
+    def test_should_load_plugins_from_property(self, caplog):
         class AirflowTestPropertyPlugin(AirflowPlugin):
             name = "test_property_plugin"
 
@@ -119,10 +129,13 @@ class TestPluginsManager(unittest.TestCase):
 
             plugins_manager.ensure_plugins_loaded()
 
-            self.assertIn('AirflowTestPropertyPlugin', str(plugins_manager.plugins))
-            self.assertIn("TestPropertyHook", str(plugins_manager.registered_hooks))
+            assert 'AirflowTestPropertyPlugin' in str(plugins_manager.plugins)
+            assert 'TestPropertyHook' in str(plugins_manager.registered_hooks)
 
-    def test_should_warning_about_incompatible_plugins(self):
+        assert caplog.records[0].levelname == 'INFO'
+        assert caplog.records[0].msg == 'Loading %d plugin(s) took %.2f seconds'
+
+    def test_should_warning_about_incompatible_plugins(self, caplog):
         class AirflowAdminViewsPlugin(AirflowPlugin):
             name = "test_admin_views_plugin"
 
@@ -133,26 +146,29 @@ class TestPluginsManager(unittest.TestCase):
 
             menu_links = [mock.MagicMock()]
 
-        with mock_plugin_manager(plugins=[AirflowAdminViewsPlugin(), AirflowAdminMenuLinksPlugin()]):
+        with mock_plugin_manager(
+            plugins=[AirflowAdminViewsPlugin(), AirflowAdminMenuLinksPlugin()]
+        ), caplog.at_level(logging.WARNING, logger='airflow.plugins_manager'):
             from airflow import plugins_manager
 
-            # assert not logs
-            with self.assertLogs(plugins_manager.log) as cm:
-                plugins_manager.initialize_web_ui_plugins()
+            plugins_manager.initialize_web_ui_plugins()
 
-        self.assertEqual(
-            cm.output,
-            [
-                'WARNING:airflow.plugins_manager:Plugin \'test_admin_views_plugin\' may not be '
-                'compatible with the current Airflow version. Please contact the author of '
-                'the plugin.',
-                'WARNING:airflow.plugins_manager:Plugin \'test_menu_links_plugin\' may not be '
-                'compatible with the current Airflow version. Please contact the author of '
-                'the plugin.',
-            ],
-        )
+        assert caplog.record_tuples == [
+            (
+                "airflow.plugins_manager",
+                logging.WARNING,
+                "Plugin 'test_admin_views_plugin' may not be compatible with the current Airflow version. "
+                "Please contact the author of the plugin.",
+            ),
+            (
+                "airflow.plugins_manager",
+                logging.WARNING,
+                "Plugin 'test_menu_links_plugin' may not be compatible with the current Airflow version. "
+                "Please contact the author of the plugin.",
+            ),
+        ]
 
-    def test_should_not_warning_about_fab_plugins(self):
+    def test_should_not_warning_about_fab_plugins(self, caplog):
         class AirflowAdminViewsPlugin(AirflowPlugin):
             name = "test_admin_views_plugin"
 
@@ -163,14 +179,16 @@ class TestPluginsManager(unittest.TestCase):
 
             appbuilder_menu_items = [mock.MagicMock()]
 
-        with mock_plugin_manager(plugins=[AirflowAdminViewsPlugin(), AirflowAdminMenuLinksPlugin()]):
+        with mock_plugin_manager(
+            plugins=[AirflowAdminViewsPlugin(), AirflowAdminMenuLinksPlugin()]
+        ), caplog.at_level(logging.WARNING, logger='airflow.plugins_manager'):
             from airflow import plugins_manager
 
-            # assert not logs
-            with self.assertRaises(AssertionError), self.assertLogs(plugins_manager.log):
-                plugins_manager.initialize_web_ui_plugins()
+            plugins_manager.initialize_web_ui_plugins()
 
-    def test_should_not_warning_about_fab_and_flask_admin_plugins(self):
+        assert caplog.record_tuples == []
+
+    def test_should_not_warning_about_fab_and_flask_admin_plugins(self, caplog):
         class AirflowAdminViewsPlugin(AirflowPlugin):
             name = "test_admin_views_plugin"
 
@@ -183,12 +201,14 @@ class TestPluginsManager(unittest.TestCase):
             menu_links = [mock.MagicMock()]
             appbuilder_menu_items = [mock.MagicMock()]
 
-        with mock_plugin_manager(plugins=[AirflowAdminViewsPlugin(), AirflowAdminMenuLinksPlugin()]):
+        with mock_plugin_manager(
+            plugins=[AirflowAdminViewsPlugin(), AirflowAdminMenuLinksPlugin()]
+        ), caplog.at_level(logging.WARNING, logger='airflow.plugins_manager'):
             from airflow import plugins_manager
 
-            # assert not logs
-            with self.assertRaises(AssertionError), self.assertLogs(plugins_manager.log):
-                plugins_manager.initialize_web_ui_plugins()
+            plugins_manager.initialize_web_ui_plugins()
+
+        assert caplog.record_tuples == []
 
 
 class TestPluginsDirectorySource(unittest.TestCase):
