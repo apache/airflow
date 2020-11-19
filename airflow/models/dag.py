@@ -224,7 +224,7 @@ class DAG(BaseDag, LoggingMixin):
         end_date=None,  # type: Optional[datetime]
         full_filepath=None,  # type: Optional[str]
         template_searchpath=None,  # type: Optional[Union[str, Iterable[str]]]
-        template_undefined=jinja2.Undefined,  # type: Type[jinja2.Undefined]
+        template_undefined=None,  # type: Optional[Type[jinja2.Undefined]]
         user_defined_macros=None,  # type: Optional[Dict]
         user_defined_filters=None,  # type: Optional[Dict]
         default_args=None,  # type: Optional[Dict]
@@ -807,7 +807,7 @@ class DAG(BaseDag, LoggingMixin):
         # Default values (for backward compatibility)
         jinja_env_options = {
             'loader': jinja2.FileSystemLoader(searchpath),
-            'undefined': self.template_undefined,
+            'undefined': self.template_undefined or jinja2.Undefined,
             'extensions': ["jinja2.ext.do"],
             'cache_size': 0
         }
