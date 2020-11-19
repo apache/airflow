@@ -56,7 +56,7 @@ class S3ToSnowflakeOperator(BaseOperator):
         table: str,
         stage: Any,
         file_format: str,
-        schema: str,  # TODO: shouldn't be required, rely on session/user defaults
+        schema: Optional[str] = None,
         columns_array: Optional[list] = None,
         autocommit: bool = True,
         snowflake_conn_id: str = 'snowflake_default',
@@ -91,17 +91,13 @@ class S3ToSnowflakeOperator(BaseOperator):
         )
 
         if self.columns_array:
-            copy_query = """
-                COPY INTO {schema}.{table}({columns}) {base_sql}
-            """.format(
-                schema=self.schema, table=self.table, columns=",".join(self.columns_array), base_sql=base_sql
-            )
+            columns = ','.join(self.columns_array)
+            copy_query = f"COPY INTO {self.schema}.{self.table} ({columns}) {base_sql}" if self.schema \
+                else f"COPY INTO {self.table} ({columns}) {base_sql}"
+
         else:
-            copy_query = """
-                COPY INTO {schema}.{table} {base_sql}
-            """.format(
-                schema=self.schema, table=self.table, base_sql=base_sql
-            )
+            copy_query = f"COPY INTO {self.schema}.{self.table} {base_sql}" if self.schema \
+                else f"COPY INTO {self.table} {base_sql}"
 
         self.log.info('Executing COPY command...')
         snowflake_hook.run(copy_query, self.autocommit)
