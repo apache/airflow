@@ -260,7 +260,9 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         self.assertEqual(self.expected_pod, actual_pod)
 
     def test_pod_node_selectors(self):
-        node_selectors = {'beta.kubernetes.io/os': 'linux'}
+        node_selectors = k8s.V1NodeSelector(
+            node_selector_terms=[k8s.V1NodeSelectorTerm({'beta.kubernetes.io/os': 'linux'})]
+        )
         k = KubernetesPodOperator(
             namespace='default',
             image="ubuntu:16.04",
@@ -873,7 +875,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 'hostNetwork': False,
                 'imagePullSecrets': [],
                 'initContainers': [],
-                'nodeSelector': {},
                 'restartPolicy': 'Never',
                 'securityContext': {},
                 'serviceAccountName': 'default',

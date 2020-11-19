@@ -148,7 +148,9 @@ def convert_affinity(affinity) -> k8s.V1Affinity:
 
 def convert_node_selector(node_selector) -> k8s.V1NodeSelector:
     """Converts a dict into a k8s.V1NodeSelector"""
-    return _convert_from_dict(node_selector, k8s.V1NodeSelector)
+    if isinstance(node_selector, k8s.V1NodeSelector):
+        return node_selector
+    return _convert_from_dict({'nodeSelectorTerms': node_selector}, k8s.V1NodeSelector)
 
 
 def convert_toleration(toleration) -> k8s.V1Toleration:
