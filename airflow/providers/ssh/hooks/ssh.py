@@ -66,7 +66,7 @@ class SSHHook(BaseHook):
         key_file: Optional[str] = None,
         port: Optional[int] = None,
         timeout: int = 10,
-        keepalive_interval: int = 30
+        keepalive_interval: int = 30,
     ) -> None:
         super().__init__()
         self.ssh_conn_id = ssh_conn_id
