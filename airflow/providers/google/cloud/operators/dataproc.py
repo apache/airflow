@@ -18,8 +18,9 @@
 #
 """This module contains Google Dataproc operators."""
 # pylint: disable=C0302
-
+import hashlib
 import inspect
+import json
 import ntpath
 import os
 import re
@@ -457,6 +458,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         'cluster_name',
         'labels',
         'impersonation_chain',
+        'request_id',
     )
     template_fields_renderers = {'cluster_config': 'json'}
 
@@ -805,7 +807,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('impersonation_chain',)
+    template_fields = ('impersonation_chain', 'request_id')
 
     @apply_defaults
     def __init__(
@@ -1596,7 +1598,7 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ['template_id', 'impersonation_chain']
+    template_fields = ['template_id', 'impersonation_chain', 'request_id']
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
@@ -1698,7 +1700,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ['template', 'impersonation_chain']
+    template_fields = ['template', 'impersonation_chain', 'request_id']
     template_fields_renderers = {"template": "json"}
 
     @apply_defaults
@@ -1758,8 +1760,10 @@ class DataprocSubmitJobOperator(BaseOperator):
     :type job: Dict
     :param request_id: Optional. A unique id used to identify the request. If the server receives two
         ``SubmitJobRequest`` requests with the same id, then the second request will be ignored and the first
-        ``Job`` created and stored in the backend is returned.
-        It is recommended to always set this value to a UUID.
+        ``Job`` created and stored in the backend is returned. It is recommended to always set this value to
+        a UUID. If not provided the it wil be automatically generated in form of
+        ``airflow-dag_id-task_id-exec_date``. Additionally we always add unique suffix which is calculated
+        as a hash of job dictionary.
     :type request_id: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
@@ -1790,7 +1794,7 @@ class DataprocSubmitJobOperator(BaseOperator):
     :type wait_timeout: int
     """
 
-    template_fields = ('project_id', 'location', 'job', 'impersonation_chain')
+    template_fields = ('project_id', 'location', 'job', 'impersonation_chain', 'request_id')
     template_fields_renderers = {"job": "json"}
 
     @apply_defaults
@@ -1827,14 +1831,26 @@ class DataprocSubmitJobOperator(BaseOperator):
         self.job_id: Optional[str] = None
         self.wait_timeout = wait_timeout
 
+    def _generate_id(self, context: Dict):
+        hash_base = json.dumps(self.job, sort_keys=True)
+        uniqueness_suffix = hashlib.md5(hash_base.encode()).hexdigest()
+
+        if self.request_id:
+            return f"{self.request_id}_{uniqueness_suffix}"
+
+        exec_date = context['execution_date'].isoformat()
+        job_id = f"airflow_{self.dag_id}_{self.task_id}_{exec_date}_{uniqueness_suffix}"
+        return re.sub(r"[:\-+.]", "_", job_id)
+
     def execute(self, context: Dict):
         self.log.info("Submitting job")
+        request_id = self.request_id or self._generate_id(context)
         self.hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         job_object = self.hook.submit_job(
             project_id=self.project_id,
             location=self.location,
             job=self.job,
-            request_id=self.request_id,
+            request_id=request_id,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
@@ -1909,7 +1925,7 @@ class DataprocUpdateClusterOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('impersonation_chain',)
+    template_fields = ('impersonation_chain', 'request_id')
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
