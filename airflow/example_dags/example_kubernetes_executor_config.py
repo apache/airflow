@@ -172,4 +172,4 @@ try:
         start_task >> task_with_template
 except ImportError as e:
     log.warning("Could not import DAGs in example_kubernetes_executor_config.py: %s", str(e))
-    log.warning("Install kubernetes dependencies with: pip install apache-airflow['kubernetes']")
+    log.warning("Install kubernetes dependencies with: pip install apache-airflow['cncf.kubernetes']")
