@@ -21,7 +21,7 @@ description: |
     `Apache Livy <https://livy.apache.org/>`__
 
 versions:
-  - 1.0.0b1
+  - 1.0.0b2
 integrations:
   - integration-name: Apache Livy
     external-doc-url: https://livy.apache.org/

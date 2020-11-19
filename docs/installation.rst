@@ -27,9 +27,9 @@ Getting Airflow
 Airflow is published as ``apache-airflow`` package in PyPI. Installing it however might be sometimes tricky
 because Airflow is a bit of both a library and application. Libraries usually keep their dependencies open and
 applications usually pin them, but we should do neither and both at the same time. We decided to keep
-our dependencies as open as possible (in ``setup.py``) so users can install different version of libraries
-if needed. This means that from time to time plain ``pip install apache-airflow`` will not work or will
-produce unusable Airflow installation.
+our dependencies as open as possible (in ``setup.cfg`` and ``setup.py``) so users can install different
+version of libraries if needed. This means that from time to time plain ``pip install apache-airflow`` will
+not work or will produce unusable Airflow installation.
 
 In order to have repeatable installation, however, starting from **Airflow 1.10.10** and updated in
 **Airflow 1.10.12** we also keep a set of "known-to-be-working" constraint files in the

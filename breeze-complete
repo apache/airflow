@@ -69,6 +69,7 @@ all
 all-but-pylint
 airflow-config-yaml
 airflow-providers-available
+airflow-provider-yaml-files-ok
 base-operator
 bats-tests
 bats-in-container-tests
@@ -109,6 +110,7 @@ no-relative-imports
 pre-commit-descriptions
 provide-create-sessions
 providers-init-file
+provider-yamls
 pydevd
 pydocstyle
 pylint

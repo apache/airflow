@@ -42,6 +42,7 @@ def _tabulate_connection(conns: List[Connection], tablefmt: str):
         {
             'Conn Id': conn.conn_id,
             'Conn Type': conn.conn_type,
+            'Description': conn.description,
             'Host': conn.host,
             'Port': conn.port,
             'Is Encrypted': conn.is_encrypted,
@@ -60,6 +61,7 @@ def _yamulate_connection(conn: Connection):
         'Id': conn.id,
         'Conn Id': conn.conn_id,
         'Conn Type': conn.conn_type,
+        'Description': conn.description,
         'Host': conn.host,
         'Schema': conn.schema,
         'Login': conn.login,
@@ -113,6 +115,7 @@ def _format_connections(conns: List[Connection], fmt: str) -> str:
     for conn in conns:
         connections_dict[conn.conn_id] = {
             'conn_type': conn.conn_type,
+            'description': conn.description,
             'host': conn.host,
             'login': conn.login,
             'password': conn.password,
@@ -202,11 +205,12 @@ def connections_add(args):
         raise SystemExit(msg)
 
     if args.conn_uri:
-        new_conn = Connection(conn_id=args.conn_id, uri=args.conn_uri)
+        new_conn = Connection(conn_id=args.conn_id, description=args.conn_description, uri=args.conn_uri)
     else:
         new_conn = Connection(
             conn_id=args.conn_id,
             conn_type=args.conn_type,
+            description=args.conn_description,
             host=args.conn_host,
             login=args.conn_login,
             password=args.conn_password,
@@ -241,9 +245,8 @@ def connections_add(args):
             )
             print(msg)
         else:
-            msg = '\n\tA connection with `conn_id`={conn_id} already exists\n'
-            msg = msg.format(conn_id=new_conn.conn_id)
-            print(msg)
+            msg = f'\n\tA connection with `conn_id`={new_conn.conn_id} already exists\n'
+            raise SystemExit(msg)
 
 
 @cli_utils.action_logging
@@ -253,18 +256,13 @@ def connections_delete(args):
         try:
             to_delete = session.query(Connection).filter(Connection.conn_id == args.conn_id).one()
         except exc.NoResultFound:
-            msg = '\n\tDid not find a connection with `conn_id`={conn_id}\n'
-            msg = msg.format(conn_id=args.conn_id)
-            print(msg)
-            return
+            msg = f'\n\tDid not find a connection with `conn_id`={args.conn_id}\n'
+            raise SystemExit(msg)
         except exc.MultipleResultsFound:
-            msg = '\n\tFound more than one connection with ' + '`conn_id`={conn_id}\n'
-            msg = msg.format(conn_id=args.conn_id)
-            print(msg)
-            return
+            msg = f'\n\tFound more than one connection with `conn_id`={args.conn_id}\n'
+            raise SystemExit(msg)
         else:
             deleted_conn_id = to_delete.conn_id
             session.delete(to_delete)
-            msg = '\n\tSuccessfully deleted `conn_id`={conn_id}\n'
-            msg = msg.format(conn_id=deleted_conn_id)
+            msg = f'\n\tSuccessfully deleted `conn_id`={deleted_conn_id}\n'
             print(msg)

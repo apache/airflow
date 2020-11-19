@@ -264,7 +264,11 @@ class GCSToBigQueryOperator(BaseOperator):
                     delegate_to=self.delegate_to,
                     impersonation_chain=self.impersonation_chain,
                 )
-                schema_fields = json.loads(gcs_hook.download(self.bucket, self.schema_object).decode("utf-8"))
+                blob = gcs_hook.download(
+                    bucket_name=self.bucket,
+                    object_name=self.schema_object,
+                )
+                schema_fields = json.loads(blob.decode("utf-8"))
             elif self.schema_object is None and self.autodetect is False:
                 raise AirflowException(
                     'At least one of `schema_fields`, `schema_object`, or `autodetect` must be passed.'

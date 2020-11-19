@@ -21,7 +21,7 @@ description: |
     `Facebook Ads <http://business.facebook.com/>`__
 
 versions:
-  - 1.0.0b1
+  - 1.0.0b2
 integrations:
   - integration-name: Facebook Ads
     external-doc-url: http://business.facebook.com

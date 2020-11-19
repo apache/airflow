@@ -404,7 +404,7 @@ class TestGoogleBaseHook(unittest.TestCase):
     def test_get_credentials_and_project_id_with_default_auth_and_unsupported_delegate(
         self, mock_auth_default
     ):
-        self.instance.delegate_to = "TEST_DELLEGATE_TO"
+        self.instance.delegate_to = "TEST_DELEGATE_TO"
         mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
         mock_auth_default.return_value = (mock_credentials, "PROJECT_ID")
 

@@ -192,6 +192,8 @@ info:
     framing, or deceptive request routing). To resolve this, please ensure that your syntax is correct.
     ## NotFound
     This client error response indicates that the server cannot find the requested resource.
+    ## MethodNotAllowed
+    Indicates that the request method is known by the server but is not supported by the target resource.
     ## NotAcceptable
     The target resource does not have a current representation that would be acceptable to the user
     agent, according to the proactive negotiation header fields received in the request, and the
@@ -2792,6 +2794,13 @@ components:
     # 404
     'NotFound':
       description: A specified resource is not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    # 405
+    'MethodNotAllowed':
+      description: Request method is known by the server but is not supported by the target resource.
       content:
         application/json:
           schema:

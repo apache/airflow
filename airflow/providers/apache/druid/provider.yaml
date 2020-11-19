@@ -21,7 +21,7 @@ description: |
     `Apache Druid <https://druid.apache.org/>`__.
 
 versions:
-  - 1.0.0b1
+  - 1.0.0b2
 
 integrations:
   - integration-name: Apache Druid

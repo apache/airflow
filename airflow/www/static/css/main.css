@@ -439,3 +439,8 @@ label[for="timezone-other"],
 .panel-body .panel-group + div {
   overflow-x: scroll;
 }
+
+.task-instance-modal-column {
+  margin-top: 8px;
+  overflow-x: scroll;
+}

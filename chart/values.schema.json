@@ -343,6 +343,50 @@
             "description": "Secrets for all airflow containers.",
             "type": "array"
         },
+        "extraEnv": {
+          "description": "Extra env 'items' that will be added to the definition of airflow containers ; a string is expected (can be templated).",
+          "type": ["null", "string"]
+        },
+        "extraEnvFrom": {
+          "description": "Extra envFrom 'items' that will be added to the definition of airflow containers ; a string is expected (can be templated).",
+          "type": ["null", "string"]
+        },
+        "extraSecrets": {
+          "description": "Extra secrets that will be managed by the chart.",
+          "type": "object",
+          "additionalProperties": {
+            "description": "Name of the secret (can be templated).",
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": false,
+            "properties": {
+              "data": {
+                "description": "Content **as string** for the 'data' item of the secret (can be templated)",
+                "type": "string"
+              },
+              "stringData": {
+                "description": "Content **as string** for the 'stringData' item of the secret (can be templated)",
+                "type": "string"
+              }
+            }
+          }
+        },
+        "extraConfigMaps": {
+          "description": "Extra configMaps that will be managed by the chart.",
+          "type": "object",
+          "additionalProperties": {
+            "description": "Name of the configMap (can be templated).",
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": false,
+            "properties": {
+              "data": {
+                "description": "Content **as string** for the 'data' item of the secret (can be templated)",
+                "type": "string"
+              }
+            }
+          }
+        },
         "data": {
             "description": "Airflow database configuration.",
             "type": "object",

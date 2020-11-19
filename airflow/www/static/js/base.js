@@ -146,7 +146,7 @@ function initializeUITimezone() {
   changDisplayedTimezone(selectedTz || Airflow.defaultUITimezone);
 
   if (Airflow.serverTimezone !== 'UTC') {
-    $('#timezone-server a').text(`${formatTimezone(Airflow.serverTimezone)} <span class="label label-primary">Server</span>`);
+    $('#timezone-server a').html(`${formatTimezone(Airflow.serverTimezone)} <span class="label label-primary">Server</span>`);
     $('#timezone-server').show();
   }
 

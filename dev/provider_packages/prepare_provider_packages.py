@@ -789,7 +789,10 @@ def convert_cross_package_dependencies_to_table(
         base_url = f"https://pypi.org/project/{prefix}-"
     for dependency in cross_package_dependencies:
         pip_package_name = f"{prefix}-{dependency.replace('.','-')}"
-        url_suffix = f"{dependency.replace('.','-')}"
+        if backport_packages:
+            url_suffix = f"{dependency.replace('.','/')}"
+        else:
+            url_suffix = f"{dependency.replace('.','-')}"
         table_data.append((f"[{pip_package_name}]({base_url}{url_suffix})", dependency))
     return tabulate(table_data, headers=headers, tablefmt="pipe")
 

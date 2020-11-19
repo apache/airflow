@@ -21,7 +21,7 @@ description: |
     `Pagerduty <https://www.pagerduty.com/>`__
 
 versions:
-  - 1.0.0b1
+  - 1.0.0b2
 integrations:
   - integration-name: Pagerduty
     external-doc-url: https://www.pagerduty.com/

@@ -226,6 +226,7 @@ class ConnectionForm(DynamicForm):
         choices=sorted(_connection_types, key=itemgetter(1)),  # pylint: disable=protected-access
         widget=Select2Widget(),
     )
+    description = StringField(lazy_gettext('Description'), widget=BS3TextAreaFieldWidget())
     host = StringField(lazy_gettext('Host'), widget=BS3TextFieldWidget())
     schema = StringField(lazy_gettext('Schema'), widget=BS3TextFieldWidget())
     login = StringField(lazy_gettext('Login'), widget=BS3TextFieldWidget())

@@ -817,7 +817,9 @@ The table below shows the differences:
 This endpoint ``/api/v1/dags/{dag_id}/dagRuns`` also allows you to filter dag_runs with parameters such as ``start_date``, ``end_date``, ``execution_date`` etc in the query string.
 Therefore the operation previously performed by this endpoint
 
-    /api/experimental/dags/<string:dag_id>/dag_runs/<string:execution_date>
+```
+/api/experimental/dags/<string:dag_id>/dag_runs/<string:execution_date>
+```
 
 can now be handled with filter parameters in the query string.
 Getting information about latest runs can be accomplished with the help of

@@ -19,6 +19,7 @@
 import unittest
 from typing import List
 from unittest import mock
+from uuid import UUID
 
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.cloud.exceptions import NotFound
@@ -37,7 +38,7 @@ EMPTY_CONTENT = b''
 TEST_PROJECT = 'test-project'
 TEST_TOPIC = 'test-topic'
 TEST_SUBSCRIPTION = 'test-subscription'
-TEST_UUID = 'abc123-xzy789'
+TEST_UUID = UUID('cf4a56d2-8101-4217-b027-2af6216feb48')
 TEST_MESSAGES = [
     {'data': b'Hello, World!', 'attributes': {'type': 'greeting'}},
     {'data': b'Knock, knock'},

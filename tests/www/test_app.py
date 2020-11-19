@@ -25,7 +25,6 @@ from werkzeug.routing import Rule
 from werkzeug.test import create_environ
 from werkzeug.wrappers import Response
 
-from airflow.configuration import conf
 from airflow.www import app as application
 from tests.test_utils.config import conf_vars
 
@@ -233,16 +232,3 @@ class TestApp(unittest.TestCase):
     def test_should_set_permanent_session_timeout(self):
         app = application.cached_app(testing=True)
         self.assertEqual(app.config['PERMANENT_SESSION_LIFETIME'], timedelta(minutes=3600))
-
-    @conf_vars(
-        {
-            ('webserver', 'session_lifetime_days'): '30',
-            ('webserver', 'force_log_out_after'): '30',
-        }
-    )
-    @mock.patch("airflow.www.app.app", None)
-    def test_should_stop_app_when_removed_options_are_provided(self):
-        with self.assertRaises(SystemExit) as e:
-            conf.remove_option('webserver', 'session_lifetime_minutes')
-            application.cached_app(testing=True)
-        self.assertEqual(e.exception.code, 4)

@@ -130,6 +130,8 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
     :type conn_id: str
     :param conn_type: The connection type.
     :type conn_type: str
+    :param description: The connection description.
+    :type description: str
     :param host: The host.
     :type host: str
     :param login: The login.
@@ -152,6 +154,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
     id = Column(Integer(), primary_key=True)
     conn_id = Column(String(ID_LEN), unique=True, nullable=False)
     conn_type = Column(String(500), nullable=False)
+    description = Column(String(5000))
     host = Column(String(500))
     schema = Column(String(500))
     login = Column(String(500))
@@ -161,10 +164,11 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
     is_extra_encrypted = Column(Boolean, unique=False, default=False)
     _extra = Column('extra', String(5000))
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         conn_id: Optional[str] = None,
         conn_type: Optional[str] = None,
+        description: Optional[str] = None,
         host: Optional[str] = None,
         login: Optional[str] = None,
         password: Optional[str] = None,
@@ -175,6 +179,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
     ):
         super().__init__()
         self.conn_id = conn_id
+        self.description = description
         if uri and (  # pylint: disable=too-many-boolean-expressions
             conn_type or host or login or password or schema or port or extra
         ):

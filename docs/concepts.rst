@@ -803,6 +803,12 @@ to a class that is subclass of :class:`~airflow.models.xcom.BaseXCom`. To alter 
 deserialization mechanism the custom class should override ``serialize_value`` and ``deserialize_value``
 methods.
 
+It is also possible to override the ``orm_deserialize_value`` method which is used for deserialization when
+recreating ORM XCom object. This happens every time we query the XCom table, for example when we want to populate
+XCom list view in webserver. If your XCom backend performs expensive operations, or has large values that aren't
+useful to show in such a view, override this method to provide an alternative representation. By default Airflow will
+use ``BaseXCom.orm_deserialize_value`` method which returns the value stored in Airflow database.
+
 See :doc:`modules_management` for details on how Python and Airflow manage modules.
 
 .. _concepts:variables:

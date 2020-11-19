@@ -114,6 +114,7 @@ class TestCreateEvaluateOps(unittest.TestCase):
                 poll_sleep=10,
                 drain_pipeline=False,
                 cancel_timeout=600,
+                wait_until_finished=None,
             )
             hook_instance.start_python_dataflow.assert_called_once_with(
                 job_name='{{task.task_id}}',

@@ -20,7 +20,7 @@
 
 # Package apache-airflow-providers-sendgrid
 
-Release: 1.0.0b1
+Release: 1.0.0b2
 
 **Table of contents**
 
@@ -29,6 +29,7 @@ Release: 1.0.0b1
 - [PIP requirements](#pip-requirements)
 - [Provider class summary](#provider-classes-summary)
 - [Releases](#releases)
+    - [Release 1.0.0b2](#release-100b2)
     - [Release 1.0.0b1](#release-100b1)
 
 ## Provider package
@@ -58,6 +59,14 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 
 ## Releases
+
+### Release 1.0.0b2
+
+| Commit                                                                                         | Committed   | Subject                                 |
+|:-----------------------------------------------------------------------------------------------|:------------|:----------------------------------------|
+| [7825e8f59](https://github.com/apache/airflow/commit/7825e8f59034645ab3247229be83a3aa90baece1) | 2020-11-13  | Docs installation improvements (#12304) |
+| [c5806efb5](https://github.com/apache/airflow/commit/c5806efb54ad06049e13a5fc7df2f03846fe566e) | 2020-11-10  | Added missing sendgrid readme (#12245)  |
+
 
 ### Release 1.0.0b1
 

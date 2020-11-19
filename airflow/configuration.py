@@ -129,7 +129,6 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
         ('celery', 'result_backend'),
         ('atlas', 'password'),
         ('smtp', 'smtp_password'),
-        ('ldap', 'bind_password'),
         ('kubernetes', 'git_password'),
     }
 
