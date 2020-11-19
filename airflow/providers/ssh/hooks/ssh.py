@@ -289,9 +289,7 @@ class SSHHook(BaseHook):
 
         return self.get_tunnel(remote_port, remote_host, local_port)
 
-    def _pkey_from_private_key(
-        self, private_key: str, passphrase: Optional[str] = None
-    ) -> paramiko.PKey:
+    def _pkey_from_private_key(self, private_key: str, passphrase: Optional[str] = None) -> paramiko.PKey:
         """
         Creates appropriate PKey for given private key
 
@@ -299,9 +297,7 @@ class SSHHook(BaseHook):
         :return: paramiko.PKey appropriate for given key
         :raises AirflowException
         """
-        allowed_pkey_types = (
-            paramiko.RSAKey, paramiko.DSSKey, paramiko.ECDSAKey, paramiko.Ed25519Key
-        )
+        allowed_pkey_types = (paramiko.RSAKey, paramiko.DSSKey, paramiko.ECDSAKey, paramiko.Ed25519Key)
         for pkey_type in allowed_pkey_types:
             try:
                 key = pkey_type.from_private_key(StringIO(private_key), password=passphrase)
