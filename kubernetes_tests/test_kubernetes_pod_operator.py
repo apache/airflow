@@ -86,7 +86,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 },
             },
             'spec': {
-                'nodeSelector': {},
                 'affinity': {},
                 'containers': [
                     {
