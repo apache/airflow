@@ -23,6 +23,8 @@ description: |
 versions:
   - 1.0.0b2
 
+provider-package: airflow.providers.jira
+
 integrations:
   - integration-name: Atlassian Jira
     external-doc-url: https://www.atlassian.com/pl/software/jira
@@ -31,14 +33,19 @@ integrations:
 operators:
   - integration-name: Atlassian Jira
     python-modules:
-      - airflow.providers.jira.operators.jira
+      - .operators.jira
 
 sensors:
   - integration-name: Atlassian Jira
     python-modules:
-      - airflow.providers.jira.sensors.jira
+      - .sensors.jira
 
 hooks:
   - integration-name: Atlassian Jira
     python-modules:
-      - airflow.providers.jira.hooks.jira
+      - .hooks.jira
+
+connections:
+  - connection-type: jira
+    hook-class: .hooks.jira.JiraHook
+    connection-id-parameter-name: jira_conn_id

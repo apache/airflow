@@ -22,6 +22,9 @@ description: |
 
 versions:
   - 1.0.0b2
+
+provider-package: airflow.providers.papermill
+
 integrations:
   - integration-name: Papermill
     external-doc-url: https://github.com/nteract/papermill
@@ -32,4 +35,4 @@ integrations:
 operators:
   - integration-name: Papermill
     python-modules:
-      - airflow.providers.papermill.operators.papermill
+      - .operators.papermill

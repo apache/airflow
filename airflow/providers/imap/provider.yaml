@@ -23,6 +23,8 @@ description: |
 versions:
   - 1.0.0b2
 
+provider-package: airflow.providers.imap
+
 integrations:
   - integration-name: Internet Message Access Protocol (IMAP)
     external-doc-url: https://tools.ietf.org/html/rfc3501
@@ -31,9 +33,14 @@ integrations:
 sensors:
   - integration-name: Internet Message Access Protocol (IMAP)
     python-modules:
-      - airflow.providers.imap.sensors.imap_attachment
+      - .sensors.imap_attachment
 
 hooks:
   - integration-name: Internet Message Access Protocol (IMAP)
     python-modules:
-      - airflow.providers.imap.hooks.imap
+      - .hooks.imap
+
+connections:
+  - connection-type: imap
+    hook-class: .hooks.imap.ImapHook
+    connection-id-parameter-name: imap_conn_id

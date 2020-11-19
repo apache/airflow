@@ -22,6 +22,9 @@ description: |
 
 versions:
   - 1.0.0b2
+
+provider-package: airflow.providers.discord
+
 integrations:
   - integration-name: Discord
     external-doc-url: https://discordapp.com
@@ -30,9 +33,9 @@ integrations:
 operators:
   - integration-name: Discord
     python-modules:
-      - airflow.providers.discord.operators.discord_webhook
+      - .operators.discord_webhook
 
 hooks:
   - integration-name: Discord
     python-modules:
-      - airflow.providers.discord.hooks.discord_webhook
+      - .hooks.discord_webhook

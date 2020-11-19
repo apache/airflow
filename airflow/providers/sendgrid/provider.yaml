@@ -22,3 +22,5 @@ description: |
 
 versions:
   - 1.0.0b2
+
+provider-package: airflow.providers.sendgrid

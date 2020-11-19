@@ -23,6 +23,8 @@ description: |
 versions:
   - 1.0.0b2
 
+provider-package: airflow.providers.salesforce
+
 integrations:
   - integration-name: Salesforce
     external-doc-url: https://www.salesforce.com/
@@ -31,15 +33,20 @@ integrations:
 operators:
   - integration-name: Salesforce
     python-modules:
-      - airflow.providers.salesforce.operators.tableau_refresh_workbook
+      - .operators.tableau_refresh_workbook
 
 sensors:
   - integration-name: Salesforce
     python-modules:
-      - airflow.providers.salesforce.sensors.tableau_job_status
+      - .sensors.tableau_job_status
 
 hooks:
   - integration-name: Salesforce
     python-modules:
-      - airflow.providers.salesforce.hooks.salesforce
-      - airflow.providers.salesforce.hooks.tableau
+      - .hooks.salesforce
+      - .hooks.tableau
+
+connections:
+  - connection-type: tableau
+    hook-class: .hooks.tableau.TableauHook
+    connection-id-parameter-name: tableau_conn_id

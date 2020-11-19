@@ -82,6 +82,42 @@ ALL_PROVIDERS = [
     'apache-airflow-providers-zendesk',
 ]
 
+CONNECTIONS_LIST = [
+    'azure_batch',
+    'azure_cosmos',
+    'azure_data_lake',
+    'cassandra',
+    'cloudant',
+    'dataprep',
+    'docker',
+    'elasticsearch',
+    'exasol',
+    'gcpcloudsql',
+    'gcpssh',
+    'google_cloud_platform',
+    'grpc',
+    'hive_cli',
+    'hiveserver2',
+    'imap',
+    'jdbc',
+    'jira',
+    'kubernetes',
+    'mongo',
+    'mssql',
+    'mysql',
+    'odbc',
+    'oracle',
+    'pig_cli',
+    'postgres',
+    'presto',
+    'redis',
+    'snowflake',
+    'sqlite',
+    'tableau',
+    'vertica',
+    'wasb',
+]
+
 
 class TestProviderManager(unittest.TestCase):
     def test_providers_are_loaded(self):
@@ -89,3 +125,9 @@ class TestProviderManager(unittest.TestCase):
         provider_list = list(provider_manager.providers.keys())
         provider_list.sort()
         self.assertEqual(ALL_PROVIDERS, provider_list)
+
+    def test_connections(self):
+        provider_manager = ProvidersManager()
+        connections_list = list(provider_manager.connections.keys())
+        connections_list.sort()
+        self.assertEqual(CONNECTIONS_LIST, connections_list)

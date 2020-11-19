@@ -22,6 +22,9 @@ description: |
 
 versions:
   - 1.0.0b2
+
+provider-package: airflow.providers.mysql
+
 integrations:
   - integration-name: MySQL
     external-doc-url: https://www.mysql.com/
@@ -33,20 +36,25 @@ operators:
   - integration-name: MySQL
 
     python-modules:
-      - airflow.providers.mysql.operators.mysql
+      - .operators.mysql
 
 hooks:
   - integration-name: MySQL
     python-modules:
-      - airflow.providers.mysql.hooks.mysql
+      - .hooks.mysql
 
 transfers:
   - source-integration-name: Vertica
     target-integration-name: MySQL
-    python-module: airflow.providers.mysql.transfers.vertica_to_mysql
+    python-module: .transfers.vertica_to_mysql
   - source-integration-name: Amazon Simple Storage Service (S3)
     target-integration-name: MySQL
-    python-module: airflow.providers.mysql.transfers.s3_to_mysql
+    python-module: .transfers.s3_to_mysql
   - source-integration-name: Snowflake
     target-integration-name: MySQL
-    python-module: airflow.providers.mysql.transfers.presto_to_mysql
+    python-module: .transfers.presto_to_mysql
+
+connections:
+  - connection-type: mysql
+    hook-class: .hooks.mysql.MySqlHook
+    connection-id-parameter-name: mysql_conn_id

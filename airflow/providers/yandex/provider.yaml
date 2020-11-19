@@ -23,6 +23,8 @@ description: |
 versions:
   - 1.0.0b2
 
+provider-package: airflow.providers.yandex
+
 integrations:
   - integration-name: Yandex.Cloud
     external-doc-url: https://cloud.yandex.com/
@@ -37,12 +39,12 @@ integrations:
 operators:
   - integration-name: Yandex.Cloud Dataproc
     python-modules:
-      - airflow.providers.yandex.operators.yandexcloud_dataproc
+      - .operators.yandexcloud_dataproc
 
 hooks:
   - integration-name: Yandex.Cloud
     python-modules:
-      - airflow.providers.yandex.hooks.yandex
+      - .hooks.yandex
   - integration-name: Yandex.Cloud
     python-modules:
-      - airflow.providers.yandex.hooks.yandexcloud_dataproc
+      - .hooks.yandexcloud_dataproc

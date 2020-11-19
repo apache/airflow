@@ -22,6 +22,9 @@ description: |
 
 versions:
   - 1.0.0b2
+
+provider-package: airflow.providers.dingding
+
 integrations:
   - integration-name: Dingding
     external-doc-url: https://oapi.dingtalk.com
@@ -32,9 +35,9 @@ integrations:
 operators:
   - integration-name: Dingding
     python-modules:
-      - airflow.providers.dingding.operators.dingding
+      - .operators.dingding
 
 hooks:
   - integration-name: IBM Cloudant
     python-modules:
-      - airflow.providers.dingding.hooks.dingding
+      - .hooks.dingding

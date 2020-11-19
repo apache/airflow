@@ -23,6 +23,8 @@ description: |
 versions:
   - 1.0.0b2
 
+provider-package: airflow.providers.apache.hive
+
 integrations:
   - integration-name: Apache Hive
     external-doc-url: https://hive.apache.org/
@@ -31,37 +33,45 @@ integrations:
 operators:
   - integration-name: Apache Hive
     python-modules:
-      - airflow.providers.apache.hive.operators.hive
-      - airflow.providers.apache.hive.operators.hive_stats
+      - .operators.hive
+      - .operators.hive_stats
 
 sensors:
   - integration-name: Apache Hive
     python-modules:
-      - airflow.providers.apache.hive.sensors.hive_partition
-      - airflow.providers.apache.hive.sensors.metastore_partition
-      - airflow.providers.apache.hive.sensors.named_hive_partition
+      - .sensors.hive_partition
+      - .sensors.metastore_partition
+      - .sensors.named_hive_partition
 
 hooks:
   - integration-name: Apache Hive
     python-modules:
-      - airflow.providers.apache.hive.hooks.hive
+      - .hooks.hive
 
 transfers:
   - source-integration-name: Vertica
     target-integration-name: Apache Hive
-    python-module: airflow.providers.apache.hive.transfers.vertica_to_hive
+    python-module: .transfers.vertica_to_hive
   - source-integration-name: Apache Hive
     target-integration-name: MySQL
-    python-module: airflow.providers.apache.hive.transfers.hive_to_mysql
+    python-module: .transfers.hive_to_mysql
   - source-integration-name: Apache Hive
     target-integration-name: Samba
-    python-module: airflow.providers.apache.hive.transfers.hive_to_samba
+    python-module: .transfers.hive_to_samba
   - source-integration-name: Amazon Simple Storage Service (S3)
     target-integration-name: Apache Hive
-    python-module: airflow.providers.apache.hive.transfers.s3_to_hive
+    python-module: .transfers.s3_to_hive
   - source-integration-name: MySQL
     target-integration-name: Apache Hive
-    python-module: airflow.providers.apache.hive.transfers.mysql_to_hive
+    python-module: .transfers.mysql_to_hive
   - source-integration-name: Microsoft SQL Server (MSSQL)
     target-integration-name: Apache Hive
-    python-module: airflow.providers.apache.hive.transfers.mssql_to_hive
+    python-module: .transfers.mssql_to_hive
+
+connections:
+  - connection-type: hive_cli
+    hook-class: .hooks.hive.HiveCliHook
+    connection-id-parameter-name: hive_cli_conn_id
+  - connection-type: hiveserver2
+    hook-class: .hooks.hive.HiveServer2Hook
+    connection-id-parameter-name: hiveserver2_conn_id

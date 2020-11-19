@@ -23,24 +23,26 @@ description: |
 versions:
   - 1.0.0b2
 
+provider-package: airflow.providers.qubole
+
 integrations:
   - integration-name: Qubole
-    external-doc-url: https://www.qubole.com/
+    external-doc-url: https://www.qbole.com/
     tags: [service]
 
 operators:
   - integration-name: Qubole
     python-modules:
-      - airflow.providers.qubole.operators.qubole
-      - airflow.providers.qubole.operators.qubole_check
+      - .operators.qubole
+      - .operators.qubole_check
 
 sensors:
   - integration-name: Qubole
     python-modules:
-      - airflow.providers.qubole.sensors.qubole
+      - .sensors.qubole
 
 hooks:
   - integration-name: Qubole
     python-modules:
-      - airflow.providers.qubole.hooks.qubole
-      - airflow.providers.qubole.hooks.qubole_check
+      - .hooks.qubole
+      - .hooks.qubole_check

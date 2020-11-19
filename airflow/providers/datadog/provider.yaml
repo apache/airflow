@@ -23,6 +23,8 @@ description: |
 versions:
   - 1.0.0b2
 
+provider-package: airflow.providers.datadog
+
 integrations:
   - integration-name: Datadog
     external-doc-url: https://www.datadoghq.com/
@@ -31,9 +33,9 @@ integrations:
 sensors:
   - integration-name: Datadog
     python-modules:
-      - airflow.providers.datadog.sensors.datadog
+      - .sensors.datadog
 
 hooks:
   - integration-name: Datadog
     python-modules:
-      - airflow.providers.datadog.hooks.datadog
+      - .hooks.datadog

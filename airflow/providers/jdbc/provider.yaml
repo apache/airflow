@@ -22,6 +22,9 @@ description: |
 
 versions:
   - 1.0.0b2
+
+provider-package: airflow.providers.jdbc
+
 integrations:
   - integration-name: Java Database Connectivity (JDBC)
     external-doc-url: https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/
@@ -32,8 +35,13 @@ integrations:
 operators:
   - integration-name: Java Database Connectivity (JDBC)
     python-modules:
-      - airflow.providers.jdbc.operators.jdbc
+      - .operators.jdbc
 hooks:
   - integration-name: Java Database Connectivity (JDBC)
     python-modules:
-      - airflow.providers.jdbc.hooks.jdbc
+      - .hooks.jdbc
+
+connections:
+  - connection-type: jdbc
+    hook-class: .hooks.jdbc.JdbcHook
+    connection-id-parameter-name: jdbc_conn_id

@@ -22,6 +22,9 @@ description: |
 
 versions:
   - 1.0.0b2
+
+provider-package: airflow.providers.odbc
+
 integrations:
   - integration-name: ODBC
     external-doc-url: https://github.com/mkleehammer/pyodbc/wiki
@@ -30,4 +33,13 @@ integrations:
 hooks:
   - integration-name: ODBC
     python-modules:
-      - airflow.providers.odbc.hooks.odbc
+      - .hooks.odbc
+
+connections:
+  - connection-type: mssql
+    hook-class: .hooks.odbc.OdbcHook
+    connection-id-parameter-name: odbc_conn_id
+
+  - connection-type: odbc
+    hook-class: .hooks.odbc.OdbcHook
+    connection-id-parameter-name: odbc_conn_id

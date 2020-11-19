@@ -22,6 +22,9 @@ description: |
 
 versions:
   - 1.0.0b2
+
+provider-package: airflow.providers.microsoft.mssql
+
 integrations:
   - integration-name: Microsoft SQL Server (MSSQL)
     external-doc-url: https://www.microsoft.com/en-us/sql-server/sql-server-downloads
@@ -30,9 +33,9 @@ integrations:
 operators:
   - integration-name: Microsoft SQL Server (MSSQL)
     python-modules:
-      - airflow.providers.microsoft.mssql.operators.mssql
+      - .operators.mssql
 
 hooks:
   - integration-name: Microsoft SQL Server (MSSQL)
     python-modules:
-      - airflow.providers.microsoft.mssql.hooks.mssql
+      - .hooks.mssql

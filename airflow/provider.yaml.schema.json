@@ -17,6 +17,11 @@
         "type": "string"
       }
     },
+    "provider-package": {
+      "description": "Package of the provider. All classes and resources of this provider must reside within this package.",
+      "type": "string"
+    },
+
     "integrations": {
       "type": "array",
       "items": {
@@ -75,10 +80,12 @@
             "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
           },
           "python-modules": {
+            "description": "Name of the module - relative to the provider package. Must start with .",
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "pattern": "^\\..*$"
           }
         },
         "additionalProperties": false,
@@ -98,9 +105,11 @@
             "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
           },
           "python-modules": {
+            "description": "Name of the module - relative to the provider package. Must start with .",
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^\\..*$"
             }
           }
         },
@@ -121,9 +130,11 @@
             "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
           },
           "python-modules": {
+            "description": "Name of the module - relative to the provider package. Must start with .",
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^\\..*$"
             }
           }
         },
@@ -153,7 +164,8 @@
           },
           "python-module": {
             "type": "string",
-            "description": "Source integration name. It must have a matching item in the 'integration' section of any provider."
+            "description": "Name of the module - relative to the provider package. Must start with .",
+            "pattern": "^\\..*$"
           }
         },
         "additionalProperties": false,
@@ -163,12 +175,35 @@
           "python-module"
         ]
       }
+    },
+    "connections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "connection-type": {
+            "description": "Type of connection that the provider has",
+            "type": "string"
+          },
+          "hook-class": {
+            "description": "Path of the class that the provider adds. Must start with . and be relative to the provider package defined in providerPackage field.",
+            "type": "string",
+            "pattern": "^\\..*$"
+          },
+          "connection-id-parameter-name": {
+            "description": "Name of the parameter to pass to the hook.",
+            "type": "string"
+          }
+        },
+        "required": ["connection-type", "hook-class", "connection-id-parameter-name"]
+      }
     }
   },
   "additionalProperties": false,
   "required": [
     "package-name",
     "description",
-    "versions"
+    "versions",
+    "provider-package"
   ]
 }

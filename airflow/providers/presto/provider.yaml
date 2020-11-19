@@ -22,6 +22,9 @@ description: |
 
 versions:
   - 1.0.0b2
+
+provider-package: airflow.providers.presto
+
 integrations:
   - integration-name: Presto
     external-doc-url: http://prestodb.github.io/
@@ -30,4 +33,9 @@ integrations:
 hooks:
   - integration-name: Presto
     python-modules:
-      - airflow.providers.presto.hooks.presto
+      - .hooks.presto
+
+connections:
+  - connection-type: presto
+    hook-class: .hooks.presto.PrestoHook
+    connection-id-parameter-name: presto_conn_id

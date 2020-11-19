@@ -23,6 +23,8 @@ description: |
 versions:
   - 1.0.0b2
 
+provider-package: airflow.providers.sftp
+
 integrations:
   - integration-name: SSH File Transfer Protocol (SFTP)
     external-doc-url: https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/
@@ -31,14 +33,14 @@ integrations:
 operators:
   - integration-name: SSH File Transfer Protocol (SFTP)
     python-modules:
-      - airflow.providers.sftp.operators.sftp
+      - .operators.sftp
 
 sensors:
   - integration-name: SSH File Transfer Protocol (SFTP)
     python-modules:
-      - airflow.providers.sftp.sensors.sftp
+      - .sensors.sftp
 
 hooks:
   - integration-name: SSH File Transfer Protocol (SFTP)
     python-modules:
-      - airflow.providers.sftp.hooks.sftp
+      - .hooks.sftp

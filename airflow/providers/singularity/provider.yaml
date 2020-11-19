@@ -23,6 +23,8 @@ description: |
 versions:
   - 1.0.0b2
 
+provider-package: airflow.providers.singularity
+
 integrations:
   - integration-name: Singularity
     external-doc-url: https://sylabs.io/guides/latest/user-guide/
@@ -31,4 +33,5 @@ integrations:
 operators:
   - integration-name: Singularity
     python-modules:
-      - airflow.providers.singularity.operators.singularity
+      - .operators.singularity
+      - .operators.singularity

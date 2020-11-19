@@ -136,9 +136,13 @@ def check_completeness_of_list_of_hooks_sensors_hooks(yaml_files: Dict[str, Dict
         )
         expected_modules = {_filepath_to_module(f) for f in py_files if not f.endswith("/__init__.py")}
 
+        provider_package = provider_data['provider-package']
+
         resource_data = provider_data.get(resource_type, [])
 
-        current_modules = {i for r in resource_data for i in r.get('python-modules', [])}
+        current_modules = {
+            f"{provider_package}{i}" for r in resource_data for i in r.get('python-modules', [])
+        }
         try:
             assert_sets_equal(set(expected_modules), set(current_modules))
         except AssertionError as ex:
@@ -167,8 +171,9 @@ def check_completeness_of_list_of_transfers(yaml_files: Dict[str, Dict]):
         expected_modules = {_filepath_to_module(f) for f in py_files if not f.endswith("/__init__.py")}
 
         resource_data = provider_data.get(resource_type, [])
+        provider_package = provider_data['provider-package']
 
-        current_modules = {r.get('python-module') for r in resource_data}
+        current_modules = {provider_package + r.get('python-module') for r in resource_data}
         try:
             assert_sets_equal(set(expected_modules), set(current_modules))
         except AssertionError as ex:

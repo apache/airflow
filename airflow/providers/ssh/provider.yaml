@@ -23,6 +23,8 @@ description: |
 versions:
   - 1.0.0b2
 
+provider-package: airflow.providers.ssh
+
 integrations:
   - integration-name: Secure Shell (SSH)
     external-doc-url: https://tools.ietf.org/html/rfc4251
@@ -31,9 +33,9 @@ integrations:
 operators:
   - integration-name: Secure Shell (SSH)
     python-modules:
-      - airflow.providers.ssh.operators.ssh
+      - .operators.ssh
 
 hooks:
   - integration-name: Secure Shell (SSH)
     python-modules:
-      - airflow.providers.ssh.hooks.ssh
+      - .hooks.ssh

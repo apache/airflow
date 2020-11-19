@@ -22,6 +22,9 @@ description: |
 
 versions:
   - 1.0.0b2
+
+provider-package: airflow.providers.oracle
+
 integrations:
   - integration-name: Oracle
     external-doc-url: https://www.oracle.com/en/database/
@@ -30,12 +33,19 @@ integrations:
 operators:
   - integration-name: Oracle
     python-modules:
-      - airflow.providers.oracle.operators.oracle
+      - .operators.oracle
+
 hooks:
   - integration-name: Oracle
     python-modules:
-      - airflow.providers.oracle.hooks.oracle
+      - .hooks.oracle
+
 transfers:
   - source-integration-name: Oracle
     target-integration-name: Oracle
-    python-module: airflow.providers.oracle.transfers.oracle_to_oracle
+    python-module: .transfers.oracle_to_oracle
+
+connections:
+  - connection-type: oracle
+    hook-class: .hooks.oracle.OracleHook
+    connection-id-parameter-name: oracle_conn_id

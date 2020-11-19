@@ -22,6 +22,9 @@ description: |
 
 versions:
   - 1.0.0b2
+
+provider-package: airflow.providers.apache.spark
+
 integrations:
   - integration-name: Apache Spark
     external-doc-url: https://spark.apache.org/
@@ -32,14 +35,14 @@ integrations:
 operators:
   - integration-name: Apache Spark
     python-modules:
-      - airflow.providers.apache.spark.operators.spark_jdbc
-      - airflow.providers.apache.spark.operators.spark_sql
-      - airflow.providers.apache.spark.operators.spark_submit
+      - .operators.spark_jdbc
+      - .operators.spark_sql
+      - .operators.spark_submit
 
 hooks:
   - integration-name: Apache Spark
     python-modules:
-      - airflow.providers.apache.spark.hooks.spark_jdbc
-      - airflow.providers.apache.spark.hooks.spark_jdbc_script
-      - airflow.providers.apache.spark.hooks.spark_sql
-      - airflow.providers.apache.spark.hooks.spark_submit
+      - .hooks.spark_jdbc
+      - .hooks.spark_jdbc_script
+      - .hooks.spark_sql
+      - .hooks.spark_submit

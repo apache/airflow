@@ -23,6 +23,8 @@ description: |
 versions:
   - 1.0.0b2
 
+provider-package: airflow.providers.http
+
 integrations:
   - integration-name: Hypertext Transfer Protocol (HTTP)
     external-doc-url: https://www.w3.org/Protocols/
@@ -33,13 +35,13 @@ integrations:
 operators:
   - integration-name: Hypertext Transfer Protocol (HTTP)
     python-modules:
-      - airflow.providers.http.operators.http
+      - .operators.http
 sensors:
   - integration-name: Hypertext Transfer Protocol (HTTP)
     python-modules:
-      - airflow.providers.http.sensors.http
+      - .sensors.http
 
 hooks:
   - integration-name: Hypertext Transfer Protocol (HTTP)
     python-modules:
-      - airflow.providers.http.hooks.http
+      - .hooks.http

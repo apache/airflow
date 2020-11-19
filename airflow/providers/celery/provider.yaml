@@ -22,6 +22,9 @@ description: |
 
 versions:
   - 1.0.0b2
+
+provider-package: airflow.providers.celery
+
 integrations:
   - integration-name: Celery
     external-doc-url: http://www.celeryproject.org/
@@ -30,4 +33,4 @@ integrations:
 sensors:
   - integration-name: Celery
     python-modules:
-      - airflow.providers.celery.sensors.celery_queue
+      - .sensors.celery_queue

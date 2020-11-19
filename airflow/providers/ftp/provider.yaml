@@ -23,6 +23,8 @@ description: |
 versions:
   - 1.0.0b2
 
+provider-package: airflow.providers.ftp
+
 integrations:
   - integration-name: File Transfer Protocol (FTP)
     external-doc-url: https://tools.ietf.org/html/rfc114
@@ -31,9 +33,9 @@ integrations:
 sensors:
   - integration-name: File Transfer Protocol (FTP)
     python-modules:
-      - airflow.providers.ftp.sensors.ftp
+      - .sensors.ftp
 
 hooks:
   - integration-name: File Transfer Protocol (FTP)
     python-modules:
-      - airflow.providers.ftp.hooks.ftp
+      - .hooks.ftp

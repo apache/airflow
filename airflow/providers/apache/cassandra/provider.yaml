@@ -23,6 +23,8 @@ description: |
 versions:
   - 1.0.0b2
 
+provider-package: airflow.providers.apache.cassandra
+
 integrations:
   - integration-name: Apache Cassandra
     external-doc-url: http://cassandra.apache.org/
@@ -33,10 +35,15 @@ integrations:
 sensors:
   - integration-name: Apache Cassandra
     python-modules:
-      - airflow.providers.apache.cassandra.sensors.record
-      - airflow.providers.apache.cassandra.sensors.table
+      - .sensors.record
+      - .sensors.table
 
 hooks:
   - integration-name: Apache Cassandra
     python-modules:
-      - airflow.providers.apache.cassandra.hooks.cassandra
+      - .hooks.cassandra
+
+connections:
+  - connection-type: cassandra
+    hook-class: .hooks.cassandra.CassandraHook
+    connection-id-parameter-name: cassandra_conn_id

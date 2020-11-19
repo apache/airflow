@@ -23,6 +23,8 @@ description: |
 versions:
   - 1.0.0b2
 
+provider-package: airflow.providers.sqlite
+
 integrations:
   - integration-name: SQLite
     external-doc-url: https://www.sqlite.org/index.html
@@ -31,9 +33,14 @@ integrations:
 operators:
   - integration-name: SQLite
     python-modules:
-      - airflow.providers.sqlite.operators.sqlite
+      - .operators.sqlite
 
 hooks:
   - integration-name: SQLite
     python-modules:
-      - airflow.providers.sqlite.hooks.sqlite
+      - .hooks.sqlite
+
+connections:
+  - connection-type: sqlite
+    hook-class: .hooks.sqlite.SqliteHook
+    connection-id-parameter-name: sqlite_conn_id

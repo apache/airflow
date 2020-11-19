@@ -23,6 +23,8 @@ description: |
 versions:
   - 1.0.0b2
 
+provider-package: airflow.providers.zendesk
+
 integrations:
   - integration-name: Zendesk
     external-doc-url: https://www.zendesk.com/
@@ -31,4 +33,4 @@ integrations:
 hooks:
   - integration-name: Zendesk
     python-modules:
-      - airflow.providers.zendesk.hooks.zendesk
+      - .hooks.zendesk

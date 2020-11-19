@@ -23,6 +23,8 @@ description: |
 versions:
   - 1.0.0b2
 
+provider-package: airflow.providers.mongo
+
 integrations:
   - integration-name: MongoDB
     external-doc-url: https://www.mongodb.com/what-is-mongodb
@@ -31,8 +33,13 @@ integrations:
 sensors:
   - integration-name: MongoDB
     python-modules:
-      - airflow.providers.mongo.sensors.mongo
+      - .sensors.mongo
 hooks:
   - integration-name: MongoDB
     python-modules:
-      - airflow.providers.mongo.hooks.mongo
+      - .hooks.mongo
+
+connections:
+  - connection-type: mongo
+    hook-class: .hooks.mongo.MongoHook
+    connection-id-parameter-name: conn_id

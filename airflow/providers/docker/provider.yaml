@@ -22,6 +22,9 @@ description: |
 
 versions:
   - 1.0.0b2
+
+provider-package: airflow.providers.docker
+
 integrations:
   - integration-name: Docker
     external-doc-url: https://docs.docker.com/
@@ -33,12 +36,17 @@ integrations:
 operators:
   - integration-name: Docker
     python-modules:
-      - airflow.providers.docker.operators.docker
+      - .operators.docker
   - integration-name: Docker Swarm
     python-modules:
-      - airflow.providers.docker.operators.docker_swarm
+      - .operators.docker_swarm
 
 hooks:
   - integration-name: Docker
     python-modules:
-      - airflow.providers.docker.hooks.docker
+      - .hooks.docker
+
+connections:
+  - connection-type: docker
+    hook-class: .hooks.docker.DockerHook
+    connection-id-parameter-name: docker_conn_id

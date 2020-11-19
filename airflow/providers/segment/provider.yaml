@@ -23,6 +23,8 @@ description: |
 versions:
   - 1.0.0b2
 
+provider-package: airflow.providers.segment
+
 integrations:
   - integration-name: Segment
     external-doc-url: https://oapi.dingtalk.com
@@ -31,9 +33,9 @@ integrations:
 operators:
   - integration-name: Segment
     python-modules:
-      - airflow.providers.segment.operators.segment_track_event
+      - .operators.segment_track_event
 
 hooks:
   - integration-name: Segment
     python-modules:
-      - airflow.providers.segment.hooks.segment
+      - .hooks.segment

@@ -28,9 +28,7 @@ from parameterized import parameterized
 from airflow import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import Connection, crypto
-from airflow.models.connection import CONN_TYPE_TO_HOOK
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
-from airflow.utils.module_loading import import_string
 from tests.test_utils.config import conf_vars
 
 ConnectionParts = namedtuple("ConnectionParts", ["conn_type", "login", "password", "host", "port", "schema"])
@@ -549,15 +547,3 @@ class TestConnection(unittest.TestCase):
             ),
         ):
             Connection(conn_id="TEST_ID", uri="mysql://", schema="AAA")
-
-
-class TestConnTypeToHook(unittest.TestCase):
-    def test_enforce_alphabetical_order(self):
-        current_keys = list(CONN_TYPE_TO_HOOK.keys())
-        expected_keys = sorted(current_keys)
-
-        self.assertEqual(expected_keys, current_keys)
-
-    def test_hooks_importable(self):
-        for hook_path, _ in CONN_TYPE_TO_HOOK.values():
-            self.assertTrue(issubclass(import_string(hook_path), BaseHook))

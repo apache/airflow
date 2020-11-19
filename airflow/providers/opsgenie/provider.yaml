@@ -22,6 +22,9 @@ description: |
 
 versions:
   - 1.0.0b2
+
+provider-package: airflow.providers.opsgenie
+
 integrations:
   - integration-name: Opsgenie
     external-doc-url: https://www.opsgenie.com/
@@ -30,9 +33,9 @@ integrations:
 operators:
   - integration-name: Opsgenie
     python-modules:
-      - airflow.providers.opsgenie.operators.opsgenie_alert
+      - .operators.opsgenie_alert
 
 hooks:
   - integration-name: Opsgenie
     python-modules:
-      - airflow.providers.opsgenie.hooks.opsgenie_alert
+      - .hooks.opsgenie_alert

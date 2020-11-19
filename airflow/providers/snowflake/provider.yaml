@@ -23,6 +23,8 @@ description: |
 versions:
   - 1.0.0b2
 
+provider-package: airflow.providers.snowflake
+
 integrations:
   - integration-name: Snowflake
     external-doc-url: https://snowflake.com/
@@ -33,17 +35,22 @@ integrations:
 operators:
   - integration-name: Snowflake
     python-modules:
-      - airflow.providers.snowflake.operators.snowflake
+      - .operators.snowflake
 
 hooks:
   - integration-name: Snowflake
     python-modules:
-      - airflow.providers.snowflake.hooks.snowflake
+      - .hooks.snowflake
 
 transfers:
   - source-integration-name: Amazon Simple Storage Service (S3)
     target-integration-name: Snowflake
-    python-module: airflow.providers.snowflake.transfers.s3_to_snowflake
+    python-module: .transfers.s3_to_snowflake
   - source-integration-name: Snowflake
     target-integration-name: Slack
-    python-module: airflow.providers.snowflake.transfers.snowflake_to_slack
+    python-module: .transfers.snowflake_to_slack
+
+connections:
+  - connection-type: snowflake
+    hook-class: .hooks.snowflake.SnowflakeHook
+    connection-id-parameter-name: snowflake_conn_id

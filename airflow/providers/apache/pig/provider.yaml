@@ -22,6 +22,9 @@ description: |
 
 versions:
   - 1.0.0b2
+
+provider-package: airflow.providers.apache.pig
+
 integrations:
   - integration-name: Apache Pig
     external-doc-url: https://pig.apache.org/
@@ -30,8 +33,14 @@ integrations:
 operators:
   - integration-name: Apache Pig
     python-modules:
-      - airflow.providers.apache.pig.operators.pig
+      - .operators.pig
+
 hooks:
   - integration-name: Apache Pig
     python-modules:
-      - airflow.providers.apache.pig.hooks.pig
+      - .hooks.pig
+
+connections:
+  - connection-type: pig_cli
+    hook-class: .hooks.pig.PigCliHook
+    connection-id-parameter-name: pig_cli_conn_id

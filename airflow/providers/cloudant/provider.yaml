@@ -22,6 +22,10 @@ description: |
 
 versions:
   - 1.0.0b2
+
+provider-package: airflow.providers.cloudant
+
+
 integrations:
   - integration-name: IBM Cloudant
     external-doc-url: https://www.ibm.com/cloud/cloudant
@@ -30,4 +34,9 @@ integrations:
 hooks:
   - integration-name: IBM Cloudant
     python-modules:
-      - airflow.providers.cloudant.hooks.cloudant
+      - .hooks.cloudant
+
+connections:
+  - connection-type: cloudant
+    hook-class: .hooks.cloudant.CloudantHook
+    connection-id-parameter-name: cloudant_conn_id

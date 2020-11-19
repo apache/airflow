@@ -23,6 +23,9 @@ description: |
 versions:
   - 1.0.0b2
 
+provider-package: airflow.providers.slack
+
+
 integrations:
   - integration-name: Slack
     external-doc-url: https://slack.com/
@@ -31,11 +34,11 @@ integrations:
 operators:
   - integration-name: Slack
     python-modules:
-      - airflow.providers.slack.operators.slack
-      - airflow.providers.slack.operators.slack_webhook
+      - .operators.slack
+      - .operators.slack_webhook
 
 hooks:
   - integration-name: Slack
     python-modules:
-      - airflow.providers.slack.hooks.slack
-      - airflow.providers.slack.hooks.slack_webhook
+      - .hooks.slack
+      - .hooks.slack_webhook

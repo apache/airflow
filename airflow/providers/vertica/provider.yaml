@@ -23,6 +23,8 @@ description: |
 versions:
   - 1.0.0b2
 
+provider-package: airflow.providers.vertica
+
 integrations:
   - integration-name: Vertica
     external-doc-url: https://www.vertica.com/
@@ -31,9 +33,14 @@ integrations:
 operators:
   - integration-name: Vertica
     python-modules:
-      - airflow.providers.vertica.operators.vertica
+      - .operators.vertica
 
 hooks:
   - integration-name: Vertica
     python-modules:
-      - airflow.providers.vertica.hooks.vertica
+      - .hooks.vertica
+
+connections:
+  - connection-type: vertica
+    hook-class: .hooks.vertica.VerticaHook
+    connection-id-parameter-name: vertica_conn_id

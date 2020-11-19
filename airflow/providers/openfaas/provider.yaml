@@ -22,6 +22,9 @@ description: |
 
 versions:
   - 1.0.0b2
+
+provider-package: airflow.providers.openfaas
+
 integrations:
   - integration-name: OpenFaaS
     external-doc-url: https://www.openfaas.com/
@@ -30,4 +33,4 @@ integrations:
 hooks:
   - integration-name: OpenFaaS
     python-modules:
-      - airflow.providers.openfaas.hooks.openfaas
+      - .hooks.openfaas

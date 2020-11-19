@@ -23,6 +23,8 @@ description: |
 versions:
   - 1.0.0b2
 
+provider-package: airflow.providers.redis
+
 integrations:
   - integration-name: Redis
     external-doc-url: https://redis.io/
@@ -31,15 +33,20 @@ integrations:
 operators:
   - integration-name: Redis
     python-modules:
-      - airflow.providers.redis.operators.redis_publish
+      - .operators.redis_publish
 
 sensors:
   - integration-name: Redis
     python-modules:
-      - airflow.providers.redis.sensors.redis_key
-      - airflow.providers.redis.sensors.redis_pub_sub
+      - .sensors.redis_key
+      - .sensors.redis_pub_sub
 
 hooks:
   - integration-name: Redis
     python-modules:
-      - airflow.providers.redis.hooks.redis
+      - .hooks.redis
+
+connections:
+  - connection-type: redis
+    hook-class: .hooks.redis.RedisHook
+    connection-id-parameter-name: redis_conn_id
