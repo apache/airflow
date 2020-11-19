@@ -569,6 +569,12 @@ ARG_CONN_EXPORT = Arg(
 ARG_CONN_EXPORT_FORMAT = Arg(
     ('--format',), help='Format of the connections data in file', type=str, choices=['json', 'yaml', 'env']
 )
+
+# providers
+ARG_PROVIDER_NAME = Arg(
+    ('provider_name',), help='Provider name, required to get provider information', type=str
+)
+
 # users
 ARG_USERNAME = Arg(('-u', '--username'), help='Username of the user', required=True, type=str)
 ARG_USERNAME_OPTIONAL = Arg(('-u', '--username'), help='Username of the user', type=str)
@@ -1111,7 +1117,7 @@ CONNECTIONS_COMMANDS = (
         name='delete',
         help='Delete a connection',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_delete'),
-        args=(ARG_CONN_ID,),
+        args=(ARG_CONN_ID, ARG_COLOR),
     ),
     ActionCommand(
         name='export',
@@ -1135,6 +1141,21 @@ CONNECTIONS_COMMANDS = (
         ),
     ),
 )
+PROVIDERS_COMMANDS = (
+    ActionCommand(
+        name='list',
+        help='List installed providers',
+        func=lazy_load_command('airflow.cli.commands.provider_command.providers_list'),
+        args=(ARG_OUTPUT,),
+    ),
+    ActionCommand(
+        name='get',
+        help='Get detailed information about a provider',
+        func=lazy_load_command('airflow.cli.commands.provider_command.provider_get'),
+        args=(ARG_PROVIDER_NAME, ARG_COLOR),
+    ),
+)
+
 USERS_COMMANDS = (
     ActionCommand(
         name='list',
@@ -1388,6 +1409,11 @@ airflow_commands: List[CLICommand] = [
         name='connections',
         help="Manage connections",
         subcommands=CONNECTIONS_COMMANDS,
+    ),
+    GroupCommand(
+        name='providers',
+        help="Display providers",
+        subcommands=PROVIDERS_COMMANDS,
     ),
     GroupCommand(
         name='users',
