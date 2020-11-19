@@ -25,14 +25,8 @@ import { defaultFormat, formatDateTime } from './datetime-utils';
 
 function makeDateTimeHTML(start, end) {
   // check task ended or not
-  if (end && end instanceof moment) {
-    return (
-      `Started: ${start.format(defaultFormat)} <br> Ended: ${end.format(defaultFormat)} <br>`
-    );
-  }
-  return (
-    `Started: ${start.format(defaultFormat)} <br> Ended: Not ended yet <br>`
-  );
+  const isEnded = end && end instanceof moment && end.isValid();
+  return `Started: ${start.format(defaultFormat)}<br>Ended: ${isEnded ? end.format(defaultFormat) : 'Not ended yet'}<br>`;
 }
 
 function generateTooltipDateTimes(startDate, endDate, dagTZ) {
