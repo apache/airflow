@@ -3299,7 +3299,7 @@ class TestDecorators(TestBase):
         )
 
 
-class TestHelperFunctions(unittest.TestCase):
+class TestHelperFunctions(TestBase):
     @parameterized.expand(
         [
             ("", "/home"),
@@ -3316,8 +3316,7 @@ class TestHelperFunctions(unittest.TestCase):
         ]
     )
     @mock.patch("airflow.www.views.url_for")
-    @mock.patch("airflow.www.views.request")
-    def test_get_safe_url(self, test_url, expected_url, mock_req, mock_url_for):
-        mock_req.host = 'localhost:8080'
+    def test_get_safe_url(self, test_url, expected_url, mock_url_for):
         mock_url_for.return_value = "/home"
-        self.assertEqual(get_safe_url(test_url), expected_url)
+        with self.app.test_request_context(base_url="http://localhost:8080"):
+            self.assertEqual(get_safe_url(test_url), expected_url)
