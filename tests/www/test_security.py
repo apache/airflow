@@ -215,7 +215,6 @@ class TestSecurity(unittest.TestCase):
             role_name,
             permissions=[
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             ],
         )
 
@@ -228,6 +227,23 @@ class TestSecurity(unittest.TestCase):
         )
 
         self.assertEqual(self.security_manager.get_accessible_dag_ids(user), {'dag_id'})
+
+    def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(self):
+        username = "Monsieur User"
+        user = fab_utils.create_user(
+            self.app,
+            username,
+            role_name='MyRole1',
+            permissions=[
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            ],
+        )
+
+        dag_model = DagModel(dag_id='dag_id', fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
+        self.session.add(dag_model)
+        self.session.commit()
+
+        self.assertEqual(self.security_manager.get_readable_dag_ids(user), set())
 
     @mock.patch('airflow.www.security.AirflowSecurityManager._has_view_access')
     def test_has_access(self, mock_has_view_access):
