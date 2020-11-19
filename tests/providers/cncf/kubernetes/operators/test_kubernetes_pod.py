@@ -339,21 +339,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
         self.assertEqual(client.sanitize_for_serialization(result)['spec']['tolerations'], tolerations)
 
     def test_node_selector(self):
-        k8s_api_node_selector = k8s.V1NodeSelector(
-            node_selector_terms=[
-                k8s.V1NodeSelectorTerm(
-                    match_expressions=[
-                        k8s.V1NodeSelectorRequirement(key="disktype", operator="In", values=["ssd"])
-                    ]
-                )
-            ]
-        )
-
-        node_selector = {
-            'nodeSelectorTerms': [
-                {'matchExpressions': [{'key': 'disktype', 'operator': 'In', 'values': ['ssd']}]}
-            ]
-        }
+        node_selector = {'beta.kubernetes.io/os': 'linux'}
 
         k = KubernetesPodOperator(
             namespace='default',
@@ -366,31 +352,12 @@ class TestKubernetesPodOperator(unittest.TestCase):
             in_cluster=False,
             do_xcom_push=False,
             cluster_context='default',
-            node_selector=k8s_api_node_selector,
+            node_selector=node_selector,
         )
 
         result = k.create_pod_request_obj()
         client = ApiClient()
-        self.assertEqual(type(result.spec.node_selector), k8s.V1NodeSelector)
-        self.assertEqual(client.sanitize_for_serialization(result)['spec']['nodeSelector'], node_selector)
-
-        k = KubernetesPodOperator(
-            namespace='default',
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            labels={"foo": "bar"},
-            name="name",
-            task_id="task",
-            in_cluster=False,
-            do_xcom_push=False,
-            cluster_context='default',
-            node_selector=k8s_api_node_selector,
-        )
-
-        result = k.create_pod_request_obj()
-        client = ApiClient()
-        self.assertEqual(type(result.spec.node_selector), k8s.V1NodeSelector)
+        self.assertEqual(type(result.spec.node_selector), dict)
         self.assertEqual(client.sanitize_for_serialization(result)['spec']['nodeSelector'], node_selector)
 
         # repeat tests using deprecated parameter
@@ -410,24 +377,5 @@ class TestKubernetesPodOperator(unittest.TestCase):
 
         result = k.create_pod_request_obj()
         client = ApiClient()
-        self.assertEqual(type(result.spec.node_selector), k8s.V1NodeSelector)
-        self.assertEqual(client.sanitize_for_serialization(result)['spec']['nodeSelector'], node_selector)
-
-        k = KubernetesPodOperator(
-            namespace='default',
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            labels={"foo": "bar"},
-            name="name",
-            task_id="task",
-            in_cluster=False,
-            do_xcom_push=False,
-            cluster_context='default',
-            node_selectors=node_selector,
-        )
-
-        result = k.create_pod_request_obj()
-        client = ApiClient()
-        self.assertEqual(type(result.spec.node_selector), k8s.V1NodeSelector)
+        self.assertEqual(type(result.spec.node_selector), dict)
         self.assertEqual(client.sanitize_for_serialization(result)['spec']['nodeSelector'], node_selector)

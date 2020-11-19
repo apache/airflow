@@ -32,7 +32,6 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_configmap,
     convert_env_vars,
     convert_image_pull_secrets,
-    convert_node_selector,
     convert_pod_runtime_info_env,
     convert_port,
     convert_resources,
@@ -194,8 +193,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         resources: Optional[k8s.V1ResourceRequirements] = None,
         affinity: Optional[k8s.V1Affinity] = None,
         config_file: Optional[str] = None,
-        node_selectors: Optional[k8s.V1NodeSelector] = None,
-        node_selector: Optional[k8s.V1NodeSelector] = None,
+        node_selectors: Optional[dict] = None,
+        node_selector: Optional[dict] = None,
         image_pull_secrets: Optional[List[k8s.V1LocalObjectReference]] = None,
         service_account_name: str = 'default',
         is_delete_operator_pod: bool = False,
@@ -244,9 +243,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         if node_selectors:
             # Node selectors is incorrect based on k8s API
             warnings.warn("node_selectors is deprecated. Please use node_selector instead.")
-            self.node_selector = convert_node_selector(node_selectors)
+            self.node_selector = node_selectors or {}
         elif node_selector:
-            self.node_selector = convert_node_selector(node_selector)
+            self.node_selector = node_selector or {}
         else:
             self.node_selector = None
         self.annotations = annotations or {}
