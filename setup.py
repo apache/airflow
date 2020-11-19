@@ -712,7 +712,7 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     "microsoft.winrm": ["microsoft.winrm"],
     'mongo': ["mongo"],
     'mssql': ["microsoft.mssql"],  # TODO: remove this in Airflow 2.1
-    'mysql': ["microsoft.mssql"],
+    'mysql': ["mysql"],
     'odbc': ["odbc"],
     'oracle': ["oracle"],
     'pagerduty': ["pagerduty"],
