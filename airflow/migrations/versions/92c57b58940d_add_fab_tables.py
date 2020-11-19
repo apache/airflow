@@ -19,7 +19,7 @@
 """Create FAB Tables
 
 Revision ID: 92c57b58940d
-Revises: 45ba3f1493b9
+Revises: da3f683c3a5a
 Create Date: 2020-11-13 19:27:10.161814
 
 """
@@ -30,7 +30,7 @@ from sqlalchemy.engine.reflection import Inspector
 
 # revision identifiers, used by Alembic.
 revision = '92c57b58940d'
-down_revision = '45ba3f1493b9'
+down_revision = 'da3f683c3a5a'
 branch_labels = None
 depends_on = None
 
