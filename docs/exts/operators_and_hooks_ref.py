@@ -89,7 +89,7 @@ def _prepare_operators_data(tags: Optional[Set[str]]):
         to_display_integration = all_integrations
     else:
         to_display_integration = [
-            integration for integration in all_integrations if tags.intersection(integration["tags"])
+            integration for integration in all_integrations.values() if tags.intersection(integration["tags"])
         ]
 
     all_operators_by_integration = _prepare_resource_index(package_data, "operators")
