@@ -471,8 +471,8 @@ class Airflow(AirflowViewMixin, BaseView):
             df = hook.get_pandas_df(
                 wwwutils.limit_sql(sql, CHART_LIMIT, conn_type=db.conn_type))
             df = df.fillna(0)
-        except Exception as e:
-            payload['error'] += "SQL execution failed. Details: " + str(e)
+        except Exception:
+            payload['error'] += "SQL execution failed. Contact your System Administrator for more details"
 
         if csv:
             return Response(
@@ -2398,8 +2398,8 @@ class QueryView(wwwutils.DataProfilingMixin, AirflowViewMixin, BaseView):
                     index=False,
                     na_rep='',
                 ) if has_data else ''
-            except Exception as e:
-                flash(str(e), 'error')
+            except Exception:
+                flash("SQL execution failed. Contact your System Administrator for more details", "error")
                 error = True
 
         if has_data and len(df) == QUERY_LIMIT:
