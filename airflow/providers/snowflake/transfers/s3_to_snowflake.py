@@ -92,12 +92,18 @@ class S3ToSnowflakeOperator(BaseOperator):
 
         if self.columns_array:
             columns = ','.join(self.columns_array)
-            copy_query = f"COPY INTO {self.schema}.{self.table} ({columns}) {base_sql}" if self.schema \
+            copy_query = (
+                f"COPY INTO {self.schema}.{self.table} ({columns}) {base_sql}"
+                if self.schema
                 else f"COPY INTO {self.table} ({columns}) {base_sql}"
+            )
 
         else:
-            copy_query = f"COPY INTO {self.schema}.{self.table} {base_sql}" if self.schema \
+            copy_query = (
+                f"COPY INTO {self.schema}.{self.table} {base_sql}"
+                if self.schema
                 else f"COPY INTO {self.table} {base_sql}"
+            )
 
         self.log.info('Executing COPY command...')
         snowflake_hook.run(copy_query, self.autocommit)
