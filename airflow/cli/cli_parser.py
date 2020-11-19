@@ -1166,6 +1166,12 @@ PROVIDERS_COMMANDS = (
         func=lazy_load_command('airflow.cli.commands.provider_command.provider_get'),
         args=(ARG_OUTPUT, ARG_FULL, ARG_COLOR, ARG_PROVIDER_NAME),
     ),
+    ActionCommand(
+        name='links',
+        help='List extra links registered by the providers',
+        func=lazy_load_command('airflow.cli.commands.provider_command.extra_links_list'),
+        args=(ARG_OUTPUT,),
+    ),
 )
 
 USERS_COMMANDS = (

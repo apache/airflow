@@ -22,7 +22,7 @@ import json
 import logging
 import os
 from collections import OrderedDict
-from typing import Dict, Tuple
+from typing import Dict, Set, Tuple
 
 import jsonschema
 import yaml
@@ -68,6 +68,7 @@ class ProvidersManager:
         # Keeps dict of hooks keyed by connection type and value is
         # Tuple: connection class, connection_id_attribute_name
         self._hooks_dict: Dict[str, Tuple[str, str]] = {}
+        self._extra_link_class_name_set: Set[str] = set()
         self._validator = _create_validator()
         # Local source folders are loaded first. They should take precedence over the package ones for
         # Development purpose. In production provider.yaml files are not present in the 'airflow" directory
@@ -78,6 +79,7 @@ class ProvidersManager:
         self._discover_hooks()
         self._provider_dict = OrderedDict(sorted(self.providers.items()))
         self._hooks_dict = OrderedDict(sorted(self.hooks.items()))
+        self._discover_extra_links()
 
     def _discover_all_providers_from_packages(self) -> None:
         """
@@ -224,6 +226,32 @@ class ProvidersManager:
 
         self._hooks_dict[conn_type] = (hook_class_name, connection_id_attribute_name)
 
+    def _discover_extra_links(self) -> None:
+        """Retrieves all extra links defined in the providers"""
+        for provider_package, (_, provider) in self._provider_dict.items():
+            if provider.get("extra-links"):
+                for extra_link in provider["extra-links"]:
+                    self._add_extra_link(extra_link, provider_package)
+
+    def _add_extra_link(self, extra_link_class_name, provider_package) -> None:
+        """
+        Adds extra link class name to the list of classes
+        :param extra_link_class_name: name of the class to add
+        :param provider_package: provider package adding the link
+        :return:
+        """
+        if provider_package.startswith("apache-airflow"):
+            provider_path = provider_package[len("apache-") :].replace("-", ".")
+            if not extra_link_class_name.startswith(provider_path):
+                log.warning(
+                    "Sanity check failed when importing '%s' from '%s' package. It should start with '%s'",
+                    extra_link_class_name,
+                    provider_package,
+                    provider_path,
+                )
+                return
+        self._extra_link_class_name_set.add(extra_link_class_name)
+
     @property
     def providers(self):
         """Returns information about available providers."""
@@ -233,3 +261,8 @@ class ProvidersManager:
     def hooks(self):
         """Returns dictionary of connection_type-to-hook mapping"""
         return self._hooks_dict
+
+    @property
+    def extra_links_class_names(self):
+        """Returns set of extra link class names."""
+        return sorted(list(self._extra_link_class_name_set))

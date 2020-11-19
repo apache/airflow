@@ -20,17 +20,25 @@ import datetime
 import enum
 import logging
 from inspect import Parameter, signature
-from typing import Any, Dict, Iterable, List, Optional, Set, Union
+from typing import Any, Dict, Iterable, Optional, Set, Union
 
 import cattr
 import pendulum
 from dateutil import relativedelta
+
+try:
+    from functools import cache
+except ImportError:
+    from functools import lru_cache
+
+    cache = lru_cache(maxsize=None)
 from pendulum.tz.timezone import Timezone
 
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
+from airflow.providers_manager import ProvidersManager
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
 from airflow.serialization.json_schema import Validator, load_dag_schema
@@ -53,14 +61,22 @@ except ImportError:
 log = logging.getLogger(__name__)
 FAILED = 'serialization_failed'
 
-BUILTIN_OPERATOR_EXTRA_LINKS: List[str] = [
-    "airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink",
-    "airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink",
-    "airflow.providers.google.cloud.operators.mlengine.AIPlatformConsoleLink",
-    "airflow.providers.qubole.operators.qubole.QDSLink",
+_OPERATOR_EXTRA_LINKS: Set[str] = {
     "airflow.operators.dagrun_operator.TriggerDagRunLink",
     "airflow.sensors.external_task_sensor.ExternalTaskSensorLink",
-]
+}
+
+
+@cache
+def get_operator_extra_links():
+    """
+    Returns operator extra links - both the ones that are built in and the ones that come from
+    the providers.
+
+    :return: set of extra links
+    """
+    _OPERATOR_EXTRA_LINKS.update(ProvidersManager().extra_links_class_names)
+    return _OPERATOR_EXTRA_LINKS
 
 
 class BaseSerialization:
@@ -498,7 +514,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             #   )
 
             _operator_link_class_path, data = list(_operator_links_source.items())[0]
-            if _operator_link_class_path in BUILTIN_OPERATOR_EXTRA_LINKS:
+            if _operator_link_class_path in get_operator_extra_links():
                 single_op_link_class = import_string(_operator_link_class_path)
             elif _operator_link_class_path in plugins_manager.registered_operator_link_classes:
                 single_op_link_class = plugins_manager.registered_operator_link_classes[
