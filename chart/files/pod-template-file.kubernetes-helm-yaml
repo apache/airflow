@@ -53,7 +53,7 @@ spec:
 {{- end }}
 {{- if .Values.dags.gitSync.knownHosts }}
         - mountPath: /etc/git-secret/known_hosts
-          name: {{ .Values.dags.gitSync.knownHosts }}
+          name: git-sync-known-hosts
           subPath: known_hosts
 {{- end }}
 {{- if .Values.dags.gitSync.sshKeySecret }}
@@ -77,6 +77,7 @@ spec:
   restartPolicy: Never
   securityContext:
     runAsUser: {{ .Values.uid }}
+    fsGroup: {{ .Values.gid }}
   nodeSelector: {{ toYaml .Values.nodeSelector | nindent 4 }}
   affinity: {{ toYaml .Values.affinity | nindent 4 }}
   tolerations: {{ toYaml .Values.tolerations | nindent 4 }}

@@ -256,3 +256,11 @@ class PodTemplateFileTest(unittest.TestCase):
                 docs[0],
             ),
         )
+
+    def test_should_add_fsgroup_to_the_pod_template(self):
+        docs = render_chart(
+            values={"gid": 5000},
+            show_only=["templates/pod-template-file.yaml"],
+        )
+
+        self.assertEqual(5000, jmespath.search("spec.securityContext.fsGroup", docs[0]))
