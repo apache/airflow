@@ -48,7 +48,7 @@ class S3ToSnowflakeOperator(BaseOperator):
     def __init__(
         self,
         *,
-        s3_keys: list,
+        s3_keys: Optional[list] = None,
         table: str,
         stage: Any,
         file_format: str,
@@ -71,16 +71,16 @@ class S3ToSnowflakeOperator(BaseOperator):
     def execute(self, context: Any) -> None:
         snowflake_hook = SnowflakeHook(snowflake_conn_id=self.snowflake_conn_id)
 
-        # Snowflake won't accept list of files it has to be tuple only.
-        # but in python tuple([1]) = (1,) => which is invalid for snowflake
-        files = str(self.s3_keys)
-        files = files.replace('[', '(')
-        files = files.replace(']', ')')
+        files = ""
+        if self.s3_keys:
+            files = "files=({})".format(
+                ", ".join("'{}'".format(key) for key in self.s3_keys)
+            )
 
         # we can extend this based on stage
         base_sql = """
                     FROM @{stage}/
-                    files={files}
+                    {files}
                     file_format={file_format}
                 """.format(
             stage=self.stage, files=files, file_format=self.file_format

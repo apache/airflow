@@ -26,6 +26,41 @@ from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 class TestS3ToSnowflakeTransfer(unittest.TestCase):
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run")
     def test_execute(self, mock_run):
+        table = 'table'
+        stage = 'stage'
+        file_format = 'file_format'
+        schema = 'schema'
+
+        S3ToSnowflakeOperator(
+            s3_keys=None,
+            table=table,
+            stage=stage,
+            file_format=file_format,
+            schema=schema,
+            columns_array=None,
+            task_id="task_id",
+            dag=None,
+        ).execute(None)
+
+        base_sql = """
+                FROM @{stage}/
+                
+                file_format={file_format}
+            """.format(
+            stage=stage, file_format=file_format
+        )
+
+        copy_query = """
+                COPY INTO {schema}.{table} {base_sql}
+            """.format(
+            schema=schema, table=table, base_sql=base_sql
+        )
+
+        assert mock_run.call_count == 1
+        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_query)
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run")
+    def test_execute_with_s3_keys(self, mock_run):
         s3_keys = ['1.csv', '2.csv']
         table = 'table'
         stage = 'stage'
@@ -65,7 +100,6 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run")
     def test_execute_with_columns(self, mock_run):
-        s3_keys = ['1.csv', '2.csv']
         table = 'table'
         stage = 'stage'
         file_format = 'file_format'
@@ -73,7 +107,6 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
         columns_array = ['col1', 'col2', 'col3']
 
         S3ToSnowflakeOperator(
-            s3_keys=s3_keys,
             table=table,
             stage=stage,
             file_format=file_format,
@@ -83,15 +116,12 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
             dag=None,
         ).execute(None)
 
-        files = str(s3_keys)
-        files = files.replace('[', '(')
-        files = files.replace(']', ')')
         base_sql = """
                 FROM @{stage}/
-                files={files}
+                
                 file_format={file_format}
             """.format(
-            stage=stage, files=files, file_format=file_format
+            stage=stage, file_format=file_format
         )
 
         copy_query = """
