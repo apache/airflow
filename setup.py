@@ -709,6 +709,7 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'kerberos': [],
     'kubernetes': ["cncf.kubernetes"],  # TODO: remove this in Airflow 2.1
     'ldap': [],
+    'mesos': ["avmesos"],
     "microsoft.azure": ["microsoft.azure"],
     "microsoft.mssql": ["microsoft.mssql"],
     "microsoft.winrm": ["microsoft.winrm"],
