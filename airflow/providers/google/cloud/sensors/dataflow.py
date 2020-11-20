@@ -128,6 +128,9 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
         See:
         https://cloud.google.com/dataflow/docs/reference/rest/v1b3/MetricUpdate
     :type callback: callable
+    :param fail_on_terminal_state: If set to true sensor will raise Exception when
+        job is in terminal state
+    :type fail_on_terminal_state: bool
     :param project_id: Optional, the Google Cloud project ID in which to start a job.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
@@ -158,6 +161,7 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
         *,
         job_id: str,
         callback: Callable[[dict], bool],
+        fail_on_terminal_state: bool = True,
         project_id: Optional[str] = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = 'google_cloud_default',
@@ -169,6 +173,7 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
         self.job_id = job_id
         self.project_id = project_id
         self.callback = callback
+        self.fail_on_terminal_state = fail_on_terminal_state
         self.location = location
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
@@ -187,6 +192,18 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
             location=self.location,
         )
 
+        if self.fail_on_terminal_state:
+            job = self.hook.get_job(
+                job_id=self.job_id,
+                project_id=self.project_id,
+                location=self.location,
+            )
+            job_status = job["currentState"]
+            if job_status in DataflowJobStatus.TERMINAL_STATES:
+                raise AirflowException(
+                    f"Job with id '{self.job_id}' is already in terminal state: {job_status}"
+                )
+
         return self.callback(result["metrics"])
 
 
@@ -200,6 +217,9 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
         See:
         https://cloud.google.com/dataflow/docs/reference/rest/v1b3/MetricUpdate
     :type callback: callable
+    :param fail_on_terminal_state: If set to true sensor will raise Exception when
+        job is in terminal state
+    :type fail_on_terminal_state: bool
     :param project_id: Optional, the Google Cloud project ID in which to start a job.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
@@ -230,6 +250,7 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
         *,
         job_id: str,
         callback: Callable,
+        fail_on_terminal_state: bool = True,
         project_id: Optional[str] = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = 'google_cloud_default',
@@ -241,6 +262,7 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
         self.job_id = job_id
         self.project_id = project_id
         self.callback = callback
+        self.fail_on_terminal_state = fail_on_terminal_state
         self.location = location
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
@@ -254,14 +276,17 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-        job = self.hook.get_job(
-            job_id=self.job_id,
-            project_id=self.project_id,
-            location=self.location,
-        )
-        job_status = job["currentState"]
-        if job_status in DataflowJobStatus.TERMINAL_STATES:
-            raise AirflowException(f"Job with id '{self.job_id}' is already in terminal state: {job_status}")
+        if self.fail_on_terminal_state:
+            job = self.hook.get_job(
+                job_id=self.job_id,
+                project_id=self.project_id,
+                location=self.location,
+            )
+            job_status = job["currentState"]
+            if job_status in DataflowJobStatus.TERMINAL_STATES:
+                raise AirflowException(
+                    f"Job with id '{self.job_id}' is already in terminal state: {job_status}"
+                )
 
         result = self.hook.fetch_job_messages_by_id(
             job_id=self.job_id,
@@ -282,6 +307,9 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         See:
         https://cloud.google.com/dataflow/docs/reference/rest/v1b3/MetricUpdate
     :type callback: callable
+    :param fail_on_terminal_state: If set to true sensor will raise Exception when
+        job is in terminal state
+    :type fail_on_terminal_state: bool
     :param project_id: Optional, the Google Cloud project ID in which to start a job.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
@@ -312,6 +340,7 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         *,
         job_id: str,
         callback: Callable,
+        fail_on_terminal_state: bool = True,
         project_id: Optional[str] = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = 'google_cloud_default',
@@ -323,6 +352,7 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         self.job_id = job_id
         self.project_id = project_id
         self.callback = callback
+        self.fail_on_terminal_state = fail_on_terminal_state
         self.location = location
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
@@ -336,14 +366,17 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-        job = self.hook.get_job(
-            job_id=self.job_id,
-            project_id=self.project_id,
-            location=self.location,
-        )
-        job_status = job["currentState"]
-        if job_status in DataflowJobStatus.TERMINAL_STATES:
-            raise AirflowException(f"Job with id '{self.job_id}' is already in terminal state: {job_status}")
+        if self.fail_on_terminal_state:
+            job = self.hook.get_job(
+                job_id=self.job_id,
+                project_id=self.project_id,
+                location=self.location,
+            )
+            job_status = job["currentState"]
+            if job_status in DataflowJobStatus.TERMINAL_STATES:
+                raise AirflowException(
+                    f"Job with id '{self.job_id}' is already in terminal state: {job_status}"
+                )
 
         result = self.hook.fetch_job_autoscaling_events_by_id(
             job_id=self.job_id,
