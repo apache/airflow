@@ -21,7 +21,7 @@ def get_rules():
     """Automatically discover all rules"""
     rule_classes = []
     path = os.path.dirname(os.path.abspath(__file__))
-    for file in os.listdir(path):
+    for file in sorted(os.listdir(path)):
         if not file.endswith(".py") or file in ("__init__.py", "base_rule.py"):
             continue
         py_file = file[:-3]
