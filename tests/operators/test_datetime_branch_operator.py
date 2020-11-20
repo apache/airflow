@@ -51,6 +51,23 @@ class TestDateTimeBranchOperator(unittest.TestCase):
         self.branch_1 = DummyOperator(task_id='branch_1', dag=self.dag)
         self.branch_2 = DummyOperator(task_id='branch_2', dag=self.dag)
 
+        self.branch_op = DateTimeBranchOperator(
+            task_id='datetime_branch',
+            follow_task_ids_if_true='branch_1',
+            follow_task_ids_if_false='branch_2',
+            target_upper=datetime.datetime(2020, 7, 7, 11, 0, 0),
+            target_lower=datetime.datetime(2020, 7, 7, 10, 0, 0),
+            dag=self.dag,
+        )
+
+        self.branch_1.set_upstream(self.branch_op)
+        self.branch_2.set_upstream(self.branch_op)
+        self.dag.clear()
+
+        self.dr = self.dag.create_dagrun(
+            run_id='manual__', start_date=DEFAULT_DATE, execution_date=DEFAULT_DATE, state=State.RUNNING
+        )
+
     def tearDown(self):
         super().tearDown()
 
@@ -73,27 +90,10 @@ class TestDateTimeBranchOperator(unittest.TestCase):
     @mock.patch('airflow.operators.datetime_branch_operator.timezone.utcnow')
     def test_datetime_branch_operator_falls_within_range(self, mock_timezone):
         """Check DateTimeBranchOperator branch operation"""
-        branch_op = DateTimeBranchOperator(
-            task_id='datetime_branch',
-            follow_task_ids_if_true='branch_1',
-            follow_task_ids_if_false='branch_2',
-            target_upper=datetime.datetime(2020, 7, 7, 11, 0, 0),
-            target_lower=datetime.datetime(2020, 7, 7, 10, 0, 0),
-            dag=self.dag,
-        )
-
-        self.branch_1.set_upstream(branch_op)
-        self.branch_2.set_upstream(branch_op)
-        self.dag.clear()
-
-        dr = self.dag.create_dagrun(
-            run_id='manual__', start_date=DEFAULT_DATE, execution_date=DEFAULT_DATE, state=State.RUNNING
-        )
-
         mock_timezone.return_value = datetime.datetime(2020, 7, 7, 10, 54, 5, tzinfo=datetime.timezone.utc)
-        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        tis = dr.get_task_instances()
+        tis = self.dr.get_task_instances()
         for ti in tis:
             if ti.task_id == 'datetime_branch':
                 self.assertEqual(ti.state, State.SUCCESS)
@@ -107,23 +107,6 @@ class TestDateTimeBranchOperator(unittest.TestCase):
     @mock.patch('airflow.operators.datetime_branch_operator.timezone.utcnow')
     def test_datetime_branch_operator_falls_outside_range(self, mock_timezone):
         """Check DateTimeBranchOperator branch operation"""
-        branch_op = DateTimeBranchOperator(
-            task_id='datetime_branch',
-            follow_task_ids_if_true='branch_1',
-            follow_task_ids_if_false='branch_2',
-            target_upper=datetime.datetime(2020, 7, 7, 11, 0, 0),
-            target_lower=datetime.datetime(2020, 7, 7, 10, 0, 0),
-            dag=self.dag,
-        )
-
-        self.branch_1.set_upstream(branch_op)
-        self.branch_2.set_upstream(branch_op)
-        self.dag.clear()
-
-        dr = self.dag.create_dagrun(
-            run_id='manual__', start_date=DEFAULT_DATE, execution_date=DEFAULT_DATE, state=State.RUNNING
-        )
-
         dates = [
             datetime.datetime(2020, 7, 7, 12, 0, 0, tzinfo=datetime.timezone.utc),
             datetime.datetime(2020, 6, 7, tzinfo=datetime.timezone.utc),
@@ -131,9 +114,9 @@ class TestDateTimeBranchOperator(unittest.TestCase):
 
         for date in dates:
             mock_timezone.return_value = date
-            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-            tis = dr.get_task_instances()
+            tis = self.dr.get_task_instances()
             for ti in tis:
                 if ti.task_id == 'datetime_branch':
                     self.assertEqual(ti.state, State.SUCCESS)
@@ -147,27 +130,10 @@ class TestDateTimeBranchOperator(unittest.TestCase):
     @mock.patch('airflow.operators.datetime_branch_operator.timezone.utcnow')
     def test_datetime_branch_operator_upper_comparison_within_range(self, mock_timezone):
         """Check DateTimeBranchOperator branch operation"""
-        branch_op = DateTimeBranchOperator(
-            task_id='datetime_branch',
-            follow_task_ids_if_true='branch_1',
-            follow_task_ids_if_false='branch_2',
-            target_upper=datetime.datetime(2020, 7, 7, 11, 0, 0),
-            target_lower=None,
-            dag=self.dag,
-        )
-
-        self.branch_1.set_upstream(branch_op)
-        self.branch_2.set_upstream(branch_op)
-        self.dag.clear()
-
-        dr = self.dag.create_dagrun(
-            run_id='manual__', start_date=DEFAULT_DATE, execution_date=DEFAULT_DATE, state=State.RUNNING
-        )
-
         mock_timezone.return_value = datetime.datetime(2020, 7, 7, 10, 54, 5, tzinfo=datetime.timezone.utc)
-        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        tis = dr.get_task_instances()
+        tis = self.dr.get_task_instances()
         for ti in tis:
             if ti.task_id == 'datetime_branch':
                 self.assertEqual(ti.state, State.SUCCESS)
@@ -181,27 +147,10 @@ class TestDateTimeBranchOperator(unittest.TestCase):
     @mock.patch('airflow.operators.datetime_branch_operator.timezone.utcnow')
     def test_datetime_branch_operator_lower_comparison_within_range(self, mock_timezone):
         """Check DateTimeBranchOperator branch operation"""
-        branch_op = DateTimeBranchOperator(
-            task_id='datetime_branch',
-            follow_task_ids_if_true='branch_1',
-            follow_task_ids_if_false='branch_2',
-            target_upper=None,
-            target_lower=datetime.datetime(2020, 7, 7, 10, 0, 0),
-            dag=self.dag,
-        )
-
-        self.branch_1.set_upstream(branch_op)
-        self.branch_2.set_upstream(branch_op)
-        self.dag.clear()
-
-        dr = self.dag.create_dagrun(
-            run_id='manual__', start_date=DEFAULT_DATE, execution_date=DEFAULT_DATE, state=State.RUNNING
-        )
-
         mock_timezone.return_value = datetime.datetime(2020, 7, 7, 10, 54, 5, tzinfo=datetime.timezone.utc)
-        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        tis = dr.get_task_instances()
+        tis = self.dr.get_task_instances()
         for ti in tis:
             if ti.task_id == 'datetime_branch':
                 self.assertEqual(ti.state, State.SUCCESS)
@@ -215,27 +164,10 @@ class TestDateTimeBranchOperator(unittest.TestCase):
     @mock.patch('airflow.operators.datetime_branch_operator.timezone.utcnow')
     def test_datetime_branch_operator_upper_comparison_outside_range(self, mock_timezone):
         """Check DateTimeBranchOperator branch operation"""
-        branch_op = DateTimeBranchOperator(
-            task_id='datetime_branch',
-            follow_task_ids_if_true='branch_1',
-            follow_task_ids_if_false='branch_2',
-            target_upper=datetime.datetime(2020, 7, 7, 11, 0, 0),
-            target_lower=None,
-            dag=self.dag,
-        )
-
-        self.branch_1.set_upstream(branch_op)
-        self.branch_2.set_upstream(branch_op)
-        self.dag.clear()
-
-        dr = self.dag.create_dagrun(
-            run_id='manual__', start_date=DEFAULT_DATE, execution_date=DEFAULT_DATE, state=State.RUNNING
-        )
-
         mock_timezone.return_value = datetime.datetime(2020, 7, 7, 12, 0, 0, tzinfo=datetime.timezone.utc)
-        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        tis = dr.get_task_instances()
+        tis = self.dr.get_task_instances()
         for ti in tis:
             if ti.task_id == 'datetime_branch':
                 self.assertEqual(ti.state, State.SUCCESS)
@@ -249,27 +181,10 @@ class TestDateTimeBranchOperator(unittest.TestCase):
     @mock.patch('airflow.operators.datetime_branch_operator.timezone.utcnow')
     def test_datetime_branch_operator_lower_comparison_outside_range(self, mock_timezone):
         """Check DateTimeBranchOperator branch operation"""
-        branch_op = DateTimeBranchOperator(
-            task_id='datetime_branch',
-            follow_task_ids_if_true='branch_1',
-            follow_task_ids_if_false='branch_2',
-            target_upper=None,
-            target_lower=datetime.datetime(2020, 7, 7, 10, 0, 0),
-            dag=self.dag,
-        )
-
-        self.branch_1.set_upstream(branch_op)
-        self.branch_2.set_upstream(branch_op)
-        self.dag.clear()
-
-        dr = self.dag.create_dagrun(
-            run_id='manual__', start_date=DEFAULT_DATE, execution_date=DEFAULT_DATE, state=State.RUNNING
-        )
-
         mock_timezone.return_value = datetime.datetime(2020, 7, 7, 9, 0, 0, tzinfo=datetime.timezone.utc)
-        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        tis = dr.get_task_instances()
+        tis = self.dr.get_task_instances()
         for ti in tis:
             if ti.task_id == 'datetime_branch':
                 self.assertEqual(ti.state, State.SUCCESS)
