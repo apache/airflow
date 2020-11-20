@@ -78,7 +78,7 @@
   {{ super() }}
 
   <script>
-    // below variables are used in base.js
+    // below variables are used in main.js
     var Airflow = {
       serverTimezone: '{{ server_timezone }}',
       defaultUITimezone: '{{ default_ui_timezone }}'
@@ -91,7 +91,7 @@
   <script src="{{ url_for_asset('ie.js') }}"></script>
   <![endif]-->
   <script src="{{ url_for_asset('moment.js') }}"></script>
-  <script src="{{ url_for_asset('base.js') }}"></script>
+  <script src="{{ url_for_asset('main.js') }}"></script>
   <script src="{{ url_for_asset('bootstrap-datetimepicker.min.js') }}"></script>
   <script src="{{ url_for_asset('bootstrap3-typeahead.min.js') }}"></script>
 

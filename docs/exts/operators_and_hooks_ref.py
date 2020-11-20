@@ -76,7 +76,7 @@ def _docs_path(filepath: str):
 
 def _prepare_resource_index(package_data, resource_type):
     return {
-        integration["integration-name"]: integration
+        integration["integration-name"]: {**integration, 'package-name': provider['package-name']}
         for provider in package_data
         for integration in provider.get(resource_type, [])
     }
@@ -84,16 +84,12 @@ def _prepare_resource_index(package_data, resource_type):
 
 def _prepare_operators_data(tags: Optional[Set[str]]):
     package_data = load_package_data()
-    all_integrations = [
-        {**integration, 'package-name': provider['package-name']}
-        for provider in package_data
-        for integration in provider.get("integrations", [])
-    ]
+    all_integrations = _prepare_resource_index(package_data, "integrations")
     if tags is None:
         to_display_integration = all_integrations
     else:
         to_display_integration = [
-            integration for integration in all_integrations if tags.intersection(integration["tags"])
+            integration for integration in all_integrations.values() if tags.intersection(integration["tags"])
         ]
 
     all_operators_by_integration = _prepare_resource_index(package_data, "operators")
@@ -140,6 +136,7 @@ def _prepare_transfer_data(tags: Optional[Set[str]]):
     all_transfers = [
         {
             **transfer,
+            'package-name': provider['package-name'],
             'source-integration': all_operators_by_integration[transfer['source-integration-name']],
             'target-integration': all_operators_by_integration[transfer['target-integration-name']],
         }
@@ -217,7 +214,7 @@ class TransfersReferenceDirective(BaseJinjaReferenceDirective):
     """Generate a list of transfer operators"""
 
     def render_content(self, *, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
-        return _render_operator_content(
+        return _render_transfer_content(
             tags=tags,
             header_separator=header_separator,
         )

@@ -12,4 +12,6 @@
 {%- if 'how-to-guide' in item %}
 :Operator guide: :doc:`{{ item['how-to-guide'] }}`
 {%- endif %}
+:Python API: :mod:`{{ item["python-module"] }}`
+:Provider: :provider:`{{ item["package-name"] }}`
 {% endfor %}

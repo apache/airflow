@@ -87,6 +87,22 @@ For example, if you want to set parameter ``connections_prefix`` to ``"airflow-t
     backend = airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
     backend_kwargs = {"connections_prefix": "airflow-tenant-primary", "variables_prefix": "airflow-tenant-primary"}
 
+Optional lookup
+"""""""""""""""
+
+Optionally connections, variables, or config may be looked up exclusive of each other or in any combination.
+This will prevent requests being sent to GCP Secrets Manager for the excluded type.
+
+If you want to look up some and not others in GCP Secrets Manager you may do so by setting the relevant ``*_prefix`` parameter of the ones to be excluded as ``null``.
+
+For example, if you want to set parameter ``connections_prefix`` to ``"airflow-tenant-primary"`` and not look up variables, your configuration file should look like this:
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
+    backend_kwargs = {"connections_prefix": "airflow-tenant-primary", "variables_prefix": null}
+
 Set-up credentials
 """"""""""""""""""
 

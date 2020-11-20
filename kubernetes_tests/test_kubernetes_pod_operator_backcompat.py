@@ -101,7 +101,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 'hostNetwork': False,
                 'imagePullSecrets': [],
                 'initContainers': [],
-                'nodeSelector': {},
                 'restartPolicy': 'Never',
                 'securityContext': {},
                 'serviceAccountName': 'default',
