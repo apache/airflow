@@ -472,6 +472,7 @@ class Airflow(AirflowViewMixin, BaseView):
                 wwwutils.limit_sql(sql, CHART_LIMIT, conn_type=db.conn_type))
             df = df.fillna(0)
         except Exception:
+            log.exception("Chart SQL execution failed")
             payload['error'] += "SQL execution failed. Contact your System Administrator for more details"
 
         if csv:
@@ -2399,6 +2400,7 @@ class QueryView(wwwutils.DataProfilingMixin, AirflowViewMixin, BaseView):
                     na_rep='',
                 ) if has_data else ''
             except Exception:
+                log.exception("Query SQL execution failed")
                 flash("SQL execution failed. Contact your System Administrator for more details", "error")
                 error = True
 
