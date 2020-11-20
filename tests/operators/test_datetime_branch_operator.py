@@ -18,7 +18,8 @@
 
 import datetime
 import unittest
-from unittest import mock
+
+import freezegun
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI
@@ -87,10 +88,9 @@ class TestDateTimeBranchOperator(unittest.TestCase):
                 dag=self.dag,
             )
 
-    @mock.patch('airflow.operators.datetime_branch_operator.timezone.utcnow')
-    def test_datetime_branch_operator_falls_within_range(self, mock_timezone):
+    @freezegun.freeze_time("2020-07-07 10:54:05")
+    def test_datetime_branch_operator_falls_within_range(self):
         """Check DateTimeBranchOperator branch operation"""
-        mock_timezone.return_value = datetime.datetime(2020, 7, 7, 10, 54, 5, tzinfo=datetime.timezone.utc)
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         tis = self.dr.get_task_instances()
@@ -104,8 +104,7 @@ class TestDateTimeBranchOperator(unittest.TestCase):
             else:
                 raise ValueError(f'Invalid task id {ti.task_id} found!')
 
-    @mock.patch('airflow.operators.datetime_branch_operator.timezone.utcnow')
-    def test_datetime_branch_operator_falls_outside_range(self, mock_timezone):
+    def test_datetime_branch_operator_falls_outside_range(self):
         """Check DateTimeBranchOperator branch operation"""
         dates = [
             datetime.datetime(2020, 7, 7, 12, 0, 0, tzinfo=datetime.timezone.utc),
@@ -113,8 +112,8 @@ class TestDateTimeBranchOperator(unittest.TestCase):
         ]
 
         for date in dates:
-            mock_timezone.return_value = date
-            self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            with freezegun.freeze_time(date):
+                self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
             tis = self.dr.get_task_instances()
             for ti in tis:
@@ -127,10 +126,10 @@ class TestDateTimeBranchOperator(unittest.TestCase):
                 else:
                     raise ValueError(f'Invalid task id {ti.task_id} found!')
 
-    @mock.patch('airflow.operators.datetime_branch_operator.timezone.utcnow')
-    def test_datetime_branch_operator_upper_comparison_within_range(self, mock_timezone):
+    @freezegun.freeze_time("2020-07-07 10:54:05")
+    def test_datetime_branch_operator_upper_comparison_within_range(self):
         """Check DateTimeBranchOperator branch operation"""
-        mock_timezone.return_value = datetime.datetime(2020, 7, 7, 10, 54, 5, tzinfo=datetime.timezone.utc)
+        self.branch_op.target_lower = None
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         tis = self.dr.get_task_instances()
@@ -144,10 +143,10 @@ class TestDateTimeBranchOperator(unittest.TestCase):
             else:
                 raise ValueError(f'Invalid task id {ti.task_id} found!')
 
-    @mock.patch('airflow.operators.datetime_branch_operator.timezone.utcnow')
-    def test_datetime_branch_operator_lower_comparison_within_range(self, mock_timezone):
+    @freezegun.freeze_time("2020-07-07 10:54:05")
+    def test_datetime_branch_operator_lower_comparison_within_range(self):
         """Check DateTimeBranchOperator branch operation"""
-        mock_timezone.return_value = datetime.datetime(2020, 7, 7, 10, 54, 5, tzinfo=datetime.timezone.utc)
+        self.branch_op.target_upper = None
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         tis = self.dr.get_task_instances()
@@ -161,10 +160,10 @@ class TestDateTimeBranchOperator(unittest.TestCase):
             else:
                 raise ValueError(f'Invalid task id {ti.task_id} found!')
 
-    @mock.patch('airflow.operators.datetime_branch_operator.timezone.utcnow')
-    def test_datetime_branch_operator_upper_comparison_outside_range(self, mock_timezone):
+    @freezegun.freeze_time("2020-07-07 12:00:00")
+    def test_datetime_branch_operator_upper_comparison_outside_range(self):
         """Check DateTimeBranchOperator branch operation"""
-        mock_timezone.return_value = datetime.datetime(2020, 7, 7, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        self.branch_op.target_lower = None
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         tis = self.dr.get_task_instances()
@@ -178,10 +177,10 @@ class TestDateTimeBranchOperator(unittest.TestCase):
             else:
                 raise ValueError(f'Invalid task id {ti.task_id} found!')
 
-    @mock.patch('airflow.operators.datetime_branch_operator.timezone.utcnow')
-    def test_datetime_branch_operator_lower_comparison_outside_range(self, mock_timezone):
+    @freezegun.freeze_time("2020-07-07 09:00:00")
+    def test_datetime_branch_operator_lower_comparison_outside_range(self):
         """Check DateTimeBranchOperator branch operation"""
-        mock_timezone.return_value = datetime.datetime(2020, 7, 7, 9, 0, 0, tzinfo=datetime.timezone.utc)
+        self.branch_op.target_upper = None
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         tis = self.dr.get_task_instances()
