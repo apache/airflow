@@ -426,12 +426,14 @@ devel = [
     'flaky',
     'freezegun',
     'gitpython',
+    'importlib-metadata~=2.0; python_version<"3.8"',
     'ipdb',
     'jira',
     'mock;python_version<"3.3"',
     'mongomock',
     'moto==1.3.14',  # TODO - fix Datasync issues to get higher version of moto:
                      #        See: https://github.com/apache/airflow/issues/10985
+    'packaging',
     'parameterized',
     'paramiko',
     'pre-commit',
@@ -445,7 +447,7 @@ devel = [
     'pywinrm',
     'qds-sdk>=1.9.6',
     'requests_mock',
-    'yamllint'
+    'yamllint',
 ]
 ############################################################################################################
 # IMPORTANT NOTE!!!!!!!!!!!!!!!
