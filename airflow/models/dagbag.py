@@ -29,7 +29,7 @@ import warnings
 import zipfile
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Dict, List, Match, NamedTuple, Optional, Tuple
+from typing import Dict, List, NamedTuple, Optional, Tuple
 
 import tenacity
 from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
@@ -65,14 +65,12 @@ class FileLoadStat(NamedTuple):
 
 @contextlib.contextmanager
 def detect_queries(import_errors: List[Tuple[str, str]], traceback_depth: int):
-    """
-    Detects errors in database queries while importing DAGs and reports these situations as a warning
-    """
+    """Detects errors in database queries while importing DAGs and reports these situations as a warning"""
 
     def after_cursor_execute(*args, **kwargs):
         del args
         del kwargs
-        stack = "".join(traceback.format_stack(limit=-traceback_depth))
+        stack = "".join(traceback.format_stack(limit=traceback_depth))
         import_errors.append(("PerformanceWarning", f"Database queries during DAG file loading:\n{stack}"))
 
     event.listen(airflow.settings.engine, "after_cursor_execute", after_cursor_execute)
@@ -82,27 +80,33 @@ def detect_queries(import_errors: List[Tuple[str, str]], traceback_depth: int):
 
 @contextlib.contextmanager
 def detect_warnings(import_errors: List[Tuple[str, str]]):
+    """Detects reported :class:`Warning` in the code context and store it to ``import_errors``."""
     with warnings.catch_warnings(record=True) as wrns:
         warnings.simplefilter("always")
         yield
-    for w in wrns:
+    for warning in wrns:
         msg = warnings.formatwarning(
-            message=w.message, category=w.category, filename=w.filename, lineno=w.lineno, line=w.line
+            message=warning.message,
+            category=warning.category,
+            filename=warning.filename,
+            lineno=warning.lineno,
+            line=warning.line,
         )
         print(msg, end="")
-        import_errors.append((w.category.__name__, msg))
+        import_errors.append((warning.category.__name__, msg))
 
 
 @contextlib.contextmanager
 def detect_exceptions(
     filepath: str, import_errors: List[Tuple[str, str]], display_tracebacks: bool, traceback_depth: int
 ):
+    """Detects raises :class:`Warning` in the code context and store it to ``import_errors``."""
     try:
         yield
     except Exception as e:  # pylint: disable=broad-except
         log.exception("Failed to import: %s", filepath)
         if display_tracebacks:
-            import_errors.append((ImportError.__name__, traceback.format_exc(limit=-traceback_depth)))
+            import_errors.append((ImportError.__name__, traceback.format_exc(limit=traceback_depth)))
         else:
             import_errors.append((ImportError.__name__, str(e)))
 
@@ -111,6 +115,7 @@ def detect_exceptions(
 def handle_import_errors(
     filepath: str, import_errors: List[Tuple[str, str]], display_tracebacks: bool, traceback_depth: int
 ):
+    """Catches errors and warnings to be able to write them to the database."""
     with contextlib.ExitStack() as exit_stack:
         exit_stack.enter_context(detect_queries(import_errors, traceback_depth))
         exit_stack.enter_context(detect_warnings(import_errors))
@@ -425,12 +430,12 @@ class DagBag(LoggingMixin):
             except (CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError) as cron_e:
                 self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
                 self.import_errors[dag.full_filepath].append(
-                    (cron_e.__name__, f"Invalid Cron expression: {cron_e}")
+                    (type(cron_e).__name__, f"Invalid Cron expression: {cron_e}")
                 )
                 self.file_last_changed[dag.full_filepath] = file_last_changed_on_disk
             except (AirflowDagCycleException, AirflowClusterPolicyViolation) as exception:
                 self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
-                self.import_errors[dag.full_filepath].append((exception.__name__, str(exception)))
+                self.import_errors[dag.full_filepath].append((type(exception).__name__, str(exception)))
                 self.file_last_changed[dag.full_filepath] = file_last_changed_on_disk
         return found_dags
 

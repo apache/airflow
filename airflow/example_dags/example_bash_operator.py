@@ -21,7 +21,6 @@
 from datetime import timedelta
 
 from airflow import DAG
-from airflow.models import Variable
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.dates import days_ago
@@ -30,12 +29,6 @@ args = {
     'owner': 'airflow',
 }
 
-import warnings
-
-import airflow.operators.email_operator
-
-warnings.warn("This module is deprecated. Please use `airflow.operators.bash`.", DeprecationWarning)
-Variable.get("123123", default_var="⚡️")
 
 dag = DAG(
     dag_id='example_bash_operator',
