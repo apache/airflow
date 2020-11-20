@@ -23,7 +23,7 @@ from flask import current_app, g
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
 from flask_appbuilder.security.sqla.models import PermissionView, Role, User
-from sqlalchemy import and_, or_
+from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
 from airflow import models
@@ -520,7 +520,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         :return: None.
         """
-        all_dag_view = self.find_view_menu(permissions.RESOURCE_DAG)
         dag_pvs = (
             self.get_session.query(sqla_models.ViewMenu)
             .filter(sqla_models.ViewMenu.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))
@@ -529,12 +528,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         pv_ids = [pv.id for pv in dag_pvs]
         pvms = (
             self.get_session.query(sqla_models.PermissionView)
-            .filter(
-                ~and_(
-                    sqla_models.PermissionView.view_menu_id.in_(pv_ids),
-                    sqla_models.PermissionView.view_menu_id != all_dag_view.id,
-                )
-            )
+            .filter(~sqla_models.PermissionView.view_menu_id.in_(pv_ids))
             .all()
         )
 
