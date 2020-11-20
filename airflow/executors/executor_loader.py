@@ -28,8 +28,8 @@ from airflow.executors.executor_constants import (
     DEBUG_EXECUTOR,
     KUBERNETES_EXECUTOR,
     LOCAL_EXECUTOR,
-    SEQUENTIAL_EXECUTOR,
     MESOS_EXECUTOR,
+    SEQUENTIAL_EXECUTOR,
 )
 from airflow.utils.module_loading import import_string
 
