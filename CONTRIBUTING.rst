@@ -553,8 +553,8 @@ gcp, gcp_api, github_enterprise, google, google_auth, grpc, hashicorp, hdfs, hiv
 jenkins, jira, kerberos, kubernetes, ldap, microsoft.azure, microsoft.mssql, microsoft.winrm, mongo,
 mssql, mysql, odbc, openfaas, opsgenie, oracle, pagerduty, papermill, password, pinot, plexus,
 postgres, presto, qds, qubole, rabbitmq, redis, salesforce, samba, segment, sendgrid, sentry, sftp,
-singularity, slack, snowflake, spark, sqlite, ssh, statsd, tableau, vertica, virtualenv, webhdfs,
-winrm, yandex, yandexcloud, zendesk, all, devel, devel_hadoop, doc, devel_all, devel_ci
+singularity, slack, snowflake, spark, sqlite, ssh, statsd, tableau, telegram, vertica, virtualenv,
+webhdfs, winrm, yandex, yandexcloud, zendesk, all, devel, devel_hadoop, doc, devel_all, devel_ci
 
   .. END EXTRAS HERE
 
