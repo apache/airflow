@@ -23,7 +23,6 @@
 [![License](http://img.shields.io/:license-Apache%202-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.txt)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/apache-airflow-upgrade-check.svg)](https://pypi.org/project/apache-airflow-upgrade-check/)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/apache-airflow-upgrade-check)](https://pypi.org/project/apache-airflow-upgrade-check/)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Twitter Follow](https://img.shields.io/twitter/follow/ApacheAirflow.svg?style=social&label=Follow)](https://twitter.com/ApacheAirflow)
 [![Slack Status](https://img.shields.io/badge/slack-join_chat-white.svg?logo=slack&style=social)](https://s.apache.org/airflow-slack)
 
