@@ -88,6 +88,8 @@ instance/
 # Sphinx documentation
 docs/_build/
 docs/_api/
+docs/*/_api/
+docs/_doctrees
 
 # PyBuilder
 target/
@@ -192,6 +194,8 @@ log.txt*
 /provider_packages/MANIFEST.in
 /airflow/providers/__init__.py
 
+# Docker context files
+/docker-context-files
 # Local .terraform directories
 **/.terraform/*
 

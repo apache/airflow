@@ -89,7 +89,7 @@
       <td>
         {% if tags is defined and tags %}
           {% for tag in tags | sort(attribute='name') %}
-            <a class="label label-success"
+            <a class="label label-info"
                href="/home?tags={{ tag.name }}"
                style="margin: 3px 6px 3px 0;"
                title="All DAGs tagged &ldquo;{{ tag.name }}&rdquo;"

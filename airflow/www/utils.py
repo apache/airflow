@@ -326,7 +326,7 @@ def wrapped_markdown(s, css_class=None):
     if s is None:
         return None
 
-    return Markup(f'<div class="rich_doc {css_class}" >' + markdown.markdown(s) + "</div>")
+    return Markup(f'<div class="{css_class}" >' + markdown.markdown(s) + "</div>")
 
 
 # pylint: disable=no-member
@@ -336,6 +336,7 @@ def get_attr_renderer():
         'bash': lambda x: render(x, lexers.BashLexer),
         'bash_command': lambda x: render(x, lexers.BashLexer),
         'hql': lambda x: render(x, lexers.SqlLexer),
+        'html': lambda x: render(x, lexers.HtmlLexer),
         'sql': lambda x: render(x, lexers.SqlLexer),
         'doc': lambda x: render(x, lexers.TextLexer),
         'doc_json': lambda x: render(x, lexers.JsonLexer),

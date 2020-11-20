@@ -21,7 +21,6 @@
 kind::make_sure_kubernetes_tools_are_installed
 kind::get_kind_cluster_name
 
-traps::add_trap kind::stop_kubectl EXIT HUP INT TERM
 traps::add_trap kind::dump_kind_logs EXIT HUP INT TERM
 
 interactive="false"
@@ -73,24 +72,27 @@ fi
 
 cd "${AIRFLOW_SOURCES}" || exit 1
 
-virtualenv_path="${BUILD_CACHE_DIR}/.kubernetes_venv"
+HOST_PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}")')
+readonly HOST_PYTHON_VERSION
+
+virtualenv_path="${BUILD_CACHE_DIR}/.kubernetes_venv_${HOST_PYTHON_VERSION}"
 
 if [[ ! -d ${virtualenv_path} ]]; then
     echo
     echo "Creating virtualenv at ${virtualenv_path}"
     echo
-    python -m venv "${virtualenv_path}"
+    python3 -m venv "${virtualenv_path}"
 fi
 
 . "${virtualenv_path}/bin/activate"
 
-pip install --upgrade pip==20.2.3
+pip install --upgrade pip==20.2.3 wheel==0.35.1
 
 pip install pytest freezegun pytest-cov \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+  --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${HOST_PYTHON_VERSION}.txt"
 
 pip install -e ".[kubernetes]" \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+  --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${HOST_PYTHON_VERSION}.txt"
 
 if [[ ${interactive} == "true" ]]; then
     echo
@@ -105,7 +107,6 @@ if [[ ${interactive} == "true" ]]; then
     echo
     echo "You are entering the virtualenv now. Type exit to exit back to the original shell"
     echo
-    kubectl config set-context --current --namespace=airflow
     exec "${SHELL}"
 else
     pytest "${pytest_args[@]}" "${tests_to_run[@]}"

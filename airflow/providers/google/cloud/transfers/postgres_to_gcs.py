@@ -141,10 +141,10 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
         if isinstance(value, (datetime.datetime, datetime.date)):
             return pendulum.parse(value.isoformat()).float_timestamp
         if isinstance(value, datetime.time):
-            formated_time = time.strptime(str(value), "%H:%M:%S")
+            formatted_time = time.strptime(str(value), "%H:%M:%S")
             return int(
                 datetime.timedelta(
-                    hours=formated_time.tm_hour, minutes=formated_time.tm_min, seconds=formated_time.tm_sec
+                    hours=formatted_time.tm_hour, minutes=formatted_time.tm_min, seconds=formatted_time.tm_sec
                 ).total_seconds()
             )
         if isinstance(value, dict):

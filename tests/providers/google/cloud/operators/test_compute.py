@@ -361,10 +361,10 @@ class TestGceInstanceSetMachineType(unittest.TestCase):
     )
 
     @mock.patch(
-        'airflow.providers.google.cloud.operators.compute.ComputeEngineHook' '._check_zone_operation_status'
+        'airflow.providers.google.cloud.operators.compute.ComputeEngineHook._check_zone_operation_status'
     )
     @mock.patch(
-        'airflow.providers.google.cloud.operators.compute.ComputeEngineHook' '._execute_set_machine_type'
+        'airflow.providers.google.cloud.operators.compute.ComputeEngineHook._execute_set_machine_type'
     )
     @mock.patch('airflow.providers.google.cloud.operators.compute.ComputeEngineHook.get_conn')
     def test_set_machine_type_should_handle_and_trim_gce_error(

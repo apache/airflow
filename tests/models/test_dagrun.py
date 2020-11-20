@@ -19,6 +19,7 @@
 import datetime
 import unittest
 from unittest import mock
+from unittest.mock import call
 
 from parameterized import parameterized
 
@@ -27,8 +28,10 @@ from airflow.models import DAG, DagBag, DagModel, TaskInstance as TI, clear_task
 from airflow.models.dagrun import DagRun
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import ShortCircuitOperator
+from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.callback_requests import DagCallbackRequest
+from airflow.utils.dates import days_ago
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
@@ -714,3 +717,74 @@ class TestDagRun(unittest.TestCase):
 
         session.rollback()
         session.close()
+
+    @mock.patch.object(Stats, 'timing')
+    def test_no_scheduling_delay_for_nonscheduled_runs(self, stats_mock):
+        """
+        Tests that dag scheduling delay stat is not called if the dagrun is not a scheduled run.
+        This case is manual run. Simple test for sanity check.
+        """
+        dag = DAG(dag_id='test_dagrun_stats', start_date=days_ago(1))
+        dag_task = DummyOperator(task_id='dummy', dag=dag)
+
+        initial_task_states = {
+            dag_task.task_id: State.SUCCESS,
+        }
+
+        dag_run = self.create_dag_run(dag=dag, state=State.RUNNING, task_states=initial_task_states)
+        dag_run.update_state()
+        self.assertNotIn(call(f'dagrun.{dag.dag_id}.first_task_scheduling_delay'), stats_mock.mock_calls)
+
+    @mock.patch.object(Stats, 'timing')
+    def test_emit_scheduling_delay(self, stats_mock):
+        """
+        Tests that dag scheduling delay stat is set properly once running scheduled dag.
+        dag_run.update_state() invokes the _emit_true_scheduling_delay_stats_for_finished_state method.
+        """
+        dag = DAG(dag_id='test_emit_dag_stats', start_date=days_ago(1))
+        dag_task = DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+
+        session = settings.Session()
+        orm_dag = DagModel(
+            dag_id=dag.dag_id,
+            has_task_concurrency_limits=False,
+            next_dagrun=dag.start_date,
+            next_dagrun_create_after=dag.following_schedule(dag.start_date),
+            is_active=True,
+        )
+        session.add(orm_dag)
+        session.flush()
+        dag_run = dag.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            state=State.SUCCESS,
+            execution_date=dag.start_date,
+            start_date=dag.start_date,
+            session=session,
+        )
+        ti = dag_run.get_task_instance(dag_task.task_id)
+        ti.set_state(State.SUCCESS, session)
+        session.commit()
+        session.close()
+        dag_run.update_state()
+        true_delay = (ti.start_date - dag.following_schedule(dag_run.execution_date)).total_seconds()
+        stats_mock.assert_called()
+        sched_delay_stat_call = call(f'dagrun.{dag.dag_id}.first_task_scheduling_delay', true_delay)
+        self.assertIn(sched_delay_stat_call, stats_mock.mock_calls)
+
+    def test_states_sets(self):
+        """
+        Tests that adding State.failed_states and State.success_states work as expected.
+        """
+        dag = DAG(dag_id='test_dagrun_states', start_date=days_ago(1))
+        dag_task_success = DummyOperator(task_id='dummy', dag=dag)
+        dag_task_failed = DummyOperator(task_id='dummy2', dag=dag)
+
+        initial_task_states = {
+            dag_task_success.task_id: State.SUCCESS,
+            dag_task_failed.task_id: State.FAILED,
+        }
+        dag_run = self.create_dag_run(dag=dag, state=State.RUNNING, task_states=initial_task_states)
+        ti_success = dag_run.get_task_instance(dag_task_success.task_id)
+        ti_failed = dag_run.get_task_instance(dag_task_failed.task_id)
+        self.assertIn(ti_success.state, State.success_states)
+        self.assertIn(ti_failed.state, State.failed_states)

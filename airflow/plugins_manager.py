@@ -23,6 +23,7 @@ import inspect
 import logging
 import os
 import sys
+import time
 import types
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
@@ -262,6 +263,8 @@ def ensure_plugins_loaded():
 
     log.debug("Loading plugins")
 
+    start = time.monotonic()
+
     plugins = []
     registered_hooks = []
 
@@ -272,6 +275,12 @@ def ensure_plugins_loaded():
     # them so we can integrate them in to the UI's Connection screens
     for plugin in plugins:
         registered_hooks.extend(plugin.hooks)
+
+    end = time.monotonic()
+
+    num_loaded = len(plugins)
+    if num_loaded > 0:
+        log.info("Loading %d plugin(s) took %.2f seconds", num_loaded, end - start)
 
 
 def initialize_web_ui_plugins():

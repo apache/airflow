@@ -20,7 +20,7 @@
 
 # Package apache-airflow-providers-google
 
-Release: 0.0.2a1
+Release: 1.0.0b2
 
 **Table of contents**
 
@@ -44,6 +44,8 @@ Release: 0.0.2a1
     - [Secrets](#secrets)
         - [Moved secrets](#moved-secrets)
 - [Releases](#releases)
+    - [Release 1.0.0b2](#release-100b2)
+    - [Release 1.0.0b1](#release-100b1)
     - [Release 0.0.2a1](#release-002a1)
     - [Release 0.0.1](#release-001)
 
@@ -80,6 +82,7 @@ You can install this package on top of an existing airflow 2.* installation via
 | google-cloud-logging               | &gt;=1.14.0,&lt;2.0.0    |
 | google-cloud-memcache              | &gt;=0.2.0            |
 | google-cloud-monitoring            | &gt;=0.34.0,&lt;2.0.0    |
+| google-cloud-os-login              | &gt;=1.0.0,&lt;2.0.0     |
 | google-cloud-pubsub                | &gt;=1.0.0,&lt;2.0.0     |
 | google-cloud-redis                 | &gt;=0.3.0,&lt;2.0.0     |
 | google-cloud-secret-manager        | &gt;=0.2.0,&lt;2.0.0     |
@@ -105,18 +108,20 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 pip install apache-airflow-providers-google[amazon]
 ```
 
-| Dependent package                                                                                                                      | Extra            |
-|:---------------------------------------------------------------------------------------------------------------------------------------|:-----------------|
-| [apache-airflow-backport-providers-amazon](https://github.com/apache/airflow/tree/master/airflow/providers/amazon)                     | amazon           |
-| [apache-airflow-backport-providers-apache-cassandra](https://github.com/apache/airflow/tree/master/airflow/providers/apache/cassandra) | apache.cassandra |
-| [apache-airflow-backport-providers-cncf-kubernetes](https://github.com/apache/airflow/tree/master/airflow/providers/cncf/kubernetes)   | cncf.kubernetes  |
-| [apache-airflow-backport-providers-facebook](https://github.com/apache/airflow/tree/master/airflow/providers/facebook)                 | facebook         |
-| [apache-airflow-backport-providers-microsoft-azure](https://github.com/apache/airflow/tree/master/airflow/providers/microsoft/azure)   | microsoft.azure  |
-| [apache-airflow-backport-providers-microsoft-mssql](https://github.com/apache/airflow/tree/master/airflow/providers/microsoft/mssql)   | microsoft.mssql  |
-| [apache-airflow-backport-providers-mysql](https://github.com/apache/airflow/tree/master/airflow/providers/mysql)                       | mysql            |
-| [apache-airflow-backport-providers-postgres](https://github.com/apache/airflow/tree/master/airflow/providers/postgres)                 | postgres         |
-| [apache-airflow-backport-providers-presto](https://github.com/apache/airflow/tree/master/airflow/providers/presto)                     | presto           |
-| [apache-airflow-backport-providers-sftp](https://github.com/apache/airflow/tree/master/airflow/providers/sftp)                         | sftp             |
+| Dependent package                                                                                               | Extra            |
+|:----------------------------------------------------------------------------------------------------------------|:-----------------|
+| [apache-airflow-providers-amazon](https://pypi.org/project/apache-airflow-providers-amazon)                     | amazon           |
+| [apache-airflow-providers-apache-cassandra](https://pypi.org/project/apache-airflow-providers-apache-cassandra) | apache.cassandra |
+| [apache-airflow-providers-cncf-kubernetes](https://pypi.org/project/apache-airflow-providers-cncf-kubernetes)   | cncf.kubernetes  |
+| [apache-airflow-providers-facebook](https://pypi.org/project/apache-airflow-providers-facebook)                 | facebook         |
+| [apache-airflow-providers-microsoft-azure](https://pypi.org/project/apache-airflow-providers-microsoft-azure)   | microsoft.azure  |
+| [apache-airflow-providers-microsoft-mssql](https://pypi.org/project/apache-airflow-providers-microsoft-mssql)   | microsoft.mssql  |
+| [apache-airflow-providers-mysql](https://pypi.org/project/apache-airflow-providers-mysql)                       | mysql            |
+| [apache-airflow-providers-postgres](https://pypi.org/project/apache-airflow-providers-postgres)                 | postgres         |
+| [apache-airflow-providers-presto](https://pypi.org/project/apache-airflow-providers-presto)                     | presto           |
+| [apache-airflow-providers-salesforce](https://pypi.org/project/apache-airflow-providers-salesforce)             | salesforce       |
+| [apache-airflow-providers-sftp](https://pypi.org/project/apache-airflow-providers-sftp)                         | sftp             |
+| [apache-airflow-providers-ssh](https://pypi.org/project/apache-airflow-providers-ssh)                           | ssh              |
 
 # Provider classes summary
 
@@ -193,6 +198,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [cloud.operators.datacatalog.CloudDataCatalogUpdateTagTemplateFieldOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/operators/datacatalog.py)                                          |
 | [cloud.operators.datacatalog.CloudDataCatalogUpdateTagTemplateOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/operators/datacatalog.py)                                               |
 | [cloud.operators.dataflow.DataflowStartFlexTemplateOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/operators/dataflow.py)                                                             |
+| [cloud.operators.dataflow.DataflowStartSqlJobOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/operators/dataflow.py)                                                                   |
 | [cloud.operators.datafusion.CloudDataFusionCreateInstanceOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/operators/datafusion.py)                                                     |
 | [cloud.operators.datafusion.CloudDataFusionCreatePipelineOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/operators/datafusion.py)                                                     |
 | [cloud.operators.datafusion.CloudDataFusionDeleteInstanceOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/operators/datafusion.py)                                                     |
@@ -442,6 +448,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [cloud.transfers.gcs_to_local.GCSToLocalFilesystemOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/transfers/gcs_to_local.py)                    |
 | [cloud.transfers.gcs_to_sftp.GCSToSFTPOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/transfers/gcs_to_sftp.py)                                 |
 | [cloud.transfers.presto_to_gcs.PrestoToGCSOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/transfers/presto_to_gcs.py)                           |
+| [cloud.transfers.salesforce_to_gcs.SalesforceToGcsOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/transfers/salesforce_to_gcs.py)               |
 | [cloud.transfers.sftp_to_gcs.SFTPToGCSOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/transfers/sftp_to_gcs.py)                                 |
 | [cloud.transfers.sheets_to_gcs.GoogleSheetsToGCSOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/transfers/sheets_to_gcs.py)                     |
 | [suite.transfers.gcs_to_sheets.GCSToGoogleSheetsOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/suite/transfers/gcs_to_sheets.py)                     |
@@ -476,6 +483,8 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 |:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [cloud.sensors.bigquery.BigQueryTablePartitionExistenceSensor](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/sensors/bigquery.py)                                                  |
 | [cloud.sensors.bigquery_dts.BigQueryDataTransferServiceTransferRunSensor](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/sensors/bigquery_dts.py)                                   |
+| [cloud.sensors.dataflow.DataflowJobMetricsSensor](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/sensors/dataflow.py)                                                               |
+| [cloud.sensors.dataflow.DataflowJobStatusSensor](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/sensors/dataflow.py)                                                                |
 | [cloud.sensors.dataproc.DataprocJobSensor](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/sensors/dataproc.py)                                                                      |
 | [marketing_platform.sensors.campaign_manager.GoogleCampaignManagerReportSensor](https://github.com/apache/airflow/blob/master/airflow/providers/google/marketing_platform/sensors/campaign_manager.py)            |
 | [marketing_platform.sensors.display_video.GoogleDisplayVideo360GetSDFDownloadOperationSensor](https://github.com/apache/airflow/blob/master/airflow/providers/google/marketing_platform/sensors/display_video.py) |
@@ -509,11 +518,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [cloud.hooks.bigquery_dts.BiqQueryDataTransferServiceHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/hooks/bigquery_dts.py)                             |
 | [cloud.hooks.cloud_memorystore.CloudMemorystoreHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/hooks/cloud_memorystore.py)                              |
 | [cloud.hooks.cloud_memorystore.CloudMemorystoreMemcachedHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/hooks/cloud_memorystore.py)                     |
+| [cloud.hooks.compute_ssh.ComputeEngineSSHHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/hooks/compute_ssh.py)                                          |
 | [cloud.hooks.datacatalog.CloudDataCatalogHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/hooks/datacatalog.py)                                          |
 | [cloud.hooks.datafusion.DataFusionHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/hooks/datafusion.py)                                                  |
 | [cloud.hooks.dataprep.GoogleDataprepHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/hooks/dataprep.py)                                                  |
 | [cloud.hooks.gdm.GoogleDeploymentManagerHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/hooks/gdm.py)                                                   |
 | [cloud.hooks.life_sciences.LifeSciencesHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/hooks/life_sciences.py)                                          |
+| [cloud.hooks.os_login.OSLoginHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/hooks/os_login.py)                                                         |
 | [cloud.hooks.secret_manager.SecretsManagerHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/hooks/secret_manager.py)                                      |
 | [cloud.hooks.stackdriver.StackdriverHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/hooks/stackdriver.py)                                               |
 | [common.hooks.discovery_api.GoogleDiscoveryApiHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/common/hooks/discovery_api.py)                                  |
@@ -571,6 +582,56 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 
 ## Releases
+
+### Release 1.0.0b2
+
+| Commit                                                                                         | Committed   | Subject                                                                         |
+|:-----------------------------------------------------------------------------------------------|:------------|:--------------------------------------------------------------------------------|
+| [7ca0b6f12](https://github.com/apache/airflow/commit/7ca0b6f121c9cec6e25de130f86a56d7c7fbe38c) | 2020-11-18  | Enable Markdownlint rule MD003/heading-style/header-style (#12427) (#12438)     |
+| [8d0950646](https://github.com/apache/airflow/commit/8d09506464c8480fa42e8bfe6a36c6f631cd23f6) | 2020-11-18  | Fix download method in GCSToBigQueryOperator (#12442)                           |
+| [2c0920fba](https://github.com/apache/airflow/commit/2c0920fba5d2f05d2e29cead91127686af277ec2) | 2020-11-17  | Adds mechanism for provider package discovery. (#12383)                         |
+| [2cda2f2a0](https://github.com/apache/airflow/commit/2cda2f2a0a94e5aaed87f0998fa57b4f8bff5e43) | 2020-11-17  | Add missing pre-commit definition - provider-yamls (#12393)                     |
+| [80a957f14](https://github.com/apache/airflow/commit/80a957f142f260daed262b8e93a4d02c12cfeabc) | 2020-11-17  | Add Dataflow sensors - job metrics (#12039)                                     |
+| [ae7cb4a1e](https://github.com/apache/airflow/commit/ae7cb4a1e2a96351f1976cf5832615e24863e05d) | 2020-11-17  | Update wrong commit hash in backport provider changes (#12390)                  |
+| [917e6c442](https://github.com/apache/airflow/commit/917e6c4424985271c53dd8c413b211896ee55726) | 2020-11-16  | Add provide_file_and_upload to GCSHook (#12310)                                 |
+| [cfa4ecfeb](https://github.com/apache/airflow/commit/cfa4ecfeb02661f40b4778733384ac085fb5f04b) | 2020-11-15  | Add DataflowJobStatusSensor and support non-blocking execution of jobs (#11726) |
+| [6889a333c](https://github.com/apache/airflow/commit/6889a333cff001727eb0a66e375544a28c9a5f03) | 2020-11-15  | Improvements for operators and hooks ref docs (#12366)                          |
+| [7825e8f59](https://github.com/apache/airflow/commit/7825e8f59034645ab3247229be83a3aa90baece1) | 2020-11-13  | Docs installation improvements (#12304)                                         |
+| [32b59f835](https://github.com/apache/airflow/commit/32b59f8350f55793df6838a32de662a80483ecda) | 2020-11-12  | Fixes the sending of an empty list to BigQuery `list_rows` (#12307)             |
+| [250436d96](https://github.com/apache/airflow/commit/250436d962c8c950d38c1eb5e54a998891648cc9) | 2020-11-10  | Fix spelling in Python files (#12230)                                           |
+| [502ba309e](https://github.com/apache/airflow/commit/502ba309ea470943f0e99c634269e3d2d13ce6ca) | 2020-11-10  | Enable Markdownlint rule - MD022/blanks-around-headings (#12225)                |
+| [dd2095f4a](https://github.com/apache/airflow/commit/dd2095f4a8b07c9b1a4c279a3578cd1e23b71a1b) | 2020-11-10  | Simplify string expressions &amp; Use f-string (#12216)                             |
+| [f37c6e6fc](https://github.com/apache/airflow/commit/f37c6e6fce8b704f5af28caa16d0ed7d873a0e4a) | 2020-11-10  | Add Compute Engine SSH hook (#9879)                                             |
+| [85a18e13d](https://github.com/apache/airflow/commit/85a18e13d9dec84275283ff69e34704b60d54a75) | 2020-11-09  | Point at pypi project pages for cross-dependency of provider packages (#12212)  |
+
+
+### Release 1.0.0b1
+
+| Commit                                                                                         | Committed   | Subject                                                                                                     |
+|:-----------------------------------------------------------------------------------------------|:------------|:------------------------------------------------------------------------------------------------------------|
+| [59eb5de78](https://github.com/apache/airflow/commit/59eb5de78c70ee9c7ae6e4cba5c7a2babb8103ca) | 2020-11-09  | Update provider READMEs for up-coming 1.0.0beta1 releases (#12206)                                          |
+| [61feb6ec4](https://github.com/apache/airflow/commit/61feb6ec453f8dda1a0e1fe3ebcc0f1e3224b634) | 2020-11-09  | Provider&#39;s readmes generated for elasticsearch and google packages (#12194)                                 |
+| [b2a28d159](https://github.com/apache/airflow/commit/b2a28d1590410630d66966aa1f2b2a049a8c3b32) | 2020-11-09  | Moves provider packages scripts to dev (#12082)                                                             |
+| [fcb6b00ef](https://github.com/apache/airflow/commit/fcb6b00efef80c81272a30cfc618202a29e0c6a9) | 2020-11-08  | Add authentication to AWS with Google credentials (#12079)                                                  |
+| [2ef3b7ef8](https://github.com/apache/airflow/commit/2ef3b7ef8cafe3bdc8bf8db70fbc519b98576366) | 2020-11-08  | Fix ERROR - Object of type &#39;bytes&#39; is not JSON serializable when using store_to_xcom_key parameter (#12172) |
+| [0caec9fd3](https://github.com/apache/airflow/commit/0caec9fd32bee2b3036b5d7bdcb56bd6a3b9dccf) | 2020-11-06  | Dataflow - add waiting for successful job cancel (#11501)                                                   |
+| [cf9437d79](https://github.com/apache/airflow/commit/cf9437d79f9658d1309e4bfe847fe63d52ec7b99) | 2020-11-06  | Simplify string expressions (#12123)                                                                        |
+| [91a64db50](https://github.com/apache/airflow/commit/91a64db505e50712cd53928b4f2b84aece3cc1c0) | 2020-11-04  | Format all files (without excepions) by black (#12091)                                                      |
+| [fd3db778e](https://github.com/apache/airflow/commit/fd3db778e715d0f164dda7ee8f672d477a323291) | 2020-11-04  | Add server side cursor support for postgres to GCS operator (#11793)                                        |
+| [f1f194026](https://github.com/apache/airflow/commit/f1f1940261744b4fdb67b0b5654488494efa9c64) | 2020-11-04  | Add DataflowStartSQLQuery operator (#8553)                                                                  |
+| [41bf172c1](https://github.com/apache/airflow/commit/41bf172c1dc75099f4f9d8b3f3350b4b1f523ef9) | 2020-11-04  | Simplify string expressions (#12093)                                                                        |
+| [5f5244b74](https://github.com/apache/airflow/commit/5f5244b74df93cadbb99643cec76281460ca4411) | 2020-11-04  | Add template fields renderers to Biguery and Dataproc operators (#12067)                                    |
+| [4e8f9cc8d](https://github.com/apache/airflow/commit/4e8f9cc8d02b29c325b8a5a76b4837671bdf5f68) | 2020-11-03  | Enable Black - Python Auto Formmatter (#9550)                                                               |
+| [8c42cf1b0](https://github.com/apache/airflow/commit/8c42cf1b00c90f0d7f11b8a3a455381de8e003c5) | 2020-11-03  | Use PyUpgrade to use Python 3.6 features (#11447)                                                           |
+| [45ae145c2](https://github.com/apache/airflow/commit/45ae145c25a19b4185c33ac0c4da920324b3987e) | 2020-11-03  | Log BigQuery job id in insert method of BigQueryHook (#12056)                                               |
+| [e324b37a6](https://github.com/apache/airflow/commit/e324b37a67e32c368df50604a00160d7766b5c33) | 2020-11-03  | Add job name and progress logs to Cloud Storage Transfer Hook (#12014)                                      |
+| [6071fdd58](https://github.com/apache/airflow/commit/6071fdd58470bb2a6c23fc16481e292b7247d0bb) | 2020-11-02  | Improve handling server errors in DataprocSubmitJobOperator (#11947)                                        |
+| [2f703df12](https://github.com/apache/airflow/commit/2f703df12dfd6511722ff9a82d5a569d092fccc2) | 2020-10-30  | Add SalesforceToGcsOperator (#10760)                                                                        |
+| [e5713e00b](https://github.com/apache/airflow/commit/e5713e00b3afcba6f78006ec0e360da317858e4d) | 2020-10-29  | Add drain option when canceling Dataflow pipelines (#11374)                                                 |
+| [37eaac3c5](https://github.com/apache/airflow/commit/37eaac3c5dc93804413c10a6ca124fd7831befc0) | 2020-10-29  | The PRs which are not approved run subset of tests (#11828)                                                 |
+| [79cb77199](https://github.com/apache/airflow/commit/79cb771992279d40ddd9eb6b0277382313a32898) | 2020-10-28  | Fixing re pattern and changing to use a single character class. (#11857)                                    |
+| [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855)                                                                  |
+
 
 ### Release 0.0.2a1
 

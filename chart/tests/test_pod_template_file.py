@@ -184,3 +184,75 @@ class PodTemplateFileTest(unittest.TestCase):
         self.assertRegex(docs[0]["kind"], "Pod")
         self.assertEqual("dummy_image:latest", jmespath.search("spec.containers[0].image", docs[0]))
         self.assertEqual("base", jmespath.search("spec.containers[0].name", docs[0]))
+
+    def test_mount_airflow_cfg(self):
+        docs = render_chart(
+            values={},
+            show_only=["templates/pod-template-file.yaml"],
+        )
+
+        self.assertRegex(docs[0]["kind"], "Pod")
+        self.assertDictEqual(
+            {'configMap': {'name': 'RELEASE-NAME-airflow-config'}, 'name': 'config'},
+            jmespath.search("spec.volumes[1]", docs[0]),
+        )
+        self.assertDictEqual(
+            {
+                'name': 'config',
+                'mountPath': '/opt/airflow/airflow.cfg',
+                'subPath': 'airflow.cfg',
+                'readOnly': True,
+            },
+            jmespath.search("spec.containers[0].volumeMounts[1]", docs[0]),
+        )
+
+    def test_should_create_valid_affinity_and_node_selector(self):
+        docs = render_chart(
+            values={
+                "affinity": {
+                    "nodeAffinity": {
+                        "requiredDuringSchedulingIgnoredDuringExecution": {
+                            "nodeSelectorTerms": [
+                                {
+                                    "matchExpressions": [
+                                        {"key": "foo", "operator": "In", "values": ["true"]},
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                "tolerations": [
+                    {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                ],
+                "nodeSelector": {"diskType": "ssd"},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+        )
+
+        self.assertRegex(docs[0]["kind"], "Pod")
+        self.assertEqual(
+            "foo",
+            jmespath.search(
+                "spec.affinity.nodeAffinity."
+                "requiredDuringSchedulingIgnoredDuringExecution."
+                "nodeSelectorTerms[0]."
+                "matchExpressions[0]."
+                "key",
+                docs[0],
+            ),
+        )
+        self.assertEqual(
+            "ssd",
+            jmespath.search(
+                "spec.nodeSelector.diskType",
+                docs[0],
+            ),
+        )
+        self.assertEqual(
+            "dynamic-pods",
+            jmespath.search(
+                "spec.tolerations[0].key",
+                docs[0],
+            ),
+        )

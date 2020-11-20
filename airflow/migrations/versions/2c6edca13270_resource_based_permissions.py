@@ -19,7 +19,7 @@
 """Resource based permissions.
 
 Revision ID: 2c6edca13270
-Revises: 364159666cbd
+Revises: 849da589634d
 Create Date: 2020-10-21 00:18:52.529438
 
 """
@@ -28,7 +28,7 @@ from airflow.www.app import create_app
 
 # revision identifiers, used by Alembic.
 revision = '2c6edca13270'
-down_revision = '364159666cbd'
+down_revision = '849da589634d'
 branch_labels = None
 depends_on = None
 
@@ -301,9 +301,7 @@ def remap_permissions():
         if not appbuilder.sm.find_permission(old_perm_name):
             continue
         view_menus = appbuilder.sm.get_all_view_menu()
-        if not any(
-            [appbuilder.sm.find_permission_view_menu(old_perm_name, view.name) for view in view_menus]
-        ):
+        if not any(appbuilder.sm.find_permission_view_menu(old_perm_name, view.name) for view in view_menus):
             appbuilder.sm.del_permission(old_perm_name)
 
 

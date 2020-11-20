@@ -92,7 +92,7 @@ def users_manage_role(args, remove=False):
         raise SystemExit('Missing args: must supply one of --username or --email')
 
     if args.username and args.email:
-        raise SystemExit('Conflicting args: must supply either --username' ' or --email, but not both')
+        raise SystemExit('Conflicting args: must supply either --username or --email, but not both')
 
     appbuilder = cached_app().appbuilder  # pylint: disable=no-member
     user = appbuilder.sm.find_user(username=args.username) or appbuilder.sm.find_user(email=args.email)

@@ -14,7 +14,9 @@ Ansible
 AppBuilder
 Arg
 Args
+ashb
 Async
+Atlassian
 Auth
 AutoMlClient
 Autoscale
@@ -68,6 +70,7 @@ ComputeNodeState
 Computenodes
 Config
 Configs
+ContainerPort
 Cron
 Ctrl
 Daemonize
@@ -122,6 +125,7 @@ EmrAddSteps
 EmrCreateJobFlow
 Enum
 Env
+EnvVar
 ExaConnection
 Exasol
 Failover
@@ -437,6 +441,7 @@ artwr
 asc
 ascii
 asciiart
+ashb
 asia
 assertEqualIgnoreMultipleSpaces
 ast
@@ -470,13 +475,13 @@ backfilling
 backfills
 backoff
 backport
+backported
 backreference
 backtick
 backticks
 balancer
 balancers
 baseOperator
-basedn
 basestring
 basetaskrunner
 bashrc
@@ -623,7 +628,6 @@ de
 decomissioning
 decrypt
 decrypted
-decyption
 deepcopy
 deidentify
 del
@@ -869,6 +873,7 @@ json
 jthomas
 jupyter
 jupytercmd
+kaxil
 kaxilnaik
 keepalive
 keepalives
@@ -994,10 +999,12 @@ openfaas
 oper
 optimise
 ora
+orm
 orchestrator
 orgtbl
 os
 ot
+optionality
 overridable
 oversubscription
 pagerduty
@@ -1111,6 +1118,7 @@ repo
 repos
 reqs
 resetdb
+ResourceRequirements
 resourceVersion
 resultset
 resumable
@@ -1304,6 +1312,7 @@ unittests
 unix
 unpause
 unpausing
+unpredicted
 unqueued
 unterminated
 unutilized
@@ -1339,6 +1348,7 @@ verticaql
 videointelligence
 virtualenv
 vm
+VolumeMount
 volumeMounts
 wasb
 webProperty

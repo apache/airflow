@@ -396,6 +396,7 @@ class PodGenerator:
                         name="base",
                         command=command,
                         image=image,
+                        env=[k8s.V1EnvVar(name="AIRFLOW_IS_K8S_EXECUTOR_POD", value="True")],
                     )
                 ]
             ),

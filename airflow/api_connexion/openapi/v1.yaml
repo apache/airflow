@@ -171,7 +171,7 @@ info:
     The default is to deny all requests.
 
     For details on configuring the authentication, see
-    [API Authorization](https://airflow.readthedocs.io/en/latest/security/api.html).
+    [API Authorization](https://airflow.apache.org/docs/stable/security/api.html).
 
     # Errors
 
@@ -192,6 +192,8 @@ info:
     framing, or deceptive request routing). To resolve this, please ensure that your syntax is correct.
     ## NotFound
     This client error response indicates that the server cannot find the requested resource.
+    ## MethodNotAllowed
+    Indicates that the request method is known by the server but is not supported by the target resource.
     ## NotAcceptable
     The target resource does not have a current representation that would be acceptable to the user
     agent, according to the proactive negotiation header fields received in the request, and the
@@ -1551,10 +1553,12 @@ components:
           description: The DAG ID
           type: string
           readOnly: true
+          nullable: true
         task_id:
           description: The DAG ID
           type: string
           readOnly: true
+          nullable: true
         event:
           description: A key describing the type of event.
           type: string
@@ -1565,6 +1569,7 @@ components:
           format: date-time
           type: string
           readOnly: true
+          nullable: true
         owner:
           description: Name of the user who triggered these events a.
           type: string
@@ -1719,14 +1724,17 @@ components:
         start_date:
           type: string
           format: datetime
+          nullable: true
         end_date:
           type: string
           format: datetime
+          nullable: true
         duration:
           type: number
           nullable: true
         state:
           $ref: '#/components/schemas/TaskState'
+          nullable: true
         try_number:
           type: integer
         max_tries:
@@ -1872,7 +1880,7 @@ components:
         DAG details.
 
         For details see:
-        (airflow.models.DAG)[https://airflow.readthedocs.io/en/stable/_api/airflow/models/index.html#airflow.models.DAG]
+        (airflow.models.DAG)[https://airflow.apache.org/docs/stable/_api/airflow/models/index.html#airflow.models.DAG]
       allOf:
         - $ref: '#/components/schemas/DAG'
         - type: object
@@ -2789,6 +2797,13 @@ components:
     # 404
     'NotFound':
       description: A specified resource is not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    # 405
+    'MethodNotAllowed':
+      description: Request method is known by the server but is not supported by the target resource.
       content:
         application/json:
           schema:

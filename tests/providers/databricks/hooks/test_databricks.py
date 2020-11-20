@@ -55,6 +55,10 @@ GET_RUN_RESPONSE = {
 NOTEBOOK_PARAMS = {"dry-run": "true", "oldest-time-to-consider": "1457570074236"}
 JAR_PARAMS = ["param1", "param2"]
 RESULT_STATE = None  # type: None
+LIBRARIES = [
+    {"jar": "dbfs:/mnt/libraries/library.jar"},
+    {"maven": {"coordinates": "org.jsoup:jsoup:1.7.2", "exclusions": ["slf4j:slf4j"]}},
+]
 
 
 def run_now_endpoint(host):
@@ -104,6 +108,20 @@ def terminate_cluster_endpoint(host):
     Utility function to generate the get run endpoint given the host.
     """
     return f'https://{host}/api/2.0/clusters/delete'
+
+
+def install_endpoint(host):
+    """
+    Utility function to generate the install endpoint given the host.
+    """
+    return f'https://{host}/api/2.0/libraries/install'
+
+
+def uninstall_endpoint(host):
+    """
+    Utility function to generate the uninstall endpoint given the host.
+    """
+    return f'https://{host}/api/2.0/libraries/uninstall'
 
 
 def create_valid_response_mock(content):
@@ -418,6 +436,44 @@ class TestDatabricksHook(unittest.TestCase):
         mock_requests.post.assert_called_once_with(
             terminate_cluster_endpoint(HOST),
             json={'cluster_id': CLUSTER_ID},
+            params=None,
+            auth=(LOGIN, PASSWORD),
+            headers=USER_AGENT_HEADER,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_install_libs_on_cluster(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.post.return_value.json.return_value = {}
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+
+        data = {'cluster_id': CLUSTER_ID, 'libraries': LIBRARIES}
+        self.hook.install(data)
+
+        mock_requests.post.assert_called_once_with(
+            install_endpoint(HOST),
+            json={'cluster_id': CLUSTER_ID, 'libraries': LIBRARIES},
+            params=None,
+            auth=(LOGIN, PASSWORD),
+            headers=USER_AGENT_HEADER,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_uninstall_libs_on_cluster(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.post.return_value.json.return_value = {}
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+
+        data = {'cluster_id': CLUSTER_ID, 'libraries': LIBRARIES}
+        self.hook.uninstall(data)
+
+        mock_requests.post.assert_called_once_with(
+            uninstall_endpoint(HOST),
+            json={'cluster_id': CLUSTER_ID, 'libraries': LIBRARIES},
             params=None,
             auth=(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,

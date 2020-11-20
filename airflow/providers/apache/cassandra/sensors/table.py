@@ -34,7 +34,7 @@ class CassandraTableSensor(BaseSensorOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CassandraTableSensor`
+        :ref:`apache-airflow:howto/operator:CassandraTableSensor`
 
 
     For example, if you want to wait for a table called 't' to be created

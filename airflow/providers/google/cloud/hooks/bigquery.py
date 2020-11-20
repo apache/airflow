@@ -1296,9 +1296,13 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :return: list of rows
         """
         location = location or self.location
-        selected_fields = selected_fields or []
         if isinstance(selected_fields, str):
             selected_fields = selected_fields.split(",")
+
+        if selected_fields:
+            selected_fields = [SchemaField(n, "") for n in selected_fields]
+        else:
+            selected_fields = None
 
         table = self._resolve_table_reference(
             table_resource={},
@@ -1309,7 +1313,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         result = self.get_client(project_id=project_id, location=location).list_rows(
             table=Table.from_api_repr(table),
-            selected_fields=[SchemaField(n, "") for n in selected_fields],
+            selected_fields=selected_fields,
             max_results=max_results,
             page_token=page_token,
             start_index=start_index,
@@ -2067,7 +2071,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             _validate_value("api_resource_configs['query']", configuration['query'], dict)
 
         if sql is None and not configuration['query'].get('query', None):
-            raise TypeError('`BigQueryBaseCursor.run_query` ' 'missing 1 required positional argument: `sql`')
+            raise TypeError('`BigQueryBaseCursor.run_query` missing 1 required positional argument: `sql`')
 
         # BigQuery also allows you to define how you want a table's schema to change
         # as a side effect of a query job
@@ -2801,9 +2805,7 @@ def _split_tablename(
 ) -> Tuple[str, str, str]:
 
     if '.' not in table_input:
-        raise ValueError(
-            'Expected target table name in the format of ' '<dataset>.<table>. Got: {}'.format(table_input)
-        )
+        raise ValueError(f'Expected table name in the format of <dataset>.<table>. Got: {table_input}')
 
     if not default_project_id:
         raise ValueError("INTERNAL: No default project is specified")

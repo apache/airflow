@@ -20,7 +20,7 @@
 
 # Package apache-airflow-providers-mysql
 
-Release: 0.0.2a1
+Release: 1.0.0b2
 
 **Table of contents**
 
@@ -37,6 +37,8 @@ Release: 0.0.2a1
     - [Hooks](#hooks)
         - [Moved hooks](#moved-hooks)
 - [Releases](#releases)
+    - [Release 1.0.0b2](#release-100b2)
+    - [Release 1.0.0b1](#release-100b1)
     - [Release 0.0.2a1](#release-002a1)
     - [Release 0.0.1](#release-001)
 
@@ -70,11 +72,11 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 pip install apache-airflow-providers-mysql[amazon]
 ```
 
-| Dependent package                                                                                                    | Extra   |
-|:---------------------------------------------------------------------------------------------------------------------|:--------|
-| [apache-airflow-backport-providers-amazon](https://github.com/apache/airflow/tree/master/airflow/providers/amazon)   | amazon  |
-| [apache-airflow-backport-providers-presto](https://github.com/apache/airflow/tree/master/airflow/providers/presto)   | presto  |
-| [apache-airflow-backport-providers-vertica](https://github.com/apache/airflow/tree/master/airflow/providers/vertica) | vertica |
+| Dependent package                                                                             | Extra   |
+|:----------------------------------------------------------------------------------------------|:--------|
+| [apache-airflow-providers-amazon](https://pypi.org/project/apache-airflow-providers-amazon)   | amazon  |
+| [apache-airflow-providers-presto](https://pypi.org/project/apache-airflow-providers-presto)   | presto  |
+| [apache-airflow-providers-vertica](https://pypi.org/project/apache-airflow-providers-vertica) | vertica |
 
 # Provider classes summary
 
@@ -125,6 +127,29 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 
 ## Releases
+
+### Release 1.0.0b2
+
+| Commit                                                                                         | Committed   | Subject                                                                        |
+|:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------|
+| [ae7cb4a1e](https://github.com/apache/airflow/commit/ae7cb4a1e2a96351f1976cf5832615e24863e05d) | 2020-11-17  | Update wrong commit hash in backport provider changes (#12390)                 |
+| [6889a333c](https://github.com/apache/airflow/commit/6889a333cff001727eb0a66e375544a28c9a5f03) | 2020-11-15  | Improvements for operators and hooks ref docs (#12366)                         |
+| [7825e8f59](https://github.com/apache/airflow/commit/7825e8f59034645ab3247229be83a3aa90baece1) | 2020-11-13  | Docs installation improvements (#12304)                                        |
+| [85a18e13d](https://github.com/apache/airflow/commit/85a18e13d9dec84275283ff69e34704b60d54a75) | 2020-11-09  | Point at pypi project pages for cross-dependency of provider packages (#12212) |
+
+
+### Release 1.0.0b1
+
+| Commit                                                                                         | Committed   | Subject                                                            |
+|:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------|
+| [59eb5de78](https://github.com/apache/airflow/commit/59eb5de78c70ee9c7ae6e4cba5c7a2babb8103ca) | 2020-11-09  | Update provider READMEs for up-coming 1.0.0beta1 releases (#12206) |
+| [b2a28d159](https://github.com/apache/airflow/commit/b2a28d1590410630d66966aa1f2b2a049a8c3b32) | 2020-11-09  | Moves provider packages scripts to dev (#12082)                    |
+| [75f229601](https://github.com/apache/airflow/commit/75f229601edebfc25b295683a2200d1f1d69dceb) | 2020-11-04  | Adding MySql howto-documentation and example DAG (#12077)          |
+| [41bf172c1](https://github.com/apache/airflow/commit/41bf172c1dc75099f4f9d8b3f3350b4b1f523ef9) | 2020-11-04  | Simplify string expressions (#12093)                               |
+| [4e8f9cc8d](https://github.com/apache/airflow/commit/4e8f9cc8d02b29c325b8a5a76b4837671bdf5f68) | 2020-11-03  | Enable Black - Python Auto Formmatter (#9550)                      |
+| [8c42cf1b0](https://github.com/apache/airflow/commit/8c42cf1b00c90f0d7f11b8a3a455381de8e003c5) | 2020-11-03  | Use PyUpgrade to use Python 3.6 features (#11447)                  |
+| [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855)                         |
+
 
 ### Release 0.0.2a1
 

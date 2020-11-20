@@ -23,7 +23,7 @@ from tests.helm_template_generator import render_chart
 
 
 class GitSyncWebserverTest(unittest.TestCase):
-    def test_should_add_dags_volume_to_the_webserver_if_git_sync_and_peristence_is_enabled(self):
+    def test_should_add_dags_volume_to_the_webserver_if_git_sync_and_persistence_is_enabled(self):
         docs = render_chart(
             values={"dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}}},
             show_only=["templates/webserver/webserver-deployment.yaml"],
@@ -31,7 +31,7 @@ class GitSyncWebserverTest(unittest.TestCase):
 
         self.assertEqual("dags", jmespath.search("spec.template.spec.volumes[1].name", docs[0]))
 
-    def test_should_add_dags_volume_to_the_webserver_if_git_sync_is_enabled_and_peristence_is_disabled(self):
+    def test_should_add_dags_volume_to_the_webserver_if_git_sync_is_enabled_and_persistence_is_disabled(self):
         docs = render_chart(
             values={"dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": False}}},
             show_only=["templates/webserver/webserver-deployment.yaml"],

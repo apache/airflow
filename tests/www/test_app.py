@@ -17,6 +17,7 @@
 # under the License.
 
 import unittest
+from datetime import timedelta
 from unittest import mock
 
 import pytest
@@ -221,3 +222,13 @@ class TestApp(unittest.TestCase):
         app = application.cached_app(testing=True)
         engine_params = {'pool_size': 3, 'pool_recycle': 120, 'pool_pre_ping': True, 'max_overflow': 5}
         self.assertEqual(app.config['SQLALCHEMY_ENGINE_OPTIONS'], engine_params)
+
+    @conf_vars(
+        {
+            ('webserver', 'session_lifetime_minutes'): '3600',
+        }
+    )
+    @mock.patch("airflow.www.app.app", None)
+    def test_should_set_permanent_session_timeout(self):
+        app = application.cached_app(testing=True)
+        self.assertEqual(app.config['PERMANENT_SESSION_LIFETIME'], timedelta(minutes=3600))

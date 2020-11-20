@@ -16,6 +16,7 @@
  specific language governing permissions and limitations
  under the License.
 -->
+
 # Upgrading to Airflow 2.0+
 
 This file documents any backwards-incompatible changes in Airflow and
@@ -38,6 +39,8 @@ assists users migrating to a new version.
   - [Drop legacy UI in favor of FAB RBAC UI](#drop-legacy-ui-in-favor-of-fab-rbac-ui)
   - [Breaking Change in OAuth](#breaking-change-in-oauth)
 - [Step 5: Upgrade KubernetesExecutor settings](#step-5-upgrade-kubernetesexecutor-settings)
+  - [The KubernetesExecutor Will No Longer Read from the airflow.cfg for Base Pod Configurations](#the-kubernetesexecutor-will-no-longer-read-from-the-airflowcfg-for-base-pod-configurations)
+  - [The `executor_config` Will Now Expect a `kubernetes.client.models.V1Pod` Class When Launching Tasks](#the-executor_config-will-now-expect-a-kubernetesclientmodelsv1pod-class-when-launching-tasks)
 - [Appendix](#appendix)
   - [Changed Parameters for the KubernetesPodOperator](#changed-parameters-for-the-kubernetespodoperator)
   - [Migration Guide from Experimental API to Stable API v1](#migration-guide-from-experimental-api-to-stable-api-v1)
@@ -68,26 +71,31 @@ and disrupting existing workflows. We strongly recommend that all users upgradin
 upgrade to Airflow 1.10.13.
 
 Features in 1.10.13 include:
+
 1. All breaking DAG and architecture changes of Airflow 2.0 have been backported to Airflow 1.10.13. This backward-compatibility does not mean
 that 1.10.13 will process these DAGs the same way as Airflow 2.0. What this does mean is that all Airflow 2.0
 compatible DAGs will work in Airflow 1.10.13. Instead, this backport will give users time to modify their DAGs over time without any service
 disruption.
 2. We have backported the `pod_template_file` capability for the KubernetesExecutor as well as a script that will generate a `pod_template_file`
 based on your `airflow.cfg` settings. To generate this file simply run the following command:
+
     ```shell script
      airflow generate_pod_template -o <output file path>
     ```
+
     Once you have performed this step, simply write out the file path to this file in the `pod_template_file` section of the `kubernetes`
 section of your `airflow.cfg`
 3. Airflow 1.10.13 will contain our "upgrade check" scripts. These scripts will read through your `airflow.cfg` and all of your
 Dags and will give a detailed report of all changes required before upgrading. We are testing this script diligently, and our
 goal is that any Airflow setup that can pass these tests will be able to upgrade to 2.0 without any issues.
+
 ```shell script
     airflow upgrade_check
 ```
 
 
 ## Step 3: Set Operators to Backport Providers
+
 Now that you are set up in airflow 1.10.13 with python a 3.6+ environment, you are ready to start porting your DAGs to Airfow 2.0 compliance!
 
 The most important step in this transition is also the easiest step to do in pieces. All Airflow 2.0 operators are backwards compatible with Airflow 1.10
@@ -101,11 +109,13 @@ from airflow.operators.docker_operator import DockerOperator
 ```
 
 You would now run this command to import the provider:
+
 ```shell script
 pip install apache-airflow-backport-providers-docker
 ```
 
 and then import the operator with this path:
+
 ```python
 from airflow.providers.docker.operators.docker import DockerOperator
 ```
@@ -131,6 +141,7 @@ rendering involving undefined variables will fail the task, as well as displayin
 rendering.
 
 The behavior can be reverted when instantiating a DAG.
+
 ```python
 import jinja2
 
@@ -190,6 +201,7 @@ k = KubernetesPodOperator(
     priority_class_name="medium",
 )
 ```
+
 Now the user can use the `kubernetes.client.models` class as a single point of entry for creating all k8s objects.
 
 ```python
@@ -227,6 +239,7 @@ k = KubernetesPodOperator(
     is_delete_operator_pod=True,
     hostnetwork=False)
 ```
+
 We decided to keep the Secret class as users seem to really like that simplifies the complexity of mounting
 Kubernetes secrets into workers.
 
@@ -277,6 +290,7 @@ rbac = true
 ```
 
 In order to login to the interface, you need to create an administrator account.
+
 ```
 airflow create_user \
     --role Admin \
@@ -289,6 +303,7 @@ airflow create_user \
 If you have already installed Airflow 2.0, you can create a user with the command `airflow users create`.
 You don't need to make changes to the configuration file as the FAB RBAC UI is
 the only supported UI.
+
 ```
 airflow users create \
     --role Admin \
@@ -316,7 +331,7 @@ For more information, visit https://flask-appbuilder.readthedocs.io/en/latest/se
 
 ## Step 5: Upgrade KubernetesExecutor settings
 
-#### The KubernetesExecutor Will No Longer Read from the airflow.cfg for Base Pod Configurations
+### The KubernetesExecutor Will No Longer Read from the airflow.cfg for Base Pod Configurations
 
 In Airflow 2.0, the KubernetesExecutor will require a base pod template written in yaml. This file can exist
 anywhere on the host machine and will be linked using the `pod_template_file` configuration in the airflow.cfg.
@@ -371,7 +386,7 @@ fs_group
 [kubernetes_labels]
 ```
 
-#### The `executor_config` Will Now Expect a `kubernetes.client.models.V1Pod` Class When Launching Tasks
+### The `executor_config` Will Now Expect a `kubernetes.client.models.V1Pod` Class When Launching Tasks
 
 In Airflow 1.10.x, users could modify task pods at runtime by passing a dictionary to the `executor_config` variable.
 Users will now have full access the Kubernetes API via the `kubernetes.client.models.V1Pod`.
@@ -435,14 +450,18 @@ second_task = PythonOperator(
     }
 )
 ```
+
 For Airflow 2.0, the traditional `executor_config` will continue operation with a deprecation warning,
 but will be removed in a future version.
 
 ## Appendix
+
 ### Changed Parameters for the KubernetesPodOperator
 
 #### port has migrated from a List[Port] to a List[V1ContainerPort]
+
 Before:
+
 ```python
 from airflow.kubernetes.pod import Port
 port = Port('http', 80)
@@ -457,6 +476,7 @@ k = KubernetesPodOperator(
 ```
 
 After:
+
 ```python
 from kubernetes.client import models as k8s
 port = k8s.V1ContainerPort(name='http', container_port=80)
@@ -471,7 +491,9 @@ k = KubernetesPodOperator(
 ```
 
 #### volume_mounts has migrated from a List[VolumeMount] to a List[V1VolumeMount]
+
 Before:
+
 ```python
 from airflow.kubernetes.volume_mount import VolumeMount
 volume_mount = VolumeMount('test-volume',
@@ -489,6 +511,7 @@ k = KubernetesPodOperator(
 ```
 
 After:
+
 ```python
 from kubernetes.client import models as k8s
 volume_mount = k8s.V1VolumeMount(
@@ -505,7 +528,9 @@ k = KubernetesPodOperator(
 ```
 
 #### volumes has migrated from a List[Volume] to a List[V1Volume]
+
 Before:
+
 ```python
 from airflow.kubernetes.volume import Volume
 
@@ -526,6 +551,7 @@ k = KubernetesPodOperator(
 ```
 
 After:
+
 ```python
 from kubernetes.client import models as k8s
 volume = k8s.V1Volume(
@@ -541,8 +567,11 @@ k = KubernetesPodOperator(
     task_id="task",
 )
 ```
+
 #### env_vars has migrated from a Dict to a List[V1EnvVar]
+
 Before:
+
 ```python
 k = KubernetesPodOperator(
     namespace='default',
@@ -555,6 +584,7 @@ k = KubernetesPodOperator(
 ```
 
 After:
+
 ```python
 from kubernetes.client import models as k8s
 
@@ -583,6 +613,7 @@ k = KubernetesPodOperator(
 PodRuntimeInfoEnv can now be added to the `env_vars` variable as a `V1EnvVarSource`
 
 Before:
+
 ```python
 from airflow.kubernetes.pod_runtime_info_env import PodRuntimeInfoEnv
 
@@ -597,6 +628,7 @@ k = KubernetesPodOperator(
 ```
 
 After:
+
 ```python
 from kubernetes.client import models as k8s
 
@@ -626,6 +658,7 @@ k = KubernetesPodOperator(
 configmaps can now be added to the `env_from` variable as a `V1EnvVarSource`
 
 Before:
+
 ```python
 k = KubernetesPodOperator(
     namespace='default',
@@ -663,6 +696,7 @@ k = KubernetesPodOperator(
 #### resources has migrated from a Dict to a V1ResourceRequirements
 
 Before:
+
 ```python
 resources = {
     'limit_cpu': 0.25,
@@ -687,6 +721,7 @@ k = KubernetesPodOperator(
 ```
 
 After:
+
 ```python
 from kubernetes.client import models as k8s
 
@@ -716,9 +751,11 @@ k = KubernetesPodOperator(
     resources=resources,
 )
 ```
+
 #### image_pull_secrets has migrated from a String to a List[k8s.V1LocalObjectReference]
 
 Before:
+
 ```python
 k = KubernetesPodOperator(
     namespace='default',
@@ -732,6 +769,7 @@ k = KubernetesPodOperator(
 ```
 
 After:
+
 ```python
 quay_k8s = KubernetesPodOperator(
     namespace='default',
@@ -745,6 +783,7 @@ quay_k8s = KubernetesPodOperator(
 ```
 
 ### Migration Guide from Experimental API to Stable API v1
+
 In Airflow 2.0, we added the new REST API. Experimental API still works, but support may be dropped in the future.
 If your application is still using the experimental API, you should consider migrating to the stable API.
 
@@ -753,6 +792,7 @@ differences between the two endpoints that will help you migrate from the
 experimental REST API to the stable REST API.
 
 #### Base Endpoint
+
 The base endpoint for the stable API v1 is ``/api/v1/``. You must change the
 experimental base endpoint from ``/api/experimental/`` to ``/api/v1/``.
 The table below shows the differences:
@@ -773,10 +813,13 @@ The table below shows the differences:
 | DAG Lineage(GET)                  | /api/experimental/lineage/<DAG_ID>/<string:execution_date>/                      | /api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries |
 
 #### Note
+
 This endpoint ``/api/v1/dags/{dag_id}/dagRuns`` also allows you to filter dag_runs with parameters such as ``start_date``, ``end_date``, ``execution_date`` etc in the query string.
 Therefore the operation previously performed by this endpoint
 
-    /api/experimental/dags/<string:dag_id>/dag_runs/<string:execution_date>
+```
+/api/experimental/dags/<string:dag_id>/dag_runs/<string:execution_date>
+```
 
 can now be handled with filter parameters in the query string.
 Getting information about latest runs can be accomplished with the help of
@@ -847,49 +890,54 @@ you have to run the help command: ``airflow celery --help``.
 #### Example Usage for the ``users`` group:
 
 To create a new user:
+
 ```bash
 airflow users create --username jondoe --lastname doe --firstname jon --email jdoe@apache.org --role Viewer --password test
 ```
 
 To list users:
+
 ```bash
 airflow users list
 ```
 
 To delete a user:
+
 ```bash
 airflow users delete --username jondoe
 ```
 
 To add a user to a role:
+
 ```bash
 airflow users add-role --username jondoe --role Public
 ```
 
 To remove a user from a role:
+
 ```bash
 airflow users remove-role --username jondoe --role Public
 ```
 
 #### Use exactly single character for short option style change in CLI
 
-For Airflow short option, use exactly one single character, New commands are available according to the following table:
+For Airflow short option, use exactly one single character. New commands are available according to the following table:
 
 | Old command                                          | New command                                         |
 | :----------------------------------------------------| :---------------------------------------------------|
 | ``airflow (dags\|tasks\|scheduler) [-sd, --subdir]`` | ``airflow (dags\|tasks\|scheduler) [-S, --subdir]`` |
-| ``airflow tasks test [-dr, --dry_run]``              | ``airflow tasks test [-n, --dry-run]``              |
-| ``airflow dags backfill [-dr, --dry_run]``           | ``airflow dags backfill [-n, --dry-run]``           |
-| ``airflow tasks clear [-dx, --dag_regex]``           | ``airflow tasks clear [-R, --dag-regex]``           |
+| ``airflow test [-dr, --dry_run]``                    | ``airflow tasks test [-n, --dry-run]``              |
+| ``airflow test [-tp, --task_params]``                | ``airflow tasks test [-t, --task-params]``          |
+| ``airflow test [-pm, --post_mortem]``                | ``airflow tasks test [-m, --post-mortem]``          |
+| ``airflow run [-int, --interactive]``                | ``airflow tasks run [-N, --interactive]``           |
+| ``airflow backfill [-dr, --dry_run]``                | ``airflow dags backfill [-n, --dry-run]``           |
+| ``airflow clear [-dx, --dag_regex]``                 | ``airflow tasks clear [-R, --dag-regex]``           |
 | ``airflow kerberos [-kt, --keytab]``                 | ``airflow kerberos [-k, --keytab]``                 |
-| ``airflow tasks run [-int, --interactive]``          | ``airflow tasks run [-N, --interactive]``           |
 | ``airflow webserver [-hn, --hostname]``              | ``airflow webserver [-H, --hostname]``              |
-| ``airflow celery worker [-cn, --celery_hostname]``   | ``airflow celery worker [-H, --celery-hostname]``   |
-| ``airflow celery flower [-hn, --hostname]``          | ``airflow celery flower [-H, --hostname]``          |
-| ``airflow celery flower [-fc, --flower_conf]``       | ``airflow celery flower [-c, --flower-conf]``       |
-| ``airflow celery flower [-ba, --basic_auth]``        | ``airflow celery flower [-A, --basic-auth]``        |
-| ``airflow celery flower [-tp, --task_params]``       | ``airflow celery flower [-t, --task-params]``       |
-| ``airflow celery flower [-pm, --post_mortem]``       | ``airflow celery flower [-m, --post-mortem]``       |
+| ``airflow worker [-cn, --celery_hostname]``          | ``airflow celery worker [-H, --celery-hostname]``   |
+| ``airflow flower [-hn, --hostname]``                 | ``airflow celery flower [-H, --hostname]``          |
+| ``airflow flower [-fc, --flower_conf]``              | ``airflow celery flower [-c, --flower-conf]``       |
+| ``airflow flower [-ba, --basic_auth]``               | ``airflow celery flower [-A, --basic-auth]``        |
 
 For Airflow long option, use [kebab-case](https://en.wikipedia.org/wiki/Letter_case) instead of [snake_case](https://en.wikipedia.org/wiki/Snake_case)
 

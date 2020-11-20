@@ -260,18 +260,18 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         resources = set()
         for role in user_query.roles:
             for permission in role.permissions:
-                resource = permission.view_menu.name
                 action = permission.permission.name
                 if action not in user_actions:
                     continue
+
+                resource = permission.view_menu.name
+                if resource == permissions.RESOURCE_DAG:
+                    return session.query(DagModel)
 
                 if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
                     resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
                 else:
                     resources.add(resource)
-
-        if permissions.RESOURCE_DAG in resources:
-            return session.query(DagModel)
 
         return session.query(DagModel).filter(DagModel.dag_id.in_(resources))
 

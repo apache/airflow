@@ -25,7 +25,7 @@ This is an example dag for using `AWSDataSyncOperator` in a more complex manner.
 
 This DAG relies on the following environment variables:
 
-* SOURCE_LOCATION_URI - Source location URI, usually on premisis SMB or NFS
+* SOURCE_LOCATION_URI - Source location URI, usually on premises SMB or NFS
 * DESTINATION_LOCATION_URI - Destination location URI, usually S3
 * CREATE_TASK_KWARGS - Passed to boto3.create_task(**kwargs)
 * CREATE_SOURCE_LOCATION_KWARGS - Passed to boto3.create_location(**kwargs)

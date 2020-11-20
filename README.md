@@ -16,12 +16,12 @@
  specific language governing permissions and limitations
  under the License.
 -->
+
 # Apache Airflow
 
 [![PyPI version](https://badge.fury.io/py/apache-airflow.svg)](https://badge.fury.io/py/apache-airflow)
 [![GitHub Build](https://github.com/apache/airflow/workflows/CI%20Build/badge.svg)](https://github.com/apache/airflow/actions)
 [![Coverage Status](https://img.shields.io/codecov/c/github/apache/airflow/master.svg)](https://codecov.io/github/apache/airflow?branch=master)
-[![Documentation Status](https://readthedocs.org/projects/airflow/badge/?version=latest)](https://airflow.readthedocs.io/en/latest/?badge=latest)
 [![License](http://img.shields.io/:license-Apache%202-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.txt)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/apache-airflow.svg)](https://pypi.org/project/apache-airflow/)
 [![Docker Pulls](https://img.shields.io/docker/pulls/apache/airflow.svg)](https://hub.docker.com/r/apache/airflow)
@@ -83,13 +83,12 @@ Apache Airflow is tested with:
 | PostgreSQL   | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      |
 | MySQL        | 5.7, 8                    | 5.6, 5.7                 |
 | SQLite       | latest stable             | latest stable            |
-| Kubernetes   | 1.16.2, 1.17.0            | 1.16.2, 1.17.0           |
+| Kubernetes   | 1.16.9, 1.17.5, 1.18.6    | 1.16.9, 1.17.5, 1.18.6   |
 
-**Note:** MariaDB and MySQL 5.x will work fine for a single scheduler, but don't work or have limitations
-running more than a single scheduler -- please see the "Scheduler" docs.
+**Note:** MariaDB and MySQL 5.x are unable to or have limitations with
+running multiple schedulers -- please see the "Scheduler" docs.
 
 **Note:** SQLite is used primarily for development purpose.
-
 
 ### Additional notes on Python version requirements
 
@@ -129,12 +128,13 @@ pip install apache-airflow==1.10.12 \
 ```
 
 2. Installing with extras (for example postgres,google)
+
 ```bash
 pip install apache-airflow[postgres,google]==1.10.12 \
  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.7.txt"
 ```
 
-For information on installing backport providers check https://airflow.readthedocs.io/en/latest/backport-providers.html.
+For information on installing backport providers check [/docs/backport-providers.rst][/docs/backport-providers.rst].
 
 ## Official source code
 
@@ -175,27 +175,27 @@ following the ASF Policy.
 
 - **DAGs**: Overview of all DAGs in your environment.
 
-  ![](/docs/img/dags.png)
+  ![DAGs](/docs/img/dags.png)
 
 - **Tree View**: Tree representation of a DAG that spans across time.
 
-  ![](/docs/img/tree.png)
+  ![Tree View](/docs/img/tree.png)
 
 - **Graph View**: Visualization of a DAG's dependencies and their current status for a specific run.
 
-  ![](/docs/img/graph.png)
+  ![Graph View](/docs/img/graph.png)
 
 - **Task Duration**: Total time spent on different tasks over time.
 
-  ![](/docs/img/duration.png)
+  ![Task Duration](/docs/img/duration.png)
 
 - **Gantt View**: Duration and overlap of a DAG.
 
-  ![](/docs/img/gantt.png)
+  ![Gantt View](/docs/img/gantt.png)
 
 - **Code View**:  Quick way to view source code of a DAG.
 
-  ![](/docs/img/code.png)
+  ![Code View](/docs/img/code.png)
 
 
 ## Contributing

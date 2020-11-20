@@ -142,7 +142,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.assertEqual('1', metadatas[0]['offset'])
         self.assertTrue(timezone.parse(metadatas[0]['last_log_timestamp']) > ts)
 
-    def test_read_with_none_meatadata(self):
+    def test_read_with_none_metadata(self):
         logs, metadatas = self.es_task_handler.read(self.ti, 1)
         self.assertEqual(1, len(logs))
         self.assertEqual(len(logs), len(metadatas))

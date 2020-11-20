@@ -17,6 +17,7 @@
 # under the License.
 #
 import io
+import logging
 import os
 import unittest
 from contextlib import redirect_stdout
@@ -316,16 +317,28 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         reset(self.dag_id)
         self.execution_date = timezone.make_aware(datetime(2017, 1, 1))
         self.execution_date_str = self.execution_date.isoformat()
+        self.task_args = ['tasks', 'run', self.dag_id, self.task_id, '--local', self.execution_date_str]
         self.log_dir = conf.get('logging', 'base_log_folder')
         self.log_filename = f"{self.dag_id}/{self.task_id}/{self.execution_date_str}/1.log"
         self.ti_log_file_path = os.path.join(self.log_dir, self.log_filename)
         self.parser = cli_parser.get_parser()
+
+        root = self.root_logger = logging.getLogger()
+        self.root_handlers = root.handlers.copy()
+        self.root_filters = root.filters.copy()
+        self.root_level = root.level
+
         try:
             os.remove(self.ti_log_file_path)
         except OSError:
             pass
 
     def tearDown(self) -> None:
+        root = self.root_logger
+        root.setLevel(self.root_level)
+        root.handlers[:] = self.root_handlers
+        root.filters[:] = self.root_filters
+
         reset(self.dag_id)
         try:
             os.remove(self.ti_log_file_path)
@@ -354,11 +367,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         # as that is what gets displayed
 
         with conf_vars({('core', 'dags_folder'): self.dag_path}):
-            task_command.task_run(
-                self.parser.parse_args(
-                    ['tasks', 'run', self.dag_id, self.task_id, '--local', self.execution_date_str]
-                )
-            )
+            task_command.task_run(self.parser.parse_args(self.task_args))
 
         with open(self.ti_log_file_path) as l_file:
             logs = l_file.read()
@@ -390,11 +399,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         # We are not using self.assertLogs as we want to verify what actually is stored in the Log file
         # as that is what gets displayed
         with conf_vars({('core', 'dags_folder'): self.dag_path}):
-            task_command.task_run(
-                self.parser.parse_args(
-                    ['tasks', 'run', self.dag_id, self.task_id, '--local', self.execution_date_str]
-                )
-            )
+            task_command.task_run(self.parser.parse_args(self.task_args))
 
         with open(self.ti_log_file_path) as l_file:
             logs = l_file.read()
@@ -443,11 +448,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
                 log_file_path = os.path.join(os.path.dirname(self.ti_log_file_path), "2.log")
 
                 try:
-                    task_command.task_run(
-                        self.parser.parse_args(
-                            ['tasks', 'run', self.dag_id, self.task_id, '--local', self.execution_date_str]
-                        )
-                    )
+                    task_command.task_run(self.parser.parse_args(self.task_args))
 
                     assert os.path.exists(log_file_path)
                 finally:
@@ -455,6 +456,59 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
                         os.remove(log_file_path)
                     except OSError:
                         pass
+
+    @mock.patch.object(task_command, "_run_task_by_selected_method")
+    def test_root_logger_restored(self, run_task_mock):
+        """Verify that the root logging context is restored"""
+
+        logger = logging.getLogger("foo.bar")
+
+        def task_inner(*args, **kwargs):
+            logger.warning("redirected log message")
+
+        run_task_mock.side_effect = task_inner
+
+        config = {
+            ('core', 'dags_folder'): self.dag_path,
+            ('logging', 'logging_level'): "INFO",
+        }
+
+        with conf_vars(config):
+            with self.assertLogs(level=logging.WARNING) as captured:
+                logger.warning("not redirected")
+                task_command.task_run(self.parser.parse_args(self.task_args))
+
+                assert captured.output == ["WARNING:foo.bar:not redirected"]
+                assert self.root_logger.level == logging.WARNING
+
+        assert self.root_logger.handlers == self.root_handlers
+
+    @mock.patch.object(task_command, "_run_task_by_selected_method")
+    def test_disable_handler_modifying(self, run_task_mock):
+        """If [core] donot_modify_handlers is set to True, the root logger is untouched"""
+        from airflow import settings
+
+        logger = logging.getLogger("foo.bar")
+
+        def task_inner(*args, **kwargs):
+            logger.warning("not redirected")
+
+        run_task_mock.side_effect = task_inner
+
+        config = {
+            ('core', 'dags_folder'): self.dag_path,
+            ('logging', 'logging_level'): "INFO",
+        }
+        old_value = settings.DONOT_MODIFY_HANDLERS
+        settings.DONOT_MODIFY_HANDLERS = True
+
+        with conf_vars(config):
+            with self.assertLogs(level=logging.WARNING) as captured:
+                task_command.task_run(self.parser.parse_args(self.task_args))
+
+                assert captured.output == ["WARNING:foo.bar:not redirected"]
+
+        settings.DONOT_MODIFY_HANDLERS = old_value
 
 
 class TestCliTaskBackfill(unittest.TestCase):

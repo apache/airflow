@@ -105,6 +105,11 @@ function push_pull_remove_images::pull_image_github_dockerhub() {
 # Pulls CI image in case caching strategy is "pulled" and the image needs to be pulled
 function push_pull_remove_images::pull_ci_images_if_needed() {
     if [[ "${DOCKER_CACHE}" == "pulled" ]]; then
+        local python_image_hash
+        python_image_hash=$(docker images -q "${AIRFLOW_CI_PYTHON_IMAGE}" 2> /dev/null || true)
+        if [[ -z "${python_image_hash=}" ]]; then
+            FORCE_PULL_IMAGES="true"
+        fi
         if [[ "${FORCE_PULL_IMAGES}" == "true" ]]; then
             echo
             echo "Force pull base image ${PYTHON_BASE_IMAGE}"
@@ -122,6 +127,7 @@ Docker pulling ${PYTHON_BASE_IMAGE}.
                 push_pull_remove_images::pull_image_github_dockerhub "${PYTHON_BASE_IMAGE}" "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
             else
                 docker pull "${AIRFLOW_CI_PYTHON_IMAGE}"
+                docker tag "${AIRFLOW_CI_PYTHON_IMAGE}" "${PYTHON_BASE_IMAGE}"
             fi
             echo
         fi
@@ -148,7 +154,8 @@ function push_pull_remove_images::pull_prod_images_if_needed() {
                 fi
                 push_pull_remove_images::pull_image_github_dockerhub "${PYTHON_BASE_IMAGE}" "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
             else
-                docker pull "${PYTHON_BASE_IMAGE}"
+                docker pull "${AIRFLOW_CI_PYTHON_IMAGE}"
+                docker tag "${AIRFLOW_CI_PYTHON_IMAGE}" "${PYTHON_BASE_IMAGE}"
             fi
             echo
         fi

@@ -47,6 +47,6 @@ def init_appbuilder(app):
         app=app,
         session=settings.Session,
         security_manager_class=security_manager_class,
-        base_template='airflow/master.html',
+        base_template='airflow/main.html',
         update_perms=conf.getboolean('webserver', 'UPDATE_FAB_PERMS'),
     )
