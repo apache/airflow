@@ -23,7 +23,7 @@ from typing import Optional, Sequence, Union
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
-from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.utils.decorators import apply_defaults
 
 
@@ -57,7 +57,8 @@ class GCSToBigQueryOperator(BaseOperator):
         Parameter must be defined if 'schema_object' is null and autodetect is False.
     :type schema_fields: list
     :param schema_object: If set, a GCS object path pointing to a .json file that
-        contains the schema for the table. (templated)
+        contains the schema for the table. Different bucket from src data can be used in case
+        full gs:// path is provided. (templated)
         Parameter must be defined if 'schema_fields' is null and autodetect is False.
     :type schema_object: str
     :param source_format: File format to export.
@@ -249,6 +250,26 @@ class GCSToBigQueryOperator(BaseOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
 
+    def _parse_schema_gcs_url(self):
+        """If schema doesn't contain bucket name (gs://bucket), use src bucket."""
+        try:
+            bucket_name, object_prefix = _parse_gcs_url(self.schema_object)
+        except AirflowException:
+            bucket_name, object_prefix = self.bucket, self.schema_object
+        return bucket_name, object_prefix
+
+    def _download(self, bucket_name, object_prefix):
+        gcs_hook = GCSHook(
+            google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
+        blob = gcs_hook.download(
+            bucket_name=bucket_name,
+            object_name=object_prefix,
+        )
+        return blob
+
     def execute(self, context):
         bq_hook = BigQueryHook(
             bigquery_conn_id=self.bigquery_conn_id,
@@ -259,15 +280,8 @@ class GCSToBigQueryOperator(BaseOperator):
 
         if not self.schema_fields:
             if self.schema_object and self.source_format != 'DATASTORE_BACKUP':
-                gcs_hook = GCSHook(
-                    google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
-                    delegate_to=self.delegate_to,
-                    impersonation_chain=self.impersonation_chain,
-                )
-                blob = gcs_hook.download(
-                    bucket_name=self.bucket,
-                    object_name=self.schema_object,
-                )
+                bucket_name, object_prefix = self._parse_schema_gcs_url()
+                blob = self._download(bucket_name, object_prefix)
                 schema_fields = json.loads(blob.decode("utf-8"))
             elif self.schema_object is None and self.autodetect is False:
                 raise AirflowException(

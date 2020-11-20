@@ -24,6 +24,8 @@ from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQue
 TASK_ID = 'test-gcs-to-bq-operator'
 TEST_EXPLICIT_DEST = 'test-project.dataset.table'
 TEST_BUCKET = 'test-bucket'
+SCHEMA_BUCKET = 'test-schema-bucket'
+SCHEMA_OBJECT = 'registry/schema.json'
 MAX_ID_KEY = 'id'
 TEST_SOURCE_OBJECTS = ['test/objects/*']
 
@@ -66,3 +68,27 @@ class TestGoogleCloudStorageToBigQueryOperator(unittest.TestCase):
         bq_hook.return_value.get_conn.return_value.cursor.return_value.execute.assert_called_once_with(
             "SELECT MAX(id) FROM `test-project.dataset.table`"
         )
+
+    def test_schema_in_different_bucket(self):
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            schema_object=f"gs://{SCHEMA_BUCKET}/{SCHEMA_OBJECT}",
+        )
+        bucket, object_prefix = operator._parse_schema_gcs_url()
+        assert bucket == SCHEMA_BUCKET
+        assert object_prefix == SCHEMA_OBJECT
+
+    def test_schema_in_same_bucket(self):
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            schema_object=f"{SCHEMA_OBJECT}",
+        )
+        bucket, object_prefix = operator._parse_schema_gcs_url()
+        assert bucket == TEST_BUCKET
+        assert object_prefix == SCHEMA_OBJECT

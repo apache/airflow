@@ -33,6 +33,16 @@ from airflow.utils.dates import days_ago
 DATASET_NAME = os.environ.get("GCP_DATASET_NAME", 'airflow_test')
 TABLE_NAME = os.environ.get("GCP_TABLE_NAME", 'gcs_to_bq_table')
 
+SOURCE_BUCKET = os.environ.get("GCP_SOURCE_BUCKET", 'cloud-samples-data')
+SOURCE_OBJECTS = os.environ.get("GCP_SOURCE_OBJECTS", 'bigquery/us-states/us-states.csv').split(",")
+
+SCHEMA_BUCKET = os.environ.get("GCP_SCHEMA_BUCKET", 'test-schema-bucket')
+SCHEMA_OBJECT_PREFIX = os.environ.get("GCP_SCHEMA_OBJECT_PREFIX", 'registry/schema.json')
+SCHEMA = [
+    {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
+    {'name': 'post_abbr', 'type': 'STRING', 'mode': 'NULLABLE'},
+]
+
 dag = models.DAG(
     dag_id='example_gcs_to_bigquery_operator',
     start_date=days_ago(2),
@@ -47,17 +57,36 @@ create_test_dataset = BigQueryCreateEmptyDatasetOperator(
 # [START howto_operator_gcs_to_bigquery]
 load_csv = GCSToBigQueryOperator(
     task_id='gcs_to_bigquery_example',
-    bucket='cloud-samples-data',
-    source_objects=['bigquery/us-states/us-states.csv'],
+    bucket=SOURCE_BUCKET,
+    source_objects=SOURCE_OBJECTS,
     destination_project_dataset_table=f"{DATASET_NAME}.{TABLE_NAME}",
-    schema_fields=[
-        {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
-        {'name': 'post_abbr', 'type': 'STRING', 'mode': 'NULLABLE'},
-    ],
+    schema_fields=SCHEMA,
     write_disposition='WRITE_TRUNCATE',
     dag=dag,
 )
 # [END howto_operator_gcs_to_bigquery]
+
+# todo - upload schema file to same bucket / separate bucket
+# todo - test with custom env
+load_csv_schema_in_different_bucket = GCSToBigQueryOperator(
+    task_id='gcs_to_bigquery_example_schema_in_different_bucket',
+    bucket=SOURCE_BUCKET,
+    source_objects=SOURCE_OBJECTS,
+    destination_project_dataset_table=f"{DATASET_NAME}.{TABLE_NAME}",
+    schema_object=f"gs://{SCHEMA_BUCKET}/{SCHEMA_OBJECT_PREFIX}",
+    write_disposition='WRITE_TRUNCATE',
+    dag=dag,
+)
+
+load_csv_schema_in_same_bucket = GCSToBigQueryOperator(
+    task_id='gcs_to_bigquery_example_schema_in_same_bucket',
+    bucket=SOURCE_BUCKET,
+    source_objects=SOURCE_OBJECTS,
+    destination_project_dataset_table=f"{DATASET_NAME}.{TABLE_NAME}",
+    schema_object=f"gs://{SOURCE_BUCKET}/{SCHEMA_OBJECT_PREFIX}",
+    write_disposition='WRITE_TRUNCATE',
+    dag=dag,
+)
 
 delete_test_dataset = BigQueryDeleteDatasetOperator(
     task_id='delete_airflow_test_dataset', dataset_id=DATASET_NAME, delete_contents=True, dag=dag
