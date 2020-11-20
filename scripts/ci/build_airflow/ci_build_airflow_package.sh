@@ -18,22 +18,19 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
+rm -rf -- *egg-info*
 
-"${SCRIPTS_CI_DIR}/provider_packages/ci_prepare_provider_readme.sh"
-"${SCRIPTS_CI_DIR}/provider_packages/ci_prepare_provider_packages.sh"
+pip install --upgrade "pip==${PIP_VERSION}" "wheel==${WHEEL_VERSION}"
 
-if [[ ${BACKPORT_PACKAGES} != "true" ]]; then
-    # Prepare airflow's wheel
-    python setup.py compile_assets sdist bdist_wheel
-    rm -rf -- *egg-info*
-fi
+# Prepare airflow's wheel
+python setup.py compile_assets sdist bdist_wheel
 
-"${SCRIPTS_CI_DIR}/provider_packages/ci_test_provider_packages_install.sh"
-"${SCRIPTS_CI_DIR}/provider_packages/ci_test_provider_packages_import_all_classes.sh"
+# clean-up
+rm -rf -- *egg-info*
 
-dump_file="/tmp/airflow_provider_packages_$(date +"%Y%m%d-%H%M%S").tar.gz"
+dump_file="/tmp/airflow_$(date +"%Y%m%d-%H%M%S").tar.gz"
 
 cd "${AIRFLOW_SOURCES}/dist" || exit 1
 tar -cvzf "${dump_file}" .
 
-echo "Packages are in dist and also tar-gzipped in ${dump_file}"
+echo "Airflow is in dist and also tar-gzipped in ${dump_file}"

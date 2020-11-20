@@ -147,6 +147,12 @@ function initialization::initialize_base_variables() {
 
     INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES:="true"}
     export INSTALL_PROVIDERS_FROM_SOURCES
+
+    PIP_VERSION="20.2.4"
+    export PIP_VERSION
+
+    WHEEL_VERSION="0.35.1"
+    export WHEEL_VERSION
 }
 
 # Determine current branch

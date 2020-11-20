@@ -87,5 +87,11 @@ class TestProviderManager(unittest.TestCase):
     def test_providers_are_loaded(self):
         provider_manager = ProvidersManager()
         provider_list = list(provider_manager.providers.keys())
-        provider_list.sort()
+        # No need to sort the list - it should be sorted alphabetically !
+        for provider in provider_list:
+            package_name = provider_manager.providers[provider][1]['package-name']
+            version = provider_manager.providers[provider][0]
+            self.assertRegex(version, r'[0-9]*\.[0-9]*\.[0-9]*.*')
+            self.assertEqual(package_name, provider)
+
         self.assertEqual(ALL_PROVIDERS, provider_list)

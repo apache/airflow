@@ -340,6 +340,8 @@ jobs:
     runs-on: ubuntu-20.04
     needs: [build-info, ci-images]
     env:
+      # In this case we want to install airflow from the latest released 1.10 version
+      # all provider packages are installed from wheels or .tar.gz files
       INSTALL_AIRFLOW_VERSION: "1.10.13"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       BACKPORT_PACKAGES: "true"
@@ -356,8 +358,14 @@ jobs:
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Prepare & test provider packages"
-        run: ./scripts/ci/provider_packages/ci_prepare_and_test_provider_packages.sh
+      - name: "Prepare provider readmes"
+        run: ./scripts/ci/provider_packages/ci_prepare_provider_readmes.sh
+      - name: "Prepare provider packages"
+        run: ./scripts/ci/provider_packages/ci_prepare_provider_packages.sh
+      - name: "Install and test provider packages via .whl files"
+        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh whl
+      - name: "Install and test provider packages via .tar.gz files"
+        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh tar.gz
       - name: "Upload provider package artifacts"
         uses: actions/upload-artifact@v2
         if: always()
@@ -393,8 +401,16 @@ jobs:
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Prepare & test provider packages"
-        run: ./scripts/ci/provider_packages/ci_prepare_and_test_provider_packages.sh
+      - name: "Prepare provider readmes"
+        run: ./scripts/ci/provider_packages/ci_prepare_provider_readmes.sh
+      - name: "Prepare provider packages"
+        run: ./scripts/ci/provider_packages/ci_prepare_provider_packages.sh
+      - name: "Prepare airflow packages so that they can be installed"
+        run: ./scripts/ci/build_airflow/ci_build_airflow_package.sh
+      - name: "Install and test provider packages via .whl files"
+        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh whl
+      - name: "Install and test provider packages via .tar.gz files"
+        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh tar.gz
       - name: "Upload provider package artifacts"
         uses: actions/upload-artifact@v2
         if: always()

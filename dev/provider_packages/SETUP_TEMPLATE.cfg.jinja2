@@ -29,6 +29,10 @@ license_files =
 [bdist_wheel]
 python-tag=py3
 
+[options.entry_points]
+apache_airflow_provider=
+    provider_info=airflow.providers.{{ PROVIDER_PACKAGE_ID }}.get_provider_info:get_provider_info
+
 [files]
 packages = airflow.providers.{{ PROVIDER_PACKAGE_ID }}
 
