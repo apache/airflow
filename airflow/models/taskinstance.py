@@ -68,7 +68,6 @@ from airflow.utils.timeout import timeout
 from datetime import datetime, timedelta
 
 
-
 def clear_task_instances(tis,
                          session,
                          activate_dag_runs=True,
@@ -1643,3 +1642,20 @@ class TaskInstance(Base, LoggingMixin):
             return tasks.filter(
                 TaskInstance.execution_date > (timezone.utcnow() + delta)).first()[0]
         return tasks.first()[0]
+
+    @classmethod
+    @provide_session
+    def get_all_tasks(cls, start_date=None, end_date=None, upstream=True, downstream=True, session=None):
+        TI = cls
+        qry = session.query(TI).filter(TI.state == State.SUCCESS)
+        if start_date:
+            qry = qry.filter(TI.execution_date >= start_date)
+        if end_date:
+            qry = qry.filter(TI.execution_date <= end_date)
+        tasks = qry.all()
+        return tasks
+
+    @classmethod
+    @provide_session
+    def clear_tasks(cls, tasks=None, session=None, dag=None):
+        return clear_task_instances(tasks, session=session, dag=dag)

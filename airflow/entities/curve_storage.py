@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 
 import io
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from tablib import Dataset
 import uuid
 from minio import Minio
@@ -103,6 +103,17 @@ class ClsCurveStorage(ClsEntity):
     def ensure_connect(self):
         if not self._client:
             self.connect()
+
+    def remove_curves(self, curve_files: Optional[List] = None) -> bool:
+        ret = False
+        if not curve_files:
+            return ret
+        try:
+            self.ensure_bucket(self._bucket)
+            self._client.remove_objects(self._bucket, curve_files)
+        except Exception as e:
+            raise e
+        return ret
 
     def write_curve(self, data: Optional[Dict] = None) -> None:
         if not data:
