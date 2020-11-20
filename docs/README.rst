@@ -31,7 +31,7 @@ We are taking steps to move the documentation for ``apache-airflow`` package to 
 Development documentation preview
 ==================================
 
-Documentation from the ``master` branch is built and automatically published: `s.apache.org/airflow-docs <s.apache.org/airflow-docs>`_
+Documentation from the ``master`` branch is built and automatically published: `s.apache.org/airflow-docs <s.apache.org/airflow-docs>`_
 
 Documentation for your PRs is available as downloadable artifact in GitHub Actions after the CI builds your PR.
 
@@ -77,7 +77,7 @@ Basically, you only need to write:
 
 .. code-block:: rst
 
-    ``:role:`target```
+    :role:`target`
 
 And a link will be
 created to the item named *target* of the type indicated by *role*. The link's
@@ -88,7 +88,7 @@ hyperlinks:
 
 .. code-block:: rst
 
-    ``:role:`title <target>```
+    :role:`title <target>`
 
 This will refer to *target*, but the link text will be *title*.
 
