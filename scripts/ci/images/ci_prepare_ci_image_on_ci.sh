@@ -59,5 +59,13 @@ function build_ci_image_on_ci() {
     export CHECK_IMAGE_FOR_REBUILD="false"
 }
 
+function verify_prod_image_dependencies {
+    echo
+    echo "Checking if Airflow dependencies are compatible."
+    echo
+
+    docker run --rm --entrypoint /bin/bash "${AIRFLOW_CI_IMAGE}" -c 'pip check'
+}
 
 build_ci_image_on_ci
+verify_prod_image_dependencies

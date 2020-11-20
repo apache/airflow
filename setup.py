@@ -163,7 +163,8 @@ _SPHINX_AIRFLOW_THEME_URL = (
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
 amazon = [
-    'boto3>=1.12.0,<2.0.0',
+    'boto3>=1.16.0,<2.0.0',
+    'botocore>=1.18.0,<1.19.0',
     'watchtower~=0.7.3',
 ]
 apache_beam = [
@@ -386,9 +387,9 @@ snowflake = [
     # snowflake is not compatible with latest version.
     # This library monkey patches the requests library, so SSL is broken globally.
     # See: https://github.com/snowflakedb/snowflake-connector-python/issues/324
-    'requests<2.24.0',
-    'snowflake-connector-python>=1.5.2',
-    'snowflake-sqlalchemy>=1.1.0',
+    # 'requests<2.24.0',
+    # 'snowflake-connector-python>=1.5.2',
+    # 'snowflake-sqlalchemy>=1.1.0',
 ]
 spark = [
     'pyspark',
