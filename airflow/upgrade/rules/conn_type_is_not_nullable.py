@@ -42,5 +42,5 @@ If you made any modifications to the table directly, make sure you don't have nu
             'Connection<id={}", conn_id={}> have empty conn_type field.'.format(
                 conn.id, conn.conn_id
             )
-            for conn in invalid_connections
+            for conn in invalid_connections.all()
         )

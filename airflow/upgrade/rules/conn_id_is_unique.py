@@ -41,5 +41,5 @@ duplicate values in conn_id column.
             .having(func.count() > 1)
         return (
             'Connection.conn_id={} is not unique.'.format(conn_id)
-            for conn_id in invalid_connections
+            for conn_id in invalid_connections.all()
         )
