@@ -25,6 +25,7 @@ ALL_PROVIDERS = [
     'apache-airflow-providers-apache-druid',
     'apache-airflow-providers-apache-hdfs',
     'apache-airflow-providers-apache-hive',
+    'apache-airflow-providers-apache-impala',
     'apache-airflow-providers-apache-kylin',
     'apache-airflow-providers-apache-livy',
     'apache-airflow-providers-apache-pig',

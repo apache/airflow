@@ -61,6 +61,8 @@ Here's the list of the :ref:`subpackages <installation:extra_packages>` and what
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | hive                | ``pip install 'apache-airflow[apache.hive]'``       | All Hive related operators                                           |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| impala              | ``pip install 'apache-airflow[apache.impala]'``     | Impala hooks and operators                                           |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | kylin               | ``pip install 'apache-airflow[apache.kylin]'``      | All Kylin related operators & hooks                                  |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | livy                | ``pip install 'apache-airflow[apache.livy]'``       | All Livy related operators, hooks & sensors                          |

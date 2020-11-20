@@ -825,6 +825,7 @@ imageVersion
 imap
 img
 imgcat
+impala
 impyla
 incompliancies
 infile

@@ -546,15 +546,16 @@ This is the full list of those extras:
   .. START EXTRAS HERE
 
 all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.druid, apache.hdfs,
-apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark, apache.sqoop,
-apache.webhdfs, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant, cncf.kubernetes,
-dask, databricks, datadog, dingding, discord, docker, druid, elasticsearch, exasol, facebook, ftp,
-gcp, gcp_api, github_enterprise, google, google_auth, grpc, hashicorp, hdfs, hive, http, imap, jdbc,
-jenkins, jira, kerberos, kubernetes, ldap, microsoft.azure, microsoft.mssql, microsoft.winrm, mongo,
-mssql, mysql, odbc, openfaas, opsgenie, oracle, pagerduty, papermill, password, pinot, plexus,
-postgres, presto, qds, qubole, rabbitmq, redis, salesforce, samba, segment, sendgrid, sentry, sftp,
-singularity, slack, snowflake, spark, sqlite, ssh, statsd, tableau, vertica, virtualenv, webhdfs,
-winrm, yandex, yandexcloud, zendesk, all, devel, devel_hadoop, doc, devel_all, devel_ci
+apache.hive, apache.impala, apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark,
+apache.sqoop, apache.webhdfs, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant,
+cncf.kubernetes, dask, databricks, datadog, dingding, discord, docker, druid, elasticsearch, exasol,
+facebook, ftp, gcp, gcp_api, github_enterprise, google, google_auth, grpc, hashicorp, hdfs, hive,
+http, imap, impala, jdbc, jenkins, jira, kerberos, kubernetes, ldap, microsoft.azure,
+microsoft.mssql, microsoft.winrm, mongo, mssql, mysql, odbc, openfaas, opsgenie, oracle, pagerduty,
+papermill, password, pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, salesforce,
+samba, segment, sendgrid, sentry, sftp, singularity, slack, snowflake, spark, sqlite, ssh, statsd,
+tableau, vertica, virtualenv, webhdfs, winrm, yandex, yandexcloud, zendesk, all, devel,
+devel_hadoop, doc, devel_all, devel_ci
 
   .. END EXTRAS HERE
 

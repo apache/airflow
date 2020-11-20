@@ -293,6 +293,7 @@ hive = [
     'hmsclient>=0.1.0',
     'pyhive[hive]>=0.6.0',
 ]
+impala = ["impyla>=0.16.3"]
 jdbc = [
     'jaydebeapi>=1.1.1',
 ]
@@ -526,6 +527,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "apache.druid": druid,
     "apache.hdfs": hdfs,
     "apache.hive": hive,
+    "apache.impala": impala,
     "apache.kylin": kylin,
     "apache.livy": [],
     "apache.pig": [],
@@ -592,6 +594,7 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     "apache.druid": druid,
     "apache.hdfs": hdfs,
     "apache.hive": hive,
+    "apache.impala": impala,
     "apache.kylin": kylin,
     "apache.livy": [],
     "apache.pig": [],
@@ -630,6 +633,7 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'hive': hive,  # TODO: remove this in Airflow 2.1
     'http': [],
     'imap': [],
+    'impala': impala,
     'jdbc': jdbc,
     'jenkins': [],
     'jira': jira,
@@ -691,6 +695,7 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
         "apache.druid",
         "apache.hdfs",
         "apache.hive",
+        "apache.impala",
         "apache.pinot",
         "cloudant",
         "exasol",
@@ -708,6 +713,7 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     "apache.druid": ["apache.druid"],
     "apache.hdfs": ["apache.hdfs"],
     "apache.hive": ["apache.hive"],
+    "apache.impala": ["apache.impala"],
     "apache.kylin": ["apache.kylin"],
     "apache.livy": ["apache.livy"],
     "apache.pig": ["apache.pig"],
@@ -749,6 +755,7 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'hive': ["apache.hive"],  # TODO: remove this in Airflow 2.1
     'http': ["http"],
     'imap': ["imap"],
+    'impala': ["apache.impala"],
     'jdbc': ["jdbc"],
     'jenkins': ["jenkins"],
     'jira': ["jira"],
