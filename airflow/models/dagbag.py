@@ -33,8 +33,8 @@ from typing import Dict, List, Match, NamedTuple, Optional, Tuple
 
 import tenacity
 from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
-from sqlalchemy.exc import OperationalError
 from sqlalchemy import event
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 from tabulate import tabulate
 
@@ -64,18 +64,16 @@ class FileLoadStat(NamedTuple):
 
 
 @contextlib.contextmanager
-def detect_queries(import_errors, traceback_depth):
+def detect_queries(import_errors: List[Tuple[str, str]], traceback_depth: int):
     """
     Detects errors in database queries while importing DAGs and reports these situations as a warning
     """
 
     def after_cursor_execute(*args, **kwargs):
-        del (args,)
+        del args
         del kwargs
         stack = "".join(traceback.format_stack(limit=-traceback_depth))
-        import_errors.append(
-            ("PerformanceWarning", f"Database queries during DAG file loading:\n" f"{stack}")
-        )
+        import_errors.append(("PerformanceWarning", f"Database queries during DAG file loading:\n{stack}"))
 
     event.listen(airflow.settings.engine, "after_cursor_execute", after_cursor_execute)
     yield
@@ -83,7 +81,7 @@ def detect_queries(import_errors, traceback_depth):
 
 
 @contextlib.contextmanager
-def detect_warnings(import_errors):
+def detect_warnings(import_errors: List[Tuple[str, str]]):
     with warnings.catch_warnings(record=True) as wrns:
         warnings.simplefilter("always")
         yield
@@ -96,7 +94,9 @@ def detect_warnings(import_errors):
 
 
 @contextlib.contextmanager
-def detect_exceptions(filepath, import_errors, display_tracebacks, traceback_depth):
+def detect_exceptions(
+    filepath: str, import_errors: List[Tuple[str, str]], display_tracebacks: bool, traceback_depth: int
+):
     try:
         yield
     except Exception as e:  # pylint: disable=broad-except
@@ -108,12 +108,14 @@ def detect_exceptions(filepath, import_errors, display_tracebacks, traceback_dep
 
 
 @contextlib.contextmanager
-def handle_import_errors(filepath, import_errors, display_tracebacks, traceback_depth):
+def handle_import_errors(
+    filepath: str, import_errors: List[Tuple[str, str]], display_tracebacks: bool, traceback_depth: int
+):
     with contextlib.ExitStack() as exit_stack:
         exit_stack.enter_context(detect_queries(import_errors, traceback_depth))
         exit_stack.enter_context(detect_warnings(import_errors))
         exit_stack.enter_context(
-            detect_exceptions(import_errors, filepath, display_tracebacks, traceback_depth)
+            detect_exceptions(filepath, import_errors, display_tracebacks, traceback_depth)
         )
         yield
 
@@ -422,11 +424,13 @@ class DagBag(LoggingMixin):
                 found_dags += dag.subdags
             except (CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError) as cron_e:
                 self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
-                self.import_errors[dag.full_filepath].append(f"Invalid Cron expression: {cron_e}")
+                self.import_errors[dag.full_filepath].append(
+                    (cron_e.__name__, f"Invalid Cron expression: {cron_e}")
+                )
                 self.file_last_changed[dag.full_filepath] = file_last_changed_on_disk
             except (AirflowDagCycleException, AirflowClusterPolicyViolation) as exception:
                 self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
-                self.import_errors[dag.full_filepath].append(str(exception))
+                self.import_errors[dag.full_filepath].append((exception.__name__, str(exception)))
                 self.file_last_changed[dag.full_filepath] = file_last_changed_on_disk
         return found_dags
 
@@ -525,8 +529,6 @@ class DagBag(LoggingMixin):
         durations = (end_dttm - start_dttm).total_seconds()
         Stats.gauge('collect_dags', durations, 1)
         Stats.gauge('dagbag_size', len(self.dags), 1)
-        Stats.gauge('dagbag_import_errors', len(self.import_errors), 1)
-        self.dagbag_stats = sorted(stats, key=lambda x: x.duration, reverse=True)
         Stats.gauge('dagbag_import_errors', sum(len(d) for d in self.import_errors.values()), 1)
         self.dagbag_stats = sorted(stats, key=lambda x: x.duration, reverse=True)
         for file_stat in self.dagbag_stats:
