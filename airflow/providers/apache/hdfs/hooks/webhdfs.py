@@ -135,7 +135,7 @@ class WebHDFSHook(BaseHook):
         :param parallelism: Number of threads to use for parallelization.
             A value of `0` (or negative) uses as many threads as there are files.
         :type parallelism: int
-        :param \**kwargs: Keyword arguments forwarded to :meth:`hdfs.client.Client.upload`.
+        :param kwargs: Keyword arguments forwarded to :meth:`hdfs.client.Client.upload`.
         """
         conn = self.get_conn()
 
