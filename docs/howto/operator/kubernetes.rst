@@ -36,7 +36,7 @@ you to create and run Pods on a Kubernetes cluster.
   simplifies the Kubernetes authorization process.
 
 .. note::
-  The :doc:`Kubernetes executor <../../../executor/kubernetes>` is **not** required to use this operator.
+  The :doc:`Kubernetes executor </executor/kubernetes>` is **not** required to use this operator.
 
 How does this operator work?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

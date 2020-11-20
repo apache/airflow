@@ -36,7 +36,7 @@ class AWSDataSyncOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:AWSDataSyncOperator`
+        :ref:`apache-airflow:howto/operator:AWSDataSyncOperator`
 
     .. note:: There may be 0, 1, or many existing DataSync Tasks defined in your AWS
         environment. The default behavior is to create a new Task if there are 0, or
@@ -290,7 +290,7 @@ class AWSDataSyncOperator(BaseOperator):
             )
         if not self.source_location_arn:
             raise AirflowException(
-                "Unable to determine source LocationArn." " Does a suitable DataSync Location exist?"
+                "Unable to determine source LocationArn. Does a suitable DataSync Location exist?"
             )
 
         self.destination_location_arn = self.choose_location(self.candidate_destination_location_arns)
@@ -305,7 +305,7 @@ class AWSDataSyncOperator(BaseOperator):
             )
         if not self.destination_location_arn:
             raise AirflowException(
-                "Unable to determine destination LocationArn." " Does a suitable DataSync Location exist?"
+                "Unable to determine destination LocationArn. Does a suitable DataSync Location exist?"
             )
 
         self.log.info("Creating a Task.")

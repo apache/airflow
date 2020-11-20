@@ -16,8 +16,8 @@
  specific language governing permissions and limitations
  under the License.
 -->
-Airflow OpenAPI clients
-=======================
+
+# Airflow OpenAPI clients
 
 Supported languages:
 

@@ -47,7 +47,7 @@ class TestDruidHook(unittest.TestCase):
             text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
         status_check = m.get(
-            'http://druid-overlord:8081/druid/indexer/v1/task/' '9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
+            'http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
             text='{"status":{"status": "FAILED"}}',
         )
 
@@ -65,7 +65,7 @@ class TestDruidHook(unittest.TestCase):
             text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
         status_check = m.get(
-            'http://druid-overlord:8081/druid/indexer/v1/task/' '9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
+            'http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
             text='{"status":{"status": "SUCCESS"}}',
         )
 
@@ -82,7 +82,7 @@ class TestDruidHook(unittest.TestCase):
             text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
         status_check = m.get(
-            'http://druid-overlord:8081/druid/indexer/v1/task/' '9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
+            'http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
             text='{"status":{"status": "SUCCESS"}}',
         )
 
@@ -106,7 +106,7 @@ class TestDruidHook(unittest.TestCase):
             text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
         status_check = m.get(
-            'http://druid-overlord:8081/druid/indexer/v1/task/' '9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
+            'http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
             text='{"status":{"status": "UNKNOWN"}}',
         )
 
@@ -126,7 +126,7 @@ class TestDruidHook(unittest.TestCase):
             text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
         status_check = m.get(
-            'http://druid-overlord:8081/druid/indexer/v1/task/' '9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
+            'http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
             text='{"status":{"status": "RUNNING"}}',
         )
         shutdown_post = m.post(

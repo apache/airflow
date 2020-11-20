@@ -27,6 +27,7 @@ CONFIG_TEMPLATES_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "config_t
 DEFAULT_AIRFLOW_SECTIONS = [
     'core',
     "logging",
+    "metrics",
     'secrets',
     'cli',
     'debug',
@@ -44,7 +45,6 @@ DEFAULT_AIRFLOW_SECTIONS = [
     'celery_broker_transport_options',
     'dask',
     'scheduler',
-    'ldap',
     'kerberos',
     'github_enterprise',
     'admin',

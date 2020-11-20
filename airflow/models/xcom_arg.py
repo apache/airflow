@@ -87,7 +87,8 @@ class XComArg(TaskMixin):
             xcom_pull_kwargs.append(f"key='{self.key}'")
 
         xcom_pull_kwargs = ", ".join(xcom_pull_kwargs)
-        xcom_pull = f"task_instance.xcom_pull({xcom_pull_kwargs})"
+        # {{{{ are required for escape {{ in f-string
+        xcom_pull = f"{{{{ task_instance.xcom_pull({xcom_pull_kwargs}) }}}}"
         return xcom_pull
 
     @property

@@ -119,7 +119,8 @@ class TestCliVariables(unittest.TestCase):
 
     def test_variables_import(self):
         """Test variables_import command"""
-        variable_command.variables_import(self.parser.parse_args(['variables', 'import', os.devnull]))
+        with self.assertRaisesRegex(SystemExit, r"Invalid variables file"):
+            variable_command.variables_import(self.parser.parse_args(['variables', 'import', os.devnull]))
 
     def test_variables_export(self):
         """Test variables_export command"""

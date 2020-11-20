@@ -137,7 +137,7 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         if self.store_to_xcom_key:
             file_bytes = hook.download(bucket_name=self.bucket, object_name=self.object)
             if sys.getsizeof(file_bytes) < MAX_XCOM_SIZE:
-                context['ti'].xcom_push(key=self.store_to_xcom_key, value=file_bytes)
+                context['ti'].xcom_push(key=self.store_to_xcom_key, value=str(file_bytes))
             else:
                 raise AirflowException('The size of the downloaded file is too large to push to XCom!')
         else:

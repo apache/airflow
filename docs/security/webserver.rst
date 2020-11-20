@@ -86,7 +86,8 @@ Other Methods
 '''''''''''''
 
 Standing on the shoulder of underlying framework Flask-AppBuilder, Airflow also supports authentication methods like
-OAuth, OpenID, LDAP, REMOTE_USER. You can configure in ``webserver_config.py``. For details, please refer to
+OAuth, OpenID, LDAP, REMOTE_USER. You can configure in ``$AIRFLOW_HOME/webserver_config.py``.
+For details, please refer to
 `Security section of FAB documentation <https://flask-appbuilder.readthedocs.io/en/latest/security.html>`_.
 
 SSL

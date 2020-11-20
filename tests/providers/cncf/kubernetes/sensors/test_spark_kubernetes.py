@@ -136,7 +136,7 @@ TEST_FAILED_APPLICATION = {
     },
     "status": {
         "applicationState": {
-            "errorMessage": "driver pod failed with " "ExitCode: 101, Reason: Error",
+            "errorMessage": "driver pod failed with ExitCode: 101, Reason: Error",
             "state": "FAILED",
         },
         "driverInfo": {

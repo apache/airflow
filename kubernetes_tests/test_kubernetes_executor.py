@@ -63,10 +63,11 @@ class TestKubernetesExecutor(unittest.TestCase):
         return len(names)
 
     @staticmethod
-    def _delete_airflow_pod():
+    def _delete_airflow_pod(name=''):
+        suffix = '-' + name if name else ''
         air_pod = check_output(['kubectl', 'get', 'pods']).decode()
         air_pod = air_pod.split('\n')
-        names = [re.compile(r'\s+').split(x)[0] for x in air_pod if 'airflow' in x]
+        names = [re.compile(r'\s+').split(x)[0] for x in air_pod if 'airflow' + suffix in x]
         if names:
             check_call(['kubectl', 'delete', 'pod', names[0]])
 
@@ -232,7 +233,7 @@ class TestKubernetesExecutor(unittest.TestCase):
 
         execution_date = self.start_job_in_kubernetes(dag_id, host)
 
-        self._delete_airflow_pod()
+        self._delete_airflow_pod("scheduler")
 
         time.sleep(10)  # give time for pod to restart
 

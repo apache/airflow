@@ -23,7 +23,7 @@ Why non-standard pull request workflow?
 This document describes the Pull Request Workflow we've implemented in Airflow. The workflow is slightly
 more complex than regular workflow you might encounter in most of the projects because after experiencing
 some huge delays in processing queues in October 2020 with GitHub Actions, we've decided to optimize the
-workflow to minimize the use of Github Actions build time by utilising selective approach on which tests
+workflow to minimize the use of GitHub Actions build time by utilising selective approach on which tests
 and checks in the CI system are run depending on analysis of which files changed in the incoming PR and
 allowing the Committers to control the scope of the tests during the approval/review process.
 
@@ -41,7 +41,7 @@ We approached the problem by:
    `cancel-workflow-run <https://github.com/potiuk/cancel-workflow-runs/>`_ action we are using. In version
    4.1 it got a new feature of cancelling all duplicates even if there is a long queue of builds.
 
-2) Heavily decreasing strain on the Github Actions jobs by introducing selective checks - mechanism
+2) Heavily decreasing strain on the GitHub Actions jobs by introducing selective checks - mechanism
    to control which parts of the tests are run during the tests. This is implemented by the
    ``scripts/ci/selective_ci_checks.sh`` script in our repository. This script analyses which part of the
    code has changed and based on that it sets the right outputs that control which tests are executed in
@@ -239,13 +239,13 @@ As explained above the approval and matrix tests workflow works according to the
    mode. For PRs touching core of airflow once the PR gets approved back, the label will be restored.
    If it was manually set by the committer, it has to be restored manually.
 
-.. note:: Note that setting the labels and adding comments might be delayed, due to limitation of Github Actions,
+.. note:: Note that setting the labels and adding comments might be delayed, due to limitation of GitHub Actions,
       in case of queues, processing of Pull Request reviews might take some time, so it is advised not to merge
       PR immediately after approval. Luckily, the comments describing the status of the PR trigger notifications
       for the PRs and they provide good "notification" for the committer to act on a PR that was recently
       approved.
 
-The PR approval workflow is possible thanks two two custom Github Actions we've developed:
+The PR approval workflow is possible thanks two two custom GitHub Actions we've developed:
 
 * `Get workflow origin <https://github.com/potiuk/get-workflow-origin/>`_
 * `Label when approved <https://github.com/TobKed/label-when-approved-action>`_

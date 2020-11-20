@@ -19,7 +19,7 @@
 """Add sensor_instance table
 
 Revision ID: e38be357a868
-Revises: 939bb1e647c8
+Revises: 03afc6b6f902
 Create Date: 2019-06-07 04:03:17.003939
 
 """
@@ -30,7 +30,7 @@ from sqlalchemy.dialects import mysql
 
 # revision identifiers, used by Alembic.
 revision = 'e38be357a868'
-down_revision = 'da3f683c3a5a'
+down_revision = '03afc6b6f902'
 branch_labels = None
 depends_on = None
 

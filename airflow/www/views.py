@@ -28,14 +28,16 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from json import JSONDecodeError
 from typing import Dict, List, Optional, Tuple
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 import lazy_object_proxy
 import nvd3
 import sqlalchemy as sqla
+import yaml
 from flask import (
     Markup,
     Response,
+    abort,
     current_app,
     escape,
     flash,
@@ -106,7 +108,13 @@ def get_safe_url(url):
     valid_schemes = ['http', 'https', '']
     valid_netlocs = [request.host, '']
 
+    if not url:
+        return url_for('Airflow.index')
+
     parsed = urlparse(url)
+
+    query = parse_qsl(parsed.query, keep_blank_values=True)
+    url = parsed._replace(query=urlencode(query)).geturl()
 
     if parsed.scheme in valid_schemes and parsed.netloc in valid_netlocs:
         return url
@@ -489,9 +497,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             if arg_tags_filter:
                 dags_query = dags_query.filter(DagModel.tags.any(DagTag.name.in_(arg_tags_filter)))
 
-            if permissions.RESOURCE_DAG not in filter_dag_ids:
-                dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
-                # pylint: enable=no-member
+            dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
+            # pylint: enable=no-member
 
             all_dags = dags_query
             active_dags = dags_query.filter(~DagModel.is_paused)
@@ -586,8 +593,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         dr = models.DagRun
 
         allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
-        if permissions.RESOURCE_DAG in allowed_dag_ids:
-            allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
         dag_state_stats = session.query(dr.dag_id, dr.state, sqla.func.count(dr.state)).group_by(
             dr.dag_id, dr.state
@@ -636,9 +641,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         if not allowed_dag_ids:
             return wwwutils.json_response({})
-
-        if permissions.RESOURCE_DAG in allowed_dag_ids:
-            allowed_dag_ids = {dag_id for dag_id, in session.query(models.DagModel.dag_id)}
 
         # Filter by post parameters
         selected_dag_ids = {unquote(dag_id) for dag_id in request.form.getlist('dag_ids') if dag_id}
@@ -753,9 +755,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Last DAG runs"""
         allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
 
-        if permissions.RESOURCE_DAG in allowed_dag_ids:
-            allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
-
         # Filter by post parameters
         selected_dag_ids = {unquote(dag_id) for dag_id in request.form.getlist('dag_ids') if dag_id}
 
@@ -866,7 +865,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             tags=tags,
         )
 
-    @expose('/rendered')
+    @expose('/rendered-templates')
     @auth.has_access(
         [
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
@@ -874,7 +873,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         ]
     )
     @action_logging
-    def rendered(self):
+    def rendered_templates(self):
         """Get rendered Dag."""
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
@@ -912,6 +911,60 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(
                     pformat(content)
                 )  # noqa
+
+        return self.render_template(
+            'airflow/ti_code.html',
+            html_dict=html_dict,
+            dag=dag,
+            task_id=task_id,
+            execution_date=execution_date,
+            form=form,
+            root=root,
+            title=title,
+        )
+
+    @expose('/rendered-k8s')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+        ]
+    )
+    @action_logging
+    def rendered_k8s(self):
+        """Get rendered k8s yaml."""
+        if not settings.IS_K8S_OR_K8SCELERY_EXECUTOR:
+            abort(404)
+        dag_id = request.args.get('dag_id')
+        task_id = request.args.get('task_id')
+        execution_date = request.args.get('execution_date')
+        dttm = timezone.parse(execution_date)
+        form = DateTimeForm(data={'execution_date': dttm})
+        root = request.args.get('root', '')
+        logging.info("Retrieving rendered templates.")
+        dag = current_app.dag_bag.get_dag(dag_id)
+        task = dag.get_task(task_id)
+        ti = models.TaskInstance(task=task, execution_date=dttm)
+
+        pod_spec = None
+        try:
+            pod_spec = ti.get_rendered_k8s_spec()
+        except AirflowException as e:
+            msg = "Error rendering Kubernetes POD Spec: " + escape(e)
+            if e.__cause__:  # pylint: disable=using-constant-test
+                msg += Markup("<br><br>OriginalError: ") + escape(e.__cause__)
+            flash(msg, "error")
+        except Exception as e:  # pylint: disable=broad-except
+            flash("Error rendering Kubernetes Pod Spec: " + str(e), "error")
+        title = "Rendered K8s Pod Spec"
+        html_dict = {}
+        renderers = wwwutils.get_attr_renderer()
+        if pod_spec:
+            content = yaml.dump(pod_spec)
+            content = renderers["yaml"](content)
+        else:
+            content = Markup("<pre><code>Error rendering Kubernetes POD Spec</pre></code>")
+        html_dict['k8s'] = content
 
         return self.render_template(
             'airflow/ti_code.html',
@@ -1124,7 +1177,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         dag = current_app.dag_bag.get_dag(dag_id)
 
         if not dag or task_id not in dag.task_ids:
-            flash("Task [{}.{}] doesn't seem to exist" " at the moment".format(dag_id, task_id), "error")
+            flash(f"Task [{dag_id}.{task_id}] doesn't seem to exist at the moment", "error")
             return redirect(url_for('Airflow.index'))
         task = copy.copy(dag.get_task(task_id))
         task.resolve_template_files()
@@ -1217,7 +1270,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         ti = session.query(ti_db).filter(ti_db.dag_id == dag_id and ti_db.task_id == task_id).first()
 
         if not ti:
-            flash("Task [{}.{}] doesn't seem to exist" " at the moment".format(dag_id, task_id), "error")
+            flash(f"Task [{dag_id}.{task_id}] doesn't seem to exist at the moment", "error")
             return redirect(url_for('Airflow.index'))
 
         xcomlist = (
@@ -1315,7 +1368,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             ignore_ti_state=ignore_ti_state,
         )
         executor.heartbeat()
-        flash("Sent {} to the message queue, " "it should start any moment now.".format(ti))
+        flash(f"Sent {ti} to the message queue, it should start any moment now.")
         return redirect(origin)
 
     @expose('/delete', methods=['POST'])
@@ -1339,10 +1392,10 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             flash(f"DAG with id {dag_id} not found. Cannot delete", 'error')
             return redirect(request.referrer)
         except DagFileExists:
-            flash("Dag id {} is still in DagBag. " "Remove the DAG file first.".format(dag_id), 'error')
+            flash(f"Dag id {dag_id} is still in DagBag. Remove the DAG file first.", 'error')
             return redirect(request.referrer)
 
-        flash("Deleting DAG with id {}. May take a couple minutes to fully" " disappear.".format(dag_id))
+        flash(f"Deleting DAG with id {dag_id}. May take a couple minutes to fully disappear.")
 
         # Upon success return to origin.
         return redirect(origin)
@@ -1409,7 +1462,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             dag_hash=current_app.dag_bag.dags_hash.get(dag_id),
         )
 
-        flash("Triggered {}, " "it should start any moment now.".format(dag_id))
+        flash(f"Triggered {dag_id}, it should start any moment now.")
         return redirect(origin)
 
     def _clear_dag_tis(
@@ -1448,7 +1501,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
             response = self.render_template(
                 'airflow/confirm.html',
-                message=("Here's the list of task instances you are about " "to clear:"),
+                message="Here's the list of task instances you are about to clear:",
                 details=details,
             )
 
@@ -1531,9 +1584,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     def blocked(self, session=None):
         """Mark Dag Blocked."""
         allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
-
-        if permissions.RESOURCE_DAG in allowed_dag_ids:
-            allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
         # Filter by post parameters
         selected_dag_ids = {unquote(dag_id) for dag_id in request.form.getlist('dag_ids') if dag_id}
@@ -1717,7 +1767,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         response = self.render_template(
             "airflow/confirm.html",
-            message=(f"Here's the list of task instances you are about to mark as {state}:"),
+            message=f"Here's the list of task instances you are about to mark as {state}:",
             details=details,
         )
 
@@ -1836,7 +1886,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             )
         dag_runs = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
 
-        dates = sorted(list(dag_runs.keys()))
+        dates = sorted(dag_runs.keys())
         max_date = max(dates) if dates else None
         min_date = min(dates) if dates else None
 
@@ -1925,9 +1975,14 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             'instances': [dag_runs.get(d) or {'execution_date': d.isoformat()} for d in dates],
         }
 
-        form = DateTimeWithNumRunsForm(data={'base_date': max_date, 'num_runs': num_runs})
+        form = DateTimeWithNumRunsForm(
+            data={
+                'base_date': max_date or timezone.utcnow(),
+                'num_runs': num_runs,
+            }
+        )
 
-        doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None), css_class='dag-doc')
+        doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None))
 
         task_log_reader = TaskLogReader()
         if task_log_reader.supports_external_link:
@@ -2013,7 +2068,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         if not tasks:
             flash("No tasks found", "error")
         session.commit()
-        doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None), css_class='dag-doc')
+        doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None))
 
         task_log_reader = TaskLogReader()
         if task_log_reader.supports_external_link:
@@ -2131,25 +2186,29 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         cum_chart.create_y_axis('yAxis', format='.02f', custom_format=False, label=f'Duration ({cum_y_unit})')
         cum_chart.axislist['yAxis']['axisLabelDistance'] = '-15'
 
-        for task in dag.tasks:
-            if x_points[task.task_id]:
-                chart.add_serie(
-                    name=task.task_id,
-                    x=x_points[task.task_id],
-                    y=scale_time_units(y_points[task.task_id], y_unit),
-                )
-                cum_chart.add_serie(
-                    name=task.task_id,
-                    x=x_points[task.task_id],
-                    y=scale_time_units(cumulative_y[task.task_id], cum_y_unit),
-                )
+        for task_id in x_points:
+            chart.add_serie(
+                name=task_id,
+                x=x_points[task_id],
+                y=scale_time_units(y_points[task_id], y_unit),
+            )
+            cum_chart.add_serie(
+                name=task_id,
+                x=x_points[task_id],
+                y=scale_time_units(cumulative_y[task_id], cum_y_unit),
+            )
 
-        dates = sorted(list({ti.execution_date for ti in task_instances}))
+        dates = sorted({ti.execution_date for ti in task_instances})
         max_date = max([ti.execution_date for ti in task_instances]) if dates else None
 
         session.commit()
 
-        form = DateTimeWithNumRunsForm(data={'base_date': max_date, 'num_runs': num_runs})
+        form = DateTimeWithNumRunsForm(
+            data={
+                'base_date': max_date or timezone.utcnow(),
+                'num_runs': num_runs,
+            }
+        )
         chart.buildcontent()
         cum_chart.buildcontent()
         s_index = cum_chart.htmlcontent.rfind('});')
@@ -2216,14 +2275,19 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 chart.add_serie(name=task.task_id, x=x_points, y=y_points)
 
         tis = dag.get_task_instances(start_date=min_date, end_date=base_date)
-        tries = sorted(list({ti.try_number for ti in tis}))
+        tries = sorted({ti.try_number for ti in tis})
         max_date = max([ti.execution_date for ti in tis]) if tries else None
         chart.create_y_axis('yAxis', format='.02f', custom_format=False, label='Tries')
         chart.axislist['yAxis']['axisLabelDistance'] = '-15'
 
         session.commit()
 
-        form = DateTimeWithNumRunsForm(data={'base_date': max_date, 'num_runs': num_runs})
+        form = DateTimeWithNumRunsForm(
+            data={
+                'base_date': max_date or timezone.utcnow(),
+                'num_runs': num_runs,
+            }
+        )
 
         chart.buildcontent()
 
@@ -2291,21 +2355,26 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         # update the y Axis to have the correct time units
         chart.create_y_axis('yAxis', format='.02f', custom_format=False, label=f'Landing Time ({y_unit})')
         chart.axislist['yAxis']['axisLabelDistance'] = '-15'
-        for task in dag.tasks:
-            if x_points[task.task_id]:
-                chart.add_serie(
-                    name=task.task_id,
-                    x=x_points[task.task_id],
-                    y=scale_time_units(y_points[task.task_id], y_unit),
-                )
+
+        for task_id in x_points:
+            chart.add_serie(
+                name=task_id,
+                x=x_points[task_id],
+                y=scale_time_units(y_points[task_id], y_unit),
+            )
 
         tis = dag.get_task_instances(start_date=min_date, end_date=base_date)
-        dates = sorted(list({ti.execution_date for ti in tis}))
+        dates = sorted({ti.execution_date for ti in tis})
         max_date = max([ti.execution_date for ti in tis]) if dates else None
 
         session.commit()
 
-        form = DateTimeWithNumRunsForm(data={'base_date': max_date, 'num_runs': num_runs})
+        form = DateTimeWithNumRunsForm(
+            data={
+                'base_date': max_date or timezone.utcnow(),
+                'num_runs': num_runs,
+            }
+        )
         chart.buildcontent()
         return self.render_template(
             'airflow/chart.html',
@@ -2418,38 +2487,33 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             )
         )
 
-        # determine bars to show in the gantt chart
-        gantt_bar_items = []
-
         tasks = []
         for ti in tis:
-            end_date = ti.end_date or timezone.utcnow()
             # prev_attempted_tries will reflect the currently running try_number
             # or the try_number of the last complete run
             # https://issues.apache.org/jira/browse/AIRFLOW-2143
-            try_count = ti.prev_attempted_tries
-            gantt_bar_items.append((ti.task_id, ti.start_date, end_date, ti.state, try_count))
+            try_count = ti.prev_attempted_tries if ti.prev_attempted_tries != 0 else ti.try_number
             task_dict = alchemy_to_dict(ti)
+            task_dict['end_date'] = task_dict['end_date'] or timezone.utcnow()
             task_dict['extraLinks'] = dag.get_task(ti.task_id).extra_links
+            task_dict['try_number'] = try_count
             tasks.append(task_dict)
 
         tf_count = 0
         try_count = 1
         prev_task_id = ""
         for failed_task_instance in ti_fails:
-            end_date = failed_task_instance.end_date or timezone.utcnow()
-            start_date = failed_task_instance.start_date or end_date
             if tf_count != 0 and failed_task_instance.task_id == prev_task_id:
                 try_count += 1
             else:
                 try_count = 1
             prev_task_id = failed_task_instance.task_id
-            gantt_bar_items.append(
-                (failed_task_instance.task_id, start_date, end_date, State.FAILED, try_count)
-            )
             tf_count += 1
             task = dag.get_task(failed_task_instance.task_id)
             task_dict = alchemy_to_dict(failed_task_instance)
+            end_date = task_dict['end_date'] or timezone.utcnow()
+            task_dict['end_date'] = end_date
+            task_dict['start_date'] = task_dict['start_date'] or end_date
             task_dict['state'] = State.FAILED
             task_dict['operator'] = task.task_type
             task_dict['try_number'] = try_count
@@ -2690,6 +2754,8 @@ class XComModelView(AirflowModelView):
 
     route_base = '/xcom'
 
+    list_title = 'List XComs'
+
     datamodel = AirflowModelView.CustomSQLAInterface(XCom)
 
     class_permission_name = permissions.RESOURCE_XCOM
@@ -2780,10 +2846,19 @@ class ConnectionModelView(AirflowModelView):
         'extra__kubernetes__kube_config',
         'extra__kubernetes__namespace',
     ]
-    list_columns = ['conn_id', 'conn_type', 'host', 'port', 'is_encrypted', 'is_extra_encrypted']
+    list_columns = [
+        'conn_id',
+        'conn_type',
+        'description',
+        'host',
+        'port',
+        'is_encrypted',
+        'is_extra_encrypted',
+    ]
     add_columns = edit_columns = [
         'conn_id',
         'conn_type',
+        'description',
         'host',
         'schema',
         'login',
@@ -2819,7 +2894,11 @@ class ConnectionModelView(AirflowModelView):
     def prefill_form(self, form, pk):
         """Prefill the form."""
         try:
-            extra_dictionary = json.loads(form.data.get('extra', '{}'))
+            extra = form.data.get('extra')
+            if extra is None:
+                extra_dictionary = {}
+            else:
+                extra_dictionary = json.loads(extra)
         except JSONDecodeError:
             extra_dictionary = {}
 
@@ -2868,7 +2947,6 @@ class PluginView(AirflowBaseView):
     def list(self):
         """List loaded plugins."""
         plugins_manager.ensure_plugins_loaded()
-        plugins_manager.integrate_dag_plugins()
         plugins_manager.integrate_executor_plugins()
         plugins_manager.initialize_extra_operators_links_plugins()
         plugins_manager.initialize_web_ui_plugins()
@@ -3656,9 +3734,8 @@ class DagModelView(AirflowModelView):
 
         filter_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
         # pylint: disable=no-member
-        if permissions.RESOURCE_DAG not in filter_dag_ids:
-            dag_ids_query = dag_ids_query.filter(DagModel.dag_id.in_(filter_dag_ids))
-            owners_query = owners_query.filter(DagModel.dag_id.in_(filter_dag_ids))
+        dag_ids_query = dag_ids_query.filter(DagModel.dag_id.in_(filter_dag_ids))
+        owners_query = owners_query.filter(DagModel.dag_id.in_(filter_dag_ids))
         # pylint: enable=no-member
 
         payload = [row[0] for row in dag_ids_query.union(owners_query).limit(10).all()]

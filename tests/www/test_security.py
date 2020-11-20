@@ -229,6 +229,33 @@ class TestSecurity(unittest.TestCase):
 
         self.assertEqual(self.security_manager.get_accessible_dag_ids(user), {'dag_id'})
 
+    def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(self):
+        # In this test case,
+        # get_readable_dag_ids() don't return DAGs to which the user has CAN_EDIT permission
+        username = "Monsieur User"
+        role_name = "MyRole1"
+        permission_action = [permissions.ACTION_CAN_EDIT]
+        dag_id = "dag_id"
+
+        user = fab_utils.create_user(
+            self.app,
+            username,
+            role_name,
+            permissions=[
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            ],
+        )
+
+        dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
+        self.session.add(dag_model)
+        self.session.commit()
+
+        self.security_manager.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
+            dag_id, access_control={role_name: permission_action}
+        )
+
+        self.assertEqual(self.security_manager.get_readable_dag_ids(user), set())
+
     @mock.patch('airflow.www.security.AirflowSecurityManager._has_view_access')
     def test_has_access(self, mock_has_view_access):
         user = mock.MagicMock()

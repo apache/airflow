@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
 from datetime import timedelta
 from typing import Optional
 
@@ -35,7 +34,7 @@ from airflow.www.extensions.init_dagbag import init_dagbag
 from airflow.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.www.extensions.init_manifest_files import configure_manifest_files
 from airflow.www.extensions.init_security import init_api_experimental_auth, init_xframe_protection
-from airflow.www.extensions.init_session import init_logout_timeout, init_permanent_session
+from airflow.www.extensions.init_session import init_permanent_session
 from airflow.www.extensions.init_views import (
     init_api_connexion,
     init_api_experimental,
@@ -70,9 +69,7 @@ def create_app(config=None, testing=False, app_name="Airflow"):
     flask_app = Flask(__name__)
     flask_app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
-    session_lifetime_days = conf.getint('webserver', 'SESSION_LIFETIME_DAYS', fallback=30)
-    flask_app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=session_lifetime_days)
-
+    flask_app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=settings.get_session_lifetime_config())
     flask_app.config.from_pyfile(settings.WEBSERVER_CONFIG, silent=True)
     flask_app.config['APP_NAME'] = app_name
     flask_app.config['TESTING'] = testing
@@ -124,7 +121,6 @@ def create_app(config=None, testing=False, app_name="Airflow"):
         sync_appbuilder_roles(flask_app)
 
         init_jinja_globals(flask_app)
-        init_logout_timeout(flask_app)
         init_xframe_protection(flask_app)
         init_permanent_session(flask_app)
 

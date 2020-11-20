@@ -242,7 +242,7 @@ if __name__ == '__main__':
         print(f"Total: {len(errors)} errors.")
     unique_sorted_dependencies: Dict[str, List[str]] = {}
     for key in sorted(dependencies.keys()):
-        unique_sorted_dependencies[key] = sorted(list(set(dependencies[key])))
+        unique_sorted_dependencies[key] = sorted(set(dependencies[key]))
     if provider_dependencies_file_name:
         with open(provider_dependencies_file_name, "w") as providers_file:
             json.dump(unique_sorted_dependencies, providers_file, indent=2)

@@ -38,9 +38,7 @@ from tabulate import tabulate
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.dag.base_dag import BaseDagBag
 from airflow.exceptions import AirflowClusterPolicyViolation, AirflowDagCycleException, SerializedDagNotFound
-from airflow.plugins_manager import integrate_dag_plugins
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import test_cycle
@@ -60,7 +58,7 @@ class FileLoadStat(NamedTuple):
     dags: str
 
 
-class DagBag(BaseDagBag, LoggingMixin):
+class DagBag(LoggingMixin):
     """
     A dagbag is a collection of dags, parsed out of a folder tree and has high
     level configuration settings, like what database to use as a backend and
@@ -139,7 +137,7 @@ class DagBag(BaseDagBag, LoggingMixin):
     def store_serialized_dags(self) -> bool:
         """Whether or not to read dags from DB"""
         warnings.warn(
-            "The store_serialized_dags property has been deprecated. " "Use read_dags_from_db instead.",
+            "The store_serialized_dags property has been deprecated. Use read_dags_from_db instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -147,6 +145,10 @@ class DagBag(BaseDagBag, LoggingMixin):
 
     @property
     def dag_ids(self) -> List[str]:
+        """
+        :return: a list of DAG IDs in this bag
+        :rtype: List[unicode]
+        """
         return list(self.dags.keys())
 
     @provide_session
@@ -236,8 +238,6 @@ class DagBag(BaseDagBag, LoggingMixin):
         Given a path to a python module or zip file, this method imports
         the module and look for dag objects within it.
         """
-        integrate_dag_plugins()
-
         # if the source file no longer exists in the DB or in the filesystem,
         # return an empty list
         # todo: raise exception?
@@ -386,8 +386,11 @@ class DagBag(BaseDagBag, LoggingMixin):
         dag.resolve_template_files()
         dag.last_loaded = timezone.utcnow()
 
+        # Check policies
+        settings.dag_policy(dag)
+
         for task in dag.tasks:
-            settings.policy(task)
+            settings.task_policy(task)
 
         subdags = dag.subdags
 

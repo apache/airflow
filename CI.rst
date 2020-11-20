@@ -203,7 +203,8 @@ You can use those variables when you try to reproduce the build locally.
 |                                                           Image variables                                                          |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``INSTALL_AIRFLOW_VERSION``             |             |             |            | Installs Airflow version from PyPI when         |
-|                                         |             |             |            | building image.                                 |
+|                                         |             |             |            | building image. Can be "wheel" to install from  |
+|                                         |             |             |            | the wheel package instead.                      |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``INSTALL_AIRFLOW_REFERENCE``           |             |             |            | Installs Airflow version from GitHub            |
 |                                         |             |             |            | branch or tag.                                  |
@@ -361,12 +362,6 @@ Note that you need to set "CI" variable to true in order to get the same results
 | CI_EVENT_TYPE                | ``pull_request``     | Type of the event. It can be one of                 |
 |                              |                      | [``pull_request``, ``pull_request_target``,         |
 |                              |                      |  ``schedule``, ``push``]                            |
-+------------------------------+----------------------+-----------------------------------------------------+
-| CI_SOURCE_REPO               | ``apache/airflow``   | Source repository. This might be different than the |
-|                              |                      | ``CI_TARGET_REPO`` for pull requests                |
-+------------------------------+----------------------+-----------------------------------------------------+
-| CI_SOURCE_BRANCH             | ``master``           | Branch in the source repository that is used to     |
-|                              |                      | make the pull request.                              |
 +------------------------------+----------------------+-----------------------------------------------------+
 | CI_REF                       | ``refs/head/master`` | Branch in the source repository that is used to     |
 |                              |                      | make the pull request.                              |
@@ -700,8 +695,21 @@ We also have a script that can help to clean-up the old artifacts:
 CodeQL scan
 -----------
 
-The CodeQL security scan uses GitHub security scan framework to scan our code for security violations.
+The `CodeQL <https://securitylab.github.com/tools/codeql>`_ security scan uses GitHub security scan framework to scan our code for security violations.
 It is run for JavaScript and python code.
+
+Publishing documentation
+------------------------
+
+Documentation from the ``master`` branch is automatically published on Amazon S3.
+
+To make this possible, Github Action has secrets set up with credentials
+for an Amazon Web Service account - ``DOCS_AWS_ACCESS_KEY_ID`` and ``DOCS_AWS_SECRET_ACCESS_KEY``.
+
+This account has permission to write/list/put objects to bucket ``apache-airflow-docs``. This bucket has public access configured, which means it is accessible through the website endpoint. For more information, see: `Hosting a static website on Amazon S3
+ <https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html>`_
+
+Website endpoint: http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/
 
 Naming conventions for stored images
 ====================================

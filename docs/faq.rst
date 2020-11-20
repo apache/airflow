@@ -94,7 +94,7 @@ What's the deal with ``start_date``?
 relevant in many ways. When creating a new DAG, you probably want to set
 a global ``start_date`` for your tasks using ``default_args``. The first
 DagRun to be created will be based on the ``min(start_date)`` for all your
-task. From that point on, the scheduler creates new DagRuns based on
+tasks. From that point on, the scheduler creates new DagRuns based on
 your ``schedule_interval`` and the corresponding task instances run as your
 dependencies are met. When introducing new tasks to your DAG, you need to
 pay special attention to ``start_date``, and may want to reactivate
@@ -206,7 +206,7 @@ How to reduce airflow dag scheduling latency in production?
 -----------------------------------------------------------
 
 - ``max_threads``: Scheduler will spawn multiple threads in parallel to schedule dags. This is controlled by ``max_threads`` with default value of 2. User should increase this value to a larger value (e.g numbers of cpus where scheduler runs - 1) in production.
-- ``scheduler_heartbeat_sec``: User should consider to increase ``scheduler_heartbeat_sec`` config to a higher value (e.g 60 secs) which controls how frequent the airflow scheduler gets the heartbeat and updates the job's entry in database.
+- If you're using Airflow 1.10.x, consider moving to Airflow 2, which has reduced dag scheduling latency dramatically, and allows for running multiple schedulers.
 
 Why next_ds or prev_ds might not contain expected values?
 ---------------------------------------------------------

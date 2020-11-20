@@ -63,7 +63,7 @@ class BaseXCom(Base, LoggingMixin):
         i.e automatically deserialize Xcom value when loading from DB.
         """
         try:
-            self.value = XCom.deserialize_value(self)
+            self.value = self.orm_deserialize_value()
         except (UnicodeEncodeError, ValueError):
             # For backward-compatibility.
             # Preventing errors in webserver
@@ -235,16 +235,16 @@ class BaseXCom(Base, LoggingMixin):
             return json.dumps(value).encode('UTF-8')
         except (ValueError, TypeError):
             log.error(
-                "Could not serialize the XCOM value into JSON. "
+                "Could not serialize the XCom value into JSON. "
                 "If you are using pickles instead of JSON "
-                "for XCOM, then you need to enable pickle "
-                "support for XCOM in your airflow config."
+                "for XCom, then you need to enable pickle "
+                "support for XCom in your airflow config."
             )
             raise
 
     @staticmethod
-    def deserialize_value(result) -> Any:
-        """Deserialize Xcom value from str or pickle object"""
+    def deserialize_value(result: "XCom") -> Any:
+        """Deserialize XCom value from str or pickle object"""
         enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
         if enable_pickling:
             return pickle.loads(result.value)
@@ -252,12 +252,23 @@ class BaseXCom(Base, LoggingMixin):
             return json.loads(result.value.decode('UTF-8'))
         except JSONDecodeError:
             log.error(
-                "Could not deserialize the XCOM value from JSON. "
+                "Could not deserialize the XCom value from JSON. "
                 "If you are using pickles instead of JSON "
-                "for XCOM, then you need to enable pickle "
-                "support for XCOM in your airflow config."
+                "for XCom, then you need to enable pickle "
+                "support for XCom in your airflow config."
             )
             raise
+
+    def orm_deserialize_value(self) -> Any:
+        """
+        Deserialize method which is used to reconstruct ORM XCom object.
+
+        This method should be overridden in custom XCom backends to avoid
+        unnecessary request or other resource consuming operations when
+        creating XCom orm model. This is used when viewing XCom listing
+        in the webserver, for example.
+        """
+        return BaseXCom.deserialize_value(self)
 
 
 def resolve_xcom_backend():

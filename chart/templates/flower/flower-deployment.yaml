@@ -33,7 +33,7 @@ metadata:
 {{ toYaml . | indent 4 }}
 {{- end }}
   annotations:
-    checksum/airflow-config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
 spec:
   replicas: 1
   selector:

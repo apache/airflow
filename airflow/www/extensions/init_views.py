@@ -20,7 +20,7 @@ from os import path
 
 import connexion
 from connexion import ProblemException
-from flask import Flask
+from flask import Flask, request
 
 from airflow.api_connexion.exceptions import common_error_handler
 from airflow.security import permissions
@@ -135,11 +135,27 @@ def init_error_handlers(app: Flask):
 
 def init_api_connexion(app: Flask) -> None:
     """Initialize Stable API"""
+    base_path = '/api/v1'
+
+    from airflow.www import views
+
+    @app.errorhandler(404)
+    @app.errorhandler(405)
+    def _handle_api_error(ex):
+        if request.path.startswith(base_path):
+            # 404 errors are never handled on the blueprint level
+            # unless raised from a view func so actual 404 errors,
+            # i.e. "no route for it" defined, need to be handled
+            # here on the application level
+            return common_error_handler(ex)
+        else:
+            return views.circles(ex)
+
     spec_dir = path.join(ROOT_APP_DIR, 'api_connexion', 'openapi')
     connexion_app = connexion.App(__name__, specification_dir=spec_dir, skip_error_handlers=True)
     connexion_app.app = app
     api_bp = connexion_app.add_api(
-        specification='v1.yaml', base_path='/api/v1', validate_responses=True, strict_validation=True
+        specification='v1.yaml', base_path=base_path, validate_responses=True, strict_validation=True
     ).blueprint
     app.register_error_handler(ProblemException, common_error_handler)
     app.extensions['csrf'].exempt(api_bp)

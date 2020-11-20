@@ -144,9 +144,11 @@ class TestGetEventLogs(TestEventLogEndpoint):
             event='TEST_EVENT_2',
             task_instance=self._create_task_instance(),
         )
+        log_model_3 = Log(event="cli_scheduler", owner='root', extra='{"host_name": "e24b454f002a"}')
         log_model_1.dttm = timezone.parse(self.default_time)
         log_model_2.dttm = timezone.parse(self.default_time_2)
-        session.add_all([log_model_1, log_model_2])
+        log_model_3.dttm = timezone.parse(self.default_time_2)
+        session.add_all([log_model_1, log_model_2, log_model_3])
         session.commit()
         response = self.client.get("/api/v1/eventLogs", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
@@ -174,8 +176,18 @@ class TestGetEventLogs(TestEventLogEndpoint):
                         "when": self.default_time_2,
                         "extra": None,
                     },
+                    {
+                        "event_log_id": log_model_3.id,
+                        "event": "cli_scheduler",
+                        "dag_id": None,
+                        "task_id": None,
+                        "execution_date": None,
+                        "owner": 'root',
+                        "when": self.default_time_2,
+                        "extra": '{"host_name": "e24b454f002a"}',
+                    },
                 ],
-                "total_entries": 2,
+                "total_entries": 3,
             },
         )
 

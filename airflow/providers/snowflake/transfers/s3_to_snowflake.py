@@ -28,6 +28,10 @@ class S3ToSnowflakeOperator(BaseOperator):
     """
     Executes an COPY command to load files from s3 to Snowflake
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`apache-airflow:howto/operator:S3ToSnowflakeOperator`
+
     :param s3_keys: reference to a list of S3 keys
     :type s3_keys: list
     :param table: reference to a specific table in snowflake database

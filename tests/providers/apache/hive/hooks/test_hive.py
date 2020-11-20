@@ -219,7 +219,7 @@ class TestHiveCliHook(unittest.TestCase):
         hook = MockHiveCliHook()
         hook.load_file(filepath=filepath, table=table, create=False)
 
-        query = "LOAD DATA LOCAL INPATH '{filepath}' " "OVERWRITE INTO TABLE {table} ;\n".format(
+        query = "LOAD DATA LOCAL INPATH '{filepath}' OVERWRITE INTO TABLE {table} ;\n".format(
             filepath=filepath, table=table
         )
         calls = [mock.call(query)]
@@ -243,7 +243,7 @@ class TestHiveCliHook(unittest.TestCase):
             "STORED AS textfile\n;".format(table=table, fields=fields)
         )
 
-        load_data = "LOAD DATA LOCAL INPATH '{filepath}' " "OVERWRITE INTO TABLE {table} ;\n".format(
+        load_data = "LOAD DATA LOCAL INPATH '{filepath}' OVERWRITE INTO TABLE {table} ;\n".format(
             filepath=filepath, table=table
         )
         calls = [mock.call(create_table), mock.call(load_data)]

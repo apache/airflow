@@ -464,6 +464,27 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_list_rows_with_empty_selected_fields(self, mock_client, mock_table):
+        self.hook.list_rows(
+            dataset_id=DATASET_ID,
+            table_id=TABLE_ID,
+            max_results=10,
+            page_token="page123",
+            selected_fields=[],
+            start_index=5,
+            location=LOCATION,
+        )
+        mock_table.from_api_repr.assert_called_once_with({"tableReference": TABLE_REFERENCE_REPR})
+        mock_client.return_value.list_rows.assert_called_once_with(
+            table=mock_table.from_api_repr.return_value,
+            max_results=10,
+            page_token='page123',
+            selected_fields=None,
+            start_index=5,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_run_table_delete(self, mock_client, mock_table):
         source_project_dataset_table = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
         self.hook.run_table_delete(source_project_dataset_table, ignore_if_missing=False)
@@ -1009,7 +1030,7 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
         self.assertIsNone(result)
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_rowcunt(self, mock_get_service):
+    def test_rowcount(self, mock_get_service):
         bq_cursor = self.hook.get_cursor()
         result = bq_cursor.rowcount
         self.assertEqual(-1, result)

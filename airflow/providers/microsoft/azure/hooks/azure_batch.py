@@ -148,7 +148,7 @@ class AzureBatchHook(BaseHook):
 
         elif os_family:
             self.log.info(
-                'Using cloud service configuration to create pool, ' 'virtual machine configuration ignored'
+                'Using cloud service configuration to create pool, virtual machine configuration ignored'
             )
             pool = batch_models.PoolAddParameter(
                 id=pool_id,

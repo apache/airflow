@@ -104,8 +104,12 @@ function push_pull_remove_images::pull_image_github_dockerhub() {
 
 # Pulls CI image in case caching strategy is "pulled" and the image needs to be pulled
 function push_pull_remove_images::pull_ci_images_if_needed() {
-
     if [[ "${DOCKER_CACHE}" == "pulled" ]]; then
+        local python_image_hash
+        python_image_hash=$(docker images -q "${AIRFLOW_CI_PYTHON_IMAGE}" 2> /dev/null || true)
+        if [[ -z "${python_image_hash=}" ]]; then
+            FORCE_PULL_IMAGES="true"
+        fi
         if [[ "${FORCE_PULL_IMAGES}" == "true" ]]; then
             echo
             echo "Force pull base image ${PYTHON_BASE_IMAGE}"
@@ -122,7 +126,8 @@ Docker pulling ${PYTHON_BASE_IMAGE}.
                 fi
                 push_pull_remove_images::pull_image_github_dockerhub "${PYTHON_BASE_IMAGE}" "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
             else
-                docker pull "${PYTHON_BASE_IMAGE}"
+                docker pull "${AIRFLOW_CI_PYTHON_IMAGE}"
+                docker tag "${AIRFLOW_CI_PYTHON_IMAGE}" "${PYTHON_BASE_IMAGE}"
             fi
             echo
         fi
@@ -149,7 +154,8 @@ function push_pull_remove_images::pull_prod_images_if_needed() {
                 fi
                 push_pull_remove_images::pull_image_github_dockerhub "${PYTHON_BASE_IMAGE}" "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
             else
-                docker pull "${PYTHON_BASE_IMAGE}"
+                docker pull "${AIRFLOW_CI_PYTHON_IMAGE}"
+                docker tag "${AIRFLOW_CI_PYTHON_IMAGE}" "${PYTHON_BASE_IMAGE}"
             fi
             echo
         fi
@@ -174,6 +180,9 @@ function push_pull_remove_images::push_ci_images_to_dockerhub() {
         # Only push default image to DockerHub registry if it is defined
         push_pull_remove_images::push_image_with_retries "${DEFAULT_CI_IMAGE}"
     fi
+    # Also push python image so that we use the same image as the CI image it was built with
+    docker tag "${PYTHON_BASE_IMAGE}" "${AIRFLOW_CI_PYTHON_IMAGE}"
+    push_pull_remove_images::push_image_with_retries "${AIRFLOW_CI_PYTHON_IMAGE}"
 }
 
 # Pushes Ci images and their tags to registry in GitHub
@@ -196,21 +205,7 @@ function push_pull_remove_images::push_ci_images_to_github() {
         PYTHON_TAG_SUFFIX="-${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
     fi
     docker tag "${PYTHON_BASE_IMAGE}" "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
-    set +e
     push_pull_remove_images::push_image_with_retries "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
-    local result=$?
-    set -e
-    if [[ ${result} != "0" ]]; then
-        >&2 echo
-        >&2 echo "There was an unexpected error when pushing images to the GitHub Registry"
-        >&2 echo
-        >&2 echo "If you see 'unknown blob' or similar kind of error it means that it was a transient error"
-        >&2 echo "And it will likely be gone next time"
-        >&2 echo
-        >&2 echo "Please rebase your change or 'git commit --amend; git push --force' and try again"
-        >&2 echo
-        exit "${result}"
-    fi
 }
 
 
@@ -253,22 +248,7 @@ function push_pull_remove_images::push_prod_images_to_github () {
     # Also push prod build image
     AIRFLOW_PROD_BUILD_TAGGED_IMAGE="${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
     docker tag "${AIRFLOW_PROD_BUILD_IMAGE}" "${AIRFLOW_PROD_BUILD_TAGGED_IMAGE}"
-    set +e
     push_pull_remove_images::push_image_with_retries "${AIRFLOW_PROD_BUILD_TAGGED_IMAGE}"
-    local result=$?
-    set -e
-    if [[ ${result} != "0" ]]; then
-        >&2 echo
-        >&2 echo "There was an unexpected error when pushing images to the GitHub Registry"
-        >&2 echo
-        >&2 echo "If you see 'unknown blob' or similar kind of error it means that it was a transient error"
-        >&2 echo "And it will likely be gone next time"
-        >&2 echo
-        >&2 echo "Please rebase your change or 'git commit --amend; git push --force' and try again"
-        >&2 echo
-        exit "${result}"
-    fi
-
 }
 
 

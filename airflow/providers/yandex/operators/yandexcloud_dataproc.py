@@ -25,10 +25,6 @@ from airflow.utils.decorators import apply_defaults
 class DataprocCreateClusterOperator(BaseOperator):
     """Creates Yandex.Cloud Data Proc cluster.
 
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:DataprocCreateClusterOperator`
-
     :param folder_id: ID of the folder in which cluster should be created.
     :type folder_id: Optional[str]
     :param cluster_name: Cluster name. Must be unique inside the folder.

@@ -34,12 +34,13 @@ determine what actually executes when your DAG runs.
     bash
     amazon/aws/index
     apache/index
+    databricks
     dingding
-    google/index
     http
     jdbc
     kubernetes
     microsoft/index
+    mysql
     papermill
     python
     snowflake

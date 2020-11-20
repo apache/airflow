@@ -166,7 +166,7 @@ class SqoopHook(BaseHook):
         elif file_type == "text":
             return ["--as-textfile"]
         else:
-            raise AirflowException("Argument file_type should be 'avro', " "'sequence', 'parquet' or 'text'.")
+            raise AirflowException("Argument file_type should be 'avro', 'sequence', 'parquet' or 'text'.")
 
     def _import_cmd(
         self,

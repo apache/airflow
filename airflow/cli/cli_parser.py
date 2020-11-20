@@ -32,7 +32,7 @@ from airflow import settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.executors.executor_loader import ExecutorLoader
+from airflow.executors import executor_constants
 from airflow.utils.cli import ColorMode
 from airflow.utils.helpers import partition
 from airflow.utils.module_loading import import_string
@@ -60,7 +60,7 @@ class DefaultHelpParser(argparse.ArgumentParser):
     def _check_value(self, action, value):
         """Override _check_value and check conditionally added command"""
         executor = conf.get('core', 'EXECUTOR')
-        if value == 'celery' and executor != ExecutorLoader.CELERY_EXECUTOR:
+        if value == 'celery' and executor != executor_constants.CELERY_EXECUTOR:
             message = f'celery subcommand works only with CeleryExecutor, your current executor: {executor}'
             raise ArgumentError(action, message)
         if value == 'kubernetes':
@@ -304,9 +304,7 @@ ARG_IMGCAT_DAGRUN = Arg(
 )
 ARG_SAVE_DAGRUN = Arg(
     ("--save-dagrun",),
-    help=(
-        "After completing the backfill, saves the diagram for current DAG Run to the indicated file.\n" "\n"
-    ),
+    help="After completing the backfill, saves the diagram for current DAG Run to the indicated file.\n\n",
 )
 
 # list_tasks
@@ -330,7 +328,7 @@ ARG_DAG_REGEX = Arg(
 # show_dag
 ARG_SAVE = Arg(("-s", "--save"), help="Saves the result to the indicated file.")
 
-ARG_IMGCAT = Arg(("--imgcat",), help=("Displays graph using the imgcat tool."), action='store_true')
+ARG_IMGCAT = Arg(("--imgcat",), help="Displays graph using the imgcat tool.", action='store_true')
 
 # trigger_dag
 ARG_RUN_ID = Arg(("-r", "--run-id"), help="Helps to identify this run")
@@ -365,7 +363,7 @@ ARG_KEYTAB = Arg(("-k", "--keytab"), help="keytab", nargs='?', default=conf.get(
 # instead.
 ARG_INTERACTIVE = Arg(
     ('-N', '--interactive'),
-    help='Do not capture standard output and error streams ' '(useful for interactive debugging)',
+    help='Do not capture standard output and error streams (useful for interactive debugging)',
     action='store_true',
 )
 ARG_FORCE = Arg(
@@ -453,12 +451,12 @@ ARG_DEBUG = Arg(
 ARG_ACCESS_LOGFILE = Arg(
     ("-A", "--access-logfile"),
     default=conf.get('webserver', 'ACCESS_LOGFILE'),
-    help="The logfile to store the webserver access log. Use '-' to print to " "stderr",
+    help="The logfile to store the webserver access log. Use '-' to print to stderr",
 )
 ARG_ERROR_LOGFILE = Arg(
     ("-E", "--error-logfile"),
     default=conf.get('webserver', 'ERROR_LOGFILE'),
-    help="The logfile to store the webserver error log. Use '-' to print to " "stderr",
+    help="The logfile to store the webserver error log. Use '-' to print to stderr",
 )
 
 # scheduler
@@ -493,7 +491,7 @@ ARG_CONCURRENCY = Arg(
 )
 ARG_CELERY_HOSTNAME = Arg(
     ("-H", "--celery-hostname"),
-    help=("Set the hostname of celery worker " "if you have multiple workers on a single machine"),
+    help="Set the hostname of celery worker if you have multiple workers on a single machine",
 )
 ARG_UMASK = Arg(
     ("-u", "--umask"),
@@ -548,6 +546,9 @@ ARG_CONN_URI = Arg(
 ARG_CONN_TYPE = Arg(
     ('--conn-type',), help='Connection type, required to add a connection without conn_uri', type=str
 )
+ARG_CONN_DESCRIPTION = Arg(
+    ('--conn-description',), help='Connection description, optional when adding a connection', type=str
+)
 ARG_CONN_HOST = Arg(('--conn-host',), help='Connection host, optional when adding a connection', type=str)
 ARG_CONN_LOGIN = Arg(('--conn-login',), help='Connection login, optional when adding a connection', type=str)
 ARG_CONN_PASSWORD = Arg(
@@ -575,7 +576,7 @@ ARG_FIRSTNAME = Arg(('-f', '--firstname'), help='First name of the user', requir
 ARG_LASTNAME = Arg(('-l', '--lastname'), help='Last name of the user', required=True, type=str)
 ARG_ROLE = Arg(
     ('-r', '--role'),
-    help='Role of the user. Existing roles include Admin, ' 'User, Op, Viewer, and Public',
+    help='Role of the user. Existing roles include Admin, User, Op, Viewer, and Public',
     required=True,
     type=str,
 )
@@ -583,7 +584,7 @@ ARG_EMAIL = Arg(('-e', '--email'), help='Email of the user', required=True, type
 ARG_EMAIL_OPTIONAL = Arg(('-e', '--email'), help='Email of the user', type=str)
 ARG_PASSWORD = Arg(
     ('-p', '--password'),
-    help='Password of the user, required to create a user ' 'without --use-random-password',
+    help='Password of the user, required to create a user without --use-random-password',
     type=str,
 )
 ARG_USE_RANDOM_PASSWORD = Arg(
@@ -630,11 +631,11 @@ ARG_SKIP_SERVE_LOGS = Arg(
 # info
 ARG_ANONYMIZE = Arg(
     ('--anonymize',),
-    help=('Minimize any personal identifiable information. ' 'Use it when sharing output with others.'),
+    help='Minimize any personal identifiable information. Use it when sharing output with others.',
     action='store_true',
 )
 ARG_FILE_IO = Arg(
-    ('--file-io',), help=('Send output to file.io service and returns link.'), action='store_true'
+    ('--file-io',), help='Send output to file.io service and returns link.', action='store_true'
 )
 
 # config
@@ -656,6 +657,7 @@ ARG_NAMESPACE = Arg(
 
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE,
+    ARG_CONN_DESCRIPTION,
     ARG_CONN_HOST,
     ARG_CONN_LOGIN,
     ARG_CONN_PASSWORD,
@@ -1057,7 +1059,7 @@ DB_COMMANDS = (
     ActionCommand(
         name="check-migrations",
         help="Check if migration have finished",
-        description=("Check if migration have finished (or continually check until timeout)"),
+        description="Check if migration have finished (or continually check until timeout)",
         func=lazy_load_command('airflow.cli.commands.db_command.check_migrations'),
         args=(ARG_MIGRATION_TIMEOUT,),
     ),
@@ -1360,6 +1362,14 @@ airflow_commands: List[CLICommand] = [
             ARG_STDOUT,
             ARG_STDERR,
             ARG_LOG_FILE,
+        ),
+        epilog=(
+            'Signals:\n'
+            '\n'
+            '  - SIGUSR2: Dump a snapshot of task state being tracked by the executor.\n'
+            '\n'
+            '    Example:\n'
+            '        pkill -f -USR2 "airflow scheduler"'
         ),
     ),
     ActionCommand(

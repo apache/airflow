@@ -21,7 +21,7 @@ import json
 import logging
 import os
 import textwrap
-from contextlib import redirect_stderr, redirect_stdout
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from typing import List
 
 from tabulate import tabulate
@@ -142,6 +142,41 @@ def _run_raw_task(args, ti):
     )
 
 
+@contextmanager
+def _capture_task_logs(ti):
+    """Manage logging context for a task run
+
+    - Replace the root logger configuration with the airflow.task configuration
+      so we can capture logs from any custom loggers used in the task.
+
+    - Redirect stdout and stderr to the task instance log, as INFO and WARNING
+      level messages, respectively.
+
+    """
+    modify = not settings.DONOT_MODIFY_HANDLERS
+
+    if modify:
+        root_logger, task_logger = logging.getLogger(), logging.getLogger('airflow.task')
+
+        orig_level = root_logger.level
+        root_logger.setLevel(task_logger.level)
+        orig_handlers = root_logger.handlers.copy()
+        root_logger.handlers[:] = task_logger.handlers
+
+    try:
+        info_writer = StreamLogWriter(ti.log, logging.INFO)
+        warning_writer = StreamLogWriter(ti.log, logging.WARNING)
+
+        with redirect_stdout(info_writer), redirect_stderr(warning_writer):
+            yield
+
+    finally:
+        if modify:
+            # Restore the root logger to its original state.
+            root_logger.setLevel(orig_level)
+            root_logger.handlers[:] = orig_handlers
+
+
 @cli_utils.action_logging
 def task_run(args, dag=None):
     """Runs a single task instance"""
@@ -185,41 +220,8 @@ def task_run(args, dag=None):
     if args.interactive:
         _run_task_by_selected_method(args, dag, ti)
     else:
-        if settings.DONOT_MODIFY_HANDLERS:
-            with redirect_stdout(StreamLogWriter(ti.log, logging.INFO)), redirect_stderr(
-                StreamLogWriter(ti.log, logging.WARN)
-            ):
-                _run_task_by_selected_method(args, dag, ti)
-        else:
-            # Get all the Handlers from 'airflow.task' logger
-            # Add these handlers to the root logger so that we can get logs from
-            # any custom loggers defined in the DAG
-            airflow_logger_handlers = logging.getLogger('airflow.task').handlers
-            root_logger = logging.getLogger()
-            root_logger_handlers = root_logger.handlers
-
-            # Remove all handlers from Root Logger to avoid duplicate logs
-            for handler in root_logger_handlers:
-                root_logger.removeHandler(handler)
-
-            for handler in airflow_logger_handlers:
-                root_logger.addHandler(handler)
-            root_logger.setLevel(logging.getLogger('airflow.task').level)
-
-            with redirect_stdout(StreamLogWriter(ti.log, logging.INFO)), redirect_stderr(
-                StreamLogWriter(ti.log, logging.WARN)
-            ):
-                _run_task_by_selected_method(args, dag, ti)
-
-            # We need to restore the handlers to the loggers as celery worker process
-            # can call this command multiple times,
-            # so if we don't reset this then logs from next task would go to the wrong place
-            for handler in airflow_logger_handlers:
-                root_logger.removeHandler(handler)
-            for handler in root_logger_handlers:
-                root_logger.addHandler(handler)
-
-    logging.shutdown()
+        with _capture_task_logs(ti):
+            _run_task_by_selected_method(args, dag, ti)
 
 
 @cli_utils.action_logging

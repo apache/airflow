@@ -198,9 +198,7 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
     def _check_if_function_exists(self, hook) -> bool:
         name = self.body.get('name')
         if not name:
-            raise GcpFieldValidationException(
-                "The 'name' field should be present in " "body: '{}'.".format(self.body)
-            )
+            raise GcpFieldValidationException(f"The 'name' field should be present in body: '{self.body}'.")
         try:
             hook.get_function(name)
         except HttpError as e:

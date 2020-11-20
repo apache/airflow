@@ -28,7 +28,7 @@ Before you begin
 
 Before you start, make sure you have performed the following tasks:
 
-1.  Include sendgrid subpackage as part of your Airflow installation
+1.  Include ``google`` subpackage as part of your Airflow installation
 
     .. code-block:: bash
 
@@ -86,6 +86,22 @@ For example, if you want to set parameter ``connections_prefix`` to ``"airflow-t
     [secrets]
     backend = airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
     backend_kwargs = {"connections_prefix": "airflow-tenant-primary", "variables_prefix": "airflow-tenant-primary"}
+
+Optional lookup
+"""""""""""""""
+
+Optionally connections, variables, or config may be looked up exclusive of each other or in any combination.
+This will prevent requests being sent to GCP Secrets Manager for the excluded type.
+
+If you want to look up some and not others in GCP Secrets Manager you may do so by setting the relevant ``*_prefix`` parameter of the ones to be excluded as ``null``.
+
+For example, if you want to set parameter ``connections_prefix`` to ``"airflow-tenant-primary"`` and not look up variables, your configuration file should look like this:
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
+    backend_kwargs = {"connections_prefix": "airflow-tenant-primary", "variables_prefix": null}
 
 Set-up credentials
 """"""""""""""""""
@@ -152,7 +168,7 @@ command as in the example below.
     Created version [1] of the secret [airflow-variables-first-variable].
 
 Checking configuration
-======================
+""""""""""""""""""""""
 
 You can use the ``airflow connections get`` command to check if the connection is correctly read from the backend secret:
 
@@ -180,7 +196,7 @@ To check the variables is correctly read from the backend secret, you can use ``
     secret_content
 
 Clean up
-========
+""""""""
 
 To avoid incurring charges to your Google Cloud account for the resources used in this guide,
 delete secrets by running ``gcloud beta secrets delete``:

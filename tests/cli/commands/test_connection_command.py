@@ -152,6 +152,7 @@ class TestCliExportConnections(unittest.TestCase):
             Connection(
                 conn_id="airflow_db",
                 conn_type="mysql",
+                description="mysql conn description",
                 host="mysql",
                 login="root",
                 password="plainpassword",
@@ -163,6 +164,7 @@ class TestCliExportConnections(unittest.TestCase):
             Connection(
                 conn_id="druid_broker_default",
                 conn_type="druid",
+                description="druid-broker conn description",
                 host="druid-broker",
                 port=8082,
                 extra='{"endpoint": "druid/v2/sql"}',
@@ -313,6 +315,7 @@ class TestCliExportConnections(unittest.TestCase):
             {
                 "airflow_db": {
                     "conn_type": "mysql",
+                    "description": "mysql conn description",
                     "host": "mysql",
                     "login": "root",
                     "password": "plainpassword",
@@ -322,6 +325,7 @@ class TestCliExportConnections(unittest.TestCase):
                 },
                 "druid_broker_default": {
                     "conn_type": "druid",
+                    "description": "druid-broker conn description",
                     "host": "druid-broker",
                     "login": None,
                     "password": None,
@@ -355,6 +359,7 @@ class TestCliExportConnections(unittest.TestCase):
         expected_connections = (
             "airflow_db:\n"
             "  conn_type: mysql\n"
+            "  description: mysql conn description\n"
             "  extra: null\n"
             "  host: mysql\n"
             "  login: root\n"
@@ -363,6 +368,7 @@ class TestCliExportConnections(unittest.TestCase):
             "  schema: airflow\n"
             "druid_broker_default:\n"
             "  conn_type: druid\n"
+            "  description: druid-broker conn description\n"
             "  extra: \'{\"endpoint\": \"druid/v2/sql\"}\'\n"
             "  host: druid-broker\n"
             "  login: null\n"
@@ -452,6 +458,7 @@ class TestCliExportConnections(unittest.TestCase):
             {
                 "airflow_db": {
                     "conn_type": "mysql",
+                    "description": "mysql conn description",
                     "host": "mysql",
                     "login": "root",
                     "password": "plainpassword",
@@ -461,6 +468,7 @@ class TestCliExportConnections(unittest.TestCase):
                 },
                 "druid_broker_default": {
                     "conn_type": "druid",
+                    "description": "druid-broker conn description",
                     "host": "druid-broker",
                     "login": None,
                     "password": None,
@@ -492,10 +500,17 @@ class TestCliAddConnections(unittest.TestCase):
     @parameterized.expand(
         [
             (
-                ["connections", "add", "new0", "--conn-uri=%s" % TEST_URL],
+                [
+                    "connections",
+                    "add",
+                    "new0",
+                    "--conn-uri=%s" % TEST_URL,
+                    "--conn-description=new0 description",
+                ],
                 "\tSuccessfully added `conn_id`=new0 : postgresql://airflow:airflow@host:5432/airflow",
                 {
                     "conn_type": "postgres",
+                    "description": "new0 description",
                     "host": "host",
                     "is_encrypted": True,
                     "is_extra_encrypted": False,
@@ -505,10 +520,17 @@ class TestCliAddConnections(unittest.TestCase):
                 },
             ),
             (
-                ["connections", "add", "new1", "--conn-uri=%s" % TEST_URL],
+                [
+                    "connections",
+                    "add",
+                    "new1",
+                    "--conn-uri=%s" % TEST_URL,
+                    "--conn-description=new1 description",
+                ],
                 "\tSuccessfully added `conn_id`=new1 : postgresql://airflow:airflow@host:5432/airflow",
                 {
                     "conn_type": "postgres",
+                    "description": "new1 description",
                     "host": "host",
                     "is_encrypted": True,
                     "is_extra_encrypted": False,
@@ -529,6 +551,7 @@ class TestCliAddConnections(unittest.TestCase):
                 "\tSuccessfully added `conn_id`=new2 : postgresql://airflow:airflow@host:5432/airflow",
                 {
                     "conn_type": "postgres",
+                    "description": None,
                     "host": "host",
                     "is_encrypted": True,
                     "is_extra_encrypted": True,
@@ -545,10 +568,13 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn-uri=%s" % TEST_URL,
                     "--conn-extra",
                     "{'extra': 'yes'}",
+                    "--conn-description",
+                    "new3 description",
                 ],
                 "\tSuccessfully added `conn_id`=new3 : postgresql://airflow:airflow@host:5432/airflow",
                 {
                     "conn_type": "postgres",
+                    "description": "new3 description",
                     "host": "host",
                     "is_encrypted": True,
                     "is_extra_encrypted": True,
@@ -568,10 +594,12 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn-host=host",
                     "--conn-port=9083",
                     "--conn-schema=airflow",
+                    "--conn-description=  new4 description  ",
                 ],
                 "\tSuccessfully added `conn_id`=new4 : hive_metastore://airflow:******@host:9083/airflow",
                 {
                     "conn_type": "hive_metastore",
+                    "description": "  new4 description  ",
                     "host": "host",
                     "is_encrypted": True,
                     "is_extra_encrypted": False,
@@ -590,10 +618,12 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn-type=google_cloud_platform",
                     "--conn-extra",
                     "{'extra': 'yes'}",
+                    "--conn-description=new5 description",
                 ],
                 "\tSuccessfully added `conn_id`=new5 : google_cloud_platform://:@:",
                 {
                     "conn_type": "google_cloud_platform",
+                    "description": "new5 description",
                     "host": None,
                     "is_encrypted": False,
                     "is_extra_encrypted": True,
@@ -615,6 +645,7 @@ class TestCliAddConnections(unittest.TestCase):
         with create_session() as session:
             comparable_attrs = [
                 "conn_type",
+                "description",
                 "host",
                 "is_encrypted",
                 "is_extra_encrypted",
@@ -626,18 +657,15 @@ class TestCliAddConnections(unittest.TestCase):
             self.assertEqual(expected_conn, {attr: getattr(current_conn, attr) for attr in comparable_attrs})
 
     def test_cli_connections_add_duplicate(self):
-        # Attempt to add duplicate
+        conn_id = "to_be_duplicated"
         connection_command.connections_add(
-            self.parser.parse_args(["connections", "add", "new1", "--conn-uri=%s" % TEST_URL])
+            self.parser.parse_args(["connections", "add", conn_id, "--conn-uri=%s" % TEST_URL])
         )
-        with redirect_stdout(io.StringIO()) as stdout:
+        # Check for addition attempt
+        with self.assertRaisesRegex(SystemExit, rf"A connection with `conn_id`={conn_id} already exists"):
             connection_command.connections_add(
-                self.parser.parse_args(["connections", "add", "new1", "--conn-uri=%s" % TEST_URL])
+                self.parser.parse_args(["connections", "add", conn_id, "--conn-uri=%s" % TEST_URL])
             )
-            stdout = stdout.getvalue()
-
-        # Check stdout for addition attempt
-        self.assertIn("\tA connection with `conn_id`=new1 already exists", stdout)
 
     def test_cli_connections_add_delete_with_missing_parameters(self):
         # Attempt to add without providing conn_uri
@@ -645,6 +673,13 @@ class TestCliAddConnections(unittest.TestCase):
             SystemExit, r"The following args are required to add a connection: \['conn-uri or conn-type'\]"
         ):
             connection_command.connections_add(self.parser.parse_args(["connections", "add", "new1"]))
+
+    def test_cli_connections_add_invalid_uri(self):
+        # Attempt to add with invalid uri
+        with self.assertRaisesRegex(SystemExit, r"The URI provided to --conn-uri is invalid: nonsense_uri"):
+            connection_command.connections_add(
+                self.parser.parse_args(["connections", "add", "new1", "--conn-uri=%s" % "nonsense_uri"])
+            )
 
 
 class TestCliDeleteConnections(unittest.TestCase):
@@ -661,7 +696,13 @@ class TestCliDeleteConnections(unittest.TestCase):
     def test_cli_delete_connections(self, session=None):
         merge_conn(
             Connection(
-                conn_id="new1", conn_type="mysql", host="mysql", login="root", password="", schema="airflow"
+                conn_id="new1",
+                conn_type="mysql",
+                description="mysql description",
+                host="mysql",
+                login="root",
+                password="",
+                schema="airflow",
             ),
             session=session,
         )
@@ -680,9 +721,5 @@ class TestCliDeleteConnections(unittest.TestCase):
 
     def test_cli_delete_invalid_connection(self):
         # Attempt to delete a non-existing connection
-        with redirect_stdout(io.StringIO()) as stdout:
+        with self.assertRaisesRegex(SystemExit, r"Did not find a connection with `conn_id`=fake"):
             connection_command.connections_delete(self.parser.parse_args(["connections", "delete", "fake"]))
-            stdout = stdout.getvalue()
-
-        # Check deletion attempt stdout
-        self.assertIn("\tDid not find a connection with `conn_id`=fake", stdout)

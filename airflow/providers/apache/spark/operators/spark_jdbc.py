@@ -33,7 +33,7 @@ class SparkJDBCOperator(SparkSubmitOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:SparkJDBCOperator`
+        :ref:`apache-airflow:howto/operator:SparkJDBCOperator`
 
     :param spark_app_name: Name of the job (default airflow-spark-jdbc)
     :type spark_app_name: str

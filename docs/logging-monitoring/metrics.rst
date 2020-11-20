@@ -35,7 +35,7 @@ Add the following lines to your configuration file e.g. ``airflow.cfg``
 
 .. code-block:: ini
 
-    [scheduler]
+    [metrics]
     statsd_on = True
     statsd_host = localhost
     statsd_port = 8125
@@ -46,7 +46,7 @@ the metrics that start with the elements of the list:
 
 .. code-block:: ini
 
-    [scheduler]
+    [metrics]
     statsd_allow_list = scheduler,executor,dagrun
 
 If you want to redirect metrics to different name, you can configure ``stat_name_handler`` option
@@ -60,14 +60,19 @@ to the stat name if necessary and return the transformed stat name. The function
 
 If you want to use a custom Statsd client outwith the default one provided by Airflow the following key must be added
 to the configuration file alongside the module path of your custom Statsd client. This module must be available on
-your PYTHONPATH.
+your :envvar:`PYTHONPATH`.
 
 .. code-block:: ini
 
-    [scheduler]
+    [metrics]
     statsd_custom_client_path = x.y.customclient
 
 See :doc:`../modules_management` for details on how Python and Airflow manage modules.
+
+.. note::
+
+    For a detailed listing of configuration options regarding metrics,
+    see the configuration reference documentation - :ref:`config:metrics`.
 
 Counters
 --------
@@ -96,6 +101,7 @@ Name                                    Description
 ``ti.start.<dagid>.<taskid>``           Number of started task in a given dag. Similar to <job_name>_start but for task
 ``ti.finish.<dagid>.<taskid>.<state>``  Number of completed task in a given dag. Similar to <job_name>_end but for task
 ``dag.callback_exceptions``             Number of exceptions raised from DAG callbacks. When this happens, it means DAG callback is not working.
+``celery.task_timeout_error``           Number of ``AirflowTaskTimeout`` errors raised when publishing Task to Celery Broker.
 ======================================= ================================================================
 
 Gauges
@@ -127,16 +133,17 @@ Name                                                Description
 Timers
 ------
 
-=========================================== =================================================================
-Name                                        Description
-=========================================== =================================================================
-``dagrun.dependency-check.<dag_id>``        Milliseconds taken to check DAG dependencies
-``dag.<dag_id>.<task_id>.duration``         Milliseconds taken to finish a task
-``dag_processing.last_duration.<dag_file>`` Milliseconds taken to load the given DAG file
-``dagrun.duration.success.<dag_id>``        Milliseconds taken for a DagRun to reach success state
-``dagrun.duration.failed.<dag_id>``         Milliseconds taken for a DagRun to reach failed state
-``dagrun.schedule_delay.<dag_id>``          Milliseconds of delay between the scheduled DagRun start date and
-                                            the actual DagRun start date
-``scheduler.critical_section_duration``     Milliseconds spent in the critical section of scheduler loop --
-                                            only a single scheduler can enter this loop at a time
-=========================================== =================================================================
+=================================================== ========================================================================
+Name                                                Description
+=================================================== ========================================================================
+``dagrun.dependency-check.<dag_id>``                Milliseconds taken to check DAG dependencies
+``dag.<dag_id>.<task_id>.duration``                 Milliseconds taken to finish a task
+``dag_processing.last_duration.<dag_file>``         Milliseconds taken to load the given DAG file
+``dagrun.duration.success.<dag_id>``                Milliseconds taken for a DagRun to reach success state
+``dagrun.duration.failed.<dag_id>``                 Milliseconds taken for a DagRun to reach failed state
+``dagrun.schedule_delay.<dag_id>``                  Milliseconds of delay between the scheduled DagRun
+                                                    start date and the actual DagRun start date
+``scheduler.critical_section_duration``             Milliseconds spent in the critical section of scheduler loop --
+                                                    only a single scheduler can enter this loop at a time
+``dagrun.<dag_id>.first_task_scheduling_delay``     Seconds elapsed between first task start_date and dagrun expected start
+=================================================== ========================================================================

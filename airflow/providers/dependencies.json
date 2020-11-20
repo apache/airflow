@@ -39,7 +39,8 @@
     "postgres",
     "presto",
     "salesforce",
-    "sftp"
+    "sftp",
+    "ssh"
   ],
   "hashicorp": [
     "google"

@@ -35,6 +35,7 @@ try:
         AirflowKubernetesScheduler,
         KubernetesExecutor,
         create_pod_id,
+        get_base_pod_from_template,
     )
     from airflow.kubernetes import pod_generator
     from airflow.kubernetes.pod_generator import PodGenerator
@@ -83,6 +84,19 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
         for dag_id, task_id in self._cases():
             pod_name = PodGenerator.make_unique_pod_id(create_pod_id(dag_id, task_id))
             self.assertTrue(self._is_valid_pod_id(pod_name))
+
+    @unittest.skipIf(AirflowKubernetesScheduler is None, 'kubernetes python package is not installed')
+    @mock.patch("airflow.kubernetes.pod_generator.PodGenerator")
+    @mock.patch("airflow.executors.kubernetes_executor.KubeConfig")
+    def test_get_base_pod_from_template(self, mock_kubeconfig, mock_generator):
+        pod_template_file_path = "/bar/biz"
+        get_base_pod_from_template(pod_template_file_path, None)
+        self.assertEqual("deserialize_model_dict", mock_generator.mock_calls[0][0])
+        self.assertEqual(pod_template_file_path, mock_generator.mock_calls[0][1][0])
+        mock_kubeconfig.pod_template_file = "/foo/bar"
+        get_base_pod_from_template(None, mock_kubeconfig)
+        self.assertEqual("deserialize_model_dict", mock_generator.mock_calls[1][0])
+        self.assertEqual("/foo/bar", mock_generator.mock_calls[1][1][0])
 
     def test_make_safe_label_value(self):
         for dag_id, task_id in self._cases():

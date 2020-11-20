@@ -100,7 +100,7 @@ class SpannerDeployInstanceOperator(BaseOperator):
         if self.project_id == '':
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance_id:
-            raise AirflowException("The required parameter 'instance_id' " "is empty or None")
+            raise AirflowException("The required parameter 'instance_id' is empty or None")
 
     def execute(self, context) -> None:
         hook = SpannerHook(
@@ -179,7 +179,7 @@ class SpannerDeleteInstanceOperator(BaseOperator):
         if self.project_id == '':
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance_id:
-            raise AirflowException("The required parameter 'instance_id' " "is empty or None")
+            raise AirflowException("The required parameter 'instance_id' is empty or None")
 
     def execute(self, context) -> Optional[bool]:
         hook = SpannerHook(
@@ -190,7 +190,7 @@ class SpannerDeleteInstanceOperator(BaseOperator):
             return hook.delete_instance(project_id=self.project_id, instance_id=self.instance_id)
         else:
             self.log.info(
-                "Instance '%s' does not exist in project '%s'. " "Aborting delete.",
+                "Instance '%s' does not exist in project '%s'. Aborting delete.",
                 self.instance_id,
                 self.project_id,
             )
@@ -265,9 +265,9 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
         if self.project_id == '':
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance_id:
-            raise AirflowException("The required parameter 'instance_id' " "is empty or None")
+            raise AirflowException("The required parameter 'instance_id' is empty or None")
         if not self.database_id:
-            raise AirflowException("The required parameter 'database_id' " "is empty or None")
+            raise AirflowException("The required parameter 'database_id' is empty or None")
         if not self.query:
             raise AirflowException("The required parameter 'query' is empty")
 
@@ -281,7 +281,7 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
             queries = [x.strip() for x in self.query.split(';')]
             self.sanitize_queries(queries)
         self.log.info(
-            "Executing DML query(-ies) on " "projects/%s/instances/%s/databases/%s",
+            "Executing DML query(-ies) on projects/%s/instances/%s/databases/%s",
             self.project_id,
             self.instance_id,
             self.database_id,
@@ -375,9 +375,9 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
         if self.project_id == '':
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance_id:
-            raise AirflowException("The required parameter 'instance_id' is empty " "or None")
+            raise AirflowException("The required parameter 'instance_id' is empty or None")
         if not self.database_id:
-            raise AirflowException("The required parameter 'database_id' is empty" " or None")
+            raise AirflowException("The required parameter 'database_id' is empty or None")
 
     def execute(self, context) -> Optional[bool]:
         hook = SpannerHook(
@@ -388,7 +388,7 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
             project_id=self.project_id, instance_id=self.instance_id, database_id=self.database_id
         ):
             self.log.info(
-                "Creating Cloud Spanner database " "'%s' in project '%s' and instance '%s'",
+                "Creating Cloud Spanner database '%s' in project '%s' and instance '%s'",
                 self.database_id,
                 self.project_id,
                 self.instance_id,
@@ -482,11 +482,11 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
         if self.project_id == '':
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance_id:
-            raise AirflowException("The required parameter 'instance_id' is empty" " or None")
+            raise AirflowException("The required parameter 'instance_id' is empty or None")
         if not self.database_id:
-            raise AirflowException("The required parameter 'database_id' is empty" " or None")
+            raise AirflowException("The required parameter 'database_id' is empty or None")
         if not self.ddl_statements:
-            raise AirflowException("The required parameter 'ddl_statements' is empty" " or None")
+            raise AirflowException("The required parameter 'ddl_statements' is empty or None")
 
     def execute(self, context) -> None:
         hook = SpannerHook(
@@ -572,9 +572,9 @@ class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
         if self.project_id == '':
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance_id:
-            raise AirflowException("The required parameter 'instance_id' is empty" " or None")
+            raise AirflowException("The required parameter 'instance_id' is empty or None")
         if not self.database_id:
-            raise AirflowException("The required parameter 'database_id' is empty" " or None")
+            raise AirflowException("The required parameter 'database_id' is empty or None")
 
     def execute(self, context) -> bool:
         hook = SpannerHook(

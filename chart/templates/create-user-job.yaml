@@ -79,6 +79,8 @@ spec:
             - {{ .Values.webserver.defaultUser.lastName }}
             - "-p"
             - {{ .Values.webserver.defaultUser.password }}
+          envFrom:
+          {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}

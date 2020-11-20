@@ -55,6 +55,7 @@ from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
+from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sentry import Sentry
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
@@ -69,6 +70,15 @@ from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
+
+try:
+    from kubernetes.client.api_client import ApiClient
+
+    from airflow.kubernetes.kube_config import KubeConfig
+    from airflow.kubernetes.kubernetes_helper_functions import create_pod_id
+    from airflow.kubernetes.pod_generator import PodGenerator
+except ImportError:
+    ApiClient = None
 
 TR = TaskReschedule
 Context = Dict[str, Any]
@@ -255,7 +265,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         # make sure we have a localized execution_date stored in UTC
         if execution_date and not timezone.is_localized(execution_date):
             self.log.warning(
-                "execution date %s has no timezone information. Using " "default from dag or system",
+                "execution date %s has no timezone information. Using default from dag or system",
                 execution_date,
             )
             if self.task.has_dag():
@@ -467,23 +477,21 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         """Log URL for TaskInstance"""
         iso = quote(self.execution_date.isoformat())
         base_url = conf.get('webserver', 'BASE_URL')
-        return base_url + (  # noqa
-            "/log?" "execution_date={iso}" "&task_id={task_id}" "&dag_id={dag_id}"
-        ).format(iso=iso, task_id=self.task_id, dag_id=self.dag_id)
+        return base_url + f"/log?execution_date={iso}&task_id={self.task_id}&dag_id={self.dag_id}"
 
     @property
     def mark_success_url(self):
         """URL to mark TI success"""
         iso = quote(self.execution_date.isoformat())
         base_url = conf.get('webserver', 'BASE_URL')
-        return base_url + (  # noqa
+        return base_url + (
             "/success"
-            "?task_id={task_id}"
-            "&dag_id={dag_id}"
-            "&execution_date={iso}"
+            f"?task_id={self.task_id}"
+            f"&dag_id={self.dag_id}"
+            f"&execution_date={iso}"
             "&upstream=false"
             "&downstream=false"
-        ).format(task_id=self.task_id, dag_id=self.dag_id, iso=iso)
+        )
 
     @provide_session
     def current_state(self, session=None) -> str:
@@ -838,9 +846,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                     yield dep_status
 
     def __repr__(self):
-        return (  # noqa
-            "<TaskInstance: {ti.dag_id}.{ti.task_id} " "{ti.execution_date} [{ti.state}]>"
-        ).format(ti=self)
+        return f"<TaskInstance: {self.dag_id}.{self.task_id} {self.execution_date} [{self.state}]>"
 
     def next_retry_datetime(self):
         """
@@ -1241,7 +1247,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                 registered = task_copy.register_in_sensor_service(self, context)
             except Exception as e:
                 self.log.warning(
-                    "Failed to register in sensor service." "Continue to run task in non smart sensor mode."
+                    "Failed to register in sensor service.Continue to run task in non smart sensor mode."
                 )
                 self.log.exception(e, exc_info=True)
 
@@ -1474,6 +1480,8 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         task = self.task
         from airflow import macros
 
+        integrate_macros_plugins()
+
         params = {}  # type: Dict[str, Any]
         run_id = ''
         dag_run = None
@@ -1656,6 +1664,18 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                     "rendering of template_fields."
                 ) from e
 
+    def get_rendered_k8s_spec(self):
+        """Fetch rendered template fields from DB"""
+        from airflow.models.renderedtifields import RenderedTaskInstanceFields
+
+        rendered_k8s_spec = RenderedTaskInstanceFields.get_k8s_pod_yaml(self)
+        if not rendered_k8s_spec:
+            try:
+                rendered_k8s_spec = self.render_k8s_pod_yaml()
+            except (TemplateAssertionError, UndefinedError) as e:
+                raise AirflowException(f"Unable to render a k8s spec for this taskinstance: {e}") from e
+        return rendered_k8s_spec
+
     def overwrite_params_with_dag_run_conf(self, params, dag_run):
         """Overwrite Task Params with DagRun.conf"""
         if dag_run and dag_run.conf:
@@ -1668,6 +1688,26 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             context = self.get_template_context()
 
         self.task.render_template_fields(context)
+
+    def render_k8s_pod_yaml(self) -> Optional[dict]:
+        """Render k8s pod yaml"""
+        kube_config = KubeConfig()
+        pod = PodGenerator.construct_pod(
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            pod_id=create_pod_id(self.dag_id, self.task_id),
+            try_number=self.try_number,
+            kube_image=kube_config.kube_image,
+            date=self.execution_date,
+            command=self.command_as_list(),
+            pod_override_object=PodGenerator.from_obj(self.executor_config),
+            scheduler_job_id="worker-config",
+            namespace=kube_config.executor_namespace,
+            base_worker_pod=PodGenerator.deserialize_model_file(kube_config.pod_template_file),
+        )
+        settings.pod_mutation_hook(pod)
+        sanitized_pod = ApiClient().sanitize_for_serialization(pod)
+        return sanitized_pod
 
     def get_email_subject_content(self, exception):
         """Get the email subject content for exceptions."""

@@ -34,8 +34,8 @@ class TaskConcurrencyDep(BaseTIDep):
             return
 
         if ti.get_num_running_task_instances(session) >= ti.task.task_concurrency:
-            yield self._failing_status(reason="The max task concurrency " "has been reached.")
+            yield self._failing_status(reason="The max task concurrency has been reached.")
             return
         else:
-            yield self._passing_status(reason="The max task concurrency " "has not been reached.")
+            yield self._passing_status(reason="The max task concurrency has not been reached.")
             return

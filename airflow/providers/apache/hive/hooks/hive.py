@@ -677,7 +677,7 @@ class HiveMetastoreHook(BaseHook):
 
         # Assuming all specs have the same keys.
         if partition_key not in part_specs[0].keys():
-            raise AirflowException("Provided partition_key {} " "is not in part_specs.".format(partition_key))
+            raise AirflowException(f"Provided partition_key {partition_key} is not in part_specs.")
         is_subset = None
         if filter_map:
             is_subset = set(filter_map.keys()).issubset(set(part_specs[0].keys()))
@@ -735,12 +735,12 @@ class HiveMetastoreHook(BaseHook):
             if len(table.partitionKeys) == 1:
                 field = table.partitionKeys[0].name
             elif not field:
-                raise AirflowException("Please specify the field you want the max " "value for.")
+                raise AirflowException("Please specify the field you want the max value for.")
             elif field not in key_name_set:
                 raise AirflowException("Provided field is not a partition key.")
 
             if filter_map and not set(filter_map.keys()).issubset(key_name_set):
-                raise AirflowException("Provided filter_map contains keys " "that are not partition key.")
+                raise AirflowException("Provided filter_map contains keys that are not partition key.")
 
             part_names = client.get_partition_names(
                 schema, table_name, max_parts=HiveMetastoreHook.MAX_PART_COUNT
@@ -829,7 +829,7 @@ class HiveServer2Hook(DbApiHook):
         # pyhive uses GSSAPI instead of KERBEROS as a auth_mechanism identifier
         if auth_mechanism == 'GSSAPI':
             self.log.warning(
-                "Detected deprecated 'GSSAPI' for authMechanism " "for %s. Please use 'KERBEROS' instead",
+                "Detected deprecated 'GSSAPI' for authMechanism for %s. Please use 'KERBEROS' instead",
                 self.hiveserver2_conn_id,  # type: ignore
             )
             auth_mechanism = 'KERBEROS'

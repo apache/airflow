@@ -210,7 +210,7 @@ class TestPinotDbApiHook(unittest.TestCase):
         self.conn.host = 'host'
         self.conn.port = '1000'
         self.conn.conn_type = 'http'
-        self.conn.extra_dejson = {'endpoint': 'pql'}
+        self.conn.extra_dejson = {'endpoint': 'query/sql'}
         self.cur = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
         self.conn.__enter__.return_value = self.cur
@@ -230,7 +230,7 @@ class TestPinotDbApiHook(unittest.TestCase):
         Test on getting a pinot connection uri
         """
         db_hook = self.db_hook()
-        self.assertEqual(db_hook.get_uri(), 'http://host:1000/pql')
+        self.assertEqual(db_hook.get_uri(), 'http://host:1000/query/sql')
 
     def test_get_conn(self):
         """
@@ -240,7 +240,7 @@ class TestPinotDbApiHook(unittest.TestCase):
         self.assertEqual(conn.host, 'host')
         self.assertEqual(conn.port, '1000')
         self.assertEqual(conn.conn_type, 'http')
-        self.assertEqual(conn.extra_dejson.get('endpoint'), 'pql')
+        self.assertEqual(conn.extra_dejson.get('endpoint'), 'query/sql')
 
     def test_get_records(self):
         statement = 'SQL'

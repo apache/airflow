@@ -334,7 +334,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                         last_line_logged = self._log_last(logs, last_line_logged)
                     except CloudError:
                         self.log.exception(
-                            "Exception while getting logs from " "container instance, retrying..."
+                            "Exception while getting logs from container instance, retrying..."
                         )
 
                 if state == "Terminated":

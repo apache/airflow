@@ -35,7 +35,7 @@ def initdb(args):
 def resetdb(args):
     """Resets the metadata database"""
     print("DB: " + repr(settings.engine.url))
-    if args.yes or input("This will drop existing tables " "if they exist. Proceed? " "(y/n)").upper() == "Y":
+    if args.yes or input("This will drop existing tables if they exist. Proceed? (y/n)").upper() == "Y":
         db.resetdb()
     else:
         print("Cancelled")

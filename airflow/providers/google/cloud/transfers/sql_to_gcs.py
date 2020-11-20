@@ -263,7 +263,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         elif isinstance(self.schema, list):
             schema = self.schema
         elif self.schema is not None:
-            self.log.warning('Using default schema due to unexpected type.' 'Should be a string or list.')
+            self.log.warning('Using default schema due to unexpected type. Should be a string or list.')
 
         col_type_dict = {}
         try:

@@ -889,7 +889,7 @@ function breeze::parse_arguments() {
         -C | --force-clean-images)
             echo "Clean build of images without cache"
             echo
-            export DOCKER_CACHE="no-cache"
+            export DOCKER_CACHE="disabled"
             # if not set here, docker cached is determined later, depending on type of image to be build
             readonly DOCKER_CACHE
             export FORCE_BUILD_IMAGES="true"
@@ -1790,6 +1790,13 @@ ${CMDNAME} kind-cluster [FLAGS] OPERATION
 
 ${FORMATTED_KIND_OPERATIONS}
 
+      The last two operations - shell and k9s allow you to perform interactive testing with
+      kubernetes tests. You can enter the shell from which you can run kubernetes tests and in
+      another terminal you can start the k9s CLI to debug kubernetes instance. It is an easy
+      way to debug the kubernetes deployments.
+
+      You can read more about k9s at https://k9scli.io/
+
 Flags:
 $(breeze::flag_airflow_variants)
 $(breeze::flag_build_docker_images)
@@ -1869,7 +1876,7 @@ ${CMDNAME} tests [FLAGS] [TEST_TARGET ..] [-- <EXTRA_ARGS>]
       as additional options passed to pytest. You can pass 'tests' as target to
       run all tests. For example:
 
-      '${CMDNAME} tests tests/test_core.py -- --logging-level=DEBUG'
+      '${CMDNAME} tests tests/core/test_core.py -- --logging-level=DEBUG'
       '${CMDNAME} tests tests
 
 Flags:
@@ -2219,6 +2226,8 @@ function breeze::flag_choose_different_airflow_version() {
         image building time in production image and at container entering time for CI image. One of:
 
 ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
+
+        When 'wheel' is used, Airflow is installed from /dist/apache_airflow-*.whl file.
 
 -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
         If specified, installs Airflow directly from reference in GitHub. This happens at
@@ -3031,11 +3040,9 @@ function breeze::run_build_command() {
             build_images::prepare_prod_build
             build_images::build_prod_images
         else
+
             build_images::prepare_ci_build
-            md5sum::calculate_md5sum_for_all_files
-            build_images::build_ci_image
-            md5sum::update_all_md5
-            build_images::build_ci_image_manifest
+            build_images::rebuild_ci_image_if_needed
         fi
         ;;
     cleanup_image | run_exec)
@@ -3066,6 +3073,8 @@ function breeze::run_build_command() {
             echo "Run Kubernetes tests with the KinD cluster "
         elif [[ ${KIND_CLUSTER_OPERATION} == "shell" ]]; then
             echo "Enter an interactive shell for kubernetes testing"
+        elif [[ ${KIND_CLUSTER_OPERATION} == "k9s" ]]; then
+            echo "Run k9s cli to debug in style"
         elif [[ -z ${KIND_CLUSTER_OPERATION=} ]]; then
             echo
             echo "Please provide an operation to run"

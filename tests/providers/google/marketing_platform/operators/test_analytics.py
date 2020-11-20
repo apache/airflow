@@ -40,7 +40,7 @@ BUCKET_OBJECT_NAME = "file.csv"
 
 
 class TestGoogleAnalyticsListAccountsOperator(unittest.TestCase):
-    @mock.patch("airflow.providers.google.marketing_platform.operators." "analytics.GoogleAnalyticsHook")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook")
     def test_execute(self, hook_mock):
         op = GoogleAnalyticsListAccountsOperator(
             api_version=API_VERSION,
@@ -54,7 +54,7 @@ class TestGoogleAnalyticsListAccountsOperator(unittest.TestCase):
 
 
 class TestGoogleAnalyticsRetrieveAdsLinksListOperator(unittest.TestCase):
-    @mock.patch("airflow.providers.google.marketing_platform.operators." "analytics.GoogleAnalyticsHook")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook")
     def test_execute(self, hook_mock):
         op = GoogleAnalyticsRetrieveAdsLinksListOperator(
             account_id=ACCOUNT_ID,
@@ -78,7 +78,7 @@ class TestGoogleAnalyticsRetrieveAdsLinksListOperator(unittest.TestCase):
 
 
 class TestGoogleAnalyticsGetAdsLinkOperator(unittest.TestCase):
-    @mock.patch("airflow.providers.google.marketing_platform.operators." "analytics.GoogleAnalyticsHook")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook")
     def test_execute(self, hook_mock):
         op = GoogleAnalyticsGetAdsLinkOperator(
             account_id=ACCOUNT_ID,
@@ -105,8 +105,8 @@ class TestGoogleAnalyticsGetAdsLinkOperator(unittest.TestCase):
 
 
 class TestGoogleAnalyticsDataImportUploadOperator(unittest.TestCase):
-    @mock.patch("airflow.providers.google.marketing_platform.operators." "analytics.GoogleAnalyticsHook")
-    @mock.patch("airflow.providers.google.marketing_platform.operators." "analytics.GCSHook")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GCSHook")
     @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.NamedTemporaryFile")
     def test_execute(self, mock_tempfile, gcs_hook_mock, ga_hook_mock):
         filename = "file/"
@@ -147,7 +147,7 @@ class TestGoogleAnalyticsDataImportUploadOperator(unittest.TestCase):
 
 
 class TestGoogleAnalyticsDeletePreviousDataUploadsOperator:
-    @mock.patch("airflow.providers.google.marketing_platform.operators." "analytics.GoogleAnalyticsHook")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook")
     def test_execute(self, mock_hook):
         mock_hook.return_value.list_uploads.return_value = [
             {"id": 1},
@@ -228,7 +228,7 @@ how_to_make_doughnuts,2
             with open(tmp.name) as f:
                 assert expected_data == f.read()
 
-    @mock.patch("airflow.providers.google.marketing_platform.operators." "analytics.GCSHook")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GCSHook")
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators."
         "analytics.GoogleAnalyticsModifyFileHeadersDataImportOperator._modify_column_headers"

@@ -22,7 +22,7 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   repo-sync:
     if: github.repository != 'apache/airflow'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@master
       - name: repo-sync

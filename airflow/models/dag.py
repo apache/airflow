@@ -54,7 +54,6 @@ from sqlalchemy.orm.session import Session
 
 from airflow import settings, utils
 from airflow.configuration import conf
-from airflow.dag.base_dag import BaseDag
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound, TaskNotFound
 from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator
@@ -111,7 +110,7 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
 
 
 @functools.total_ordering
-class DAG(BaseDag, LoggingMixin):
+class DAG(LoggingMixin):
     """
     A dag (directed acyclic graph) is a collection of tasks with directional
     dependencies. A dag also has a schedule, a start date and an end date
@@ -280,7 +279,6 @@ class DAG(BaseDag, LoggingMixin):
 
         validate_key(dag_id)
 
-        # Properties from BaseDag
         self._dag_id = dag_id
         self._full_filepath = full_filepath if full_filepath else ''
         self._concurrency = concurrency
@@ -661,6 +659,15 @@ class DAG(BaseDag, LoggingMixin):
     def get_last_dagrun(self, session=None, include_externally_triggered=False):
         return get_last_dagrun(
             self.dag_id, session=session, include_externally_triggered=include_externally_triggered
+        )
+
+    @provide_session
+    def has_dag_runs(self, session=None, include_externally_triggered=True) -> bool:
+        return (
+            get_last_dagrun(
+                self.dag_id, session=session, include_externally_triggered=include_externally_triggered
+            )
+            is not None
         )
 
     @property
@@ -1304,7 +1311,7 @@ class DAG(BaseDag, LoggingMixin):
         if confirm_prompt:
             ti_list = "\n".join([str(t) for t in tis])
             question = (
-                "You are about to delete these {count} tasks:\n" "{ti_list}\n\n" "Are you sure? (yes/no): "
+                "You are about to delete these {count} tasks:\n{ti_list}\n\nAre you sure? (yes/no): "
             ).format(count=count, ti_list=ti_list)
             do_it = utils.helpers.ask_yesno(question)
 
@@ -1367,9 +1374,7 @@ class DAG(BaseDag, LoggingMixin):
             return 0
         if confirm_prompt:
             ti_list = "\n".join([str(t) for t in all_tis])
-            question = (
-                "You are about to delete these {} tasks:\n" "{}\n\n" "Are you sure? (yes/no): "
-            ).format(count, ti_list)
+            question = f"You are about to delete these {count} tasks:\n{ti_list}\n\nAre you sure? (yes/no): "
             do_it = utils.helpers.ask_yesno(question)
 
         if do_it:

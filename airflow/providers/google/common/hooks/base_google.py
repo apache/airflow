@@ -22,7 +22,7 @@ import json
 import logging
 import os
 import tempfile
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from subprocess import check_output
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, TypeVar, Union, cast
 
@@ -34,7 +34,8 @@ import tenacity
 from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
 from google.api_core.gapic_v1.client_info import ClientInfo
 from google.auth import _cloud_sdk
-from google.auth.environment_vars import CREDENTIALS
+from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
+from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload, build_http, set_user_agent
 
@@ -212,6 +213,23 @@ class GoogleBaseHook(BaseHook):
         """Returns a valid access token from Google API Credentials"""
         return self._get_credentials().token
 
+    @functools.lru_cache(maxsize=None)
+    def _get_credentials_email(self) -> str:
+        """
+        Returns the email address associated with the currently logged in account
+
+        If a service account is used, it returns the service account.
+        If user authentication (e.g. gcloud auth) is used, it returns the e-mail account of that user.
+        """
+        credentials = self._get_credentials()
+        service_account_email = getattr(credentials, 'service_account_email', None)
+        if service_account_email:
+            return service_account_email
+
+        http_authorized = self._authorize()
+        oauth2_client = discovery.build('oauth2', "v1", http=http_authorized, cache_discovery=False)
+        return oauth2_client.tokeninfo().execute()['email']  # pylint: disable=no-member
+
     def _authorize(self) -> google_auth_httplib2.AuthorizedHttp:
         """
         Returns an authorized HTTP object to be used to build a Google cloud
@@ -350,7 +368,7 @@ class GoogleBaseHook(BaseHook):
         def inner_wrapper(self: GoogleBaseHook, *args, **kwargs) -> RT:
             if args:
                 raise AirflowException(
-                    "You must use keyword arguments in this methods rather than" " positional"
+                    "You must use keyword arguments in this methods rather than positional"
                 )
             if 'project_id' in kwargs:
                 kwargs['project_id'] = kwargs['project_id'] or self.project_id
@@ -432,12 +450,11 @@ class GoogleBaseHook(BaseHook):
         credentials_path = _cloud_sdk.get_application_default_credentials_path()
         project_id = self.project_id
 
-        # fmt: off
-        with self.provide_gcp_credential_file_as_context(), \
-                tempfile.TemporaryDirectory() as gcloud_config_tmp, \
-                patch_environ({'CLOUDSDK_CONFIG': gcloud_config_tmp}):
+        with ExitStack() as exit_stack:
+            exit_stack.enter_context(self.provide_gcp_credential_file_as_context())
+            gcloud_config_tmp = exit_stack.enter_context(tempfile.TemporaryDirectory())
+            exit_stack.enter_context(patch_environ({CLOUD_SDK_CONFIG_DIR: gcloud_config_tmp}))
 
-            # fmt: on
             if project_id:
                 # Don't display stdout/stderr for security reason
                 check_output(["gcloud", "config", "set", "core/project", project_id])
@@ -445,7 +462,12 @@ class GoogleBaseHook(BaseHook):
                 # This solves most cases when we are logged in using the service key in Airflow.
                 # Don't display stdout/stderr for security reason
                 check_output(
-                    ["gcloud", "auth", "activate-service-account", f"--key-file={os.environ[CREDENTIALS]}",]
+                    [
+                        "gcloud",
+                        "auth",
+                        "activate-service-account",
+                        f"--key-file={os.environ[CREDENTIALS]}",
+                    ]
                 )
             elif os.path.exists(credentials_path):
                 # If we are logged in by `gcloud auth application-default` then we need to log in manually.

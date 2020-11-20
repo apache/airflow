@@ -221,6 +221,7 @@ The above URI would produce a ``Connection`` object equivalent to the following:
     Connection(
         conn_id='',
         conn_type='my_conn_type',
+        description=None,
         login='my-login',
         password='my-password',
         host='my-host',
@@ -257,6 +258,7 @@ convenience method :py:meth:`~airflow.models.connection.Connection.get_uri`.  It
     >>> c = Connection(
     >>>     conn_id='some_conn',
     >>>     conn_type='mysql',
+    >>>     description='connection description',
     >>>     host='myhost.com',
     >>>     login='myname',
     >>>     password='mypassword',

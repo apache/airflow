@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Save Rendered Template Fields"""
+import os
 from typing import Optional
 
 import sqlalchemy_jsonfield
@@ -40,6 +41,7 @@ class RenderedTaskInstanceFields(Base):
     task_id = Column(String(ID_LEN), primary_key=True)
     execution_date = Column(UtcDateTime, primary_key=True)
     rendered_fields = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
+    k8s_pod_yaml = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
 
     def __init__(self, ti: TaskInstance, render_templates=True):
         self.dag_id = ti.dag_id
@@ -49,6 +51,8 @@ class RenderedTaskInstanceFields(Base):
         self.ti = ti
         if render_templates:
             ti.render_templates()
+        if os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD", None):
+            self.k8s_pod_yaml = ti.render_k8s_pod_yaml()
         self.rendered_fields = {
             field: serialize_template_field(getattr(self.task, field)) for field in self.task.template_fields
         }
@@ -80,6 +84,26 @@ class RenderedTaskInstanceFields(Base):
             return rendered_fields
         else:
             return None
+
+    @classmethod
+    @provide_session
+    def get_k8s_pod_yaml(cls, ti: TaskInstance, session: Session = None) -> Optional[dict]:
+        """
+        Get rendered Kubernetes Pod Yaml for a TaskInstance from the RenderedTaskInstanceFields
+        table.
+
+        :param ti: Task Instance
+        :param session: SqlAlchemy Session
+        :return: Kubernetes Pod Yaml
+        """
+        result = (
+            session.query(cls.k8s_pod_yaml)
+            .filter(
+                cls.dag_id == ti.dag_id, cls.task_id == ti.task_id, cls.execution_date == ti.execution_date
+            )
+            .one_or_none()
+        )
+        return result.k8s_pod_yaml if result else None
 
     @provide_session
     def write(self, session: Session = None):
