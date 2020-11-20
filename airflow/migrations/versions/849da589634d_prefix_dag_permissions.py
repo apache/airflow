@@ -19,7 +19,7 @@
 """Prefix DAG permissions.
 
 Revision ID: 849da589634d
-Revises: 03afc6b6f902
+Revises: 45ba3f1493b9
 Create Date: 2020-10-01 17:25:10.006322
 
 """
@@ -29,7 +29,7 @@ from airflow.www.app import cached_app
 
 # revision identifiers, used by Alembic.
 revision = '849da589634d'
-down_revision = '03afc6b6f902'
+down_revision = '45ba3f1493b9'
 branch_labels = None
 depends_on = None
 
