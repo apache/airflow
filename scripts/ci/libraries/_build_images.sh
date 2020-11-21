@@ -97,6 +97,19 @@ function build_images::forget_last_answer() {
     fi
 }
 
+function build_images::confirm_via_terminal() {
+    echo > "${DETECTED_TERMINAL}"
+    echo > "${DETECTED_TERMINAL}"
+    echo "Make sure that you rebased to latest master before rebuilding!" > "${DETECTED_TERMINAL}"
+    echo > "${DETECTED_TERMINAL}"
+    # Make sure to use output of tty rather than stdin/stdout when available - this way confirm
+    # will works also in case of pre-commits (git does not pass stdin/stdout to pre-commit hooks)
+    # shellcheck disable=SC2094
+    "${AIRFLOW_SOURCES}/confirm" "${ACTION} image ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}" \
+        <"${DETECTED_TERMINAL}" >"${DETECTED_TERMINAL}"
+    RES=$?
+}
+
 # Confirms if hte image should be rebuild and interactively checks it with the user.
 # In case iit needs to be rebuild. It only ask the user if it determines that the rebuild
 # is needed and that the rebuild is not already forced. It asks the user using available terminals
@@ -144,29 +157,11 @@ function build_images::confirm_image_rebuild() {
         "${AIRFLOW_SOURCES}/confirm" "${ACTION} image ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}"
         RES=$?
     elif [[ ${DETECTED_TERMINAL:=$(tty)} != "not a tty" ]]; then
-        echo > "${DETECTED_TERMINAL}"
-        echo > "${DETECTED_TERMINAL}"
-        echo "Make sure that you rebased to latest master before rebuilding!" > "${DETECTED_TERMINAL}"
-        echo > "${DETECTED_TERMINAL}"
-        # Make sure to use output of tty rather than stdin/stdout when available - this way confirm
-        # will works also in case of pre-commits (git does not pass stdin/stdout to pre-commit hooks)
-        # shellcheck disable=SC2094
-        "${AIRFLOW_SOURCES}/confirm" "${ACTION} image ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}" \
-            <"${DETECTED_TERMINAL}" >"${DETECTED_TERMINAL}"
-        RES=$?
         export DETECTED_TERMINAL
+        build_images::confirm_via_terminal
     elif [[ -c /dev/tty ]]; then
         export DETECTED_TERMINAL=/dev/tty
-        # Make sure to use /dev/tty first rather than stdin/stdout when available - this way confirm
-        # will works also in case of pre-commits (git does not pass stdin/stdout to pre-commit hooks)
-        echo > "${DETECTED_TERMINAL}"
-        echo > "${DETECTED_TERMINAL}"
-        echo "Make sure that you rebased to latest master before rebuilding!" > "${DETECTED_TERMINAL}"
-        echo > "${DETECTED_TERMINAL}"
-        # shellcheck disable=SC2094
-        "${AIRFLOW_SOURCES}/confirm" "${ACTION} image ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}" \
-            <"${DETECTED_TERMINAL}" >"${DETECTED_TERMINAL}"
-        RES=$?
+        build_images::confirm_via_terminal
     else
         verbosity::print_info
         verbosity::print_info "No terminal, no stdin - quitting"

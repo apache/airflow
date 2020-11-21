@@ -399,7 +399,14 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | file has to be in docker context so      |
 |                                          |                                          | it's best to place such file in          |
 |                                          |                                          | one of the folders included in           |
-|                                          |                                          | dockerignore                             |
+|                                          |                                          | dockerignore                . for example in the        |
+|                                          |                                          | 'docker-context-files'. Note that the    |
+|                                          |                                          | location does not work for the first     |
+|                                          |                                          | stage of installation when the           |
+|                                          |                                          | stage of installation when the           |
+|                                          |                                          | ``AIRFLOW_PRE_CACHED_PIP_PACKAGES`` is   |
+|                                          |                                          | set to true. Default location from       |
+|                                          |                                          | GitHub is used in this case.             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_LOCAL_PIP_WHEELS``             | ``false``                                | If set to true, Airflow and it's         |
 |                                          |                                          | dependencies are installed from locally  |
