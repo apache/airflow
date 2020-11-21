@@ -157,3 +157,32 @@ Docker image
 ''''''''''''
 
 Airflow is also distributed as a Docker image (OCI Image). For more information, see: :doc:`production-deployment`
+
+Troubleshooting
+'''''''''''''''
+
+This section describes how to troubleshoot installation issues.
+
+``Symbol not found: _Py_GetArgcArgv``
+"""""""""""""""""""""""""""""""""""""
+
+If you see ``Symbol not found: _Py_GetArgcArgv`` while starting or importing Airflow, this may mean that you are using an incompatible version of Python.
+For a homebrew installed version of Python, this is generally caused by using Python in ``/usr/local/opt/bin`` rather than the Frameworks installation (e.g. for ``python 3.7``: ``/usr/local/opt/python@3.7/Frameworks/Python.framework/Versions/3.7``).
+
+The crux of the issue is that a library Airflow depends on, ``setproctitle``, uses a non-public Python API
+which is not available from the standard installation ``/usr/local/opt/`` (which symlinks to a path under ``/usr/local/Cellar``).
+
+An easy fix is just to ensure you use a version of Python that has a dylib of the Python library available. For example:
+
+.. code-block:: bash
+
+  # Note: these instructions are for python3.7 but can be loosely modified for other versions
+  brew install python@3.7
+  virtualenv -p /usr/local/opt/python@3.7/Frameworks/Python.framework/Versions/3.7/bin/python3 .toy-venv
+  source .toy-venv/bin/activate
+  pip install apache-airflow
+  python
+  >>> import setproctitle
+  # Success!
+
+Alternatively, you can download and install Python directly from the `Python website <https://www.python.org/>`__.
