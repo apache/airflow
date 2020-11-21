@@ -31,10 +31,10 @@ from airflow.hooks.base import BaseHook
 class WasbHook(BaseHook):
     """
     Interacts with Azure Blob Storage.
+
     :param wasb_conn_id: Reference to the wasb connection.
     :type wasb_conn_id: str
-    :param public_read: Whether an anonymous public read access should be used.
-        default is False
+    :param public_read: Whether an anonymous public read access should be used. default is False
     :type public_read: bool
     """
 
@@ -79,6 +79,7 @@ class WasbHook(BaseHook):
     def _get_container_client(self, container_name: str) -> ContainerClient:
         """
         Instantiates a container client
+
         :param container_name: The name of the container
         :type container_name: str
         :return: ContainerClient
@@ -103,8 +104,7 @@ class WasbHook(BaseHook):
         :type container_name: str
         :param blob_name: Name of the blob.
         :type blob_name: str
-        :param kwargs: Optional keyword arguments that
-            `BlockBlobService.exists()` takes.
+        :param kwargs: Optional keyword arguments for `BlobClient.get_blob_properties` takes.
         :type kwargs: object
         :return: True if the blob exists, False otherwise.
         :rtype: bool
@@ -118,6 +118,7 @@ class WasbHook(BaseHook):
     def check_for_prefix(self, container_name: str, prefix: str, **kwargs):
         """
         Check if a prefix exists on Azure Blob storage.
+
         :param container_name: Name of the container.
         :type container_name: str
         :param prefix: Prefix of the blob.
@@ -140,6 +141,7 @@ class WasbHook(BaseHook):
     ) -> List:
         """
         List blobs in a given container
+
         :param container_name: The name of the container
         :type container_name: str
         :param prefix: Filters the results to return only blobs whose names
@@ -169,8 +171,7 @@ class WasbHook(BaseHook):
         :type container_name: str
         :param blob_name: Name of the blob.
         :type blob_name: str
-        :param kwargs: Optional keyword arguments that
-            `BlobClient.upload_blob()` takes.
+        :param kwargs: Optional keyword arguments that `BlobClient.upload_blob()` takes.
         :type kwargs: object
         """
         with open(file_path, 'rb') as data:
@@ -179,14 +180,14 @@ class WasbHook(BaseHook):
     def load_string(self, string_data: str, container_name: str, blob_name: str, **kwargs) -> None:
         """
         Upload a string to Azure Blob Storage.
+
         :param string_data: String to load.
         :type string_data: str
         :param container_name: Name of the container.
         :type container_name: str
         :param blob_name: Name of the blob.
         :type blob_name: str
-        :param kwargs: Optional keyword arguments that
-            `BlobClient.upload()` takes.
+        :param kwargs: Optional keyword arguments that `BlobClient.upload()` takes.
         :type kwargs: object
         """
         # Reorder the argument order from airflow.providers.amazon.aws.hooks.s3.load_string.
@@ -195,14 +196,14 @@ class WasbHook(BaseHook):
     def get_file(self, file_path: str, container_name: str, blob_name: str, **kwargs):
         """
         Download a file from Azure Blob Storage.
+
         :param file_path: Path to the file to download.
         :type file_path: str
         :param container_name: Name of the container.
         :type container_name: str
         :param blob_name: Name of the blob.
         :type blob_name: str
-        :param kwargs: Optional keyword arguments that
-            `BlobClient.download_blob()` takes.
+        :param kwargs: Optional keyword arguments that `BlobClient.download_blob()` takes.
         :type kwargs: object
         """
         with open(file_path, "wb") as fileblob:
@@ -212,12 +213,12 @@ class WasbHook(BaseHook):
     def read_file(self, container_name: str, blob_name: str, **kwargs):
         """
         Read a file from Azure Blob Storage and return as a string.
+
         :param container_name: Name of the container.
         :type container_name: str
         :param blob_name: Name of the blob.
         :type blob_name: str
-        :param kwargs: Optional keyword arguments that
-            `BlockBlobService.create_blob_from_path()` takes.
+        :param kwargs: Optional keyword arguments that `BlobClient.download_blob` takes.
         :type kwargs: object
         """
         return self.download(container_name, blob_name, **kwargs).readall()
@@ -233,6 +234,7 @@ class WasbHook(BaseHook):
     ) -> Dict[str, Any]:
         """
         Creates a new blob from a data source with automatic chunking.
+
         :param container_name: The name of the container to upload data
         :type container_name: str
         :param blob_name: The name of the blob to upload. This need not exist in the container
@@ -253,6 +255,7 @@ class WasbHook(BaseHook):
     ) -> StorageStreamDownloader:
         """
         Downloads a blob to the StorageStreamDownloader
+
         :param container_name: The name of the container containing the blob
         :type container_name: str
         :param blob_name: The name of the blob to download
@@ -269,6 +272,7 @@ class WasbHook(BaseHook):
     def create_container(self, container_name: str) -> ContainerClient:
         """
         Create container object if not already existing
+
         :param container_name: The name of the container to create
         :type container_name: str
         """
@@ -285,6 +289,7 @@ class WasbHook(BaseHook):
     def delete_container(self, container_name: str) -> None:
         """
         Delete a container object
+
         :param container_name: The name of the container
         :type container_name: str
         """
@@ -298,6 +303,7 @@ class WasbHook(BaseHook):
     def delete_blobs(self, container_name: str, *blobs, **kwargs) -> None:
         """
         Marks the specified blobs or snapshots for deletion.
+
         :param container_name: The name of the container containing the blobs
         :type container_name: str
         :param blobs: The blobs to delete. This can be a single blob, or multiple values
@@ -317,6 +323,7 @@ class WasbHook(BaseHook):
     ) -> None:
         """
         Delete a file from Azure Blob Storage.
+
         :param container_name: Name of the container.
         :type container_name: str
         :param blob_name: Name of the blob.
@@ -326,8 +333,7 @@ class WasbHook(BaseHook):
         :param ignore_if_missing: if True, then return success even if the
             blob does not exist.
         :type ignore_if_missing: bool
-        :param kwargs: Optional keyword arguments that
-            `ContainerClient.delete_blobs()` takes.
+        :param kwargs: Optional keyword arguments that `ContainerClient.delete_blobs()` takes.
         :type kwargs: object
         """
         if is_prefix:
