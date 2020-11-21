@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -16,20 +15,13 @@
     specific language governing permissions and limitations
     under the License.
 
-``apache-airflow-providers-singularity``
-========================================
+Example DAGS
+============
 
-Content
--------
+You can learn how to use Google integrations by analyzing the source code of the example DAGs:
 
-.. toctree::
-    :maxdepth: 1
-    :caption: References
-
-    Python API <_api/airflow/providers/singularity/index>
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Resources
-
-    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/singularity/example_dags>
+* `Google Ads <https://github.com/apache/airflow/tree/master/airflow/providers/google/ads/example_dags>`__
+* `Google Cloud <https://github.com/apache/airflow/tree/master/airflow/providers/google/cloud/example_dags>`__
+* `Google Firebase <https://github.com/apache/airflow/tree/master/airflow/providers/google/firebase/example_dags>`__
+* `Google Marketing Platform <https://github.com/apache/airflow/tree/master/airflow/providers/google/marketing_platform/example_dags>`__
+* `Google Workplace <https://github.com/apache/airflow/tree/master/airflow/providers/google/suite/example_dags>`__ (formerly Google Suite)
