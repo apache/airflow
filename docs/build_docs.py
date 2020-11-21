@@ -292,7 +292,11 @@ def main():
     package_filters = args.package_filter
 
     print("Current package filters: ", package_filters)
-    current_packages = [p for p in available_packages if any(fnmatch.fnmatch(p, f) for f in package_filters)]
+    current_packages = (
+        [p for p in available_packages if any(fnmatch.fnmatch(p, f) for f in package_filters)]
+        if package_filters
+        else available_packages
+    )
     print(f"Documentation will be built for {len(current_packages)} package(s): {current_packages}")
 
     all_build_errors: Dict[Optional[str], List[DocBuildError]] = {}
