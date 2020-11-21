@@ -73,7 +73,7 @@ class S3ToSnowflakeOperator(BaseOperator):
 
         files = ""
         if self.s3_keys:
-            files = "files=({})".format(", ".join("'{}'".format(key) for key in self.s3_keys))
+            files = "files=({})".format(", ".join(f"'{key}'" for key in self.s3_keys))
 
         # we can extend this based on stage
         base_sql = """
