@@ -29,7 +29,7 @@ integrations:
     external-doc-url: https://snowflake.com/
     how-to-guide:
       - /docs/howto/operator/snowflake.rst
-    tags: [software]
+    tags: [service]
 
 operators:
   - integration-name: Snowflake

@@ -117,4 +117,3 @@ Content
     Stable REST API <stable-rest-api-ref>
     Configurations <configurations-ref>
     Extra packages <extra-packages-ref>
-    Provider packages <provider-packages-ref>
