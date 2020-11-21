@@ -300,7 +300,7 @@ jobs:
           VERBOSE: false
 
   docs:
-    timeout-minutes: 30
+    timeout-minutes: 45
     name: "Build docs"
     runs-on: ubuntu-20.04
     needs: [build-info, ci-images]
