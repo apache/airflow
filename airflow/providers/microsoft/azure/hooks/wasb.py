@@ -89,6 +89,7 @@ class WasbHook(BaseHook):
     def _get_blob_client(self, container_name: str, blob_name: str) -> BlobClient:
         """
         Instantiates a blob client
+
         :param container_name: The name of the blob container
         :type container_name: str
         :param blob_name: The name of the blob. This needs not be existing
@@ -100,11 +101,12 @@ class WasbHook(BaseHook):
     def check_for_blob(self, container_name: str, blob_name: str, **kwargs) -> bool:
         """
         Check if a blob exists on Azure Blob Storage.
+
         :param container_name: Name of the container.
         :type container_name: str
         :param blob_name: Name of the blob.
         :type blob_name: str
-        :param kwargs: Optional keyword arguments for `BlobClient.get_blob_properties` takes.
+        :param kwargs: Optional keyword arguments for ``BlobClient.get_blob_properties`` takes.
         :type kwargs: object
         :return: True if the blob exists, False otherwise.
         :rtype: bool
@@ -123,7 +125,7 @@ class WasbHook(BaseHook):
         :type container_name: str
         :param prefix: Prefix of the blob.
         :type prefix: str
-        :param kwargs: Optional keyword arguments that ContainerClient.walk_blobs takes
+        :param kwargs: Optional keyword arguments that ``ContainerClient.walk_blobs`` takes
         :type kwargs: object
         :return: True if blobs matching the prefix exist, False otherwise.
         :rtype: bool
@@ -148,7 +150,7 @@ class WasbHook(BaseHook):
             begin with the specified prefix.
         :type prefix: str
         :param include: Specifies one or more additional datasets to include in the
-            response. Options include: 'snapshots', 'metadata', 'uncommittedblobs',
+            response. Options include: ``snapshots``, ``metadata``, ``uncommittedblobs``,
             'copy', 'deleted'.
         :type include: List[str]
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
@@ -171,7 +173,7 @@ class WasbHook(BaseHook):
         :type container_name: str
         :param blob_name: Name of the blob.
         :type blob_name: str
-        :param kwargs: Optional keyword arguments that `BlobClient.upload_blob()` takes.
+        :param kwargs: Optional keyword arguments that ``BlobClient.upload_blob()`` takes.
         :type kwargs: object
         """
         with open(file_path, 'rb') as data:
@@ -187,7 +189,7 @@ class WasbHook(BaseHook):
         :type container_name: str
         :param blob_name: Name of the blob.
         :type blob_name: str
-        :param kwargs: Optional keyword arguments that `BlobClient.upload()` takes.
+        :param kwargs: Optional keyword arguments that ``BlobClient.upload()`` takes.
         :type kwargs: object
         """
         # Reorder the argument order from airflow.providers.amazon.aws.hooks.s3.load_string.
@@ -240,8 +242,8 @@ class WasbHook(BaseHook):
         :param blob_name: The name of the blob to upload. This need not exist in the container
         :type blob_name: str
         :param data: The blob data to upload
-        :param blob_type: The type of the blob. This can be either BlockBlob,
-            PageBlob or AppendBlob. The default value is BlockBlob.
+        :param blob_type: The type of the blob. This can be either ``BlockBlob``,
+            ``PageBlob`` or ``AppendBlob``. The default value is ``BlockBlob``.
         :type blob_type: storage.BlobType
         :param length: Number of bytes to read from the stream. This is optional,
             but should be supplied for optimal performance.
@@ -333,7 +335,7 @@ class WasbHook(BaseHook):
         :param ignore_if_missing: if True, then return success even if the
             blob does not exist.
         :type ignore_if_missing: bool
-        :param kwargs: Optional keyword arguments that `ContainerClient.delete_blobs()` takes.
+        :param kwargs: Optional keyword arguments that ``ContainerClient.delete_blobs()`` takes.
         :type kwargs: object
         """
         if is_prefix:
