@@ -78,7 +78,8 @@ else:
     PACKAGE_VERSION = 'master'
 # Adds to environment variables for easy access from other plugins like airflow_internsphinx.
 os.environ['AIRFLOW_PACKAGE_NAME'] = PACKAGE_NAME
-os.environ['AIRFLOW_PACKAGE_DIR'] = PACKAGE_DIR
+if PACKAGE_DIR:
+    os.environ['AIRFLOW_PACKAGE_DIR'] = PACKAGE_DIR
 os.environ['AIRFLOW_PACKAGE_VERSION'] = PACKAGE_VERSION
 
 
