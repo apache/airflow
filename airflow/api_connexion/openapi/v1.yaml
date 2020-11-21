@@ -2449,7 +2449,7 @@ components:
       properties:
         total_entries:
           type: integer
-          description: Count of objects in the current result set.
+          description: Total count for all collection items.
 
     # Enums
     TaskState:
