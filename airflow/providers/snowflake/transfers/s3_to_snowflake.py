@@ -73,9 +73,7 @@ class S3ToSnowflakeOperator(BaseOperator):
 
         files = ""
         if self.s3_keys:
-            files = "files=({})".format(
-                ", ".join("'{}'".format(key) for key in self.s3_keys)
-            )
+            files = "files=({})".format(", ".join("'{}'".format(key) for key in self.s3_keys))
 
         # we can extend this based on stage
         base_sql = """
@@ -98,6 +96,7 @@ class S3ToSnowflakeOperator(BaseOperator):
             """.format(
                 schema=self.schema, table=self.table, base_sql=base_sql
             )
+        copy_query = "\n".join(line.strip() for line in copy_query.splitlines())
 
         self.log.info('Executing COPY command...')
         snowflake_hook.run(copy_query, self.autocommit)

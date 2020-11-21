@@ -44,7 +44,7 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
 
         base_sql = """
                 FROM @{stage}/
-                
+
                 file_format={file_format}
             """.format(
             stage=stage, file_format=file_format
@@ -55,6 +55,7 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
             """.format(
             schema=schema, table=table, base_sql=base_sql
         )
+        copy_query = "\n".join(line.strip() for line in copy_query.splitlines())
 
         assert mock_run.call_count == 1
         assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_query)
@@ -94,6 +95,7 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
             """.format(
             schema=schema, table=table, base_sql=base_sql
         )
+        copy_query = "\n".join(line.strip() for line in copy_query.splitlines())
 
         assert mock_run.call_count == 1
         assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_query)
@@ -118,7 +120,7 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
 
         base_sql = """
                 FROM @{stage}/
-                
+
                 file_format={file_format}
             """.format(
             stage=stage, file_format=file_format
@@ -129,6 +131,7 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
             """.format(
             schema=schema, table=table, columns=",".join(columns_array), base_sql=base_sql
         )
+        copy_query = "\n".join(line.strip() for line in copy_query.splitlines())
 
         assert mock_run.call_count == 1
         assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_query)
