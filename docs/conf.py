@@ -54,15 +54,11 @@ CONF_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 ROOT_DIR = os.path.abspath(os.path.join(CONF_DIR, os.pardir))
 
 # By default (e.g. on RTD), build docs for `airflow` package
-PACKAGE_NAME = os.environ.get('AIRFLOW_PACKAGE_NAME', 'airflow')
+PACKAGE_NAME = os.environ.get('AIRFLOW_PACKAGE_NAME', 'apache-airflow')
 if PACKAGE_NAME == 'apache-airflow':
-    os.environ['AIRFLOW_PACKAGE_NAME'] = 'airflow'
-    os.environ['AIRFLOW_PACKAGE_DIR'] = os.path.abspath(os.getcwd())
-    os.environ['AIRFLOW_PACKAGE_VERSION'] = airflow.__version__
     PACKAGE_DIR = os.path.join(ROOT_DIR, 'airflow')
     PACKAGE_VERSION = airflow.__version__
 else:
-    PACKAGE_NAME = os.environ['AIRFLOW_PACKAGE_NAME']
     from provider_yaml_utils import load_package_data  # pylint: disable=no-name-in-module
 
     ALL_PROVIDER_YAMLS = load_package_data()
@@ -76,6 +72,10 @@ else:
         raise Exception(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
     PACKAGE_DIR = CURRENT_PROVIDER['package-dir']
     PACKAGE_VERSION = 'master'
+# Adds to environment variables for easy access from other plugins like airflow_internsphinx.
+os.environ['AIRFLOW_PACKAGE_NAME'] = PACKAGE_NAME
+os.environ['AIRFLOW_PACKAGE_DIR'] = PACKAGE_DIR
+os.environ['AIRFLOW_PACKAGE_VERSION'] = PACKAGE_VERSION
 
 
 # Hack to allow changing for piece of the code to behave differently while
