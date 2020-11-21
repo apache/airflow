@@ -311,7 +311,9 @@ jobs:
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Build docs"
-        run: ./scripts/ci/docs/ci_docs.sh
+        run: ./scripts/ci/docs/ci_docs.sh --docs-only
+      - name: "Spell check"
+        run: ./scripts/ci/docs/ci_docs.sh --spellcheck-only
       - name: "Upload documentation"
         uses: actions/upload-artifact@v2
         if: always() && github.event_name == 'pull_request'

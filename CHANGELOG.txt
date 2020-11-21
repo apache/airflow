@@ -2927,7 +2927,7 @@ Airflow 1.9.0, 2018-01-02
 - [AIRFLOW-1799] Fix logging line which raises errors
 - [AIRFLOW-1102] Upgrade Gunicorn >=19.4.0
 - [AIRFLOW-1756] Fix S3TaskHandler to work with Boto3-based S3Hook
-- [AIRFLOW-1797] S3Hook.load_string didn't work on Python3
+- [AIRFLOW-1797] S3Hook.load_string did not work on Python3
 - [AIRFLOW-1792] Missing intervals DruidOperator
 - [AIRFLOW-1789][AIRFLOW-1712] Log SSHOperator stderr to log.warning
 - [AIRFLOW-1669] Fix Docker and pin Moto to 1.1.19
