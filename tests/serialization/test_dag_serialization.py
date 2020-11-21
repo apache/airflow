@@ -36,6 +36,7 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import DAG, Connection, DagBag, TaskInstance
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.dag import DagContext
 from airflow.operators.bash import BashOperator
 from airflow.security import permissions
 from airflow.serialization.json_schema import load_dag_schema_dict
@@ -432,7 +433,6 @@ class TestStringifiedDAGs(unittest.TestCase):
         ]
     )
     def test_deserialization_start_date(self, dag_start_date, task_start_date, expected_task_start_date):
-
         dag = DAG(dag_id='simple_dag', start_date=dag_start_date)
         BaseOperator(task_id='simple_task', dag=dag, start_date=task_start_date)
 
@@ -447,6 +447,14 @@ class TestStringifiedDAGs(unittest.TestCase):
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict["simple_task"]
         self.assertEqual(simple_task.start_date, expected_task_start_date)
+
+    def test_deserialization_with_dag_context(self):
+        dag = DAG(dag_id='simple_dag', start_date=datetime(2019, 8, 1, tzinfo=timezone.utc))
+        DagContext.push_context_managed_dag(dag)
+        BaseOperator(task_id='simple_task')
+        # should not raise RuntimeError: dictionary changed size during iteration
+        SerializedDAG.to_dict(dag)
+        DagContext.pop_context_managed_dag()
 
     @parameterized.expand(
         [
