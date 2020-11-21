@@ -131,6 +131,7 @@ update-local-yml-file
 update-setup-cfg-file
 version-sync
 yamllint
+json_schema_validation
 EOF
 )
 

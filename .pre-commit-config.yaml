@@ -491,6 +491,15 @@ repos:
         files: "setup.py|^airflow/providers/.*.py"
         pass_filenames: false
         require_serial: true
+      - id: json_schema_validation
+        name: Perform JSON schema validation on JSON/YAML files
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_json_schema_validation.py
+        pass_filenames: false
+        additional_dependencies: ['PyYAML==5.3.1', 'jsonschema==3.2.0']
+        args:
+          - ./chart/values.schema.json
+          - ./chart/values.yaml
       - id: markdownlint
         name: Run markdownlint
         description: "Checks the style of Markdown files."

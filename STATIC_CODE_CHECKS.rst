@@ -175,6 +175,8 @@ require Breeze Docker images to be installed locally:
 ``version-sync``                      Synchronizes versions setup.py <-> airflow/version.py.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``yamllint``                          Checks yaml files with yamllint.
+----------------------------------- ---------------------------------------------------------------- ------------
+``json_schema_validation``            Performs schema validation on YAML/JSON files using jsonschema
 =================================== ================================================================ ============
 
 The pre-commit hooks only check the files you are currently working on and make
