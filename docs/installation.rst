@@ -78,7 +78,7 @@ the main Airflow installation.
           you have to install provider packages manually. As of Airflow 2.0.0b2 the corresponding
           provider packages are installed together with the extras.
 
-Read more about it in the `Provider Packages <#provider-packages>`_ section.
+Read more about it in the :ref:`Provider Packages <installation:provider_packages>`_ section.
 
 Requirements
 ''''''''''''
@@ -127,6 +127,8 @@ these extra dependencies.
 
 For the list of the subpackages and what they enable, see: :doc:`extra-packages-ref`.
 
+.. _installation:provider_packages:
+
 Provider packages
 '''''''''''''''''
 
@@ -134,9 +136,9 @@ Unlike Apache Airflow 1.10, the Airflow 2.0 is delivered in multiple, separate, 
 The core of Airflow scheduling system is delivered as ``apache-airflow`` package and there are around
 60 providers packages which can be installed separately as so called "Airflow Provider packages".
 The default Airflow installation doesn't have many integrations and you have to install them yourself.
-For more information, see: :doc:`provider-packages`
+For more information, see: :doc:`apache-airflow-providers:index`
 
-For the list of the provider packages and what they enable, see: :doc:`provider-packages-ref`.
+For the list of the provider packages and what they enable, see: :doc:`apache-airflow-providers:packages-ref`.
 
 Initializing Airflow Database
 '''''''''''''''''''''''''''''

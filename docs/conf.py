@@ -132,7 +132,7 @@ if PACKAGE_NAME == 'apache-airflow':
             "sphinx_script_update",
         ]
     )
-if PACKAGE_NAME == "provider-references":
+if PACKAGE_NAME == "apache-airflow-providers":
     extensions.extend(
         [
             'operators_and_hooks_ref',
@@ -159,7 +159,7 @@ if PACKAGE_NAME == 'apache-airflow':
         'howto/operator/google/_partials',
         'howto/operator/microsoft/_partials',
         'apache-airflow-providers-*/',
-        'provider-references',
+        'apache-airflow-providers',
         'README.rst',
     ] + glob.glob('apache-airflow-providers-*')
 elif PACKAGE_NAME.startswith('apache-airflow-providers-'):

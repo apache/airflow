@@ -20,7 +20,7 @@ Operators and Hooks Reference
 
 Here's the list of the operators and hooks which are available in this release in the ``apache-airflow`` package.
 Airflow has many more integrations available for separate installation as a provider packages. For details see:
-:doc:`provider-references:operators-and-hooks-ref/index`.
+:doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
 
 **Base:**
 

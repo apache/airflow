@@ -73,8 +73,9 @@ class AirflowDocsBuilder:
 
     @property
     def _out_dir(self) -> str:
-        if self.package_name == 'provider-references':
-            # Disable versioning for references
+        if self.package_name == 'apache-airflow-providers':
+            # Disable versioning. This documentation does not apply to any issued product and we can update
+            # it as needed, i.e. with each new package of providers.
             return f"{DOCS_DIR}/_build/docs/{self.package_name}"
         else:
             return f"{DOCS_DIR}/_build/docs/{self.package_name}/latest"
@@ -87,7 +88,7 @@ class AirflowDocsBuilder:
         if self.package_name == 'apache-airflow':
             return DOCS_DIR
         elif self.package_name.startswith('apache-airflow-providers-') or (
-            self.package_name == 'provider-references'
+            self.package_name == 'apache-airflow-providers'
         ):
             return f"{DOCS_DIR}/{self.package_name}"
         else:
@@ -192,7 +193,7 @@ class AirflowDocsBuilder:
 def get_available_packages():
     """Get list of all available packages to build."""
     provider_package_names = [provider['package-name'] for provider in ALL_PROVIDER_YAMLS]
-    return ["apache-airflow", "provider-references", *provider_package_names]
+    return ["apache-airflow", "apache-airflow-providers", *provider_package_names]
 
 
 def _get_parser():

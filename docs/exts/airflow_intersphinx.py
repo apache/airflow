@@ -91,10 +91,10 @@ def _generate_provider_intersphinx_mapping():
             ),
         )
 
-    if os.environ.get('AIRFLOW_PACKAGE_NAME') != 'provider-references':
-        airflow_mapping['provider-references'] = (
+    if os.environ.get('AIRFLOW_PACKAGE_NAME') != 'apache-airflow-providers':
+        airflow_mapping['apache-airflow-providers'] = (
             # base URI
-            '/docs/provider-references/',
+            '/docs/apache-airflow-providers/',
             # Index locations list
             # If passed None, this will try to fetch the index from `[base_url]/objects.inv`
             # If we pass a path containing `://` then we will try to index from the given address.
@@ -103,8 +103,8 @@ def _generate_provider_intersphinx_mapping():
             # In this case, the local index will be read. If unsuccessful, the remote index
             # will be fetched.
             (
-                f'{DOCS_DIR}/_build/docs/provider-references/objects.inv',
-                f'{S3_DOC_URL}/docs/provider-references/objects.inv',
+                f'{DOCS_DIR}/_build/docs/apache-airflow-providers/objects.inv',
+                f'{S3_DOC_URL}/docs/apache-airflow-providers/objects.inv',
             ),
         )
 
