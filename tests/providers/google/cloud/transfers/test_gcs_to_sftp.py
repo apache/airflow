@@ -19,10 +19,9 @@
 
 import os
 import unittest
-
-import mock
-from parameterized import parameterized
 from unittest import mock
+
+from parameterized import parameterized
 
 import pytest
 
