@@ -40,7 +40,7 @@ For example, a simple DAG could consist of three tasks: A, B, and C. It could
 say that A has to run successfully before B can run, but C can run anytime. It
 could say that task A times out after 5 minutes, and B can be restarted up to 5
 times in case it fails. It might also say that the workflow will run every night
-at 10pm, but shouldn't start until a certain date.
+at 10pm, but should not start until a certain date.
 
 In this way, a DAG describes *how* you want to carry out your workflow; but
 notice that we haven't said anything about *what* we actually want to do! A, B,
@@ -805,7 +805,7 @@ methods.
 
 It is also possible to override the ``orm_deserialize_value`` method which is used for deserialization when
 recreating ORM XCom object. This happens every time we query the XCom table, for example when we want to populate
-XCom list view in webserver. If your XCom backend performs expensive operations, or has large values that aren't
+XCom list view in webserver. If your XCom backend performs expensive operations, or has large values that are not
 useful to show in such a view, override this method to provide an alternative representation. By default Airflow will
 use ``BaseXCom.orm_deserialize_value`` method which returns the value stored in Airflow database.
 

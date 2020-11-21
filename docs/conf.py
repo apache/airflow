@@ -34,7 +34,7 @@
 import glob
 import os
 import sys
-from typing import List
+from typing import List, Optional
 
 import yaml
 
@@ -55,6 +55,7 @@ ROOT_DIR = os.path.abspath(os.path.join(CONF_DIR, os.pardir))
 
 # By default (e.g. on RTD), build docs for `airflow` package
 PACKAGE_NAME = os.environ.get('AIRFLOW_PACKAGE_NAME', 'apache-airflow')
+PACKAGE_DIR: Optional[str]
 if PACKAGE_NAME == 'apache-airflow':
     PACKAGE_DIR = os.path.join(ROOT_DIR, 'airflow')
     PACKAGE_VERSION = airflow.__version__
