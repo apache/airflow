@@ -220,6 +220,7 @@ execution_date
 The ``execution_date`` is the *logical* date and time which the DAG Run, and its task instances, are running for.
 
 This allows task instances to process data for the desired *logical* date & time.
+//TODO: rewrite this sentence to something understandable! The idea is too tricky!!! We are busy doing (did not ketch what we are doing). That is why the dag which supposed to be ran 3 monthes ago actually ran now?? Or what?? What all this words meen???
 While a task_instance or DAG run might have a *actual* start date of now,
 their *logical* date might be 3 months ago because we are busy reloading something.
 
