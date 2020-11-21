@@ -78,7 +78,7 @@ the main Airflow installation.
           you have to install provider packages manually. As of Airflow 2.0.0b2 the corresponding
           provider packages are installed together with the extras.
 
-Read more about it in the :ref:`Provider Packages <installation:provider_packages>`_ section.
+Read more about it in the :ref:`Provider Packages <installation:provider_packages>` section.
 
 Requirements
 ''''''''''''

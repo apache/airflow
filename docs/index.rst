@@ -78,7 +78,6 @@ Content
     license
     start
     installation
-    provider-packages
     tutorial
     tutorial_taskflow_api
     howto/index
