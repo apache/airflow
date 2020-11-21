@@ -16,8 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
-
-from mock import patch
+from unittest.mock import patch
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -25,12 +24,13 @@ from airflow.providers.cloudant.hooks.cloudant import CloudantHook
 
 
 class TestCloudantHook(unittest.TestCase):
-
     def setUp(self):
         self.cloudant_hook = CloudantHook()
 
-    @patch('airflow.providers.cloudant.hooks.cloudant.CloudantHook.get_connection',
-           return_value=Connection(login='user', password='password', host='account'))
+    @patch(
+        'airflow.providers.cloudant.hooks.cloudant.CloudantHook.get_connection',
+        return_value=Connection(login='user', password='password', host='account'),
+    )
     @patch('airflow.providers.cloudant.hooks.cloudant.cloudant')
     def test_get_conn(self, mock_cloudant, mock_get_connection):
         cloudant_session = self.cloudant_hook.get_conn()
@@ -39,8 +39,10 @@ class TestCloudantHook(unittest.TestCase):
         mock_cloudant.assert_called_once_with(user=conn.login, passwd=conn.password, account=conn.host)
         self.assertEqual(cloudant_session, mock_cloudant.return_value)
 
-    @patch('airflow.providers.cloudant.hooks.cloudant.CloudantHook.get_connection',
-           return_value=Connection(login='user'))
+    @patch(
+        'airflow.providers.cloudant.hooks.cloudant.CloudantHook.get_connection',
+        return_value=Connection(login='user'),
+    )
     def test_get_conn_invalid_connection(self, mock_get_connection):
         with self.assertRaises(AirflowException):
             self.cloudant_hook.get_conn()

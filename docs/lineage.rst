@@ -28,7 +28,7 @@ audit trails and data governance, but also debugging of data flows.
 Airflow tracks data by means of inlets and outlets of the tasks. Let's work from an example and see how it
 works.
 
-.. code:: python
+.. code-block:: python
 
     from airflow.operators.bash import BashOperator
     from airflow.operators.dummy_operator import DummyOperator
@@ -90,7 +90,7 @@ Shorthand notation is available as well, this works almost equal to unix command
 Note that operator precedence_ still applies. Also the ``|`` operator will only work when the left hand side either
 has outlets defined (e.g. by using ``add_outlets(..)`` or has out of the box support of lineage ``operator.supports_lineage == True``.
 
-.. code:: python
+.. code-block:: python
 
     f_in > run_this | (run_this_last > outlets)
 

@@ -39,7 +39,6 @@ from airflow.utils.process_utils import check_if_pidfile_process_is_running, exe
 
 
 class TestReapProcessGroup(unittest.TestCase):
-
     @staticmethod
     def _ignores_sigterm(child_pid, child_setup_done):
         def signal_handler(unused_signum, unused_frame):
@@ -55,11 +54,13 @@ class TestReapProcessGroup(unittest.TestCase):
     def _parent_of_ignores_sigterm(parent_pid, child_pid, setup_done):
         def signal_handler(unused_signum, unused_frame):
             pass
+
         os.setsid()
         signal.signal(signal.SIGTERM, signal_handler)
         child_setup_done = multiprocessing.Semaphore(0)
-        child = multiprocessing.Process(target=TestReapProcessGroup._ignores_sigterm,
-                                        args=[child_pid, child_setup_done])
+        child = multiprocessing.Process(
+            target=TestReapProcessGroup._ignores_sigterm, args=[child_pid, child_setup_done]
+        )
         child.start()
         child_setup_done.acquire(timeout=5.0)
         parent_pid.value = os.getpid()
@@ -96,19 +97,13 @@ class TestReapProcessGroup(unittest.TestCase):
 
 
 class TestExecuteInSubProcess(unittest.TestCase):
-
     def test_should_print_all_messages1(self):
         with self.assertLogs(log) as logs:
             execute_in_subprocess(["bash", "-c", "echo CAT; echo KITTY;"])
 
         msgs = [record.getMessage() for record in logs.records]
 
-        self.assertEqual([
-            "Executing cmd: bash -c 'echo CAT; echo KITTY;'",
-            'Output:',
-            'CAT',
-            'KITTY'
-        ], msgs)
+        self.assertEqual(["Executing cmd: bash -c 'echo CAT; echo KITTY;'", 'Output:', 'CAT', 'KITTY'], msgs)
 
     def test_should_raise_exception(self):
         with self.assertRaises(CalledProcessError):
@@ -125,7 +120,6 @@ def my_sleep_subprocess_with_signals():
     sleep(100)
 
 
-@pytest.mark.quarantined
 class TestKillChildProcessesByPids(unittest.TestCase):
     def test_should_kill_process(self):
         before_num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
@@ -142,6 +136,7 @@ class TestKillChildProcessesByPids(unittest.TestCase):
         num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
         self.assertEqual(before_num_process, num_process)
 
+    @pytest.mark.quarantined
     def test_should_force_kill_process(self):
         before_num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
 
@@ -186,7 +181,7 @@ class TestPatchEnviron(unittest.TestCase):
                 with process_utils.patch_environ({"TEST_NOT_EXISTS": "AFTER", "TEST_EXISTS": "AFTER"}):
                     self.assertEqual("AFTER", os.environ["TEST_NOT_EXISTS"])
                     self.assertEqual("AFTER", os.environ["TEST_EXISTS"])
-                    raise AirflowException("Unknown excepiton")
+                    raise AirflowException("Unknown exception")
 
             self.assertEqual("BEFORE", os.environ["TEST_EXISTS"])
             self.assertNotIn("TEST_NOT_EXISTS", os.environ)

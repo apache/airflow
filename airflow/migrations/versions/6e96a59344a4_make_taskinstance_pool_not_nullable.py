@@ -44,7 +44,7 @@ Base = declarative_base()
 ID_LEN = 250
 
 
-class TaskInstance(Base):
+class TaskInstance(Base):  # type: ignore
     """
     Task instances store the state of a task instance. This table is the
     authority and single source of truth around what tasks have run and the
@@ -82,14 +82,11 @@ class TaskInstance(Base):
 
 
 def upgrade():
-    """
-    Make TaskInstance.pool field not nullable.
-    """
+    """Make TaskInstance.pool field not nullable."""
     with create_session() as session:
-        session.query(TaskInstance) \
-            .filter(TaskInstance.pool.is_(None)) \
-            .update({TaskInstance.pool: 'default_pool'},
-                    synchronize_session=False)  # Avoid select updated rows
+        session.query(TaskInstance).filter(TaskInstance.pool.is_(None)).update(
+            {TaskInstance.pool: 'default_pool'}, synchronize_session=False
+        )  # Avoid select updated rows
         session.commit()
 
     conn = op.get_bind()
@@ -109,10 +106,7 @@ def upgrade():
 
 
 def downgrade():
-    """
-    Make TaskInstance.pool field nullable.
-    """
-
+    """Make TaskInstance.pool field nullable."""
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
         op.drop_index('ti_pool', table_name='task_instance')
@@ -129,8 +123,7 @@ def downgrade():
         op.create_index('ti_pool', 'task_instance', ['pool', 'state', 'priority_weight'])
 
     with create_session() as session:
-        session.query(TaskInstance) \
-            .filter(TaskInstance.pool == 'default_pool') \
-            .update({TaskInstance.pool: None},
-                    synchronize_session=False)  # Avoid select updated rows
+        session.query(TaskInstance).filter(TaskInstance.pool == 'default_pool').update(
+            {TaskInstance.pool: None}, synchronize_session=False
+        )  # Avoid select updated rows
         session.commit()

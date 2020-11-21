@@ -18,31 +18,28 @@
  -->
 
 
-# Package apache-airflow-backport-providers-papermill
+# Package apache-airflow-providers-papermill
 
-Release: 2020.5.20
+Release: 1.0.0b2
 
 **Table of contents**
 
-- [Backport package](#backport-package)
+- [Provider package](#provider-package)
 - [Installation](#installation)
-- [Compatibility](#compatibility)
 - [PIP requirements](#pip-requirements)
-- [Provider class summary](#provider-class-summary)
+- [Provider class summary](#provider-classes-summary)
     - [Operators](#operators)
         - [Moved operators](#moved-operators)
 - [Releases](#releases)
-    - [Release 2020.5.20](#release-2020520)
+    - [Release 1.0.0b2](#release-100b2)
+    - [Release 1.0.0b1](#release-100b1)
+    - [Release 0.0.2a1](#release-002a1)
+    - [Release 0.0.1](#release-001)
 
-## Backport package
+## Provider package
 
-This is a backport providers package for `papermill` provider. All classes for this provider package
+This is a provider package for `papermill` provider. All classes for this provider package
 are in `airflow.providers.papermill` python package.
-
-**Only Python 3.6+ is supported for this backport package.**
-
-While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
-want to use this backport package.
 
 
 ## Additional notes
@@ -53,13 +50,8 @@ However, since AUTO inlets is a feature of Airflow 2 not backported to 1.10.*.
 
 ## Installation
 
-You can install this package on top of an existing airflow 1.10.* installation via
-`pip install apache-airflow-backport-providers-papermill`
-
-## Compatibility
-
-For full compatibility and test status of the backport packages check
-[Airflow Backport Package Compatibility](https://cwiki.apache.org/confluence/display/AIRFLOW/Backported+providers+packages+for+Airflow+1.10.*+series)
+You can install this package on top of an existing airflow 2.* installation via
+`pip install apache-airflow-providers-papermill`
 
 ## PIP requirements
 
@@ -68,13 +60,14 @@ For full compatibility and test status of the backport packages check
 | papermill[all]         | &gt;=1.2.1            |
 | nteract-scrapbook[all] | &gt;=0.3.1            |
 
-# Provider class summary
+# Provider classes summary
 
-All classes in Airflow 2.0 are in `airflow.providers.papermill` package.
+In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `papermill` provider
+are in the `airflow.providers.papermill` package. You can read more about the naming conventions used
+in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
 
 ## Operators
-
 
 
 
@@ -86,18 +79,46 @@ All classes in Airflow 2.0 are in `airflow.providers.papermill` package.
 
 
 
-
-
-
-
-
-
 ## Releases
 
-### Release 2020.5.20
+### Release 1.0.0b2
+
+| Commit                                                                                         | Committed   | Subject                                                                        |
+|:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------|
+| [6889a333c](https://github.com/apache/airflow/commit/6889a333cff001727eb0a66e375544a28c9a5f03) | 2020-11-15  | Improvements for operators and hooks ref docs (#12366)                         |
+| [7825e8f59](https://github.com/apache/airflow/commit/7825e8f59034645ab3247229be83a3aa90baece1) | 2020-11-13  | Docs installation improvements (#12304)                                        |
+| [85a18e13d](https://github.com/apache/airflow/commit/85a18e13d9dec84275283ff69e34704b60d54a75) | 2020-11-09  | Point at pypi project pages for cross-dependency of provider packages (#12212) |
+
+
+### Release 1.0.0b1
+
+| Commit                                                                                         | Committed   | Subject                                                            |
+|:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------|
+| [59eb5de78](https://github.com/apache/airflow/commit/59eb5de78c70ee9c7ae6e4cba5c7a2babb8103ca) | 2020-11-09  | Update provider READMEs for up-coming 1.0.0beta1 releases (#12206) |
+| [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855)                         |
+
+
+### Release 0.0.2a1
+
+| Commit                                                                                         | Committed   | Subject                                                            |
+|:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------|
+| [872b1566a](https://github.com/apache/airflow/commit/872b1566a11cb73297e657ff325161721b296574) | 2020-10-25  | Generated backport providers readmes/setup for 2020.10.29 (#11826) |
+| [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                                 |
+| [cb7c67dea](https://github.com/apache/airflow/commit/cb7c67dea9cd9b9c5de10e355b63039446003149) | 2020-10-20  | Fix example DAGs in pip packages (#11687)                          |
+| [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)       |
+
+
+### Release 0.0.1
 
 | Commit                                                                                         | Committed   | Subject                                                                          |
 |:-----------------------------------------------------------------------------------------------|:------------|:---------------------------------------------------------------------------------|
+| [fdd9b6f65](https://github.com/apache/airflow/commit/fdd9b6f65b608c516b8a062b058972d9a45ec9e3) | 2020-08-25  | Enable Black on Providers Packages (#10543)                                      |
+| [cdec30125](https://github.com/apache/airflow/commit/cdec3012542b45d23a05f62d69110944ba542e2a) | 2020-08-07  | Add correct signature to all operators and sensors (#10205)                      |
+| [aeea71274](https://github.com/apache/airflow/commit/aeea71274d4527ff2351102e94aa38bda6099e7f) | 2020-08-02  | Remove `args` parameter from provider operator constructors (#10097)             |
+| [7d24b088c](https://github.com/apache/airflow/commit/7d24b088cd736cfa18f9214e4c9d6ce2d5865f3d) | 2020-07-25  | Stop using start_date in default_args in example_dags (2) (#9985)                |
+| [c7e5bce57](https://github.com/apache/airflow/commit/c7e5bce57fe7f51cefce4f8a41ce408ac5675d13) | 2020-06-19  | Prepare backport release candidate for 2020.6.23rc1 (#9370)                      |
+| [00642a46d](https://github.com/apache/airflow/commit/00642a46d019870c4decb3d0e47c01d6a25cb88c) | 2020-05-26  | Fixed name of 20 remaining wrongly named operators. (#8994)                      |
+| [cdb3f2545](https://github.com/apache/airflow/commit/cdb3f25456e49d0199cd7ccd680626dac01c9be6) | 2020-05-26  | All classes in backport providers are now importable in Airflow 1.10 (#8991)     |
 | [375d1ca22](https://github.com/apache/airflow/commit/375d1ca229464617780623c61c6e8a1bf570c87f) | 2020-05-19  | Release candidate 2 for backport packages 2020.05.20 (#8898)                     |
 | [12c5e5d8a](https://github.com/apache/airflow/commit/12c5e5d8ae25fa633efe63ccf4db389e2b796d79) | 2020-05-17  | Prepare release candidate for backport packages (#8891)                          |
 | [f3521fb0e](https://github.com/apache/airflow/commit/f3521fb0e36733d8bd356123e56a453fd37a6dca) | 2020-05-16  | Regenerate readme files for backport package release (#8886)                     |

@@ -16,32 +16,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from es.elastic.api import connect
+from typing import Optional
+
+from es.elastic.api import Connection as ESConnection, connect
 
 from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.models.connection import Connection as AirflowConnection
 
 
 class ElasticsearchHook(DbApiHook):
-    """
-        Interact with Elasticsearch through the elasticsearch-dbapi
-    """
+    """Interact with Elasticsearch through the elasticsearch-dbapi."""
 
     conn_name_attr = 'elasticsearch_conn_id'
     default_conn_name = 'elasticsearch_default'
 
-    def __init__(self,
-                 schema: str = "http",
-                 connection=None,
-                 *args,
-                 **kwargs):
+    def __init__(self, schema: str = "http", connection: Optional[AirflowConnection] = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.schema = schema
         self.connection = connection
 
-    def get_conn(self):
-        """
-        Returns a elasticsearch connection object
-        """
+    def get_conn(self) -> ESConnection:
+        """Returns a elasticsearch connection object"""
         conn_id = getattr(self, self.conn_name_attr)
         conn = self.connection or self.get_connection(conn_id)
 
@@ -50,7 +45,7 @@ class ElasticsearchHook(DbApiHook):
             port=conn.port,
             user=conn.login or None,
             password=conn.password or None,
-            scheme=conn.schema or "http"
+            scheme=conn.schema or "http",
         )
 
         if conn.extra_dejson.get('http_compress', False):
@@ -63,7 +58,7 @@ class ElasticsearchHook(DbApiHook):
 
         return conn
 
-    def get_uri(self):
+    def get_uri(self) -> str:
         conn_id = getattr(self, self.conn_name_attr)
         conn = self.connection or self.get_connection(conn_id)
 
@@ -72,9 +67,8 @@ class ElasticsearchHook(DbApiHook):
             login = '{conn.login}:{conn.password}@'.format(conn=conn)
         host = conn.host
         if conn.port is not None:
-            host += ':{port}'.format(port=conn.port)
-        uri = '{conn.conn_type}+{conn.schema}://{login}{host}/'.format(
-            conn=conn, login=login, host=host)
+            host += f':{conn.port}'
+        uri = '{conn.conn_type}+{conn.schema}://{login}{host}/'.format(conn=conn, login=login, host=host)
 
         extras_length = len(conn.extra_dejson)
         if not extras_length:
@@ -84,8 +78,7 @@ class ElasticsearchHook(DbApiHook):
 
         for arg_key, arg_value in conn.extra_dejson.items():
             extras_length -= 1
-            uri += "{arg_key}={arg_value}".format(
-                arg_key=arg_key, arg_value=arg_value)
+            uri += f"{arg_key}={arg_value}"
 
             if extras_length:
                 uri += '&'

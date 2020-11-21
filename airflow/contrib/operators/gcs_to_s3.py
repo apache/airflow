@@ -15,28 +15,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module is deprecated. Please use `airflow.providers.amazon.aws.operators.gcs_to_s3`.
-"""
+"""This module is deprecated. Please use `airflow.providers.amazon.aws.transfers.gcs_to_s3`."""
 
 import warnings
 
-from airflow.providers.amazon.aws.operators.gcs_to_s3 import GCSToS3Operator
+from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.gcs_to_s3`.",
-    DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.transfers.gcs_to_s3`.",
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 
 class GoogleCloudStorageToS3Operator(GCSToS3Operator):
     """
-    This class is deprecated. Please use `airflow.providers.amazon.aws.operators.gcs_to_s3.GCSToS3Operator`.
+    This class is deprecated. Please use
+    `airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Operator`.
     """
+
     def __init__(self, *args, **kwargs):
         warnings.warn(
             "This class is deprecated. "
-            "Please use `airflow.providers.amazon.aws.operators.gcs_to_s3.GCSToS3Operator`.",
-            DeprecationWarning, stacklevel=2
+            "Please use `airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Operator`.",
+            DeprecationWarning,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)

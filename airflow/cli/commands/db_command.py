@@ -35,12 +35,10 @@ def initdb(args):
 def resetdb(args):
     """Resets the metadata database"""
     print("DB: " + repr(settings.engine.url))
-    if args.yes or input("This will drop existing tables "
-                         "if they exist. Proceed? "
-                         "(y/n)").upper() == "Y":
+    if args.yes or input("This will drop existing tables if they exist. Proceed? (y/n)").upper() == "Y":
         db.resetdb()
     else:
-        print("Bail.")
+        print("Cancelled")
 
 
 @cli_utils.action_logging
@@ -51,11 +49,7 @@ def upgradedb(args):
 
 
 def check_migrations(args):
-    """
-    Function to wait for all airflow migrations to complete. Used for launching airflow in k8s
-    @param timeout:
-    @return:
-    """
+    """Function to wait for all airflow migrations to complete. Used for launching airflow in k8s"""
     db.check_migrations(timeout=args.migration_wait_timeout)
 
 
@@ -67,14 +61,16 @@ def shell(args):
 
     if url.get_backend_name() == 'mysql':
         with NamedTemporaryFile(suffix="my.cnf") as f:
-            content = textwrap.dedent(f"""
+            content = textwrap.dedent(
+                f"""
                 [client]
                 host     = {url.host}
                 user     = {url.username}
                 password = {url.password or ""}
                 port     = {url.port or ""}
                 database = {url.database}
-                """).strip()
+                """
+            ).strip()
             f.write(content.encode())
             f.flush()
             execute_interactive(["mysql", f"--defaults-extra-file={f.name}"])

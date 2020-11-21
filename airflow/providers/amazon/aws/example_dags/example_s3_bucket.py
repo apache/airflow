@@ -52,8 +52,7 @@ with DAG(
     )
 
     add_keys_to_bucket = PythonOperator(
-        task_id="s3_bucket_dag_add_keys_to_bucket",
-        python_callable=upload_keys
+        task_id="s3_bucket_dag_add_keys_to_bucket", python_callable=upload_keys
     )
 
     delete_bucket = S3DeleteBucketOperator(

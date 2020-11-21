@@ -21,9 +21,15 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.providers.google.cloud.operators.bigquery import (  # noqa; noqa; noqa; noqa; noqa
-    BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryCreateExternalTableOperator,
-    BigQueryDeleteDatasetOperator, BigQueryExecuteQueryOperator, BigQueryGetDatasetOperator,
-    BigQueryGetDatasetTablesOperator, BigQueryPatchDatasetOperator, BigQueryUpdateDatasetOperator,
+    BigQueryCreateEmptyDatasetOperator,
+    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateExternalTableOperator,
+    BigQueryDeleteDatasetOperator,
+    BigQueryExecuteQueryOperator,
+    BigQueryGetDatasetOperator,
+    BigQueryGetDatasetTablesOperator,
+    BigQueryPatchDatasetOperator,
+    BigQueryUpdateDatasetOperator,
     BigQueryUpsertTableOperator,
 )
 
@@ -45,6 +51,6 @@ class BigQueryOperator(BigQueryExecuteQueryOperator):
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.bigquery.BigQueryExecuteQueryOperator`.""",
             DeprecationWarning,
-            stacklevel=2,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)

@@ -19,6 +19,7 @@
 from collections import defaultdict
 
 from airflow.executors.base_executor import BaseExecutor
+from airflow.models.taskinstance import TaskInstanceKey
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
@@ -66,10 +67,9 @@ class MockExecutor(BaseExecutor):
             open_slots = self.parallelism - len(self.running)
             sorted_queue = sorted(self.queued_tasks.items(), key=sort_by)
             for index in range(min((open_slots, len(sorted_queue)))):
-                (key, (_, _, _, simple_ti)) = sorted_queue[index]
+                (key, (_, _, _, ti)) = sorted_queue[index]
                 self.queued_tasks.pop(key)
                 state = self.mock_task_results[key]
-                ti = simple_ti.construct_task_instance(session=session, lock_for_update=True)
                 ti.set_state(state, session=session)
                 self.change_state(key, state)
 
@@ -93,4 +93,4 @@ class MockExecutor(BaseExecutor):
         If the task identified by the tuple ``(dag_id, task_id, date,
         try_number)`` is run by this executor it's state will be FAILED.
         """
-        self.mock_task_results[(dag_id, task_id, date, try_number)] = State.FAILED
+        self.mock_task_results[TaskInstanceKey(dag_id, task_id, date, try_number)] = State.FAILED

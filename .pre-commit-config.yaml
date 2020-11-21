@@ -22,10 +22,10 @@ default_language_version:
 minimum_pre_commit_version: "1.20.0"
 repos:
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.1.7
+    rev: v1.1.9
     hooks:
       - id: forbid-tabs
-        exclude: ^docs/Makefile$
+        exclude: ^docs/Makefile$|^clients/gen/go.sh
       - id: insert-license
         name: Add license for all SQL files
         files: \.sql$
@@ -58,19 +58,18 @@ repos:
           - --fuzzy-match-generates-todo
         files: \.rst$
       - id: insert-license
-        name: Add license for all JS/CSS files
-        files: \.(js|css)$
+        name: Add license for all JS/CSS/PUML files
+        files: \.(js|css|puml)$
         exclude: ^\.github/.*$
         args:
           - --comment-style
-          - "/**| *| */"
+          - "/*!| *| */"
           - --license-filepath
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all JINJA template files
-        files: "^airflow/www/templates/.*\\.html$|^docs/templates/.*\\.html$|^airflow/contrib/plugins/\
-metastore_browser/templates/.*\\.html$|.*\\.jinja2"
+        files: "^airflow/www/templates/.*\\.html$|^docs/templates/.*\\.html$.*\\.jinja2"
         exclude: ^\.github/.*$
         args:
           - --comment-style
@@ -101,7 +100,7 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
       - id: insert-license
         name: Add license for all XML files
         exclude: ^\.github/.*$
-        types: [xml]
+        files: \.xml$
         args:
           - --comment-style
           - "<!--||-->"
@@ -112,6 +111,7 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
         name: Add license for all yaml files
         exclude: ^\.github/.*$
         types: [yaml]
+        files: \.yml$|\.yaml$
         args:
           - --comment-style
           - "|#|"
@@ -121,30 +121,51 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
       - id: insert-license
         name: Add license for all md files
         files: \.md$
-        exclude: ^\.github/.*$|PROVIDERS_CHANGES.*\.md
+        exclude: ^\.github/.*$|PROVIDER_CHANGES.*\.md
         args:
           - --comment-style
           - "<!--|| -->"
           - --license-filepath
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
+      - id: insert-license
+        name: Add license for all mermaid files
+        args:
+          - --comment-style
+          - "|%%|"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+        files: \.mermaid$
   - repo: https://github.com/thlorenz/doctoc.git
     rev: v1.4.0
     hooks:
       - id: doctoc
         name: Add TOC for md files
-        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.md$|^dev/README\.md$|^dev/BACKPORT_PACKAGES.md$
+        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.*.md$|^dev/.*.md$
         args:
           - "--maxlevel"
           - "2"
+      - id: doctoc
+        name: Add TOC for upgrade documentation
+        files: ^UPGRADING_TO_2.0.md
+        args:
+          - "--maxlevel"
+          - "3"
   - repo: meta
     hooks:
       - id: check-hooks-apply
+  - repo: https://github.com/psf/black
+    rev: 20.8b1
+    hooks:
+      - id: black
+        args: [--config=./pyproject.toml]
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.5.0
+    rev: v3.3.0
     hooks:
       - id: check-merge-conflict
       - id: debug-statements
+      - id: check-builtin-literals
       - id: detect-private-key
       - id: end-of-file-fixer
       - id: mixed-line-ending
@@ -154,29 +175,56 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
       - id: fix-encoding-pragma
         args:
           - --remove
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v2.7.4
+    hooks:
+      - id: pyupgrade
+        args: ["--py36-plus"]
   - repo: https://github.com/pre-commit/pygrep-hooks
-    rev: v1.5.1
+    rev: v1.7.0
     hooks:
       - id: rst-backticks
       - id: python-no-log-warn
-  - repo: local
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.25.0
     hooks:
       - id: yamllint
         name: Check yaml files with yamllint
-        entry: yamllint -c yamllint-config.yml
-        language: python
-        additional_dependencies: ['yamllint']
+        entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
-        exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$
-      - id: shellcheck
-        name: Check Shell scripts syntax correctness
-        language: docker_image
-        entry: koalaman/shellcheck:stable -x -a
-        files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$|\.bats$
+        exclude:
+          ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml
+  - repo: https://github.com/timothycrosley/isort
+    rev: 5.6.4
+    hooks:
+      - id: isort
+        name: Run isort to sort imports
+        files: \.py$
+        # To keep consistent with the global isort skip config defined in setup.cfg
+        exclude: ^build/.*$|^.tox/.*$|^venv/.*$
+  - repo: https://github.com/pycqa/pydocstyle
+    rev: 5.1.1
+    hooks:
+      - id: pydocstyle
+        name: Run pydocstyle
+        args:
+          - --convention=pep257
+          - --add-ignore=D100,D102,D104,D105,D107,D205,D400,D401
+        exclude: |
+          (?x)
+          ^tests/.*\.py$|
+          ^scripts/.*\.py$|
+          ^dev|
+          ^provider_packages|
+          ^kubernetes_tests|
+          .*example_dags/.*|
+          ^chart/.*\.py$
+  - repo: local
+    hooks:
       - id: lint-openapi
-        name: Lint OpenAPI using speccy
+        name: Lint OpenAPI using spectral
         language: docker_image
-        entry: wework/speccy lint
+        entry: stoplight/spectral lint -r ./scripts/ci/spectral_rules/connexion.yml
         files: ^airflow/api_connexion/openapi/
       - id: lint-openapi
         name: Lint OpenAPI using openapi-spec-validator
@@ -187,59 +235,52 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
       - id: lint-dockerfile
         name: Lint dockerfile
         language: system
-        entry: "./scripts/ci/pre_commit_lint_dockerfile.sh"
-        files: ^Dockerfile.*$
+        entry: "./scripts/ci/pre_commit/pre_commit_lint_dockerfile.sh"
+        files: Dockerfile.*$
         pass_filenames: true
-      - id: isort
-        name: Run isort to sort imports
-        language: python
-        entry: isort
-        files: \.py$
-        # To keep consistent with the global isort skip config defined in setup.cfg
-        exclude: ^build/.*$|^.tox/.*$|^venv/.*$
-        additional_dependencies: ['isort']
       - id: setup-order
         name: Checks for an order of dependencies in setup.py
         language: python
         files: ^setup.py$
         pass_filenames: false
-        require_serial: true
-        entry: ./scripts/ci/pre_commit_check_order_setup.py
+        entry: ./scripts/ci/pre_commit/pre_commit_check_order_setup.py
+      - id: setup-extra-packages
+        name: Checks if all the libraries in setup.py are listed in extra-packages-ref.rst file
+        language: python
+        files: ^setup.py$|^docs/extra-packages-ref.rst$
+        pass_filenames: false
+        entry: ./scripts/ci/pre_commit/pre_commit_check_setup_extra_packages_ref.py
+        additional_dependencies: ['rich==9.2.0']
       - id: update-breeze-file
         name: Update output of breeze command in BREEZE.rst
-        entry: "./scripts/ci/pre_commit_breeze_cmd_line.sh"
+        entry: "./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.sh"
         language: system
         files: ^BREEZE.rst$|^breeze$|^breeze-complete$
         pass_filenames: false
-        require_serial: true
       - id: update-local-yml-file
         name: Update mounts in the local yml file
-        entry: "./scripts/ci/pre_commit_local_yml_mounts.sh"
+        entry: "./scripts/ci/pre_commit/pre_commit_local_yml_mounts.sh"
         language: system
         files: ^scripts/ci/libraries/_local_mounts.sh$|s^scripts/ci/docker_compose/local.yml"
         pass_filenames: false
-        require_serial: true
       - id: update-setup-cfg-file
         name: Update setup.cfg file with all licenses
-        entry: "./scripts/ci/pre_commit_setup_cfg_file.sh"
+        entry: "./scripts/ci/pre_commit/pre_commit_setup_cfg_file.sh"
         language: system
         files: ^setup.cfg$
         pass_filenames: false
-        require_serial: true
       - id: build-providers-dependencies
         name: Build cross-dependencies for providers packages
-        entry: "./scripts/ci/pre_commit_build_providers_dependencies.sh"
+        entry: "./scripts/ci/pre_commit/pre_commit_build_providers_dependencies.sh"
         language: system
         files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$
         pass_filenames: false
-        require_serial: true
       - id: update-extras
         name: Update extras in documentation
-        entry: "./scripts/ci/pre_commit_update_extras.sh"
-        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_insert_extras.py
+        language: python
         files: ^setup.py$|^INSTALL$|^CONTRIBUTING.rst$
         pass_filenames: false
-        require_serial: true
       - id: pydevd
         language: pygrep
         name: Check for pydevd debug statements accidentally left
@@ -253,6 +294,21 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
         entry: "\\|\\s*safe"
         files: \.html$
         pass_filenames: true
+      - id: no-providers-in-core-examples
+        language: pygrep
+        name: No providers imports in core example DAGs
+        description: The core example DAGs have no dependencies other than core Airflow
+        entry: "^\\s*from airflow\\.providers.*"
+        pass_filenames: true
+        files: ^airflow/example_dags/.*\.py$
+      - id: no-relative-imports
+        language: pygrep
+        name: No relative imports
+        description: Airflow style is to use absolute imports only
+        entry: "^\\s*from\\s+\\."
+        pass_filenames: true
+        files: \.py$
+        exclude: ^tests/
       - id: language-matters
         language: pygrep
         name: Check for language that we do not accept as community
@@ -263,10 +319,14 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
           (?x)
           ^airflow/providers/apache/cassandra/hooks/cassandra.py$|
           ^airflow/providers/apache/hive/operators/hive_stats.py$|
-          ^tests/providers/apache/cassandra/hooks/test_cassandra.py
+          ^airflow/providers/apache/hive/.*PROVIDER_CHANGES_*|
+          ^airflow/providers/apache/hive/.*README.md$|
+          ^tests/providers/apache/cassandra/hooks/test_cassandra.py$|
+          ^docs/howto/connection/cassandra.rst$|
+          ^CHANGELOG.txt$
       - id: consistent-pylint
         language: pygrep
-        name: Check for inconsitent pylint disable/enable without space
+        name: Check for inconsistent pylint disable/enable without space
         entry: "pylint:disable|pylint:enable"
         pass_filenames: true
         files: \.py$
@@ -283,8 +343,7 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
           ^airflow/operators/.*$|
           ^airflow/sensors/.*$|
           ^airflow/providers/.*$|
-          ^airflow/contrib/.*$|
-          ^backport_packages/.*$
+          ^dev/provider_packages/.*$
       - id: base-operator
         language: pygrep
         name: Make sure BaseOperator[Link] is imported from airflow.models outside of core
@@ -296,8 +355,7 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
           ^airflow/hooks/.*$|
           ^airflow/operators/.*$|
           ^airflow/sensors/.*$|
-          ^airflow/providers/.*\.py$|
-          ^airflow/contrib/.*\.py$
+          ^airflow/providers/.*\.py$
       - id: provide-create-sessions
         language: pygrep
         name: To avoid import cycles make sure provide_session and create_session are imported from
@@ -317,67 +375,64 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
         entry: "(airflow\\.){0,1}utils\\.dates\\.days_ago"
         files: \.py$
         pass_filenames: true
+      - id: restrict-start_date
+        language: pygrep
+        name: "'start_date' should not be defined in default_args in example_dags"
+        entry: "default_args\\s*=\\s*{\\s*(\"|')start_date(\"|')|(\"|')start_date(\"|'):"
+        files: \.*example_dags.*.py$
+        pass_filenames: true
       - id: check-integrations
         name: Check if integration list is aligned
-        entry: ./scripts/ci/pre_commit_check_integrations.sh
+        entry: ./scripts/ci/pre_commit/pre_commit_check_integrations.sh
         language: system
         pass_filenames: false
         files: ^common/_common_values.sh$|^breeze-complete$
-      - id: build
-        name: Check if image build is needed
-        entry: ./scripts/ci/pre_commit_ci_build.sh 3.6 false
-        language: system
-        always_run: true
-        pass_filenames: false
       - id: check-apache-license
         name: Check if licenses are OK for Apache
-        entry: "./scripts/ci/pre_commit_check_license.sh"
+        entry: "./scripts/ci/pre_commit/pre_commit_check_license.sh"
         language: system
         files: ^.*LICENSE.*$|^.*LICENCE.*$
         pass_filenames: false
-        require_serial: true
       - id: airflow-config-yaml
         name: Checks for consistency between config.yml and default_config.cfg
         language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_yaml_to_cfg.py
         files: "config.yml$|default_airflow.cfg$|default.cfg$"
         pass_filenames: false
-        require_serial: false
-        entry: ./scripts/ci/pre_commit_yaml_to_cfg.py
+        require_serial: true
         additional_dependencies: ['pyyaml']
-      - id: mypy
-        name: Run mypy
+      - id: sort-in-the-wild
+        name: Sort INTHEWILD.md alphabetically
+        entry: ./scripts/ci/pre_commit/pre_commit_sort_in_the_wild.sh
         language: system
-        entry: "./scripts/ci/pre_commit_mypy.sh"
-        files: \.py$
-        exclude: ^dev|^backport_packages
+        files: ^.pre-commit-config.yaml$|^INTHEWILD.md$
         require_serial: true
-      - id: pylint
-        name: Run pylint for main sources
+      - id: helm-lint
+        name: Lint Helm Chart
+        entry: ./scripts/ci/pre_commit/pre_commit_helm_lint.sh
         language: system
-        entry: "./scripts/ci/pre_commit_pylint_main.sh"
-        files: \.py$
-        exclude: ^tests/.*\.py$|^scripts/.*\.py$|^dev|^backport_packages|^kubernetes_tests
-        pass_filenames: true
-        require_serial: true  # Pylint tests should be run in one chunk to detect all cycles
-      - id: pylint-tests
-        name: Run pylint for tests
-        language: system
-        entry: "./scripts/ci/pre_commit_pylint_tests.sh"
-        files: ^tests/.*\.py$
-        pass_filenames: true
+        pass_filenames: false
+        files: ^chart
         require_serial: true
-      - id: flake8
-        name: Run flake8
+      - id: shellcheck
+        name: Check Shell scripts syntax correctness
+        language: docker_image
+        entry: koalaman/shellcheck:stable -x -a
+        files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$|\.bats$
+      - id: bats-tests
+        name: Run BATS bash tests for changed Breeze bash files
         language: system
-        entry: "./scripts/ci/pre_commit_flake8.sh"
-        files: \.py$
-        pass_filenames: true
-      - id: bat-tests
+        entry: "./scripts/ci/pre_commit/pre_commit_bat_tests.sh tests/bats/breeze/"
+        files: ^breeze$|^breeze-complete$|^tests/bats/breeze
+        pass_filenames: false
+      - id: bats-tests
         name: Run BATS bash tests for changed bash files
         language: system
-        entry: "./scripts/ci/pre_commit_bat_tests.sh"
-        files: ^breeze$|^breeze-complete$|\.sh$|\.bash$
-        pass_filenames: false
+        entry: "./scripts/ci/pre_commit/pre_commit_bat_tests.sh"
+        files: \.sh$|\.bash$|\.bats$
+        exclude: ^tests/bats/in_container|^scripts/in_container|^tests/bats/breeze
+        pass_filenames: true
+        require_serial: true
       - id: stylelint
         name: stylelint
         entry: "stylelint"
@@ -385,3 +440,116 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
         files: ^airflow/www/.*\.(css|scss|sass)$
         # Keep dependency versions in sync w/ airflow/www/package.json
         additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0']
+      - id: version-sync
+        name: Version sync
+        files: ^airflow/version.py$|setup.py
+        entry: ./scripts/ci/pre_commit/pre_commit_sync_version.sh
+        language: system
+      - id: providers-init-file
+        name: Provider init file
+        pass_filenames: false
+        always_run: true
+        entry: ./scripts/ci/pre_commit/pre_commit_check_providers_init.sh
+        language: system
+      - id: provider-yamls
+        name: Validate providers.yaml files
+        pass_filenames: false
+        entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
+        language: python
+        require_serial: true
+        files: provider.yaml$
+        additional_dependencies: ['PyYAML==5.3.1', 'jsonschema==3.2.0', 'tabulate==0.8.7']
+      - id: mermaid
+        name: Generate mermaid images
+        entry: ./scripts/ci/pre_commit/pre_commit_mermaid.sh
+        language: system
+        files: \.mermaid$
+        require_serial: true
+      - id: pre-commit-descriptions
+        name: Check if pre-commits are described
+        entry: ./scripts/ci/pre_commit/pre_commit_check_pre_commits.sh
+        language: system
+        files: ^.pre-commit-config.yaml$|^STATIC_CODE_CHECKS.rst|^breeze-complete$
+        require_serial: true
+      - id: sort-in-the-wild
+        name: Sort INTHEWILD.md alphabetically
+        entry: ./scripts/ci/pre_commit/pre_commit_sort_in_the_wild.sh
+        language: system
+        files: ^.pre-commit-config.yaml$|^INTHEWILD.md$
+        require_serial: true
+      - id: helm-lint
+        name: Lint Helm Chart
+        entry: ./scripts/ci/pre_commit/pre_commit_helm_lint.sh
+        language: system
+        pass_filenames: false
+        files: ^chart
+        require_serial: true
+      - id: airflow-providers-available
+        name: Checks for providers being available when declared by extras in setup.py
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_check_extras_have_providers.py
+        files: "setup.py|^airflow/providers/.*.py"
+        pass_filenames: false
+        require_serial: true
+      - id: markdownlint
+        name: Run markdownlint
+        description: "Checks the style of Markdown files."
+        entry: markdownlint
+        language: node
+        types: [markdown]
+        files: \.(md|mdown|markdown)$
+        additional_dependencies: ['markdownlint-cli']
+        ## ADD MOST PRE-COMMITS ABOVE THAT LINE
+        # The below pre-commits are those requiring CI image to be built
+      - id: build
+        name: Check if image build is needed
+        entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.6 false
+        language: system
+        always_run: true
+        pass_filenames: false
+      - id: mypy
+        name: Run mypy
+        language: system
+        entry: "./scripts/ci/pre_commit/pre_commit_mypy.sh"
+        files: \.py$
+        exclude: ^dev|^provider_packages|^chart|^docs
+      - id: mypy
+        name: Run mypy for helm chart tests
+        language: system
+        entry: "./scripts/ci/pre_commit/pre_commit_mypy.sh"
+        files: ^chart/.*\.py$
+        require_serial: true
+      - id: mypy
+        name: Run mypy for /docs/ folder
+        language: system
+        entry: "./scripts/ci/pre_commit/pre_commit_mypy.sh"
+        files: ^docs/.*\.py$
+        require_serial: true
+      - id: pylint
+        name: Run pylint
+        language: system
+        entry: "./scripts/ci/pre_commit/pre_commit_pylint.sh"
+        files: \.py$
+        exclude: ^scripts/.*\.py$|^dev|^provider_packages|^chart
+        pass_filenames: true
+        require_serial: true
+      - id: pylint
+        name: Run pylint
+        language: system
+        entry: "./scripts/ci/pre_commit/pre_commit_pylint.sh"
+        files: ^chart/.*\.py$
+        pass_filenames: true
+        require_serial: true
+      - id: flake8
+        name: Run flake8
+        language: system
+        entry: "./scripts/ci/pre_commit/pre_commit_flake8.sh"
+        files: \.py$
+        pass_filenames: true
+      - id: bats-in-container-tests
+        name: Run in container bats tests
+        language: system
+        entry: "./scripts/ci/pre_commit/pre_commit_in_container_bats_test.sh"
+        files: ^tests/bats/in_container/.*.bats$|^scripts/in_container/.*sh
+        pass_filenames: false
+        ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE

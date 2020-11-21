@@ -32,17 +32,14 @@ LOCATION = os.environ.get("GCP_LIFE_SCIENCES_LOCATION", 'us-central1')
 SIMPLE_ACTION_PIEPELINE = {
     "pipeline": {
         "actions": [
-            {
-                "imageUri": "bash",
-                "commands": ["-c", "echo Hello, world"]
-            },
+            {"imageUri": "bash", "commands": ["-c", "echo Hello, world"]},
         ],
         "resources": {
-            "regions": ["{}".format(LOCATION)],
+            "regions": [f"{LOCATION}"],
             "virtualMachine": {
                 "machineType": "n1-standard-1",
-            }
-        }
+            },
+        },
     },
 }
 # [END howto_configure_simple_action_pipeline]
@@ -53,48 +50,47 @@ MULTI_ACTION_PIPELINE = {
         "actions": [
             {
                 "imageUri": "google/cloud-sdk",
-                "commands": ["gsutil", "cp", "gs://{}/{}".format(BUCKET, FILENAME), "/tmp"]
+                "commands": ["gsutil", "cp", f"gs://{BUCKET}/{FILENAME}", "/tmp"],
             },
-            {
-                "imageUri": "bash",
-                "commands": ["-c", "echo Hello, world"]
-            },
+            {"imageUri": "bash", "commands": ["-c", "echo Hello, world"]},
             {
                 "imageUri": "google/cloud-sdk",
-                "commands": ["gsutil", "cp", "gs://{}/{}".format(BUCKET, FILENAME),
-                             "gs://{}/output.in".format(BUCKET)]
+                "commands": [
+                    "gsutil",
+                    "cp",
+                    f"gs://{BUCKET}/{FILENAME}",
+                    f"gs://{BUCKET}/output.in",
+                ],
             },
         ],
         "resources": {
-            "regions": ["{}".format(LOCATION)],
+            "regions": [f"{LOCATION}"],
             "virtualMachine": {
                 "machineType": "n1-standard-1",
-            }
-        }
+            },
+        },
     }
 }
 # [END howto_configure_multiple_action_pipeline]
 
-with models.DAG("example_gcp_life_sciences",
-                default_args=dict(start_date=dates.days_ago(1)),
-                schedule_interval=None,
-                tags=['example'],
-                ) as dag:
+with models.DAG(
+    "example_gcp_life_sciences",
+    default_args=dict(start_date=dates.days_ago(1)),
+    schedule_interval=None,
+    tags=['example'],
+) as dag:
 
     # [START howto_run_pipeline]
     simple_life_science_action_pipeline = LifeSciencesRunPipelineOperator(
         task_id='simple-action-pipeline',
         body=SIMPLE_ACTION_PIEPELINE,
         project_id=PROJECT_ID,
-        location=LOCATION
+        location=LOCATION,
     )
     # [END howto_run_pipeline]
 
     multiple_life_science_action_pipeline = LifeSciencesRunPipelineOperator(
-        task_id='multi-action-pipeline',
-        body=MULTI_ACTION_PIPELINE,
-        project_id=PROJECT_ID,
-        location=LOCATION
+        task_id='multi-action-pipeline', body=MULTI_ACTION_PIPELINE, project_id=PROJECT_ID, location=LOCATION
     )
 
     simple_life_science_action_pipeline >> multiple_life_science_action_pipeline

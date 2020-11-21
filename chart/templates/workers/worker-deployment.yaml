@@ -1,0 +1,257 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+################################
+## Airflow Worker Deployment
+#################################
+{{- $persistence := .Values.workers.persistence.enabled }}
+{{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
+kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
+apiVersion: apps/v1
+metadata:
+  name: {{ .Release.Name }}-worker
+  labels:
+    tier: airflow
+    component: worker
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+{{- if $persistence }}
+  serviceName: {{ .Release.Name }}-worker
+{{- end }}
+  replicas: {{ .Values.workers.replicas }}
+  selector:
+    matchLabels:
+      tier: airflow
+      component: worker
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        tier: airflow
+        component: worker
+        release: {{ .Release.Name }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 8 }}
+{{- end }}
+      annotations:
+        checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
+        checksum/result-backend-secret: {{ include (print $.Template.BasePath "/secrets/result-backend-connection-secret.yaml") . | sha256sum }}
+        checksum/pgbouncer-config-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}
+        checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
+        checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
+        checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
+        {{- if .Values.workers.safeToEvict }}
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+        {{- end }}
+        {{- if .Values.airflowPodAnnotations }}
+        {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
+        {{- end }}
+    spec:
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+      affinity:
+{{ toYaml .Values.affinity | indent 8 }}
+      tolerations:
+{{ toYaml .Values.tolerations | indent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.workers.terminationGracePeriodSeconds }}
+      restartPolicy: Always
+      serviceAccountName: {{ .Release.Name }}-worker
+      securityContext:
+        runAsUser: {{ .Values.uid }}
+        fsGroup: {{ .Values.gid }}
+      {{- if or .Values.registry.secretName .Values.registry.connection }}
+      imagePullSecrets:
+        - name: {{ template "registry_secret" . }}
+      {{- end }}
+      initContainers:
+      {{- if and $persistence .Values.workers.persistence.fixPermissions }}
+        - name: volume-permissions
+          image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          command:
+            - chown
+            - -R
+            - "{{ .Values.uid }}:{{ .Values.gid }}"
+            - {{ template "airflow_logs" . }}
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: logs
+              mountPath: {{ template "airflow_logs" . }}
+      {{- end }}
+        - name: wait-for-airflow-migrations
+          image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          args:
+          {{- include "wait-for-migrations-command" . | indent 10 }}
+          envFrom:
+          {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
+          env:
+          {{- include "custom_airflow_environment" . | indent 10 }}
+          {{- include "standard_airflow_environment" . | indent 10 }}
+      containers:
+        {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
+        {{- include "git_sync_container" . | indent 8 }}
+        {{- end }}
+        - name: worker
+          image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          args: ["bash", "-c", "airflow worker || airflow celery worker"]
+          resources:
+{{ toYaml .Values.workers.resources | indent 12 }}
+          ports:
+            - name: worker-logs
+              containerPort: {{ .Values.ports.workerLogs }}
+          volumeMounts:
+{{- if .Values.workers.extraVolumeMounts }}
+{{ toYaml .Values.workers.extraVolumeMounts | indent 12 }}
+{{- end }}
+            - name: logs
+              mountPath: {{ template "airflow_logs" . }}
+            - name: config
+              mountPath: {{ template "airflow_config_path" . }}
+              subPath: airflow.cfg
+              readOnly: true
+            {{- if .Values.workers.kerberosSidecar.enabled }}
+            - name: config
+              mountPath: {{ .Values.kerberos.configPath | quote }}
+              subPath: krb5.conf
+              readOnly: true
+            - name: kerberos-ccache
+              mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
+              readOnly: true
+            {{- end }}
+{{- if .Values.scheduler.airflowLocalSettings }}
+            - name: config
+              mountPath: {{ template "airflow_local_setting_path" . }}
+              subPath: airflow_local_settings.py
+              readOnly: true
+{{- end }}
+{{- if  or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
+            - name: dags
+              mountPath: {{ template "airflow_dags_mount_path" . }}
+{{- end }}
+          envFrom:
+          {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
+          env:
+          {{- include "custom_airflow_environment" . | indent 10 }}
+          {{- include "standard_airflow_environment" . | indent 10 }}
+{{- if $persistence }}
+        - name: worker-gc
+          image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          args: ["bash", "/clean-logs"]
+          volumeMounts:
+            - name: logs
+              mountPath: {{ template "airflow_logs" . }}
+{{- end }}
+        {{- if .Values.workers.kerberosSidecar.enabled }}
+            - name: KRB5_CONFIG
+              value:  {{ .Values.kerberos.configPath | quote }}
+            - name: KRB5CCNAME
+              value:  {{ include "kerberos_ccache_path" . | quote }}
+        {{- end }}
+        {{- if .Values.workers.kerberosSidecar.enabled }}
+        - name: worker-kerberos
+          image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          args: ["kerberos"]
+          resources:
+          {{ toYaml .Values.workers.resources | indent 12 }}
+          volumeMounts:
+            - name: logs
+              mountPath: {{ template "airflow_logs" . }}
+            - name: config
+              mountPath: {{ template "airflow_config_path" . }}
+              subPath: airflow.cfg
+              readOnly: true
+            - name: config
+              mountPath: {{ .Values.kerberos.configPath | quote }}
+              subPath: krb5.conf
+              readOnly: true
+            {{- if .Values.scheduler.airflowLocalSettings }}
+            - name: config
+              mountPath: {{ template "airflow_local_setting_path" . }}
+              subPath: airflow_local_settings.py
+              readOnly: true
+            {{- end }}
+            - name: kerberos-keytab
+              subPath: "kerberos.keytab"
+              mountPath: {{ .Values.kerberos.keytabPath | quote }}
+              readOnly: true
+            - name: kerberos-ccache
+              mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
+              readOnly: false
+          envFrom:
+          {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
+          env:
+            - name: KRB5_CONFIG
+              value:  {{ .Values.kerberos.configPath | quote }}
+            - name: KRB5CCNAME
+              value:  {{ include "kerberos_ccache_path" . | quote }}
+          {{- include "custom_airflow_environment" . | indent 10 }}
+          {{- include "standard_airflow_environment" . | indent 10 }}
+        {{- end }}
+      volumes:
+{{- if .Values.workers.extraVolumes }}
+{{ toYaml .Values.workers.extraVolumes | indent 8 }}
+{{- end }}
+        {{- if .Values.kerberos.enabled }}
+        - name: kerberos-keytab
+          secret:
+            secretName: {{ include "kerberos_keytab_secret" . | quote }}
+        {{- end }}
+        - name: config
+          configMap:
+            name: {{ template "airflow_config" . }}
+        {{- if .Values.kerberos.enabled }}
+        - name: kerberos-ccache
+          emptyDir: {}
+        {{- end }}
+        {{- if .Values.dags.persistence.enabled }}
+        - name: dags
+          persistentVolumeClaim:
+            claimName: {{ template "airflow_dags_volume_claim" . }}
+        {{- else if .Values.dags.gitSync.enabled }}
+        - name: dags
+          emptyDir: {}
+        {{- if  .Values.dags.gitSync.sshKeySecret }}
+        {{- include "git_sync_ssh_key_volume" . | indent 8 }}
+        {{- end }}
+        {{- end }}
+{{- if not $persistence }}
+        - name: logs
+          emptyDir: {}
+{{- else }}
+  volumeClaimTemplates:
+    - metadata:
+        name: logs
+      spec:
+      {{- if .Values.workers.persistence.storageClassName }}
+        storageClassName: {{ .Values.workers.persistence.storageClassName }}
+      {{- end }}
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.workers.persistence.size }}
+{{- end }}
+{{- end }}

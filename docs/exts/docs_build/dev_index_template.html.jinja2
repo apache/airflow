@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <!-- Required meta tags -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css" integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2" crossorigin="anonymous">
+
+  <title>Apache Airflow documentation</title>
+  <style>
+    @media (min-width: 768px) {
+      .list-providers {
+        column-count: 2
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="p-3 mb-2 bg-warning text-dark">
+    This is the documentation for the Apache Airflow developer version.
+    For documentation for stable versions, see: <a href="https://airflow.apache.org/docs/">airflow.apache.org</a>.
+  </div>
+
+  <h1 class="page-title">Apache Airflow Documentation</h1>
+  <div class="row">
+    <div class="col-md-6 col-md-push-6">
+      <h2><a href="/docs/apache-airflow/latest/index.html"><code>apache-airflow</code></a></h2>
+      <p>
+        Apache Airflow Core, which includes webserver, scheduler, CLI and other components that are needed for minimal Airflow installation.
+      </p>
+    </div>
+    <div class="col-md-6 col-md-pull-6">
+      <img src="https://github.com/apache/airflow/raw/master/airflow/www/static/pin_100.png" alt="">
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-12">
+      <h2>Providers packages</h2>
+      <p>
+        Providers packages include integrations with third party integrations. They are updated independently of the Apache Airflow core.
+      </p>
+      <ul class="list-providers">
+        {% for provider in providers %}
+        <li><a href="/docs/{{ provider['package-name'] }}/latest/index.html"><code>{{ provider['name'] }}</code></a></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+</body>
+</html>

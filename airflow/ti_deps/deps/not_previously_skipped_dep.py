@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 
 
@@ -29,22 +28,18 @@ class NotPreviouslySkippedDep(BaseTIDep):
     IGNORABLE = True
     IS_TASK_DEP = True
 
-    def _get_dep_statuses(
-        self, ti, session, dep_context
-    ):  # pylint: disable=signature-differs
+    def _get_dep_statuses(self, ti, session, dep_context):  # pylint: disable=signature-differs
         from airflow.models.skipmixin import (
-            SkipMixin,
+            XCOM_SKIPMIXIN_FOLLOWED,
             XCOM_SKIPMIXIN_KEY,
             XCOM_SKIPMIXIN_SKIPPED,
-            XCOM_SKIPMIXIN_FOLLOWED,
+            SkipMixin,
         )
         from airflow.utils.state import State
 
         upstream = ti.task.get_direct_relatives(upstream=True)
 
-        finished_tasks = dep_context.ensure_finished_tasks(
-            ti.task.dag, ti.execution_date, session
-        )
+        finished_tasks = dep_context.ensure_finished_tasks(ti.task.dag, ti.execution_date, session)
 
         finished_task_ids = {t.task_id for t in finished_tasks}
 
@@ -54,9 +49,7 @@ class NotPreviouslySkippedDep(BaseTIDep):
                     # This can happen if the parent task has not yet run.
                     continue
 
-                prev_result = ti.xcom_pull(
-                    task_ids=parent.task_id, key=XCOM_SKIPMIXIN_KEY
-                )
+                prev_result = ti.xcom_pull(task_ids=parent.task_id, key=XCOM_SKIPMIXIN_KEY, session=session)
 
                 if prev_result is None:
                     # This can happen if the parent task has not yet run.

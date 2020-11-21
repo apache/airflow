@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from airflow.settings import STATE_COLORS
+
 
 class State:
     """
@@ -41,6 +43,7 @@ class State:
     UP_FOR_RESCHEDULE = "up_for_reschedule"
     UPSTREAM_FAILED = "upstream_failed"
     SKIPPED = "skipped"
+    SENSING = "sensing"
 
     task_states = (
         SUCCESS,
@@ -53,6 +56,7 @@ class State:
         QUEUED,
         NONE,
         SCHEDULED,
+        SENSING,
     )
 
     dag_states = (
@@ -74,50 +78,76 @@ class State:
         REMOVED: 'lightgrey',
         SCHEDULED: 'tan',
         NONE: 'lightblue',
+        SENSING: 'lightseagreen',
     }
+    state_color.update(STATE_COLORS)  # type: ignore
 
     @classmethod
     def color(cls, state):
-        """
-        Returns color for a state.
-        """
+        """Returns color for a state."""
         return cls.state_color.get(state, 'white')
 
     @classmethod
     def color_fg(cls, state):
-        """
-        Black&white colors for a state.
-        """
+        """Black&white colors for a state."""
         color = cls.color(state)
         if color in ['green', 'red']:
             return 'white'
         return 'black'
 
-    @classmethod
-    def finished(cls):
-        """
-        A list of states indicating that a task started and completed a
-        run attempt. Note that the attempt could have resulted in failure or
-        have been interrupted; in any case, it is no longer running.
-        """
-        return [
-            cls.SUCCESS,
-            cls.FAILED,
-            cls.SKIPPED,
-        ]
+    running = frozenset([RUNNING, SENSING])
+    """
+    A list of states indicating that a task is being executed.
+    """
 
-    @classmethod
-    def unfinished(cls):
-        """
-        A list of states indicating that a task either has not completed
-        a run or has not even started.
-        """
-        return [
-            cls.NONE,
-            cls.SCHEDULED,
-            cls.QUEUED,
-            cls.RUNNING,
-            cls.SHUTDOWN,
-            cls.UP_FOR_RETRY,
-            cls.UP_FOR_RESCHEDULE
+    finished = frozenset(
+        [
+            SUCCESS,
+            FAILED,
+            SKIPPED,
+            UPSTREAM_FAILED,
         ]
+    )
+    """
+    A list of states indicating a task has reached a terminal state (i.e. it has "finished") and needs no
+    further action.
+
+    Note that the attempt could have resulted in failure or have been
+    interrupted; or perhaps never run at all (skip, or upstream_failed) in any
+    case, it is no longer running.
+    """
+
+    unfinished = frozenset(
+        [
+            NONE,
+            SCHEDULED,
+            QUEUED,
+            RUNNING,
+            SENSING,
+            SHUTDOWN,
+            UP_FOR_RETRY,
+            UP_FOR_RESCHEDULE,
+        ]
+    )
+    """
+    A list of states indicating that a task either has not completed
+    a run or has not even started.
+    """
+
+    failed_states = frozenset([FAILED, UPSTREAM_FAILED])
+    """
+    A list of states indicating that a task or dag is a failed state.
+    """
+
+    success_states = frozenset([SUCCESS, SKIPPED])
+    """
+    A list of states indicating that a task or dag is a success state.
+    """
+
+
+class PokeState:
+    """Static class with poke states constants used in smart operator."""
+
+    LANDED = 'landed'
+    NOT_LANDED = 'not_landed'
+    POKE_EXCEPTION = 'poke_exception'

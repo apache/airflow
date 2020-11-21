@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -64,21 +65,22 @@ class S3CopyObjectOperator(BaseOperator):
     :type verify: bool or str
     """
 
-    template_fields = ('source_bucket_key', 'dest_bucket_key',
-                       'source_bucket_name', 'dest_bucket_name')
+    template_fields = ('source_bucket_key', 'dest_bucket_key', 'source_bucket_name', 'dest_bucket_name')
 
     @apply_defaults
     def __init__(
-            self,
-            source_bucket_key,
-            dest_bucket_key,
-            source_bucket_name=None,
-            dest_bucket_name=None,
-            source_version_id=None,
-            aws_conn_id='aws_default',
-            verify=None,
-            *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        self,
+        *,
+        source_bucket_key: str,
+        dest_bucket_key: str,
+        source_bucket_name: Optional[str] = None,
+        dest_bucket_name: Optional[str] = None,
+        source_version_id: Optional[str] = None,
+        aws_conn_id: str = 'aws_default',
+        verify: Optional[Union[str, bool]] = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
 
         self.source_bucket_key = source_bucket_key
         self.dest_bucket_key = dest_bucket_key
@@ -90,6 +92,10 @@ class S3CopyObjectOperator(BaseOperator):
 
     def execute(self, context):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
-        s3_hook.copy_object(self.source_bucket_key, self.dest_bucket_key,
-                            self.source_bucket_name, self.dest_bucket_name,
-                            self.source_version_id)
+        s3_hook.copy_object(
+            self.source_bucket_key,
+            self.dest_bucket_key,
+            self.source_bucket_name,
+            self.dest_bucket_name,
+            self.source_version_id,
+        )

@@ -14,41 +14,87 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import List, Optional
 
-# TODO(mik-laj): We have to implement it.
-#     Do you want to help? Please look at: https://github.com/apache/airflow/issues/8142
+from flask import Response, request
+from marshmallow import ValidationError
+from sqlalchemy import func
 
-
-def delete_variable():
-    """
-    Delete variable
-    """
-    raise NotImplementedError("Not implemented yet.")
-
-
-def get_variable():
-    """
-    Get a variables by key
-    """
-    raise NotImplementedError("Not implemented yet.")
+from airflow.api_connexion import security
+from airflow.api_connexion.exceptions import BadRequest, NotFound
+from airflow.api_connexion.parameters import check_limit, format_parameters
+from airflow.api_connexion.schemas.variable_schema import variable_collection_schema, variable_schema
+from airflow.models import Variable
+from airflow.security import permissions
+from airflow.utils.session import provide_session
 
 
-def get_variables():
-    """
-    Get all variable values
-    """
-    raise NotImplementedError("Not implemented yet.")
+@security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE)])
+def delete_variable(variable_key: str) -> Response:
+    """Delete variable"""
+    if Variable.delete(variable_key) == 0:
+        raise NotFound("Variable not found")
+    return Response(status=204)
 
 
-def patch_variable():
-    """
-    Update a variable by key
-    """
-    raise NotImplementedError("Not implemented yet.")
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)])
+def get_variable(variable_key: str) -> Response:
+    """Get a variables by key"""
+    try:
+        var = Variable.get(variable_key)
+    except KeyError:
+        raise NotFound("Variable not found")
+    return variable_schema.dump({"key": variable_key, "val": var})
 
 
-def post_variables():
-    """
-    Create a variable
-    """
-    raise NotImplementedError("Not implemented yet.")
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)])
+@format_parameters({'limit': check_limit})
+@provide_session
+def get_variables(session, limit: Optional[int], offset: Optional[int] = None) -> Response:
+    """Get all variable values"""
+    total_entries = session.query(func.count(Variable.id)).scalar()
+    query = session.query(Variable).order_by(Variable.id)
+    if offset:
+        query = query.offset(offset)
+    if limit:
+        query = query.limit(limit)
+    variables = query.all()
+    return variable_collection_schema.dump(
+        {
+            "variables": variables,
+            "total_entries": total_entries,
+        }
+    )
+
+
+@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE)])
+def patch_variable(variable_key: str, update_mask: Optional[List[str]] = None) -> Response:
+    """Update a variable by key"""
+    try:
+        data = variable_schema.load(request.json)
+    except ValidationError as err:
+        raise BadRequest("Invalid Variable schema", detail=str(err.messages))
+
+    if data["key"] != variable_key:
+        raise BadRequest("Invalid post body", detail="key from request body doesn't match uri parameter")
+
+    if update_mask:
+        if "key" in update_mask:
+            raise BadRequest("key is a ready only field")
+        if "value" not in update_mask:
+            raise BadRequest("No field to update")
+
+    Variable.set(data["key"], data["val"])
+    return variable_schema.dump(data)
+
+
+@security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE)])
+def post_variables() -> Response:
+    """Create a variable"""
+    try:
+        data = variable_schema.load(request.json)
+
+    except ValidationError as err:
+        raise BadRequest("Invalid Variable schema", detail=str(err.messages))
+    Variable.set(data["key"], data["val"])
+    return variable_schema.dump(data)

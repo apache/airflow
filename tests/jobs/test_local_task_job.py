@@ -22,9 +22,9 @@ import time
 import unittest
 import uuid
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
-from mock import patch
 
 from airflow import settings
 from airflow.exceptions import AirflowException
@@ -41,7 +41,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.db import clear_db_runs
+from tests.test_utils.db import clear_db_jobs, clear_db_runs
 from tests.test_utils.mock_executor import MockExecutor
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -50,10 +50,15 @@ TEST_DAG_FOLDER = os.environ['AIRFLOW__CORE__DAGS_FOLDER']
 
 class TestLocalTaskJob(unittest.TestCase):
     def setUp(self):
+        clear_db_jobs()
         clear_db_runs()
         patcher = patch('airflow.jobs.base_job.sleep')
         self.addCleanup(patcher.stop)
         self.mock_base_job_sleep = patcher.start()
+
+    def tearDown(self) -> None:
+        clear_db_jobs()
+        clear_db_runs()
 
     def test_localtaskjob_essential_attr(self):
         """
@@ -62,23 +67,19 @@ class TestLocalTaskJob(unittest.TestCase):
         proper values without intervention
         """
         dag = DAG(
-            'test_localtaskjob_essential_attr',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
+            'test_localtaskjob_essential_attr', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'}
+        )
 
         with dag:
             op1 = DummyOperator(task_id='op1')
 
         dag.clear()
-        dr = dag.create_dagrun(run_id="test",
-                               state=State.SUCCESS,
-                               execution_date=DEFAULT_DATE,
-                               start_date=DEFAULT_DATE)
+        dr = dag.create_dagrun(
+            run_id="test", state=State.SUCCESS, execution_date=DEFAULT_DATE, start_date=DEFAULT_DATE
+        )
         ti = dr.get_task_instance(task_id=op1.task_id)
 
-        job1 = LocalTaskJob(task_instance=ti,
-                            ignore_ti_state=True,
-                            executor=SequentialExecutor())
+        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
 
         essential_attr = ["dag_id", "job_type", "start_date", "hostname"]
 
@@ -91,28 +92,25 @@ class TestLocalTaskJob(unittest.TestCase):
     @patch('os.getpid')
     def test_localtaskjob_heartbeat(self, mock_pid):
         session = settings.Session()
-        dag = DAG(
-            'test_localtaskjob_heartbeat',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
+        dag = DAG('test_localtaskjob_heartbeat', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
 
         with dag:
             op1 = DummyOperator(task_id='op1')
 
         dag.clear()
-        dr = dag.create_dagrun(run_id="test",
-                               state=State.SUCCESS,
-                               execution_date=DEFAULT_DATE,
-                               start_date=DEFAULT_DATE,
-                               session=session)
+        dr = dag.create_dagrun(
+            run_id="test",
+            state=State.SUCCESS,
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            session=session,
+        )
         ti = dr.get_task_instance(task_id=op1.task_id, session=session)
         ti.state = State.RUNNING
         ti.hostname = "blablabla"
         session.commit()
 
-        job1 = LocalTaskJob(task_instance=ti,
-                            ignore_ti_state=True,
-                            executor=SequentialExecutor())
+        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
         self.assertRaises(AirflowException, job1.heartbeat_callback)
 
         mock_pid.return_value = 1
@@ -127,12 +125,10 @@ class TestLocalTaskJob(unittest.TestCase):
         mock_pid.return_value = 2
         self.assertRaises(AirflowException, job1.heartbeat_callback)
 
-    @patch('os.getpid')
-    def test_heartbeat_failed_fast(self, mock_getpid):
+    def test_heartbeat_failed_fast(self):
         """
         Test that task heartbeat will sleep when it fails fast
         """
-        mock_getpid.return_value = 1
         self.mock_base_job_sleep.side_effect = time.sleep
 
         with create_session() as session:
@@ -145,11 +141,13 @@ class TestLocalTaskJob(unittest.TestCase):
             dag = dagbag.get_dag(dag_id)
             task = dag.get_task(task_id)
 
-            dag.create_dagrun(run_id="test_heartbeat_failed_fast_run",
-                              state=State.RUNNING,
-                              execution_date=DEFAULT_DATE,
-                              start_date=DEFAULT_DATE,
-                              session=session)
+            dag.create_dagrun(
+                run_id="test_heartbeat_failed_fast_run",
+                state=State.RUNNING,
+                execution_date=DEFAULT_DATE,
+                start_date=DEFAULT_DATE,
+                session=session,
+            )
             ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
             ti.refresh_from_db()
             ti.state = State.RUNNING
@@ -170,7 +168,7 @@ class TestLocalTaskJob(unittest.TestCase):
                 delta = (time2 - time1).total_seconds()
                 self.assertAlmostEqual(delta, job.heartrate, delta=0.05)
 
-    @pytest.mark.xfail(condition=True, reason="This test might be flaky in postgres/mysql")
+    @pytest.mark.quarantined
     def test_mark_success_no_kill(self):
         """
         Test that ensures that mark_success in the UI doesn't cause
@@ -186,11 +184,13 @@ class TestLocalTaskJob(unittest.TestCase):
         session = settings.Session()
 
         dag.clear()
-        dag.create_dagrun(run_id="test",
-                          state=State.RUNNING,
-                          execution_date=DEFAULT_DATE,
-                          start_date=DEFAULT_DATE,
-                          session=session)
+        dag.create_dagrun(
+            run_id="test",
+            state=State.RUNNING,
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            session=session,
+        )
         ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
@@ -223,11 +223,13 @@ class TestLocalTaskJob(unittest.TestCase):
         session = settings.Session()
 
         dag.clear()
-        dr = dag.create_dagrun(run_id="test",
-                               state=State.SUCCESS,
-                               execution_date=DEFAULT_DATE,
-                               start_date=DEFAULT_DATE,
-                               session=session)
+        dr = dag.create_dagrun(
+            run_id="test",
+            state=State.SUCCESS,
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            session=session,
+        )
         ti = dr.get_task_instance(task_id=task.task_id, session=session)
         ti.state = State.RUNNING
         ti.hostname = get_hostname()
@@ -237,9 +239,9 @@ class TestLocalTaskJob(unittest.TestCase):
 
         ti_run = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti_run.refresh_from_db()
-        job1 = LocalTaskJob(task_instance=ti_run,
-                            executor=SequentialExecutor())
+        job1 = LocalTaskJob(task_instance=ti_run, executor=SequentialExecutor())
         from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
+
         with patch.object(StandardTaskRunner, 'start', return_value=None) as mock_method:
             job1.run()
             mock_method.assert_not_called()
@@ -262,16 +264,17 @@ class TestLocalTaskJob(unittest.TestCase):
         session = settings.Session()
 
         dag.clear()
-        dag.create_dagrun(run_id="test",
-                          state=State.SUCCESS,
-                          execution_date=DEFAULT_DATE,
-                          start_date=DEFAULT_DATE,
-                          session=session)
+        dag.create_dagrun(
+            run_id="test",
+            state=State.SUCCESS,
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            session=session,
+        )
 
         ti_run = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti_run.refresh_from_db()
-        job1 = LocalTaskJob(task_instance=ti_run,
-                            executor=SequentialExecutor())
+        job1 = LocalTaskJob(task_instance=ti_run, executor=SequentialExecutor())
 
         # this should make sure we only heartbeat once and exit at the second
         # loop in _execute()
@@ -282,6 +285,7 @@ class TestLocalTaskJob(unittest.TestCase):
 
         time_start = time.time()
         from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
+
         with patch.object(StandardTaskRunner, 'start', return_value=None) as mock_start:
             with patch.object(StandardTaskRunner, 'return_code') as mock_ret_code:
                 mock_ret_code.side_effect = multi_return_code
@@ -328,22 +332,23 @@ class TestLocalTaskJob(unittest.TestCase):
             task = PythonOperator(
                 task_id='test_state_succeeded1',
                 python_callable=task_function,
-                on_failure_callback=check_failure)
+                on_failure_callback=check_failure,
+            )
 
         session = settings.Session()
 
         dag.clear()
-        dag.create_dagrun(run_id="test",
-                          state=State.RUNNING,
-                          execution_date=DEFAULT_DATE,
-                          start_date=DEFAULT_DATE,
-                          session=session)
+        dag.create_dagrun(
+            run_id="test",
+            state=State.RUNNING,
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            session=session,
+        )
         ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
 
-        job1 = LocalTaskJob(task_instance=ti,
-                            ignore_ti_state=True,
-                            executor=SequentialExecutor())
+        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
         with timeout(30):
             # This should be _much_ shorter to run.
             # If you change this limit, make the timeout in the callbable above bigger
@@ -352,8 +357,9 @@ class TestLocalTaskJob(unittest.TestCase):
         ti.refresh_from_db()
         self.assertEqual(ti.state, State.FAILED)
         self.assertTrue(data['called'])
-        self.assertNotIn('reached_end_of_sleep', data,
-                         'Task should not have been allowed to run to completion')
+        self.assertNotIn(
+            'reached_end_of_sleep', data, 'Task should not have been allowed to run to completion'
+        )
 
     @pytest.mark.quarantined
     def test_mark_success_on_success_callback(self):
@@ -364,33 +370,28 @@ class TestLocalTaskJob(unittest.TestCase):
         data = {'called': False}
 
         def success_callback(context):
-            self.assertEqual(context['dag_run'].dag_id,
-                             'test_mark_success')
+            self.assertEqual(context['dag_run'].dag_id, 'test_mark_success')
             data['called'] = True
 
-        dag = DAG(dag_id='test_mark_success',
-                  start_date=DEFAULT_DATE,
-                  default_args={'owner': 'owner1'})
+        dag = DAG(dag_id='test_mark_success', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
 
-        task = DummyOperator(
-            task_id='test_state_succeeded1',
-            dag=dag,
-            on_success_callback=success_callback)
+        task = DummyOperator(task_id='test_state_succeeded1', dag=dag, on_success_callback=success_callback)
 
         session = settings.Session()
 
         dag.clear()
-        dag.create_dagrun(run_id="test",
-                          state=State.RUNNING,
-                          execution_date=DEFAULT_DATE,
-                          start_date=DEFAULT_DATE,
-                          session=session)
+        dag.create_dagrun(
+            run_id="test",
+            state=State.RUNNING,
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            session=session,
+        )
         ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
-        job1 = LocalTaskJob(task_instance=ti,
-                            ignore_ti_state=True,
-                            executor=SequentialExecutor())
+        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
         from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
+
         job1.task_runner = StandardTaskRunner(job1)
         process = multiprocessing.Process(target=job1.run)
         process.start()
@@ -414,6 +415,7 @@ class TestLocalTaskJob(unittest.TestCase):
 @pytest.fixture()
 def clean_db_helper():
     yield
+    clear_db_jobs()
     clear_db_runs()
 
 

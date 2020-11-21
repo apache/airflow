@@ -34,9 +34,9 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
+def upgrade():  # noqa: D103
     op.add_column('task_instance', sa.Column('pool_slots', sa.Integer, default=1))
 
 
-def downgrade():
+def downgrade():  # noqa: D103
     op.drop_column('task_instance', 'pool_slots')

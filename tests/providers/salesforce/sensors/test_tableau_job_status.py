@@ -21,19 +21,14 @@ from unittest.mock import Mock, patch
 from parameterized import parameterized
 
 from airflow.providers.salesforce.sensors.tableau_job_status import (
-    TableauJobFailedException, TableauJobStatusSensor,
+    TableauJobFailedException,
+    TableauJobStatusSensor,
 )
 
 
 class TestTableauJobStatusSensor(unittest.TestCase):
-
     def setUp(self):
-        self.kwargs = {
-            'job_id': 'job_2',
-            'site_id': 'test_site',
-            'task_id': 'task',
-            'dag': None
-        }
+        self.kwargs = {'job_id': 'job_2', 'site_id': 'test_site', 'task_id': 'task', 'dag': None}
 
     @patch('airflow.providers.salesforce.sensors.tableau_job_status.TableauHook')
     def test_poke(self, mock_tableau_hook):

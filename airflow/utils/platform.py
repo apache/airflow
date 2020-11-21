@@ -15,16 +15,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-Platform and system specific function.
-"""
+"""Platform and system specific function."""
+import logging
 import os
+import pkgutil
 import sys
+
+log = logging.getLogger(__name__)
 
 
 def is_tty():
     """
-    Checks if the standard output is s connected (is associated with a terminal device) to a tty(-like) device
+    Checks if the standard output is connected (is associated with a terminal device) to a tty(-like)
+    device.
     """
     if not hasattr(sys.stdout, "isatty"):
         return False
@@ -32,12 +35,10 @@ def is_tty():
 
 
 def is_terminal_support_colors() -> bool:
-    """"
-    Try to determine if the current terminal supports colors.
-    """
+    """Try to determine if the current terminal supports colors."""
     if sys.platform == "win32":
         return False
-    if is_tty():
+    if not is_tty():
         return False
     if "COLORTERM" in os.environ:
         return True
@@ -45,3 +46,14 @@ def is_terminal_support_colors() -> bool:
     if term in ("xterm", "linux") or "color" in term:
         return True
     return False
+
+
+def get_airflow_git_version():
+    """Returns the git commit hash representing the current version of the application."""
+    git_version = None
+    try:
+        git_version = str(pkgutil.get_data('airflow', 'git_version'), encoding="UTF-8")
+    except Exception as e:  # pylint: disable=broad-except
+        log.debug(e)
+
+    return git_version

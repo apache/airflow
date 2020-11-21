@@ -26,22 +26,19 @@ class TestPapermillOperator(unittest.TestCase):
     def test_execute(self, mock_papermill):
         in_nb = "/tmp/does_not_exist"
         out_nb = "/tmp/will_not_exist"
-        parameters = {"msg": "hello_world",
-                      "train": 1}
+        parameters = {"msg": "hello_world", "train": 1}
 
         op = PapermillOperator(
-            input_nb=in_nb, output_nb=out_nb, parameters=parameters,
+            input_nb=in_nb,
+            output_nb=out_nb,
+            parameters=parameters,
             task_id="papermill_operator_test",
-            dag=None
+            dag=None,
         )
 
         op.pre_execute(context={})  # make sure to have the inlets
         op.execute(context={})
 
         mock_papermill.execute_notebook.assert_called_once_with(
-            in_nb,
-            out_nb,
-            parameters=parameters,
-            progress_bar=False,
-            report_mode=True
+            in_nb, out_nb, parameters=parameters, progress_bar=False, report_mode=True
         )

@@ -24,16 +24,15 @@ from airflow.models.connection import Connection
 
 
 class ConnectionCollectionItemSchema(SQLAlchemySchema):
-    """
-    Schema for a connection item
-    """
+    """Schema for a connection item"""
 
     class Meta:
-        """ Meta """
+        """Meta"""
+
         model = Connection
 
-    conn_id = auto_field(dump_to='connection_id', load_from='connection_id')
-    conn_type = auto_field()
+    connection_id = auto_field('conn_id', required=True)
+    conn_type = auto_field(required=True)
     host = auto_field()
     login = auto_field()
     schema = auto_field()
@@ -41,22 +40,22 @@ class ConnectionCollectionItemSchema(SQLAlchemySchema):
 
 
 class ConnectionSchema(ConnectionCollectionItemSchema):  # pylint: disable=too-many-ancestors
-    """
-    Connection schema
-    """
+    """Connection schema"""
 
     password = auto_field(load_only=True)
     extra = auto_field()
 
 
 class ConnectionCollection(NamedTuple):
-    """ List of Connections with meta"""
+    """List of Connections with meta"""
+
     connections: List[Connection]
     total_entries: int
 
 
 class ConnectionCollectionSchema(Schema):
-    """ Connection Collection Schema"""
+    """Connection Collection Schema"""
+
     connections = fields.List(fields.Nested(ConnectionCollectionItemSchema))
     total_entries = fields.Int()
 

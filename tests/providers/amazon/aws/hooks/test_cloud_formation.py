@@ -29,30 +29,22 @@ except ImportError:
 
 @unittest.skipIf(mock_cloudformation is None, 'moto package not present')
 class TestAWSCloudFormationHook(unittest.TestCase):
-
     def setUp(self):
         self.hook = AWSCloudFormationHook(aws_conn_id='aws_default')
 
     def create_stack(self, stack_name):
         timeout = 15
-        template_body = json.dumps({
-            'Resources': {
-                "myResource": {
-                    "Type": "emr",
-                    "Properties": {
-                        "myProperty": "myPropertyValue"
-                    }
-                }
-            }
-        })
+        template_body = json.dumps(
+            {'Resources': {"myResource": {"Type": "emr", "Properties": {"myProperty": "myPropertyValue"}}}}
+        )
 
         self.hook.create_stack(
             stack_name=stack_name,
             params={
                 'TimeoutInMinutes': timeout,
                 'TemplateBody': template_body,
-                'Parameters': [{'ParameterKey': 'myParam', 'ParameterValue': 'myParamValue'}]
-            }
+                'Parameters': [{'ParameterKey': 'myParam', 'ParameterValue': 'myParamValue'}],
+            },
         )
 
     @mock_cloudformation
@@ -82,11 +74,7 @@ class TestAWSCloudFormationHook(unittest.TestCase):
         self.assertEqual(len(matching_stacks), 1, f'stack with name {stack_name} should exist')
 
         stack = matching_stacks[0]
-        self.assertEqual(
-            stack['StackStatus'],
-            'CREATE_COMPLETE',
-            'Stack should be in status CREATE_COMPLETE'
-        )
+        self.assertEqual(stack['StackStatus'], 'CREATE_COMPLETE', 'Stack should be in status CREATE_COMPLETE')
 
     @mock_cloudformation
     def test_delete_stack(self):

@@ -25,11 +25,9 @@ from airflow.hooks.base_hook import BaseHook
 
 
 class JenkinsHook(BaseHook):
-    """
-    Hook to manage connection to jenkins server
-    """
+    """Hook to manage connection to jenkins server"""
 
-    def __init__(self, conn_id='jenkins_default'):
+    def __init__(self, conn_id: str = 'jenkins_default') -> None:
         super().__init__()
         connection = self.get_connection(conn_id)
         self.connection = connection
@@ -45,8 +43,6 @@ class JenkinsHook(BaseHook):
         self.log.info('Trying to connect to %s', url)
         self.jenkins_server = jenkins.Jenkins(url, connection.login, connection.password)
 
-    def get_jenkins_server(self):
-        """
-        Get jenkins server
-        """
+    def get_jenkins_server(self) -> jenkins.Jenkins:
+        """Get jenkins server"""
         return self.jenkins_server

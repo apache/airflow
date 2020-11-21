@@ -89,13 +89,13 @@ This can result in a lot of open connections.
 
 The best way of using variables is via a Jinja template, which will delay reading the value until the task execution. The template syntax to do this is:
 
-.. code::
+.. code-block::
 
     {{ var.value.<variable_name> }}
 
 or if you need to deserialize a json object from the variable :
 
-.. code::
+.. code-block::
 
     {{ var.json.<variable_name> }}
 
@@ -117,7 +117,7 @@ DAG Loader Test
 This test should ensure that your DAG does not contain a piece of code that raises error while loading.
 No additional code needs to be written by the user to run this test.
 
-.. code::
+.. code-block::
 
  python your-dag-file.py
 
@@ -132,7 +132,7 @@ Unit tests ensure that there is no incorrect code in your DAG. You can write uni
 
 **Unit test for loading a DAG:**
 
-.. code::
+.. code-block::
 
  from airflow.models import DagBag
  import unittest
@@ -151,7 +151,7 @@ Unit tests ensure that there is no incorrect code in your DAG. You can write uni
 **Unit test a DAG structure:**
 This is an example test want to verify the structure of a code-generated DAG against a dict object
 
-.. code::
+.. code-block::
 
  import unittest
  class testClass(unittest.TestCase):
@@ -172,7 +172,7 @@ This is an example test want to verify the structure of a code-generated DAG aga
 
 **Unit test for custom operator:**
 
-.. code::
+.. code-block::
 
  import unittest
  from airflow.utils.state import State
@@ -205,7 +205,7 @@ make sure that the partition is created in S3 and perform some simple checks to 
 
 Similarly, if you have a task that starts a microservice in Kubernetes or Mesos, you should check if the service has started or not using :class:`airflow.providers.http.sensors.http.HttpSensor`.
 
-.. code::
+.. code-block::
 
  task = PushToS3(...)
  check = S3KeySensor(
@@ -227,7 +227,7 @@ Do not hard code values inside the DAG and then change them manually according t
 
 You can use environment variables to parameterize the DAG.
 
-.. code::
+.. code-block::
 
  import os
 
@@ -252,7 +252,7 @@ If you want to run production-grade Airflow, make sure you :doc:`configure the b
 
 You can change the backend using the following config
 
-.. code:: ini
+.. code-block:: ini
 
  [core]
  sql_alchemy_conn = my_conn_string
@@ -261,11 +261,11 @@ Once you have changed the backend, airflow needs to create all the tables requir
 Create an empty DB and give airflow's user the permission to ``CREATE/ALTER`` it.
 Once that is done, you can run -
 
-.. code::
+.. code-block:: bash
 
  airflow db upgrade
 
-``upgrade`` keeps track of migrations already applies, so it's safe to run as often as you need.
+``upgrade`` keeps track of migrations already applied, so it's safe to run as often as you need.
 
 .. note::
 
@@ -291,7 +291,7 @@ Logging
 
 If you are using disposable nodes in your cluster, configure the log storage to be a distributed file system (DFS) such as ``S3`` and ``GCS``, or external services such as
 Stackdriver Logging, Elasticsearch or Amazon CloudWatch.
-This way, the logs are available even after the node goes down or gets replaced. See :doc:`howto/write-logs` for configurations.
+This way, the logs are available even after the node goes down or gets replaced. See :doc:`logging-monitoring/logging-tasks` for configurations.
 
 .. note::
 
@@ -305,14 +305,14 @@ Airflow comes bundled with a default ``airflow.cfg`` configuration file.
 You should use environment variables for configurations that change across deployments
 e.g. metadata DB, password, etc. You can accomplish this using the format :envvar:`AIRFLOW__{SECTION}__{KEY}`
 
-.. code::
+.. code-block:: bash
 
  AIRFLOW__CORE__SQL_ALCHEMY_CONN=my_conn_id
  AIRFLOW__WEBSERVER__BASE_URL=http://host:port
 
 Some configurations such as the Airflow Backend connection URI can be derived from bash commands as well:
 
-.. code::
+.. code-block:: ini
 
  sql_alchemy_conn_cmd = bash_command_to_run
 

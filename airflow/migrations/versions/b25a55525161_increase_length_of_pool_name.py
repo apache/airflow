@@ -19,7 +19,7 @@
 """Increase length of pool name
 
 Revision ID: b25a55525161
-Revises: a4c2fd67d16b
+Revises: bbf4a7ad0465
 Create Date: 2020-03-09 08:48:14.534700
 
 """
@@ -29,7 +29,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = 'b25a55525161'
-down_revision = 'a4c2fd67d16b'
+down_revision = 'bbf4a7ad0465'
 branch_labels = None
 depends_on = None
 

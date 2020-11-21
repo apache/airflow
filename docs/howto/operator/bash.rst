@@ -25,7 +25,7 @@ BashOperator
 Use the :class:`~airflow.operators.bash.BashOperator` to execute
 commands in a `Bash <https://www.gnu.org/software/bash/>`__ shell.
 
-.. exampleinclude:: ../../../airflow/example_dags/example_bash_operator.py
+.. exampleinclude:: /../airflow/example_dags/example_bash_operator.py
     :language: python
     :start-after: [START howto_operator_bash]
     :end-before: [END howto_operator_bash]
@@ -36,7 +36,7 @@ Templating
 You can use :ref:`Jinja templates <jinja-templating>` to parameterize the
 ``bash_command`` argument.
 
-.. exampleinclude:: ../../../airflow/example_dags/example_bash_operator.py
+.. exampleinclude:: /../airflow/example_dags/example_bash_operator.py
     :language: python
     :start-after: [START howto_operator_bash_template]
     :end-before: [END howto_operator_bash_template]

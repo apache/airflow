@@ -20,6 +20,7 @@
 import json
 import os
 import unittest
+import uuid
 from unittest import mock
 
 import MySQLdb.cursors
@@ -31,15 +32,10 @@ from airflow.models.dag import DAG
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils import timezone
 
-SSL_DICT = {
-    'cert': '/tmp/client-cert.pem',
-    'ca': '/tmp/server-ca.pem',
-    'key': '/tmp/client-key.pem'
-}
+SSL_DICT = {'cert': '/tmp/client-cert.pem', 'ca': '/tmp/server-ca.pem', 'key': '/tmp/client-key.pem'}
 
 
 class TestMySqlHookConn(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
 
@@ -162,13 +158,17 @@ class TestMySqlHookConn(unittest.TestCase):
         self.connection.extra = '{"iam":true}'
         mock_client.return_value.generate_db_auth_token.return_value = 'aws_token'
         self.db_hook.get_conn()
-        mock_connect.assert_called_once_with(user='login', passwd='aws_token', host='host',
-                                             db='schema', port=3306,
-                                             read_default_group='enable-cleartext-plugin')
+        mock_connect.assert_called_once_with(
+            user='login',
+            passwd='aws_token',
+            host='host',
+            db='schema',
+            port=3306,
+            read_default_group='enable-cleartext-plugin',
+        )
 
 
 class TestMySqlHookConnMySqlConnectorPython(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
 
@@ -177,7 +177,7 @@ class TestMySqlHookConnMySqlConnectorPython(unittest.TestCase):
             password='password',
             host='host',
             schema='schema',
-            extra='{"client": "mysql-connector-python"}'
+            extra='{"client": "mysql-connector-python"}',
         )
 
         self.db_hook = MySqlHook()
@@ -217,7 +217,6 @@ class TestMySqlHookConnMySqlConnectorPython(unittest.TestCase):
 
 
 class TestMySqlHook(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
 
@@ -275,26 +274,27 @@ class TestMySqlHook(unittest.TestCase):
             self.assertEqual(len(args), 1)
             self.assertEqual(args[0], sql[i])
             self.assertEqual(kwargs, {})
-        calls = [
-            mock.call(sql[0]),
-            mock.call(sql[1])
-        ]
+        calls = [mock.call(sql[0]), mock.call(sql[1])]
         self.cur.execute.assert_has_calls(calls, any_order=True)
         self.conn.commit.assert_not_called()
 
     def test_bulk_load(self):
         self.db_hook.bulk_load('table', '/tmp/file')
-        self.cur.execute.assert_called_once_with("""
+        self.cur.execute.assert_called_once_with(
+            """
             LOAD DATA LOCAL INFILE '/tmp/file'
             INTO TABLE table
-            """)
+            """
+        )
 
     def test_bulk_dump(self):
         self.db_hook.bulk_dump('table', '/tmp/file')
-        self.cur.execute.assert_called_once_with("""
+        self.cur.execute.assert_called_once_with(
+            """
             SELECT * INTO OUTFILE '/tmp/file'
             FROM table
-            """)
+            """
+        )
 
     def test_serialize_cell(self):
         self.assertEqual('foo', self.db_hook._serialize_cell('foo', None))
@@ -306,16 +306,18 @@ class TestMySqlHook(unittest.TestCase):
             'IGNORE',
             """FIELDS TERMINATED BY ';'
             OPTIONALLY ENCLOSED BY '"'
-            IGNORE 1 LINES"""
+            IGNORE 1 LINES""",
         )
-        self.cur.execute.assert_called_once_with("""
+        self.cur.execute.assert_called_once_with(
+            """
             LOAD DATA LOCAL INFILE '/tmp/file'
             IGNORE
             INTO TABLE table
             FIELDS TERMINATED BY ';'
             OPTIONALLY ENCLOSED BY '"'
             IGNORE 1 LINES
-            """)
+            """
+        )
 
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
@@ -331,19 +333,16 @@ class MySqlContext:
         self.init_client = self.connection.extra_dejson.get('client', 'mysqlclient')
 
     def __enter__(self):
-        self.connection.set_extra('{{"client": "{}"}}'.format(self.client))
+        self.connection.set_extra(f'{{"client": "{self.client}"}}')
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.connection.set_extra('{{"client": "{}"}}'.format(self.init_client))
+        self.connection.set_extra(f'{{"client": "{self.init_client}"}}')
 
 
 @pytest.mark.backend("mysql")
 class TestMySql(unittest.TestCase):
     def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
 
@@ -351,44 +350,73 @@ class TestMySql(unittest.TestCase):
         drop_tables = {'test_mysql_to_mysql', 'test_airflow'}
         with MySqlHook().get_conn() as conn:
             for table in drop_tables:
-                conn.execute("DROP TABLE IF EXISTS {}".format(table))
+                conn.execute(f"DROP TABLE IF EXISTS {table}")
 
-    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",), ])
+    @parameterized.expand(
+        [
+            ("mysqlclient",),
+            ("mysql-connector-python",),
+        ]
+    )
+    @mock.patch.dict(
+        'os.environ',
+        {
+            'AIRFLOW_CONN_AIRFLOW_DB': 'mysql://root@mysql/airflow?charset=utf8mb4&local_infile=1',
+        },
+    )
     def test_mysql_hook_test_bulk_load(self, client):
         with MySqlContext(client):
             records = ("foo", "bar", "baz")
 
             import tempfile
+
             with tempfile.NamedTemporaryFile() as f:
                 f.write("\n".join(records).encode('utf8'))
                 f.flush()
 
                 hook = MySqlHook('airflow_db')
                 with hook.get_conn() as conn:
-                    conn.execute("""
+                    conn.execute(
+                        """
                         CREATE TABLE IF NOT EXISTS test_airflow (
                             dummy VARCHAR(50)
                         )
-                    """)
+                    """
+                    )
                     conn.execute("TRUNCATE TABLE test_airflow")
                     hook.bulk_load("test_airflow", f.name)
                     conn.execute("SELECT dummy FROM test_airflow")
                     results = tuple(result[0] for result in conn.fetchall())
                     self.assertEqual(sorted(results), sorted(records))
 
-    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",), ])
+    @parameterized.expand(
+        [
+            ("mysqlclient",),
+            ("mysql-connector-python",),
+        ]
+    )
     def test_mysql_hook_test_bulk_dump(self, client):
         with MySqlContext(client):
             hook = MySqlHook('airflow_db')
             priv = hook.get_first("SELECT @@global.secure_file_priv")
+            # Use random names to allow re-running
             if priv and priv[0]:
                 # Confirm that no error occurs
-                hook.bulk_dump("INFORMATION_SCHEMA.TABLES", os.path.join(priv[0], "TABLES_{}".format(client)))
+                hook.bulk_dump(
+                    "INFORMATION_SCHEMA.TABLES",
+                    os.path.join(priv[0], f"TABLES_{client}-{uuid.uuid1()}"),
+                )
+            elif priv == ("",):
+                hook.bulk_dump("INFORMATION_SCHEMA.TABLES", f"TABLES_{client}_{uuid.uuid1()}")
             else:
-                self.skipTest("Skip test_mysql_hook_test_bulk_load "
-                              "since file output is not permitted")
+                self.skipTest("Skip test_mysql_hook_test_bulk_load since file output is not permitted")
 
-    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",), ])
+    @parameterized.expand(
+        [
+            ("mysqlclient",),
+            ("mysql-connector-python",),
+        ]
+    )
     @mock.patch('airflow.providers.mysql.hooks.mysql.MySqlHook.get_conn')
     def test_mysql_hook_test_bulk_dump_mock(self, client, mock_get_conn):
         with MySqlContext(client):
@@ -401,9 +429,12 @@ class TestMySql(unittest.TestCase):
             hook.bulk_dump(table, tmp_file)
 
             from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
+
             assert mock_execute.call_count == 1
             query = """
                 SELECT * INTO OUTFILE '{tmp_file}'
                 FROM {table}
-            """.format(tmp_file=tmp_file, table=table)
+            """.format(
+                tmp_file=tmp_file, table=table
+            )
             assert_equal_ignore_multiple_spaces(self, mock_execute.call_args[0][0], query)

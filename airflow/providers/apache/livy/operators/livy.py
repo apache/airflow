@@ -15,11 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains the Apache Livy operator.
-"""
-
+"""This module contains the Apache Livy operator."""
 from time import sleep
+from typing import Any, Dict, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -75,26 +73,27 @@ class LivyOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        file,
-        class_name=None,
-        args=None,
-        conf=None,
-        jars=None,
-        py_files=None,
-        files=None,
-        driver_memory=None,
-        driver_cores=None,
-        executor_memory=None,
-        executor_cores=None,
-        num_executors=None,
-        archives=None,
-        queue=None,
-        name=None,
-        proxy_user=None,
-        livy_conn_id='livy_default',
-        polling_interval=0,
-        **kwargs
-    ):
+        *,
+        file: str,
+        class_name: Optional[str] = None,
+        args: Optional[Sequence[Union[str, int, float]]] = None,
+        conf: Optional[Dict[Any, Any]] = None,
+        jars: Optional[Sequence[str]] = None,
+        py_files: Optional[Sequence[str]] = None,
+        files: Optional[Sequence[str]] = None,
+        driver_memory: Optional[str] = None,
+        driver_cores: Optional[Union[int, str]] = None,
+        executor_memory: Optional[str] = None,
+        executor_cores: Optional[Union[int, str]] = None,
+        num_executors: Optional[Union[int, str]] = None,
+        archives: Optional[Sequence[str]] = None,
+        queue: Optional[str] = None,
+        name: Optional[str] = None,
+        proxy_user: Optional[str] = None,
+        livy_conn_id: str = 'livy_default',
+        polling_interval: int = 0,
+        **kwargs: Any,
+    ) -> None:
         # pylint: disable-msg=too-many-arguments
 
         super().__init__(**kwargs)
@@ -115,16 +114,16 @@ class LivyOperator(BaseOperator):
             'queue': queue,
             'name': name,
             'conf': conf,
-            'proxy_user': proxy_user
+            'proxy_user': proxy_user,
         }
 
         self._livy_conn_id = livy_conn_id
         self._polling_interval = polling_interval
 
-        self._livy_hook = None
-        self._batch_id = None
+        self._livy_hook: Optional[LivyHook] = None
+        self._batch_id: Union[int, str]
 
-    def get_hook(self):
+    def get_hook(self) -> LivyHook:
         """
         Get valid hook.
 
@@ -135,7 +134,7 @@ class LivyOperator(BaseOperator):
             self._livy_hook = LivyHook(livy_conn_id=self._livy_conn_id)
         return self._livy_hook
 
-    def execute(self, context):
+    def execute(self, context: Dict[Any, Any]) -> Any:
         self._batch_id = self.get_hook().post_batch(**self.spark_params)
 
         if self._polling_interval > 0:
@@ -143,7 +142,7 @@ class LivyOperator(BaseOperator):
 
         return self._batch_id
 
-    def poll_for_termination(self, batch_id):
+    def poll_for_termination(self, batch_id: Union[int, str]) -> None:
         """
         Pool Livy for batch termination.
 
@@ -158,14 +157,12 @@ class LivyOperator(BaseOperator):
             state = hook.get_batch_state(batch_id)
         self.log.info("Batch with id %s terminated with state: %s", batch_id, state.value)
         if state != BatchState.SUCCESS:
-            raise AirflowException("Batch {} did not succeed".format(batch_id))
+            raise AirflowException(f"Batch {batch_id} did not succeed")
 
-    def on_kill(self):
+    def on_kill(self) -> None:
         self.kill()
 
-    def kill(self):
-        """
-        Delete the current batch session.
-        """
+    def kill(self) -> None:
+        """Delete the current batch session."""
         if self._batch_id is not None:
             self.get_hook().delete_batch(self._batch_id)

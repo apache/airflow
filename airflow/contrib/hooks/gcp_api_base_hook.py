@@ -22,18 +22,22 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.common.hooks.base_google`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 
 class GoogleCloudBaseHook(GoogleBaseHook):
     """
-    This class is deprecated. Please use `airflow.providers.google.common.hooks.base_google.GoogleBaseHook`.
+    This class is deprecated. Please use
+    `airflow.providers.google.common.hooks.base_google.GoogleBaseHook`.
     """
+
     def __init__(self, *args, **kwargs):
         warnings.warn(
             "This class is deprecated. Please use "
             "`airflow.providers.google.common.hooks.base_google.GoogleBaseHook`.",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

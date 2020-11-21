@@ -24,5 +24,6 @@ from airflow.providers.amazon.aws.operators.emr_add_steps import EmrAddStepsOper
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.emr_add_steps`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

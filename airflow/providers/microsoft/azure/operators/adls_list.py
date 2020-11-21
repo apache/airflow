@@ -15,8 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import Iterable
+from typing import Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
@@ -47,24 +46,21 @@ class AzureDataLakeStorageListOperator(BaseOperator):
                 azure_data_lake_conn_id='azure_data_lake_default'
             )
     """
-    template_fields = ('path',)  # type: Iterable[str]
+
+    template_fields: Sequence[str] = ('path',)
     ui_color = '#901dd2'
 
     @apply_defaults
-    def __init__(self,
-                 path,
-                 azure_data_lake_conn_id='azure_data_lake_default',
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self, *, path: str, azure_data_lake_conn_id: str = 'azure_data_lake_default', **kwargs
+    ) -> None:
+        super().__init__(**kwargs)
         self.path = path
         self.azure_data_lake_conn_id = azure_data_lake_conn_id
 
-    def execute(self, context):
+    def execute(self, context: dict) -> list:
 
-        hook = AzureDataLakeHook(
-            azure_data_lake_conn_id=self.azure_data_lake_conn_id
-        )
+        hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)
 
         self.log.info('Getting list of ADLS files in path: %s', self.path)
 

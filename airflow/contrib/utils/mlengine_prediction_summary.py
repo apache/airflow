@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module is deprecated.
-Please use `airflow.providers.google.cloud.utils.mlengine_prediction_summary`."""
+
+Please use `airflow.providers.google.cloud.utils.mlengine_prediction_summary`.
+"""
 
 import warnings
 
@@ -26,5 +28,6 @@ from airflow.providers.google.cloud.utils.mlengine_prediction_summary import Jso
 warnings.warn(
     "This module is deprecated. "
     "Please use `airflow.providers.google.cloud.utils.mlengine_prediction_summary`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

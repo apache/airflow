@@ -28,9 +28,9 @@ from urllib.parse import urlsplit, urlunsplit
 
 import requests
 import tenacity
-from typing_extensions import Protocol
 
 from airflow import configuration
+from airflow.typing_compat import Protocol
 from airflow.version import version as airflow_version
 
 log = logging.getLogger(__name__)
@@ -43,7 +43,7 @@ class Anonymizer(Protocol):
         """Remove pii from paths"""
 
     def process_username(self, value):
-        """Remove pii from ussername"""
+        """Remove pii from username"""
 
     def process_url(self, value):
         """Remove pii from URL"""
@@ -247,7 +247,7 @@ class SystemInfo:
 
 
 class PathsInfo:
-    """Path informaation"""
+    """Path information"""
 
     def __init__(self, anonymizer: Anonymizer):
         system_path = os.environ.get("PATH", "").split(os.pathsep)
@@ -280,10 +280,13 @@ class PathsInfo:
 
 
 class ConfigInfo:
-    """"Most critical config properties"""
+    """Most critical config properties"""
 
     def __init__(self, anonymizer: Anonymizer):
         self.executor = configuration.conf.get("core", "executor")
+        self.sql_alchemy_conn = anonymizer.process_url(
+            configuration.conf.get("core", "SQL_ALCHEMY_CONN", fallback="NOT AVAILABLE")
+        )
         self.dags_folder = anonymizer.process_path(
             configuration.conf.get("core", "dags_folder", fallback="NOT AVAILABLE")
         )
@@ -293,18 +296,33 @@ class ConfigInfo:
         self.base_log_folder = anonymizer.process_path(
             configuration.conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
         )
-        self.base_log_folder = anonymizer.process_path(
-            configuration.conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
+        self.remote_base_log_folder = anonymizer.process_path(
+            configuration.conf.get("logging", "remote_base_log_folder", fallback="NOT AVAILABLE")
         )
-        self.sql_alchemy_conn = anonymizer.process_url(
-            configuration.conf.get("core", "SQL_ALCHEMY_CONN", fallback="NOT AVAILABLE")
-        )
+
+    @property
+    def task_logging_handler(self):
+        """Returns task logging handler."""
+
+        def get_fullname(o):
+            module = o.__class__.__module__
+            if module is None or module == str.__class__.__module__:
+                return o.__class__.__name__  # Avoid reporting __builtin__
+            else:
+                return module + '.' + o.__class__.__name__
+
+        try:
+            handler_names = [get_fullname(handler) for handler in logging.getLogger('airflow.task').handlers]
+            return ", ".join(handler_names)
+        except Exception:  # noqa pylint: disable=broad-except
+            return "NOT AVAILABLE"
 
     def __str__(self):
         return (
             textwrap.dedent(
                 """\
                 Executor: [{executor}]
+                Task Logging Handlers: [{task_logging_handler}]
                 SQL Alchemy Conn: [{sql_alchemy_conn}]
                 DAGS Folder: [{dags_folder}]
                 Plugins Folder: [{plugins_folder}]
@@ -314,6 +332,7 @@ class ConfigInfo:
             .strip()
             .format(
                 executor=self.executor,
+                task_logging_handler=self.task_logging_handler,
                 sql_alchemy_conn=self.sql_alchemy_conn,
                 dags_folder=self.dags_folder,
                 plugins_folder=self.plugins_folder,
@@ -391,7 +410,7 @@ class FileIoException(Exception):
     after=tenacity.after_log(log, logging.DEBUG),
 )
 def _upload_text_to_fileio(content):
-    """Uload text file to File.io service and return lnk"""
+    """Upload text file to File.io service and return lnk"""
     resp = requests.post("https://file.io", files={"file": ("airflow-report.txt", content)})
     if not resp.ok:
         raise FileIoException("Failed to send report to file.io service.")
@@ -415,9 +434,7 @@ def _send_report_to_fileio(info):
 
 
 def show_info(args):
-    """
-    Show information related to Airflow, system and other.
-    """
+    """Show information related to Airflow, system and other."""
     # Enforce anonymization, when file_io upload is tuned on.
     anonymizer = PiiAnonymizer() if args.anonymize or args.file_io else NullAnonymizer()
     info = AirflowInfo(anonymizer)

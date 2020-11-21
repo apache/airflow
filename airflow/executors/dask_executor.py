@@ -31,13 +31,12 @@ from distributed.security import Security
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, BaseExecutor, CommandType
-from airflow.models.taskinstance import TaskInstanceKeyType
+from airflow.models.taskinstance import TaskInstanceKey
 
 
 class DaskExecutor(BaseExecutor):
-    """
-    DaskExecutor submits tasks to a Dask Distributed cluster.
-    """
+    """DaskExecutor submits tasks to a Dask Distributed cluster."""
+
     def __init__(self, cluster_address=None):
         super().__init__(parallelism=0)
         if cluster_address is None:
@@ -50,7 +49,7 @@ class DaskExecutor(BaseExecutor):
         self.tls_key = conf.get('dask', 'tls_key')
         self.tls_cert = conf.get('dask', 'tls_cert')
         self.client: Optional[Client] = None
-        self.futures: Optional[Dict[Future, TaskInstanceKeyType]] = None
+        self.futures: Optional[Dict[Future, TaskInstanceKey]] = None
 
     def start(self) -> None:
         if self.tls_ca or self.tls_key or self.tls_cert:
@@ -66,14 +65,15 @@ class DaskExecutor(BaseExecutor):
         self.client = Client(self.cluster_address, security=security)
         self.futures = {}
 
-    def execute_async(self,
-                      key: TaskInstanceKeyType,
-                      command: CommandType,
-                      queue: Optional[str] = None,
-                      executor_config: Optional[Any] = None) -> None:
+    def execute_async(
+        self,
+        key: TaskInstanceKey,
+        command: CommandType,
+        queue: Optional[str] = None,
+        executor_config: Optional[Any] = None,
+    ) -> None:
 
-        if command[0:3] != ["airflow", "tasks", "run"]:
-            raise ValueError('The command must start with ["airflow", "tasks", "run"].')
+        self.validate_command(command)
 
         def airflow_run():
             return subprocess.check_call(command, close_fds=True)
@@ -100,7 +100,7 @@ class DaskExecutor(BaseExecutor):
             self.futures.pop(future)
 
     def sync(self) -> None:
-        if not self.futures:
+        if self.futures is None:
             raise AirflowException(NOT_STARTED_MESSAGE)
         # make a copy so futures can be popped during iteration
         for future in self.futures.copy():
@@ -109,14 +109,14 @@ class DaskExecutor(BaseExecutor):
     def end(self) -> None:
         if not self.client:
             raise AirflowException(NOT_STARTED_MESSAGE)
-        if not self.futures:
+        if self.futures is None:
             raise AirflowException(NOT_STARTED_MESSAGE)
         self.client.cancel(list(self.futures.keys()))
         for future in as_completed(self.futures.copy()):
             self._process_future(future)
 
     def terminate(self):
-        if not self.futures:
+        if self.futures is None:
             raise AirflowException(NOT_STARTED_MESSAGE)
         self.client.cancel(self.futures.keys())
         self.end()

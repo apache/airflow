@@ -47,24 +47,23 @@ def upgrade():
         except (sa.exc.OperationalError, sa.exc.ProgrammingError):
             json_type = sa.Text
 
-    op.create_table('serialized_dag',  # pylint: disable=no-member
-                    sa.Column('dag_id', sa.String(length=250), nullable=False),
-                    sa.Column('fileloc', sa.String(length=2000), nullable=False),
-                    sa.Column('fileloc_hash', sa.Integer(), nullable=False),
-                    sa.Column('data', json_type(), nullable=False),
-                    sa.Column('last_updated', sa.DateTime(), nullable=False),
-                    sa.PrimaryKeyConstraint('dag_id'))
-    op.create_index(   # pylint: disable=no-member
-        'idx_fileloc_hash', 'serialized_dag', ['fileloc_hash'])
+    op.create_table(
+        'serialized_dag',  # pylint: disable=no-member
+        sa.Column('dag_id', sa.String(length=250), nullable=False),
+        sa.Column('fileloc', sa.String(length=2000), nullable=False),
+        sa.Column('fileloc_hash', sa.Integer(), nullable=False),
+        sa.Column('data', json_type(), nullable=False),
+        sa.Column('last_updated', sa.DateTime(), nullable=False),
+        sa.PrimaryKeyConstraint('dag_id'),
+    )
+    op.create_index('idx_fileloc_hash', 'serialized_dag', ['fileloc_hash'])  # pylint: disable=no-member
 
     if conn.dialect.name == "mysql":
         conn.execute("SET time_zone = '+00:00'")
         cur = conn.execute("SELECT @@explicit_defaults_for_timestamp")
         res = cur.fetchall()
         if res[0][0] == 0:
-            raise Exception(
-                "Global variable explicit_defaults_for_timestamp needs to be on (1) for mysql"
-            )
+            raise Exception("Global variable explicit_defaults_for_timestamp needs to be on (1) for mysql")
 
         op.alter_column(  # pylint: disable=no-member
             table_name="serialized_dag",
@@ -91,4 +90,4 @@ def upgrade():
 
 def downgrade():
     """Downgrade version."""
-    op.drop_table('serialized_dag')   # pylint: disable=no-member
+    op.drop_table('serialized_dag')  # pylint: disable=no-member

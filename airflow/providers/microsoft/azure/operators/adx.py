@@ -18,7 +18,7 @@
 #
 
 """This module contains Azure Data Explorer operators"""
-from typing import Dict, Optional
+from typing import Optional
 
 from azure.kusto.data._models import KustoResultTable
 
@@ -44,18 +44,19 @@ class AzureDataExplorerQueryOperator(BaseOperator):
 
     ui_color = '#00a1f2'
     template_fields = ('query', 'database')
-    template_ext = ('.kql', )
+    template_ext = ('.kql',)
 
     @apply_defaults
     def __init__(
-            self,
-            query: str,
-            database: str,
-            options: Optional[Dict] = None,
-            azure_data_explorer_conn_id: str = 'azure_data_explorer_default',
-            *args,
-            **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        self,
+        *,
+        query: str,
+        database: str,
+        options: Optional[dict] = None,
+        azure_data_explorer_conn_id: str = 'azure_data_explorer_default',
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
         self.query = query
         self.database = database
         self.options = options
@@ -65,7 +66,7 @@ class AzureDataExplorerQueryOperator(BaseOperator):
         """Returns new instance of AzureDataExplorerHook"""
         return AzureDataExplorerHook(self.azure_data_explorer_conn_id)
 
-    def execute(self, context) -> KustoResultTable:
+    def execute(self, context: dict) -> KustoResultTable:
         """
         Run KQL Query on Azure Data Explorer (Kusto).
         Returns `PrimaryResult` of Query v2 HTTP response contents

@@ -23,19 +23,23 @@ import time
 
 from airflow import models
 from airflow.providers.google.marketing_platform.operators.campaign_manager import (
-    GoogleCampaignManagerBatchInsertConversionsOperator, GoogleCampaignManagerBatchUpdateConversionsOperator,
-    GoogleCampaignManagerDeleteReportOperator, GoogleCampaignManagerDownloadReportOperator,
-    GoogleCampaignManagerInsertReportOperator, GoogleCampaignManagerRunReportOperator,
+    GoogleCampaignManagerBatchInsertConversionsOperator,
+    GoogleCampaignManagerBatchUpdateConversionsOperator,
+    GoogleCampaignManagerDeleteReportOperator,
+    GoogleCampaignManagerDownloadReportOperator,
+    GoogleCampaignManagerInsertReportOperator,
+    GoogleCampaignManagerRunReportOperator,
 )
 from airflow.providers.google.marketing_platform.sensors.campaign_manager import (
     GoogleCampaignManagerReportSensor,
 )
 from airflow.utils import dates
+from airflow.utils.state import State
 
 PROFILE_ID = os.environ.get("MARKETING_PROFILE_ID", "123456789")
-FLOODLIGHT_ACTIVITY_ID = os.environ.get("FLOODLIGHT_ACTIVITY_ID", 12345)
-FLOODLIGHT_CONFIGURATION_ID = os.environ.get("FLOODLIGHT_CONFIGURATION_ID", 12345)
-ENCRYPTION_ENTITY_ID = os.environ.get("ENCRYPTION_ENTITY_ID", 12345)
+FLOODLIGHT_ACTIVITY_ID = int(os.environ.get("FLOODLIGHT_ACTIVITY_ID", 12345))
+FLOODLIGHT_CONFIGURATION_ID = int(os.environ.get("FLOODLIGHT_CONFIGURATION_ID", 12345))
+ENCRYPTION_ENTITY_ID = int(os.environ.get("ENCRYPTION_ENTITY_ID", 12345))
 DEVICE_ID = os.environ.get("DEVICE_ID", "12345")
 BUCKET = os.environ.get("MARKETING_BUCKET", "test-cm-bucket")
 REPORT_NAME = "test-report"
@@ -47,9 +51,7 @@ REPORT = {
             "kind": "dfareporting#dateRange",
             "relativeDateRange": "LAST_365_DAYS",
         },
-        "dimensions": [
-            {"kind": "dfareporting#sortedDimension", "name": "dfa:advertiser"}
-        ],
+        "dimensions": [{"kind": "dfareporting#sortedDimension", "name": "dfa:advertiser"}],
         "metricNames": ["dfa:activeViewImpressionDistributionViewable"],
     },
 }
@@ -82,12 +84,10 @@ CONVERSION_UPDATE = {
     "value": 123.4,
 }
 
-default_args = {"start_date": dates.days_ago(1)}
-
 with models.DAG(
     "example_campaign_manager",
-    default_args=default_args,
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval=None,  # Override to match your needs,
+    start_date=dates.days_ago(1),
 ) as dag:
     # [START howto_campaign_manager_insert_report_operator]
     create_report = GoogleCampaignManagerInsertReportOperator(
@@ -157,5 +157,5 @@ with models.DAG(
     insert_conversion >> update_conversion
 
 if __name__ == "__main__":
-    dag.clear(reset_dag_runs=True)
+    dag.clear(dag_run_state=State.NONE)
     dag.run()

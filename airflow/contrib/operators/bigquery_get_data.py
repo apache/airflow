@@ -24,5 +24,6 @@ from airflow.providers.google.cloud.operators.bigquery import BigQueryGetDataOpe
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.bigquery`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

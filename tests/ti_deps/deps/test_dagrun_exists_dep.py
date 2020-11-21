@@ -25,7 +25,6 @@ from airflow.utils.state import State
 
 
 class TestDagrunRunningDep(unittest.TestCase):
-
     @patch('airflow.models.DagRun.find', return_value=())
     def test_dagrun_doesnt_exist(self, mock_dagrun_find):
         """

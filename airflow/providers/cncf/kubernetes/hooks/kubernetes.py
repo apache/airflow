@@ -15,10 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 import tempfile
-from typing import Optional, Union
+from typing import Any, Generator, Optional, Tuple, Union
 
 import yaml
-from kubernetes import client, config
+from cached_property import cached_property
+from kubernetes import client, config, watch
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -36,44 +37,79 @@ class KubernetesHook(BaseHook):
     """
     Creates Kubernetes API connection.
 
+    - use in cluster configuration by using ``extra__kubernetes__in_cluster`` in connection
+    - use custom config by providing path to the file using ``extra__kubernetes__kube_config_path``
+    - use custom configuration by providing content of kubeconfig file via
+        ``extra__kubernetes__kube_config`` in connection
+    - use default config by providing no extras
+
+    This hook check for configuration option in the above order. Once an option is present it will
+    use this configuration.
+
+    .. seealso::
+        For more information about Kubernetes connection:
+        :ref:`apache-airflow:howto/connection:kubernetes`
+
     :param conn_id: the connection to Kubernetes cluster
     :type conn_id: str
     """
 
     def __init__(
-        self,
-        conn_id: str = "kubernetes_default"
-    ):
+        self, conn_id: str = "kubernetes_default", client_configuration: Optional[client.Configuration] = None
+    ) -> None:
         super().__init__()
         self.conn_id = conn_id
+        self.client_configuration = client_configuration
 
-    def get_conn(self):
-        """
-        Returns kubernetes api session for use with requests
-        """
+    def get_conn(self) -> Any:
+        """Returns kubernetes api session for use with requests"""
         connection = self.get_connection(self.conn_id)
         extras = connection.extra_dejson
-        if extras.get("extra__kubernetes__in_cluster"):
+        in_cluster = extras.get("extra__kubernetes__in_cluster")
+        kubeconfig_path = extras.get("extra__kubernetes__kube_config_path")
+        kubeconfig = extras.get("extra__kubernetes__kube_config")
+        num_selected_configuration = len([o for o in [in_cluster, kubeconfig, kubeconfig_path] if o])
+
+        if num_selected_configuration > 1:
+            raise AirflowException(
+                "Invalid connection configuration. Options extra__kubernetes__kube_config_path, "
+                "extra__kubernetes__kube_config, extra__kubernetes__in_cluster are mutually exclusive. "
+                "You can only use one option at a time."
+            )
+        if in_cluster:
             self.log.debug("loading kube_config from: in_cluster configuration")
             config.load_incluster_config()
-        elif extras.get("extra__kubernetes__kube_config") is None:
-            self.log.debug("loading kube_config from: default file")
-            config.load_kube_config()
-        else:
+            return client.ApiClient()
+
+        if kubeconfig_path is not None:
+            self.log.debug("loading kube_config from: %s", kubeconfig_path)
+            config.load_kube_config(
+                config_file=kubeconfig_path, client_configuration=self.client_configuration
+            )
+            return client.ApiClient()
+
+        if kubeconfig is not None:
             with tempfile.NamedTemporaryFile() as temp_config:
                 self.log.debug("loading kube_config from: connection kube_config")
-                temp_config.write(extras.get("extra__kubernetes__kube_config").encode())
+                temp_config.write(kubeconfig.encode())
                 temp_config.flush()
-                config.load_kube_config(temp_config.name)
+                config.load_kube_config(
+                    config_file=temp_config.name, client_configuration=self.client_configuration
+                )
+            return client.ApiClient()
+
+        self.log.debug("loading kube_config from: default file")
+        config.load_kube_config(client_configuration=self.client_configuration)
         return client.ApiClient()
 
-    def create_custom_resource_definition(self,
-                                          group: str,
-                                          version: str,
-                                          plural: str,
-                                          body: Union[str, dict],
-                                          namespace: Optional[str] = None
-                                          ):
+    @cached_property
+    def api_client(self) -> Any:
+        """Cached Kubernetes API client"""
+        return self.get_conn()
+
+    def create_custom_object(
+        self, group: str, version: str, plural: str, body: Union[str, dict], namespace: Optional[str] = None
+    ):
         """
         Creates custom resource definition object in Kubernetes
 
@@ -88,30 +124,23 @@ class KubernetesHook(BaseHook):
         :param namespace: kubernetes namespace
         :type namespace: str
         """
-        api = client.CustomObjectsApi(self.get_conn())
+        api = client.CustomObjectsApi(self.api_client)
         if namespace is None:
             namespace = self.get_namespace()
         if isinstance(body, str):
             body = _load_body_to_dict(body)
         try:
             response = api.create_namespaced_custom_object(
-                group=group,
-                version=version,
-                namespace=namespace,
-                plural=plural,
-                body=body
+                group=group, version=version, namespace=namespace, plural=plural, body=body
             )
             self.log.debug("Response: %s", response)
             return response
         except client.rest.ApiException as e:
-            raise AirflowException("Exception when calling -> create_custom_resource_definition: %s\n" % e)
+            raise AirflowException("Exception when calling -> create_custom_object: %s\n" % e)
 
-    def get_custom_resource_definition(self,
-                                       group: str,
-                                       version: str,
-                                       plural: str,
-                                       name: str,
-                                       namespace: Optional[str] = None):
+    def get_custom_object(
+        self, group: str, version: str, plural: str, name: str, namespace: Optional[str] = None
+    ):
         """
         Get custom resource definition object from Kubernetes
 
@@ -126,26 +155,70 @@ class KubernetesHook(BaseHook):
         :param namespace: kubernetes namespace
         :type namespace: str
         """
-        custom_resource_definition_api = client.CustomObjectsApi(self.get_conn())
+        api = client.CustomObjectsApi(self.api_client)
         if namespace is None:
             namespace = self.get_namespace()
         try:
-            response = custom_resource_definition_api.get_namespaced_custom_object(
-                group=group,
-                version=version,
-                namespace=namespace,
-                plural=plural,
-                name=name
+            response = api.get_namespaced_custom_object(
+                group=group, version=version, namespace=namespace, plural=plural, name=name
             )
             return response
         except client.rest.ApiException as e:
-            raise AirflowException("Exception when calling -> get_custom_resource_definition: %s\n" % e)
+            raise AirflowException("Exception when calling -> get_custom_object: %s\n" % e)
 
-    def get_namespace(self):
-        """
-        Returns the namespace that defined in the connection
-        """
+    def get_namespace(self) -> str:
+        """Returns the namespace that defined in the connection"""
         connection = self.get_connection(self.conn_id)
         extras = connection.extra_dejson
         namespace = extras.get("extra__kubernetes__namespace", "default")
         return namespace
+
+    def get_pod_log_stream(
+        self,
+        pod_name: str,
+        container: Optional[str] = "",
+        namespace: Optional[str] = None,
+    ) -> Tuple[watch.Watch, Generator[str, None, None]]:
+        """
+        Retrieves a log stream for a container in a kubernetes pod.
+
+        :param pod_name: pod name
+        :type pod_name: str
+        :param container: container name
+        :param namespace: kubernetes namespace
+        :type namespace: str
+        """
+        api = client.CoreV1Api(self.api_client)
+        watcher = watch.Watch()
+        return (
+            watcher,
+            watcher.stream(
+                api.read_namespaced_pod_log,
+                name=pod_name,
+                container=container,
+                namespace=namespace if namespace else self.get_namespace(),
+            ),
+        )
+
+    def get_pod_logs(
+        self,
+        pod_name: str,
+        container: Optional[str] = "",
+        namespace: Optional[str] = None,
+    ):
+        """
+        Retrieves a container's log from the specified pod.
+
+        :param pod_name: pod name
+        :type pod_name: str
+        :param container: container name
+        :param namespace: kubernetes namespace
+        :type namespace: str
+        """
+        api = client.CoreV1Api(self.api_client)
+        return api.read_namespaced_pod_log(
+            name=pod_name,
+            container=container,
+            _preload_content=False,
+            namespace=namespace if namespace else self.get_namespace(),
+        )

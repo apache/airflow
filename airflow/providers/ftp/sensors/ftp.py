@@ -45,19 +45,15 @@ class FTPSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(
-            self,
-            path,
-            ftp_conn_id='ftp_default',
-            fail_on_transient_errors=True,
-            *args,
-            **kwargs):
-        super().__init__(*args, **kwargs)
+        self, *, path: str, ftp_conn_id: str = 'ftp_default', fail_on_transient_errors: bool = True, **kwargs
+    ) -> None:
+        super().__init__(**kwargs)
 
         self.path = path
         self.ftp_conn_id = ftp_conn_id
         self.fail_on_transient_errors = fail_on_transient_errors
 
-    def _create_hook(self):
+    def _create_hook(self) -> FTPHook:
         """Return connection hook."""
         return FTPHook(ftp_conn_id=self.ftp_conn_id)
 
@@ -70,7 +66,7 @@ class FTPSensor(BaseSensorOperator):
         except ValueError:
             return e
 
-    def poke(self, context):
+    def poke(self, context: dict) -> bool:
         with self._create_hook() as hook:
             self.log.info('Poking for %s', self.path)
             try:
@@ -78,9 +74,9 @@ class FTPSensor(BaseSensorOperator):
             except ftplib.error_perm as e:
                 self.log.error('Ftp error encountered: %s', str(e))
                 error_code = self._get_error_code(e)
-                if ((error_code != 550) and
-                        (self.fail_on_transient_errors or
-                            (error_code not in self.transient_errors))):
+                if (error_code != 550) and (
+                    self.fail_on_transient_errors or (error_code not in self.transient_errors)
+                ):
                     raise e
 
                 return False
@@ -90,6 +86,7 @@ class FTPSensor(BaseSensorOperator):
 
 class FTPSSensor(FTPSensor):
     """Waits for a file or directory to be present on FTP over SSL."""
-    def _create_hook(self):
+
+    def _create_hook(self) -> FTPHook:
         """Return connection hook."""
         return FTPSHook(ftp_conn_id=self.ftp_conn_id)

@@ -23,15 +23,18 @@ from parameterized import parameterized
 
 from airflow import settings
 from airflow.models import Variable, crypto
+from tests.test_utils import db
 from tests.test_utils.config import conf_vars
 
 
 class TestVariable(unittest.TestCase):
     def setUp(self):
         crypto._fernet = None
+        db.clear_db_variables()
 
     def tearDown(self):
         crypto._fernet = None
+        db.clear_db_variables()
 
     @conf_vars({('core', 'fernet_key'): ''})
     def test_variable_no_encryption(self):
@@ -55,10 +58,7 @@ class TestVariable(unittest.TestCase):
         self.assertTrue(test_var.is_encrypted)
         self.assertEqual(test_var.val, 'value')
 
-    @parameterized.expand([
-        'value',
-        ''
-    ])
+    @parameterized.expand(['value', ''])
     def test_var_with_encryption_rotate_fernet_key(self, test_value):
         """
         Tests rotating encrypted variables.
@@ -103,8 +103,7 @@ class TestVariable(unittest.TestCase):
 
     def test_get_non_existing_var_should_return_default(self):
         default_value = "some default val"
-        self.assertEqual(default_value, Variable.get("thisIdDoesNotExist",
-                                                     default_var=default_value))
+        self.assertEqual(default_value, Variable.get("thisIdDoesNotExist", default_var=default_value))
 
     def test_get_non_existing_var_should_raise_key_error(self):
         with self.assertRaises(KeyError):
@@ -115,9 +114,10 @@ class TestVariable(unittest.TestCase):
 
     def test_get_non_existing_var_should_not_deserialize_json_default(self):
         default_value = "}{ this is a non JSON default }{"
-        self.assertEqual(default_value, Variable.get("thisIdDoesNotExist",
-                                                     default_var=default_value,
-                                                     deserialize_json=True))
+        self.assertEqual(
+            default_value,
+            Variable.get("thisIdDoesNotExist", default_var=default_value, deserialize_json=True),
+        )
 
     def test_variable_setdefault_round_trip(self):
         key = "tested_var_setdefault_1_id"

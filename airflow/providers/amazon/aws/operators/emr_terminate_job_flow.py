@@ -15,6 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from typing import Any, Dict
+
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
@@ -30,21 +33,18 @@ class EmrTerminateJobFlowOperator(BaseOperator):
     :param aws_conn_id: aws connection to uses
     :type aws_conn_id: str
     """
+
     template_fields = ['job_flow_id']
     template_ext = ()
     ui_color = '#f9c915'
 
     @apply_defaults
-    def __init__(
-            self,
-            job_flow_id,
-            aws_conn_id='aws_default',
-            *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *, job_flow_id: str, aws_conn_id: str = 'aws_default', **kwargs):
+        super().__init__(**kwargs)
         self.job_flow_id = job_flow_id
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context):
+    def execute(self, context: Dict[str, Any]) -> None:
         emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
 
         self.log.info('Terminating JobFlow %s', self.job_flow_id)

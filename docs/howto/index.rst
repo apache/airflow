@@ -30,19 +30,16 @@ configuring an Airflow environment.
     :maxdepth: 2
 
     add-dag-tags
-    add-new-role
     set-config
     initialize-database
     operator/index
+    customize-state-colors-ui
     custom-operator
     connection/index
-    write-logs
+    variable
     run-behind-proxy
     run-with-systemd
     run-with-upstart
     use-test-config
-    check-health
     define_extra_link
-    tracking-user-activity
     email-config
-    use-alternative-secrets-backend

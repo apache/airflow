@@ -19,27 +19,33 @@
 """Remove id column from xcom
 
 Revision ID: bbf4a7ad0465
-Revises: 004c1210f153
+Revises: cf5dc11e79ad
 Create Date: 2019-10-29 13:53:09.445943
 
 """
 
 from alembic import op
 from sqlalchemy import Column, Integer
+from sqlalchemy.engine.reflection import Inspector
 
 # revision identifiers, used by Alembic.
 revision = 'bbf4a7ad0465'
-down_revision = '004c1210f153'
+down_revision = 'cf5dc11e79ad'
 branch_labels = None
 depends_on = None
 
 
 def upgrade():
     """Apply Remove id column from xcom"""
+    conn = op.get_bind()
+    inspector = Inspector.from_engine(conn)
+
     with op.batch_alter_table('xcom') as bop:
-        bop.drop_column('id')
-        bop.drop_index('idx_xcom_dag_task_date')
-        bop.create_primary_key('pk_xcom', ['dag_id', 'task_id', 'key', 'execution_date'])
+        xcom_columns = [col.get('name') for col in inspector.get_columns("xcom")]
+        if "id" in xcom_columns:
+            bop.drop_column('id')
+            bop.drop_index('idx_xcom_dag_task_date')
+            bop.create_primary_key('pk_xcom', ['dag_id', 'task_id', 'key', 'execution_date'])
 
 
 def downgrade():

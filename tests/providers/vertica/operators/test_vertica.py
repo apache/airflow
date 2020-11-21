@@ -23,13 +23,9 @@ from airflow.providers.vertica.operators.vertica import VerticaOperator
 
 
 class TestVerticaOperator(unittest.TestCase):
-
     @mock.patch('airflow.providers.vertica.operators.vertica.VerticaHook')
     def test_execute(self, mock_hook):
         sql = "select a, b, c"
-        op = VerticaOperator(task_id='test_task_id',
-                             sql=sql)
+        op = VerticaOperator(task_id='test_task_id', sql=sql)
         op.execute(None)
-        mock_hook.return_value.run.assert_called_once_with(
-            sql=sql
-        )
+        mock_hook.return_value.run.assert_called_once_with(sql=sql)

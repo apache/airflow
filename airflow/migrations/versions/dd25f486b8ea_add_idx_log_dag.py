@@ -31,9 +31,9 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
+def upgrade():  # noqa: D103
     op.create_index('idx_log_dag', 'log', ['dag_id'], unique=False)
 
 
-def downgrade():
+def downgrade():  # noqa: D103
     op.drop_index('idx_log_dag', table_name='log')

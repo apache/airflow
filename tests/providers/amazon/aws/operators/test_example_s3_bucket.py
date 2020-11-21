@@ -21,6 +21,7 @@ class S3BucketExampleDagsSystemTest(AmazonSystemTest):
     """
     System tests for AWS S3 operators
     """
+
     @provide_aws_context()
     def test_run_example_dag_s3(self):
         self.run_dag('s3_bucket_dag', AWS_DAG_FOLDER)

@@ -14,11 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import re
 import unittest
 
+import marshmallow
+
 from airflow.api_connexion.schemas.connection_schema import (
-    ConnectionCollection, connection_collection_item_schema, connection_collection_schema, connection_schema,
+    ConnectionCollection,
+    connection_collection_item_schema,
+    connection_collection_schema,
+    connection_schema,
 )
 from airflow.models import Connection
 from airflow.utils.session import create_session, provide_session
@@ -26,7 +31,6 @@ from tests.test_utils.db import clear_db_connections
 
 
 class TestConnectionCollectionItemSchema(unittest.TestCase):
-
     def setUp(self) -> None:
         with create_session() as session:
             session.query(Connection).delete()
@@ -35,29 +39,29 @@ class TestConnectionCollectionItemSchema(unittest.TestCase):
         clear_db_connections()
 
     @provide_session
-    def test_serialzie(self, session):
+    def test_serialize(self, session):
         connection_model = Connection(
             conn_id='mysql_default',
             conn_type='mysql',
             host='mysql',
             login='login',
             schema='testschema',
-            port=80
+            port=80,
         )
         session.add(connection_model)
         session.commit()
         connection_model = session.query(Connection).first()
         deserialized_connection = connection_collection_item_schema.dump(connection_model)
         self.assertEqual(
-            deserialized_connection[0],
+            deserialized_connection,
             {
                 'connection_id': "mysql_default",
                 'conn_type': 'mysql',
                 'host': 'mysql',
                 'login': 'login',
                 'schema': 'testschema',
-                'port': 80
-            }
+                'port': 80,
+            },
         )
 
     def test_deserialize(self):
@@ -67,35 +71,46 @@ class TestConnectionCollectionItemSchema(unittest.TestCase):
             'host': 'mysql',
             'login': 'login',
             'schema': 'testschema',
-            'port': 80
+            'port': 80,
         }
         connection_dump_2 = {
-            'connection_id': "mysql_default_2"
+            'connection_id': "mysql_default_2",
+            'conn_type': "postgres",
         }
         result_1 = connection_collection_item_schema.load(connection_dump_1)
         result_2 = connection_collection_item_schema.load(connection_dump_2)
 
         self.assertEqual(
-            result_1[0],
+            result_1,
             {
                 'conn_id': "mysql_default_1",
                 'conn_type': 'mysql',
                 'host': 'mysql',
                 'login': 'login',
                 'schema': 'testschema',
-                'port': 80
-            }
+                'port': 80,
+            },
         )
         self.assertEqual(
-            result_2[0],
+            result_2,
             {
                 'conn_id': "mysql_default_2",
-            }
+                'conn_type': "postgres",
+            },
         )
+
+    def test_deserialize_required_fields(self):
+        connection_dump_1 = {
+            'connection_id': "mysql_default_2",
+        }
+        with self.assertRaisesRegex(
+            marshmallow.exceptions.ValidationError,
+            re.escape("{'conn_type': ['Missing data for required field.']}"),
+        ):
+            connection_collection_item_schema.load(connection_dump_1)
 
 
 class TestConnectionCollectionSchema(unittest.TestCase):
-
     def setUp(self) -> None:
         with create_session() as session:
             session.query(Connection).delete()
@@ -104,25 +119,16 @@ class TestConnectionCollectionSchema(unittest.TestCase):
         clear_db_connections()
 
     @provide_session
-    def test_serialzie(self, session):
-        connection_model_1 = Connection(
-            conn_id='mysql_default_1',
-            conn_type='test-type'
-        )
-        connection_model_2 = Connection(
-            conn_id='mysql_default_2',
-            conn_type='test-type2'
-        )
+    def test_serialize(self, session):
+        connection_model_1 = Connection(conn_id='mysql_default_1', conn_type='test-type')
+        connection_model_2 = Connection(conn_id='mysql_default_2', conn_type='test-type2')
         connections = [connection_model_1, connection_model_2]
         session.add_all(connections)
         session.commit()
-        instance = ConnectionCollection(
-            connections=connections,
-            total_entries=2
-        )
+        instance = ConnectionCollection(connections=connections, total_entries=2)
         deserialized_connections = connection_collection_schema.dump(instance)
         self.assertEqual(
-            deserialized_connections[0],
+            deserialized_connections,
             {
                 'connections': [
                     {
@@ -131,7 +137,7 @@ class TestConnectionCollectionSchema(unittest.TestCase):
                         "host": None,
                         "login": None,
                         'schema': None,
-                        'port': None
+                        'port': None,
                     },
                     {
                         "connection_id": "mysql_default_2",
@@ -139,16 +145,15 @@ class TestConnectionCollectionSchema(unittest.TestCase):
                         "host": None,
                         "login": None,
                         'schema': None,
-                        'port': None
-                    }
+                        'port': None,
+                    },
                 ],
-                'total_entries': 2
-            }
+                'total_entries': 2,
+            },
         )
 
 
 class TestConnectionSchema(unittest.TestCase):
-
     def setUp(self) -> None:
         with create_session() as session:
             session.query(Connection).delete()
@@ -166,14 +171,14 @@ class TestConnectionSchema(unittest.TestCase):
             schema='testschema',
             port=80,
             password='test-password',
-            extra="{'key':'string'}"
+            extra="{'key':'string'}",
         )
         session.add(connection_model)
         session.commit()
         connection_model = session.query(Connection).first()
         deserialized_connection = connection_schema.dump(connection_model)
         self.assertEqual(
-            deserialized_connection[0],
+            deserialized_connection,
             {
                 'connection_id': "mysql_default",
                 'conn_type': 'mysql',
@@ -181,8 +186,8 @@ class TestConnectionSchema(unittest.TestCase):
                 'login': 'login',
                 'schema': 'testschema',
                 'port': 80,
-                'extra': "{'key':'string'}"
-            }
+                'extra': "{'key':'string'}",
+            },
         )
 
     def test_deserialize(self):
@@ -193,11 +198,11 @@ class TestConnectionSchema(unittest.TestCase):
             'login': 'login',
             'schema': 'testschema',
             'port': 80,
-            'extra': "{'key':'string'}"
+            'extra': "{'key':'string'}",
         }
         result = connection_schema.load(den)
         self.assertEqual(
-            result[0],
+            result,
             {
                 'conn_id': "mysql_default",
                 'conn_type': 'mysql',
@@ -205,6 +210,6 @@ class TestConnectionSchema(unittest.TestCase):
                 'login': 'login',
                 'schema': 'testschema',
                 'port': 80,
-                'extra': "{'key':'string'}"
-            }
+                'extra': "{'key':'string'}",
+            },
         )

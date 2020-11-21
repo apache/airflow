@@ -1,4 +1,4 @@
-/**
+/*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,13 +20,13 @@
 /* global window, dagTZ, moment, convertSecsToHumanReadable */
 
 // We don't re-import moment again, otherwise webpack will include it twice in the bundle!
+import { escapeHtml } from './main';
 import { defaultFormat, formatDateTime } from './datetime-utils';
-import { escapeHtml } from './base';
 
 function makeDateTimeHTML(start, end) {
-  return (
-    `Started: ${start.format(defaultFormat)} <br> Ended: ${end.format(defaultFormat)} <br>`
-  )
+  // check task ended or not
+  const isEnded = end && end instanceof moment && end.isValid();
+  return `Started: ${start.format(defaultFormat)}<br>Ended: ${isEnded ? end.format(defaultFormat) : 'Not ended yet'}<br>`;
 }
 
 function generateTooltipDateTimes(startDate, endDate, dagTZ) {
@@ -41,25 +41,27 @@ function generateTooltipDateTimes(startDate, endDate, dagTZ) {
   dagTZ = dagTZ.toUpperCase();
 
   // Generate UTC Start and End Date
-  let tooltipHTML = `<br><strong>UTC:</strong><br>`;
+  let tooltipHTML = '<br><strong>UTC:</strong><br>';
   tooltipHTML += makeDateTimeHTML(startDate, endDate);
 
   // Generate User's Local Start and End Date
   startDate.tz(localTZ);
   tooltipHTML += `<br><strong>Local: ${startDate.format(tzFormat)}</strong><br>`;
-  tooltipHTML += makeDateTimeHTML(startDate, endDate.tz(localTZ));
+  const localEndDate = endDate && endDate instanceof moment ? endDate.tz(localTZ) : endDate;
+  tooltipHTML += makeDateTimeHTML(startDate, localEndDate);
 
   // Generate DAG's Start and End Date
   if (dagTZ !== 'UTC' && dagTZ !== localTZ) {
     startDate.tz(dagTZ);
     tooltipHTML += `<br><strong>DAG's TZ: ${startDate.format(tzFormat)}</strong><br>`;
-    tooltipHTML += makeDateTimeHTML(startDate, endDate.tz(dagTZ));
+    const dagTZEndDate = endDate && endDate instanceof moment ? endDate.tz(dagTZ) : endDate;
+    tooltipHTML += makeDateTimeHTML(startDate, dagTZEndDate);
   }
 
   return tooltipHTML;
 }
 
-export default function tiTooltip(ti, {includeTryNumber = false} = {}) {
+export default function tiTooltip(ti, { includeTryNumber = false } = {}) {
   let tt = '';
   if (ti.state !== undefined) {
     tt += `<strong>Status:</strong> ${escapeHtml(ti.state)}<br><br>`;
@@ -80,13 +82,20 @@ export default function tiTooltip(ti, {includeTryNumber = false} = {}) {
   } else {
     tt += `Started: ${escapeHtml(ti.start_date)}<br>`;
   }
+  // Calculate duration on the fly if task instance is still running
+  if (ti.state === 'running') {
+    const startDate = ti.start_date instanceof moment ? ti.start_date : moment(ti.start_date);
+    ti.duration = moment().diff(startDate, 'second');
+  }
+
   tt += `Duration: ${escapeHtml(convertSecsToHumanReadable(ti.duration))}<br>`;
 
   if (includeTryNumber) {
     tt += `Try Number: ${escapeHtml(ti.try_number)}<br>`;
   }
-  tt += generateTooltipDateTimes(ti.start_date, ti.end_date, dagTZ); // dagTZ has been defined in dag.html
+  // dagTZ has been defined in dag.html
+  tt += generateTooltipDateTimes(ti.start_date, ti.end_date, dagTZ);
   return tt;
 }
 
-window.tiTooltip = tiTooltip
+window.tiTooltip = tiTooltip;

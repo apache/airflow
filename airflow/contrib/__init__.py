@@ -15,3 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This package is deprecated."""
+
+import warnings
+
+warnings.warn("This module is deprecated.", DeprecationWarning, stacklevel=2)

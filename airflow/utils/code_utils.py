@@ -17,13 +17,15 @@
 
 import functools
 import inspect
+import os
 from typing import Any, Optional
+
+from pygments.formatters.terminal import TerminalFormatter
+from pygments.formatters.terminal256 import Terminal256Formatter
 
 
 def get_python_source(x: Any) -> Optional[str]:
-    """
-    Helper function to get Python source (or not), preventing exceptions
-    """
+    """Helper function to get Python source (or not), preventing exceptions"""
     if isinstance(x, str):
         return x
 
@@ -77,3 +79,12 @@ def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int 
         # Join lines
         code = "\n".join(code_lines)
     return code
+
+
+def get_terminal_formatter(**opts):
+    """Returns the best formatter available in the current terminal."""
+    if '256' in os.environ.get('TERM', ''):
+        formatter = Terminal256Formatter(**opts)
+    else:
+        formatter = TerminalFormatter(**opts)
+    return formatter

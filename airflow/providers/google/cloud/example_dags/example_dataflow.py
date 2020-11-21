@@ -20,14 +20,20 @@
 Example Airflow DAG for Google Cloud Dataflow service
 """
 import os
+from typing import Callable, Dict, List
 from urllib.parse import urlparse
 
 from airflow import models
+from airflow.exceptions import AirflowException
+from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
 from airflow.providers.google.cloud.operators.dataflow import (
-    CheckJobRunning, DataflowCreateJavaJobOperator, DataflowCreatePythonJobOperator,
+    CheckJobRunning,
+    DataflowCreateJavaJobOperator,
+    DataflowCreatePythonJobOperator,
     DataflowTemplatedJobStartOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSToLocalOperator
+from airflow.providers.google.cloud.sensors.dataflow import DataflowJobMetricsSensor, DataflowJobStatusSensor
+from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
 from airflow.utils.dates import days_ago
 
 GCS_TMP = os.environ.get('GCP_DATAFLOW_GCS_TMP', 'gs://test-dataflow-example/temp/')
@@ -40,12 +46,7 @@ GCS_JAR_PARTS = urlparse(GCS_JAR)
 GCS_JAR_BUCKET_NAME = GCS_JAR_PARTS.netloc
 GCS_JAR_OBJECT_NAME = GCS_JAR_PARTS.path[1:]
 
-GCS_PYTHON_PARTS = urlparse(GCS_PYTHON)
-GCS_PYTHON_BUCKET_NAME = GCS_PYTHON_PARTS.netloc
-GCS_PYTHON_OBJECT_NAME = GCS_PYTHON_PARTS.path[1:]
-
 default_args = {
-    "start_date": days_ago(1),
     'dataflow_default_options': {
         'tempLocation': GCS_TMP,
         'stagingLocation': GCS_STAGING,
@@ -53,11 +54,11 @@ default_args = {
 }
 
 with models.DAG(
-    "example_gcp_dataflow",
-    default_args=default_args,
+    "example_gcp_dataflow_native_java",
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=['example'],
-) as dag:
+) as dag_native_java:
 
     # [START howto_operator_start_java_job]
     start_java_job = DataflowCreateJavaJobOperator(
@@ -70,18 +71,17 @@ with models.DAG(
         poll_sleep=10,
         job_class='org.apache.beam.examples.WordCount',
         check_if_running=CheckJobRunning.IgnoreJob,
-        location='europe-west3'
+        location='europe-west3',
     )
     # [END howto_operator_start_java_job]
 
-    jar_to_local = GCSToLocalOperator(
+    jar_to_local = GCSToLocalFilesystemOperator(
         task_id="jar-to-local",
         bucket=GCS_JAR_BUCKET_NAME,
         object_name=GCS_JAR_OBJECT_NAME,
         filename="/tmp/dataflow-{{ ds_nodash }}.jar",
     )
 
-    # [START howto_operator_start_local_java_job]
     start_java_job_local = DataflowCreateJavaJobOperator(
         task_id="start-java-job-local",
         jar="/tmp/dataflow-{{ ds_nodash }}.jar",
@@ -93,8 +93,15 @@ with models.DAG(
         job_class='org.apache.beam.examples.WordCount',
         check_if_running=CheckJobRunning.WaitForRun,
     )
-    # [END howto_operator_start_local_java_job]
     jar_to_local >> start_java_job_local
+
+with models.DAG(
+    "example_gcp_dataflow_native_python",
+    default_args=default_args,
+    start_date=days_ago(1),
+    schedule_interval=None,  # Override to match your needs
+    tags=['example'],
+) as dag_native_python:
 
     # [START howto_operator_start_python_job]
     start_python_job = DataflowCreatePythonJobOperator(
@@ -105,63 +112,91 @@ with models.DAG(
         options={
             'output': GCS_OUTPUT,
         },
-        py_requirements=[
-            'apache-beam[gcp]>=2.14.0'
-        ],
+        py_requirements=['apache-beam[gcp]==2.21.0'],
         py_interpreter='python3',
         py_system_site_packages=False,
-        location='europe-west3'
+        location='europe-west3',
     )
     # [END howto_operator_start_python_job]
 
-    py_to_local = GCSToLocalOperator(
-        task_id="py-to-local",
-        bucket=GCS_PYTHON_BUCKET_NAME,
-        object_name=GCS_PYTHON_OBJECT_NAME,
-        filename="/tmp/dataflow-{{ ds_nodash }}.py",
-    )
-
     start_python_job_local = DataflowCreatePythonJobOperator(
         task_id="start-python-job-local",
-        py_file='/tmp/dataflow-{{ ds_nodash }}.py',
+        py_file='apache_beam.examples.wordcount',
         py_options=['-m'],
         job_name='{{task.task_id}}',
         options={
             'output': GCS_OUTPUT,
         },
-        py_requirements=[
-            'apache-beam[gcp]>=2.14.0'
-        ],
+        py_requirements=['apache-beam[gcp]==2.14.0'],
         py_interpreter='python3',
-        py_system_site_packages=False
+        py_system_site_packages=False,
     )
-    py_to_local >> start_python_job_local
 
-    # [START howto_operator_start_template_job]
+with models.DAG(
+    "example_gcp_dataflow_native_python_async",
+    default_args=default_args,
+    start_date=days_ago(1),
+    schedule_interval=None,  # Override to match your needs
+    tags=['example'],
+) as dag_native_python_async:
+    start_python_job_async = DataflowCreatePythonJobOperator(
+        task_id="start-python-job-async",
+        py_file=GCS_PYTHON,
+        py_options=[],
+        job_name='{{task.task_id}}',
+        options={
+            'output': GCS_OUTPUT,
+        },
+        py_requirements=['apache-beam[gcp]==2.25.0'],
+        py_interpreter='python3',
+        py_system_site_packages=False,
+        location='europe-west3',
+        wait_until_finished=False,
+    )
+
+    wait_for_python_job_async_done = DataflowJobStatusSensor(
+        task_id="wait-for-python-job-async-done",
+        job_id="{{task_instance.xcom_pull('start-python-job-async')['job_id']}}",
+        expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
+        location='europe-west3',
+    )
+
+    def check_metric_scalar_gte(metric_name: str, value: int) -> Callable:
+        """Check is metric greater than equals to given value."""
+
+        def callback(metrics: List[Dict]) -> bool:
+            dag_native_python_async.log.info("Looking for '%s' >= %d", metric_name, value)
+            for metric in metrics:
+                context = metric.get("name", {}).get("context", {})
+                original_name = context.get("original_name", "")
+                tentative = context.get("tentative", "")
+                if original_name == "Service-cpu_num_seconds" and not tentative:
+                    return metric["scalar"] >= value
+            raise AirflowException(f"Metric '{metric_name}' not found in metrics")
+
+        return callback
+
+    wait_for_python_job_async_metric = DataflowJobMetricsSensor(
+        task_id="wait-for-python-job-async-metric",
+        job_id="{{task_instance.xcom_pull('start-python-job-async')['job_id']}}",
+        location='europe-west3',
+        callback=check_metric_scalar_gte(metric_name="Service-cpu_num_seconds", value=100),
+    )
+
+    start_python_job_async >> wait_for_python_job_async_done
+    start_python_job_async >> wait_for_python_job_async_metric
+
+
+with models.DAG(
+    "example_gcp_dataflow_template",
+    default_args=default_args,
+    start_date=days_ago(1),
+    schedule_interval=None,  # Override to match your needs
+    tags=['example'],
+) as dag_template:
     start_template_job = DataflowTemplatedJobStartOperator(
         task_id="start-template-job",
         template='gs://dataflow-templates/latest/Word_Count',
-        parameters={
-            'inputFile': "gs://dataflow-samples/shakespeare/kinglear.txt",
-            'output': GCS_OUTPUT
-        },
-        location='europe-west3'
+        parameters={'inputFile': "gs://dataflow-samples/shakespeare/kinglear.txt", 'output': GCS_OUTPUT},
+        location='europe-west3',
     )
-    # [END howto_operator_start_template_job]
-
-    # [START howto_operator_streaming_python]
-    start_python_job_streaming = DataflowCreatePythonJobOperator(
-        task_id="start-python-job-streaming",
-        py_file='/tmp/apache_beam/examples/streaming_wordcount.py',
-        py_options=['-m'],
-        job_name='{{task.task_id}}',
-        options={
-            'streaming': 'true',
-        },
-        py_requirements=[
-            'apache-beam[gcp]>=2.14.0'
-        ],
-        py_interpreter='python3',
-        py_system_site_packages=False
-    )
-    # [END howto_operator_streaming_python]

@@ -78,7 +78,9 @@ Content
     license
     start
     installation
+    provider-packages
     tutorial
+    tutorial_taskflow_api
     howto/index
     ui
     concepts
@@ -86,17 +88,20 @@ Content
     executor/index
     dag-run
     plugins
-    security
+    security/index
+    logging-monitoring/index
     timezone
     Using the CLI <usage-cli>
     integration
-    metrics
-    errors
     kubernetes
     lineage
     dag-serialization
+    modules_management
+    backport-providers
+    smart-sensor
     changelog
     best-practices
+    production-deployment
     faq
     privacy_notice
 
@@ -105,8 +110,11 @@ Content
     :caption: References
 
     Operators and hooks <operators-and-hooks-ref>
-    CLI <cli-ref>
+    CLI <cli-and-env-variables-ref>
     Macros <macros-ref>
     Python API <_api/index>
-    REST API <rest-api-ref>
+    Experimental REST API <rest-api-ref>
+    Stable REST API <stable-rest-api-ref>
     Configurations <configurations-ref>
+    Extra packages <extra-packages-ref>
+    Provider packages <provider-packages-ref>

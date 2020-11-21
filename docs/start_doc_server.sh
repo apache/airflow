@@ -16,8 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-(cd "${MY_DIR}"/_build/html || exit;
-# The below command works on both Python 2 and Python 3
-python -m http.server 8000 && python -m SimpleHTTPServer 8000
+DOCS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+readonly DOCS_DIR
+
+(cd "${DOCS_DIR}"/_build || exit;
+    python -m http.server 8000
 )

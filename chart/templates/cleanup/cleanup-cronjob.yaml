@@ -1,0 +1,67 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+################################
+## Airflow Cleanup Pods CronJob
+#################################
+{{- if .Values.cleanup.enabled }}
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-cleanup
+  labels:
+    tier: airflow
+    component: airflow-cleanup-pods
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+  schedule: "{{ .Values.cleanup.schedule }}"
+  # The cron job does not allow concurrent runs; if it is time for a new job run and the previous job run hasn’t finished yet, the cron job skips the new job run
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          annotations:
+            sidecar.istio.io/inject: "false"
+        spec:
+          restartPolicy: Never
+          nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 12 }}
+          affinity:
+{{ toYaml .Values.affinity | indent 12 }}
+          tolerations:
+{{ toYaml .Values.tolerations | indent 12 }}
+          serviceAccountName: {{ .Release.Name }}-cleanup
+          {{- if or .Values.registry.secretName .Values.registry.connection }}
+          imagePullSecrets:
+            - name: {{ template "registry_secret" . }}
+          {{- end }}
+          containers:
+            - name: airflow-cleanup-pods
+              image: {{ template "default_airflow_image" . }}
+              imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+              # Don't use entry point here, we don't need to wait on pg-bouncer etc being available.
+              args: ["kubernetes", "cleanup-pods", "--namespace={{ .Release.Namespace }}"]
+              env:
+              {{- include "standard_airflow_environment" . | indent 12 }}
+{{- end }}

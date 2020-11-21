@@ -17,8 +17,10 @@
 # under the License.
 
 import unittest
+from datetime import timedelta
 from unittest import mock
 
+import pytest
 from werkzeug.routing import Rule
 from werkzeug.test import create_environ
 from werkzeug.wrappers import Response
@@ -31,16 +33,19 @@ class TestApp(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         from airflow import settings
+
         settings.configure_orm()
 
-    @conf_vars({
-        ('webserver', 'enable_proxy_fix'): 'True',
-        ('webserver', 'proxy_fix_x_for'): '1',
-        ('webserver', 'proxy_fix_x_proto'): '1',
-        ('webserver', 'proxy_fix_x_host'): '1',
-        ('webserver', 'proxy_fix_x_port'): '1',
-        ('webserver', 'proxy_fix_x_prefix'): '1'
-    })
+    @conf_vars(
+        {
+            ('webserver', 'enable_proxy_fix'): 'True',
+            ('webserver', 'proxy_fix_x_for'): '1',
+            ('webserver', 'proxy_fix_x_proto'): '1',
+            ('webserver', 'proxy_fix_x_host'): '1',
+            ('webserver', 'proxy_fix_x_port'): '1',
+            ('webserver', 'proxy_fix_x_prefix'): '1',
+        }
+    )
     @mock.patch("airflow.www.app.app", None)
     def test_should_respect_proxy_fix(self):
         app = application.cached_app(testing=True)
@@ -76,9 +81,11 @@ class TestApp(unittest.TestCase):
         self.assertEqual(b"success", response.get_data())
         self.assertEqual(response.status_code, 200)
 
-    @conf_vars({
-        ('webserver', 'base_url'): 'http://localhost:8080/internal-client',
-    })
+    @conf_vars(
+        {
+            ('webserver', 'base_url'): 'http://localhost:8080/internal-client',
+        }
+    )
     @mock.patch("airflow.www.app.app", None)
     def test_should_respect_base_url_ignore_proxy_headers(self):
         app = application.cached_app(testing=True)
@@ -114,15 +121,17 @@ class TestApp(unittest.TestCase):
         self.assertEqual(b"success", response.get_data())
         self.assertEqual(response.status_code, 200)
 
-    @conf_vars({
-        ('webserver', 'base_url'): 'http://localhost:8080/internal-client',
-        ('webserver', 'enable_proxy_fix'): 'True',
-        ('webserver', 'proxy_fix_x_for'): '1',
-        ('webserver', 'proxy_fix_x_proto'): '1',
-        ('webserver', 'proxy_fix_x_host'): '1',
-        ('webserver', 'proxy_fix_x_port'): '1',
-        ('webserver', 'proxy_fix_x_prefix'): '1'
-    })
+    @conf_vars(
+        {
+            ('webserver', 'base_url'): 'http://localhost:8080/internal-client',
+            ('webserver', 'enable_proxy_fix'): 'True',
+            ('webserver', 'proxy_fix_x_for'): '1',
+            ('webserver', 'proxy_fix_x_proto'): '1',
+            ('webserver', 'proxy_fix_x_host'): '1',
+            ('webserver', 'proxy_fix_x_port'): '1',
+            ('webserver', 'proxy_fix_x_prefix'): '1',
+        }
+    )
     @mock.patch("airflow.www.app.app", None)
     def test_should_respect_base_url_when_proxy_fix_and_base_url_is_set_up_but_headers_missing(self):
         app = application.cached_app(testing=True)
@@ -152,15 +161,17 @@ class TestApp(unittest.TestCase):
         self.assertEqual(b"success", response.get_data())
         self.assertEqual(response.status_code, 200)
 
-    @conf_vars({
-        ('webserver', 'base_url'): 'http://localhost:8080/internal-client',
-        ('webserver', 'enable_proxy_fix'): 'True',
-        ('webserver', 'proxy_fix_x_for'): '1',
-        ('webserver', 'proxy_fix_x_proto'): '1',
-        ('webserver', 'proxy_fix_x_host'): '1',
-        ('webserver', 'proxy_fix_x_port'): '1',
-        ('webserver', 'proxy_fix_x_prefix'): '1'
-    })
+    @conf_vars(
+        {
+            ('webserver', 'base_url'): 'http://localhost:8080/internal-client',
+            ('webserver', 'enable_proxy_fix'): 'True',
+            ('webserver', 'proxy_fix_x_for'): '1',
+            ('webserver', 'proxy_fix_x_proto'): '1',
+            ('webserver', 'proxy_fix_x_host'): '1',
+            ('webserver', 'proxy_fix_x_port'): '1',
+            ('webserver', 'proxy_fix_x_prefix'): '1',
+        }
+    )
     @mock.patch("airflow.www.app.app", None)
     def test_should_respect_base_url_and_proxy_when_proxy_fix_and_base_url_is_set_up(self):
         app = application.cached_app(testing=True)
@@ -195,3 +206,29 @@ class TestApp(unittest.TestCase):
 
         self.assertEqual(b"success", response.get_data())
         self.assertEqual(response.status_code, 200)
+
+    @conf_vars(
+        {
+            ('core', 'sql_alchemy_pool_enabled'): 'True',
+            ('core', 'sql_alchemy_pool_size'): '3',
+            ('core', 'sql_alchemy_max_overflow'): '5',
+            ('core', 'sql_alchemy_pool_recycle'): '120',
+            ('core', 'sql_alchemy_pool_pre_ping'): 'True',
+        }
+    )
+    @mock.patch("airflow.www.app.app", None)
+    @pytest.mark.backend("mysql", "postgres")
+    def test_should_set_sqlalchemy_engine_options(self):
+        app = application.cached_app(testing=True)
+        engine_params = {'pool_size': 3, 'pool_recycle': 120, 'pool_pre_ping': True, 'max_overflow': 5}
+        self.assertEqual(app.config['SQLALCHEMY_ENGINE_OPTIONS'], engine_params)
+
+    @conf_vars(
+        {
+            ('webserver', 'session_lifetime_minutes'): '3600',
+        }
+    )
+    @mock.patch("airflow.www.app.app", None)
+    def test_should_set_permanent_session_timeout(self):
+        app = application.cached_app(testing=True)
+        self.assertEqual(app.config['PERMANENT_SESSION_LIFETIME'], timedelta(minutes=3600))

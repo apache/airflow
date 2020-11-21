@@ -16,6 +16,7 @@
 # under the License.
 
 import contextlib
+import importlib
 import io
 import os
 import unittest
@@ -25,6 +26,8 @@ from parameterized import parameterized
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import info_command
+from airflow.config_templates import airflow_local_settings
+from airflow.logging_config import configure_logging
 from airflow.version import version as airflow_version
 from tests.test_utils.config import conf_vars
 
@@ -51,7 +54,10 @@ class TestPiiAnonymizer(unittest.TestCase):
                 "postgresql+psycopg2://:airflow@postgres/airflow",
                 "postgresql+psycopg2://:PASSWORD@postgres/airflow",
             ),
-            ("postgresql+psycopg2://postgres/airflow", "postgresql+psycopg2://postgres/airflow",),
+            (
+                "postgresql+psycopg2://postgres/airflow",
+                "postgresql+psycopg2://postgres/airflow",
+            ),
         ]
     )
     def test_should_remove_pii_from_url(self, before, after):
@@ -62,7 +68,7 @@ class TestAirflowInfo(unittest.TestCase):
     def test_should_be_string(self):
         text = str(info_command.AirflowInfo(info_command.NullAnonymizer()))
 
-        self.assertIn("Apache Airflow [{}]".format(airflow_version), text)
+        self.assertIn(f"Apache Airflow [{airflow_version}]", text)
 
 
 class TestSystemInfo(unittest.TestCase):
@@ -95,6 +101,25 @@ class TestConfigInfo(unittest.TestCase):
         self.assertIn("postgresql+psycopg2://postgres:airflow@postgres/airflow", text)
 
 
+class TestConfigInfoLogging(unittest.TestCase):
+    def test_should_read_logging_configuration(self):
+        with conf_vars(
+            {
+                ('logging', 'remote_logging'): 'True',
+                ('logging', 'remote_base_log_folder'): 'stackdriver://logs-name',
+            }
+        ):
+            importlib.reload(airflow_local_settings)
+            configure_logging()
+            instance = info_command.ConfigInfo(info_command.NullAnonymizer())
+            text = str(instance)
+            self.assertIn("StackdriverTaskHandler", text)
+
+    def tearDown(self) -> None:
+        importlib.reload(airflow_local_settings)
+        configure_logging()
+
+
 class TestToolsInfo(unittest.TestCase):
     def test_should_be_string(self):
         self.assertTrue(str(info_command.ToolsInfo(info_command.NullAnonymizer())))
@@ -115,7 +140,7 @@ class TestShowInfo(unittest.TestCase):
             info_command.show_info(self.parser.parse_args(["info"]))
 
         output = stdout.getvalue()
-        self.assertIn("Apache Airflow [{}]".format(airflow_version), output)
+        self.assertIn(f"Apache Airflow [{airflow_version}]", output)
         self.assertIn("postgresql+psycopg2://postgres:airflow@postgres/airflow", output)
 
     @conf_vars(
@@ -128,7 +153,7 @@ class TestShowInfo(unittest.TestCase):
             info_command.show_info(self.parser.parse_args(["info", "--anonymize"]))
 
         output = stdout.getvalue()
-        self.assertIn("Apache Airflow [{}]".format(airflow_version), output)
+        self.assertIn(f"Apache Airflow [{airflow_version}]", output)
         self.assertIn("postgresql+psycopg2://p...s:PASSWORD@postgres/airflow", output)
 
     @conf_vars(
@@ -146,7 +171,7 @@ class TestShowInfo(unittest.TestCase):
                 "link": "https://file.io/TEST",
                 "expiry": "14 days",
             },
-        }
+        },
     )
     def test_show_info_anonymize_fileio(self, mock_requests):
         with contextlib.redirect_stdout(io.StringIO()) as stdout:

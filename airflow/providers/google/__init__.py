@@ -14,19 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import importlib
 import logging
 
-from airflow.configuration import conf
+# HACK:
+# Sphinx-autoapi doesn't like imports to excluded packages in the main module.
+conf = importlib.import_module('airflow.configuration').conf
 
-PROVIDERS_GOOGLE_VERBOSE_LOGGING: bool = conf.getboolean('providers_google',
-                                                         'VERBOSE_LOGGING', fallback=False)
+PROVIDERS_GOOGLE_VERBOSE_LOGGING: bool = conf.getboolean(
+    'providers_google', 'VERBOSE_LOGGING', fallback=False
+)
 if PROVIDERS_GOOGLE_VERBOSE_LOGGING:
     for logger_name in ["google_auth_httplib2", "httplib2", "googleapiclient"]:
         logger = logging.getLogger(logger_name)
-        logger.handlers += [handler for handler in
-                            logging.getLogger().handlers if handler.name in ["task", "console"]]
+        logger.handlers += [
+            handler for handler in logging.getLogger().handlers if handler.name in ["task", "console"]
+        ]
         logger.level = logging.DEBUG
         logger.propagate = False
 
     import httplib2
+
     httplib2.debuglevel = 4

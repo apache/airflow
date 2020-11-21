@@ -36,39 +36,42 @@ in January 2019.
 Committers
 ----------
 
-- @mistercrunch (Maxime "Max" Beauchemin)
-- @r39132 (Siddharth "Sid" Anand)
-- @criccomini (Chris Riccomini)
-- @bolkedebruin (Bolke de Bruin)
-- @artwr (Arthur Wiedmer)
-- @jlowin (Jeremiah Lowin)
-- @aoen (Dan Davydov)
-- @msumit (Sumit Maheshwari)
-- @alexvanboxel (Alex Van Boxel)
-- @saguziel (Alex Guziel)
-- @joygao (Joy Gao)
-- @fokko (Fokko Driesprong)
-- @ash (Ash Berlin-Taylor)
-- @kaxilnaik (Kaxil Naik)
-- @feng-tao (Tao Feng)
-- @hiteshs (Hitesh Shah)
-- @jghoman (Jakob Homan)
-- @XD-DENG (Xiaodong Deng)
-- @dimberman (Daniel Imberman)
-- @potiuk (Jarek Potiuk)
-- @basph (Bas Harenslak)
-- @jmcarp (Joshua Carp)
-- @KevinYang21 (Kevin Yang)
-- @mik-laj (Kamil Breguła)
 - @aijamalnk (Aizhamal Nurmamat kyzy)
-- @milton0825 (Chao-Han Tsai)
+- @alexvanboxel (Alex Van Boxel)
+- @aoen (Dan Davydov)
+- @artwr (Arthur Wiedmer)
+- @ashb (Ash Berlin-Taylor)
+- @basph (Bas Harenslak)
+- @bolkedebruin (Bolke de Bruin)
+- @criccomini (Chris Riccomini)
+- @dimberman (Daniel Imberman)
 - @feluelle (Felix Uellendall)
+- @feng-tao (Tao Feng)
+- @fokko (Fokko Driesprong)
+- @hiteshs (Hitesh Shah)
+- @houqp (Qingping Hou)
+- @jghoman (Jakob Homan)
+- @jlowin (Jeremiah Lowin)
+- @jmcarp (Joshua Carp)
+- @joygao (Joy Gao)
+- @kaxil (Kaxil Naik)
+- @KevinYang21 (Kevin Yang)
+- @leahecole (Leah Cole)
+- @mik-laj (Kamil Breguła)
+- @milton0825 (Chao-Han Tsai)
+- @mistercrunch (Maxime "Max" Beauchemin)
+- @msumit (Sumit Maheshwari)
+- @potiuk (Jarek Potiuk)
+- @r39132 (Siddharth "Sid" Anand)
+- @ryanahamilton (Ryan Hamilton)
+- @ryw (Ry Walker)
+- @saguziel (Alex Guziel)
 - @sekikn (Kengo Seki)
-- @nuclearpinguin (Tomasz Urbaszek)
+- @turbaszek (Tomasz Urbaszek)
+- @XD-DENG (Xiaodong Deng)
 - @zhongjiajie (Jiajie Zhong)
 
-
-For the full list of contributors, take a look at `Airflow's Github
+For the full list of contributors, take a look at `Airflow's GitHub
 Contributor page:
 <https://github.com/apache/airflow/graphs/contributors>`_
 
@@ -76,7 +79,7 @@ Contributor page:
 Resources & links
 -----------------
 
-* `Airflow's official documentation <http://airflow.apache.org/>`_
+* `Airflow's official documentation <http://airflow.apache.org/docs/>`_
 * Mailing lists:
 
   * Developer's mailing list: dev-subscribe@airflow.apache.org
@@ -84,7 +87,7 @@ Resources & links
   * Airflow users mailing list: users-subscribe@airflow.apache.org
 
 * `Issues on GitHub <https://github.com/apache/airflow/issues>`_
-* `Slack (chat) Channel <https://apache-airflow-slack.herokuapp.com/>`_
+* `Slack (chat) Channel <https://s.apache.org/airflow-slack>`_
 * `More resources and links to Airflow related content on the Wiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links>`_
 
 

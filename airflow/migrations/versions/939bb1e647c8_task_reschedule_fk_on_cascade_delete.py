@@ -18,7 +18,7 @@
 """task reschedule fk on cascade delete
 
 Revision ID: 939bb1e647c8
-Revises: 4ebbffe0a39a
+Revises: dd4ecb8fbee3
 Create Date: 2019-02-04 20:21:50.669751
 
 """
@@ -27,35 +27,29 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '939bb1e647c8'
-down_revision = '4ebbffe0a39a'
+down_revision = 'dd4ecb8fbee3'
 branch_labels = None
 depends_on = None
 
 
-def upgrade():
+def upgrade():  # noqa: D103
     with op.batch_alter_table('task_reschedule') as batch_op:
-        batch_op.drop_constraint(
-            'task_reschedule_dag_task_date_fkey',
-            type_='foreignkey'
-        )
+        batch_op.drop_constraint('task_reschedule_dag_task_date_fkey', type_='foreignkey')
         batch_op.create_foreign_key(
             'task_reschedule_dag_task_date_fkey',
             'task_instance',
             ['task_id', 'dag_id', 'execution_date'],
             ['task_id', 'dag_id', 'execution_date'],
-            ondelete='CASCADE'
+            ondelete='CASCADE',
         )
 
 
-def downgrade():
+def downgrade():  # noqa: D103
     with op.batch_alter_table('task_reschedule') as batch_op:
-        batch_op.drop_constraint(
-            'task_reschedule_dag_task_date_fkey',
-            type_='foreignkey'
-        )
+        batch_op.drop_constraint('task_reschedule_dag_task_date_fkey', type_='foreignkey')
         batch_op.create_foreign_key(
             'task_reschedule_dag_task_date_fkey',
             'task_instance',
             ['task_id', 'dag_id', 'execution_date'],
-            ['task_id', 'dag_id', 'execution_date']
+            ['task_id', 'dag_id', 'execution_date'],
         )

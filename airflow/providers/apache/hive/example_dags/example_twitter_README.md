@@ -16,6 +16,7 @@
  specific language governing permissions and limitations
  under the License.
 -->
+
 # Example Twitter DAG
 
 ***Introduction:*** This example dag depicts a typical ETL process and is a perfect use case automation scenario for Airflow. Please note that the main scripts associated with the tasks are returning None. The purpose of this DAG is to demonstrate how to write a functional DAG within Airflow.
@@ -51,6 +52,6 @@ CREATE TABLE toTwitter_A(id BIGINT, id_str STRING
 
 When you review the code for the DAG, you will notice that these tasks are generated using for loop. These two for loops could be combined into one loop. However, in most cases, you will be running different analysis on your incoming incoming and outgoing tweets, and hence they are kept separated in this example.
 Final step is a running the broker script, brokerapi.py, which will run queries in Hive and store the summarized data to MySQL in our case. To connect to Hive, pyhs2 library is extremely useful and easy to use. To insert data into MySQL from Python, sqlalchemy is also a good one to use.
-I hope you find this tutorial useful. If you have question feel free to ask me on [Twitter](https://twitter.com/EkhtiarSyed) or via the live Airflow chatroom room in [Gitter](https://gitter.im/apache/airflow).<p>
+I hope you find this tutorial useful. If you have question feel free to ask me on [Twitter](https://twitter.com/EkhtiarSyed).<p>
 -Ekhtiar Syed
 Last Update: 8-April-2016

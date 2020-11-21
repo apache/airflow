@@ -16,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains AWS SQS hook
-"""
+"""This module contains AWS SQS hook"""
+from typing import Dict, Optional
+
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
@@ -33,10 +33,11 @@ class SQSHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(client_type='sqs', *args, **kwargs)
+    def __init__(self, *args, **kwargs) -> None:
+        kwargs["client_type"] = "sqs"
+        super().__init__(*args, **kwargs)
 
-    def create_queue(self, queue_name, attributes=None):
+    def create_queue(self, queue_name: str, attributes: Optional[Dict] = None) -> Dict:
         """
         Create queue using connection object
 
@@ -52,7 +53,13 @@ class SQSHook(AwsBaseHook):
         """
         return self.get_conn().create_queue(QueueName=queue_name, Attributes=attributes or {})
 
-    def send_message(self, queue_url, message_body, delay_seconds=0, message_attributes=None):
+    def send_message(
+        self,
+        queue_url: str,
+        message_body: str,
+        delay_seconds: int = 0,
+        message_attributes: Optional[Dict] = None,
+    ) -> Dict:
         """
         Send message to the queue
 
@@ -70,7 +77,9 @@ class SQSHook(AwsBaseHook):
             For details of the returned value see :py:meth:`botocore.client.SQS.send_message`
         :rtype: dict
         """
-        return self.get_conn().send_message(QueueUrl=queue_url,
-                                            MessageBody=message_body,
-                                            DelaySeconds=delay_seconds,
-                                            MessageAttributes=message_attributes or {})
+        return self.get_conn().send_message(
+            QueueUrl=queue_url,
+            MessageBody=message_body,
+            DelaySeconds=delay_seconds,
+            MessageAttributes=message_attributes or {},
+        )

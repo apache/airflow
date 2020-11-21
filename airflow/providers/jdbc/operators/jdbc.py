@@ -28,6 +28,10 @@ class JdbcOperator(BaseOperator):
 
     Requires jaydebeapi.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`apache-airflow:howto/operator:JdbcOperator`
+
     :param sql: the sql code to be executed. (templated)
     :type sql: Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.
@@ -46,20 +50,23 @@ class JdbcOperator(BaseOperator):
     ui_color = '#ededed'
 
     @apply_defaults
-    def __init__(self,
-                 sql: str,
-                 jdbc_conn_id: str = 'jdbc_default',
-                 autocommit: bool = False,
-                 parameters: Optional[Union[Mapping, Iterable]] = None,
-                 *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        *,
+        sql: str,
+        jdbc_conn_id: str = 'jdbc_default',
+        autocommit: bool = False,
+        parameters: Optional[Union[Mapping, Iterable]] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
         self.parameters = parameters
         self.sql = sql
         self.jdbc_conn_id = jdbc_conn_id
         self.autocommit = autocommit
         self.hook = None
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         self.log.info('Executing: %s', self.sql)
         hook = JdbcHook(jdbc_conn_id=self.jdbc_conn_id)
         hook.run(self.sql, self.autocommit, parameters=self.parameters)

@@ -1,0 +1,69 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+################################
+## Airflow ConfigMap
+#################################
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "airflow_config" . }}
+  labels:
+    tier: airflow
+    component: config
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end -}}
+{{- $Global := . }}
+data:
+  # These are system-specified config overrides.
+  airflow.cfg: |-
+    {{- range $section, $settings := .Values.config }}
+    [{{ $section }}]
+    {{- range $key, $val := $settings }}
+    {{ $key }} = {{ tpl ($val | toString) $Global }}
+    {{- end }}
+    {{ end }}
+
+{{- if .Values.webserver.webserverConfig }}
+  webserver_config.py: |
+    {{- .Values.webserver.webserverConfig | nindent 4 }}
+{{- end }}
+
+  airflow_local_settings.py: |
+{{- if .Values.scheduler.airflowLocalSettings }}
+    {{ .Values.scheduler.airflowLocalSettings | nindent 4 }}
+{{- end }}
+{{- if and .Values.dags.gitSync.enabled  .Values.dags.gitSync.knownHosts }}
+  known_hosts: |
+    {{ .Values.dags.gitSync.knownHosts | nindent 4 }}
+{{- end }}
+{{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
+  pod_template_file.yaml: |-
+{{- if .Values.podTemplate }}
+    {{ .Values.podTemplate | nindent 4 }}
+{{- else }}
+{{ tpl (.Files.Get "files/pod-template-file.kubernetes-helm-yaml") . | nindent 4 }}
+{{- end }}
+{{- if .Values.kerberos.enabled }}
+  krb5.conf: |
+    {{ tpl .Values.kerberos.config . | nindent 4 }}
+{{- end }}
+{{- end }}

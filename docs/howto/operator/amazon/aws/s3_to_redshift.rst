@@ -16,7 +16,7 @@
     under the License.
 
 
-.. _howto/operator:S3ToRedshiftTransferOperator:
+.. _howto/operator:S3ToRedshiftOperator:
 
 S3 To Redshift Transfer Operator
 ================================
@@ -28,10 +28,10 @@ S3 To Redshift Transfer Operator
 Overview
 --------
 
-The ``S3ToRedshiftTransferOperator`` copies data from a S3 Bucket into a Redshift table.
+The ``S3ToRedshiftOperator`` copies data from a S3 Bucket into a Redshift table.
 
 The example dag provided showcases the
-:class:`~airflow.providers.amazon.aws.operators.s3_to_redshift.S3ToRedshiftTransferOperator`
+:class:`~airflow.providers.amazon.aws.transfers.s3_to_redshift.S3ToRedshiftOperator`
 in action.
 
  - example_s3_to_redshift.py
@@ -42,14 +42,14 @@ example_s3_to_redshift.py
 Purpose
 """""""
 
-This is a basic example dag for using ``S3ToRedshiftTransferOperator`` to copies data from a S3 Bucket into a Redshift table.
+This is a basic example dag for using ``S3ToRedshiftOperator`` to copies data from a S3 Bucket into a Redshift table.
 
 Environment variables
 """""""""""""""""""""
 
 This example relies on the following variables, which can be passed via OS environment variables.
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_s3_to_redshift.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_s3_to_redshift.py
     :language: python
     :start-after: [START howto_operator_s3_to_redshift_env_variables]
     :end-before: [END howto_operator_s3_to_redshift_env_variables]
@@ -62,7 +62,7 @@ Copy S3 key into Redshift table
 In the following code we are copying the S3 key ``s3://{S3_BUCKET}/{S3_KEY}/{REDSHIFT_TABLE}`` into the Redshift table
 ``PUBLIC.{REDSHIFT_TABLE}``.
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_s3_to_redshift.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_s3_to_redshift.py
     :language: python
     :start-after: [START howto_operator_s3_to_redshift_task_1]
     :end-before: [END howto_operator_s3_to_redshift_task_1]
