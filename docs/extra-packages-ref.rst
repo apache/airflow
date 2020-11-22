@@ -34,7 +34,7 @@ Here's the list of the :ref:`subpackages <installation:extra_packages>` and what
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | devel_hadoop        | ``pip install 'apache-airflow[devel_hadoop]'``      | Same as ``devel`` + dependencies for developing the Hadoop stack     |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| devel_all           | ``pip install 'apache-airflow[devel_all]'``         | Everything needed for development (``devel_hadoop`` + ``all``)|
+| devel_all           | ``pip install 'apache-airflow[devel_all]'``         | Everything needed for development (``devel_hadoop`` + ``all``)       |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | devel_ci            | ``pip install 'apache-airflow[devel_ci]'``          | All dependencies required for CI build.                              |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
