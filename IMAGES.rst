@@ -536,7 +536,7 @@ Production images
 -----------------
 
 You can find details about using, building, extending and customising the production images in the
-`Latest documentation <https://airflow.readthedocs.io/en/latest/production-deployment.html>`_
+`Latest documentation <docs/production-deployment.rst>`_
 
 
 Image manifests

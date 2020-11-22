@@ -575,9 +575,7 @@ https://pypi.python.org/pypi/apache-airflow
 
 The documentation is available on:
 https://airflow.apache.org/
-https://airflow.apache.org/1.10.2/
-https://airflow.readthedocs.io/en/1.10.2/
-https://airflow.readthedocs.io/en/stable/
+https://airflow.apache.org/docs/${VERSION}/
 
 Find the CHANGELOG here for more details:
 

@@ -87,7 +87,7 @@ def _generate_provider_intersphinx_mapping():
             # will be fetched.
             (
                 f'{DOCS_DIR}/_build/docs/apache-airflow/latest/objects.inv',
-                'https://airflow.readthedocs.io/en/latest/objects.inv',
+                f'{S3_DOC_URL}/docs/apache-airflow/latest/objects.inv',
             ),
         )
 
