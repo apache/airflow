@@ -524,7 +524,7 @@ repos:
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_mypy.sh"
         files: ^docs/.*\.py$
-        exclude: rtd-deprecatipn
+        exclude: rtd-deprecation
         require_serial: true
       - id: pylint
         name: Run pylint
