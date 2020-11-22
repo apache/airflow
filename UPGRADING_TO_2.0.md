@@ -245,7 +245,6 @@ Kubernetes secrets into workers.
 
 For a more detailed list of changes to the KubernetesPodOperator API, please read [here](#Changed-Parameters-for-the-KubernetesPodOperator)
 
-## Step 4: Update system configurations
 
 ### Change default value for dag_run_conf_overrides_params
 
@@ -1075,6 +1074,15 @@ class AirflowTestPlugin(AirflowPlugin):
     appbuilder_views = [v_appbuilder_package]
     appbuilder_menu_items = [appbuilder_mitem]
 ```
+
+### Changes to extras names
+
+The `all` extra were reduced to include only user-facing dependencies. This means
+that this extra does not contain development dependencies. If you were using
+```
+pip install apache-airflow[all]
+```
+then you should use now `devel_all` or figure out if you need development extras at all.
 
 ### Support for Airflow 1.10.x releases
 
