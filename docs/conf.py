@@ -160,6 +160,7 @@ if PACKAGE_NAME == 'apache-airflow':
         'howto/operator/microsoft/_partials',
         'apache-airflow-providers-*/',
         'apache-airflow-providers',
+        'rtd-deprecation',
         'README.rst',
     ] + glob.glob('apache-airflow-providers-*')
 elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
