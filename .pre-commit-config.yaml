@@ -239,7 +239,7 @@ repos:
         files: Dockerfile.*$
         pass_filenames: true
       - id: setup-order
-        name: Checks for an order of dependencies in setup.py
+        name: Check order of dependencies in setup.py
         language: python
         files: ^setup.py$
         pass_filenames: false

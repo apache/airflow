@@ -45,7 +45,7 @@ def get_file_content(*path_elements: str) -> str:
 def get_extras_from_setup() -> Dict[str, List[str]]:
     """
     Returns an array EXTRAS_REQUIREMENTS with aliases from setup.py file in format:
-    {'package name': ['alias1', 'alias2], ...}
+    {'package name': ['alias1', 'alias2'], ...}
     """
     setup_content = get_file_content(SETUP_PY_FILE)
 
@@ -53,7 +53,7 @@ def get_extras_from_setup() -> Dict[str, List[str]]:
     extras_section = extras_section_regex.findall(setup_content)[0]
 
     extras_regex = re.compile(
-        rf'^\s+[\"\']({PY_IDENTIFIER})[\"\']:\s*({PY_IDENTIFIER}|\[\])[^#\n]*(#\s*TODO.*)?$', re.MULTILINE
+        rf'^\s*[\"\']({PY_IDENTIFIER})[\"\']:\s*({PY_IDENTIFIER}|\[\])[^#\n]*(#\s*.*)?$', re.MULTILINE
     )
 
     extras_dict: Dict[str, List[str]] = {}
@@ -66,6 +66,15 @@ def get_extras_from_setup() -> Dict[str, List[str]]:
         if not extras_dict.get(package):
             extras_dict[package] = []
         extras_dict[package].append(alias)
+
+    updates_sections_regex = re.compile(r"^EXTRAS_REQUIREMENTS\.update[^{]+{([^}]+)}", re.MULTILINE)
+    updates_sections = updates_sections_regex.findall(setup_content)
+    for update in updates_sections:
+        for extra in extras_regex.findall(update):
+            package = extra[0]
+            if not extras_dict.get(package):
+                extras_dict[package] = [extra[0]]
+
     return extras_dict
 
 
@@ -80,7 +89,6 @@ def get_extras_from_docs() -> List[str]:
     )
     extras = extras_section_regex.findall(docs_content)
 
-    extras = list(filter(lambda entry: entry != 'all', extras))
     return extras
 
 
