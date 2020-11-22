@@ -32,7 +32,7 @@ verify_suffix_versions_for_package_preparation
 echo
 echo "Installing remaining packages from 'all' extras"
 echo
-pip install -e ".[all]" >>"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
+pip install -e ".[devel_all]" >>"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
 
 echo > "${OUT_FILE_PRINTED_ON_ERROR}"
 

@@ -223,7 +223,7 @@ export BACKPORT_PACKAGES="true"
 ```shell script
 cd /airflow_sources
 
-pip install ".[all]"
+pip install ".[devel_all]"
 
 pip install "apache-airflow==${INSTALL_AIRFLOW_VERSION}"
 
