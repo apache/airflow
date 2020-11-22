@@ -14,16 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-version: 2
-formats: []
-sphinx:
-    configuration: docs/rtd-deprecation/conf.py
-python:
-    version: 3.7
-    install:
-        - method: pip
-          path: .
-          extra_requirements:
-              - doc
-    system_packages: true
+
+project = 'Apache Airflow'
+
+html_extra_path = ["404.html"]
