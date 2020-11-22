@@ -19,7 +19,9 @@
     </div>
   </div>
   <script>
-    document.location ='http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/' + document.location.pathname
+    // "/en/latest/howto/operator/index.html" => "/latest/howto/operator/index.html"
+    var path_without_lang = document.location.pathname.substr(3)
+    document.location ='http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/aache-airflow/' + path_without_lang
   </script>
 </body>
 </html>
