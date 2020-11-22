@@ -997,6 +997,7 @@ onboarded
 onkill
 openfaas
 oper
+opsgenie
 optimise
 ora
 orm

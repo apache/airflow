@@ -59,9 +59,17 @@ Here's the list of the :ref:`subpackages <installation:extra_packages>` and what
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | kylin               | ``pip install 'apache-airflow[apache.kylin]'``      | All Kylin related operators & hooks                                  |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| livy                | ``pip install 'apache-airflow[apache.livy]'``       | All Livy related operators, hooks & sensors                          |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| pig                 | ``pip install 'apache-airflow[apache.pig]'``        | All Pig related operators & hooks                                    |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| pinot               | ``pip install 'apache-airflow[apache.pinot]'``      | All Pinot related hooks                                              |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | spark               | ``pip install 'apache-airflow[apache.spark]'``      | All Spark related operators & hooks                                  |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| webhdfs             | ``pip install 'apache-airflow[webhdfs]'``           | HDFS hooks and operators                                             |
+| sqoop               | ``pip install 'apache-airflow[apache.sqoop]'``      | All Sqoop related operators & hooks                                  |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| webhdfs             | ``pip install 'apache-airflow[apache.webhdfs]'``    | HDFS hooks and operators                                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 
 
@@ -80,6 +88,10 @@ Here's the list of the :ref:`subpackages <installation:extra_packages>` and what
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | datadog             | ``pip install 'apache-airflow[datadog]'``           | Datadog hooks and sensors                                            |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| dingding            | ``pip install 'apache-airflow[dingding]'``          | Dingding hooks and sensors                                           |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| discord             | ``pip install 'apache-airflow[discord]'``           | Discord hooks and sensors                                            |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | facebook            | ``pip install 'apache-airflow[facebook]'``          | Facebook Social                                                      |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | gcp                 | ``pip install 'apache-airflow[google]'``            | Google Cloud                                                         |
@@ -91,6 +103,8 @@ Here's the list of the :ref:`subpackages <installation:extra_packages>` and what
 | hashicorp           | ``pip install 'apache-airflow[hashicorp]'``         | Hashicorp Services (Vault)                                           |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | jira                | ``pip install 'apache-airflow[jira]'``              | Jira hooks and operators                                             |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| opsgenie            | ``pip install 'apache-airflow[opsgenie]'``          | OpsGenie hooks and operators                                         |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | pagerduty           | ``pip install 'apache-airflow[pagerduty]'``         | Pagerduty hook                                                       |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
@@ -114,6 +128,8 @@ Here's the list of the :ref:`subpackages <installation:extra_packages>` and what
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | yandexcloud         | ``pip install 'apache-airflow[yandexcloud]'``       | Yandex.Cloud hooks and operators                                     |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| zendesk             | ``pip install 'apache-airflow[zendesk]'``           | Zendesk hooks                                                        |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 
 
 **Software:**
@@ -132,6 +148,8 @@ Here's the list of the :ref:`subpackages <installation:extra_packages>` and what
 | elasticsearch       | ``pip install 'apache-airflow[elasticsearch]'``     | Elasticsearch hooks and Log Handler                                                |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
 | exasol              | ``pip install 'apache-airflow[exasol]'``            | Exasol hooks and operators                                                         |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
+| jenkins             | ``pip install 'apache-airflow[jenkins]'``           | Jenkins hooks and operators                                                        |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
 | kubernetes          | ``pip install 'apache-airflow[cncf.kubernetes]'``   | Kubernetes Executor and operator                                                   |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
@@ -152,9 +170,9 @@ Here's the list of the :ref:`subpackages <installation:extra_packages>` and what
 |                     |                                                     | or as metastore database backend.  Uses pyodbc.                                    |
 |                     |                                                     | See :ref:`howto/connection/odbc` for more info.                                    |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
-| oracle              | ``pip install 'apache-airflow[oracle]'``            | Oracle hooks and operators                                                         |
+| openfaas            | ``pip install 'apache-airflow[openfaas]'``          | OpenFaaS hooks                                                                     |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
-| pinot               | ``pip install 'apache-airflow[pinot]'``             | Pinot DB hook                                                                      |
+| oracle              | ``pip install 'apache-airflow[oracle]'``            | Oracle hooks and operators                                                         |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
 | postgres            | ``pip install 'apache-airflow[postgres]'``          | PostgreSQL operators and hook, support as an                                       |
 |                     |                                                     | Airflow backend                                                                    |
@@ -184,7 +202,13 @@ Here's the list of the :ref:`subpackages <installation:extra_packages>` and what
 +=====================+=====================================================+======================================================================+
 | cgroups             | ``pip install 'apache-airflow[cgroups]'``           | Needed To use CgroupTaskRunner                                       |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| ftp                 | ``pip install 'apache-airflow[ftp]'``               | FTP hooks and operators                                              |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | grpc                | ``pip install 'apache-airflow[grpc]'``              | Grpc hooks and operators                                             |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| http                | ``pip install 'apache-airflow[http]'``              | HTTP hooks, operators and sensors                                    |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| imap                | ``pip install 'apache-airflow[imap]'``              | IMAP hooks and sensors                                               |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | jdbc                | ``pip install 'apache-airflow[jdbc]'``              | JDBC hooks and operators                                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
@@ -194,7 +218,11 @@ Here's the list of the :ref:`subpackages <installation:extra_packages>` and what
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | papermill           | ``pip install 'apache-airflow[papermill]'``         | Papermill hooks and operators                                        |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| ssh                 | ``pip install 'apache-airflow[ssh]'``               | SSH hooks and Operator                                               |
+| sftp                | ``pip install 'apache-airflow[sftp]'``              | SFTP hooks, operators and sensors                                    |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| sqlite              | ``pip install 'apache-airflow[sqlite]'``            | SQLite hooks and operators                                           |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| ssh                 | ``pip install 'apache-airflow[ssh]'``               | SSH hooks and operators                                              |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | winrm               | ``pip install 'apache-airflow[microsoft.winrm]'``   | WinRM hooks and operators                                            |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
