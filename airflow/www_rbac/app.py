@@ -124,6 +124,17 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             base_template='airflow/master.html',
             update_perms=conf.getboolean('webserver', 'UPDATE_FAB_PERMS'))
 
+        @appbuilder.sm.oauth_user_info_getter
+        def suc_user_info_getter(sm, provider, response=None):
+            if provider == 'SUC' or provider == 'suc':
+                me = sm.oauth_remotes[provider].get('userinfo')
+                data = me.data
+                return {'username': data.get('preferred_username') or data.get('name'),
+                        'email': data.get('email')
+                        }
+            else:
+                return {}
+
         def init_views(appbuilder):
             from airflow.www_rbac import views
             # Remove the session from scoped_session registry to avoid
