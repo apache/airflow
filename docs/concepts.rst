@@ -220,7 +220,7 @@ execution_date
 The ``execution_date`` is the *logical* date and time which the DAG Run, and its task instances, are running for.
 
 This allows task instances to process data for the desired *logical* date & time.
-While a task_instance or DAG run might have a *actual* start date of now,
+While a task_instance or DAG run might have an *actual* start date of now,
 their *logical* date might be 3 months ago because we are busy reloading something.
 
 In the prior example the ``execution_date`` was 2016-01-01 for the first DAG Run and 2016-01-02 for the second.
@@ -1193,7 +1193,7 @@ Task instances die all the time, usually as part of their normal life cycle,
 but sometimes unexpectedly.
 
 Zombie tasks are characterized by the absence
-of an heartbeat (emitted by the job periodically) and a ``running`` status
+of a heartbeat (emitted by the job periodically) and a ``running`` status
 in the database. They can occur when a worker node can't reach the database,
 when Airflow processes are killed externally, or when a node gets rebooted
 for instance. Zombie killing is performed periodically by the scheduler's
