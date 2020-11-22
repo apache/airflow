@@ -243,7 +243,7 @@ elasticsearch = [
     'elasticsearch-dsl>=5.0.0,<6.0.0',
 ]
 flask_oauth = [
-    'Flask-OAuthlib>=0.9.1',
+    'Flask-OAuthlib>=0.9.6',
     'oauthlib!=2.0.3,!=2.0.4,!=2.0.5,<3.0.0,>=1.1.2',
     'requests-oauthlib==1.1.0',
 ]
