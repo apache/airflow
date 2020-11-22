@@ -41,6 +41,7 @@ class MySqlHook(DbApiHook):
 
     conn_name_attr = 'mysql_conn_id'
     default_conn_name = 'mysql_default'
+    conn_type = 'mysql'
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs) -> None:

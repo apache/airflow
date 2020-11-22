@@ -38,3 +38,6 @@ hooks:
   - integration-name: Internet Message Access Protocol (IMAP)
     python-modules:
       - airflow.providers.imap.hooks.imap
+
+hook-class-names:
+  - airflow.providers.imap.hooks.imap.ImapHook

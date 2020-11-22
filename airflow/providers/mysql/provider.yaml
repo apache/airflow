@@ -51,3 +51,6 @@ transfers:
   - source-integration-name: Snowflake
     target-integration-name: MySQL
     python-module: airflow.providers.mysql.transfers.presto_to_mysql
+
+hook-class-names:
+  - airflow.providers.mysql.hooks.mysql.MySqlHook

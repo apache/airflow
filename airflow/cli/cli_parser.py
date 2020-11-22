@@ -1154,6 +1154,12 @@ CONNECTIONS_COMMANDS = (
 )
 PROVIDERS_COMMANDS = (
     ActionCommand(
+        name='hooks',
+        help='List registered provider hooks',
+        func=lazy_load_command('airflow.cli.commands.provider_command.hooks_list'),
+        args=(ARG_OUTPUT,),
+    ),
+    ActionCommand(
         name='list',
         help='List installed providers',
         func=lazy_load_command('airflow.cli.commands.provider_command.providers_list'),

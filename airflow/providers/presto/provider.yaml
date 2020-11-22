@@ -32,3 +32,6 @@ hooks:
   - integration-name: Presto
     python-modules:
       - airflow.providers.presto.hooks.presto
+
+hook-class-names:
+  - airflow.providers.presto.hooks.presto.PrestoHook

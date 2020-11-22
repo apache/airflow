@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 import importlib_metadata
 
 from airflow import settings
+from airflow.utils.entry_points_with_dist import entry_points_with_dist
 from airflow.utils.file import find_path_from_directory
 
 if TYPE_CHECKING:
@@ -168,23 +169,6 @@ def is_valid_plugin(plugin_obj):
         plugin_obj.validate()
         return plugin_obj not in plugins
     return False
-
-
-def entry_points_with_dist(group: str):
-    """
-    Return EntryPoint objects of the given group, along with the distribution information.
-
-    This is like the ``entry_points()`` function from importlib.metadata,
-    except it also returns the distribution the entry_point was loaded from.
-
-    :param group: FIlter results to only this entrypoint group
-    :return: Generator of (EntryPoint, Distribution) objects for the specified groups
-    """
-    for dist in importlib_metadata.distributions():
-        for e in dist.entry_points:
-            if e.group != group:
-                continue
-            yield (e, dist)
 
 
 def load_entrypoint_plugins():

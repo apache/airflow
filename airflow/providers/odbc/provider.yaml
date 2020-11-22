@@ -32,3 +32,6 @@ hooks:
   - integration-name: ODBC
     python-modules:
       - airflow.providers.odbc.hooks.odbc
+
+hook-class-names:
+  - airflow.providers.odbc.hooks.odbc.OdbcHook

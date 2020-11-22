@@ -54,7 +54,11 @@ class WasbHook(BaseHook):
     :type wasb_conn_id: str
     """
 
-    def __init__(self, wasb_conn_id: str = 'wasb_default') -> None:
+    conn_name_attr = 'wasb_conn_id'
+    default_conn_name = 'wasb_default'
+    conn_type = 'wasb'
+
+    def __init__(self, wasb_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn_id = wasb_conn_id
         self.connection = self.get_conn()

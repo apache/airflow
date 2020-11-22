@@ -15,23 +15,21 @@
 # specific language governing permissions and limitations
 # under the License.
 
----
-package-name: apache-airflow-providers-cloudant
-name: IBM Cloudant
-description: |
-    `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
+import importlib_metadata
 
-versions:
-  - 1.0.0b2
-integrations:
-  - integration-name: IBM Cloudant
-    external-doc-url: https://www.ibm.com/cloud/cloudant
-    tags: [service]
 
-hooks:
-  - integration-name: IBM Cloudant
-    python-modules:
-      - airflow.providers.cloudant.hooks.cloudant
+def entry_points_with_dist(group: str):
+    """
+    Return EntryPoint objects of the given group, along with the distribution information.
 
-hook-class-names:
-  - airflow.providers.cloudant.hooks.cloudant.CloudantHook
+    This is like the ``entry_points()`` function from importlib.metadata,
+    except it also returns the distribution the entry_point was loaded from.
+
+    :param group: FIlter results to only this entrypoint group
+    :return: Generator of (EntryPoint, Distribution) objects for the specified groups
+    """
+    for dist in importlib_metadata.distributions():
+        for e in dist.entry_points:
+            if e.group != group:
+                continue
+            yield e, dist

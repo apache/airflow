@@ -32,7 +32,11 @@ operators:
   - integration-name: Apache Pig
     python-modules:
       - airflow.providers.apache.pig.operators.pig
+
 hooks:
   - integration-name: Apache Pig
     python-modules:
       - airflow.providers.apache.pig.hooks.pig
+
+hook-class-names:
+  - airflow.providers.apache.pig.hooks.pig.PigCliHook

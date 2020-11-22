@@ -35,6 +35,7 @@ class JdbcHook(DbApiHook):
 
     conn_name_attr = 'jdbc_conn_id'
     default_conn_name = 'jdbc_default'
+    conn_type = 'jdbc'
     supports_autocommit = True
 
     def get_conn(self) -> jaydebeapi.Connection:

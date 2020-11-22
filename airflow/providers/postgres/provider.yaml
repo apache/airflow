@@ -38,3 +38,6 @@ hooks:
   - integration-name: PostgreSQL
     python-modules:
       - airflow.providers.postgres.hooks.postgres
+
+hook-class-names:
+  - airflow.providers.postgres.hooks.postgres.PostgresHook

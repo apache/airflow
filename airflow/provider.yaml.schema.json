@@ -173,6 +173,13 @@
           "python-module"
         ]
       }
+    },
+    "hook-class-names": {
+      "type": "array",
+      "description": "Hook class names that provide connection types to core",
+      "items": {
+        "type": "string"
+      }
     }
   },
   "additionalProperties": false,

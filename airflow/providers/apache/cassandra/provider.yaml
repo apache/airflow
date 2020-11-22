@@ -41,3 +41,6 @@ hooks:
   - integration-name: Apache Cassandra
     python-modules:
       - airflow.providers.apache.cassandra.hooks.cassandra
+
+hook-class-names:
+  - airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook

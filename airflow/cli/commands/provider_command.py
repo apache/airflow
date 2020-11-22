@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Providers sub-commands"""
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import pygments
 import yaml
@@ -44,8 +44,7 @@ def provider_get(args):
     """Get a provider info."""
     providers = ProvidersManager().providers
     if args.provider_name in providers:
-        provider_version = providers[args.provider_name][0]
-        provider_info = providers[args.provider_name][1]
+        provider_version, provider_info = providers[args.provider_name]
         print("#")
         print(f"# Provider: {args.provider_name}")
         print(f"# Version: {provider_version}")
@@ -64,3 +63,23 @@ def provider_get(args):
 def providers_list(args):
     """Lists all providers at the command line"""
     print(_tabulate_providers(ProvidersManager().providers.values(), args.output))
+
+
+def _tabulate_hooks(hook_items: Tuple[str, Tuple[str, str]], tablefmt: str):
+    tabulate_data = [
+        {
+            'Connection type': hook_item[0],
+            'Hook class': hook_item[1][0],
+            'Hook connection attribute name': hook_item[1][1],
+        }
+        for hook_item in hook_items
+    ]
+
+    msg = tabulate(tabulate_data, tablefmt=tablefmt, headers='keys')
+    return msg
+
+
+def hooks_list(args):
+    """Lists all hooks at the command line"""
+    msg = _tabulate_hooks(ProvidersManager().hooks.items(), args.output)
+    print(msg)

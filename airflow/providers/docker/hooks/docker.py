@@ -34,9 +34,13 @@ class DockerHook(BaseHook, LoggingMixin):
     :type docker_conn_id: str
     """
 
+    conn_name_attr = 'docker_conn_id'
+    default_conn_name = 'docker_default'
+    conn_type = 'docker'
+
     def __init__(
         self,
-        docker_conn_id='docker_default',
+        docker_conn_id: str = default_conn_name,
         base_url: Optional[str] = None,
         version: Optional[str] = None,
         tls: Optional[str] = None,

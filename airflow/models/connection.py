@@ -30,69 +30,9 @@ from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
+from airflow.providers_manager import ProvidersManager
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
-
-# A map that assigns a connection type to a tuple that contains
-# the path of the class and the name of the conn_id key parameter.
-# PLEASE KEEP BELOW LIST IN ALPHABETICAL ORDER.
-CONN_TYPE_TO_HOOK = {
-    "azure_batch": (
-        "airflow.providers.microsoft.azure.hooks.azure_batch.AzureBatchHook",
-        "azure_batch_conn_id",
-    ),
-    "azure_cosmos": (
-        "airflow.providers.microsoft.azure.hooks.azure_cosmos.AzureCosmosDBHook",
-        "azure_cosmos_conn_id",
-    ),
-    "azure_data_lake": (
-        "airflow.providers.microsoft.azure.hooks.azure_data_lake.AzureDataLakeHook",
-        "azure_data_lake_conn_id",
-    ),
-    "cassandra": ("airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook", "cassandra_conn_id"),
-    "cloudant": ("airflow.providers.cloudant.hooks.cloudant.CloudantHook", "cloudant_conn_id"),
-    "dataprep": ("airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook", "dataprep_default"),
-    "docker": ("airflow.providers.docker.hooks.docker.DockerHook", "docker_conn_id"),
-    "elasticsearch": (
-        "airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook",
-        "elasticsearch_conn_id",
-    ),
-    "exasol": ("airflow.providers.exasol.hooks.exasol.ExasolHook", "exasol_conn_id"),
-    "gcpcloudsql": (
-        "airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook",
-        "gcp_cloudsql_conn_id",
-    ),
-    "gcpssh": (
-        "airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHook",
-        "gcp_conn_id",
-    ),
-    "google_cloud_platform": (
-        "airflow.providers.google.cloud.hooks.bigquery.BigQueryHook",
-        "bigquery_conn_id",
-    ),
-    "grpc": ("airflow.providers.grpc.hooks.grpc.GrpcHook", "grpc_conn_id"),
-    "hive_cli": ("airflow.providers.apache.hive.hooks.hive.HiveCliHook", "hive_cli_conn_id"),
-    "hiveserver2": ("airflow.providers.apache.hive.hooks.hive.HiveServer2Hook", "hiveserver2_conn_id"),
-    "imap": ("airflow.providers.imap.hooks.imap.ImapHook", "imap_conn_id"),
-    "jdbc": ("airflow.providers.jdbc.hooks.jdbc.JdbcHook", "jdbc_conn_id"),
-    "jira": ("airflow.providers.jira.hooks.jira.JiraHook", "jira_conn_id"),
-    "kubernetes": ("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook", "kubernetes_conn_id"),
-    "mongo": ("airflow.providers.mongo.hooks.mongo.MongoHook", "conn_id"),
-    "mssql": ("airflow.providers.odbc.hooks.odbc.OdbcHook", "odbc_conn_id"),
-    "mysql": ("airflow.providers.mysql.hooks.mysql.MySqlHook", "mysql_conn_id"),
-    "odbc": ("airflow.providers.odbc.hooks.odbc.OdbcHook", "odbc_conn_id"),
-    "oracle": ("airflow.providers.oracle.hooks.oracle.OracleHook", "oracle_conn_id"),
-    "pig_cli": ("airflow.providers.apache.pig.hooks.pig.PigCliHook", "pig_cli_conn_id"),
-    "postgres": ("airflow.providers.postgres.hooks.postgres.PostgresHook", "postgres_conn_id"),
-    "presto": ("airflow.providers.presto.hooks.presto.PrestoHook", "presto_conn_id"),
-    "redis": ("airflow.providers.redis.hooks.redis.RedisHook", "redis_conn_id"),
-    "snowflake": ("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook", "snowflake_conn_id"),
-    "sqlite": ("airflow.providers.sqlite.hooks.sqlite.SqliteHook", "sqlite_conn_id"),
-    "tableau": ("airflow.providers.salesforce.hooks.tableau.TableauHook", "tableau_conn_id"),
-    "vertica": ("airflow.providers.vertica.hooks.vertica.VerticaHook", "vertica_conn_id"),
-    "wasb": ("airflow.providers.microsoft.azure.hooks.wasb.WasbHook", "wasb_conn_id"),
-}
-# PLEASE KEEP ABOVE LIST IN ALPHABETICAL ORDER.
 
 
 def parse_netloc_to_hostname(*args, **kwargs):
@@ -326,7 +266,8 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
 
     def get_hook(self):
         """Return hook based on conn_type."""
-        hook_class_name, conn_id_param = CONN_TYPE_TO_HOOK.get(self.conn_type, (None, None))
+        hook_class_name, conn_id_param = ProvidersManager().hooks.get(self.conn_type, (None, None))
+
         if not hook_class_name:
             raise AirflowException(f'Unknown hook type "{self.conn_type}"')
         hook_class = import_string(hook_class_name)

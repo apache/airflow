@@ -43,7 +43,11 @@ class AzureDataLakeHook(BaseHook):
     :type azure_data_lake_conn_id: str
     """
 
-    def __init__(self, azure_data_lake_conn_id: str = 'azure_data_lake_default') -> None:
+    conn_name_attr = 'azure_data_lake_conn_id'
+    default_conn_name = 'azure_data_lake_default'
+    conn_type = 'azure_data_lake'
+
+    def __init__(self, azure_data_lake_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn_id = azure_data_lake_conn_id
         self._conn: Optional[core.AzureDLFileSystem] = None

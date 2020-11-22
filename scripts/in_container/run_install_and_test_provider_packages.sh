@@ -93,6 +93,26 @@ function discover_all_provider_packages() {
     fi
 }
 
+function discover_all_hooks() {
+    echo
+    echo Listing available hooks via 'airflow providers hooks'
+    echo
+
+    airflow providers hooks
+
+    local expected_number_of_hooks=33
+    local actual_number_of_hooks
+    actual_number_of_hooks=$(airflow providers hooks --output simple | grep -c conn_id | xargs)
+    if [[ ${actual_number_of_hooks} != "${expected_number_of_hooks}" ]]; then
+        >&2 echo "ERROR! Number of hooks registered is wrong!"
+        >&2 echo "Expected number was '${expected_number_of_hooks}' and got '${actual_number_of_hooks}'"
+        >&2 echo
+        >&2 echo "Either increase the number of hooks if you added one or fix problem with imports if you see one."
+        >&2 echo
+    fi
+}
+
 if [[ ${BACKPORT_PACKAGES} != "true" ]]; then
     discover_all_provider_packages
+    discover_all_hooks
 fi

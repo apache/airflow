@@ -35,6 +35,7 @@ class OdbcHook(DbApiHook):
     DEFAULT_SQLALCHEMY_SCHEME = 'mssql+pyodbc'
     conn_name_attr = 'odbc_conn_id'
     default_conn_name = 'odbc_default'
+    conn_type = 'odbc'
     supports_autocommit = True
 
     def __init__(

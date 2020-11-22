@@ -630,3 +630,9 @@ transfers:
   - source-integration-name: Google Ads
     target-integration-name: Google Cloud Storage (GCS)
     python-module: airflow.providers.google.ads.transfers.ads_to_gcs
+
+hook-class-names:
+  - airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook
+  - airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook
+  - airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHook
+  - airflow.providers.google.cloud.hooks.bigquery.BigQueryHook

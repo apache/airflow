@@ -48,3 +48,6 @@ hooks:
   - integration-name: Kubernetes
     python-modules:
       - airflow.providers.cncf.kubernetes.hooks.kubernetes
+
+hook-class-names:
+  - airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook

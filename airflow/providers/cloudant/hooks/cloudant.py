@@ -32,7 +32,11 @@ class CloudantHook(BaseHook):
     :type cloudant_conn_id: str
     """
 
-    def __init__(self, cloudant_conn_id: str = 'cloudant_default') -> None:
+    conn_name_attr = 'cloudant_conn_id'
+    default_conn_name = 'cloudant_default'
+    conn_type = 'cloudant'
+
+    def __init__(self, cloudant_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.cloudant_conn_id = cloudant_conn_id
 

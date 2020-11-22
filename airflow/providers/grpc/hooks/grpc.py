@@ -47,9 +47,13 @@ class GrpcHook(BaseHook):
         its only arg. Could be partial or lambda.
     """
 
+    conn_name_attr = 'grpc_conn_id'
+    default_conn_name = 'grpc_default'
+    conn_type = 'grpc'
+
     def __init__(
         self,
-        grpc_conn_id: str,
+        grpc_conn_id: str = default_conn_name,
         interceptors: Optional[List[Callable]] = None,
         custom_connection_func: Optional[Callable] = None,
     ) -> None:

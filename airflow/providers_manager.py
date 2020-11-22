@@ -17,6 +17,7 @@
 # under the License.
 """Manages all providers."""
 import fnmatch
+import importlib
 import json
 import logging
 import os
@@ -25,6 +26,8 @@ from typing import Dict, Tuple
 
 import jsonschema
 import yaml
+
+from airflow.utils.entry_points_with_dist import entry_points_with_dist
 
 try:
     import importlib.resources as importlib_resources
@@ -60,8 +63,11 @@ class ProvidersManager:
         return cls._instance
 
     def __init__(self):
-        # Keeps list of providers keyed by module name and value is Tuple: version, provider_info
+        # Keeps dict of providers keyed by module name and value is Tuple: version, provider_info
         self._provider_dict: Dict[str, Tuple[str, Dict]] = {}
+        # Keeps dict of hooks keyed by connection type and value is
+        # Tuple: connection class, connection_id_attribute_name
+        self._hooks_dict: Dict[str, Tuple[str, str]] = {}
         self._validator = _create_validator()
         # Local source folders are loaded first. They should take precedence over the package ones for
         # Development purpose. In production provider.yaml files are not present in the 'airflow" directory
@@ -69,19 +75,9 @@ class ProvidersManager:
         # in case of local development
         self._discover_all_airflow_builtin_providers_from_local_sources()
         self._discover_all_providers_from_packages()
-        self._sort_provider_dictionary()
-
-    def _sort_provider_dictionary(self):
-        """
-        Sort provider_dictionary using OrderedDict.
-
-        The dictionary gets sorted so that when you iterate through it, the providers are by
-        default returned in alphabetical order.
-        """
-        sorted_dict = OrderedDict()
-        for provider_name in sorted(self._provider_dict.keys()):
-            sorted_dict[provider_name] = self._provider_dict[provider_name]
-        self._provider_dict = sorted_dict
+        self._discover_hooks()
+        self._provider_dict = OrderedDict(sorted(self._provider_dict.items()))
+        self._hooks_dict = OrderedDict(sorted(self._hooks_dict.items()))
 
     def _discover_all_providers_from_packages(self) -> None:
         """
@@ -89,8 +85,6 @@ class ProvidersManager:
         via the 'apache_airflow_provider' entrypoint as a dictionary conforming to the
         'airflow/provider.yaml.schema.json' schema.
         """
-        from airflow.plugins_manager import entry_points_with_dist
-
         for (entry_point, dist) in entry_points_with_dist('apache_airflow_provider'):
             package_name = dist.metadata['name']
             log.debug("Loading %s from package %s", entry_point, package_name)
@@ -101,8 +95,7 @@ class ProvidersManager:
             if package_name != provider_info_package_name:
                 raise Exception(
                     f"The package '{package_name}' from setuptools and "
-                    f"{provider_info_package_name} do not match. Please make sure they are"
-                    f"aligned"
+                    f"{provider_info_package_name} do not match. Please make sure they are aligned"
                 )
             if package_name not in self._provider_dict:
                 self._provider_dict[package_name] = (version, provider_info)
@@ -171,7 +164,72 @@ class ProvidersManager:
         except Exception as e:  # noqa pylint: disable=broad-except
             log.warning("Error when loading '%s': %s", path, e)
 
+    def _discover_hooks(self) -> None:
+        """Retrieves all connections defined in the providers"""
+        for name, provider in self._provider_dict.items():
+            provider_package = name
+            hook_class_names = provider[1].get("hook-class-names")
+            if hook_class_names:
+                for hook_class_name in hook_class_names:
+                    self._add_hook(hook_class_name, provider_package)
+
+    def _add_hook(self, hook_class_name, provider_package) -> None:
+        """
+        Adds hook class name to list of hooks
+
+        :param hook_class_name: name of the Hook class
+        :param provider_package: provider package adding the hook
+        """
+        if provider_package.startswith("apache-airflow"):
+            provider_path = provider_package[len("apache-") :].replace("-", ".")
+            if not hook_class_name.startswith(provider_path):
+                log.warning(
+                    "Sanity check failed when importing '%s' from '%s' package. It should start with '%s'",
+                    hook_class_name,
+                    provider_package,
+                    provider_path,
+                )
+                return
+        if hook_class_name in self._hooks_dict:
+            log.warning(
+                "The hook_class '%s' has been already registered.",
+                hook_class_name,
+            )
+            return
+        try:
+            module, class_name = hook_class_name.rsplit('.', maxsplit=1)
+            hook_class = getattr(importlib.import_module(module), class_name)
+        except Exception as e:  # noqa pylint: disable=broad-except
+            log.warning(
+                "Exception when importing '%s' from '%s' package: %s",
+                hook_class_name,
+                provider_package,
+                e,
+            )
+            return
+        conn_type = getattr(hook_class, 'conn_type')
+        if not conn_type:
+            log.warning(
+                "The hook_class '%s' is missing connection_type attribute and cannot be registered",
+                hook_class,
+            )
+            return
+        connection_id_attribute_name = getattr(hook_class, 'conn_name_attr')
+        if not connection_id_attribute_name:
+            log.warning(
+                "The hook_class '%s' is missing conn_name_attr attribute and cannot be registered",
+                hook_class,
+            )
+            return
+
+        self._hooks_dict[conn_type] = (hook_class_name, connection_id_attribute_name)
+
     @property
     def providers(self):
         """Returns information about available providers."""
         return self._provider_dict
+
+    @property
+    def hooks(self):
+        """Returns dictionary of connection_type-to-hook mapping"""
+        return self._hooks_dict

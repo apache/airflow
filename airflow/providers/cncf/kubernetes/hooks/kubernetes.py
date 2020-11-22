@@ -54,8 +54,12 @@ class KubernetesHook(BaseHook):
     :type conn_id: str
     """
 
+    conn_name_attr = 'kubernetes_conn_id'
+    default_conn_name = 'kubernetes_default'
+    conn_type = 'kubernetes'
+
     def __init__(
-        self, conn_id: str = "kubernetes_default", client_configuration: Optional[client.Configuration] = None
+        self, conn_id: str = default_conn_name, client_configuration: Optional[client.Configuration] = None
     ) -> None:
         super().__init__()
         self.conn_id = conn_id

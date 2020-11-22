@@ -38,3 +38,6 @@ hooks:
   - integration-name: Java Database Connectivity (JDBC)
     python-modules:
       - airflow.providers.jdbc.hooks.jdbc
+
+hook-class-names:
+  - airflow.providers.jdbc.hooks.jdbc.JdbcHook

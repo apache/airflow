@@ -457,7 +457,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
         language: python
         require_serial: true
-        files: provider.yaml$
+        files: provider.yaml$|scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py$
         additional_dependencies: ['PyYAML==5.3.1', 'jsonschema==3.2.0', 'tabulate==0.8.7']
       - id: mermaid
         name: Generate mermaid images

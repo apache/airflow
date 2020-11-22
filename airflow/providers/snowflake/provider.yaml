@@ -48,3 +48,6 @@ transfers:
   - source-integration-name: Snowflake
     target-integration-name: Slack
     python-module: airflow.providers.snowflake.transfers.snowflake_to_slack
+
+hook-class-names:
+  - airflow.providers.snowflake.hooks.snowflake.SnowflakeHook
