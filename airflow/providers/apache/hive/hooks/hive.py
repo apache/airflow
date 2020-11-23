@@ -665,7 +665,7 @@ class HiveMetastoreHook(BaseHook):
         """Get a metastore partition object
 
         >>> hh = HiveMetastoreHook()
-        >>> tp = hh.get_table(db_name='org_db', tbl_name='my_year_partitioned_table', part_name='year=2020')
+        >>> tp = hh.get_partition_by_name(db_name='org_db', tbl_name='my_year_partitioned_table', part_name='year=2020')
         >>> tp.parameters.get("totalSize")
         '713263'
         >>> tp.sd.location
