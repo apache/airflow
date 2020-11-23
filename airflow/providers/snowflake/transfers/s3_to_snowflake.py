@@ -103,7 +103,6 @@ class S3ToSnowflakeOperator(BaseOperator):
         snowflake_hook = SnowflakeHook(
             snowflake_conn_id=self.snowflake_conn_id,
             warehouse=self.warehouse,
-            database=self.database,
             role=self.role,
             schema=self.schema,
             authenticator=self.authenticator,
