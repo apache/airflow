@@ -24,6 +24,7 @@ from time import sleep, time
 from unittest import mock
 
 import psutil
+import pytest
 
 from airflow import settings
 from airflow.cli import cli_parser
@@ -304,6 +305,7 @@ class TestCliWebServer(unittest.TestCase):
             proc.terminate()
             self.assertEqual(0, proc.wait(60))
 
+    @pytest.mark.quarantined
     def test_cli_webserver_background(self):
         with tempfile.TemporaryDirectory(prefix="gunicorn") as tmpdir, mock.patch.dict(
             "os.environ",
