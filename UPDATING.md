@@ -52,6 +52,12 @@ assists users migrating to a new version.
 
 ## Master
 
+### SparkJDBCHook default connection
+
+For SparkJDBCHook default connection was `spark-default`, and for SparkSubmitHook it was
+`spark_default`. Both hooks now use the `spark_default` which is a common pattern for the connection
+names used across all providers.
+
 ### Changes to output argument in commands
 
 From Airflow 2.0, We are replacing [tabulate](https://pypi.org/project/tabulate/) with [rich](https://github.com/willmcgugan/rich) to render commands output. Due to this change, the `--output` argument
@@ -99,7 +105,6 @@ The `all` extras were reduced to include only user-facing dependencies. This mea
 that this extra does not contain development dependencies. If you were relying on
 `all` extra then you should use now `devel_all` or figure out if you need development
 extras at all.
-
 
 ### `[scheduler] max_threads` config has been renamed to `[scheduler] parsing_processes`
 

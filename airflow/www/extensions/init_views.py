@@ -24,6 +24,7 @@ from flask import Flask, request
 
 from airflow.api_connexion.exceptions import common_error_handler
 from airflow.security import permissions
+from airflow.www.forms import lazy_add_provider_discovered_options_to_connection_form
 
 log = logging.getLogger(__name__)
 
@@ -79,6 +80,7 @@ def init_appbuilder_views(app):
         category=permissions.RESOURCE_ADMIN_MENU,
         category_icon="fa-user",
     )
+    lazy_add_provider_discovered_options_to_connection_form()
     appbuilder.add_view(
         views.ConnectionModelView, permissions.RESOURCE_CONNECTION, category=permissions.RESOURCE_ADMIN_MENU
     )

@@ -77,6 +77,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.taskinstance import TaskInstance
+from airflow.providers_manager import ProvidersManager
 from airflow.security import permissions
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
@@ -2814,26 +2815,7 @@ class ConnectionModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    extra_fields = [
-        'extra__jdbc__drv_path',
-        'extra__jdbc__drv_clsname',
-        'extra__google_cloud_platform__project',
-        'extra__google_cloud_platform__key_path',
-        'extra__google_cloud_platform__keyfile_dict',
-        'extra__google_cloud_platform__scope',
-        'extra__google_cloud_platform__num_retries',
-        'extra__grpc__auth_type',
-        'extra__grpc__credential_pem_file',
-        'extra__grpc__scopes',
-        'extra__yandexcloud__service_account_json',
-        'extra__yandexcloud__service_account_json_path',
-        'extra__yandexcloud__oauth',
-        'extra__yandexcloud__public_ssh_key',
-        'extra__yandexcloud__folder_id',
-        'extra__kubernetes__in_cluster',
-        'extra__kubernetes__kube_config',
-        'extra__kubernetes__namespace',
-    ]
+    extra_fields = list(ProvidersManager().connection_form_widgets.keys())
     list_columns = [
         'conn_id',
         'conn_type',
@@ -2854,6 +2836,7 @@ class ConnectionModelView(AirflowModelView):
         'port',
         'extra',
     ] + extra_fields
+
     add_form = edit_form = ConnectionForm
     add_template = 'airflow/conn_create.html'
     edit_template = 'airflow/conn_edit.html'

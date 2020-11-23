@@ -33,3 +33,6 @@ hooks:
   - integration-name: Samba
     python-modules:
       - airflow.providers.samba.hooks.samba
+
+hook-class-names:
+  - airflow.providers.samba.hooks.samba.SambaHook

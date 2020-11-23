@@ -36,6 +36,7 @@ class SnowflakeHook(DbApiHook):
     conn_name_attr = 'snowflake_conn_id'
     default_conn_name = 'snowflake_default'
     conn_type = 'snowflake'
+    hook_name = 'Snowflake'
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs) -> None:

@@ -46,5 +46,8 @@ hooks:
       - airflow.providers.qubole.hooks.qubole
       - airflow.providers.qubole.hooks.qubole_check
 
+hook-class-names:
+  - airflow.providers.qubole.hooks.qubole.QuboleHook
+
 extra-links:
   - airflow.providers.qubole.operators.qubole.QDSLink

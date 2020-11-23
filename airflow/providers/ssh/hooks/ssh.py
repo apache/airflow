@@ -57,9 +57,14 @@ class SSHHook(BaseHook):
     :type keepalive_interval: int
     """
 
+    conn_name_attr = 'ssh_conn_id'
+    default_conn_name = 'ssh_default'
+    conn_type = 'ssh'
+    hook_name = 'SSH'
+
     def __init__(
         self,
-        ssh_conn_id: Optional[str] = None,
+        ssh_conn_id: Optional[str] = "ssh_default",
         remote_host: Optional[str] = None,
         username: Optional[str] = None,
         password: Optional[str] = None,

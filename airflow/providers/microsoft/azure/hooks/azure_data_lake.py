@@ -46,6 +46,7 @@ class AzureDataLakeHook(BaseHook):
     conn_name_attr = 'azure_data_lake_conn_id'
     default_conn_name = 'azure_data_lake_default'
     conn_type = 'azure_data_lake'
+    hook_name = 'Azure Data Lake'
 
     def __init__(self, azure_data_lake_conn_id: str = default_conn_name) -> None:
         super().__init__()

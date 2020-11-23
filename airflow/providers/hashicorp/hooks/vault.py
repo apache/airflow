@@ -110,9 +110,14 @@ class VaultHook(BaseHook):
 
     """
 
+    conn_name_attr = 'vault_conn_id'
+    default_conn_name = 'imap_default'
+    conn_type = 'vault'
+    hook_name = 'Hashicorp Vault'
+
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        vault_conn_id: str,
+        vault_conn_id: str = default_conn_name,
         auth_type: Optional[str] = None,
         auth_mount_point: Optional[str] = None,
         kv_engine_version: Optional[int] = None,

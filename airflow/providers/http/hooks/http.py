@@ -39,10 +39,15 @@ class HttpHook(BaseHook):
     :type auth_type: AuthBase of python requests lib
     """
 
+    conn_name_attr = 'http_conn_id'
+    default_conn_name = 'http_default'
+    conn_type = 'http'
+    hook_name = 'HTTP'
+
     def __init__(
         self,
         method: str = 'POST',
-        http_conn_id: str = 'http_default',
+        http_conn_id: str = default_conn_name,
         auth_type: Any = HTTPBasicAuth,
     ) -> None:
         super().__init__()

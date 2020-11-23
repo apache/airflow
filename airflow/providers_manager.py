@@ -22,19 +22,19 @@ import json
 import logging
 import os
 from collections import OrderedDict
-from typing import Dict, Set, Tuple
+from typing import Any, Dict, NamedTuple, Set
 
 import jsonschema
 import yaml
+from wtforms import Field
 
 from airflow.utils.entry_points import entry_points_with_dist
 
 try:
     import importlib.resources as importlib_resources
 except ImportError:
-    # Try backported to PY<37 `importlib_resources`.
+    # Try back-ported to PY<37 `importlib_resources`.
     import importlib_resources
-
 
 log = logging.getLogger(__name__)
 
@@ -45,6 +45,30 @@ def _create_validator():
     cls = jsonschema.validators.validator_for(schema)
     validator = cls(schema)
     return validator
+
+
+class ProviderInfo(NamedTuple):
+    """Provider information"""
+
+    version: str
+    provider_info: Dict
+
+
+class HookInfo(NamedTuple):
+    """Hook information"""
+
+    connection_class: str
+    connection_id_attribute_name: str
+    package_name: str
+    hook_name: str
+
+
+class ConnectionFormWidgetInfo(NamedTuple):
+    """Connection Form Widget information"""
+
+    connection_class: str
+    package_name: str
+    field: Field
 
 
 class ProvidersManager:
@@ -63,13 +87,25 @@ class ProvidersManager:
         return cls._instance
 
     def __init__(self):
-        # Keeps dict of providers keyed by module name and value is Tuple: version, provider_info
-        self._provider_dict: Dict[str, Tuple[str, Dict]] = {}
-        # Keeps dict of hooks keyed by connection type and value is
-        # Tuple: connection class, connection_id_attribute_name
-        self._hooks_dict: Dict[str, Tuple[str, str]] = {}
+        # Keeps dict of providers keyed by module name
+        self._provider_dict: Dict[str, ProviderInfo] = {}
+        # Keeps dict of hooks keyed by connection type
+        self._hooks_dict: Dict[str, HookInfo] = {}
+        # Keeps methods that should be used to add custom widgets tuple of keyed by name of the extra field
+        self._connection_form_widgets: Dict[str, ConnectionFormWidgetInfo] = {}
         self._extra_link_class_name_set: Set[str] = set()
         self._validator = _create_validator()
+        self._initialized = False
+
+    def initialize_providers_manager(self):
+        """Lazy initialization of provider data."""
+        # We cannot use @cache here because it does not work during pytests, apparently each test
+        # runs it it's own namespace and ProvidersManager is a different object in each namespace
+        # even if it is singleton but @cache on the initialize_providers_manager message still works in the
+        # way that it is called only once for one of the objects (at least this is how it looks like
+        # from running tests)
+        if self._initialized:
+            return
         # Local source folders are loaded first. They should take precedence over the package ones for
         # Development purpose. In production provider.yaml files are not present in the 'airflow" directory
         # So there is no risk we are going to override package provider accidentally. This can only happen
@@ -77,9 +113,11 @@ class ProvidersManager:
         self._discover_all_airflow_builtin_providers_from_local_sources()
         self._discover_all_providers_from_packages()
         self._discover_hooks()
-        self._provider_dict = OrderedDict(sorted(self.providers.items()))
-        self._hooks_dict = OrderedDict(sorted(self.hooks.items()))
+        self._provider_dict = OrderedDict(sorted(self._provider_dict.items()))  # noqa
+        self._hooks_dict = OrderedDict(sorted(self._hooks_dict.items()))  # noqa
+        self._connection_form_widgets = OrderedDict(sorted(self._connection_form_widgets.items()))  # noqa
         self._discover_extra_links()
+        self._initialized = True
 
     def _discover_all_providers_from_packages(self) -> None:
         """
@@ -175,7 +213,15 @@ class ProvidersManager:
                 for hook_class_name in hook_class_names:
                     self._add_hook(hook_class_name, provider_package)
 
-    def _add_hook(self, hook_class_name, provider_package) -> None:
+    @staticmethod
+    def _get_attr(obj: Any, attr_name: str):
+        """Retrieves attributes of an object, or warns if not found"""
+        if not hasattr(obj, attr_name):
+            log.warning("The '%s' is missing %s attribute and cannot be registered", obj, attr_name)
+            return None
+        return getattr(obj, attr_name)
+
+    def _add_hook(self, hook_class_name: str, provider_package: str) -> None:
         """
         Adds hook class name to list of hooks
 
@@ -201,6 +247,12 @@ class ProvidersManager:
         try:
             module, class_name = hook_class_name.rsplit('.', maxsplit=1)
             hook_class = getattr(importlib.import_module(module), class_name)
+            # Do not use attr here. We want to check only direct class fields not those
+            # inherited from parent hook. This way we add form fields only once for the whole
+            # hierarchy and we add it only from the parent hook that provides those!
+            if 'get_connection_form_widgets' in hook_class.__dict__:
+                widgets = hook_class.get_connection_form_widgets()
+                self._add_widgets(provider_package, hook_class, widgets)
         except Exception as e:  # noqa pylint: disable=broad-except
             log.warning(
                 "Exception when importing '%s' from '%s' package: %s",
@@ -209,22 +261,41 @@ class ProvidersManager:
                 e,
             )
             return
-        conn_type = getattr(hook_class, 'conn_type')
-        if not conn_type:
-            log.warning(
-                "The hook_class '%s' is missing connection_type attribute and cannot be registered",
-                hook_class,
-            )
-            return
-        connection_id_attribute_name = getattr(hook_class, 'conn_name_attr')
-        if not connection_id_attribute_name:
-            log.warning(
-                "The hook_class '%s' is missing conn_name_attr attribute and cannot be registered",
-                hook_class,
-            )
+
+        conn_type: str = self._get_attr(hook_class, 'conn_type')
+        connection_id_attribute_name: str = self._get_attr(hook_class, 'conn_name_attr')
+        hook_name: str = self._get_attr(hook_class, 'hook_name')
+
+        if not conn_type or not connection_id_attribute_name or not hook_name:
             return
 
-        self._hooks_dict[conn_type] = (hook_class_name, connection_id_attribute_name)
+        self._hooks_dict[conn_type] = HookInfo(
+            hook_class_name,
+            connection_id_attribute_name,
+            provider_package,
+            hook_name,
+        )
+
+    def _add_widgets(self, package_name: str, hook_class: type, widgets: Dict[str, Field]):
+        for field_name, field in widgets.items():
+            if not field_name.startswith("extra__"):
+                log.warning(
+                    "The field %s from class %s does not start with 'extra__'. Ignoring it.",
+                    field_name,
+                    hook_class.__name__,
+                )
+                continue
+            if field_name in self._connection_form_widgets:
+                log.warning(
+                    "The field %s from class %s has already been added by another provider. Ignoring it.",
+                    field_name,
+                    hook_class.__name__,
+                )
+                # In case of inherited hooks this might be happening several times
+                continue
+            self._connection_form_widgets[field_name] = ConnectionFormWidgetInfo(
+                hook_class.__name__, package_name, field
+            )
 
     def _discover_extra_links(self) -> None:
         """Retrieves all extra links defined in the providers"""
@@ -253,16 +324,25 @@ class ProvidersManager:
         self._extra_link_class_name_set.add(extra_link_class_name)
 
     @property
-    def providers(self):
+    def providers(self) -> Dict[str, ProviderInfo]:
         """Returns information about available providers."""
+        self.initialize_providers_manager()
         return self._provider_dict
 
     @property
-    def hooks(self):
+    def hooks(self) -> Dict[str, HookInfo]:
         """Returns dictionary of connection_type-to-hook mapping"""
+        self.initialize_providers_manager()
         return self._hooks_dict
 
     @property
     def extra_links_class_names(self):
         """Returns set of extra link class names."""
+        self.initialize_providers_manager()
         return sorted(list(self._extra_link_class_name_set))
+
+    @property
+    def connection_form_widgets(self) -> Dict[str, ConnectionFormWidgetInfo]:
+        """Returns widgets for connection forms."""
+        self.initialize_providers_manager()
+        return self._connection_form_widgets

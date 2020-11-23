@@ -36,6 +36,7 @@ class PigCliHook(BaseHook):
     conn_name_attr = 'pig_cli_conn_id'
     default_conn_name = 'pig_cli_default'
     conn_type = 'pig_cli'
+    hook_name = 'Pig Client Wrapper'
 
     def __init__(self, pig_cli_conn_id: str = default_conn_name) -> None:
         super().__init__()

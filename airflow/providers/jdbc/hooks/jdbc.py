@@ -16,9 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Optional
+from typing import Dict, Optional
 
 import jaydebeapi
+from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+from flask_babel import lazy_gettext
+from wtforms import Field, StringField
 
 from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.models.connection import Connection
@@ -36,7 +39,18 @@ class JdbcHook(DbApiHook):
     conn_name_attr = 'jdbc_conn_id'
     default_conn_name = 'jdbc_default'
     conn_type = 'jdbc'
+    hook_name = 'JDBC Connection'
     supports_autocommit = True
+
+    @staticmethod
+    def get_connection_form_widgets() -> Dict[str, Field]:
+        """Returns connection widgets to add to connection form"""
+        return {
+            "extra__jdbc__drv_path": StringField(lazy_gettext('Driver Path'), widget=BS3TextFieldWidget()),
+            "extra__jdbc__drv_clsname": StringField(
+                lazy_gettext('Driver Class'), widget=BS3TextFieldWidget()
+            ),
+        }
 
     def get_conn(self) -> jaydebeapi.Connection:
         conn: Connection = self.get_connection(getattr(self, self.conn_name_attr))

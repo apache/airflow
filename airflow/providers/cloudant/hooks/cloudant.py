@@ -35,6 +35,7 @@ class CloudantHook(BaseHook):
     conn_name_attr = 'cloudant_conn_id'
     default_conn_name = 'cloudant_default'
     conn_type = 'cloudant'
+    hook_name = 'Cloudant'
 
     def __init__(self, cloudant_conn_id: str = default_conn_name) -> None:
         super().__init__()

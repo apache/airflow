@@ -104,6 +104,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :type spark_binary: str
     """
 
+    conn_name_attr = 'conn_id'
+    default_conn_name = 'spark_default'
+    conn_type = 'spark'
+    hook_name = 'Spark'
+
     # pylint: disable=too-many-arguments,too-many-locals,too-many-branches
     def __init__(
         self,

@@ -90,7 +90,7 @@ function discover_all_provider_packages() {
     local actual_number_of_providers
     actual_providers=$(airflow providers list --output yaml | grep package_name)
     actual_number_of_providers=$(wc -l <<<"$actual_providers")
-    if [[ "${actual_number_of_providers}" != "${expected_number_of_providers}" ]]; then
+    if [[ ${actual_number_of_providers} != "${expected_number_of_providers}" ]]; then
         echo
         echo  "${COLOR_RED_ERROR}Number of providers installed is wrong${COLOR_RESET}"
         echo "Expected number was '${expected_number_of_providers}' and got '${actual_number_of_providers}'"
@@ -111,9 +111,9 @@ function discover_all_hooks() {
 
     airflow providers hooks
 
-    local expected_number_of_hooks=33
+    local expected_number_of_hooks=58
     local actual_number_of_hooks
-    actual_number_of_hooks=$(airflow providers hooks --output table | grep -c conn_id | xargs)
+    actual_number_of_hooks=$(airflow providers hooks --output table | grep -c "| apache" | xargs)
     if [[ ${actual_number_of_hooks} != "${expected_number_of_hooks}" ]]; then
         echo
         echo  "${COLOR_RED_ERROR} Number of hooks registered is wrong  ${COLOR_RESET}"
@@ -146,9 +146,31 @@ function discover_all_extra_links() {
     fi
 }
 
+function discover_all_connection_form_widgets() {
+    echo
+    echo Listing available widgets via 'airflow providers widgets'
+    echo
+
+    airflow providers widgets
+
+    local expected_number_of_widgets=19
+    local actual_number_of_widgets
+    actual_number_of_widgets=$(airflow providers widgets --output table | grep -c ^extra)
+    if [[ ${actual_number_of_widgets} != "${expected_number_of_widgets}" ]]; then
+        echo
+        echo  "${COLOR_RED_ERROR} Number of hooks registered is wrong  ${COLOR_RESET}"
+        echo "Expected number was '${expected_number_of_widgets}' and got '${actual_number_of_widgets}'"
+        echo
+        echo "Either increase the number of hooks if you added one or fix problem with imports if you see one."
+        echo
+        exit 1
+    fi
+}
+
 
 if [[ ${BACKPORT_PACKAGES} != "true" ]]; then
     discover_all_provider_packages
     discover_all_hooks
     discover_all_extra_links
+    discover_all_connection_form_widgets
 fi

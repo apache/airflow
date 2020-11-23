@@ -123,7 +123,6 @@ def create_app(config=None, testing=False, app_name="Airflow"):
         init_jinja_globals(flask_app)
         init_xframe_protection(flask_app)
         init_permanent_session(flask_app)
-
     return flask_app
 
 

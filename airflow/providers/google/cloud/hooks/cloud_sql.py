@@ -76,10 +76,15 @@ class CloudSQLHook(GoogleBaseHook):
     keyword arguments rather than positional.
     """
 
+    conn_name_attr = 'gcp_conn_id'
+    default_conn_name = 'google_cloud_default'
+    conn_type = 'gcpcloudsql'
+    hook_name = 'Google Cloud SQL'
+
     def __init__(
         self,
         api_version: str,
-        gcp_conn_id: str = "google_cloud_default",
+        gcp_conn_id: str = default_conn_name,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
@@ -709,10 +714,10 @@ class CloudSQLDatabaseHook(BaseHook):  # noqa
            in the connection URL
     :type default_gcp_project_id: str
     """
-
     conn_name_attr = 'gcp_cloudsql_conn_id'
     default_conn_name = 'google_cloud_sql_default'
-    conn_type = 'gcpcloudsql'
+    conn_type = 'gcpcloudsqldb'
+    hook_name = 'Google Cloud SQL Database Hook'
 
     _conn = None  # type: Optional[Any]
 

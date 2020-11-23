@@ -1175,6 +1175,12 @@ PROVIDERS_COMMANDS = (
         func=lazy_load_command('airflow.cli.commands.provider_command.extra_links_list'),
         args=(ARG_OUTPUT,),
     ),
+    ActionCommand(
+        name='widgets',
+        help='Get information about registered connection form widgets',
+        func=lazy_load_command('airflow.cli.commands.provider_command.connection_form_widget_list'),
+        args=(ARG_OUTPUT,),
+    ),
 )
 
 USERS_COMMANDS = (

@@ -31,6 +31,8 @@ import google.auth.credentials
 import google.oauth2.service_account
 import google_auth_httplib2
 import tenacity
+from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
+from flask_babel import lazy_gettext
 from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
 from google.api_core.gapic_v1.client_info import ClientInfo
 from google.auth import _cloud_sdk
@@ -38,6 +40,8 @@ from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload, build_http, set_user_agent
+from wtforms import Field, IntegerField, PasswordField, StringField
+from wtforms.validators import NumberRange
 
 from airflow import version
 from airflow.exceptions import AirflowException
@@ -155,6 +159,35 @@ class GoogleBaseHook(BaseHook):
         account from the list granting this role to the originating account.
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
+    conn_name_attr = 'gcp_conn_id'
+    default_conn_name = 'google_cloud_default'
+    conn_type = 'google_cloud_platform'
+    hook_name = 'Google Cloud'
+
+    @staticmethod
+    def get_connection_form_widgets() -> Dict[str, Field]:
+        """Returns connection widgets to add to connection form"""
+        return {
+            "extra__google_cloud_platform__project": StringField(
+                lazy_gettext('Project Id'), widget=BS3TextFieldWidget()
+            ),
+            "extra__google_cloud_platform__key_path": StringField(
+                lazy_gettext('Keyfile Path'), widget=BS3TextFieldWidget()
+            ),
+            "extra__google_cloud_platform__keyfile_dict": PasswordField(
+                lazy_gettext('Keyfile JSON'), widget=BS3PasswordFieldWidget()
+            ),
+            "extra__google_cloud_platform__scope": StringField(
+                lazy_gettext('Scopes (comma separated)'), widget=BS3TextFieldWidget()
+            ),
+            "extra__google_cloud_platform__num_retries": IntegerField(
+                lazy_gettext('Number of Retries'),
+                validators=[NumberRange(min=0)],
+                widget=BS3TextFieldWidget(),
+                default=5,
+            ),
+        }
 
     def __init__(
         self,
