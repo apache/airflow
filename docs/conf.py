@@ -114,6 +114,7 @@ extensions = [
     'sphinx_copybutton',
     'airflow_intersphinx',
     "sphinxcontrib.spelling",
+    'redirects',
 ]
 if PACKAGE_NAME == 'apache-airflow':
     extensions.extend(
