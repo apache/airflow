@@ -36,9 +36,6 @@ class S3ToSnowflakeOperator(BaseOperator):
     :type s3_keys: list
     :param table: reference to a specific table in snowflake database
     :type table: str
-    :param warehouse: name of warehouse (will overwrite any warehouse
-    defined in the connection's extra JSON)
-    :type warehouse: str
     :param schema: name of schema (will overwrite schema defined in
         connection)
     :type schema: str
@@ -47,6 +44,11 @@ class S3ToSnowflakeOperator(BaseOperator):
     :type stage: str
     :param file_format: reference to a specific file format
     :type file_format: str
+    :param warehouse: name of warehouse (will overwrite any warehouse
+    defined in the connection's extra JSON)
+    :type warehouse: str
+    :param database: reference to a specific database in Snowflake connection
+    :type database: str
     :param columns_array: reference to a specific columns array in snowflake database
     :type columns_array: list
     :param snowflake_conn_id: reference to a specific snowflake connection
@@ -78,6 +80,7 @@ class S3ToSnowflakeOperator(BaseOperator):
         schema: str,  # TODO: shouldn't be required, rely on session/user defaults
         columns_array: Optional[list] = None,
         warehouse: Optional[str] = None,
+        database: Optional[str] = None,
         autocommit: bool = True,
         snowflake_conn_id: str = 'snowflake_default',
         role: Optional[str] = None,
@@ -89,6 +92,7 @@ class S3ToSnowflakeOperator(BaseOperator):
         self.s3_keys = s3_keys
         self.table = table
         self.warehouse = warehouse
+        self.database = database
         self.stage = stage
         self.file_format = file_format
         self.schema = schema
@@ -103,6 +107,7 @@ class S3ToSnowflakeOperator(BaseOperator):
         snowflake_hook = SnowflakeHook(
             snowflake_conn_id=self.snowflake_conn_id,
             warehouse=self.warehouse,
+            database=self.database,
             role=self.role,
             schema=self.schema,
             authenticator=self.authenticator,
