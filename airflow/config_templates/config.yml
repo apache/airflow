@@ -394,6 +394,15 @@
       type: boolean
       example: ~
       default: "True"
+    - name: lazy_discover_providers
+      description: |
+        By default Airflow providers are lazily-discovered (discovery and imports happen only when required).
+        Set it to False, if you want to discover providers whenever 'airflow' is invoked via cli or
+        loaded from module.
+      version_added: 2.0.0
+      type: boolean
+      example: ~
+      default: "True"
     - name: max_db_retries
       description: |
         Number of times the code should be retried in case of DB Operational Errors.

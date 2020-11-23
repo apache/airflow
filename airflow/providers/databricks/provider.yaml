@@ -38,3 +38,6 @@ hooks:
   - integration-name: Databricks
     python-modules:
       - airflow.providers.databricks.hooks.databricks
+
+hook-class-names:
+  - airflow.providers.databricks.hooks.databricks.DatabricksHook

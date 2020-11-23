@@ -32,3 +32,6 @@ hooks:
   - integration-name: Hashicorp Vault
     python-modules:
       - airflow.providers.hashicorp.hooks.vault
+
+hook-class-names:
+  - airflow.providers.hashicorp.hooks.vault.VaultHook

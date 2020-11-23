@@ -27,6 +27,7 @@ import traceback
 from collections import defaultdict
 from datetime import datetime, timedelta
 from json import JSONDecodeError
+from operator import itemgetter
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
@@ -52,7 +53,9 @@ from flask import (
 )
 from flask_appbuilder import BaseView, ModelView, expose
 from flask_appbuilder.actions import action
+from flask_appbuilder.fieldwidgets import Select2Widget
 from flask_appbuilder.models.sqla.filters import BaseFilter  # noqa
+from flask_appbuilder.widgets import FormWidget
 from flask_babel import lazy_gettext
 from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from pygments import highlight, lexers
@@ -60,6 +63,7 @@ from pygments.formatters import HtmlFormatter  # noqa pylint: disable=no-name-in
 from sqlalchemy import and_, desc, func, or_, union_all
 from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
+from wtforms.validators import InputRequired
 
 import airflow
 from airflow import models, plugins_manager, settings
@@ -77,6 +81,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.taskinstance import TaskInstance
+from airflow.providers_manager import ProvidersManager
 from airflow.security import permissions
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
@@ -2790,6 +2795,40 @@ class XComModelView(AirflowModelView):
         item.value = XCom.serialize_value(item.value)
 
 
+def lazy_add_provider_discovered_options_to_connection_form():
+    """Adds provider-discovered connection parameters as late as possible"""
+
+    def _get_connection_types() -> List[Tuple[str, str]]:
+        """Returns connection types available."""
+        _connection_types = [
+            ('fs', 'File (path)'),
+            ('mesos_framework-id', 'Mesos Framework ID'),
+        ]
+        providers_manager = ProvidersManager()
+        for connection_type, (_, _, _, hook_name) in providers_manager.hooks.items():
+            _connection_types.append((connection_type, hook_name))
+        return _connection_types
+
+    ConnectionForm.conn_type = SelectField(
+        lazy_gettext('Conn Type'),
+        choices=sorted(_get_connection_types(), key=itemgetter(1)),
+        widget=Select2Widget(),
+        validators=[InputRequired()],
+    )
+    for key, value in ProvidersManager().connection_form_widgets.items():
+        setattr(ConnectionForm, key, value.field)
+
+
+# Used to store a dictionary of field behaviours used to dynamically change available
+# fields in ConnectionForm based on type of connection chosen
+# See airflow.hooks.base_hook.DiscoverableHook for details on how to customize your Hooks.
+# those field behaviours are rendered as scripts in the conn_create.html and conn_edit.html templates
+class ConnectionFormWidget(FormWidget):
+    """Form widget used to display connection"""
+
+    field_behaviours = json.dumps(ProvidersManager().field_behaviours)
+
+
 class ConnectionModelView(AirflowModelView):
     """View to show records from Connections table"""
 
@@ -2814,26 +2853,7 @@ class ConnectionModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    extra_fields = [
-        'extra__jdbc__drv_path',
-        'extra__jdbc__drv_clsname',
-        'extra__google_cloud_platform__project',
-        'extra__google_cloud_platform__key_path',
-        'extra__google_cloud_platform__keyfile_dict',
-        'extra__google_cloud_platform__scope',
-        'extra__google_cloud_platform__num_retries',
-        'extra__grpc__auth_type',
-        'extra__grpc__credential_pem_file',
-        'extra__grpc__scopes',
-        'extra__yandexcloud__service_account_json',
-        'extra__yandexcloud__service_account_json_path',
-        'extra__yandexcloud__oauth',
-        'extra__yandexcloud__public_ssh_key',
-        'extra__yandexcloud__folder_id',
-        'extra__kubernetes__in_cluster',
-        'extra__kubernetes__kube_config',
-        'extra__kubernetes__namespace',
-    ]
+    extra_fields = list(ProvidersManager().connection_form_widgets.keys())
     list_columns = [
         'conn_id',
         'conn_type',
@@ -2854,9 +2874,13 @@ class ConnectionModelView(AirflowModelView):
         'port',
         'extra',
     ] + extra_fields
+
     add_form = edit_form = ConnectionForm
     add_template = 'airflow/conn_create.html'
     edit_template = 'airflow/conn_edit.html'
+
+    add_widget = ConnectionFormWidget
+    edit_widget = ConnectionFormWidget
 
     base_order = ('conn_id', 'asc')
 

@@ -266,6 +266,14 @@ class TestSSHHook(unittest.TestCase):
             (_, stdout, _) = client.exec_command('ls')  # pylint: disable=no-member
             self.assertIsNotNone(stdout.read())
 
+    def test_ssh_connection_no_connection_id(self):
+        hook = SSHHook(remote_host='localhost')
+        self.assertIsNone(hook.ssh_conn_id)
+        with hook.get_conn() as client:
+            # Note - Pylint will fail with no-member here due to https://github.com/PyCQA/pylint/issues/1437
+            (_, stdout, _) = client.exec_command('ls')  # pylint: disable=no-member
+            self.assertIsNotNone(stdout.read())
+
     def test_ssh_connection_old_cm(self):
         with SSHHook(ssh_conn_id='ssh_default') as hook:
             client = hook.get_conn()

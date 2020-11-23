@@ -30,6 +30,7 @@ class ElasticsearchHook(DbApiHook):
     conn_name_attr = 'elasticsearch_conn_id'
     default_conn_name = 'elasticsearch_default'
     conn_type = 'elasticsearch'
+    hook_name = 'Elasticsearch'
 
     def __init__(self, schema: str = "http", connection: Optional[AirflowConnection] = None, *args, **kwargs):
         super().__init__(*args, **kwargs)

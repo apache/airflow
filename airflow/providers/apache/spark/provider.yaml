@@ -44,3 +44,8 @@ hooks:
       - airflow.providers.apache.spark.hooks.spark_jdbc_script
       - airflow.providers.apache.spark.hooks.spark_sql
       - airflow.providers.apache.spark.hooks.spark_submit
+
+hook-class-names:
+  - airflow.providers.apache.spark.hooks.spark_jdbc.SparkJDBCHook
+  - airflow.providers.apache.spark.hooks.spark_sql.SparkSqlHook
+  - airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook

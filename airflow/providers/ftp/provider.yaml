@@ -38,3 +38,6 @@ hooks:
   - integration-name: File Transfer Protocol (FTP)
     python-modules:
       - airflow.providers.ftp.hooks.ftp
+
+hook-class-names:
+  - airflow.providers.ftp.hooks.ftp.FTPHook

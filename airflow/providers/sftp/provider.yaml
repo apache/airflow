@@ -43,3 +43,6 @@ hooks:
   - integration-name: SSH File Transfer Protocol (SFTP)
     python-modules:
       - airflow.providers.sftp.hooks.sftp
+
+hook-class-names:
+  - airflow.providers.sftp.hooks.sftp.SFTPHook

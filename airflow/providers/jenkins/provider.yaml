@@ -36,3 +36,6 @@ hooks:
   - integration-name: Jenkins
     python-modules:
       - airflow.providers.jenkins.hooks.jenkins
+
+hook-class-names:
+  - airflow.providers.jenkins.hooks.jenkins.JenkinsHook

@@ -47,3 +47,6 @@ hooks:
   - integration-name: Yandex.Cloud Dataproc
     python-modules:
       - airflow.providers.yandex.hooks.yandexcloud_dataproc
+
+hook-class-names:
+  - airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook

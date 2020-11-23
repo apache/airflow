@@ -36,6 +36,7 @@ class JiraHook(BaseHook):
     default_conn_name = 'jira_default'
     conn_type = "jira"
     conn_name_attr = "jira_conn_id"
+    hook_name = "JIRA"
 
     def __init__(self, jira_conn_id: str = default_conn_name, proxies: Optional[Any] = None) -> None:
         super().__init__()

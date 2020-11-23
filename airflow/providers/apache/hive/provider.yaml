@@ -70,3 +70,4 @@ transfers:
 hook-class-names:
   - airflow.providers.apache.hive.hooks.hive.HiveCliHook
   - airflow.providers.apache.hive.hooks.hive.HiveServer2Hook
+  - airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook

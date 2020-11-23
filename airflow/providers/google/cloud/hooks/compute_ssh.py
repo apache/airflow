@@ -17,7 +17,7 @@
 import shlex
 import time
 from io import StringIO
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 import paramiko
 from cached_property import cached_property
@@ -92,6 +92,14 @@ class ComputeEngineSSHHook(SSHHook):
     conn_name_attr = 'gcp_conn_id'
     default_conn_name = 'google_cloud_default'
     conn_type = 'gcpssh'
+    hook_name = 'Google Cloud SSH'
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        return {
+            "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
+            "relabeling": {},
+        }
 
     def __init__(  # pylint: disable=too-many-arguments
         self,
