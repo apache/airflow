@@ -354,7 +354,7 @@ class DAG(LoggingMixin):
         self.is_paused_upon_creation = is_paused_upon_creation
 
         self.jinja_environment_kwargs = jinja_environment_kwargs
-        self.tags = tags or []
+        self.tags = tags
         self._task_group = TaskGroup.create_root(self)
 
     def __repr__(self):
