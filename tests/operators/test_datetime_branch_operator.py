@@ -23,7 +23,7 @@ import freezegun
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI
-from airflow.operators.datetime_branch_operator import DateTimeBranchOperator
+from airflow.operators.datetime_branch import DateTimeBranchOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
