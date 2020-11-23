@@ -400,7 +400,9 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             "compatibility_val" in src_fmt_configs
         ), "_validate_src_fmt_configs should add backward_compatibility config"
 
-    @parameterized.expand([("AVRO",), ("PARQUET",), ("NEWLINE_DELIMITED_JSON",), ("DATASTORE_BACKUP",), ("ORC",)])
+    @parameterized.expand(
+        [("AVRO",), ("PARQUET",), ("NEWLINE_DELIMITED_JSON",), ("DATASTORE_BACKUP",), ("ORC",)]
+    )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
     def test_run_load_with_non_csv_as_src_fmt(self, fmt, _):
 
