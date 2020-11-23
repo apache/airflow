@@ -57,7 +57,7 @@ import six
 from pygments.formatters.html import HtmlFormatter
 from six.moves.urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
-from sqlalchemy import or_, desc, and_, union_all
+from sqlalchemy import func, or_, desc, and_, union_all
 from wtforms import (
     Form, SelectField, TextAreaField, PasswordField,
     StringField, IntegerField, validators)
@@ -2325,6 +2325,20 @@ class HomeView(AirflowViewMixin, AdminIndexView):
                     stacktrace=stacktrace,
                     filename=filename),
                 "error")
+
+        duplicate_connections = session.query(Connection.conn_id) \
+            .group_by(Connection.conn_id) \
+            .having(func.count() > 1)
+
+        for connection in duplicate_connections.all():
+            flash(Markup(
+                'Duplicate connections found with conn_id="{}". '
+                'This will raise an error from Airflow 2.0. '
+                'Details: <a href="https://s.apache.org/dbqfd">https://s.apache.org/dbqfd</a>'.format(
+                    connection.conn_id
+                )),
+                "warning"
+            )
 
         num_of_all_dags = query.count()
         num_of_pages = int(math.ceil(num_of_all_dags / float(dags_per_page)))
