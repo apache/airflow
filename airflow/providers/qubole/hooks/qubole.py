@@ -114,6 +114,18 @@ class QuboleHook(BaseHook):
     conn_type = 'qubole'
     hook_name = 'Qubole'
 
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['login', 'schema', 'port', 'extra'],
+            "relabeling": {
+                'host': 'API Endpoint',
+                'password': 'Auth Token',
+            },
+            "placeholders": {'host': 'https://<env>.qubole.com/api'},
+        }
+
     def __init__(self, *args, **kwargs) -> None:  # pylint: disable=unused-argument
         super().__init__()
         conn = self.get_connection(kwargs.get('qubole_conn_id') or self.default_conn_name)

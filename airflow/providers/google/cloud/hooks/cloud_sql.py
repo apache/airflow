@@ -717,7 +717,7 @@ class CloudSQLDatabaseHook(BaseHook):  # noqa
     conn_name_attr = 'gcp_cloudsql_conn_id'
     default_conn_name = 'google_cloud_sql_default'
     conn_type = 'gcpcloudsqldb'
-    hook_name = 'Google Cloud SQL Database Hook'
+    hook_name = 'Google Cloud SQL Database'
 
     _conn = None  # type: Optional[Any]
 

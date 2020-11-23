@@ -79,6 +79,14 @@ class YandexCloudBaseHook(BaseHook):
             ),
         }
 
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
+            "relabeling": {},
+        }
+
     def __init__(
         self,
         # Connection id is deprecated. Use yandex_conn_id instead

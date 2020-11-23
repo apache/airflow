@@ -91,6 +91,19 @@ def connection_form_widget_list(args):
     )
 
 
+@suppress_logs_and_warning()
+def connection_field_behaviours(args):
+    """Lists field behaviours"""
+    AirflowConsole().print_as(
+        data=list(ProvidersManager().field_behaviours.keys()),
+        output=args.output,
+        mapper=lambda x: {
+            "field_behaviours": x,
+        },
+    )
+
+
+@suppress_logs_and_warning()
 def extra_links_list(args):
     """Lists all extra links at the command line"""
     AirflowConsole().print_as(

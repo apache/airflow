@@ -189,6 +189,14 @@ class GoogleBaseHook(BaseHook):
             ),
         }
 
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
+            "relabeling": {},
+        }
+
     def __init__(
         self,
         gcp_conn_id: str = 'google_cloud_default',

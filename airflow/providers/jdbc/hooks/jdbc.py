@@ -52,6 +52,14 @@ class JdbcHook(DbApiHook):
             ),
         }
 
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['port', 'schema', 'extra'],
+            "relabeling": {'host': 'Connection URL'},
+        }
+
     def get_conn(self) -> jaydebeapi.Connection:
         conn: Connection = self.get_connection(getattr(self, self.conn_name_attr))
         host: str = conn.host

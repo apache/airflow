@@ -158,10 +158,33 @@ function discover_all_connection_form_widgets() {
     actual_number_of_widgets=$(airflow providers widgets --output table | grep -c ^extra)
     if [[ ${actual_number_of_widgets} != "${expected_number_of_widgets}" ]]; then
         echo
-        echo  "${COLOR_RED_ERROR} Number of hooks registered is wrong  ${COLOR_RESET}"
+        echo  "${COLOR_RED_ERROR} Number of connections with widgets registered is wrong  ${COLOR_RESET}"
         echo "Expected number was '${expected_number_of_widgets}' and got '${actual_number_of_widgets}'"
         echo
-        echo "Either increase the number of hooks if you added one or fix problem with imports if you see one."
+        echo "Increase the number of connections with widgets if you added one or investigate"
+        echo
+        exit 1
+    fi
+}
+
+function discover_all_field_behaviours() {
+    echo
+    echo Listing available fields via 'airflow providers fields'
+    echo
+
+    airflow providers fields
+
+    local expected_number_of_connections_with_behaviours=10
+    local actual_number_of_connections_with_behaviours
+    actual_number_of_connections_with_behaviours=$(airflow providers fields --output table | grep -v "===" | \
+        grep -v customized_connections | grep -cv "^ " | xargs)
+    if [[ ${actual_number_of_connections_with_behaviours} != \
+            "${expected_number_of_connections_with_behaviours}" ]]; then
+        echo
+        echo  "${COLOR_RED_ERROR} Number of connections field behaviours is wrong  ${COLOR_RESET}"
+        echo "Expected number was '${expected_number_of_connections_with_behaviours}' and got '${actual_number_of_connections_with_behaviours}'"
+        echo
+        echo "Increase the number of connections if you added one or investigate."
         echo
         exit 1
     fi
@@ -171,6 +194,7 @@ function discover_all_connection_form_widgets() {
 if [[ ${BACKPORT_PACKAGES} != "true" ]]; then
     discover_all_provider_packages
     discover_all_hooks
-    discover_all_extra_links
     discover_all_connection_form_widgets
+    discover_all_field_behaviours
+    discover_all_extra_links
 fi

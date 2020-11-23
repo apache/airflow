@@ -1152,12 +1152,6 @@ CONNECTIONS_COMMANDS = (
 )
 PROVIDERS_COMMANDS = (
     ActionCommand(
-        name='hooks',
-        help='List registered provider hooks',
-        func=lazy_load_command('airflow.cli.commands.provider_command.hooks_list'),
-        args=(ARG_OUTPUT,),
-    ),
-    ActionCommand(
         name='list',
         help='List installed providers',
         func=lazy_load_command('airflow.cli.commands.provider_command.providers_list'),
@@ -1179,6 +1173,18 @@ PROVIDERS_COMMANDS = (
         name='widgets',
         help='Get information about registered connection form widgets',
         func=lazy_load_command('airflow.cli.commands.provider_command.connection_form_widget_list'),
+        args=(ARG_OUTPUT,),
+    ),
+    ActionCommand(
+        name='hooks',
+        help='List registered provider hooks',
+        func=lazy_load_command('airflow.cli.commands.provider_command.hooks_list'),
+        args=(ARG_OUTPUT,),
+    ),
+    ActionCommand(
+        name='fields',
+        help='Get information about registered connection types with field customizations',
+        func=lazy_load_command('airflow.cli.commands.provider_command.connection_field_behaviours'),
         args=(ARG_OUTPUT,),
     ),
 )

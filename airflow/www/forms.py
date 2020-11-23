@@ -19,6 +19,7 @@
 import json
 from datetime import datetime as dt
 from operator import itemgetter
+from typing import List, Tuple
 
 import pendulum
 from flask_appbuilder.fieldwidgets import (
@@ -34,6 +35,7 @@ from wtforms import widgets
 from wtforms.fields import (
     BooleanField,
     Field,
+    HiddenField,
     IntegerField,
     PasswordField,
     SelectField,
@@ -223,16 +225,15 @@ class ConnectionForm(DynamicForm):
     port = IntegerField(lazy_gettext('Port'), validators=[Optional()], widget=BS3TextFieldWidget())
     extra = TextAreaField(lazy_gettext('Extra'), widget=BS3TextAreaFieldWidget())
 
-    # You should add connection form fields in the hooks via get_connection_form_widgets() method
-    # See for example airflow/providers/jdbc/hooks/jdbc.py
-    # It is esed to customized the form, the forms elements get rendered
-    # and results are stored in the extra field as json. All of these
-    # need to be prefixed with extra__ and then the conn_type ___ as in
-    # extra__{conn_type}__name. You can also hide form elements and rename
-    # others from the connection_form.js file
+    # Used to store a dictionary of field customizations used to dynamically change available
+    # fields in ConnectionForm based on type of connection chosen
+    field_parameters = HiddenField(
+        'field_parameters', default=json.dumps(ProvidersManager().field_behaviours)
+    )
+    # See airflow.hooks.base_hook.DiscoverableProtocol for details on how to customize your Hooks.
 
 
-def _get_connection_types():
+def _get_connection_types() -> List[Tuple[str, str]]:
     """Returns connection types available."""
     _connection_types = [
         ('fs', 'File (path)'),

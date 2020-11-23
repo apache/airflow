@@ -39,9 +39,17 @@ except ImportError:
 log = logging.getLogger(__name__)
 
 
-def _create_validator():
+def _create_provider_schema_validator():
     """Creates JSON schema validator from the provider.yaml.schema.json"""
     schema = json.loads(importlib_resources.read_text('airflow', 'provider.yaml.schema.json'))
+    cls = jsonschema.validators.validator_for(schema)
+    validator = cls(schema)
+    return validator
+
+
+def _create_customized_form_fields_schema_validator():
+    """Creates JSON schema validator from the customized_form_fields.schema.json"""
+    schema = json.loads(importlib_resources.read_text('airflow', 'customized_form_fields.schema.json'))
     cls = jsonschema.validators.validator_for(schema)
     validator = cls(schema)
     return validator
@@ -93,8 +101,11 @@ class ProvidersManager:
         self._hooks_dict: Dict[str, HookInfo] = {}
         # Keeps methods that should be used to add custom widgets tuple of keyed by name of the extra field
         self._connection_form_widgets: Dict[str, ConnectionFormWidgetInfo] = {}
+        # Customizations for javascript fields are kept here
+        self._field_behaviours: Dict[str, Dict] = {}
         self._extra_link_class_name_set: Set[str] = set()
-        self._validator = _create_validator()
+        self._provider_schema_validator = _create_provider_schema_validator()
+        self._customized_form_fields_schema_validator = _create_customized_form_fields_schema_validator()
         self._initialized = False
 
     def initialize_providers_manager(self):
@@ -116,6 +127,7 @@ class ProvidersManager:
         self._provider_dict = OrderedDict(sorted(self._provider_dict.items()))  # noqa
         self._hooks_dict = OrderedDict(sorted(self._hooks_dict.items()))  # noqa
         self._connection_form_widgets = OrderedDict(sorted(self._connection_form_widgets.items()))  # noqa
+        self._field_behaviours = OrderedDict(sorted(self._field_behaviours.items()))  # noqa
         self._discover_extra_links()
         self._initialized = True
 
@@ -130,7 +142,7 @@ class ProvidersManager:
             log.debug("Loading %s from package %s", entry_point, package_name)
             version = dist.version
             provider_info = entry_point.load()()
-            self._validator.validate(provider_info)
+            self._provider_schema_validator.validate(provider_info)
             provider_info_package_name = provider_info['package-name']
             if package_name != provider_info_package_name:
                 raise Exception(
@@ -190,7 +202,7 @@ class ProvidersManager:
             log.debug("Loading %s from %s", package_name, path)
             with open(path) as provider_yaml_file:
                 provider_info = yaml.safe_load(provider_yaml_file)
-            self._validator.validate(provider_info)
+            self._provider_schema_validator.validate(provider_info)
 
             version = provider_info['versions'][0]
             if package_name not in self._provider_dict:
@@ -252,7 +264,13 @@ class ProvidersManager:
             # hierarchy and we add it only from the parent hook that provides those!
             if 'get_connection_form_widgets' in hook_class.__dict__:
                 widgets = hook_class.get_connection_form_widgets()
-                self._add_widgets(provider_package, hook_class, widgets)
+                if widgets:
+                    self._add_widgets(provider_package, hook_class, widgets)
+            if 'get_ui_field_behaviour' in hook_class.__dict__:
+                field_behaviours = hook_class.get_ui_field_behaviour()
+                if field_behaviours:
+                    self._add_customized_fields(provider_package, hook_class, field_behaviours)
+
         except Exception as e:  # noqa pylint: disable=broad-except
             log.warning(
                 "Exception when importing '%s' from '%s' package: %s",
@@ -297,6 +315,28 @@ class ProvidersManager:
                 hook_class.__name__, package_name, field
             )
 
+    def _add_customized_fields(self, package_name: str, hook_class: type, customized_fields: Dict):
+        try:
+            connection_type = getattr(hook_class, "conn_type")
+            self._customized_form_fields_schema_validator.validate(customized_fields)
+            if connection_type in self._field_behaviours:
+                log.warning(
+                    "The connection_type %s from package %s and class %s has already been added "
+                    "by another provider. Ignoring it.",
+                    connection_type,
+                    package_name,
+                    hook_class.__name__,
+                )
+                return
+            self._field_behaviours[connection_type] = customized_fields
+        except Exception as e:  # noqa pylint: disable=broad-except
+            log.warning(
+                "Error when loading customized fields from package '%s' hook class '%s': %s",
+                package_name,
+                hook_class.__name__,
+                e,
+            )
+
     def _discover_extra_links(self) -> None:
         """Retrieves all extra links defined in the providers"""
         for provider_package, (_, provider) in self._provider_dict.items():
@@ -339,10 +379,16 @@ class ProvidersManager:
     def extra_links_class_names(self):
         """Returns set of extra link class names."""
         self.initialize_providers_manager()
-        return sorted(list(self._extra_link_class_name_set))
+        return sorted(self._extra_link_class_name_set)
 
     @property
     def connection_form_widgets(self) -> Dict[str, ConnectionFormWidgetInfo]:
         """Returns widgets for connection forms."""
         self.initialize_providers_manager()
         return self._connection_form_widgets
+
+    @property
+    def field_behaviours(self) -> Dict[str, Dict]:
+        """Returns dictionary with field behaviours for connection types."""
+        self.initialize_providers_manager()
+        return self._field_behaviours

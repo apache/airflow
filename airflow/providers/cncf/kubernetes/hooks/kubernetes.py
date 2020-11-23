@@ -78,6 +78,14 @@ class KubernetesHook(BaseHook):
             ),
         }
 
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
+            "relabeling": {},
+        }
+
     def __init__(
         self, conn_id: str = default_conn_name, client_configuration: Optional[client.Configuration] = None
     ) -> None:

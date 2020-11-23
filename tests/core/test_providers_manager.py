@@ -130,6 +130,7 @@ CONNECTIONS_LIST = [
     's3',
     'samba',
     'segment',
+    'sftp',
     'snowflake',
     'spark',
     'spark_jdbc',
@@ -166,6 +167,20 @@ CONNECTION_FORM_WIDGETS = [
     'extra__yandexcloud__service_account_json_path',
 ]
 
+CUSTOMIZED_CONNECTIONS = [
+    'cloudant',
+    'docker',
+    'gcpssh',
+    'google_cloud_platform',
+    'jdbc',
+    'kubernetes',
+    'qubole',
+    'sftp',
+    'spark',
+    'ssh',
+    'yandexcloud',
+]
+
 EXTRA_LINKS = [
     'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink',
     'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink',
@@ -191,12 +206,17 @@ class TestProviderManager(unittest.TestCase):
         connections_list = list(provider_manager.hooks.keys())
         self.assertEqual(CONNECTIONS_LIST, connections_list)
 
-    def test_extra_links(self):
-        provider_manager = ProvidersManager()
-        extra_link_class_names = list(provider_manager.extra_links_class_names)
-        self.assertEqual(EXTRA_LINKS, extra_link_class_names)
-
     def test_connection_form_widgets(self):
         provider_manager = ProvidersManager()
         connections_form_widgets = list(provider_manager.connection_form_widgets.keys())
         self.assertEqual(CONNECTION_FORM_WIDGETS, connections_form_widgets)
+
+    def test_field_customizations(self):
+        provider_manager = ProvidersManager()
+        field_customizations = list(provider_manager.field_behaviours.keys())
+        self.assertEqual(CUSTOMIZED_CONNECTIONS, field_customizations)
+
+    def test_extra_links(self):
+        provider_manager = ProvidersManager()
+        extra_link_class_names = list(provider_manager.extra_links_class_names)
+        self.assertEqual(EXTRA_LINKS, extra_link_class_names)
