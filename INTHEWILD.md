@@ -369,6 +369,7 @@ Currently, **officially** using Airflow:
 1. [VeeR VR](https://veer.tv) [[@pishilong](https://github.com/pishilong)]
 1. [Veikkaus](https://www.veikkaus.fi) [[@hixus](https://github.com/hixus)]
 1. [Vente-Exclusive.com](http://www.vente-exclusive.com/) [[@alexvanboxel](https://github.com/alexvanboxel)]
+1. [Vestiaire Collective](https://www.vestiairecollective.com/) [[@AdriMarteau](https://github.com/AdriMarteau), [@benbenbang](https://github.com/benbenbang)]
 1. [Vevo](https://www.vevo.com/) [[@csetiawan](https://github.com/csetiawan) & [@jerrygillespie](https://github.com/jerrygillespie)]
 1. [Vidio](https://www.vidio.com/)
 1. [Ville de Montréal](http://ville.montreal.qc.ca/) [[@VilledeMontreal](https://github.com/VilledeMontreal/)]
