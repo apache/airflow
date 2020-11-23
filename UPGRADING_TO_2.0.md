@@ -32,7 +32,6 @@ assists users migrating to a new version.
 - [Step 3: Upgrade Airflow DAGs](#step-3-upgrade-airflow-dags)
   - [Change to undefined variable handling in templates](#change-to-undefined-variable-handling-in-templates)
   - [Changes to the KubernetesPodOperator](#changes-to-the-kubernetespodoperator)
-- [Step 4: Update system configurations](#step-4-update-system-configurations)
   - [Change default value for dag_run_conf_overrides_params](#change-default-value-for-dag_run_conf_overrides_params)
   - [DAG discovery safe mode is now case insensitive](#dag-discovery-safe-mode-is-now-case-insensitive)
   - [Change to Permissions](#change-to-permissions)
@@ -47,6 +46,7 @@ assists users migrating to a new version.
   - [Changes to Exception handling for from DAG callbacks](#changes-to-exception-handling-for-from-dag-callbacks)
   - [Airflow CLI changes in 2.0](#airflow-cli-changes-in-20)
   - [Changes to Airflow Plugins](#changes-to-airflow-plugins)
+  - [Changes to extras names](#changes-to-extras-names)
   - [Support for Airflow 1.10.x releases](#support-for-airflow-110x-releases)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -1078,11 +1078,8 @@ class AirflowTestPlugin(AirflowPlugin):
 ### Changes to extras names
 
 The `all` extra were reduced to include only user-facing dependencies. This means
-that this extra does not contain development dependencies. If you were using
-```
-pip install apache-airflow[all]
-```
-then you should use now `devel_all` or figure out if you need development extras at all.
+that this extra does not contain development dependencies. If you were using it and
+depending on the development packages then you should use `devel_all`.
 
 ### Support for Airflow 1.10.x releases
 
