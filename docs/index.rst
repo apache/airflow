@@ -72,7 +72,7 @@ unit of work and continuity.
 Content
 -------
 .. toctree::
-    :maxdepth: 4
+    :maxdepth: 1
 
     project
     license
