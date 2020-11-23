@@ -398,9 +398,6 @@ sensors:
   - integration-name: Google Campaign Manager
     python-modules:
       - airflow.providers.google.marketing_platform.sensors.campaign_manager
-  - integration-name: Google Dataflow
-    python-modules:
-      - airflow.providers.google.cloud.sensors.dataflow
   - integration-name: Google Display&Video 360
     python-modules:
       - airflow.providers.google.marketing_platform.sensors.display_video
