@@ -159,7 +159,8 @@ class _PythonDecoratedOperator(BaseOperator):
     def __init__(
         self,
         *,
-        python_callable: Callable,
+        python_code: str,
+        function_name: str,
         task_id: str,
         op_args: Tuple[Any],
         op_kwargs: Dict[str, Any],
@@ -168,10 +169,9 @@ class _PythonDecoratedOperator(BaseOperator):
     ) -> None:
         kwargs['task_id'] = self._get_unique_task_id(task_id, kwargs.get('dag'), kwargs.get('task_group'))
         super().__init__(**kwargs)
-        self.python_callable = python_callable
-
-        # Check that arguments can be binded
-        signature(python_callable).bind(*op_args, **op_kwargs)
+        
+        self.py_code =  python_code
+        self.function_name = function_name
         self.multiple_outputs = multiple_outputs
         self.op_args = op_args
         self.op_kwargs = op_kwargs
@@ -229,8 +229,33 @@ class _PythonDecoratedOperator(BaseOperator):
         if 'self' in signature(python_callable).parameters.keys():
             raise AirflowException('@task does not support methods')
 
+    def _strip_hints(py_code:str)-> str:  
+        from strip_hints import strip_string_to_string
+        return strip_string_to_string(py_code, to_empty=True)
+    
+    def _dedent(py_code: str) -> str:
+        import textwrap
+        return textwrap.dedent(py_code)
+
+    def _remove_decorators(py_code:str)-> str:
+        func_code_lines = py_code.split('\n')
+        # Removing possible decorators (can be multiline) until the function definition is found
+        while func_code_lines and not func_code_lines[0].startswith('def '):
+            del func_code_lines[0]
+        return '\n'.join(func_code_lines)
+
+    
+    def _execute_function(self):
+        py_code = self._remove_decorators(self._strip_hints(self._dedent(self.py_code)))
+        py_code+=f'_output = {self.func_name}(*{self.op_args}, **{self.op_kwargs})'
+        self.log.debug(f'Executing code:\n{py_code}')
+        outputs = {}
+        exec(py_code, outputs)
+        return outputs['_output']
+
+
     def execute(self, context: Dict):
-        return_value = self.python_callable(*self.op_args, **self.op_kwargs)
+        return_value = self._execute_function()
         self.log.debug("Done. Returned value was: %s", return_value)
         if not self.multiple_outputs:
             return return_value
@@ -280,13 +305,18 @@ def task(
 
         @functools.wraps(f)
         def factory(*args, **f_kwargs):
+            py_code = inspect.getsource(f)
+            func_name = f.__name__
+            # Check that arguments can be binded
+            signature(f).bind(*args, **f_kwargs)
             op = _PythonDecoratedOperator(
-                python_callable=f,
-                op_args=args,
+                python_code=py_code, 
+                function_name=func_name,
                 op_kwargs=f_kwargs,
                 multiple_outputs=multiple_outputs,
                 **kwargs,
             )
+            
             if f.__doc__:
                 op.doc_md = f.__doc__
             return XComArg(op)
