@@ -404,14 +404,6 @@ The happy flow consists of the following stages:
 4. Running (worker picked up a task and is now running it)
 5. Success (task completed)
 
-There is also visual difference between scheduled and manually triggered
-DAGs/tasks:
-
-.. image:: img/task_manual_vs_scheduled.png
-
-The DAGs/tasks with a black border are scheduled runs, whereas the non-bordered
-DAGs/tasks are manually triggered, i.e. by ``airflow dags trigger``.
-
 .. _concepts:operators:
 
 Operators
