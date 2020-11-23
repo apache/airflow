@@ -34,35 +34,23 @@
                        tags=request.args.get('tags', None),
                        sortBy=attr_name,
                        orderBy=new_ordering
-                       ) }}">
+                       ) }}"
+   class="js-tooltip"
+   role="tooltip"
+   title="Press to sort by {{ verbose_ordering_name(new_ordering) }} {{ attr_name }}."
+   >
     {{ name }}
-    <span id="sorting-tip-{{ name }}" class="tooltip" role="tooltip" >
-      {% if curr_ordering == 'unsorted' %}
-        Column not currently sorted.
+
+    <span class="material-icons" aria-hidden="true" aria-describedby="sorting-tip-{{ name }}">
+      {% if request.args.get('orderBy', 'none') == 'desc' and request.args.get('sortBy') == attr_name %}
+        expand_less
+      {% elif request.args.get('orderBy', 'none') == 'asc' and request.args.get('sortBy') == attr_name %}
+        expand_more
       {% else %}
-        Column sorted by {{ attr_name }}, {{ verbose_ordering_name(curr_ordering) }}.
+        unfold_more
       {% endif %}
-      Press to sort by {{ verbose_ordering_name(new_ordering) }} {{ attr_name }}.
     </span>
   </a>
-  <a href="{{ url_for('Airflow.index',
-                         status=request.args.get('status', 'all'),
-                         search=request.args.get('search', None),
-                         tags=request.args.get('tags', None),
-                         sortBy=attr_name,
-                         orderBy=new_ordering
-                         ) }}">
-      <!-- We need a separate <a> here because otherwise some screen readers STILL pick it up for some reason >_< -->
-      <span class="material-icons" aria-hidden="true" aria-describedby="sorting-tip-{{ name }}">
-        {% if request.args.get('orderBy', 'none') == 'desc' and request.args.get('sortBy') == attr_name %}
-          expand_less
-        {% elif request.args.get('orderBy', 'none') == 'asc' and request.args.get('sortBy') == attr_name %}
-          expand_more
-        {% else %}
-          unfold_more
-        {% endif %}
-      </span>
-    </a>
 {%- endmacro -%}
 
 {% block page_title %}
