@@ -449,12 +449,10 @@ class TestStringifiedDAGs(unittest.TestCase):
         self.assertEqual(simple_task.start_date, expected_task_start_date)
 
     def test_deserialization_with_dag_context(self):
-        dag = DAG(dag_id='simple_dag', start_date=datetime(2019, 8, 1, tzinfo=timezone.utc))
-        DagContext.push_context_managed_dag(dag)
-        BaseOperator(task_id='simple_task')
-        # should not raise RuntimeError: dictionary changed size during iteration
-        SerializedDAG.to_dict(dag)
-        DagContext.pop_context_managed_dag()
+        with DAG(dag_id='simple_dag', start_date=datetime(2019, 8, 1, tzinfo=timezone.utc)) as dag:
+            BaseOperator(task_id='simple_task')
+            # should not raise RuntimeError: dictionary changed size during iteration
+            SerializedDAG.to_dict(dag)
 
     @parameterized.expand(
         [
