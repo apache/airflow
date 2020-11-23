@@ -400,7 +400,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             "compatibility_val" in src_fmt_configs
         ), "_validate_src_fmt_configs should add backward_compatibility config"
 
-    @parameterized.expand([("AVRO",), ("PARQUET",), ("NEWLINE_DELIMITED_JSON",), ("DATASTORE_BACKUP",)])
+    @parameterized.expand([("AVRO",), ("PARQUET",), ("NEWLINE_DELIMITED_JSON",), ("DATASTORE_BACKUP",), ("ORC",)])
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
     def test_run_load_with_non_csv_as_src_fmt(self, fmt, _):
 
@@ -673,7 +673,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         with self.assertRaisesRegex(
             Exception,
             r"JSON is not a valid source format. Please use one of the following types: \['CSV', "
-            r"'NEWLINE_DELIMITED_JSON', 'AVRO', 'GOOGLE_SHEETS', 'DATASTORE_BACKUP', 'PARQUET'\]",
+            r"'NEWLINE_DELIMITED_JSON', 'AVRO', 'GOOGLE_SHEETS', 'DATASTORE_BACKUP', 'PARQUET', 'ORC'\]",
         ):
             self.hook.run_load("test.test", "test_schema.json", ["test_data.json"], source_format="json")
 
