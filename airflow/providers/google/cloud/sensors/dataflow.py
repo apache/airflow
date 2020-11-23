@@ -186,11 +186,6 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        result = self.hook.fetch_job_metrics_by_id(
-            job_id=self.job_id,
-            project_id=self.project_id,
-            location=self.location,
-        )
 
         if self.fail_on_terminal_state:
             job = self.hook.get_job(
@@ -203,6 +198,12 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
                 raise AirflowException(
                     f"Job with id '{self.job_id}' is already in terminal state: {job_status}"
                 )
+
+        result = self.hook.fetch_job_metrics_by_id(
+            job_id=self.job_id,
+            project_id=self.project_id,
+            location=self.location,
+        )
 
         return self.callback(result["metrics"])
 
