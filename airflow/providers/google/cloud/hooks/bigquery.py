@@ -1662,6 +1662,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             "GOOGLE_SHEETS",
             "DATASTORE_BACKUP",
             "PARQUET",
+            "ORC",
         ]
         if source_format not in allowed_formats:
             raise ValueError(
@@ -1747,6 +1748,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             'NEWLINE_DELIMITED_JSON': ['autodetect', 'ignoreUnknownValues'],
             'PARQUET': ['autodetect', 'ignoreUnknownValues'],
             'AVRO': ['useAvroLogicalTypes'],
+            'ORC': ['autodetect', 'ignoreUnknownValues'],
         }
 
         valid_configs = src_fmt_to_configs_mapping[source_format]
