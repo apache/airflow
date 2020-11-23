@@ -29,7 +29,7 @@ assists users migrating to a new version.
 - [Step 1: Upgrade to Python 3](#step-1-upgrade-to-python-3)
 - [Step 2: Upgrade to Airflow 1.10.13 (a.k.a our "bridge" release)](#step-2-upgrade-to-airflow-11013-aka-our-bridge-release)
 - [Step 3: Set Operators to Backport Providers](#step-3-set-operators-to-backport-providers)
-- [Step 3: Upgrade Airflow DAGs](#step-3-upgrade-airflow-dags)
+- [Step 4: Upgrade Airflow DAGs](#step-4-upgrade-airflow-dags)
   - [Change to undefined variable handling in templates](#change-to-undefined-variable-handling-in-templates)
   - [Changes to the KubernetesPodOperator](#changes-to-the-kubernetespodoperator)
   - [Change default value for dag_run_conf_overrides_params](#change-default-value-for-dag_run_conf_overrides_params)
@@ -131,7 +131,7 @@ pip install airflow[docker]
 automatically installs the `apache-airflow-providers-docker` package.
 But you can manage/upgrade remove provider packages separately from the airflow core.
 
-## Step 3: Upgrade Airflow DAGs
+## Step 4: Upgrade Airflow DAGs
 
 ### Change to undefined variable handling in templates
 
