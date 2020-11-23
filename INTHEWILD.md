@@ -239,6 +239,7 @@ Currently, **officially** using Airflow:
 1. [Lyft](https://www.lyft.com/) [[@feng-tao](https://github.com/feng-tao), [@milton0825](https://github.com/milton0825), [@astahlman](https://github.com/astahlman), [@youngyjd](https://github.com/youngyjd), [@ArgentFalcon](https://github.com/ArgentFalcon)]
 1. [M4U](https://www.m4u.com.br/) [[@msantino](https://github.com/msantino)]
 1. [MFG Labs](https://github.com/MfgLabs)
+1. [MTsolutions](https://www.mtsolutions.io)[[@slara](https://github.com/slara)]
 1. [Madrone](http://madroneco.com/) [[@mbreining](https://github.com/mbreining) & [@scotthb](https://github.com/scotthb)]
 1. [Markovian](https://markovian.com/) [[@al-xv](https://github.com/al-xv), [@skogsbaeck](https://github.com/skogsbaeck), [@waltherg](https://github.com/waltherg)]
 1. [Mercadoni](https://www.mercadoni.com.co) [[@demorenoc](https://github.com/demorenoc)]
@@ -248,7 +249,6 @@ Currently, **officially** using Airflow:
 1. [Ministry of Economy of Brazil](https://www.gov.br/economia/) [[@nitaibezerra](https://github.com/nitaibezerra), [@vitorbellini](https://github.com/vitorbellini)]
 1. [Modernizing Medicine](https://www.modmed.com/) [[@kehv1n](https://github.com/kehv1n), [@dalupus](https://github.com/dalupus)]
 1. [Movember](https://movember.com)
-1. [MTsolutions](https://www.mtsolutions.io)[[@slara](https://github.com/slara)]
 1. [Multiply](https://www.multiply.com) [[@nrhvyc](https://github.com/nrhvyc)]
 1. [NEXT Trucking](https://www.nexttrucking.com/) [[@earthmancash2](https://github.com/earthmancash2), [@kppullin](https://github.com/kppullin)]
 1. [National Bank of Canada](https://nbc.ca) [[@brilhana](https://github.com/brilhana)]
