@@ -305,7 +305,7 @@ class SSHHook(BaseHook):
         :return: `paramiko.PKey` appropriate for given key
         :raises AirflowException: if key cannot be read
         """
-        allowed_pkey_types = self._pkey_mappings.values()
+        allowed_pkey_types = self._default_pkey_mappings.values()
         for pkey_type in allowed_pkey_types:
             try:
                 key = pkey_type.from_private_key(StringIO(private_key), password=passphrase)
