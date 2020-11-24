@@ -42,16 +42,119 @@ EXISTING_ROLES = {
     '运维人员'
 }
 
+from flask_appbuilder.security.views import expose
+
+from flask import request
+import os
+import json
+from typing import Optional, Dict
+import requests
+from tenacity import retry, wait_exponential, retry_if_exception_type, stop_after_delay, RetryError
+
+ENV_SUC_CRCCODE_KEY = os.getenv('ENV_SUC_CRCCODE_KEY', 'crccode')
+ENV_SUC_ROOT_URL = os.getenv('ENV_SUC_ROOT_URL', 'http://localhost:8080')
+ENV_PORTAL_INDEX_URL = os.getenv('ENV_PORTAL_INDEX_URL', 'http://idas-pv.smicmotor.com/ids/index.html')
+RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
+
+
+@retry(wait=wait_exponential(multiplier=1, max=3), stop=stop_after_delay(5), retry=retry_if_exception_type())
+def doGetLoginInfo(crcCode: str) -> Optional[Dict]:
+    url = "{}/{}".format(ENV_SUC_ROOT_URL, "accounts/crcCodeLogin")
+    try:
+        resp = requests.get(url, params={'crcCode': crcCode}, timeout=5)
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+        if not data.get('success'):
+            return None
+        rData = data.get('data')
+        if not isinstance(rData, Dict):
+            rData = json.loads(rData)
+        if not rData:
+            return None
+        username = email = rData.get('account')
+        return {'username': username, 'email': email, 'last_name': username}
+    except Exception as e:
+        raise e
+
+
+from flask import redirect
+from flask_login import login_user, logout_user
+
 
 class CustomAuthDBView(AuthDBView):
     login_template = "airflow/login.html"
+
+    @expose("/login/", methods=["GET", "POST"])
+    def login(self):
+        return super(CustomAuthDBView, self).login()
 
 
 from flask_appbuilder.security.views import AuthOAuthView as AV
 
 
+class SUCUser(models.User):
+
+    def __init__(self, user):
+        self.user = user
+
+    @property
+    def is_active(self):
+        """Required by flask_login"""
+        return True
+
+    @property
+    def is_authenticated(self):
+        """Required by flask_login"""
+        return True
+
+    @property
+    def is_anonymous(self):
+        """Required by flask_login"""
+        return False
+
+    def get_id(self):
+        """Returns the current user id as required by flask_login"""
+        return self.user.get_id()
+
+    def data_profiling(self):
+        """Provides access to data profiling tools"""
+        return True
+
+    def is_superuser(self):
+        """Access all the things"""
+        return False
+
+
 class AuthOAuthView(AV):
     login_template = "airflow/login_oauth.html"
+
+    @expose("/login/")
+    @expose("/login/<provider>")
+    @expose("/login/<provider>/<register>")
+    @provide_session
+    def login(self, provider=None, register=None, session=None):
+        crc_code = request.args.get('crccode', None) or request.args.get('crcCode', None)
+        if not crc_code:
+            return super(AuthOAuthView, self).login(provider=provider, register=register)
+        userinfo = doGetLoginInfo(crc_code)
+        # userinfo = {'username': "1312321", 'email': "123213", 'last_name': "12312323"}
+        if not userinfo:
+            return super(AuthOAuthView, self).login(provider=provider, register=register)
+        user = self.appbuilder.sm.auth_user_oauth(userinfo)
+
+        session.merge(user)
+        session.commit()
+        login_user(SUCUser(user))
+        session.commit()
+        return redirect('/home')
+
+    @expose("/logout/")
+    def logout(self):
+        logout_user()
+        if ENV_PORTAL_INDEX_URL and RUNTIME_ENV == 'prod':
+            return redirect(ENV_PORTAL_INDEX_URL)
+        return redirect(self.appbuilder.get_url_for_index)
 
 
 class AirflowSecurityManager(SecurityManager, LoggingMixin):

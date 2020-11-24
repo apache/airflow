@@ -26,10 +26,10 @@ under the License.
      style="position:fixed; object-fit: contain;pointer-events:none"
      src='{{ url_for("static", filename="desoutter.jpg") }}'/>
 {{ super() }}
-<script type="text/javascript">
-$(document).ready(function(){
-    set_openid('/login/SUC', 'SUC');
-    signin();
-});
-</script>
+{#<script type="text/javascript">#}
+{#$(document).ready(function(){#}
+{#    set_openid('/login/SUC', 'SUC');#}
+{#    signin();#}
+{#});#}
+{#</script>#}
 {% endblock %}
