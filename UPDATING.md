@@ -52,12 +52,20 @@ assists users migrating to a new version.
 
 ## Master
 
+### Azure Wasb Hook does not work together with Snowflake hook
+
+The WasbHook in Apache Airflow use a legacy version of Azure library. While the conflict is not
+significant for most of the Azure hooks, it is a problem for Wasb Hook because the `blob` folders
+for both libraries overlap. Installing both Snowflake and Azure extra will result in non-importable
+WasbHook.
+
 ### Rename `all` to `devel_all` extra
 
 The `all` extras were reduced to include only user-facing dependencies. This means
 that this extra does not contain development dependencies. If you were relying on
 `all` extra then you should use now `devel_all` or figure out if you need development
 extras at all.
+
 
 ### `[scheduler] max_threads` config has been renamed to `[scheduler] parsing_processes`
 

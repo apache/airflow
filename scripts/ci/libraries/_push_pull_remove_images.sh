@@ -264,13 +264,18 @@ function push_pull_remove_images::push_prod_images() {
 
 # waits for an image to be available in the GitHub registry
 function push_pull_remove_images::wait_for_github_registry_image() {
+    local github_repository_lowercase
     github_repository_lowercase="$(echo "${GITHUB_REPOSITORY}" |tr '[:upper:]' '[:lower:]')"
-    GITHUB_API_ENDPOINT="https://${GITHUB_REGISTRY}/v2/${github_repository_lowercase}"
-    IMAGE_NAME="${1}"
-    IMAGE_TAG=${2}
-    echo "Waiting for ${IMAGE_NAME}:${IMAGE_TAG} image"
+    local github_api_endpoint
+    github_api_endpoint="https://${GITHUB_REGISTRY}/v2/${github_repository_lowercase}"
+    local image_name_in_github_registry="${1}"
+    local image_tag_in_github_registry=${2}
 
-    GITHUB_API_CALL="${GITHUB_API_ENDPOINT}/${IMAGE_NAME}/manifests/${IMAGE_TAG}"
+    echo
+    echo "Waiting for ${GITHUB_REPOSITORY}/${image_name_in_github_registry}:${image_tag_in_github_registry} image"
+    echo
+
+    GITHUB_API_CALL="${github_api_endpoint}/${image_name_in_github_registry}/manifests/${image_tag_in_github_registry}"
     while true; do
         curl -X GET "${GITHUB_API_CALL}" -u "${GITHUB_USERNAME}:${GITHUB_TOKEN}" 2>/dev/null > "${OUTPUT_LOG}"
         local digest
@@ -282,6 +287,33 @@ function push_pull_remove_images::wait_for_github_registry_image() {
         fi
         sleep 10
     done
-    verbosity::print_info "Found ${IMAGE_NAME}:${IMAGE_TAG} image"
+    verbosity::print_info "Found ${image_name_in_github_registry}:${image_tag_in_github_registry} image"
     verbosity::print_info "Digest: '${digest}'"
+}
+
+function push_pull_remove_images::check_if_github_registry_wait_for_image_enabled() {
+    if [[ ${USE_GITHUB_REGISTRY} != "true" ||  ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} != "true" ]]; then
+        echo
+        echo "This script should not be called"
+        echo "It need both USE_GITHUB_REGISTRY and GITHUB_REGISTRY_WAIT_FOR_IMAGE to true!"
+        echo
+        echo "USE_GITHUB_REGISTRY = ${USE_GITHUB_REGISTRY}"
+        echo "GITHUB_REGISTRY_WAIT_FOR_IMAGE =${GITHUB_REGISTRY_WAIT_FOR_IMAGE}"
+        echo
+        exit 1
+    else
+        echo
+        echo "Both USE_GITHUB_REGISTRY and GITHUB_REGISTRY_WAIT_FOR_IMAGE are set to true. Good!"
+    fi
+}
+
+function push_pull_remove_images::check_if_jq_installed() {
+    echo
+    echo "Check if jq is installed"
+    echo
+    command -v jq >/dev/null || (echo "ERROR! You must have 'jq' tool installed!" && exit 1)
+
+    echo
+    echo "The jq version $(jq --version)"
+    echo
 }

@@ -42,14 +42,14 @@ else
     FULL_TESTS_NEEDED_LABEL="false"
 fi
 
-if [[ ${PR_LABELS=} == *"upgrade to latest dependencies"* ]]; then
+if [[ ${PR_LABELS=} == *"upgrade to newer dependencies"* ]]; then
     echo
-    echo "Found the right PR labels in '${PR_LABELS=}': 'upgrade to latest dependencies''"
+    echo "Found the right PR labels in '${PR_LABELS=}': 'upgrade to newer dependencies''"
     echo
     UPGRADE_TO_LATEST_CONSTRAINTS_LABEL="true"
 else
     echo
-    echo "Did not find the right PR labels in '${PR_LABELS=}': 'upgrade to latest dependencies'"
+    echo "Did not find the right PR labels in '${PR_LABELS=}': 'upgrade to newer dependencies'"
     echo
     UPGRADE_TO_LATEST_CONSTRAINTS_LABEL="false"
 fi

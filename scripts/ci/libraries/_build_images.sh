@@ -346,13 +346,19 @@ function build_images::get_docker_image_names() {
 
     # File that is touched when the CI image is built for the first time locally
     export BUILT_CI_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_MAJOR_MINOR_VERSION}"
+
+    # GitHub Registry names must be lowercase :(
+    github_repository_lowercase="$(echo "${GITHUB_REPOSITORY}" |tr '[:upper:]' '[:lower:]')"
+    export GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/${AIRFLOW_PROD_BASE_TAG}"
+    export GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/${AIRFLOW_PROD_BASE_TAG}-build"
+    export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
+
+    export GITHUB_REGISTRY_AIRFLOW_CI_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/${AIRFLOW_CI_BASE_TAG}"
+    export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
 }
 
-# Prepares all variables needed by the CI build. Depending on the configuration used (python version
-# DockerHub user etc. the variables are set so that other functions can use those variables.
-function build_images::prepare_ci_build() {
-    export AIRFLOW_CI_LOCAL_MANIFEST_IMAGE="local/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
-    export AIRFLOW_CI_REMOTE_MANIFEST_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
+# If GitHub Registry is used, login to the registry using GITHUB_USERNAME and GITHUB_TOKEN
+function build_image::login_to_github_registry_if_needed()  {
     if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
         if [[ -n ${GITHUB_TOKEN=} ]]; then
             echo "${GITHUB_TOKEN}" | docker login \
@@ -360,11 +366,15 @@ function build_images::prepare_ci_build() {
                 --password-stdin \
                 "${GITHUB_REGISTRY}"
         fi
-        # GitHub Registry names must be lowercase :(
-        github_repository_lowercase="$(echo "${GITHUB_REPOSITORY}" |tr '[:upper:]' '[:lower:]')"
-        export GITHUB_REGISTRY_AIRFLOW_CI_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/${AIRFLOW_CI_BASE_TAG}"
-        export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
     fi
+
+}
+
+# Prepares all variables needed by the CI build. Depending on the configuration used (python version
+# DockerHub user etc. the variables are set so that other functions can use those variables.
+function build_images::prepare_ci_build() {
+    export AIRFLOW_CI_LOCAL_MANIFEST_IMAGE="local/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
+    export AIRFLOW_CI_REMOTE_MANIFEST_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
     export THE_IMAGE_TYPE="CI"
     export IMAGE_DESCRIPTION="Airflow CI"
 
@@ -375,6 +385,7 @@ function build_images::prepare_ci_build() {
     export AIRFLOW_IMAGE="${AIRFLOW_CI_IMAGE}"
     readonly AIRFLOW_IMAGE
 
+    build_image::login_to_github_registry_if_needed
     sanity_checks::go_to_airflow_sources
     permissions::fix_group_permissions
 }
@@ -663,19 +674,7 @@ function build_images::prepare_prod_build() {
     export AIRFLOW_IMAGE="${AIRFLOW_PROD_IMAGE}"
     readonly AIRFLOW_IMAGE
 
-    if [[ ${USE_GITHUB_REGISTRY="false"} == "true" ]]; then
-        if [[ -n ${GITHUB_TOKEN=} ]]; then
-            echo "${GITHUB_TOKEN}" | docker login \
-                --username "${GITHUB_USERNAME}" \
-                --password-stdin \
-                "${GITHUB_REGISTRY}"
-        fi
-        # GitHub Registry names must be lowercase :(
-        github_repository_lowercase="$(echo "${GITHUB_REPOSITORY}" |tr '[:upper:]' '[:lower:]')"
-        export GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/${AIRFLOW_PROD_BASE_TAG}"
-        export GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/${AIRFLOW_PROD_BASE_TAG}-build"
-        export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
-    fi
+    build_image::login_to_github_registry_if_needed
 
     AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="${BRANCH_NAME}"
     sanity_checks::go_to_airflow_sources
