@@ -153,7 +153,7 @@ function initialization::initialize_base_variables() {
 function initialization::initialize_branch_variables() {
     # Default branch used - this will be different in different branches
     export DEFAULT_BRANCH=${DEFAULT_BRANCH="master"}
-    export DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH="constraints-master"}
+    export DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH="constraints-pipcheck"}
     readonly DEFAULT_BRANCH
     readonly DEFAULT_CONSTRAINTS_BRANCH
 

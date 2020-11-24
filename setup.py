@@ -188,7 +188,8 @@ azure = [
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
     'azure-storage>=0.34.0, <0.37.0',
-    'azure-storage-blob<12.0',
+    'azure-storage-blob',
+    'azure-storage-common',
 ]
 cassandra = [
     'cassandra-driver>=3.13.0,<3.21.0',
@@ -463,7 +464,7 @@ devel = [
     'ipdb',
     'jira',
     'mongomock',
-    'moto>=1.3.16',
+    'moto',
     'parameterized',
     'paramiko',
     'pipdeptree',
