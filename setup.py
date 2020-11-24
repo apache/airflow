@@ -786,7 +786,7 @@ all_ = list(
 )
 EXTRAS_REQUIREMENTS.update(
     {
-        'all': all_
+        'all': all_,
         'devel': devel_minreq,  # includes doc
         'devel_hadoop': devel_hadoop,  # includes devel_minreq
         'doc': doc,
