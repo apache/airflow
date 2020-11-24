@@ -41,13 +41,6 @@ import yaml
 import airflow
 from airflow.configuration import default_config_yaml
 
-try:
-    import sphinx_airflow_theme  # pylint: disable=unused-import
-
-    airflow_theme_is_available = True
-except ImportError:
-    airflow_theme_is_available = False
-
 sys.path.append(os.path.join(os.path.dirname(__file__), 'exts'))
 
 CONF_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
@@ -118,6 +111,7 @@ extensions = [
     'sphinx_copybutton',
     'airflow_intersphinx',
     "sphinxcontrib.spelling",
+    'sphinx_airflow_theme',
 ]
 if PACKAGE_NAME == 'apache-airflow':
     extensions.extend(
@@ -212,10 +206,7 @@ keep_warnings = True
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'sphinx_rtd_theme'
-
-if airflow_theme_is_available:
-    html_theme = 'sphinx_airflow_theme'
+html_theme = 'sphinx_airflow_theme'
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
@@ -248,15 +239,16 @@ if PACKAGE_NAME == 'apache-airflow':
 else:
     html_js_files = []
 
+# -- Theme configuration -------------------------------------------------------
 # Custom sidebar templates, maps document names to template names.
-if airflow_theme_is_available:
-    html_sidebars = {
-        '**': [
-            'version-selector.html',
-            'searchbox.html',
-            'globaltoc.html',
-        ]
-    }
+html_sidebars = {
+    '**': [
+        # TODO(mik-laj): TODO: Add again on production version of documentation
+        # 'version-selector.html',
+        'searchbox.html',
+        'globaltoc.html',
+    ]
+}
 
 # If false, no index is generated.
 html_use_index = True
@@ -264,36 +256,36 @@ html_use_index = True
 # If true, "(C) Copyright ..." is shown in the HTML footer. Default is True.
 html_show_copyright = False
 
+# Theme configuration
+sphinx_airflow_theme_navbar_links = [{'href': '/index.html', 'text': 'Documentation'}]
+sphinx_airflow_theme_hide_website_buttons = True
 # A dictionary of values to pass into the template engine’s context for all pages.
 html_context = {
     # Google Analytics ID.
     # For more information look at:
     # https://github.com/readthedocs/sphinx_rtd_theme/blob/master/sphinx_rtd_theme/layout.html#L222-L232
     'theme_analytics_id': 'UA-140539454-1',
+    # Variables used to build a button for editing the source code
+    #
+    # The path is created according to the following template:
+    #
+    # https://{{ github_host|default("github.com") }}/{{ github_user }}/{{ github_repo }}/
+    # {{ theme_vcs_pageview_mode|default("blob") }}/{{ github_version }}{{ conf_py_path }}
+    # {{ pagename }}{{ suffix }}
+    #
+    # More information:
+    # https://github.com/readthedocs/readthedocs.org/blob/master/readthedocs/doc_builder/templates/doc_builder/conf.py.tmpl#L100-L103
+    # https://github.com/readthedocs/sphinx_rtd_theme/blob/master/sphinx_rtd_theme/breadcrumbs.html#L45
+    # https://github.com/apache/airflow-site/blob/91f760c/sphinx_airflow_theme/sphinx_airflow_theme/suggest_change_button.html#L36-L40
+    #
+    'theme_vcs_pageview_mode': 'edit',
+    'conf_py_path': f'/docs/{PACKAGE_NAME}/',
+    'github_user': 'apache',
+    'github_repo': 'airflow',
+    'github_version': 'master',
+    'display_github': 'master',
+    'suffix': '.rst',
 }
-if airflow_theme_is_available:
-    html_context = {
-        # Variables used to build a button for editing the source code
-        #
-        # The path is created according to the following template:
-        #
-        # https://{{ github_host|default("github.com") }}/{{ github_user }}/{{ github_repo }}/
-        # {{ theme_vcs_pageview_mode|default("blob") }}/{{ github_version }}{{ conf_py_path }}
-        # {{ pagename }}{{ suffix }}
-        #
-        # More information:
-        # https://github.com/readthedocs/readthedocs.org/blob/master/readthedocs/doc_builder/templates/doc_builder/conf.py.tmpl#L100-L103
-        # https://github.com/readthedocs/sphinx_rtd_theme/blob/master/sphinx_rtd_theme/breadcrumbs.html#L45
-        # https://github.com/apache/airflow-site/blob/91f760c/sphinx_airflow_theme/sphinx_airflow_theme/suggest_change_button.html#L36-L40
-        #
-        'theme_vcs_pageview_mode': 'edit',
-        'conf_py_path': '/docs/',
-        'github_user': 'apache',
-        'github_repo': 'airflow',
-        'github_version': 'master',
-        'display_github': 'master',
-        'suffix': '.rst',
-    }
 
 # == Extensions configuration ==================================================
 
