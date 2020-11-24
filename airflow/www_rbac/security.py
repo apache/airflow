@@ -47,6 +47,13 @@ class CustomAuthDBView(AuthDBView):
     login_template = "airflow/login.html"
 
 
+from flask_appbuilder.security.views import AuthOAuthView as AV
+
+
+class AuthOAuthView(AV):
+    login_template = "airflow/login_oauth.html"
+
+
 class AirflowSecurityManager(SecurityManager, LoggingMixin):
     ###########################################################################
     #                               VIEW MENUS
@@ -260,7 +267,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         },
     ]
 
-    authdbview = CustomAuthDBView
+    authdbview = CustomAuthDBView  # RBAC override
+    authoauthview = AuthOAuthView
 
     def __init__(self, appbuilder):
         super(AirflowSecurityManager, self).__init__(appbuilder)
