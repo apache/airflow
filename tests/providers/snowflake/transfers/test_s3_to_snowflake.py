@@ -57,7 +57,7 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
         )
         copy_query = "\n".join(line.strip() for line in copy_query.splitlines())
 
-        assert mock_run.call_count == 1
+        mock_run.assert_called_once()
         assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_query)
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run")
@@ -97,7 +97,7 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
         )
         copy_query = "\n".join(line.strip() for line in copy_query.splitlines())
 
-        assert mock_run.call_count == 1
+        mock_run.assert_called_once()
         assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_query)
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run")
@@ -133,5 +133,5 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
         )
         copy_query = "\n".join(line.strip() for line in copy_query.splitlines())
 
-        assert mock_run.call_count == 1
+        mock_run.assert_called_once()
         assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_query)
