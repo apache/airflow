@@ -784,11 +784,9 @@ all_ = list(
         + [req for req_list in PROVIDERS_REQUIREMENTS.values() for req in req_list]
     )
 )
-EXTRAS_REQUIREMENTS.update({"all": all_})
-
-# Development extras
 EXTRAS_REQUIREMENTS.update(
     {
+        'all': all_
         'devel': devel_minreq,  # includes doc
         'devel_hadoop': devel_hadoop,  # includes devel_minreq
         'doc': doc,
