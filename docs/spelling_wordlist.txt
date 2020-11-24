@@ -1328,7 +1328,6 @@ uid
 umask
 un
 unarchived
-uncommittedblobs
 undead
 ungenerated
 unicode

@@ -16,7 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""This module contains integration with Azure Blob Storage."""
+"""
+This module contains integration with Azure Blob Storage.
+It communicate via the Window Azure Storage Blob protocol. Make sure that a
+Airflow connection of type `wasb` exists. Authorization can be done by supplying a
+login (=Storage account name) and password (=KEY), or login and SAS token in the extra
+field (see connection `wasb_default` for an example).
+
+"""
 
 from typing import Any, Dict, List, Optional
 
@@ -151,7 +158,7 @@ class WasbHook(BaseHook):
         :type prefix: str
         :param include: Specifies one or more additional datasets to include in the
             response. Options include: ``snapshots``, ``metadata``, ``uncommittedblobs``,
-            'copy', 'deleted'.
+            ``copy`, ``deleted``.
         :type include: List[str]
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
         :type delimiter: str
