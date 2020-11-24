@@ -788,3 +788,12 @@ class TestDagRun(unittest.TestCase):
         ti_failed = dag_run.get_task_instance(dag_task_failed.task_id)
         self.assertIn(ti_success.state, State.success_states)
         self.assertIn(ti_failed.state, State.failed_states)
+
+    def test_delete_dag_run(self):
+        dag = DAG(dag_id='test_delete_dag_run', start_date=days_ago(1))
+
+        dag_run = self.create_dag_run(dag=dag)
+
+        session = settings.Session()
+        session.delete(dag_run)
+        session.commit()
