@@ -182,6 +182,23 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             % (raw_object['reason'], raw_object['code'], raw_object['message'])
         )
 
+    @staticmethod
+    def is_container_state_bad(container_state) -> bool:
+        """Returns True if the state of the container is not recoverable"""
+        container_waiting = container_state.get('waiting')
+        if not container_waiting:
+            return False
+
+        reason = container_waiting.get('reason')
+        if not reason:
+            return False
+
+        bad_waiting_reasons = {'ImagePullBackOff'}
+        if 'Failed' in reason or reason in bad_waiting_reasons:
+            return True
+
+        return False
+
     def process_status(
         self,
         pod_id: str,
@@ -193,11 +210,15 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
     ) -> None:
         """Process status response"""
         if status == 'Pending':
+            container_statuses = event.get('raw_object', {}).get('status', {}).get('containerStatuses', [])
             if event['type'] == 'DELETED':
                 self.log.info('Event: Failed to start pod %s, will reschedule', pod_id)
                 self.watcher_queue.put(
                     (pod_id, namespace, State.UP_FOR_RESCHEDULE, annotations, resource_version)
                 )
+            elif container_statuses and self.is_container_state_bad(container_statuses[0]['state']):
+                self.log.error('Container state and reason are not acceptable. Event is: %s', event)
+                self.watcher_queue.put((pod_id, namespace, State.FAILED, annotations, resource_version))
             else:
                 self.log.info('Event: %s Pending', pod_id)
         elif status == 'Failed':
