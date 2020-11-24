@@ -43,6 +43,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/airflow
           echo $(pwd)
+          sudo apt-get update
           sudo apt-get install $(grep -vE "^\s*#" apt-requirements.txt  | tr "\n" " ")
           python -m pip install --upgrade pip
           pip install setuptools wheel gitpython
