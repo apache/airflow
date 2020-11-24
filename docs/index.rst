@@ -70,7 +70,7 @@ unit of work and continuity.
 
 
 .. toctree::
-    :hidden: 
+    :hidden:
 
     project
     license
