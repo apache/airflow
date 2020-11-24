@@ -1336,6 +1336,10 @@ OPERATORS = [
         "airflow.operators.subdag.SubDagOperator",
         "airflow.operators.subdag_operator.SubDagOperator",
     ),
+    (
+        "airflow.operators.dummy.DummyOperator",
+        "airflow.operators.dummy_operator.DummyOperator",
+    ),
 ]
 
 SECRETS = [

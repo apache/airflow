@@ -29,7 +29,7 @@ from parameterized import parameterized
 
 from airflow.configuration import conf
 from airflow.models import DAG, TaskInstance
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchTaskHandler
 from airflow.utils import timezone
 from airflow.utils.state import State

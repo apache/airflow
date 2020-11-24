@@ -900,7 +900,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         """
         Test TaskGroup serialization/deserialization.
         """
-        from airflow.operators.dummy_operator import DummyOperator
+        from airflow.operators.dummy import DummyOperator
         from airflow.utils.task_group import TaskGroup
 
         execution_date = datetime(2020, 1, 1)

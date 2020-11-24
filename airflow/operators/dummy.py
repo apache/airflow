@@ -16,20 +16,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import timedelta
+from airflow.models import BaseOperator
+from airflow.utils.decorators import apply_defaults
 
-from airflow import DAG
-from airflow.operators.dummy import DummyOperator
-from airflow.utils.dates import days_ago
 
-with DAG(
-    dag_id="test_with_non_default_owner",
-    schedule_interval="0 0 * * *",
-    start_date=days_ago(2),
-    dagrun_timeout=timedelta(minutes=60),
-    tags=["example"],
-) as dag:
-    run_this_last = DummyOperator(
-        task_id="test_task",
-        owner="John",
-    )
+class DummyOperator(BaseOperator):
+    """
+    Operator that does literally nothing. It can be used to group tasks in a
+    DAG.
+
+    The task is evaluated by the scheduler but never processed by the executor.
+    """
+
+    ui_color = '#e8f7e4'
+    inherits_from_dummy_operator = True
+
+    @apply_defaults
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+
+    def execute(self, context):
+        pass

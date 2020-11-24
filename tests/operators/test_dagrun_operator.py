@@ -35,7 +35,7 @@ TRIGGERED_DAG_ID = "triggerdag"
 DAG_SCRIPT = (
     "from datetime import datetime\n\n"
     "from airflow.models import DAG\n"
-    "from airflow.operators.dummy_operator import DummyOperator\n\n"
+    "from airflow.operators.dummy import DummyOperator\n\n"
     "dag = DAG(\n"
     'dag_id="{dag_id}", \n'
     'default_args={{"start_date": datetime(2019, 1, 1)}}, \n'

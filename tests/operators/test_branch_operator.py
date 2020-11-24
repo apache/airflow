@@ -21,7 +21,7 @@ import unittest
 
 from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.operators.branch import BaseBranchOperator
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State

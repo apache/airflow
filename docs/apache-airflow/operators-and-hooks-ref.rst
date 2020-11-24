@@ -59,7 +59,7 @@ Airflow has many more integrations available for separate installation as a prov
    * - :mod:`airflow.operators.dagrun_operator`
      -
 
-   * - :mod:`airflow.operators.dummy_operator`
+   * - :mod:`airflow.operators.dummy`
      -
 
    * - :mod:`airflow.operators.email`

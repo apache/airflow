@@ -40,7 +40,7 @@ from airflow.exceptions import (
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.models import DAG, DagBag, Pool, TaskInstance as TI
 from airflow.models.dagrun import DagRun
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
