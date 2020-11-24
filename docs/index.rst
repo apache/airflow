@@ -74,6 +74,7 @@ Content
 .. toctree::
     :maxdepth: 4
 
+    Home <self>
     project
     license
     start
