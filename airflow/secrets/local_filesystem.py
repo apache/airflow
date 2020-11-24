@@ -167,7 +167,9 @@ def _parse_secret_file(file_path: str) -> Dict[str, Any]:
     ext = file_path.rsplit(".", 2)[-1].lower()
 
     if ext not in FILE_PARSERS:
-        raise AirflowException("Unsupported file format. The file must have the extension .env or .json or .yaml")
+        raise AirflowException(
+            "Unsupported file format. The file must have the extension .env or .json or .yaml"
+        )
 
     secrets, parse_errors = FILE_PARSERS[ext](file_path)
 
