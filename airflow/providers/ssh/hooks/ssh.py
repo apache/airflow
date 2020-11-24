@@ -57,6 +57,14 @@ class SSHHook(BaseHook):
     :type keepalive_interval: int
     """
 
+    # key type name to paramiko PKey class
+    _default_pkey_mappings = {
+        'dsa': paramiko.DSSKey,
+        'ecdsa': paramiko.ECDSAKey,
+        'ed25519': paramiko.Ed25519Key,
+        'rsa': paramiko.RSAKey,
+    }
+
     def __init__(
         self,
         ssh_conn_id: Optional[str] = None,
@@ -291,13 +299,13 @@ class SSHHook(BaseHook):
 
     def _pkey_from_private_key(self, private_key: str, passphrase: Optional[str] = None) -> paramiko.PKey:
         """
-        Creates appropriate PKey for given private key
+        Creates appropriate paramiko key for given private key
 
         :param private_key: string containing private key
-        :return: paramiko.PKey appropriate for given key
-        :raises AirflowException
+        :return: `paramiko.PKey` appropriate for given key
+        :raises AirflowException: if key cannot be read
         """
-        allowed_pkey_types = (paramiko.RSAKey, paramiko.DSSKey, paramiko.ECDSAKey, paramiko.Ed25519Key)
+        allowed_pkey_types = self._pkey_mappings.values()
         for pkey_type in allowed_pkey_types:
             try:
                 key = pkey_type.from_private_key(StringIO(private_key), password=passphrase)
