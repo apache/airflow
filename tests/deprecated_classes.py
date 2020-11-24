@@ -1320,6 +1320,10 @@ OPERATORS = [
         "airflow.operators.latest_only.LatestOnlyOperator",
         "airflow.operators.latest_only_operator.LatestOnlyOperator",
     ),
+    (
+        "airflow.operators.trigger_dagrun.TriggerDagRunOperator",
+        "airflow.operators.dagrun_operator.TriggerDagRunOperator",
+    ),
 ]
 
 SECRETS = [

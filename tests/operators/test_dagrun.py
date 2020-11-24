@@ -24,7 +24,7 @@ from unittest import TestCase
 from airflow.exceptions import AirflowException, DagRunAlreadyExists
 from airflow.models import DAG, DagBag, DagModel, DagRun, Log, TaskInstance
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.operators.dagrun_operator import TriggerDagRunOperator
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
