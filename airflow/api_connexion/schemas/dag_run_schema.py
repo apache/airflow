@@ -21,7 +21,9 @@ from typing import List, NamedTuple
 from marshmallow import fields, pre_load
 from marshmallow.schema import Schema
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
+from pendulum.parsing import ParserError
 
+from airflow.api_connexion.exceptions import BadRequest
 from airflow.api_connexion.parameters import validate_istimezone
 from airflow.api_connexion.schemas.enum_schemas import DagStateField
 from airflow.models.dagrun import DagRun
@@ -67,9 +69,12 @@ class DAGRunSchema(SQLAlchemySchema):
         if "execution_date" not in data.keys():
             data["execution_date"] = str(timezone.utcnow())
         if "dag_run_id" not in data.keys():
-            data["dag_run_id"] = DagRun.generate_run_id(
-                DagRunType.MANUAL, timezone.parse(data["execution_date"])
-            )
+            try:
+                data["dag_run_id"] = DagRun.generate_run_id(
+                    DagRunType.MANUAL, timezone.parse(data["execution_date"])
+                )
+            except (ParserError, TypeError) as err:
+                raise BadRequest("Incorrect datetime argument", detail=str(err))
         return data
 
 
