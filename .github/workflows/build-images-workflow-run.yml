@@ -20,7 +20,7 @@ name: "Build Images"
 on:  # yamllint disable-line rule:truthy
   workflow_run:
     workflows: ["CI Build"]
-    branches: ['master', 'v1-10-test', 'v1-10-stable']
+    on: [pull_request]
     types: ['requested']
 env:
   MOUNT_LOCAL_SOURCES: "false"
