@@ -1712,6 +1712,13 @@ Now the `dag_id` will not appear repeated in the payload, and the response forma
 
 ## Airflow 1.10.13
 
+### TimeSensor is now timezone aware
+
+Previously `TimeSensor` always compared the `target_time` with the current time in UTC.
+
+Now it will compare `target_time` with the current time in the timezone of the DAG,
+defaulting to the `default_timezone` in the global config.
+
 ### Removed Kerberos support for HDFS hook
 
 The HDFS hook's Kerberos support has been removed due to removed python-krbV dependency from PyPI
@@ -1719,6 +1726,37 @@ and generally lack of support for SSL in Python3 (Snakebite-py3 we use as depend
 support for SSL connection to HDFS).
 
 SSL support still works for WebHDFS hook.
+
+### Unify user session lifetime configuration
+
+In previous version of Airflow user session lifetime could be configured by
+`session_lifetime_days` and `force_log_out_after` options. In practise only `session_lifetime_days`
+had impact on session lifetime, but it was limited to values in day.
+We have removed mentioned options and introduced new `session_lifetime_minutes`
+option which simplify session lifetime configuration.
+
+Before
+
+ ```ini
+[webserver]
+force_log_out_after = 0
+session_lifetime_days = 30
+ ```
+
+After
+
+ ```ini
+[webserver]
+session_lifetime_minutes = 43200
+ ```
+
+### Adding Operators, Hooks and Sensors via Airflow Plugins is deprecated
+
+The ability to import Operators, Hooks and Senors via the plugin mechanism has been deprecated and will raise warnings
+in Airflow 1.10.13 and will be removed completely in Airflow 2.0.
+
+Check http://airflow.apache.org/docs/1.10.13/howto/custom-operator.html to see how you can create and import
+Custom Hooks, Operators and Sensors.
 
 ## Airflow 1.10.12
 
