@@ -1191,8 +1191,8 @@
     - name: session_lifetime_minutes
       description: |
         The UI cookie lifetime in minutes. User will be logged out from UI after
-        `session_lifetime_minutes` of non-activity
-      version_added: 2.0.0
+        ``session_lifetime_minutes`` of non-activity
+      version_added: 1.10.13
       type: int
       example: ~
       default: "43200"
