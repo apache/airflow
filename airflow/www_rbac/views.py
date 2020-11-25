@@ -1125,12 +1125,12 @@ class Airflow(AirflowBaseView):
         return self._clear_dag_tis(dag, start_date, end_date, origin,
                                    recursive=True, confirmed=confirmed)
 
-
     @expose('/dagrun_cancel', methods=['POST', 'GET'])
     @has_dag_access(can_dag_edit=True)
     @has_access
     @action_logging
     def dagrun_cancel(self):
+        # cancels all dagruns...
         dag_id = request.args.get('dag_id')
         origin = request.args.get('origin') or "/"
         confirmed = request.form.get('confirmed') == "true"
@@ -1140,6 +1140,38 @@ class Airflow(AirflowBaseView):
         return self._clear_dag_tis(dag, None, None, origin,
                                    recursive=True, confirmed=confirmed, cancel=True)
 
+    @expose('/cancel_dagrun', methods=['POST'])
+    @has_dag_access(can_dag_edit=True)
+    @has_access
+    @action_logging
+    def cancel_specific_dagrun(self):
+        # cancel specific dagrun
+        dag_id = request.form['dag_id']
+        origin = request.form['origin']
+        # it seems sqlalchemy wont work with Pendulum datetimes so we have to get its private datetime
+        execution_date = pendulum.parse(request.form['execution_date'])._datetime
+        confirmed = request.form.get('confirmed') == "true"
+        dag = dagbag.get_dag(dag_id)
+        return self._clear_dag_tis(dag, execution_date, execution_date, origin,
+                                   recursive=True, confirmed=confirmed, cancel=True)
+
+    @expose('/cancel', methods=['POST'])
+    @has_dag_access(can_dag_edit=True)
+    @has_access
+    @action_logging
+    def cancel(self):
+        dag_id = request.form['dag_id']
+        origin = request.form['origin']
+        task_id = request.form['task_id']
+        execution_date = pendulum.parse(request.form['execution_date'])._datetime
+        confirmed = request.form.get('confirmed') == "true"
+        dag = dagbag.get_dag(dag_id)
+        dag = dag.sub_dag(
+            task_regex=r"^{0}$".format(task_id),
+            include_downstream=False,
+            include_upstream=False)
+        return self._clear_dag_tis(dag, execution_date, execution_date, origin,
+                                   recursive=True, confirmed=confirmed, cancel=True)
 
     @expose('/blocked')
     @has_access
@@ -2565,6 +2597,29 @@ class DagRunModelView(AirflowModelView):
                 "were set to success".format(count=count, altered_ti_count=altered_ti_count))
         except Exception:
             flash('Failed to set state', 'error')
+        return redirect(self.get_default_url())
+
+    @action('set_canceled', "Cancel",
+            "All task instances for the selected DAG Runs will be canceled. Are you sure?",
+            single=False)
+    @provide_session
+    def action_set_canceled(self, drs, session=None):
+        dagrun_count = 0
+        task_instance_count = 0
+        try:
+            for dr in session.query(models.DagRun).filter(models.DagRun.id.in_([dagrun.id for dagrun in drs])).all():
+                dag = dagbag.get_dag(dr.dag_id)
+                task_instance_count += dag.cancel(
+                    start_date=dr.execution_date,
+                    end_date=dr.execution_date,
+                    include_subdags=True)
+                dagrun_count += 1
+        except Exception:
+            flash('Failed to set state to canceled', 'error')
+        finally:
+            flash(
+                "{count} dag runs and {altered_ti_count} task instances were canceled".format(
+                    count=dagrun_count, altered_ti_count=task_instance_count))
         return redirect(self.get_default_url())
 
 
