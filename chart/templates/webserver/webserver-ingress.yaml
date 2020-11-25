@@ -29,10 +29,12 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-  {{- with .Values.ingress.web.annotations }}
+{{- if .Values.ingress.web.annotations }}
   annotations:
-  {{ toYaml . | indent 4 }}
-  {{- end }}
+{{- with .Values.ingress.web.annotations }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+{{- end}}
 spec:
   {{- if .Values.ingress.web.tls.enabled }}
   tls:
@@ -49,15 +51,19 @@ spec:
               serviceName: {{ .serviceName }}
               servicePort: {{ .servicePort }}
           {{- end }}
-          - path: {{ .Values.ingress.web.path }}
-            backend:
+          - backend:
               serviceName: {{ .Release.Name }}-webserver
               servicePort: airflow-ui
+{{- if .Values.ingress.web.path }}
+            path: {{ .Values.ingress.web.path }}
+{{- end }}
           {{- range .Values.ingress.web.succeedingPaths }}
           - path: {{ .path }}
             backend:
               serviceName: {{ .serviceName }}
               servicePort: {{ .servicePort }}
           {{- end }}
+{{- if .Values.ingress.web.host }}
       host: {{ .Values.ingress.web.host }}
+{{- end }}
 {{- end }}

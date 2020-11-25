@@ -29,7 +29,7 @@ from kubernetes.client.api_client import ApiClient
 
 api_client = ApiClient()
 
-BASE_URL_SPEC = "https://raw.githubusercontent.com/instrumenta/kubernetes-json-schema/master/v1.12.9"
+BASE_URL_SPEC = "https://raw.githubusercontent.com/instrumenta/kubernetes-json-schema/master/v1.14.0"
 
 
 @lru_cache(maxsize=None)
