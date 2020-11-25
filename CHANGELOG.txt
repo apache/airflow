@@ -100,7 +100,7 @@ Doc only changes
 - Move Backport Providers docs to our docsite (#11136)
 - Refactor rebase copy (#11030)
 - Add missing images for kubernetes executor docs (#11083)
-- Fix identation in executor_config example (#10467)
+- Fix indentation in executor_config example (#10467)
 - Enhanced the Kubernetes Executor doc  (#10433)
 - Refactor content to a markdown table (#10863)
 - Rename "Beyond the Horizon" section and refactor content (#10802)
