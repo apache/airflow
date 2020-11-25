@@ -17,6 +17,7 @@
 # under the License.
 from typing import Any, Dict, Optional, Tuple
 
+from contextlib import closing
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 
@@ -147,8 +148,10 @@ class SnowflakeHook(DbApiHook):
         """Snowflake-connector doesn't allow natively the execution of multiple SQL statements in the same call. So for
         allowing to pass files or strings with several queries this method is coded, that relies on run from DBApiHook"""
         if isinstance(sql, str):
-            queries = sql.split(';')
-            for query in queries:
-                super(SnowflakeHook, self).run(query, autocommit, parameters)
-        else:  # for lists
+            with closing(self.get_conn()) as conn:
+                if self.supports_autocommit:
+                    self.set_autocommit(conn, autocommit)
+
+                    conn.execute_string(sql, parameters)
+        else:
             super(SnowflakeHook, self).run(sql, autocommit, parameters)
