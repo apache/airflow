@@ -1686,6 +1686,10 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
     def render_k8s_pod_yaml(self) -> Optional[dict]:
         """Render k8s pod yaml"""
         kube_config = KubeConfig()
+
+        # [1:] - remove "airflow" from the start of the command
+        pod_args = self.command_as_list()[1:]
+
         pod = PodGenerator.construct_pod(
             dag_id=self.dag_id,
             task_id=self.task_id,
@@ -1693,7 +1697,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             try_number=self.try_number,
             kube_image=kube_config.kube_image,
             date=self.execution_date,
-            command=self.command_as_list(),
+            args=pod_args,
             pod_override_object=PodGenerator.from_obj(self.executor_config),
             scheduler_job_id="worker-config",
             namespace=kube_config.executor_namespace,

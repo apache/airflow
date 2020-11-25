@@ -272,8 +272,7 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
             'spec': {
                 'containers': [
                     {
-                        'command': [
-                            'airflow',
+                        'args': [
                             'tasks',
                             'run',
                             'test_get_k8s_pod_yaml',

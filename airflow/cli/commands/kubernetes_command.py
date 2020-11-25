@@ -40,8 +40,13 @@ def generate_pod_yaml(args):
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
     yaml_output_path = args.output_path
     kube_config = KubeConfig()
+
     for task in dag.tasks:
         ti = TaskInstance(task, execution_date)
+
+        # [1:] - remove "airflow" from the start of the command
+        pod_args = ti.command_as_list()[1:]
+
         pod = PodGenerator.construct_pod(
             dag_id=args.dag_id,
             task_id=ti.task_id,
@@ -49,7 +54,7 @@ def generate_pod_yaml(args):
             try_number=ti.try_number,
             kube_image=kube_config.kube_image,
             date=ti.execution_date,
-            command=ti.command_as_list(),
+            args=pod_args,
             pod_override_object=PodGenerator.from_obj(ti.executor_config),
             scheduler_job_id="worker-config",
             namespace=kube_config.executor_namespace,

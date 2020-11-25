@@ -1844,8 +1844,7 @@ class TestTaskInstance(unittest.TestCase):
             'spec': {
                 'containers': [
                     {
-                        'command': [
-                            'airflow',
+                        'args': [
                             'tasks',
                             'run',
                             'test_get_rendered_k8s_spec',

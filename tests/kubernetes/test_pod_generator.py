@@ -425,7 +425,7 @@ class TestPodGenerator(unittest.TestCase):
             kube_image='airflow_image',
             try_number=self.try_number,
             date=self.execution_date,
-            command=['command'],
+            args=['args'],
             pod_override_object=executor_config,
             base_worker_pod=worker_config,
             namespace='test_namespace',
@@ -437,7 +437,8 @@ class TestPodGenerator(unittest.TestCase):
         expected.metadata.annotations = self.annotations
         expected.metadata.name = 'pod_id-' + self.static_uuid.hex
         expected.metadata.namespace = 'test_namespace'
-        expected.spec.containers[0].command = ['command']
+        expected.spec.containers[0].command = ['sh', '-c', 'echo Hello Kubernetes!']
+        expected.spec.containers[0].args = ['args']
         expected.spec.containers[0].image = 'airflow_image'
         expected.spec.containers[0].resources = {'limits': {'cpu': '1m', 'memory': '1G'}}
         expected.spec.containers[0].env.append(
@@ -465,7 +466,7 @@ class TestPodGenerator(unittest.TestCase):
             kube_image='test-image',
             try_number=3,
             date=self.execution_date,
-            command=['command'],
+            args=['args'],
             pod_override_object=executor_config,
             base_worker_pod=worker_config,
             namespace='namespace',
@@ -473,7 +474,8 @@ class TestPodGenerator(unittest.TestCase):
         )
         sanitized_result = self.k8s_client.sanitize_for_serialization(result)
         worker_config.spec.containers[0].image = "test-image"
-        worker_config.spec.containers[0].command = ["command"]
+        worker_config.spec.containers[0].command = ['sh', '-c', 'echo Hello Kubernetes!']
+        worker_config.spec.containers[0].args = ["args"]
         worker_config.metadata.annotations = self.annotations
         worker_config.metadata.labels = self.labels
         worker_config.metadata.labels['app'] = 'myapp'
