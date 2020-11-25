@@ -20,7 +20,7 @@
 ## Who uses Apache Airflow?
 
 As the Apache Airflow community grows, we'd like to keep track of who is using
-the platform. Please send a PR with your company name and @githubhandle.
+the platform. Please send a PR with your company name in alphabetical order and @githubhandle(s).
 
 Currently, **officially** using Airflow:
 
