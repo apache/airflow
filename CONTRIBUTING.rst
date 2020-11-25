@@ -56,10 +56,6 @@ These include:
 
   - This is the best way to get a Committer to answer a question.
 
-- Asking a question on `<https://gitter.im/apache/incubator-airflow>`_
-
-  - This is the best way to get a quick response, but not from a committer.
-
 - Open a JIRA ticket when you discover a bug and propose a PR with a fix.
 
   - This is the only way to get PRs approved or to report bugs.
