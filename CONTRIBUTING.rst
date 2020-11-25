@@ -23,25 +23,25 @@ Contributions
 Contributions to Airflow are welcome and are greatly appreciated! Every little bit helps,
 and credit will always be given.
 
-We would like more people to use, contribute to, and help maintain Airflow. 
-These three goals align with the three main membership roles within our community: 
+We would like more people to use, contribute to, and help maintain Airflow.
+These three goals align with the three main membership roles within our community:
 users, contributors, and committers/maintainers.
 
-We would like to instill a sense of ownership and pride among the members of our community 
+We would like to instill a sense of ownership and pride among the members of our community
 by encouraging:
 
-- people to use Airflow 
+- people to use Airflow
 - users to contribute ro Airflow
-- contributors to become committers 
+- contributors to become committers
 
 You can contribute to Airflow in various ways such as:
 
-- reporting bug 
+- reporting bug
 - suggesting new features and Road Map items
 - submitting Pull Requests (PRs) for bug fixes and new features.
 - attending Airflow meets-up events near you:
 
-  - search for Airflow `Meetup <https://www.meetup.com/>`_ 
+  - search for Airflow `Meetup <https://www.meetup.com/>`_
 
 - helping to answer questions on gitter, the dev email list, PRs, and Jiras.
 
@@ -50,13 +50,13 @@ Best Ways of Engaging Yourself in the Community
 -----------------------------------------------
 
 There are several ways for members to connect meaningfully in the community.
-These include: 
+These include:
 
-- Sending an email to: `<dev@airflow.incubator.apache.org>`_ 
+- Sending an email to: `<dev@airflow.incubator.apache.org>`_
 
   - This is the best way to get a Committer to answer a question.
 
-- Asking a question on `<https://gitter.im/apache/incubator-airflow>` 
+- Asking a question on `<https://gitter.im/apache/incubator-airflow>`_
 
   - This is the best way to get a quick response, but not from a committer.
 
@@ -68,8 +68,8 @@ These include:
 Is Your Company Using Airflow?
 ------------------------------
 
-If so, then add your company name (along with your Github handle) as links to the 
-`README.md <https://github.com/apache/airflow/blob/master/README.md#who-uses-apache-airflow>`_ 
+If so, then add your company name (along with your Github handle) as links to the
+`README.md <https://github.com/apache/airflow/blob/master/README.md#who-uses-apache-airflow>`_
 and submit a PR (with associated JIRA). We will be happy to merge it.
 
 
@@ -108,8 +108,8 @@ Implement Features
 
 To begin suggesting features and Road Map items:
 
-* First you have to subscribe to the Dev list by an email to `<dev-subscribe@airflow.incubator.apache.org>`_ 
-  - a bot will automatically add you to an allow-list which enables you to send emails to 
+* First you have to subscribe to the Dev list by an email to `<dev-subscribe@airflow.incubator.apache.org>`_
+  - a bot will automatically add you to an allow-list which enables you to send emails to
   our Dev email list ( `<dev@airflow.incubator.apache.org>`_ )
 
 * Look through the `GitHub issues labeled "kind:feature"
