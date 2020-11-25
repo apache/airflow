@@ -1439,10 +1439,10 @@
       type: string
       example: ~
       default: ""
-    - name: max_threads
+    - name: parsing_processes
       description: |
-        The scheduler can run multiple threads in parallel to schedule dags.
-        This defines how many threads will run.
+        The scheduler can run multiple processes in parallel to parse dags.
+        This defines how many processes will run.
       version_added: ~
       type: string
       example: ~

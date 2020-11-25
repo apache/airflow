@@ -183,6 +183,9 @@ class AirflowConfigParser(ConfigParser):
             'json_format': 'elasticsearch_json_format',
             'json_fields': 'elasticsearch_json_fields'
 
+        },
+        'scheduler': {
+            'parsing_processes': 'max_threads'
         }
     }
 

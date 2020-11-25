@@ -64,6 +64,13 @@ https://developers.google.com/style/inclusive-documentation
 -->
 ## Airflow 1.10.14
 
+### `[scheduler] max_threads` config has been renamed to `[scheduler] parsing_processes`
+
+From Airflow 1.10.14, `max_threads` config under `[scheduler]` section has been renamed to `parsing_processes`.
+
+This is to align the name with the actual code where the Scheduler launches the number of processes defined by
+`[scheduler] parsing_processes` to parse the DAG files.
+
 ### Airflow CLI changes in line with  2.0
 
 The Airflow CLI has been organized so that related commands are grouped together as subcommands,

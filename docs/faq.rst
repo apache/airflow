@@ -205,8 +205,11 @@ This means ``explicit_defaults_for_timestamp`` is disabled in your mysql server 
 How to reduce airflow dag scheduling latency in production?
 -----------------------------------------------------------
 
-- ``max_threads``: Scheduler will spawn multiple threads in parallel to schedule dags. This is controlled by ``max_threads`` with default value of 2. User should increase this value to a larger value (e.g numbers of cpus where scheduler runs - 1) in production.
-- ``scheduler_heartbeat_sec``: User should consider to increase ``scheduler_heartbeat_sec`` config to a higher value (e.g 60 secs) which controls how frequent the airflow scheduler gets the heartbeat and updates the job's entry in database.
+- ``parsing_processes``: Scheduler will spawn multiple threads in parallel to parse dags.
+  This is controlled by ``parsing_processes`` with default value of 2.
+  User should increase this value to a larger value (e.g numbers of cpus where scheduler runs + 1) in production.
+- ``scheduler_heartbeat_sec``: User should consider to increase ``scheduler_heartbeat_sec`` config to a higher value (e.g 60 secs) which controls how frequent the airflow scheduler gets the heartbeat
+  and updates the job's entry in database.
 
 Why next_ds or prev_ds might not contain expected values?
 ---------------------------------------------------------
