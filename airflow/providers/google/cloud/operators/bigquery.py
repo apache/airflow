@@ -2001,6 +2001,7 @@ class BigQueryInsertJobOperator(BaseOperator):
     template_fields_renderers = {"configuration": "json"}
     ui_color = BigQueryUIColors.QUERY.value
 
+    @apply_defaults
     def __init__(
         self,
         configuration: Dict[str, Any],
