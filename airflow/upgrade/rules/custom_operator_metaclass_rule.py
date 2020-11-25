@@ -47,7 +47,7 @@ To ensure this, we can no longer allow custom metaclasses in custom operators.
 
     @provide_session
     def check(self, session=None):
-        dagbag = DagBag(include_examples=True)
+        dagbag = DagBag(include_examples=Flase)
         custom_metaclass_error_messages = []
         for dag_id, dag in dagbag.dags.items():
             for task in dag.tasks:
