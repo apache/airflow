@@ -33,6 +33,10 @@ class SnowflakeToS3Operator(BaseOperator):
         'Configuring AWS IAM User Credentials' for unloading data to s3. If this is true,
         s3_bucket and file_format are not necessaries.
     :type stage: bool
+    :param warehouse: reference to a specific snowflake warehouse to override the one in conn
+    :type warehouse: str
+    :param database: reference to a specific snowflake database to override the one in conn
+    :type warehouse: str
     :param s3_bucket: reference to a specific S3 bucket where the data will be saved. For using it, you
         should have done the one-time setup 'Configuring a Snowflake Storage Integration'
     :type s3_bucket: str
@@ -49,6 +53,20 @@ class SnowflakeToS3Operator(BaseOperator):
     :param unload_options: reference to a list of UNLOAD options (SINGLE, MAX_FILE_SIZ`E,
         OVERWRITE etc). Each element of the list has to be a string
     :type unload_options: list
+    :param role: name of role (will overwrite any role defined in
+        connection's extra JSON)
+    :type role: str
+    :param authenticator: authenticator for Snowflake.
+        'snowflake' (default) to use the internal Snowflake authenticator
+        'externalbrowser' to authenticate using your web browser and
+        Okta, ADFS or any other SAML 2.0-compliant identify provider
+        (IdP) that has been defined for your account
+        'https://<your_okta_account_name>.okta.com' to authenticate
+        through native Okta.
+    :type authenticator: str
+    :param session_parameters: You can set session-level parameters at
+        the time you connect to Snowflake
+    :type session_parameters: dict
     """
 
     template_fields = (
@@ -69,10 +87,15 @@ class SnowflakeToS3Operator(BaseOperator):
         s3_key: str,
         query_or_table: str,
         file_format: Optional[str],
+        database: Optional[str],
+        warehouse: Optional[str],
         snowflake_conn_id: str = "snowflake_default",
         unload_options: Optional[list] = None,
         autocommit: bool = True,
         include_header: bool = False,
+        role: Optional[str] = None,
+        authenticator: Optional[str] = None,
+        session_parameters: Optional[dict] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -80,14 +103,27 @@ class SnowflakeToS3Operator(BaseOperator):
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
         self.file_format = file_format
+        self.warehouse = warehouse
+        self.database = database
         self.snowflake_conn_id = snowflake_conn_id
         self.query_or_table = query_or_table
         self.unload_options = unload_options or []  # type: List
         self.autocommit = autocommit
         self.include_header = include_header
+        self.role = role
+        self.authenticator = authenticator
+        self.session_parameters = session_parameters
 
     def execute(self, context):
-        snowflake_hook = SnowflakeHook(snowflake_conn_id=self.snowflake_conn_id)
+        snowflake_hook = SnowflakeHook(
+            snowflake_conn_id=self.snowflake_conn_id,
+            warehouse=self.warehouse,
+            database=self.database,
+            role=self.role,
+            schema=self.schema,
+            authenticator=self.authenticator,
+            session_parameters=self.session_parameters,
+        )
         unload_options = '\n\t'.join(self.unload_options)
 
         if self.stage:

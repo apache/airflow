@@ -30,19 +30,17 @@ class TestSnowflakeToS3Transfer(unittest.TestCase):
         self,
         mock_run,
     ):
-        schema = "schema"
-        table = "table"
+
+        query_or_table = "schema.table"
         s3_bucket = "bucket"
         s3_key = "key"
         unload_options = [
             'OVERWRITE = TRUE',
         ]
         file_format = "file_format"
-        sql = None
 
         SnowflakeToS3Operator(
-            schema=schema,
-            table=table,
+            query_or_table=query_or_table,
             s3_bucket=s3_bucket,
             s3_key=s3_key,
             file_format="file_format",
@@ -52,13 +50,10 @@ class TestSnowflakeToS3Transfer(unittest.TestCase):
             dag=None,
         ).execute(None)
 
-        if not sql:
-            sql = schema + '.' + table
-
         unload_options = '\n\t'.join(unload_options)
         unload_query = f"""
         COPY INTO 's3://{s3_bucket}/{s3_key}'
-        FROM ({sql})
+        FROM ({query_or_table})
         STORAGE_INTEGRATION = S3
         FILE_FORMAT = ({file_format})
         {unload_options}
