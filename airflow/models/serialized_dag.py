@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional
 
 import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, String, and_
-from sqlalchemy.orm import Session, backref, relationship, foreign
+from sqlalchemy.orm import Session, backref, foreign, relationship
 from sqlalchemy.sql import exists
 
 from airflow.models.base import ID_LEN, Base
