@@ -52,6 +52,14 @@ assists users migrating to a new version.
 
 ## Master
 
+### `[scheduler] max_threads` config has been renamed to `[scheduler] parsing_processes`
+
+From Airflow 2.0, `max_threads` config under `[scheduler]` section has been renamed to `parsing_processes`.
+
+This is to align the name with the actual code where the Scheduler launches the number of processes defined by
+`[scheduler] parsing_processes` to Parse DAG files, calculates next DagRun date for each DAG,
+serialize them and store them in the DB.
+
 ### Unify user session lifetime configuration
 
 In previous version of Airflow user session lifetime could be configured by
