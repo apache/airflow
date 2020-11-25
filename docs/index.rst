@@ -72,7 +72,6 @@ unit of work and continuity.
 .. toctree::
     :hidden:
 
-    Home <self>
     project
     license
     start
