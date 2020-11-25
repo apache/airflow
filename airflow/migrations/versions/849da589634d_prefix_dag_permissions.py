@@ -35,16 +35,16 @@ depends_on = None
 
 
 def upgrade():  # noqa: D103
-    permissions = ['can_dag_read', 'can_dag_edit']
+    perms = ['can_dag_read', 'can_dag_edit']
     view_menus = cached_app().appbuilder.sm.get_all_view_menu()
-    convert_permissions(permissions, view_menus, upgrade_action, upgrade_dag_id)
+    convert_permissions(perms, view_menus, upgrade_action, upgrade_dag_id)
 
 
 def downgrade():  # noqa: D103
-    permissions = ['can_read', 'can_edit']
+    perms = ['can_read', 'can_edit']
     vms = cached_app().appbuilder.sm.get_all_view_menu()
     view_menus = [vm for vm in vms if (vm.name == permissions.RESOURCE_DAG or vm.name.startswith('DAG:'))]
-    convert_permissions(permissions, view_menus, downgrade_action, downgrade_dag_id)
+    convert_permissions(perms, view_menus, downgrade_action, downgrade_dag_id)
 
 
 def upgrade_dag_id(dag_id):
@@ -79,12 +79,12 @@ def downgrade_action(action):
     return 'can_dag_edit'
 
 
-def convert_permissions(permissions, view_menus, convert_action, convert_dag_id):
+def convert_permissions(perms, view_menus, convert_action, convert_dag_id):
     """Creates new empty role in DB"""
     appbuilder = cached_app().appbuilder  # pylint: disable=no-member
     roles = appbuilder.sm.get_all_roles()
     views_to_remove = set()
-    for permission_name in permissions:  # pylint: disable=too-many-nested-blocks
+    for permission_name in perms:  # pylint: disable=too-many-nested-blocks
         for view_menu in view_menus:
             view_name = view_menu.name
             old_pvm = appbuilder.sm.find_permission_view_menu(permission_name, view_name)
@@ -106,8 +106,8 @@ def convert_permissions(permissions, view_menus, convert_action, convert_dag_id)
             appbuilder.sm.del_view_menu(view_name)
             print(f"DELETING: view_menu  ---->   {view_name}")
 
-    if 'can_dag_read' in permissions:
-        for permission_name in permissions:
+    if 'can_dag_read' in perms:
+        for permission_name in perms:
             if appbuilder.sm.find_permission(permission_name):
                 appbuilder.sm.del_permission(permission_name)
                 print(f"DELETING: permission  ---->   {permission_name}")
