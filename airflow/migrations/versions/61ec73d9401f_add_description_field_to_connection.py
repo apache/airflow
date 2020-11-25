@@ -36,8 +36,16 @@ depends_on = None
 
 def upgrade():
     """Apply Add description field to connection"""
+    conn = op.get_bind()  # pylint: disable=no-member
+
     with op.batch_alter_table('connection') as batch_op:
-        batch_op.add_column(sa.Column('description', sa.String(length=5000), nullable=True))
+        if conn.dialect.name == "mysql":
+            # Handles case where on mysql with utf8mb4 this would exceed the size of row
+            # We have to set text type in this migration even if originally it was string
+            # This is permanently fixed in the follow-up migration 64a7d6477aae
+            batch_op.add_column(sa.Column('description', sa.Text(length=5000), nullable=True))
+        else:
+            batch_op.add_column(sa.Column('description', sa.String(length=5000), nullable=True))
 
 
 def downgrade():
