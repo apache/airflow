@@ -697,6 +697,14 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "path": {
+                          "description": "Webserver Liveness probe path",
+                          "type": ["string"]
+                        },
+                        "host": {
+                          "description": "Webserver Liveness probe host",
+                          "type": ["string","null"]
+                        },
                         "initialDelaySeconds": {
                             "description": "Webserver Liveness probe initial delay.",
                             "type": "integer"
@@ -720,6 +728,14 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "path": {
+                          "description": "Webserver Readiness probe path",
+                          "type": ["string"]
+                        },
+                        "host": {
+                          "description": "Webserver Readiness probe host",
+                          "type": ["string","null"]
+                        },
                         "initialDelaySeconds": {
                             "description": "Webserver Readiness probe initial delay.",
                             "type": "integer"

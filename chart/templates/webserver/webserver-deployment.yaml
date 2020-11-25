@@ -126,16 +126,26 @@ spec:
               containerPort: {{ .Values.ports.airflowUI }}
           livenessProbe:
             httpGet:
-              path: /health
+              path: {{ .Values.webserver.livenessProbe.path }}
               port: {{ .Values.ports.airflowUI }}
+{{- if .Values.webserver.livenessProbe.host }}
+              httpHeaders:
+                - name: Host
+                  value: {{ .Values.webserver.livenessProbe.host }}
+{{- end }}
             initialDelaySeconds: {{ .Values.webserver.livenessProbe.initialDelaySeconds | default 15 }}
             timeoutSeconds: {{ .Values.webserver.livenessProbe.timeoutSeconds | default 30 }}
             failureThreshold: {{ .Values.webserver.livenessProbe.failureThreshold | default 20 }}
             periodSeconds: {{ .Values.webserver.livenessProbe.periodSeconds | default 5 }}
           readinessProbe:
             httpGet:
-              path: /health
+              path: {{ .Values.webserver.readinessProbe.path }}
               port: {{ .Values.ports.airflowUI }}
+{{- if .Values.webserver.readinessProbe.host }}
+              httpHeaders:
+                - name: Host
+                  value: {{ .Values.webserver.readinessProbe.host }}
+{{- end }}
             initialDelaySeconds: {{ .Values.webserver.readinessProbe.initialDelaySeconds | default 15 }}
             timeoutSeconds: {{ .Values.webserver.readinessProbe.timeoutSeconds | default 30 }}
             failureThreshold: {{ .Values.webserver.readinessProbe.failureThreshold | default 20 }}

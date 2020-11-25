@@ -389,12 +389,16 @@ scheduler:
 webserver:
   allowPodLogReading: true
   livenessProbe:
+    path: /health
+    host: ~
     initialDelaySeconds: 15
     timeoutSeconds: 30
     failureThreshold: 20
     periodSeconds: 5
 
   readinessProbe:
+    path: /health
+    host: ~
     initialDelaySeconds: 15
     timeoutSeconds: 30
     failureThreshold: 20
