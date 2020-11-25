@@ -45,7 +45,7 @@ class S3ToSnowflakeOperator(BaseOperator):
     :param file_format: reference to a specific file format
     :type file_format: str
     :param warehouse: name of warehouse (will overwrite any warehouse
-    defined in the connection's extra JSON)
+        defined in the connection's extra JSON)
     :type warehouse: str
     :param database: reference to a specific database in Snowflake connection
     :type database: str
