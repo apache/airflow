@@ -48,11 +48,11 @@ To ensure this, we can no longer allow custom metaclasses in custom operators.
     @provide_session
     def check(self, session=None):
         dagbag = DagBag(include_examples=True)
-        custom_metaclasses = []
+        custom_metaclass_error_messages = []
         for dag_id, dag in dagbag.dags.items():
             for task in dag.tasks:
                 res = check_task_for_metaclasses(task)
                 if res:
-                    custom_metaclasses.append(res)
+                    custom_metaclass_error_messages.append(res)
 
-        return custom_metaclasses
+        return custom_metaclass_error_messages
