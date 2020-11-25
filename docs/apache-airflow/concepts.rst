@@ -981,6 +981,7 @@ See ``airflow/example_dags`` for a demonstration.
 Note that airflow pool is not honored by :class:`~airflow.operators.subdag_operator.SubDagOperator`. Hence
 resources could be consumed by SubdagOperators.
 
+For a comparision of SubDAGs and TaskGroup, see the `TaskGroup`_ section.
 
 TaskGroup
 =========
@@ -1022,6 +1023,28 @@ This animated gif shows the UI interactions. TaskGroups are expanded or collapse
 
 .. image:: img/task_group.gif
 
+While TaskGroups and SubDAGs are both used to create repeating patterns, depending on your use case, one may be better
+than the other. The SubDagOperator launches a DAG as a separate entity from the original graph. This design pattern
+offers flexibility to create SubDAGs with different schedulers and executors at the cost of greater complexity and
+maintenance burden. TaskGroups creates a UI grouping concept on the same original DAG which simplifies logic and
+maintenance for less flexibility.
+
+Here is a table that summarizes their differences:
++----------------------+----------------------+
+| Task Group           | SubDAG               |
++======================+======================+
+| Repeating patterns   |  Repeating patterns  |
+| live on the same DAG |  run as separate DAGs|
++----------------------+----------------------+
+| Follows schedule of  |  Creates a new       |
+| DAG                  |  schedule            |
++----------------------+----------------------+
+| Has same executor as |  Can specify an      |
+| DAG                  |  executor            |
++----------------------+----------------------+
+| Honors all pool      |  Does not honor pool |
+| configurations       |  configurations      |
++----------------------+----------------------+
 
 SLAs
 ====
