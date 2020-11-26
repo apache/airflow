@@ -155,4 +155,4 @@ class SnowflakeHook(DbApiHook):
 
                     conn.execute_string(sql, parameters)
         else:
-            super(SnowflakeHook, self).run(sql, autocommit, parameters)
+            super().run(sql, autocommit, parameters)
