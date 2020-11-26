@@ -19,14 +19,20 @@
 
 import os
 import signal
+import warnings
 from subprocess import PIPE, STDOUT, Popen
 from tempfile import TemporaryDirectory, gettempdir
-from typing import Dict, Optional
+from typing import Dict, List, Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.operator_helpers import context_to_airflow_vars
+
+
+def _is_bash_script(input_string: str):
+    input_list = input_string.split(" ")
+    return len(input_list) == 1 and len(input_string) > 2 and input_string[3:] == ".sh"
 
 
 class BashOperator(BaseOperator):
@@ -42,7 +48,7 @@ class BashOperator(BaseOperator):
 
     :param bash_command: The command, set of commands or reference to a
         bash script (must be '.sh') to be executed. (templated)
-    :type bash_command: str
+    :type bash_command: Union[str, List[str]]
     :param env: If env is not None, it must be a dict that defines the
         environment variables for the new process; these are used instead
         of inheriting the current process environment, which is the default
@@ -113,7 +119,7 @@ class BashOperator(BaseOperator):
     def __init__(
         self,
         *,
-        bash_command: str,
+        bash_command: Union[str, List[str]],
         env: Optional[Dict[str, str]] = None,
         output_encoding: str = 'utf-8',
         **kwargs,
@@ -157,14 +163,37 @@ class BashOperator(BaseOperator):
 
             self.log.info('Running command: %s', self.bash_command)
 
-            self.sub_process = Popen(  # pylint: disable=subprocess-popen-preexec-fn
-                ['bash', "-c", self.bash_command],
-                stdout=PIPE,
-                stderr=STDOUT,
-                cwd=tmp_dir,
-                env=env,
-                preexec_fn=pre_exec,
-            )
+            if isinstance(self.bash_command) == str and not _is_bash_script(self.bash_command):
+                warnings.warn(
+                    "Warning: Using a string in the BashOperator leaves your system open to bash injection "
+                    "attacks via escape strings. Please use a list[str] instead."
+                )
+                self.sub_process = Popen(  # pylint: disable=subprocess-popen-preexec-fn
+                    ['bash', "-c", self.bash_command],
+                    stdout=PIPE,
+                    stderr=STDOUT,
+                    cwd=tmp_dir,
+                    env=env,
+                    preexec_fn=pre_exec,
+                )
+            elif isinstance(self.bash_command) == list:
+                if (
+                    len(self.bash_command) >= 2
+                    and self.bash_command[0] == "bash"
+                    and self.bash_command[1] == "-c"
+                ):
+                    warnings.warn(
+                        "Warning: using \"bash -c\" for your bash command will give this command"
+                        "full access to the bash environment. Please consider not doing this."
+                    )
+                self.sub_process = Popen(  # pylint: disable=subprocess-popen-preexec-fn
+                    self.bash_command,
+                    stdout=PIPE,
+                    stderr=STDOUT,
+                    cwd=tmp_dir,
+                    env=env,
+                    preexec_fn=pre_exec,
+                )
 
             self.log.info('Output:')
             line = ''
