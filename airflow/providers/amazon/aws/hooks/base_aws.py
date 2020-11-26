@@ -32,6 +32,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 import boto3
 import botocore
 import botocore.session
+import requests
 from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
 from cached_property import cached_property
@@ -208,18 +209,39 @@ class _SessionFactory(LoggingMixin):
             RoleArn=role_arn, PrincipalArn=principal_arn, SAMLAssertion=saml_assertion, **assume_role_kwargs
         )
 
-    def _fetch_saml_assertion_using_http_spegno_auth(self, saml_config: Dict[str, Any]) -> str:
-        import requests
+    def _get_idp_response(
+        self, saml_config: Dict[str, Any], auth: requests.auth.AuthBase
+    ) -> requests.models.Response:
+        idp_url = saml_config["idp_url"]
+        self.log.info("idp_url= %s", idp_url)
 
+        session = requests.Session()
+
+        # Configurable Retry when querying the IDP endpoint
+        if "idp_request_retry_kwargs" in saml_config:
+            idp_request_retry_kwargs = saml_config["idp_request_retry_kwargs"]
+            self.log.info("idp_request_retry_kwargs= %s", idp_request_retry_kwargs)
+            from requests.adapters import HTTPAdapter
+            from requests.packages.urllib3.util.retry import Retry
+
+            retry_strategy = Retry(**idp_request_retry_kwargs)
+            adapter = HTTPAdapter(max_retries=retry_strategy)
+            session.mount("https://", adapter)
+            session.mount("http://", adapter)
+
+        idp_request_kwargs = saml_config["idp_request_kwargs"]
+        idp_response = session.get(idp_url, auth=auth, **idp_request_kwargs)
+        idp_response.raise_for_status()
+
+        return idp_response
+
+    def _fetch_saml_assertion_using_http_spegno_auth(self, saml_config: Dict[str, Any]) -> str:
         # requests_gssapi will need paramiko > 2.6 since you'll need
         # 'gssapi' not 'python-gssapi' from PyPi.
         # https://github.com/paramiko/paramiko/pull/1311
         import requests_gssapi
         from lxml import etree
 
-        idp_url = saml_config["idp_url"]
-        self.log.info("idp_url= %s", idp_url)
-        idp_request_kwargs = saml_config["idp_request_kwargs"]
         auth = requests_gssapi.HTTPSPNEGOAuth()
         if 'mutual_authentication' in saml_config:
             mutual_auth = saml_config['mutual_authentication']
@@ -236,8 +258,7 @@ class _SessionFactory(LoggingMixin):
                     '(Exclude this setting will default to HTTPSPNEGOAuth() ).'
                 )
         # Query the IDP
-        idp_response = requests.get(idp_url, auth=auth, **idp_request_kwargs)
-        idp_response.raise_for_status()
+        idp_response = self._get_idp_response(saml_config, auth=auth)
         # Assist with debugging. Note: contains sensitive info!
         xpath = saml_config['saml_response_xpath']
         log_idp_response = 'log_idp_response' in saml_config and saml_config['log_idp_response']
