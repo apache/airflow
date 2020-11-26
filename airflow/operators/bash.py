@@ -166,7 +166,10 @@ class BashOperator(BaseOperator):
             if isinstance(self.bash_command) == str and not _is_bash_script(self.bash_command):
                 warnings.warn(
                     "Warning: Using a string in the BashOperator leaves your system open to bash injection "
-                    "attacks via escape strings. Please use a list[str] instead."
+                    "attacks via escape strings. Please use a list[str] instead.\n"
+                    "\n"
+                    "We also highly recommend against using [\"bash\", \"-c\"... in your command as"
+                    "that command will essentially negate any security that Popen can offer you."
                 )
                 self.sub_process = Popen(  # pylint: disable=subprocess-popen-preexec-fn
                     ['bash', "-c", self.bash_command],
@@ -177,15 +180,6 @@ class BashOperator(BaseOperator):
                     preexec_fn=pre_exec,
                 )
             elif isinstance(self.bash_command) == list:
-                if (
-                    len(self.bash_command) >= 2
-                    and self.bash_command[0] == "bash"
-                    and self.bash_command[1] == "-c"
-                ):
-                    warnings.warn(
-                        "Warning: using \"bash -c\" for your bash command will give this command"
-                        "full access to the bash environment. Please consider not doing this."
-                    )
                 self.sub_process = Popen(  # pylint: disable=subprocess-popen-preexec-fn
                     self.bash_command,
                     stdout=PIPE,
