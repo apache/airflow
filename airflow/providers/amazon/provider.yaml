@@ -337,7 +337,7 @@ transfers:
     target-integration-name: Amazon Simple Storage Service (S3)
     python-module: airflow.providers.amazon.aws.transfers.sftp_to_s3
   - source-integration-name: Snowflake
-    target_integration-name: Amazon Simple Storage Service (S3)
+    target-integration-name: Amazon Simple Storage Service (S3)
     python-module: airflow.providers.aws.transfers.snowflake_to_s3
 
 hook-class-names:
