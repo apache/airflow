@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from contextlib import closing
 from typing import Any, Dict, Optional, Tuple
 
-from contextlib import closing
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 
@@ -145,8 +145,9 @@ class SnowflakeHook(DbApiHook):
         return getattr(conn, 'autocommit_mode', False)
 
     def run(self, sql, autocommit=False, parameters=None):
-        """Snowflake-connector doesn't allow natively the execution of multiple SQL statements in the same call. So for
-        allowing to pass files or strings with several queries this method is coded, that relies on run from DBApiHook"""
+        """Snowflake-connector doesn't allow natively the execution of multiple SQL statements in the same
+        call. So for allowing to pass files or strings with several queries this method is coded,
+        that relies on run from DBApiHook"""
         if isinstance(sql, str):
             with closing(self.get_conn()) as conn:
                 if self.supports_autocommit:
