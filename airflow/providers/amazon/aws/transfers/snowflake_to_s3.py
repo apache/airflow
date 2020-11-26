@@ -50,7 +50,7 @@ class SnowflakeToS3Operator(BaseOperator):
     :type query_or_table: str
     :param snowflake_conn_id: reference to a specific snowflake database
     :type snowflake_conn_id: str`
-    :param unload_options: reference to a list of UNLOAD options (SINGLE, MAX_FILE_SIZ`E,
+    :param unload_options: reference to a list of UNLOAD options (SINGLE, MAX_FILE_SIZE,
         OVERWRITE etc). Each element of the list has to be a string
     :type unload_options: list
     :param role: name of role (will overwrite any role defined in
