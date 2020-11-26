@@ -261,7 +261,7 @@ class AirflowMesosScheduler(MesosClient):
             self.result_queue.put((key, State.SUCCESS))
             return
 
-        if task_state == "TASK_LOST" or task_state == "TASK_KILLED" or task_state == "TASK_FAILED":
+        if task_state in ('TASK_LOST', 'TASK_KILLED', 'TASK_FAILED'):
             self.result_queue.put((key, State.FAILED))
             return
 
