@@ -75,12 +75,12 @@ jobs:
         id: selective-checks
         env:
           EVENT_NAME: ${{ steps.source-run-info.outputs.sourceEvent }}
-          INCOMING_COMMIT_SHA: ${{ steps.source-run-info.outputs.targetCommitSha }}
+          TARGET_COMMIT_SHA: ${{ steps.source-run-info.outputs.targetCommitSha }}
           PR_LABELS: ${{ steps.source-run-info.outputs.pullRequestLabels }}
         run: |
           if [[ ${EVENT_NAME} == "pull_request_review" ]]; then
             # Run selective checks
-            ./scripts/ci/selective_ci_checks.sh "${INCOMING_COMMIT_SHA}"
+            ./scripts/ci/selective_ci_checks.sh "${TARGET_COMMIT_SHA}"
           else
             # Run all checks
             ./scripts/ci/selective_ci_checks.sh

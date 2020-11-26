@@ -34,16 +34,39 @@ if [[ ${PR_LABELS=} == *"full tests needed"* ]]; then
     echo
     echo "Found the right PR labels in '${PR_LABELS=}': 'full tests needed''"
     echo
-    FULL_TESTS_NEEDED="true"
+    FULL_TESTS_NEEDED_LABEL="true"
 else
     echo
     echo "Did not find the right PR labels in '${PR_LABELS=}': 'full tests needed'"
     echo
-    FULL_TESTS_NEEDED="false"
+    FULL_TESTS_NEEDED_LABEL="false"
+fi
+
+if [[ ${PR_LABELS=} == *"upgrade to latest dependencies"* ]]; then
+    echo
+    echo "Found the right PR labels in '${PR_LABELS=}': 'upgrade to latest dependencies''"
+    echo
+    UPGRADE_TO_LATEST_CONSTRAINTS_LABEL="true"
+else
+    echo
+    echo "Did not find the right PR labels in '${PR_LABELS=}': 'upgrade to latest dependencies'"
+    echo
+    UPGRADE_TO_LATEST_CONSTRAINTS_LABEL="false"
 fi
 
 function output_all_basic_variables() {
-    if [[ ${FULL_TESTS_NEEDED} == "true" ]]; then
+    if [[ "${UPGRADE_TO_LATEST_CONSTRAINTS_LABEL}" == "true" ||
+            ${EVENT_NAME} == 'push' || ${EVENT_NAME} == "scheduled" ]]; then
+        # Trigger upgrading to latest constraints where label is set or when
+        # SHA of the merge commit triggers rebuilding layer in the docker image
+        # Each build that upgrades to latest constraints will get truly latest constraints, not those
+        # Cached in the image this way
+        initialization::ga_output upgrade-to-latest-constraints "${INCOMING_COMMIT_SHA}"
+    else
+        initialization::ga_output upgrade-to-latest-constraints "false"
+    fi
+
+    if [[ ${FULL_TESTS_NEEDED_LABEL} == "true" ]]; then
         initialization::ga_output python-versions \
             "$(initialization::parameters_to_json "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
         initialization::ga_output all-python-versions \
@@ -60,7 +83,7 @@ function output_all_basic_variables() {
     fi
     initialization::ga_output default-python-version "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
 
-    if [[ ${FULL_TESTS_NEEDED} == "true" ]]; then
+    if [[ ${FULL_TESTS_NEEDED_LABEL} == "true" ]]; then
         initialization::ga_output kubernetes-versions \
             "$(initialization::parameters_to_json "${CURRENT_KUBERNETES_VERSIONS[@]}")"
     else
@@ -73,7 +96,7 @@ function output_all_basic_variables() {
         "$(initialization::parameters_to_json "${CURRENT_KUBERNETES_MODES[@]}")"
     initialization::ga_output default-kubernetes-mode "${KUBERNETES_MODE}"
 
-    if [[ ${FULL_TESTS_NEEDED} == "true" ]]; then
+    if [[ ${FULL_TESTS_NEEDED_LABEL} == "true" ]]; then
         initialization::ga_output postgres-versions \
             "$(initialization::parameters_to_json "${CURRENT_POSTGRES_VERSIONS[@]}")"
     else
@@ -82,7 +105,7 @@ function output_all_basic_variables() {
     fi
     initialization::ga_output default-postgres-version "${POSTGRES_VERSION}"
 
-    if [[ ${FULL_TESTS_NEEDED} == "true" ]]; then
+    if [[ ${FULL_TESTS_NEEDED_LABEL} == "true" ]]; then
         initialization::ga_output mysql-versions \
             "$(initialization::parameters_to_json "${CURRENT_MYSQL_VERSIONS[@]}")"
     else
@@ -100,7 +123,7 @@ function output_all_basic_variables() {
         "$(initialization::parameters_to_json "${CURRENT_HELM_VERSIONS[@]}")"
     initialization::ga_output default-helm-version "${HELM_VERSION}"
 
-    if [[ ${FULL_TESTS_NEEDED} == "true" ]]; then
+    if [[ ${FULL_TESTS_NEEDED_LABEL} == "true" ]]; then
         initialization::ga_output postgres-exclude '[{ "python-version": "3.6" }]'
         initialization::ga_output mysql-exclude '[{ "python-version": "3.7" }]'
         initialization::ga_output sqlite-exclude '[{ "python-version": "3.8" }]'
@@ -114,9 +137,6 @@ function output_all_basic_variables() {
 }
 
 function get_changed_files() {
-    INCOMING_COMMIT_SHA="${1}"
-    readonly INCOMING_COMMIT_SHA
-
     echo
     echo "Incoming commit SHA: ${INCOMING_COMMIT_SHA}"
     echo
@@ -414,14 +434,20 @@ if (($# < 1)); then
     echo
     echo "No Commit SHA - running all tests (likely direct master merge, or scheduled run)!"
     echo
-    # override FULL_TESTS_NEEDED in master/scheduled run
-    FULL_TESTS_NEEDED="true"
-    readonly FULL_TESTS_NEEDED
+    INCOMING_COMMIT_SHA=""
+    readonly INCOMING_COMMIT_SHA
+    # override FULL_TESTS_NEEDED_LABEL in master/scheduled run
+    FULL_TESTS_NEEDED_LABEL="true"
+    readonly FULL_TESTS_NEEDED_LABEL
     output_all_basic_variables
     set_outputs_run_everything_and_exit
+else
+    INCOMING_COMMIT_SHA="${1}"
+    readonly INCOMING_COMMIT_SHA
 fi
 
-readonly FULL_TESTS_NEEDED
+
+readonly FULL_TESTS_NEEDED_LABEL
 output_all_basic_variables
 
 image_build_needed="false"
@@ -429,7 +455,7 @@ docs_build_needed="false"
 tests_needed="false"
 kubernetes_tests_needed="false"
 
-get_changed_files "${1}"
+get_changed_files
 run_all_tests_if_environment_files_changed
 check_if_docs_should_be_generated
 check_if_helm_tests_should_be_run

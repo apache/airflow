@@ -30,7 +30,6 @@ env:
   SKIP_CHECK_REMOTE_IMAGE: "true"
   DB_RESET: "true"
   VERBOSE: "true"
-  UPGRADE_TO_LATEST_CONSTRAINTS: false
   USE_GITHUB_REGISTRY: "true"
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_USERNAME: ${{ github.actor }}
@@ -57,7 +56,6 @@ jobs:
       sourceEvent: ${{ steps.source-run-info.outputs.sourceEvent }}
       cacheDirective: ${{ steps.cache-directive.outputs.docker-cache }}
       buildImages: ${{ steps.build-images.outputs.buildImages }}
-      upgradeToLatestConstraints: ${{ steps.upgrade-constraints.outputs.upgradeToLatestConstraints }}
     steps:
       - name: "Get information about the original trigger of the run"
         uses: potiuk/get-workflow-origin@588cc14f9f1cdf1b8be3db816855e96422204fec  # v1_3
@@ -153,15 +151,6 @@ jobs:
           else
               echo "::set-output name=docker-cache::pulled"
           fi
-      - name: "Set upgrade to latest constraints"
-        id: upgrade-constraints
-        run: |
-          if [[ ${{ steps.cancel.outputs.sourceEvent == 'push' ||
-              steps.cancel.outputs.sourceEvent == 'scheduled' }} == 'true' ]]; then
-              echo "::set-output name=upgradeToLatestConstraints::${{ github.sha }}"
-          else
-              echo "::set-output name=upgradeToLatestConstraints::false"
-          fi
       - name: "Cancel all duplicated 'Build Image' runs"
         # We find duplicates of all "Build Image" runs - due to a missing feature
         # in GitHub Actions, we have to use Job names to match Event/Repo/Branch matching
@@ -198,6 +187,7 @@ jobs:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
       pythonVersions: ${{ steps.selective-checks.python-versions }}
+      upgradeToLatestConstraints: ${{ steps.selective-checks.outputs.upgrade-to-latest-constraints }}
       allPythonVersions: ${{ steps.selective-checks.outputs.all-python-versions }}
       defaultPythonVersion: ${{ steps.selective-checks.outputs.default-python-version }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
@@ -243,12 +233,12 @@ jobs:
         id: selective-checks
         env:
           EVENT_NAME: ${{ needs.cancel-workflow-runs.outputs.sourceEvent }}
-          INCOMING_COMMIT_SHA: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
+          TARGET_COMMIT_SHA: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
           PR_LABELS: ${{ needs.cancel-workflow-runs.outputs.pullRequestLabels }}
         run: |
           if [[ ${EVENT_NAME} == "pull_request" ]]; then
             # Run selective checks
-            ./scripts/ci/selective_ci_checks.sh "${INCOMING_COMMIT_SHA}"
+            ./scripts/ci/selective_ci_checks.sh "${TARGET_COMMIT_SHA}"
           else
             # Run all checks
             ./scripts/ci/selective_ci_checks.sh
@@ -273,7 +263,7 @@ jobs:
       BACKEND: postgres
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ github.event.workflow_run.id }}
-      UPGRADE_TO_LATEST_CONSTRAINTS: ${{ needs.cancel-workflow-runs.outputs.upgradeToLatestConstraints }}
+      UPGRADE_TO_LATEST_CONSTRAINTS: ${{ needs.build-info.outputs.upgradeToLatestConstraints }}
       DOCKER_CACHE: ${{ needs.cancel-workflow-runs.outputs.cacheDirective }}
     steps:
       - name: >
