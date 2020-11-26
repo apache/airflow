@@ -114,6 +114,7 @@ Currently, **officially** using Airflow:
 1. [Compass](https://www.compass.com) [[@wdhorton](https://github.com/wdhorton)]
 1. [ConnectWise](https://www.connectwise.com/) [[@jacobeturpin](https://github.com/jacobeturpin)]
 1. [ContaAzul](https://www.contaazul.com) [[@bern4rdelli](https://github.com/bern4rdelli), [@renanleme](https://github.com/renanleme) & [@sabino](https://github.com/sabino)]
+1. [Corsearch](https://corsearch.com/) [[@silvantonio](https://github.com/silvantonio), [@erjanmx](https://github.com/erjanmx), [@honarkhah](https://github.com/honarkhah), [@RogierVanDoggenaar](https://github.com/RogierVanDoggenaar), [@arekgorecki](https://github.com/arekgorecki), [@jmolpointerbp](https://github.com/jmolpointerbp)]
 1. [Cotap](https://github.com/cotap/) [[@maraca](https://github.com/maraca) & [@richardchew](https://github.com/richardchew)]
 1. [Craig@Work](https://www.craigatwork.com)
 1. [Crealytics](https://crealytics.com)
