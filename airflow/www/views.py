@@ -3265,9 +3265,6 @@ class DagRunModelView(AirflowModelView):
         """Multiple delete."""
         self.datamodel.delete_all(items)
         self.update_redirect()
-        dirty_ids = []
-        for item in items:
-            dirty_ids.append(item.dag_id)
         return redirect(self.get_redirect())
 
     @action('set_running', "Set state to 'running'", '', single=False)
@@ -3276,11 +3273,9 @@ class DagRunModelView(AirflowModelView):
         """Set state to running."""
         try:
             count = 0
-            dirty_ids = []
             for dr in (
                 session.query(DagRun).filter(DagRun.id.in_([dagrun.id for dagrun in drs])).all()
             ):  # noqa pylint: disable=no-member
-                dirty_ids.append(dr.dag_id)
                 count += 1
                 dr.start_date = timezone.utcnow()
                 dr.state = State.RUNNING
@@ -3302,12 +3297,10 @@ class DagRunModelView(AirflowModelView):
         """Set state to failed."""
         try:
             count = 0
-            dirty_ids = []
             altered_tis = []
             for dr in (
                 session.query(DagRun).filter(DagRun.id.in_([dagrun.id for dagrun in drs])).all()
             ):  # noqa pylint: disable=no-member
-                dirty_ids.append(dr.dag_id)
                 count += 1
                 altered_tis += set_dag_run_state_to_failed(
                     current_app.dag_bag.get_dag(dr.dag_id), dr.execution_date, commit=True, session=session
@@ -3332,12 +3325,10 @@ class DagRunModelView(AirflowModelView):
         """Set state to success."""
         try:
             count = 0
-            dirty_ids = []
             altered_tis = []
             for dr in (
                 session.query(DagRun).filter(DagRun.id.in_([dagrun.id for dagrun in drs])).all()
             ):  # noqa pylint: disable=no-member
-                dirty_ids.append(dr.dag_id)
                 count += 1
                 altered_tis += set_dag_run_state_to_success(
                     current_app.dag_bag.get_dag(dr.dag_id), dr.execution_date, commit=True, session=session
