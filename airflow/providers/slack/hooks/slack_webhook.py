@@ -32,7 +32,7 @@ class SlackWebhookHook(HttpHook):
     and webhook_token will be taken as endpoint, the relative path of the url.
 
     Each Slack webhook token can be pre-configured to use a specific channel, username and
-    icon. You can override these defaults in this hook.
+    icon.
 
     :param http_conn_id: connection that has Slack webhook token in the extra field
     :type http_conn_id: str
@@ -46,14 +46,6 @@ class SlackWebhookHook(HttpHook):
     :param blocks: The blocks to send on Slack. Should be a list of
         dictionaries representing Slack blocks.
     :type blocks: list
-    :param channel: The channel the message should be posted to
-    :type channel: str
-    :param username: The username to post to slack with
-    :type username: str
-    :param icon_emoji: The emoji to use as icon for the user posting to Slack
-    :type icon_emoji: str
-    :param icon_url: The icon image URL string to use in place of the default icon.
-    :type icon_url: str
     :param link_names: Whether or not to find and link channel and usernames in your
         message
     :type link_names: bool
@@ -69,10 +61,6 @@ class SlackWebhookHook(HttpHook):
         message="",
         attachments=None,
         blocks=None,
-        channel=None,
-        username=None,
-        icon_emoji=None,
-        icon_url=None,
         link_names=False,
         proxy=None,
         *args,
@@ -83,10 +71,6 @@ class SlackWebhookHook(HttpHook):
         self.message = message
         self.attachments = attachments
         self.blocks = blocks
-        self.channel = channel
-        self.username = username
-        self.icon_emoji = icon_emoji
-        self.icon_url = icon_url
         self.link_names = link_names
         self.proxy = proxy
 
@@ -133,14 +117,6 @@ class SlackWebhookHook(HttpHook):
         """
         cmd = {}
 
-        if self.channel:
-            cmd['channel'] = self.channel
-        if self.username:
-            cmd['username'] = self.username
-        if self.icon_emoji:
-            cmd['icon_emoji'] = self.icon_emoji
-        if self.icon_url:
-            cmd['icon_url'] = self.icon_url
         if self.link_names:
             cmd['link_names'] = 1
         if self.attachments:

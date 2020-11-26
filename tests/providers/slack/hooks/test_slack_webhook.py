@@ -35,18 +35,10 @@ class TestSlackWebhookHook(unittest.TestCase):
         'message': 'Awesome message to put on Slack',
         'attachments': [{'fallback': 'Required plain-text summary'}],
         'blocks': [{'type': 'section', 'text': {'type': 'mrkdwn', 'text': '*bold text*'}}],
-        'channel': '#general',
-        'username': 'SlackMcSlackFace',
-        'icon_emoji': ':hankey:',
-        'icon_url': 'https://airflow.apache.org/_images/pin_large.png',
         'link_names': True,
         'proxy': 'https://my-horrible-proxy.proxyist.com:8080',
     }
     expected_message_dict = {
-        'channel': _config['channel'],
-        'username': _config['username'],
-        'icon_emoji': _config['icon_emoji'],
-        'icon_url': _config['icon_url'],
         'link_names': 1,
         'attachments': _config['attachments'],
         'blocks': _config['blocks'],

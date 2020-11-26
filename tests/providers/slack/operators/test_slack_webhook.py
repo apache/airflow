@@ -33,10 +33,6 @@ class TestSlackWebhookOperator(unittest.TestCase):
         'message': 'your message here',
         'attachments': [{'fallback': 'Required plain-text summary'}],
         'blocks': [{'type': 'section', 'text': {'type': 'mrkdwn', 'text': '*bold text*'}}],
-        'channel': '#general',
-        'username': 'SlackMcSlackFace',
-        'icon_emoji': ':hankey',
-        'icon_url': 'https://airflow.apache.org/_images/pin_large.png',
         'link_names': True,
         'proxy': 'https://my-horrible-proxy.proxyist.com:8080',
     }
@@ -54,10 +50,6 @@ class TestSlackWebhookOperator(unittest.TestCase):
         assert self._config['message'] == operator.message
         assert self._config['attachments'] == operator.attachments
         assert self._config['blocks'] == operator.blocks
-        assert self._config['channel'] == operator.channel
-        assert self._config['username'] == operator.username
-        assert self._config['icon_emoji'] == operator.icon_emoji
-        assert self._config['icon_url'] == operator.icon_url
         assert self._config['link_names'] == operator.link_names
         assert self._config['proxy'] == operator.proxy
 
@@ -69,8 +61,6 @@ class TestSlackWebhookOperator(unittest.TestCase):
             'message',
             'attachments',
             'blocks',
-            'channel',
-            'username',
             'proxy',
         ]
 
