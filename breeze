@@ -247,6 +247,8 @@ function breeze::initialize_virtualenv() {
             echo
             if [[ ${OSTYPE} == "darwin"* ]]; then
                 echo "  brew install sqlite mysql postgresql openssl"
+                echo "  export LDFLAGS=\"-L/usr/local/opt/openssl/lib\""
+                echo "  export CPPFLAGS=\"-I/usr/local/opt/openssl/include\""
             else
                 echo "  sudo apt install build-essentials python3.6-dev python3.7-dev python3.8-dev python-dev openssl \\"
                 echo "              sqlite sqlite-dev default-libmysqlclient-dev libmysqld-dev postgresql"
@@ -1862,6 +1864,10 @@ ${FORMATTED_STATIC_CHECKS}
       '${CMDNAME} static-check mypy' or
       '${CMDNAME} static-check mypy -- --files tests/core.py'
       '${CMDNAME} static-check mypy -- --all-files'
+
+      To check all files that differ between you current branch and master run:
+
+      '${CMDNAME} static-check all -- --from-ref \$(git merge-base master HEAD) --to-ref HEAD'
 
       You can see all the options by adding --help EXTRA_ARG:
 
