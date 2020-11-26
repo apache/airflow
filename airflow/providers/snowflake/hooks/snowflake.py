@@ -124,9 +124,7 @@ class SnowflakeHook(DbApiHook):
     def _get_aws_credentials(self) -> Tuple[Optional[Any], Optional[Any]]:
         """
         Returns aws_access_key_id, aws_secret_access_key
-        from extra
-
-        intended to be used by external import and export statements
+        from extra intended to be used by external import and export statements
         """
         if self.snowflake_conn_id:  # type: ignore[attr-defined]  # pylint: disable=no-member
             connection_object = self.get_connection(
@@ -145,9 +143,11 @@ class SnowflakeHook(DbApiHook):
         return getattr(conn, 'autocommit_mode', False)
 
     def run(self, sql, autocommit=False, parameters=None):
-        """Snowflake-connector doesn't allow natively the execution of multiple SQL statements in the same
+        """
+        Snowflake-connector doesn't allow natively the execution of multiple SQL statements in the same
         call. So for allowing to pass files or strings with several queries this method is coded,
-        that relies on run from DBApiHook"""
+        that relies on run from DBApiHook
+        """
         if isinstance(sql, str):
             with closing(self.get_conn()) as conn:
                 if self.supports_autocommit:
