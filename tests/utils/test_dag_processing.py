@@ -238,7 +238,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
         file processors until the next zombie detection logic is invoked.
         """
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_example_bash_operator.py')
-        with conf_vars({('scheduler', 'max_threads'): '1', ('core', 'load_examples'): 'False'}):
+        with conf_vars({('scheduler', 'parsing_processes'): '1', ('core', 'load_examples'): 'False'}):
             dagbag = DagBag(test_dag_path, read_dags_from_db=False)
             with create_session() as session:
                 session.query(LJ).delete()

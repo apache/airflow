@@ -72,13 +72,13 @@ unit of work and continuity.
 Content
 -------
 .. toctree::
-    :maxdepth: 4
+    :maxdepth: 1
 
+    Home <self>
     project
     license
     start
     installation
-    provider-packages
     tutorial
     tutorial_taskflow_api
     howto/index
@@ -117,4 +117,3 @@ Content
     Stable REST API <stable-rest-api-ref>
     Configurations <configurations-ref>
     Extra packages <extra-packages-ref>
-    Provider packages <provider-packages-ref>

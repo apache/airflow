@@ -18,7 +18,7 @@
 Providers packages reference
 ''''''''''''''''''''''''''''
 
-Here's the list of the :doc:`provider packages <provider-packages>` and what they enable:
+Here's the list of the provider packages and what they enable:
 
 
 .. contents:: :local:

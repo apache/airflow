@@ -17,7 +17,6 @@
 # under the License.
 """Base class for all hooks"""
 import logging
-import random
 from typing import Any, List
 
 from airflow.models.connection import Connection
@@ -38,7 +37,7 @@ class BaseHook(LoggingMixin):
     @classmethod
     def get_connections(cls, conn_id: str) -> List[Connection]:
         """
-        Get all connections as an iterable.
+        Get all connections as an iterable, given the connection id.
 
         :param conn_id: connection id
         :return: array of connections
@@ -48,12 +47,12 @@ class BaseHook(LoggingMixin):
     @classmethod
     def get_connection(cls, conn_id: str) -> Connection:
         """
-        Get random connection selected from all connections configured with this connection id.
+        Get connection, given connection id.
 
         :param conn_id: connection id
         :return: connection
         """
-        conn = random.choice(cls.get_connections(conn_id))
+        conn = cls.get_connections(conn_id)[0]
         if conn.host:
             log.info(
                 "Using connection to: id: %s. Host: %s, Port: %s, Schema: %s, Login: %s, Password: %s, "

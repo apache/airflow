@@ -73,7 +73,12 @@ class AirflowDocsBuilder:
 
     @property
     def _out_dir(self) -> str:
-        return f"{DOCS_DIR}/_build/docs/{self.package_name}/latest"
+        if self.package_name == 'apache-airflow-providers':
+            # Disable versioning. This documentation does not apply to any issued product and we can update
+            # it as needed, i.e. with each new package of providers.
+            return f"{DOCS_DIR}/_build/docs/{self.package_name}"
+        else:
+            return f"{DOCS_DIR}/_build/docs/{self.package_name}/latest"
 
     @property
     def _src_dir(self) -> str:
@@ -82,7 +87,9 @@ class AirflowDocsBuilder:
         #  to /airflow/ to keep the directory structure more maintainable.
         if self.package_name == 'apache-airflow':
             return DOCS_DIR
-        elif self.package_name.startswith('apache-airflow-providers'):
+        elif self.package_name.startswith('apache-airflow-providers-') or (
+            self.package_name == 'apache-airflow-providers'
+        ):
             return f"{DOCS_DIR}/{self.package_name}"
         else:
             raise Exception(F"Unsupported package: {self.package_name}")
@@ -186,14 +193,14 @@ class AirflowDocsBuilder:
 def get_available_packages():
     """Get list of all available packages to build."""
     provider_package_names = [provider['package-name'] for provider in ALL_PROVIDER_YAMLS]
-    return ["apache-airflow", *provider_package_names]
+    return ["apache-airflow", "apache-airflow-providers", *provider_package_names]
 
 
 def _get_parser():
     available_packages_list = " * " + "\n * ".join(get_available_packages())
     parser = argparse.ArgumentParser(
         description='Builds documentation and runs spell checking',
-        epilog=f"List of supported packages:\n{available_packages_list}" "",
+        epilog=f"List of supported documentation packages:\n{available_packages_list}" "",
     )
     parser.formatter_class = argparse.RawTextHelpFormatter
     parser.add_argument(
@@ -201,8 +208,9 @@ def _get_parser():
     )
     parser.add_argument(
         "--package-filter",
+        action="append",
         help=(
-            "Filter specifying for which packages the documentation is to be built. Wildcaard is supported."
+            "Filter specifying for which packages the documentation is to be built. Wildcard are supported."
         ),
     )
     parser.add_argument('--docs-only', dest='docs_only', action='store_true', help='Only build documentation')
@@ -219,6 +227,7 @@ def build_docs_for_packages(
     all_build_errors: Dict[str, List[DocBuildError]] = defaultdict(list)
     all_spelling_errors: Dict[str, List[SpellingError]] = defaultdict(list)
     for package_name in current_packages:
+        print("#" * 20, package_name, "#" * 20)
         builder = AirflowDocsBuilder(package_name=package_name)
         builder.clean_files()
         if not docs_only:
@@ -281,13 +290,14 @@ def main():
     docs_only = args.docs_only
     spellcheck_only = args.spellcheck_only
     disable_checks = args.disable_checks
-    package_filter = args.package_filter
+    package_filters = args.package_filter
 
-    print("Current package filter: ", package_filter)
+    print("Current package filters: ", package_filters)
     current_packages = (
-        fnmatch.filter(available_packages, package_filter) if package_filter else available_packages
+        [p for p in available_packages if any(fnmatch.fnmatch(p, f) for f in package_filters)]
+        if package_filters
+        else available_packages
     )
-
     print(f"Documentation will be built for {len(current_packages)} package(s): {current_packages}")
 
     all_build_errors: Dict[Optional[str], List[DocBuildError]] = {}
@@ -301,6 +311,29 @@ def main():
         all_build_errors.update(package_build_errors)
     if package_spelling_errors:
         all_spelling_errors.update(package_spelling_errors)
+    to_retry_packages = [
+        package_name
+        for package_name, errors in package_build_errors.items()
+        if any(
+            'failed to reach any of the inventories with the following issues' in e.message for e in errors
+        )
+    ]
+    if to_retry_packages:
+        for package_name in to_retry_packages:
+            if package_name in all_build_errors:
+                del all_build_errors[package_name]
+            if package_name in all_spelling_errors:
+                del all_spelling_errors[package_name]
+
+        package_build_errors, package_spelling_errors = build_docs_for_packages(
+            current_packages=to_retry_packages,
+            docs_only=docs_only,
+            spellcheck_only=spellcheck_only,
+        )
+        if package_build_errors:
+            all_build_errors.update(package_build_errors)
+        if package_spelling_errors:
+            all_spelling_errors.update(package_spelling_errors)
 
     if not disable_checks:
         general_errors = []

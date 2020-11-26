@@ -64,7 +64,7 @@ Endpoints
 
 .. http:get:: /api/experimental/dags/<string:dag_id>/dag_runs/<string:execution_date>
 
-  Returns a JSON with a dag_run's public instance variables. The format for the <string:execution_date> is expected to be "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
+  Returns a JSON with a dag_run's public instance variables. The format for the ``<string:execution_date>`` is expected to be ``YYYY-mm-DDTHH:MM:SS``, for example: ``"2016-11-16T11:34:15"``.
 
 
 .. http:get:: /api/experimental/test
@@ -79,7 +79,7 @@ Endpoints
 
 .. http:get:: /api/experimental/dags/<DAG_ID>/dag_runs/<string:execution_date>/tasks/<TASK_ID>
 
-  Returns a JSON with a task instance's public instance variables. The format for the <string:execution_date> is expected to be "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
+  Returns a JSON with a task instance's public instance variables. The format for the ``<string:execution_date>`` is expected to be ``YYYY-mm-DDTHH:MM:SS``, for example: ``"2016-11-16T11:34:15"``.
 
 
 .. http:get:: /api/experimental/dags/<DAG_ID>/paused/<string:paused>

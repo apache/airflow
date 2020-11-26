@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 
 class BaseSecretsBackend(ABC):
-    """Abstract base class to retrieve secrets given a conn_id and construct a Connection object"""
+    """Abstract base class to retrieve Connection object given a conn_id or Variable given a key"""
 
     def __init__(self, **kwargs):
         pass
@@ -68,9 +68,10 @@ class BaseSecretsBackend(ABC):
 
     def get_variable(self, key: str) -> Optional[str]:
         """
-        Return value for Airflow Connection
+        Return value for Airflow Variable
 
         :param key: Variable Key
+        :type key: str
         :return: Variable Value
         """
         raise NotImplementedError()

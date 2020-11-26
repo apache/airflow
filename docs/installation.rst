@@ -78,7 +78,7 @@ the main Airflow installation.
           you have to install provider packages manually. As of Airflow 2.0.0b2 the corresponding
           provider packages are installed together with the extras.
 
-Read more about it in the `Provider Packages <#provider-packages>`_ section.
+Read more about it in the :ref:`Provider Packages <installation:provider_packages>` section.
 
 Requirements
 ''''''''''''
@@ -127,6 +127,8 @@ these extra dependencies.
 
 For the list of the subpackages and what they enable, see: :doc:`extra-packages-ref`.
 
+.. _installation:provider_packages:
+
 Provider packages
 '''''''''''''''''
 
@@ -134,9 +136,9 @@ Unlike Apache Airflow 1.10, the Airflow 2.0 is delivered in multiple, separate, 
 The core of Airflow scheduling system is delivered as ``apache-airflow`` package and there are around
 60 providers packages which can be installed separately as so called "Airflow Provider packages".
 The default Airflow installation doesn't have many integrations and you have to install them yourself.
-For more information, see: :doc:`provider-packages`
+For more information, see: :doc:`apache-airflow-providers:index`
 
-For the list of the provider packages and what they enable, see: :doc:`provider-packages-ref`.
+For the list of the provider packages and what they enable, see: :doc:`apache-airflow-providers:packages-ref`.
 
 Initializing Airflow Database
 '''''''''''''''''''''''''''''
@@ -157,3 +159,32 @@ Docker image
 ''''''''''''
 
 Airflow is also distributed as a Docker image (OCI Image). For more information, see: :doc:`production-deployment`
+
+Troubleshooting
+'''''''''''''''
+
+This section describes how to troubleshoot installation issues.
+
+``Symbol not found: _Py_GetArgcArgv``
+"""""""""""""""""""""""""""""""""""""
+
+If you see ``Symbol not found: _Py_GetArgcArgv`` while starting or importing Airflow, this may mean that you are using an incompatible version of Python.
+For a homebrew installed version of Python, this is generally caused by using Python in ``/usr/local/opt/bin`` rather than the Frameworks installation (e.g. for ``python 3.7``: ``/usr/local/opt/python@3.7/Frameworks/Python.framework/Versions/3.7``).
+
+The crux of the issue is that a library Airflow depends on, ``setproctitle``, uses a non-public Python API
+which is not available from the standard installation ``/usr/local/opt/`` (which symlinks to a path under ``/usr/local/Cellar``).
+
+An easy fix is just to ensure you use a version of Python that has a dylib of the Python library available. For example:
+
+.. code-block:: bash
+
+  # Note: these instructions are for python3.7 but can be loosely modified for other versions
+  brew install python@3.7
+  virtualenv -p /usr/local/opt/python@3.7/Frameworks/Python.framework/Versions/3.7/bin/python3 .toy-venv
+  source .toy-venv/bin/activate
+  pip install apache-airflow
+  python
+  >>> import setproctitle
+  # Success!
+
+Alternatively, you can download and install Python directly from the `Python website <https://www.python.org/>`__.

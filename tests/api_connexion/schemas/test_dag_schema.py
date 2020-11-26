@@ -18,6 +18,8 @@
 import unittest
 from datetime import datetime
 
+from itsdangerous import URLSafeSerializer
+
 from airflow import DAG
 from airflow.api_connexion.schemas.dag_schema import (
     DAGCollection,
@@ -25,7 +27,10 @@ from airflow.api_connexion.schemas.dag_schema import (
     DAGDetailSchema,
     DAGSchema,
 )
+from airflow.configuration import conf
 from airflow.models import DagModel, DagTag
+
+SERIALIZER = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))
 
 
 class TestDagSchema(unittest.TestCase):
@@ -47,6 +52,7 @@ class TestDagSchema(unittest.TestCase):
                 "dag_id": "test_dag_id",
                 "description": "The description",
                 "fileloc": "/root/airflow/dags/my_dag.py",
+                "file_token": SERIALIZER.dumps("/root/airflow/dags/my_dag.py"),
                 "is_paused": True,
                 "is_subdag": False,
                 "owners": ["airflow1", "airflow2"],
@@ -71,6 +77,7 @@ class TestDAGCollectionSchema(unittest.TestCase):
                         "dag_id": "test_dag_id_a",
                         "description": None,
                         "fileloc": "/tmp/a.py",
+                        "file_token": SERIALIZER.dumps("/tmp/a.py"),
                         "is_paused": None,
                         "is_subdag": None,
                         "owners": [],
@@ -82,6 +89,7 @@ class TestDAGCollectionSchema(unittest.TestCase):
                         "dag_id": "test_dag_id_b",
                         "description": None,
                         "fileloc": "/tmp/a.py",
+                        "file_token": SERIALIZER.dumps("/tmp/a.py"),
                         "is_paused": None,
                         "is_subdag": None,
                         "owners": [],
@@ -115,6 +123,7 @@ class TestDAGDetailSchema:
             'description': None,
             'doc_md': 'docs',
             'fileloc': __file__,
+            "file_token": SERIALIZER.dumps(__file__),
             'is_paused': None,
             'is_subdag': False,
             'orientation': 'LR',

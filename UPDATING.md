@@ -52,28 +52,13 @@ assists users migrating to a new version.
 
 ## Master
 
-### Unify user session lifetime configuration
+### `[scheduler] max_threads` config has been renamed to `[scheduler] parsing_processes`
 
-In previous version of Airflow user session lifetime could be configured by
-`session_lifetime_days` and `force_log_out_after` options. In practise only `session_lifetime_days`
-had impact on session lifetime, but it was limited to values in day.
-We have removed mentioned options and introduced new `session_lifetime_minutes`
-option which simplify session lifetime configuration.
+From Airflow 2.0, `max_threads` config under `[scheduler]` section has been renamed to `parsing_processes`.
 
-Before
-
- ```ini
-[webserver]
-force_log_out_after = 0
-session_lifetime_days = 30
- ```
-
-After
-
- ```ini
-[webserver]
-session_lifetime_minutes = 43200
- ```
+This is to align the name with the actual code where the Scheduler launches the number of processes defined by
+`[scheduler] parsing_processes` to Parse DAG files, calculates next DagRun date for each DAG,
+serialize them and store them in the DB.
 
 ## Airflow 2.0.0b1
 
@@ -696,13 +681,6 @@ No change is needed if only the default trigger rule `all_success` is being used
 If the DAG relies on tasks with other trigger rules (i.e. `all_done`) being skipped by the `LatestOnlyOperator`, adjustments to the DAG need to be made to commodate the change in behaviour, i.e. with additional edges from the `LatestOnlyOperator`.
 
 The goal of this change is to achieve a more consistent and configurale cascading behaviour based on the `BaseBranchOperator` (see [AIRFLOW-2923](https://jira.apache.org/jira/browse/AIRFLOW-2923) and [AIRFLOW-1784](https://jira.apache.org/jira/browse/AIRFLOW-1784)).
-
-#### `airflow.sensors.time_sensor.TimeSensor`
-
-Previously `TimeSensor` always compared the `target_time` with the current time in UTC.
-
-Now it will compare `target_time` with the current time in the timezone of the DAG,
-defaulting to the `default_timezone` in the global config.
 
 ### Changes to the core Python API
 
@@ -1704,6 +1682,13 @@ Now the `dag_id` will not appear repeated in the payload, and the response forma
 
 ## Airflow 1.10.13
 
+### TimeSensor is now timezone aware
+
+Previously `TimeSensor` always compared the `target_time` with the current time in UTC.
+
+Now it will compare `target_time` with the current time in the timezone of the DAG,
+defaulting to the `default_timezone` in the global config.
+
 ### Removed Kerberos support for HDFS hook
 
 The HDFS hook's Kerberos support has been removed due to removed python-krbV dependency from PyPI
@@ -1711,6 +1696,37 @@ and generally lack of support for SSL in Python3 (Snakebite-py3 we use as depend
 support for SSL connection to HDFS).
 
 SSL support still works for WebHDFS hook.
+
+### Unify user session lifetime configuration
+
+In previous version of Airflow user session lifetime could be configured by
+`session_lifetime_days` and `force_log_out_after` options. In practise only `session_lifetime_days`
+had impact on session lifetime, but it was limited to values in day.
+We have removed mentioned options and introduced new `session_lifetime_minutes`
+option which simplify session lifetime configuration.
+
+Before
+
+ ```ini
+[webserver]
+force_log_out_after = 0
+session_lifetime_days = 30
+ ```
+
+After
+
+ ```ini
+[webserver]
+session_lifetime_minutes = 43200
+ ```
+
+### Adding Operators, Hooks and Sensors via Airflow Plugins is deprecated
+
+The ability to import Operators, Hooks and Senors via the plugin mechanism has been deprecated and will raise warnings
+in Airflow 1.10.13 and will be removed completely in Airflow 2.0.
+
+Check http://airflow.apache.org/docs/1.10.13/howto/custom-operator.html to see how you can create and import
+Custom Hooks, Operators and Sensors.
 
 ## Airflow 1.10.12
 

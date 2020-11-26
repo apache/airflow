@@ -1336,6 +1336,13 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     def get_serialized_fields(cls):
         """Stringified DAGs and operators contain exactly these fields."""
         if not cls.__serialized_fields:
+            from airflow.models.dag import DagContext
+
+            # make sure the following dummy task is not added to current active
+            # dag in context, otherwise, it will result in
+            # `RuntimeError: dictionary changed size during iteration`
+            # Exception in SerializedDAG.serialize_dag() call.
+            DagContext.push_context_managed_dag(None)
             cls.__serialized_fields = frozenset(
                 vars(BaseOperator(task_id='test')).keys()
                 - {
@@ -1356,6 +1363,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                     'template_fields_renderers',
                 }
             )
+            DagContext.pop_context_managed_dag()
 
         return cls.__serialized_fields
 

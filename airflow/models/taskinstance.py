@@ -1149,7 +1149,8 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
 
         session.commit()
 
-        self._run_mini_scheduler_on_child_tasks(session)
+        if not test_mode:
+            self._run_mini_scheduler_on_child_tasks(session)
 
     @provide_session
     @Sentry.enrich_errors

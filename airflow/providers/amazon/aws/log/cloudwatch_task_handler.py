@@ -107,8 +107,12 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         :return: string of all logs from the given log stream
         """
         try:
-            events = list(self.hook.get_log_events(log_group=self.log_group, log_stream_name=stream_name))
-            return '\n'.join(reversed([event['message'] for event in events]))
+            events = list(
+                self.hook.get_log_events(
+                    log_group=self.log_group, log_stream_name=stream_name, start_from_head=True
+                )
+            )
+            return '\n'.join([event['message'] for event in events])
         except Exception:  # pylint: disable=broad-except
             msg = 'Could not read remote logs from log_group: {} log_stream: {}.'.format(
                 self.log_group, stream_name

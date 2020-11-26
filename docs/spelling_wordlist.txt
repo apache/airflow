@@ -916,6 +916,7 @@ localhost
 localstack
 lodash
 logfile
+logformat
 loglevel
 logstash
 lshift
@@ -997,6 +998,7 @@ onboarded
 onkill
 openfaas
 oper
+opsgenie
 optimise
 ora
 orm

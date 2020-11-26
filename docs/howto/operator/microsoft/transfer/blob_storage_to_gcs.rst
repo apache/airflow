@@ -31,7 +31,7 @@ Please follow Azure
 to do it.
 
 TOKEN should be added to the Connection in Airflow in JSON format, Login and Password as plain text.
-You can check `how to do such connection <https://airflow.readthedocs.io/en/stable/howto/connection/index.html#editing-a-connection-with-the-ui>`_.
+You can check `how to do such connection <https://airflow.apache.org/docs/stable/howto/connection/index.html#editing-a-connection-with-the-ui>`_.
 
 See following example.
 Set values for these fields:

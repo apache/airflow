@@ -26,3 +26,9 @@ Content
     :caption: References
 
     Python API <_api/airflow/providers/apache/livy/index>
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Resources
+
+    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/apache/livy/example_dags>

@@ -976,6 +976,15 @@
       type: string
       example: ~
       default: "-"
+    - name: access_logformat
+      description: |
+        Access log format for gunicorn webserver.
+        default format is %%(h)s %%(l)s %%(u)s %%(t)s "%%(r)s" %%(s)s %%(b)s "%%(f)s" "%%(a)s"
+        documentation - https://docs.gunicorn.org/en/stable/settings.html#access-log-format
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
     - name: expose_config
       description: |
         Expose the configuration file in the web server
@@ -1182,8 +1191,8 @@
     - name: session_lifetime_minutes
       description: |
         The UI cookie lifetime in minutes. User will be logged out from UI after
-        `session_lifetime_minutes` of non-activity
-      version_added: 2.0.0
+        ``session_lifetime_minutes`` of non-activity
+      version_added: 1.10.13
       type: int
       example: ~
       default: "43200"
@@ -1723,10 +1732,10 @@
       version_added: 2.0.0
       type: boolean
       default: ~
-    - name: max_threads
+    - name: parsing_processes
       description: |
-        The scheduler can run multiple threads in parallel to schedule dags.
-        This defines how many threads will run.
+        The scheduler can run multiple processes in parallel to parse dags.
+        This defines how many processes will run.
       version_added: ~
       type: string
       example: ~

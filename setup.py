@@ -154,6 +154,11 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
         file.write(text)
 
 
+_SPHINX_AIRFLOW_THEME_URL = (
+    "https://github.com/apache/airflow-site/releases/download/v0.0.1/"
+    "sphinx_airflow_theme-0.0.1-py3-none-any.whl"
+)
+
 # 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
@@ -216,6 +221,7 @@ doc = [
     'sphinxcontrib-httpdomain>=1.7.0',
     "sphinxcontrib-redoc>=1.6.0",
     "sphinxcontrib-spelling==5.2.1",
+    f"sphinx-airflow-theme @ {_SPHINX_AIRFLOW_THEME_URL}",
 ]
 docker = [
     'docker~=3.0',
@@ -458,8 +464,7 @@ devel = [
     'ipdb',
     'jira',
     'mongomock',
-    'moto==1.3.14',  # TODO - fix Datasync issues to get higher version of moto:
-    #        See: https://github.com/apache/airflow/issues/10985
+    'moto>=1.3.16',
     'parameterized',
     'paramiko',
     'pipdeptree',
@@ -514,7 +519,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "dingding": [],
     "discord": [],
     "docker": docker,
-    "elasticsearch": [],
+    "elasticsearch": elasticsearch,
     "exasol": exasol,
     "facebook": facebook,
     "ftp": [],
@@ -567,8 +572,11 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     "apache.hdfs": hdfs,
     "apache.hive": hive,
     "apache.kylin": kylin,
+    "apache.livy": [],
+    "apache.pig": [],
     "apache.pinot": pinot,
     "apache.spark": spark,
+    "apache.sqoop": [],
     "apache.webhdfs": webhdfs,
     'async': async_packages,
     'atlas': atlas,  # TODO: remove this in Airflow 2.1
@@ -584,12 +592,15 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'datadog': datadog,
     'devel': devel_minreq,
     'devel_hadoop': devel_hadoop,
+    'dingding': [],
+    'discord': [],
     'doc': doc,
     'docker': docker,
     'druid': druid,  # TODO: remove this in Airflow 2.1
     'elasticsearch': elasticsearch,
     'exasol': exasol,
     'facebook': facebook,
+    'ftp': [],
     'gcp': google,  # TODO: remove this in Airflow 2.1
     'gcp_api': google,  # TODO: remove this in Airflow 2.1
     'github_enterprise': flask_oauth,
@@ -599,7 +610,10 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'hashicorp': hashicorp,
     'hdfs': hdfs,  # TODO: remove this in Airflow 2.1
     'hive': hive,  # TODO: remove this in Airflow 2.1
+    'http': [],
+    'imap': [],
     'jdbc': jdbc,
+    'jenkins': [],
     'jira': jira,
     'kerberos': kerberos,
     'kubernetes': kubernetes,  # TODO: remove this in Airflow 2.1
@@ -612,6 +626,8 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'mssql': mssql,  # TODO: remove this in Airflow 2.1
     'mysql': mysql,
     'odbc': odbc,
+    'openfaas': [],
+    'opsgenie': [],
     'oracle': oracle,
     'pagerduty': pagerduty,
     'papermill': papermill,
@@ -629,10 +645,12 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'segment': segment,
     'sendgrid': sendgrid,
     'sentry': sentry,
+    'sftp': [],
     'singularity': singularity,
     'slack': slack,
     'snowflake': snowflake,
     'spark': spark,
+    'sqlite': [],
     'ssh': ssh,
     'statsd': statsd,
     'tableau': tableau,
@@ -642,6 +660,7 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'winrm': winrm,  # TODO: remove this in Airflow 2.1
     'yandex': yandexcloud,  # TODO: remove this in Airflow 2.1
     'yandexcloud': yandexcloud,
+    'zendesk': [],
 }
 
 EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
@@ -672,8 +691,11 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     "apache.hdfs": ["apache.hdfs"],
     "apache.hive": ["apache.hive"],
     "apache.kylin": ["apache.kylin"],
+    "apache.livy": ["apache.livy"],
+    "apache.pig": ["apache.pig"],
     "apache.pinot": ["apache.pinot"],
     "apache.spark": ["apache.spark"],
+    "apache.sqoop": ["apache.sqoop"],
     "apache.webhdfs": ["apache.hdfs"],
     'async': [],
     'atlas': [],  # TODO: remove this in Airflow 2.1
@@ -689,12 +711,15 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'datadog': ["datadog"],
     'devel': ["cncf.kubernetes", "mysql"],
     'devel_hadoop': ["apache.hdfs", "apache.hive", "presto"],
+    'dingding': ["dingding"],
+    'discord': ["discord"],
     'doc': [],
     'docker': ["docker"],
     'druid': ["apache.druid"],  # TODO: remove this in Airflow 2.1
     'elasticsearch': ["elasticsearch"],
     'exasol': ["exasol"],
     'facebook': ["facebook"],
+    'ftp': ["ftp"],
     'gcp': ["google"],  # TODO: remove this in Airflow 2.1
     'gcp_api': ["google"],  # TODO: remove this in Airflow 2.1
     'github_enterprise': [],
@@ -704,7 +729,10 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'hashicorp': ["hashicorp"],
     'hdfs': ["apache.hdfs"],  # TODO: remove this in Airflow 2.1
     'hive': ["apache.hive"],  # TODO: remove this in Airflow 2.1
+    'http': ["http"],
+    'imap': ["imap"],
     'jdbc': ["jdbc"],
+    'jenkins': ["jenkins"],
     'jira': ["jira"],
     'kerberos': [],
     'kubernetes': ["cncf.kubernetes"],  # TODO: remove this in Airflow 2.1
@@ -716,6 +744,8 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'mssql': ["microsoft.mssql"],  # TODO: remove this in Airflow 2.1
     'mysql': ["mysql"],
     'odbc': ["odbc"],
+    'openfaas': ["openfaas"],
+    'opsgenie': ["opsgenie"],
     'oracle': ["oracle"],
     'pagerduty': ["pagerduty"],
     'papermill': ["papermill"],
@@ -733,10 +763,12 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'segment': ["segment"],
     'sendgrid': ["sendgrid"],
     'sentry': [],
+    'sftp': ["sftp"],
     'singularity': ["singularity"],
     'slack': ["slack"],
     'snowflake': ["snowflake"],
     'spark': ["apache.spark"],
+    'sqlite': ["sqlite"],
     'ssh': ["ssh"],
     'statsd': [],
     'tableau': [],
@@ -746,6 +778,7 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'winrm': ["microsoft.winrm"],  # TODO: remove this in Airflow 2.1
     'yandexcloud': ["yandex"],  # TODO: remove this in Airflow 2.1
     'yandex': ["yandex"],
+    'zendesk': ["zendesk"],
 }
 
 

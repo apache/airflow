@@ -176,7 +176,8 @@ RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
        fi; \
        pip install --user \
           "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
-          --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" && pip uninstall --yes apache-airflow; \
+          --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" \
+          && pip uninstall --yes apache-airflow; \
     fi
 
 ARG AIRFLOW_SOURCES_FROM="."

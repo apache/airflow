@@ -167,7 +167,9 @@ def _parse_secret_file(file_path: str) -> Dict[str, Any]:
     ext = file_path.rsplit(".", 2)[-1].lower()
 
     if ext not in FILE_PARSERS:
-        raise AirflowException("Unsupported file format. The file must have the extension .env or .json")
+        raise AirflowException(
+            "Unsupported file format. The file must have the extension .env or .json or .yaml"
+        )
 
     secrets, parse_errors = FILE_PARSERS[ext](file_path)
 
@@ -223,7 +225,7 @@ def load_variables(file_path: str) -> Dict[str, str]:
     """
     Load variables from a text file.
 
-    Both ``JSON`` and ``.env`` files are supported.
+    ``JSON``, `YAML` and ``.env`` files are supported.
 
     :param file_path: The location of the file that will be processed.
     :type file_path: str
@@ -254,7 +256,7 @@ def load_connections_dict(file_path: str) -> Dict[str, Any]:
     """
     Load connection from text file.
 
-    Both ``JSON`` and ``.env`` files are supported.
+    ``JSON``, `YAML` and ``.env`` files are supported.
 
     :return: A dictionary where the key contains a connection ID and the value contains a list of connections.
     :rtype: Dict[str, airflow.models.connection.Connection]
@@ -283,7 +285,7 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
     """
     Retrieves Connection objects and Variables from local files
 
-    Both ``JSON`` and ``.env`` files are supported.
+    ``JSON``, `YAML` and ``.env`` files are supported.
 
     :param variables_file_path: File location with variables data.
     :type variables_file_path: str

@@ -1,3 +1,4 @@
+
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -118,3 +119,13 @@ A. It depends on the scope of customization. There is no need to upgrade the pro
    Generally speaking, with Airflow 2 we are following the `Semver <https://semver.org/>`_  approach where
    we will introduce backwards-incompatible changes in Major releases, so all your modifications (as long
    as you have not used internal Airflow classes) should work for All Airflow 2.* versions.
+
+
+Content
+-------
+
+.. toctree::
+    :maxdepth: 1
+
+    Packages <packages-ref>
+    Operators and hooks <operators-and-hooks-ref/index>

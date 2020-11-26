@@ -18,10 +18,12 @@ import os
 import unittest
 from datetime import datetime
 
+from itsdangerous import URLSafeSerializer
 from parameterized import parameterized
 
 from airflow import DAG
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
+from airflow.configuration import conf
 from airflow.models import DagBag, DagModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.dummy_operator import DummyOperator
@@ -31,6 +33,9 @@ from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+
+SERIALIZER = URLSafeSerializer(conf.get('webserver', 'secret_key'))
+FILE_TOKEN = SERIALIZER.dumps(__file__)
 
 
 class TestDagEndpoint(unittest.TestCase):
@@ -106,18 +111,17 @@ class TestDagEndpoint(unittest.TestCase):
 
 
 class TestGetDag(TestDagEndpoint):
+    @conf_vars({("webserver", "secret_key"): "mysecret"})
     def test_should_respond_200(self):
         self._create_dag_models(1)
         response = self.client.get("/api/v1/dags/TEST_DAG_1", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
-
-        current_response = response.json
-        current_response["fileloc"] = "/tmp/test-dag.py"
         self.assertEqual(
             {
                 "dag_id": "TEST_DAG_1",
                 "description": None,
-                "fileloc": "/tmp/test-dag.py",
+                "fileloc": "/tmp/dag_1.py",
+                "file_token": 'Ii90bXAvZGFnXzEucHki.EnmIdPaUPo26lHQClbWMbDFD1Pk',
                 "is_paused": False,
                 "is_subdag": False,
                 "owners": [],
@@ -125,9 +129,10 @@ class TestGetDag(TestDagEndpoint):
                 "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
                 "tags": [],
             },
-            current_response,
+            response.json,
         )
 
+    @conf_vars({("webserver", "secret_key"): "mysecret"})
     @provide_session
     def test_should_respond_200_with_schedule_interval_none(self, session=None):
         dag_model = DagModel(
@@ -139,14 +144,12 @@ class TestGetDag(TestDagEndpoint):
         session.commit()
         response = self.client.get("/api/v1/dags/TEST_DAG_1", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
-
-        current_response = response.json
-        current_response["fileloc"] = "/tmp/test-dag.py"
         self.assertEqual(
             {
                 "dag_id": "TEST_DAG_1",
                 "description": None,
-                "fileloc": "/tmp/test-dag.py",
+                "fileloc": "/tmp/dag_1.py",
+                "file_token": 'Ii90bXAvZGFnXzEucHki.EnmIdPaUPo26lHQClbWMbDFD1Pk',
                 "is_paused": False,
                 "is_subdag": False,
                 "owners": [],
@@ -154,7 +157,7 @@ class TestGetDag(TestDagEndpoint):
                 "schedule_interval": None,
                 "tags": [],
             },
-            current_response,
+            response.json,
         )
 
     def test_should_respond_200_with_granular_dag_access(self):
@@ -204,6 +207,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "description": None,
             "doc_md": "details",
             "fileloc": __file__,
+            "file_token": FILE_TOKEN,
             "is_paused": None,
             "is_subdag": False,
             "orientation": "LR",
@@ -234,6 +238,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "description": None,
             "doc_md": None,
             "fileloc": __file__,
+            "file_token": FILE_TOKEN,
             "is_paused": None,
             "is_subdag": False,
             "orientation": "LR",
@@ -269,6 +274,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "description": None,
             "doc_md": "details",
             "fileloc": __file__,
+            "file_token": FILE_TOKEN,
             "is_paused": None,
             "is_subdag": False,
             "orientation": "LR",
@@ -303,6 +309,7 @@ class TestGetDagDetails(TestDagEndpoint):
             'description': None,
             'doc_md': 'details',
             'fileloc': __file__,
+            "file_token": FILE_TOKEN,
             'is_paused': None,
             'is_subdag': False,
             'orientation': 'LR',
@@ -340,7 +347,8 @@ class TestGetDags(TestDagEndpoint):
         self._create_dag_models(2)
 
         response = self.client.get("api/v1/dags", environ_overrides={'REMOTE_USER': "test"})
-
+        file_token = SERIALIZER.dumps("/tmp/dag_1.py")
+        file_token2 = SERIALIZER.dumps("/tmp/dag_2.py")
         assert response.status_code == 200
         self.assertEqual(
             {
@@ -349,6 +357,7 @@ class TestGetDags(TestDagEndpoint):
                         "dag_id": "TEST_DAG_1",
                         "description": None,
                         "fileloc": "/tmp/dag_1.py",
+                        "file_token": file_token,
                         "is_paused": False,
                         "is_subdag": False,
                         "owners": [],
@@ -363,6 +372,7 @@ class TestGetDags(TestDagEndpoint):
                         "dag_id": "TEST_DAG_2",
                         "description": None,
                         "fileloc": "/tmp/dag_2.py",
+                        "file_token": file_token2,
                         "is_paused": False,
                         "is_subdag": False,
                         "owners": [],
@@ -452,6 +462,9 @@ class TestGetDags(TestDagEndpoint):
 
 
 class TestPatchDag(TestDagEndpoint):
+
+    file_token = SERIALIZER.dumps("/tmp/dag_1.py")
+
     def test_should_respond_200_on_patch_is_paused(self):
         dag_model = self._create_dag_model()
         response = self.client.patch(
@@ -462,10 +475,12 @@ class TestPatchDag(TestDagEndpoint):
             environ_overrides={'REMOTE_USER': "test"},
         )
         self.assertEqual(response.status_code, 200)
+
         expected_response = {
             "dag_id": "TEST_DAG_1",
             "description": None,
             "fileloc": "/tmp/dag_1.py",
+            "file_token": self.file_token,
             "is_paused": False,
             "is_subdag": False,
             "owners": [],
@@ -543,11 +558,13 @@ class TestPatchDag(TestDagEndpoint):
             json=payload,
             environ_overrides={'REMOTE_USER': "test"},
         )
+
         self.assertEqual(response.status_code, 200)
         expected_response = {
             "dag_id": "TEST_DAG_1",
             "description": None,
             "fileloc": "/tmp/dag_1.py",
+            "file_token": self.file_token,
             "is_paused": False,
             "is_subdag": False,
             "owners": [],

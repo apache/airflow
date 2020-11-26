@@ -22,7 +22,7 @@ from json import JSONDecodeError
 from typing import Dict, List, Optional
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
-from sqlalchemy import Boolean, Column, Integer, String
+from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
 
@@ -154,7 +154,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
     id = Column(Integer(), primary_key=True)
     conn_id = Column(String(ID_LEN), unique=True, nullable=False)
     conn_type = Column(String(500), nullable=False)
-    description = Column(String(5000))
+    description = Column(Text(5000))
     host = Column(String(500))
     schema = Column(String(500))
     login = Column(String(500))

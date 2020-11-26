@@ -946,7 +946,7 @@ Doc-only changes
 - [AIRFLOW-XXX] Fix typo - AWS DynamoDB Hook (#6319)
 - [AIRFLOW-XXX] Fix Documentation for adding extra Operator Links (#6301)
 - [AIRFLOW-XXX] Add section on task lifecycle & correct casing in docs (#4681)
-- [AIRFLOW-XXX] Make it clear that 1.10.5 wasn't accidentally omitted from UPDATING.md (#6240)
+- [AIRFLOW-XXX] Make it clear that 1.10.5 was not accidentally omitted from UPDATING.md (#6240)
 - [AIRFLOW-XXX] Improve format in code-block directives (#6242)
 - [AIRFLOW-XXX] Format Sendgrid docs (#6245)
 - [AIRFLOW-XXX] Update to new logo (#6066)
@@ -1090,7 +1090,7 @@ New Features
 - [AIRFLOW-4521] Pause dag also pause its subdags (#5283)
 - [AIRFLOW-4738] Enforce exampleinclude for example DAGs (#5375)
 - [AIRFLOW-4326] Airflow AWS SQS Operator (#5110)
-- [AIRFLOW-3729] Support "DownwardAPI" in env variables for KubernetesPodOperator (#4554)
+- [AIRFLOW-3729] Support `DownwardAPI` in env variables for KubernetesPodOperator (#4554)
 - [AIRFLOW-4585] Implement Kubernetes Pod Mutation Hook (#5359)
 - [AIRFLOW-161] New redirect route and extra links (#5059)
 - [AIRFLOW-4420] Backfill respects task_concurrency (#5221)
@@ -1272,7 +1272,7 @@ Bug fixes
 - [AIRFLOW-4455] dag_details broken for subdags in RBAC UI (#5234)
 - [AIRFLOW-2955] Fix kubernetes pod operator to set requests and limits on task pods (#4551)
 - [AIRFLOW-4459] Fix wrong DAG count in /home page when DAG count is zero (#5235)
-- [AIRFLOW-3876] AttributeError: module 'distutils' has no attribute 'util'
+- [AIRFLOW-3876] AttributeError: module `distutils` has no attribute 'util'
 - [AIRFLOW-4146] Fix CgroupTaskRunner errors (#5224)
 - [AIRFLOW-4524] Fix bug with "Ignore \*" toggles in RBAC mode (#5378)
 - [AIRFLOW-4765] Fix DataProcPigOperator execute method (#5426)
@@ -1544,7 +1544,7 @@ Improvement
 Bug fixes
 """""""""
 
-- [AIRFLOW-4248] Fix 'FileExistsError' makedirs race in file_processor_handler (#5047)
+- [AIRFLOW-4248] Fix `FileExistsError` makedirs race in file_processor_handler (#5047)
 - [AIRFLOW-4240] State-changing actions should be POST requests (#5039)
 - [AIRFLOW-4246] Flask-Oauthlib needs downstream dependencies pinning due to breaking changes (#5045)
 - [AIRFLOW-3887] Downgrade dagre-d3 to 0.4.18 (#4713)
@@ -2782,7 +2782,7 @@ Airflow 1.10.0, 2018-08-03
 - [AIRFLOW-1799] Fix logging line which raises errors
 - [AIRFLOW-1102] Upgrade Gunicorn >=19.4.0
 - [AIRFLOW-1756] Fix S3TaskHandler to work with Boto3-based S3Hook
-- [AIRFLOW-1797] S3Hook.load_string didn't work on Python3
+- [AIRFLOW-1797] S3Hook.load_string did not work on Python3
 - [AIRFLOW-646] Add docutils to setup_requires
 - [AIRFLOW-1792] Missing intervals DruidOperator
 - [AIRFLOW-1789][AIRFLOW-1712] Log SSHOperator stderr to log.warning
@@ -2927,7 +2927,7 @@ Airflow 1.9.0, 2018-01-02
 - [AIRFLOW-1799] Fix logging line which raises errors
 - [AIRFLOW-1102] Upgrade Gunicorn >=19.4.0
 - [AIRFLOW-1756] Fix S3TaskHandler to work with Boto3-based S3Hook
-- [AIRFLOW-1797] S3Hook.load_string didn't work on Python3
+- [AIRFLOW-1797] S3Hook.load_string did not work on Python3
 - [AIRFLOW-1792] Missing intervals DruidOperator
 - [AIRFLOW-1789][AIRFLOW-1712] Log SSHOperator stderr to log.warning
 - [AIRFLOW-1669] Fix Docker and pin Moto to 1.1.19
@@ -3262,7 +3262,7 @@ Airflow 1.9.0, 2018-01-02
 - [AIRFLOW-1045] Make log level configurable via airflow.cfg
 - [AIRFLOW-1047] Sanitize strings passed to Markup
 - [AIRFLOW-1040] Fix some small typos in comments and docstrings
-- [AIRFLOW-1017] get_task_instance shouldn't throw exception when no TI
+- [AIRFLOW-1017] get_task_instance should not throw exception when no TI
 - [AIRFLOW-1006] Add config_templates to MANIFEST
 - [AIRFLOW-999] Add support for Redis database
 - [AIRFLOW-1009] Remove SQLOperator from Concepts page
@@ -3307,7 +3307,7 @@ Airflow 1.9.0, 2018-01-02
 - [AIRFLOW-937] Improve performance of task_stats
 - [AIRFLOW-933] use ast.literal_eval rather eval because ast.literal_eval does not execute input.
 - [AIRFLOW-925] Revert airflow.hooks change that cherry-pick picked
-- [AIRFLOW-919] Running tasks with no start date shouldn't break a DAGs UI
+- [AIRFLOW-919] Running tasks with no start date should not break a DAGs UI
 - [AIRFLOW-802][AIRFLOW-1] Add spark-submit operator/hook
 - [AIRFLOW-725] Use keyring to store credentials for JIRA
 - [AIRFLOW-916] Remove deprecated readfp function
@@ -3415,7 +3415,7 @@ Airflow 1.8.1, 2017-05-09
 - [AIRFLOW-1017] get_task_instance should return None instead of throw an exception for non-existent TIs
 - [AIRFLOW-1011] Fix bug in BackfillJob._execute() for SubDAGs
 - [AIRFLOW-1004] `airflow webserver -D` runs in foreground
-- [AIRFLOW-1001] Landing Time shows "unsupported operand type(s) for -: 'datetime.datetime' and 'NoneType'" on example_subdag_operator
+- [AIRFLOW-1001] Landing Time shows "unsupported operand type(s) for -: 'datetime.datetime' and `NoneType`" on example_subdag_operator
 - [AIRFLOW-1000] Rebrand to Apache Airflow instead of Airflow
 - [AIRFLOW-989] Clear Task Regression
 - [AIRFLOW-974] airflow.util.file mkdir has a race condition
@@ -3456,7 +3456,7 @@ Airflow 1.8.0, 2017-03-12
 - [AIRFLOW-937] Improve performance of task_stats
 - [AIRFLOW-933] use ast.literal_eval rather eval because ast.literal_eval does not execute input.
 - [AIRFLOW-925] Revert airflow.hooks change that cherry-pick picked
-- [AIRFLOW-919] Running tasks with no start date shouldn't break a DAGs UI
+- [AIRFLOW-919] Running tasks with no start date should not break a DAGs UI
 - [AIRFLOW-802] Add spark-submit operator/hook
 - [AIRFLOW-897] Prevent dagruns from failing with unfinished tasks
 - [AIRFLOW-861] make pickle_info endpoint be login_required
@@ -3765,7 +3765,7 @@ Airflow 1.7.2
 - [AIRFLOW-262] Simplify commands in MANIFEST.in
 - [AIRFLOW-31] Add zope dependency
 - [AIRFLOW-6] Remove dependency on Highcharts
-- [AIRFLOW-234] make task that aren't `running` self-terminate
+- [AIRFLOW-234] make task that are not `running` self-terminate
 - [AIRFLOW-256] Fix test_scheduler_reschedule heartrate
 - Add Python 3 compatibility fix
 - [AIRFLOW-31] Use standard imports for hooks/operators
