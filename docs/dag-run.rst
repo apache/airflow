@@ -143,7 +143,7 @@ Run the below command
         --end-date END_DATE \
         dag_id
 
-The `backfill command <cli-ref.html#backfill>`_ will re-run all the instances of the dag_id for all the intervals within the start date and end date.
+The `backfill command <cli-and-env-variables-ref.html#backfill>`_ will re-run all the instances of the dag_id for all the intervals within the start date and end date.
 
 Re-run Tasks
 ------------

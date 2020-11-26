@@ -163,6 +163,7 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
         ('metrics', 'statsd_datadog_enabled'): ('scheduler', 'statsd_datadog_enabled'),
         ('metrics', 'statsd_datadog_tags'): ('scheduler', 'statsd_datadog_tags'),
         ('metrics', 'statsd_custom_client_path'): ('scheduler', 'statsd_custom_client_path'),
+        ('scheduler', 'parsing_processes'): ('scheduler', 'max_threads'),
     }
 
     # A mapping of old default values that we want to change and warn the user

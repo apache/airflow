@@ -146,6 +146,7 @@ Currently, **officially** using Airflow:
 1. [Elai Data](https://www.elaidata.com/) [[@lgov](https://github.com/lgov)]
 1. [EllisDon](http://www.ellisdon.com/) [[@d2kalra](https://github.com/d2kalra) & [@zbasama](https://github.com/zbasama)]
 1. [Endesa](https://www.endesa.com) [[@drexpp](https://github.com/drexpp)]
+1. [Energy Solutions](https://www.energy-solution.com) [[@energy-solution](https://github.com/energy-solution/)]
 1. [Enigma](https://www.enigma.com) [[@hydrosquall](https://github.com/hydrosquall)]
 1. [Etsy](https://www.etsy.com) [[@mchalek](https://github.com/mchalek)]
 1. [Everis](https://www.everis.com) [[@diegobenedicto](https://github.com/diegobenedicto)]
@@ -238,6 +239,7 @@ Currently, **officially** using Airflow:
 1. [Lyft](https://www.lyft.com/) [[@feng-tao](https://github.com/feng-tao), [@milton0825](https://github.com/milton0825), [@astahlman](https://github.com/astahlman), [@youngyjd](https://github.com/youngyjd), [@ArgentFalcon](https://github.com/ArgentFalcon)]
 1. [M4U](https://www.m4u.com.br/) [[@msantino](https://github.com/msantino)]
 1. [MFG Labs](https://github.com/MfgLabs)
+1. [MTsolutions](https://www.mtsolutions.io)[[@slara](https://github.com/slara)]
 1. [Madrone](http://madroneco.com/) [[@mbreining](https://github.com/mbreining) & [@scotthb](https://github.com/scotthb)]
 1. [Markovian](https://markovian.com/) [[@al-xv](https://github.com/al-xv), [@skogsbaeck](https://github.com/skogsbaeck), [@waltherg](https://github.com/waltherg)]
 1. [Mercadoni](https://www.mercadoni.com.co) [[@demorenoc](https://github.com/demorenoc)]
@@ -368,6 +370,7 @@ Currently, **officially** using Airflow:
 1. [VeeR VR](https://veer.tv) [[@pishilong](https://github.com/pishilong)]
 1. [Veikkaus](https://www.veikkaus.fi) [[@hixus](https://github.com/hixus)]
 1. [Vente-Exclusive.com](http://www.vente-exclusive.com/) [[@alexvanboxel](https://github.com/alexvanboxel)]
+1. [Vestiaire Collective](https://www.vestiairecollective.com/) [[@AdriMarteau](https://github.com/AdriMarteau), [@benbenbang](https://github.com/benbenbang)]
 1. [Vevo](https://www.vevo.com/) [[@csetiawan](https://github.com/csetiawan) & [@jerrygillespie](https://github.com/jerrygillespie)]
 1. [Vidio](https://www.vidio.com/)
 1. [Ville de Montréal](http://ville.montreal.qc.ca/) [[@VilledeMontreal](https://github.com/VilledeMontreal/)]

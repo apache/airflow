@@ -193,7 +193,7 @@ Follow the steps below to enable Azure Blob Storage logging:
         remote_log_conn_id = <name of the Azure Blob Storage connection>
 
 #. Restart the Airflow webserver and scheduler, and trigger (or wait for) a new task execution.
-#. Verify that logs are showing up for newly executed tasks in the bucket you've defined.
+#. Verify that logs are showing up for newly executed tasks in the bucket you have defined.
 
 .. _write-logs-elasticsearch:
 

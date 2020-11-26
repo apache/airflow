@@ -52,6 +52,15 @@ A tree representation of the DAG that spans across time. If a pipeline is
 late, you can quickly see where the different steps are and identify
 the blocking ones.
 
+There is also visual difference between scheduled and manually triggered
+DAGs/tasks:
+
+.. image:: img/task_manual_vs_scheduled.png
+
+The DAGs/tasks with a black border are scheduled runs, whereas the non-bordered
+DAGs/tasks are manually triggered, i.e. by ``airflow dags trigger``.
+
+
 ------------
 
 .. image:: img/tree.png

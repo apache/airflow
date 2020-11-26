@@ -321,6 +321,11 @@ Step 4: Prepare PR
        the "full tests needed" label is set for your PR. Additional check is set that prevents from
        accidental merging of the request until full matrix of tests succeeds for the PR.
 
+     * when your change has "upgrade to latest dependencies" label set, constraints will be automatically
+       upgraded to latest constraints matching your setup.py. This is useful in case you want to force
+       upgrade to a latest version of dependencies. You can ask committers to set the label for you
+       when you need it in your PR.
+
    More details about the PR workflow be found in `PULL_REQUEST_WORKFLOW.rst <PULL_REQUEST_WORKFLOW.rst>`_.
 
 
@@ -541,14 +546,15 @@ This is the full list of those extras:
   .. START EXTRAS HERE
 
 all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.druid, apache.hdfs,
-apache.hive, apache.kylin, apache.pinot, apache.spark, apache.webhdfs, async, atlas, aws, azure,
-cassandra, celery, cgroups, cloudant, cncf.kubernetes, dask, databricks, datadog, devel,
-devel_hadoop, doc, docker, druid, elasticsearch, exasol, facebook, gcp, gcp_api, github_enterprise,
-google, google_auth, grpc, hashicorp, hdfs, hive, jdbc, jira, kerberos, kubernetes, ldap, mesos,
-microsoft.azure, microsoft.mssql, microsoft.winrm, mongo, mssql, mysql, odbc, oracle, pagerduty,
+apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark, apache.sqoop,
+apache.webhdfs, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant, cncf.kubernetes,
+dask, databricks, datadog, devel, devel_hadoop, dingding, discord, doc, docker, druid,
+elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github_enterprise, google, google_auth, grpc,
+hashicorp, hdfs, hive, http, imap, jdbc, jenkins, jira, kerberos, kubernetes, ldap, microsoft.azure,
+microsoft.mssql, microsoft.winrm, mongo, mssql, mysql, odbc, openfaas, opsgenie, oracle, pagerduty,
 papermill, password, pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, salesforce,
-samba, segment, sendgrid, sentry, singularity, slack, snowflake, spark, ssh, statsd, tableau,
-vertica, virtualenv, webhdfs, winrm, yandex, yandexcloud, all, devel_ci
+samba, segment, sendgrid, sentry, sftp, singularity, slack, snowflake, spark, sqlite, ssh, statsd,
+tableau, vertica, virtualenv, webhdfs, winrm, yandex, yandexcloud, zendesk, all, devel_ci
 
   .. END EXTRAS HERE
 

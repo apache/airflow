@@ -205,8 +205,11 @@ This means ``explicit_defaults_for_timestamp`` is disabled in your mysql server 
 How to reduce airflow dag scheduling latency in production?
 -----------------------------------------------------------
 
-- ``max_threads``: Scheduler will spawn multiple threads in parallel to schedule dags. This is controlled by ``max_threads`` with default value of 2. User should increase this value to a larger value (e.g numbers of cpus where scheduler runs - 1) in production.
-- If you're using Airflow 1.10.x, consider moving to Airflow 2, which has reduced dag scheduling latency dramatically, and allows for running multiple schedulers.
+- ``parsing_processes``: Scheduler will spawn multiple threads in parallel to parse dags.
+  This is controlled by ``parsing_processes`` with default value of 2.
+  User should increase this value to a larger value (e.g numbers of cpus where scheduler runs + 1) in production.
+- If you're using Airflow 1.10.x, consider moving to Airflow 2, which has reduced dag scheduling latency dramatically,
+  and allows for running multiple schedulers.
 
 Why next_ds or prev_ds might not contain expected values?
 ---------------------------------------------------------
@@ -228,29 +231,3 @@ If pausing or unpausing a dag fails for any reason, the dag toggle will
 revert to its previous state and turn red. If you observe this behavior,
 try pausing the dag again, or check the console or server logs if the
 issue recurs.
-
-Why do I see error when importing or running airflow: ``Symbol not found: _Py_GetArgcArgv``?
---------------------------------------------------------------------------------------------
-
-If you are using a homebrew installed version of Python, this is generally caused by
-using python in ``/usr/local/opt/bin`` rather than the Frameworks installation (e.g. for ``python 3.7``: ``/usr/local/opt/python@3.7/Frameworks/Python.framework/Versions/3.7``).
-
-The crux of the issue is that a library Airflow depends on, ``setproctitle``, uses a non-public Python API
-which is not available from the standard installation ``/usr/local/opt/`` (which symlinks to a path under ``/usr/local/Cellar``).
-
-An easy fix is just to ensure you use a version of Python that has a dylib of the python library available. For example:
-
-.. code-block:: bash
-  :linenos:
-
-  # Note: these instructions are for python3.7 but can be loosely modified for other versions
-  brew install python@3.7
-  virtualenv -p /usr/local/opt/python@3.7/Frameworks/Python.framework/Versions/3.7/bin/python3 .toy-venv
-  source .toy-venv/bin/activate
-  pip install apache-airflow
-  python
-  >>> import setproctitle
-  # Success!
-
-
-Alternatively, you can download and install Python directly from the [Python website](https://www.python.org/).

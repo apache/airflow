@@ -38,7 +38,7 @@ it requires setting up ``CeleryExecutor`` and ``KubernetesExecutor``.
 We recommend considering ``CeleryKubernetesExecutor`` when your use case meets:
 
 1. The number of tasks needed to be scheduled at the peak exceeds the scale that your kubernetes cluster
-    can comfortably handle
+   can comfortably handle
 
 2. A relative small portion of your tasks requires runtime isolation.
 

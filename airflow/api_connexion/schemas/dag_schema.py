@@ -17,10 +17,12 @@
 
 from typing import List, NamedTuple
 
+from itsdangerous import URLSafeSerializer
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 from airflow.api_connexion.schemas.common_schema import ScheduleIntervalSchema, TimeDeltaSchema, TimezoneField
+from airflow.configuration import conf
 from airflow.models.dag import DagModel, DagTag
 
 
@@ -48,6 +50,7 @@ class DAGSchema(SQLAlchemySchema):
     is_paused = auto_field()
     is_subdag = auto_field(dump_only=True)
     fileloc = auto_field(dump_only=True)
+    file_token = fields.Method("get_token", dump_only=True)
     owners = fields.Method("get_owners", dump_only=True)
     description = auto_field(dump_only=True)
     schedule_interval = fields.Nested(ScheduleIntervalSchema)
@@ -59,6 +62,12 @@ class DAGSchema(SQLAlchemySchema):
         if not getattr(obj, 'owners', None):
             return []
         return obj.owners.split(",")
+
+    @staticmethod
+    def get_token(obj: DagModel):
+        """Return file token"""
+        serializer = URLSafeSerializer(conf.get('webserver', 'secret_key'))
+        return serializer.dumps(obj.fileloc)
 
 
 class DAGDetailSchema(DAGSchema):

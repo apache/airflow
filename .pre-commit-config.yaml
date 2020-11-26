@@ -46,7 +46,7 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
         files: >
-          \.properties$|\.cfg$|\.conf$|\.ini$|\.ldif$|\.readthedocs$|\.service$|\.tf$|^Dockerfile.*$
+          \.properties$|\.cfg$|\.conf$|\.ini$|\.ldif$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
       - id: insert-license
         name: Add license for all rst files
         exclude: ^\.github/.*$
@@ -524,6 +524,7 @@ repos:
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_mypy.sh"
         files: ^docs/.*\.py$
+        exclude: rtd-deprecation
         require_serial: true
       - id: pylint
         name: Run pylint

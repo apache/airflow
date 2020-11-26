@@ -22,7 +22,7 @@
 Microsoft Azure Connection
 ==========================
 
-The Microsoft Azure connection type enables the :ref:`Azure Integrations <Azure>`.
+The Microsoft Azure connection type enables the Azure Integrations.
 
 Authenticating to Azure
 -----------------------

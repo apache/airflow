@@ -155,6 +155,30 @@ def check_completeness_of_list_of_hooks_sensors_hooks(yaml_files: Dict[str, Dict
         sys.exit(1)
 
 
+def check_duplicates_in_integrations_names_of_hooks_sensors_operators(yaml_files: Dict[str, Dict]):
+    print("Checking for duplicates in list of {sensors, hooks, operators}")
+    errors = []
+    for (yaml_file_path, provider_data), resource_type in product(
+        yaml_files.items(), ["sensors", "operators", "hooks"]
+    ):
+        resource_data = provider_data.get(resource_type, [])
+        current_integrations = [r.get("integration-name", "") for r in resource_data]
+        if len(current_integrations) != len(set(current_integrations)):
+            for integration in current_integrations:
+                if current_integrations.count(integration) > 1:
+                    errors.append(
+                        f"Duplicated content of '{resource_type}/integration-name/{integration}' "
+                        f"in file: {yaml_file_path}"
+                    )
+
+    if errors:
+        print(f"Found {len(errors)} errors")
+        for error in errors:
+            print(error)
+            print()
+        sys.exit(1)
+
+
 def check_completeness_of_list_of_transfers(yaml_files: Dict[str, Dict]):
     print("Checking completeness of list of transfers")
     errors = []
@@ -177,6 +201,35 @@ def check_completeness_of_list_of_transfers(yaml_files: Dict[str, Dict]):
                 f"Incorrect content of key '{resource_type}/python-module' "
                 f"in file: {yaml_file_path}\n{nested_error}"
             )
+    if errors:
+        print(f"Found {len(errors)} errors")
+        for error in errors:
+            print(error)
+            print()
+        sys.exit(1)
+
+
+def check_duplicates_in_list_of_transfers(yaml_files: Dict[str, Dict]):
+    print("Checking for duplicates in list of transfers")
+    errors = []
+    resource_type = "transfers"
+    for yaml_file_path, provider_data in yaml_files.items():
+        resource_data = provider_data.get(resource_type, [])
+
+        source_target_integrations = [
+            (r.get("source-integration-name", ""), r.get("target-integration-name", ""))
+            for r in resource_data
+        ]
+        if len(source_target_integrations) != len(set(source_target_integrations)):
+            for integration_couple in source_target_integrations:
+                if source_target_integrations.count(integration_couple) > 1:
+                    errors.append(
+                        f"Duplicated content of \n"
+                        f" '{resource_type}/source-integration-name/{integration_couple[0]}' "
+                        f" '{resource_type}/target-integration-name/{integration_couple[1]}' "
+                        f"in file: {yaml_file_path}"
+                    )
+
     if errors:
         print(f"Found {len(errors)} errors")
         for error in errors:
@@ -278,7 +331,10 @@ if __name__ == '__main__':
     check_integration_duplicates(all_parsed_yaml_files)
 
     check_completeness_of_list_of_hooks_sensors_hooks(all_parsed_yaml_files)
+    check_duplicates_in_integrations_names_of_hooks_sensors_operators(all_parsed_yaml_files)
+
     check_completeness_of_list_of_transfers(all_parsed_yaml_files)
+    check_duplicates_in_list_of_transfers(all_parsed_yaml_files)
 
     if all_files_loaded:
         # Only check those if all provider files are loaded

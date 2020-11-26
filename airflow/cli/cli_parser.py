@@ -458,6 +458,11 @@ ARG_ERROR_LOGFILE = Arg(
     default=conf.get('webserver', 'ERROR_LOGFILE'),
     help="The logfile to store the webserver error log. Use '-' to print to stderr",
 )
+ARG_ACCESS_LOGFORMAT = Arg(
+    ("-L", "--access-logformat"),
+    default=conf.get('webserver', 'ACCESS_LOGFORMAT'),
+    help="The access log format for gunicorn logs",
+)
 
 # scheduler
 ARG_NUM_RUNS = Arg(
@@ -1343,6 +1348,7 @@ airflow_commands: List[CLICommand] = [
             ARG_STDERR,
             ARG_ACCESS_LOGFILE,
             ARG_ERROR_LOGFILE,
+            ARG_ACCESS_LOGFORMAT,
             ARG_LOG_FILE,
             ARG_SSL_CERT,
             ARG_SSL_KEY,
@@ -1411,7 +1417,7 @@ airflow_commands: List[CLICommand] = [
         help='Rotate encrypted connection credentials and variables',
         description=(
             'Rotate all encrypted connection credentials and variables; see '
-            'https://airflow.readthedocs.io/en/stable/howto/secure-connections.html'
+            'https://airflow.apache.org/docs/stable/howto/secure-connections.html'
             '#rotating-encryption-keys'
         ),
         args=(),
@@ -1437,7 +1443,7 @@ airflow_commands: List[CLICommand] = [
         help='Celery components',
         description=(
             'Start celery components. Works only when using CeleryExecutor. For more information, see '
-            'https://airflow.readthedocs.io/en/stable/executor/celery.html'
+            'https://airflow.apache.org/docs/stable/executor/celery.html'
         ),
         subcommands=CELERY_COMMANDS,
     ),

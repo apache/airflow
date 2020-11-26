@@ -69,7 +69,8 @@ class TestCliTasks(unittest.TestCase):
         args = self.parser.parse_args(['tasks', 'list', 'example_bash_operator', '--tree'])
         task_command.task_list(args)
 
-    def test_test(self):
+    @mock.patch("airflow.models.taskinstance.TaskInstance._run_mini_scheduler_on_child_tasks")
+    def test_test(self, mock_run_mini_scheduler):
         """Test the `airflow test` command"""
         args = self.parser.parse_args(
             ["tasks", "test", "example_python_operator", 'print_the_context', '2018-01-01']
@@ -77,6 +78,8 @@ class TestCliTasks(unittest.TestCase):
 
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_test(args)
+
+        mock_run_mini_scheduler.assert_not_called()
         # Check that prints, and log messages, are shown
         self.assertIn("'example_python_operator__print_the_context__20180101'", stdout.getvalue())
 

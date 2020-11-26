@@ -510,10 +510,10 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         self._async_mode = async_mode
         self._parsing_start_time: Optional[datetime] = None
 
-        self._parallelism = conf.getint('scheduler', 'max_threads')
+        self._parallelism = conf.getint('scheduler', 'parsing_processes')
         if 'sqlite' in conf.get('core', 'sql_alchemy_conn') and self._parallelism > 1:
             self.log.warning(
-                "Because we cannot use more than 1 thread (max_threads = "
+                "Because we cannot use more than 1 thread (parsing_processes = "
                 "%d ) when using sqlite. So we set parallelism to 1.",
                 self._parallelism,
             )

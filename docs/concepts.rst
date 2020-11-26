@@ -40,7 +40,7 @@ For example, a simple DAG could consist of three tasks: A, B, and C. It could
 say that A has to run successfully before B can run, but C can run anytime. It
 could say that task A times out after 5 minutes, and B can be restarted up to 5
 times in case it fails. It might also say that the workflow will run every night
-at 10pm, but shouldn't start until a certain date.
+at 10pm, but should not start until a certain date.
 
 In this way, a DAG describes *how* you want to carry out your workflow; but
 notice that we haven't said anything about *what* we actually want to do! A, B,
@@ -220,7 +220,7 @@ execution_date
 The ``execution_date`` is the *logical* date and time which the DAG Run, and its task instances, are running for.
 
 This allows task instances to process data for the desired *logical* date & time.
-While a task_instance or DAG run might have a *actual* start date of now,
+While a task_instance or DAG run might have an *actual* start date of now,
 their *logical* date might be 3 months ago because we are busy reloading something.
 
 In the prior example the ``execution_date`` was 2016-01-01 for the first DAG Run and 2016-01-02 for the second.
@@ -403,14 +403,6 @@ The happy flow consists of the following stages:
 3. Queued (scheduler sent task to executor to run on the queue)
 4. Running (worker picked up a task and is now running it)
 5. Success (task completed)
-
-There is also visual difference between scheduled and manually triggered
-DAGs/tasks:
-
-.. image:: img/task_manual_vs_scheduled.png
-
-The DAGs/tasks with a black border are scheduled runs, whereas the non-bordered
-DAGs/tasks are manually triggered, i.e. by ``airflow dags trigger``.
 
 .. _concepts:operators:
 
@@ -805,7 +797,7 @@ methods.
 
 It is also possible to override the ``orm_deserialize_value`` method which is used for deserialization when
 recreating ORM XCom object. This happens every time we query the XCom table, for example when we want to populate
-XCom list view in webserver. If your XCom backend performs expensive operations, or has large values that aren't
+XCom list view in webserver. If your XCom backend performs expensive operations, or has large values that are not
 useful to show in such a view, override this method to provide an alternative representation. By default Airflow will
 use ``BaseXCom.orm_deserialize_value`` method which returns the value stored in Airflow database.
 
@@ -1193,7 +1185,7 @@ Task instances die all the time, usually as part of their normal life cycle,
 but sometimes unexpectedly.
 
 Zombie tasks are characterized by the absence
-of an heartbeat (emitted by the job periodically) and a ``running`` status
+of a heartbeat (emitted by the job periodically) and a ``running`` status
 in the database. They can occur when a worker node can't reach the database,
 when Airflow processes are killed externally, or when a node gets rebooted
 for instance. Zombie killing is performed periodically by the scheduler's

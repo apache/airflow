@@ -53,13 +53,16 @@ def get_extras_from_setup() -> Dict[str, List[str]]:
     extras_section = extras_section_regex.findall(setup_content)[0]
 
     extras_regex = re.compile(
-        rf'^\s+[\"\']({PY_IDENTIFIER})[\"\']:\s*({PY_IDENTIFIER})[^#\n]*(#\s*TODO.*)?$', re.MULTILINE
+        rf'^\s+[\"\']({PY_IDENTIFIER})[\"\']:\s*({PY_IDENTIFIER}|\[\])[^#\n]*(#\s*TODO.*)?$', re.MULTILINE
     )
 
     extras_dict: Dict[str, List[str]] = {}
     for extras in extras_regex.findall(extras_section):
         package = extras[1]
         alias = extras[0]
+        # if there are no packages, use the extras alias itself
+        if package == '[]':
+            package = alias
         if not extras_dict.get(package):
             extras_dict[package] = []
         extras_dict[package].append(alias)

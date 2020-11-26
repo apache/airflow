@@ -23,7 +23,7 @@ from flask import current_app, g
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
 from flask_appbuilder.security.sqla.models import PermissionView, Role, User
-from sqlalchemy import and_, or_
+from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
 from airflow import models
@@ -275,7 +275,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         return session.query(DagModel).filter(DagModel.dag_id.in_(resources))
 
-    def can_access_some_dags(self, action: str, dag_id: Optional[int] = None) -> bool:
+    def can_access_some_dags(self, action: str, dag_id: Optional[str] = None) -> bool:
         """Checks if user has read or write access to some dags."""
         if dag_id and dag_id != '~':
             return self.has_access(action, self.prefixed_dag_id(dag_id))
@@ -520,7 +520,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         :return: None.
         """
-        all_dag_view = self.find_view_menu(permissions.RESOURCE_DAG)
         dag_pvs = (
             self.get_session.query(sqla_models.ViewMenu)
             .filter(sqla_models.ViewMenu.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))
@@ -529,12 +528,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         pv_ids = [pv.id for pv in dag_pvs]
         pvms = (
             self.get_session.query(sqla_models.PermissionView)
-            .filter(
-                ~and_(
-                    sqla_models.PermissionView.view_menu_id.in_(pv_ids),
-                    sqla_models.PermissionView.view_menu_id != all_dag_view.id,
-                )
-            )
+            .filter(~sqla_models.PermissionView.view_menu_id.in_(pv_ids))
             .all()
         )
 
@@ -641,7 +635,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             if not role:
                 raise AirflowException(
                     "The access_control mapping for DAG '{}' includes a role "
-                    "named '{}', but that role does not exist".format(prefixed_dag_id, rolename)
+                    "named '{}', but that role does not exist".format(dag_id, rolename)
                 )
 
             perms = set(perms)
@@ -650,7 +644,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 raise AirflowException(
                     "The access_control map for DAG '{}' includes the following "
                     "invalid permissions: {}; The set of valid permissions "
-                    "is: {}".format(prefixed_dag_id, (perms - self.DAG_PERMS), self.DAG_PERMS)
+                    "is: {}".format(prefixed_dag_id, invalid_perms, self.DAG_PERMS)
                 )
 
             for perm_name in perms:
@@ -665,7 +659,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 self._merge_perm(permission_name=perm, view_menu_name=dag_vm)
 
     def check_authorization(
-        self, perms: Optional[Sequence[Tuple[str, str]]] = None, dag_id: Optional[int] = None
+        self, perms: Optional[Sequence[Tuple[str, str]]] = None, dag_id: Optional[str] = None
     ) -> bool:
         """Checks that the logged in user has the specified permissions."""
         if not perms:

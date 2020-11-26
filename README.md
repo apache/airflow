@@ -98,7 +98,7 @@ running multiple schedulers -- please see the "Scheduler" docs.
 
 Visit the official Airflow website documentation (latest **stable** release) for help with [installing Airflow](https://airflow.apache.org/installation.html), [getting started](https://airflow.apache.org/start.html), or walking through a more complete [tutorial](https://airflow.apache.org/tutorial.html).
 
-> Note: If you're looking for documentation for master branch (latest development branch): you can find it on [ReadTheDocs](https://airflow.readthedocs.io/en/latest/).
+> Note: If you're looking for documentation for master branch (latest development branch): you can find it on [s.apache.org/airflow-docs](https://s.apache.org/airflow-docs/).
 
 For more information on Airflow's Roadmap or Airflow Improvement Proposals (AIPs), visit the [Airflow Wiki](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home).
 
@@ -162,7 +162,7 @@ Those are - in the order of most common ways people install Airflow:
 - [Docker Images](https://hub.docker.com/repository/docker/apache/airflow) to install airflow via
   `docker` tool, use them in Kubernetes, Helm Charts, `docker-compose`, `docker swarm` etc. You can
   read more about using, customising, and extending the images in the
-  [Latest docs](https://airflow.readthedocs.io/en/latest/production-deployment.html), and
+  [Latest docs](/docs//production-deployment.html), and
   learn details on the internals in the [IMAGES.rst](IMAGES.rst) document.
 - [Tags in GitHub](https://github.com/apache/airflow/tags) to retrieve the git project sources that
   were used to generate official source packages via git

@@ -64,7 +64,7 @@ def _add_worker_uuid_table():
     elif conn.dialect.name not in {"mssql"}:
         columns_and_constraints.append(sa.CheckConstraint("one_row_id", name="kube_worker_one_row_id"))
 
-    table = op.create_table(WORKER_RESOURCEVERSION_TABLE, *columns_and_constraints)
+    table = op.create_table(WORKER_UUID_TABLE, *columns_and_constraints)
 
     op.bulk_insert(table, [{"worker_uuid": ""}])
 

@@ -83,7 +83,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Tarball the repo
 
     ```shell script
-    git archive --format=tar.gz ${VERSION} --prefix=apache-airflow-${VERSION}/ -o apache-airflow-${VERSION}-source.tar.gz`
+    git archive --format=tar.gz ${VERSION} --prefix=apache-airflow-${VERSION}/ -o apache-airflow-${VERSION}-source.tar.gz
     ```
 
 
@@ -115,6 +115,14 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
     ```shell script
     git push origin ${VERSION}
+    ```
+
+- Tag & Push latest constraints files
+
+    ```shell script
+    git checkout constraints-1-10
+    git tag "constraints-${VERSION}"
+    git push origin "constraints-${VERSION}"
     ```
 
 - Push the artifacts to ASF dev dist repo
@@ -575,9 +583,7 @@ https://pypi.python.org/pypi/apache-airflow
 
 The documentation is available on:
 https://airflow.apache.org/
-https://airflow.apache.org/1.10.2/
-https://airflow.readthedocs.io/en/1.10.2/
-https://airflow.readthedocs.io/en/stable/
+https://airflow.apache.org/docs/${VERSION}/
 
 Find the CHANGELOG here for more details:
 

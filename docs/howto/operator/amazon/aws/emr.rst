@@ -99,7 +99,7 @@ JobFlow configuration
 """""""""""""""""""""
 
 The configuration is similar to the previous example, except that we set ``'KeepJobFlowAliveWhenNoSteps': True`` because we will terminate the cluster manually.
-Also, we wouldn't specify ``Steps`` in the config when creating the cluster.
+Also, we would not specify ``Steps`` in the config when creating the cluster.
 
 Defining tasks
 """"""""""""""

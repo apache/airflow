@@ -352,7 +352,7 @@ which are used to populate the run schedule with task instances from this dag.
 
 What's Next?
 -------------
-That's it, you've written, tested and backfilled your very first Airflow
+That's it, you have written, tested and backfilled your very first Airflow
 pipeline. Merging your code into a code repository that has a master scheduler
 running against it should get it to get triggered and run every day.
 

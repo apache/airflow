@@ -179,6 +179,8 @@ So if your connection id is ``my_prod_db`` then the variable name should be ``AI
 
     Single underscores surround ``CONN``.  This is in contrast with the way ``airflow.cfg``
     parameters are stored, where double underscores surround the config section name.
+    Connections set using Environment Variables would not appear in the Airflow UI but you will
+    be able to use them in your DAG file.
 
 The value of this environment variable must use airflow's URI format for connections.  See the section
 :ref:`Generating a Connection URI <generating_connection_uri>` for more details.
