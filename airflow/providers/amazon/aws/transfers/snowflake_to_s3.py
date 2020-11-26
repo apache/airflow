@@ -87,8 +87,8 @@ class SnowflakeToS3Operator(BaseOperator):
         s3_key: str,
         query_or_table: str,
         file_format: Optional[str],
-        database: Optional[str],
-        warehouse: Optional[str],
+        database: Optional[str] = None,
+        warehouse: Optional[str] = None,
         snowflake_conn_id: str = "snowflake_default",
         unload_options: Optional[list] = None,
         autocommit: bool = True,
@@ -120,7 +120,6 @@ class SnowflakeToS3Operator(BaseOperator):
             warehouse=self.warehouse,
             database=self.database,
             role=self.role,
-            schema=self.schema,
             authenticator=self.authenticator,
             session_parameters=self.session_parameters,
         )
