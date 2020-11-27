@@ -102,10 +102,10 @@ function initialization::initialize_base_variables() {
     export CURRENT_MYSQL_VERSIONS
 
     # Default Postgres versions
-    export POSTGRES_VERSION=${CURRENT_POSTGRES_VERSIONS[0]}
+    export POSTGRES_VERSION=${POSTGRES_VERSION:=${CURRENT_POSTGRES_VERSIONS[0]}}
 
     # Default MySQL versions
-    export MYSQL_VERSION=${CURRENT_MYSQL_VERSIONS[0]}
+    export MYSQL_VERSION=${MYSQL_VERSION:=${CURRENT_MYSQL_VERSIONS[0]}}
 
     # If set to true, the database will be reset at entry. Works for Postgres and MySQL
     export DB_RESET=${DB_RESET:="false"}
