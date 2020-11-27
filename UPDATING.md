@@ -52,7 +52,7 @@ assists users migrating to a new version.
 
 ## Master
 
-### Rename all to devel_all
+### Rename `all` to `devel_all` extra
 
 The `all` extras were reduced to include only user-facing dependencies. This means
 that this extra does not contain development dependencies. If you were relying on
