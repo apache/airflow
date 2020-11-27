@@ -17,6 +17,8 @@
 # under the License.
 #
 import json
+import warnings
+
 from typing import Optional
 
 from airflow.exceptions import AirflowException
@@ -104,8 +106,18 @@ class SlackWebhookHook(HttpHook):
             return token
         elif http_conn_id:
             conn = self.get_connection(http_conn_id)
-            extra = conn.extra_dejson
-            return extra.get('webhook_token', '')
+
+            if getattr(conn, 'password', None):
+                return conn.password
+            else:
+
+                warnings.warn(
+                    "'webhook_token' in 'extra' is deprecated. Please use 'password' field",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                extra = conn.extra_dejson
+                return extra.get('webhook_token', '')
         else:
             raise AirflowException('Cannot get token: No valid Slack webhook token nor conn_id supplied')
 
