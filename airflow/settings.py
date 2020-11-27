@@ -369,7 +369,7 @@ def get_session_lifetime_config():
     session_lifetime_minutes = conf.get('webserver', 'session_lifetime_minutes', fallback=None)
     session_lifetime_days = conf.get('webserver', 'session_lifetime_days', fallback=None)
     uses_deprecated_lifetime_configs = session_lifetime_days or conf.get(
-        'webserver', 'force_logout_after', fallback=None
+        'webserver', 'force_log_out_after', fallback=None
     )
 
     minutes_per_day = 24 * 60
@@ -378,7 +378,7 @@ def get_session_lifetime_config():
         warnings.warn(
             '`session_lifetime_days` option from `[webserver]` section has been '
             'renamed to `session_lifetime_minutes`. The new option allows to configure '
-            'session lifetime in minutes. The `force_logout_after` option has been removed '
+            'session lifetime in minutes. The `force_log_out_after` option has been removed '
             'from `[webserver]` section. Please update your configuration.',
             category=DeprecationWarning,
         )
