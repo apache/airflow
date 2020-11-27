@@ -64,7 +64,7 @@ You should be aware, about a few things:
 
 .. code-block:: dockerfile
 
-  FROM apache/airflow:1.10.12
+  FROM apache/airflow:1.10.13
   USER root
   RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -81,7 +81,7 @@ You should be aware, about a few things:
 
 .. code-block:: dockerfile
 
-  FROM apache/airflow:1.10.12
+  FROM apache/airflow:1.10.13
   RUN pip install --no-cache-dir --user my-awesome-pip-dependency-to-add
 
 
@@ -92,7 +92,7 @@ You should be aware, about a few things:
 
 .. code-block:: dockerfile
 
-  FROM apache/airflow:1.10.12
+  FROM apache/airflow:1.10.13
   USER root
   RUN apt-get update \
     && apt-get install -y --no-install-recommends \
