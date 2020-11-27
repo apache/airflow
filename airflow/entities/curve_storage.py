@@ -110,7 +110,9 @@ class ClsCurveStorage(ClsEntity):
             return ret
         try:
             self.ensure_bucket(self._bucket)
-            self._client.remove_objects(self._bucket, curve_files)
+            ret = self._client.remove_objects(self._bucket, curve_files)
+            if not ret:
+                raise Exception('Remove Object: {} Error'.format(','.join(curve_files)))
         except Exception as e:
             raise e
         return ret

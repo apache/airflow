@@ -127,8 +127,8 @@ def get_task_params(task_instance, entity_id):
     return {'task': task}
 
 
-def get_result_args():
-    influxdb = get_connection('qcos_influxdb')
+def get_result_args(connection_key='qcos_influxdb'):
+    influxdb = get_connection(connection_key)
     extra = influxdb.extra_dejson if influxdb else {}
     return {
         "bucket": extra.get('bucket', 'desoutter'),
@@ -139,8 +139,8 @@ def get_result_args():
     }
 
 
-def get_curve_args():
-    oss = get_connection('qcos_minio')
+def get_curve_args(connection_key='qcos_minio'):
+    oss = get_connection(connection_key)
     extra = oss.extra_dejson if oss else {}
     return {
         "bucket": extra.get('bucket', 'desoutter'),

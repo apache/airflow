@@ -48,6 +48,7 @@ from airflow.exceptions import (
 from airflow.models.base import Base, ID_LEN
 from airflow.models.log import Log
 from airflow.models.pool import Pool
+from airflow.models.dagrun import DagRun
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
@@ -1643,11 +1644,22 @@ class TaskInstance(Base, LoggingMixin):
                 TaskInstance.execution_date > (timezone.utcnow() + delta)).first()[0]
         return tasks.first()[0]
 
+    @staticmethod
+    @provide_session
+    def get_all_curves(tasks, session=None):
+        need_delete_curve_files = []
+        for task in tasks:
+            if not task.entity_id:
+                continue
+            f = "{}.csv".format(task.entity_id)
+            need_delete_curve_files.append(f)
+        return need_delete_curve_files
+
     @classmethod
     @provide_session
-    def get_all_tasks(cls, start_date=None, end_date=None, upstream=True, downstream=True, session=None):
+    def get_all_tasks(cls, start_date=None, end_date=None, upstream=True, downstream=True, limit=100, session=None):
         TI = cls
-        qry = session.query(TI).filter(TI.state == State.SUCCESS)
+        qry = session.query(TI).filter(TI.state == State.SUCCESS).limit(limit).from_self()
         if start_date:
             qry = qry.filter(TI.execution_date >= start_date)
         if end_date:
@@ -1657,5 +1669,19 @@ class TaskInstance(Base, LoggingMixin):
 
     @classmethod
     @provide_session
-    def clear_tasks(cls, tasks=None, session=None, dag=None):
-        return clear_task_instances(tasks, session=session, dag=dag)
+    def clear_tasks(cls, start_date=None, end_date=None, upstream=True, downstream=True, limit=10, session=None):
+        count = 0
+        for model in DagRun, TaskFail, cls, TaskReschedule, XCom, Log:
+            if model == TaskFail or model == XCom or model == TaskReschedule or model == Log:
+                qry = session.query(model)
+            else:
+                qry = session.query(model).filter(model.state == State.SUCCESS)
+            if start_date:
+                qry = qry.filter(model.execution_date >= start_date)
+            if end_date:
+                qry = qry.filter(model.execution_date <= end_date)
+            # if limit:
+            #     qry = qry.limit(limit)
+            count += qry.delete()
+        return count
+
