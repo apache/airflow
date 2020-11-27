@@ -29,10 +29,9 @@ assists users migrating to a new version.
 - [Step 1: Upgrade to Python 3](#step-1-upgrade-to-python-3)
 - [Step 2: Upgrade to Airflow 1.10.13 (a.k.a our "bridge" release)](#step-2-upgrade-to-airflow-11013-aka-our-bridge-release)
 - [Step 3: Set Operators to Backport Providers](#step-3-set-operators-to-backport-providers)
-- [Step 3: Upgrade Airflow DAGs](#step-3-upgrade-airflow-dags)
+- [Step 4: Upgrade Airflow DAGs](#step-4-upgrade-airflow-dags)
   - [Change to undefined variable handling in templates](#change-to-undefined-variable-handling-in-templates)
   - [Changes to the KubernetesPodOperator](#changes-to-the-kubernetespodoperator)
-- [Step 4: Update system configurations](#step-4-update-system-configurations)
   - [Change default value for dag_run_conf_overrides_params](#change-default-value-for-dag_run_conf_overrides_params)
   - [DAG discovery safe mode is now case insensitive](#dag-discovery-safe-mode-is-now-case-insensitive)
   - [Change to Permissions](#change-to-permissions)
@@ -47,6 +46,7 @@ assists users migrating to a new version.
   - [Changes to Exception handling for from DAG callbacks](#changes-to-exception-handling-for-from-dag-callbacks)
   - [Airflow CLI changes in 2.0](#airflow-cli-changes-in-20)
   - [Changes to Airflow Plugins](#changes-to-airflow-plugins)
+  - [Changes to extras names](#changes-to-extras-names)
   - [Support for Airflow 1.10.x releases](#support-for-airflow-110x-releases)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -131,7 +131,7 @@ pip install airflow[docker]
 automatically installs the `apache-airflow-providers-docker` package.
 But you can manage/upgrade remove provider packages separately from the airflow core.
 
-## Step 3: Upgrade Airflow DAGs
+## Step 4: Upgrade Airflow DAGs
 
 ### Change to undefined variable handling in templates
 
@@ -245,7 +245,6 @@ Kubernetes secrets into workers.
 
 For a more detailed list of changes to the KubernetesPodOperator API, please read [here](#Changed-Parameters-for-the-KubernetesPodOperator)
 
-## Step 4: Update system configurations
 
 ### Change default value for dag_run_conf_overrides_params
 
@@ -1075,6 +1074,12 @@ class AirflowTestPlugin(AirflowPlugin):
     appbuilder_views = [v_appbuilder_package]
     appbuilder_menu_items = [appbuilder_mitem]
 ```
+
+### Changes to extras names
+
+The `all` extra were reduced to include only user-facing dependencies. This means
+that this extra does not contain development dependencies. If you were using it and
+depending on the development packages then you should use `devel_all`.
 
 ### Support for Airflow 1.10.x releases
 

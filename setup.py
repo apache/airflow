@@ -590,11 +590,8 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'dask': dask,
     'databricks': databricks,
     'datadog': datadog,
-    'devel': devel_minreq,
-    'devel_hadoop': devel_hadoop,
     'dingding': [],
     'discord': [],
-    'doc': doc,
     'docker': docker,
     'druid': druid,  # TODO: remove this in Airflow 2.1
     'elasticsearch': elasticsearch,
@@ -665,9 +662,10 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
 
 EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'all': list(PROVIDERS_REQUIREMENTS.keys()),
-    # this is not 100% accurate with devel_ci definition, but we really want to have all providers
-    # when devel_ci extra is installed!
+    # this is not 100% accurate with devel_ci and devel_all definition, but we really want
+    # to have all providers when devel_ci extra is installed!
     'devel_ci': list(PROVIDERS_REQUIREMENTS.keys()),
+    'devel_all': list(PROVIDERS_REQUIREMENTS.keys()),
     'all_dbs': [
         "apache.cassandra",
         "apache.druid",
@@ -782,15 +780,24 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'zendesk': ["zendesk"],
 }
 
-
-# Make devel_all contain all providers + extras + unique
-devel_all = list(
+# All "users" extras (no devel extras)
+all_ = list(
     set(
-        devel
-        + [req for req_list in EXTRAS_REQUIREMENTS.values() for req in req_list]
+        [req for req_list in EXTRAS_REQUIREMENTS.values() for req in req_list]
         + [req for req_list in PROVIDERS_REQUIREMENTS.values() for req in req_list]
     )
 )
+EXTRAS_REQUIREMENTS.update(
+    {
+        'all': all_,
+        'devel': devel_minreq,  # includes doc
+        'devel_hadoop': devel_hadoop,  # includes devel_minreq
+        'doc': doc,
+    }
+)
+# This can be simplify to devel_hadoop + all_ due to inclusions
+# but we keep it for explicit sake
+devel_all = list(set(all_ + doc + devel_minreq + devel_hadoop))
 
 PACKAGES_EXCLUDED_FOR_ALL = []
 
@@ -824,6 +831,7 @@ devel_all = [
     for package in devel_all
     if not is_package_excluded(package=package, exclusion_list=PACKAGES_EXCLUDED_FOR_ALL)
 ]
+
 devel_ci = [
     package
     for package in devel_all
@@ -834,7 +842,7 @@ devel_ci = [
 
 EXTRAS_REQUIREMENTS.update(
     {
-        'all': devel_all,
+        'devel_all': devel_all,
         'devel_ci': devel_ci,
     }
 )

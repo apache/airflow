@@ -1206,8 +1206,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified, installs Airflow directly from PIP released version. This happens at
           image building time in production image and at container entering time for CI image. One of:
 
-                 1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2
-                 wheel
+                 1.10.13 1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3
+                 1.10.2 wheel
 
           When 'wheel' is used, Airflow is installed from /dist/apache_airflow-*.whl file.
 
@@ -2029,6 +2029,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
         'breeze static-check mypy -- --files tests/core.py'
         'breeze static-check mypy -- --all-files'
 
+        To check all files that differ between you current branch and master run:
+
+        'breeze static-check all -- --from-ref $(git merge-base master HEAD) --to-ref HEAD'
+
         You can see all the options by adding --help EXTRA_ARG:
 
         'breeze static-check mypy -- --help'
@@ -2242,8 +2246,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified, installs Airflow directly from PIP released version. This happens at
           image building time in production image and at container entering time for CI image. One of:
 
-                 1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2
-                 wheel
+                 1.10.13 1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3
+                 1.10.2 wheel
 
           When 'wheel' is used, Airflow is installed from /dist/apache_airflow-*.whl file.
 

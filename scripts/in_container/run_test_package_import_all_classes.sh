@@ -46,7 +46,7 @@ else
     echo
     echo "Installing remaining packages from 'all' extras"
     echo
-    pip install ".[all]" >>"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
+    pip install ".[devel_all]" >>"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
     echo
     echo "Uninstalling airflow after that"
     echo

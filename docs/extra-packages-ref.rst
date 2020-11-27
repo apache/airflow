@@ -26,15 +26,19 @@ Here's the list of the :ref:`subpackages <installation:extra_packages>` and what
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | subpackage          | install command                                     | enables                                                              |
 +=====================+=====================================================+======================================================================+
-| all                 | ``pip install 'apache-airflow[all]'``               | All Airflow features known to man                                    |
+| all                 | ``pip install 'apache-airflow[all]'``               | All Airflow user facing features (no devel and doc requirements)     |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | all_dbs             | ``pip install 'apache-airflow[all_dbs]'``           | All databases integrations                                           |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| devel               | ``pip install 'apache-airflow[devel]'``             | Minimum dev tools requirements                                       |
+| devel               | ``pip install 'apache-airflow[devel]'``             | Minimum dev tools requirements (without ``all``)                     |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| devel_hadoop        | ``pip install 'apache-airflow[devel_hadoop]'``      | Airflow + dependencies on the Hadoop stack                           |
+| devel_hadoop        | ``pip install 'apache-airflow[devel_hadoop]'``      | Same as ``devel`` + dependencies for developing the Hadoop stack     |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| doc                 | ``pip install 'apache-airflow[doc]'``               | Packages needed to build docs                                        |
+| devel_all           | ``pip install 'apache-airflow[devel_all]'``         | Everything needed for development (``devel_hadoop`` + ``all``)       |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| devel_ci            | ``pip install 'apache-airflow[devel_ci]'``          | All dependencies required for CI build.                              |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| doc                 | ``pip install 'apache-airflow[doc]'``               | Packages needed to build docs (included in ``devel``)                |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | password            | ``pip install 'apache-airflow[password]'``          | Password authentication for users                                    |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+

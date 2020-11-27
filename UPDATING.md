@@ -52,6 +52,13 @@ assists users migrating to a new version.
 
 ## Master
 
+### Rename `all` to `devel_all` extra
+
+The `all` extras were reduced to include only user-facing dependencies. This means
+that this extra does not contain development dependencies. If you were relying on
+`all` extra then you should use now `devel_all` or figure out if you need development
+extras at all.
+
 ### `[scheduler] max_threads` config has been renamed to `[scheduler] parsing_processes`
 
 From Airflow 2.0, `max_threads` config under `[scheduler]` section has been renamed to `parsing_processes`.

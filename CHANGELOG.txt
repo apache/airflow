@@ -1,3 +1,115 @@
+Airflow 1.10.13, 2020-11-25
+----------------------------
+
+New Features
+""""""""""""
+
+- Add "already checked" to failed pods in K8sPodOperator (#11368)
+- Pass SQLAlchemy engine options to FAB based UI (#11395)
+- [AIRFLOW-4438] Add Gzip compression to S3_hook (#8571)
+- Add permission "extra_links" for Viewer role and above (#10719)
+- Add generate_yaml command to easily test KubernetesExecutor before deploying pods (#10677)
+- Add Secrets backend for Microsoft Azure Key Vault (#10898)
+
+Bug Fixes
+"""""""""
+
+- SkipMixin: Handle empty branches (#11120)
+- [AIRFLOW-5274] dag loading duration metric name too long (#5890)
+- Handle no Dagrun in DagrunIdDep (#8389) (#11343)
+- Fix Kubernetes Executor logs for long dag names (#10942)
+- Add on_kill support for the KubernetesPodOperator (#10666)
+- KubernetesPodOperator template fix (#10963)
+- Fix displaying of add serialized_dag table migration
+- Fix Start Date tooltip on DAGs page (#10637)
+- URL encode execution date in the Last Run link (#10595)
+- Fixes issue with affinity backcompat in Airflow 1.10
+- Fix KubernetesExecutor import in views.py
+- Fix issues with Gantt View (#12419)
+- Fix Entrypoint and _CMD config variables (#12411)
+- Fix operator field update for SerializedBaseOperator (#10924)
+- Limited cryptography to < 3.2 for python 2.7
+- Install cattr on Python 3.7 - Fix docs build on RTD (#12045)
+- Limit version of marshmallow-sqlalchemy
+- Pin `kubernetes` to a max version of 11.0.0 (#11974)
+- Use snakebite-py3 for HDFS dependency for Python3 (#12340)
+- Removes snakebite kerberos dependency (#10865)
+- Fix failing dependencies for FAB and Celery (#10828)
+- Fix pod_mutation_hook for 1.10.13 (#10850)
+- Fix formatting of Host information
+- Fix Logout Google Auth issue in Non-RBAC UI (#11890)
+- Add missing imports to app.py (#10650)
+- Show Generic Error for Charts & Query View in old UI (#12495)
+- TimeSensor should respect the default_timezone config (#9699)
+- TimeSensor should respect DAG timezone (#9882)
+- Unify user session lifetime configuration (#11970)
+- Handle outdated webserver session timeout gracefully. (#12332)
+
+
+Improvements
+""""""""""""
+
+- Add XCom.deserialize_value to Airflow 1.10.13 (#12328)
+- Mount airflow.cfg to pod_template_file (#12311)
+- All k8s object must comply with JSON Schema (#12003)
+- Validate airflow chart values.yaml & values.schema.json (#11990)
+- Pod template file uses custom custom env variable (#11480)
+- Bump attrs and cattrs dependencies (#11969)
+- Bump attrs to > 20.0 (#11799)
+- [AIRFLOW-3607] Only query DB once per DAG run for TriggerRuleDep (#4751)
+- Rename task with duplicate task_id
+- Manage Flask AppBuilder Tables using Alembic Migrations (#12352)
+- ``airflow test`` only works for tasks in 1.10, not whole dags (#11191)
+- Improve warning messaging for duplicate task_ids in a DAG (#11126)
+- Pins moto to 1.3.14 (#10986)
+- DbApiHook: Support kwargs in get_pandas_df (#9730)
+- Make grace_period_seconds option on K8sPodOperator (#10727)
+- Fix syntax error in Dockerfile 'maintainer' Label (#10899)
+- The entrypoints in Docker Image should be owned by Airflow (#10853)
+- Make dockerfiles Google Shell Guide Compliant (#10734)
+- clean-logs script for Dockerfile: trim logs before sleep (#10685)
+- When sending tasks to celery from a sub-process, reset signal handlers (#11278)
+- SkipMixin: Add missing session.commit() and test (#10421)
+- Webserver: Further Sanitize values passed to origin param (#12459)
+- Security upgrade lodash from 4.17.19 to 4.17.20 (#11095)
+- Log instead of raise an Error for unregistered OperatorLinks (#11959)
+- Mask Password in Log table when using the CLI (#11468)
+- [AIRFLOW-3607] Optimize dep checking when depends on past set and concurrency limit
+- Execute job cancel HTTPRequest in Dataproc Hook (#10361)
+- Use rst lexer to format airflow upgrade check output (#11259)
+- Remove deprecation warning from contrib/kubernetes/pod.py
+- adding body as templated field for CloudSqlImportOperator (#10510)
+- Change log level for User's session to DEBUG (#12414)
+
+Deprecations
+""""""""""""
+
+- Deprecate importing Hooks from plugin-created module (#12133)
+- Deprecate adding Operators and Sensors via plugins (#12069)
+
+Doc only changes
+""""""""""""""""
+
+- [Doc] Correct description for macro task_instance_key_str (#11062)
+- Checks if all the libraries in setup.py are listed in installation.rst file (#12023)
+- Revise "Project Focus" copy (#12011)
+- Move Project focus and Principles higher in the README (#11973)
+- Remove archived link from README.md (#11945)
+- Update download url for Airflow Version (#11800)
+- Add Project URLs for PyPI page (#11801)
+- Move Backport Providers docs to our docsite (#11136)
+- Refactor rebase copy (#11030)
+- Add missing images for kubernetes executor docs (#11083)
+- Fix indentation in executor_config example (#10467)
+- Enhanced the Kubernetes Executor doc  (#10433)
+- Refactor content to a markdown table (#10863)
+- Rename "Beyond the Horizon" section and refactor content (#10802)
+- Refactor official source section to use bullets (#10801)
+- Add section for official source code (#10678)
+- Add redbubble link to Airflow merchandise (#10359)
+- README Doc: Link to Airflow directory in ASF Directory (#11137)
+- Fix the default value for VaultBackend's config_path (#12518)
+
 Airflow 1.10.12, 2020-08-25
 ----------------------------
 
