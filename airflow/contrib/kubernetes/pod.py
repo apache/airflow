@@ -250,8 +250,8 @@ def _extract_ports(ports):
 
 def _extract_resources(resources):
     if isinstance(resources, k8s.V1ResourceRequirements):
-        requests = resources.requests
-        limits = resources.limits
+        requests = resources.requests or {}
+        limits = resources.limits or {}
         return Resources(
             request_memory=requests.get('memory', None),
             request_cpu=requests.get('cpu', None),
