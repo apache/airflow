@@ -27,7 +27,7 @@ integrations:
   - integration-name: MySQL
     external-doc-url: https://www.mysql.com/
     how-to-guide:
-      - /docs/howto/operator/mysql.rst
+      - /docs/apache-airflow-providers-mysql/operators.rst
     tags: [software]
 
 operators:

@@ -690,6 +690,7 @@ encryptor
 enqueue
 enqueued
 entrypoint
+entrypoints
 enum
 env
 envFrom

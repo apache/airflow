@@ -37,7 +37,7 @@ integrations:
   - integration-name: Amazon DataSync
     external-doc-url: https://aws.amazon.com/datasync/
     how-to-guide:
-      - /docs/howto/operator/amazon/aws/datasync.rst
+      - /docs/apache-airflow-providers-amazon/operators/datasync.rst
     tags: [aws]
   - integration-name: Amazon DynamoDB
     external-doc-url: https://aws.amazon.com/dynamodb/
@@ -54,12 +54,12 @@ integrations:
   - integration-name: Amazon EMR
     external-doc-url: https://aws.amazon.com/emr/
     how-to-guide:
-      - /docs/howto/operator/amazon/aws/emr.rst
+      - /docs/apache-airflow-providers-amazon/operators/emr.rst
     tags: [aws]
   - integration-name: Amazon Glacier
     external-doc-url: https://aws.amazon.com/glacier/
     how-to-guide:
-      - /docs/howto/operator/amazon/aws/glacier.rst
+      - /docs/apache-airflow-providers-amazon/operators/glacier.rst
     tags: [aws]
   - integration-name: Amazon Kinesis Data Firehose
     external-doc-url: https://aws.amazon.com/kinesis/data-firehose/
@@ -76,7 +76,7 @@ integrations:
   - integration-name: Amazon Simple Email Service (SES)
     external-doc-url: https://aws.amazon.com/ses/
     how-to-guide:
-      - /docs/howto/operator/amazon/aws/ecs.rst
+      - /docs/apache-airflow-providers-amazon/operators/ecs.rst
     tags: [aws]
   - integration-name: Amazon Simple Notification Service (SNS)
     external-doc-url: https://aws.amazon.com/sns/
@@ -290,18 +290,18 @@ transfers:
     python-module: airflow.providers.amazon.aws.transfers.gcs_to_s3
   - source-integration-name: Amazon Glacier
     target-integration-name: Google Cloud Storage (GCS)
-    how-to-guide: /docs/howto/operator/amazon/aws/transfer/glacier_to_gcs.rst
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/glacier_to_gcs.rst
     python-module: airflow.providers.amazon.aws.transfers.glacier_to_gcs
   - source-integration-name: Google
     target-integration-name: Amazon Simple Storage Service (S3)
-    how-to-guide: /docs/howto/operator/amazon/aws/google_api_to_s3_transfer.rst
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/google_api_to_s3_transfer.rst
     python-module: airflow.providers.amazon.aws.transfers.google_api_to_s3
   - source-integration-name: Apache Hive
     target-integration-name: Amazon DynamoDB
     python-module: airflow.providers.amazon.aws.transfers.hive_to_dynamodb
   - source-integration-name: Internet Message Access Protocol (IMAP)
     target-integration-name: Amazon Simple Storage Service (S3)
-    how-to-guide: /docs/howto/operator/amazon/aws/imap_attachment_to_s3.rst
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/imap_attachment_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.imap_attachment_to_s3
   - source-integration-name: MongoDB
     target-integration-name: Amazon Simple Storage Service (S3)
@@ -314,7 +314,7 @@ transfers:
     python-module: airflow.providers.amazon.aws.transfers.redshift_to_s3
   - source-integration-name: Amazon Simple Storage Service (S3)
     target-integration-name: Amazon Redshift
-    how-to-guide: /docs/howto/operator/amazon/aws/s3_to_redshift.rst
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/s3_to_redshift.rst
     python-module: airflow.providers.amazon.aws.transfers.s3_to_redshift
   - source-integration-name: Amazon Simple Storage Service (S3)
     target-integration-name: SSH File Transfer Protocol (SFTP)

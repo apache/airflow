@@ -34,7 +34,7 @@ class GlacierToGCSOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:GlacierToGCSOperator`
+        :ref:`howto/operator:GlacierToGCSOperator`
 
     :param aws_conn_id: The reference to the AWS connection details
     :type aws_conn_id: str

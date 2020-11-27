@@ -29,7 +29,7 @@ Kubernetes as separate Pods.
 KubernetesPodOperator
 ^^^^^^^^^^^^^^^^^^^^^
 
-The :doc:`KubernetesPodOperator <howto/operator/kubernetes>` allows you to create
+The :ref:`KubernetesPodOperator <howto/operator:KubernetesPodOperator>` allows you to create
 Pods on Kubernetes.
 
 Pod Mutation Hook

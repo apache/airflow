@@ -27,6 +27,7 @@ Content
     :caption: Guides
 
     Connection types <connections/mysql>
+    Operators <operators>
 
 .. toctree::
     :maxdepth: 1

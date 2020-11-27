@@ -27,6 +27,7 @@ Content
     :caption: Guides
 
     Connection types <connections/azure>
+    Operators <operators/index>
 
 .. toctree::
     :maxdepth: 1

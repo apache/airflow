@@ -159,7 +159,7 @@ if PACKAGE_NAME == 'apache-airflow':
     ] + glob.glob('apache-airflow-providers-*')
 elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
     exclude_patterns = [
-        '/_partials/',
+        'operators/_partials',
     ]
 else:
     exclude_patterns = []

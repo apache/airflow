@@ -27,7 +27,7 @@ integrations:
   - integration-name: Kubernetes
     external-doc-url: https://kubernetes.io/
     how-to-guide:
-      - /docs/howto/operator/kubernetes.rst
+      - /docs/apache-airflow-providers-cncf-kubernetes/operators.rst
     tags: [software]
   - integration-name: Spark on Kubernetes
     external-doc-url: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator

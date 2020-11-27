@@ -27,7 +27,7 @@ integrations:
   - integration-name: Papermill
     external-doc-url: https://github.com/nteract/papermill
     how-to-guide:
-      - /docs/howto/operator/papermill.rst
+      - /docs/apache-airflow-providers-papermill/operators.rst
     tags: [software]
 
 operators:

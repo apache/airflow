@@ -76,7 +76,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:ECSOperator`
+        :ref:`howto/operator:ECSOperator`
 
     :param task_definition: the task definition name on Elastic Container Service
     :type task_definition: str

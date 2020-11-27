@@ -45,7 +45,7 @@ class HttpSensor(BaseSensorOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:HttpSensor`
+        :ref:`howto/operator:HttpSensor`
 
     :param http_conn_id: The connection to run the sensor against
     :type http_conn_id: str

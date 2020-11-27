@@ -112,7 +112,7 @@ hooks:
 transfers:
   - source-integration-name: Local
     target-integration-name: Microsoft Azure Data Lake Storage
-    how-to-guide: /docs/howto/operator/microsoft/transfer/local_to_adls.rst
+    how-to-guide: /docs/apache-airflow-providers-microsoft-azure/operators/local_to_adls.rst
     python-module: airflow.providers.microsoft.azure.transfers.local_to_adls
   - source-integration-name: Oracle
     target-integration-name: Microsoft Azure Data Lake Storage
@@ -122,7 +122,7 @@ transfers:
     python-module: airflow.providers.microsoft.azure.transfers.file_to_wasb
   - source-integration-name: Microsoft Azure Blob Storage
     target-integration-name: Google Cloud Storage (GCS)
-    how-to-guide: /docs/howto/operator/microsoft/transfer/blob_storage_to_gcs.rst
+    how-to-guide: /docs/apache-airflow-providers-microsoft-azure/operators/azure_blob_to_gcs.rst
     python-module: airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs
 
 hook-class-names:

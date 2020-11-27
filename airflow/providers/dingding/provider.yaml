@@ -27,7 +27,7 @@ integrations:
   - integration-name: Dingding
     external-doc-url: https://oapi.dingtalk.com
     how-to-guide:
-      - /docs/howto/operator/dingding.rst
+      - /docs/apache-airflow-providers-dingding/operators.rst
     tags: [service]
 
 operators:

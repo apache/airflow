@@ -52,7 +52,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:KubernetesPodOperator`
+        :ref:`howto/operator:KubernetesPodOperator`
 
     .. note::
         If you use `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`__

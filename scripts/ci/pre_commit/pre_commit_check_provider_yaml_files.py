@@ -268,14 +268,6 @@ def check_invalid_integration(yaml_files: Dict[str, Dict]):
             )
 
 
-# TODO: Delete after splitting the documentation for each provider.
-DOC_FILES_EXCLUDE_LIST = {
-    '/docs/howto/operator/bash.rst',
-    '/docs/howto/operator/external_task_sensor.rst',
-    '/docs/howto/operator/python.rst',
-}
-
-
 def check_doc_files(yaml_files: Dict[str, Dict]):
     print("Checking doc files")
     current_doc_urls = []
@@ -294,16 +286,14 @@ def check_doc_files(yaml_files: Dict[str, Dict]):
 
     expected_doc_urls = {
         "/docs/" + os.path.relpath(f, start=DOCS_DIR)
-        for f in glob(f"{DOCS_DIR}/howto/operator/**/*.rst", recursive=True)
+        for f in glob(f"{DOCS_DIR}/apache-airflow-providers-*/operators/**/*.rst", recursive=True)
         if not f.endswith("/index.rst") and '/_partials' not in f
     }
     expected_doc_urls |= {
         "/docs/" + os.path.relpath(f, start=DOCS_DIR)
-        for f in glob(f"{DOCS_DIR}//apache-airflow-providers-*/operators/**/*.rst", recursive=True)
-        if not f.endswith("/index.rst") and '/_partials' not in f
+        for f in glob(f"{DOCS_DIR}/apache-airflow-providers-*/operators.rst", recursive=True)
     }
 
-    expected_doc_urls -= DOC_FILES_EXCLUDE_LIST
     try:
         assert_sets_equal(set(expected_doc_urls), set(current_doc_urls))
     except AssertionError as ex:

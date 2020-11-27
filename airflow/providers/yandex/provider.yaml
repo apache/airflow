@@ -32,7 +32,7 @@ integrations:
   - integration-name: Yandex.Cloud Dataproc
     external-doc-url: https://cloud.yandex.com/dataproc
     how-to-guide:
-      - /docs/howto/operator/yandexcloud.rst
+      - /docs/apache-airflow-providers-yandex/operators.rst
     tags: [service]
 
 operators:

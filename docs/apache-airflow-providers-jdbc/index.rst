@@ -26,6 +26,12 @@ Content
     :maxdepth: 1
     :caption: Guides
 
+    Operators <operators>
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Guides
+
     Connection types <connections/jdbc>
 
 .. toctree::

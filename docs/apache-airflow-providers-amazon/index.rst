@@ -26,6 +26,7 @@ Content
     :caption: Guides
 
     Connection types <connections/aws>
+    Operators <operators/index>
 
 .. toctree::
     :maxdepth: 1

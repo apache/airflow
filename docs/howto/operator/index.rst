@@ -32,17 +32,5 @@ determine what actually executes when your DAG runs.
     :maxdepth: 2
 
     bash
-    amazon/aws/index
-    apache/index
-    databricks
-    dingding
-    http
-    jdbc
-    kubernetes
-    microsoft/index
-    mysql
-    papermill
     python
-    snowflake
     external_task_sensor
-    yandexcloud

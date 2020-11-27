@@ -29,7 +29,7 @@ class LocalToAzureDataLakeStorageOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:LocalToAzureDataLakeStorageOperator`
+        :ref:`howto/operator:LocalToAzureDataLakeStorageOperator`
 
     :param local_path: local path. Can be single file, directory (in which case,
             upload recursively) or glob pattern. Recursive glob patterns using `**`

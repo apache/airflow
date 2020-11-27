@@ -26,6 +26,7 @@ Content
     :caption: Guides
 
     Connection types <connections/spark>
+    Operators <operators>
 
 .. toctree::
     :maxdepth: 1

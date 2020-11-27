@@ -38,7 +38,7 @@ class SnowflakeToSlackOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:SnowflakeToSlackOperator`
+        :ref:`howto/operator:SnowflakeToSlackOperator`
 
     :param sql: The SQL statement to execute on Snowflake (templated)
     :type sql: str
