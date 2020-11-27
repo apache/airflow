@@ -51,5 +51,5 @@ class TestBaseOperatorMetaclassRule(TestCase):
 
         assert isinstance(rule.description, str)
         assert isinstance(rule.title, str)
-        msgs = rule.check()
+        msgs = list(rule.check())
         self.assertEqual(msgs, [])
