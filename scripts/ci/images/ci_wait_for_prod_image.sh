@@ -26,8 +26,7 @@ function verify_prod_image_dependencies {
     push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_PROD_IMAGE}" \
         "${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
 
-    # TODO: remove the | true after we fixed pip check for prod image
-    docker run --rm --entrypoint /bin/bash "${AIRFLOW_PROD_IMAGE}" -c 'pip check' || true
+    docker run --rm --entrypoint /bin/bash "${AIRFLOW_PROD_IMAGE}" -c 'pip check'
 }
 
 push_pull_remove_images::check_if_github_registry_wait_for_image_enabled
