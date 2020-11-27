@@ -80,3 +80,23 @@ This will generate a pod using your aiflow.cfg settings
 
 ...
 ```
+
+Additionally you can use "upgrade config" to:
+- specify rules you would like to ignore
+- extend the check using custom rules
+
+For example:
+```
+airflow upgrade_check --config=/files/upgrade.yaml
+```
+the configuration file should be a proper yaml file similar to this one:
+```yaml
+ignored_rules:
+  - LegacyUIDeprecated
+  - ConnTypeIsNotNullableRule
+  - PodTemplateFileRule
+
+custom_rules:
+  - path.to.upgrade_module.VeryCustomCheckClass
+  - path.to.upgrade_module.VeryCustomCheckClass2
+```
