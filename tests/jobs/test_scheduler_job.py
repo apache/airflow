@@ -570,10 +570,10 @@ class SchedulerJobTest(unittest.TestCase):
         ti_to_schedule = []
         scheduler_job._process_task_instances(dag, task_instances_list=ti_to_schedule)
 
-        assert ti_to_schedule == [
+        assert sorted(ti_to_schedule) == sorted([
             (dag.dag_id, dag_task1.task_id, DEFAULT_DATE, TRY_NUMBER),
             (dag.dag_id, dag_task2.task_id, DEFAULT_DATE, TRY_NUMBER),
-        ]
+        ])
 
     def test_find_executable_task_instances_concurrency(self):
         dag_id = 'SchedulerJobTest.test_find_executable_task_instances_concurrency'
