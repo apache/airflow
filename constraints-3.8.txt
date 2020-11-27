@@ -361,7 +361,6 @@ snowflake-connector-python==2.3.6
 snowflake-sqlalchemy==1.2.4
 sortedcontainers==2.3.0
 soupsieve==2.0.1
-sphinx-airflow-theme @ https://github.com/apache/airflow-site/releases/download/v0.0.1/sphinx_airflow_theme-0.0.1-py3-none-any.whl
 sphinx-argparse==0.2.5
 sphinx-autoapi==1.0.0
 sphinx-copybutton==0.3.1
