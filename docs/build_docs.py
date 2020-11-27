@@ -60,6 +60,11 @@ Channel link: https://apache-airflow.slack.com/archives/CJ1LVREHX
 Invitation link: https://s.apache.org/airflow-slack\
 """
 
+ERRORS_ELIGIBLE_TO_REBUILD = [
+    'failed to reach any of the inventories with the following issues',
+    'undefined label:',
+]
+
 
 class AirflowDocsBuilder:
     """Documentation builder for Airflow."""
@@ -314,9 +319,7 @@ def main():
     to_retry_packages = [
         package_name
         for package_name, errors in package_build_errors.items()
-        if any(
-            'failed to reach any of the inventories with the following issues' in e.message for e in errors
-        )
+        if any(any((m in e.message) for m in ERRORS_ELIGIBLE_TO_REBUILD) for e in errors)
     ]
     if to_retry_packages:
         for package_name in to_retry_packages:
