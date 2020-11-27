@@ -1095,7 +1095,6 @@ function breeze::parse_arguments() {
             export GITHUB_REGISTRY_PUSH_IMAGE_TAG="${2}"
             export CHECK_IMAGE_FOR_REBUILD="false"
             export SKIP_BUILDING_PROD_IMAGE="true"
-            export MOUNT_LOCAL_SOURCES="false"
             export SKIP_CHECK_REMOTE_IMAGE="true"
             export FAIL_ON_GITHUB_DOCKER_PULL_ERROR="true"
             shift 2
