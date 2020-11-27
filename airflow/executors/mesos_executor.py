@@ -29,14 +29,11 @@ from airflow.models.taskinstance import TaskInstanceKey
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
-DEFAULT_FRAMEWORK_NAME = 'Airflow'
 FRAMEWORK_CONNID_PREFIX = 'mesos_framework_'
 
 
 def get_framework_name():
     """Get the mesos framework name if its set in airflow.cfg"""
-    if not conf.get('mesos', 'FRAMEWORK_NAME'):
-        return DEFAULT_FRAMEWORK_NAME
     return conf.get('mesos', 'FRAMEWORK_NAME')
 
 
@@ -67,30 +64,6 @@ class AirflowMesosScheduler(MesosClient):
         if not conf.get('mesos', 'DOCKER_IMAGE_SLAVE'):
             self.log.error("Expecting docker image for  mesos executor")
             raise AirflowException("mesos.slave_docker_image not provided for mesos executor")
-
-        if not conf.get('mesos', 'DOCKER_VOLUME_DRIVER'):
-            self.log.error("Expecting docker volume driver for mesos executor")
-            raise AirflowException("mesos.docker_volume_driver not provided for mesos executor")
-
-        if not conf.get('mesos', 'DOCKER_VOLUME_DAG_NAME'):
-            self.log.error("Expecting docker volume dag name for mesos executor")
-            raise AirflowException("mesos.docker_volume_dag_name not provided for mesos executor")
-
-        if not conf.get('mesos', 'DOCKER_VOLUME_DAG_CONTAINER_PATH'):
-            self.log.error("Expecting docker volume dag container path for mesos executor")
-            raise AirflowException("mesos.docker_volume_dag_container_path not provided for mesos executor")
-
-        if not conf.get('mesos', 'DOCKER_VOLUME_LOGS_NAME'):
-            self.log.error("Expecting docker volume logs name for mesos executor")
-            raise AirflowException("mesos.docker_volume_logs_name not provided for mesos executor")
-
-        if not conf.get('mesos', 'DOCKER_VOLUME_LOGS_CONTAINER_PATH'):
-            self.log.error("Expecting docker volume logs container path for mesos executor")
-            raise AirflowException("mesos.docker_volume_logs_container_path not provided for mesos executor")
-
-        if not conf.get('mesos', 'DOCKER_SOCK'):
-            self.log.error("Expecting docker sock path for mesos executor")
-            raise AirflowException("mesos.docker_sock not provided for mesos executor")
 
         self.mesos_slave_docker_image = conf.get('mesos', 'DOCKER_IMAGE_SLAVE').replace('"', '')
         self.mesos_docker_volume_driver = conf.get('mesos', 'DOCKER_VOLUME_DRIVER').replace('"', '')
@@ -237,7 +210,6 @@ class AirflowMesosScheduler(MesosClient):
         else:
             connection.extra = driver.frameworkId
 
-        session.commit()
         self.driver = driver
 
     def status_update(self, update):
@@ -282,7 +254,7 @@ class MesosExecutor(BaseExecutor):
         """MesosFramework class to start the threading"""
 
         def __init__(self, client):
-            threading.Thread.__init__(self)
+            super().__init__(target=self)
             self.client = client
             self.stop = False
 
@@ -304,10 +276,6 @@ class MesosExecutor(BaseExecutor):
     @provide_session
     def start(self, session=None):
         """Setup and start routine to connect with the mesos master"""
-        if not conf.get('mesos', 'MASTER'):
-            self.log.error("Expecting mesos master URL for mesos executor")
-            raise AirflowException("mesos.master not provided for mesos executor")
-
         master = conf.get('mesos', 'MASTER')
 
         framework_name = get_framework_name()
