@@ -25,6 +25,7 @@ Create Date: 2017-09-11 15:26:47.598494
 """
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.engine.reflection import Inspector
 
 # revision identifiers, used by Alembic.
 revision = '33ae817a1ff4'
@@ -36,27 +37,32 @@ RESOURCE_TABLE = "kube_resource_version"
 
 
 def upgrade():  # noqa: D103
-    columns_and_constraints = [
-        sa.Column("one_row_id", sa.Boolean, server_default=sa.true(), primary_key=True),
-        sa.Column("resource_version", sa.String(255)),
-    ]
-
     conn = op.get_bind()
+    inspector = Inspector.from_engine(conn)
 
-    # alembic creates an invalid SQL for mssql and mysql dialects
-    if conn.dialect.name in {"mysql"}:
-        columns_and_constraints.append(
-            sa.CheckConstraint("one_row_id<>0", name="kube_resource_version_one_row_id")
-        )
-    elif conn.dialect.name not in {"mssql"}:
-        columns_and_constraints.append(
-            sa.CheckConstraint("one_row_id", name="kube_resource_version_one_row_id")
-        )
+    if RESOURCE_TABLE not in inspector.get_table_names():
+        columns_and_constraints = [
+            sa.Column("one_row_id", sa.Boolean, server_default=sa.true(), primary_key=True),
+            sa.Column("resource_version", sa.String(255)),
+        ]
 
-    table = op.create_table(RESOURCE_TABLE, *columns_and_constraints)
+        # alembic creates an invalid SQL for mssql and mysql dialects
+        if conn.dialect.name in {"mysql"}:
+            columns_and_constraints.append(
+                sa.CheckConstraint("one_row_id<>0", name="kube_resource_version_one_row_id")
+            )
+        elif conn.dialect.name not in {"mssql"}:
+            columns_and_constraints.append(
+                sa.CheckConstraint("one_row_id", name="kube_resource_version_one_row_id")
+            )
 
-    op.bulk_insert(table, [{"resource_version": ""}])
+        table = op.create_table(RESOURCE_TABLE, *columns_and_constraints)
+        op.bulk_insert(table, [{"resource_version": ""}])
 
 
 def downgrade():  # noqa: D103
-    op.drop_table(RESOURCE_TABLE)
+    conn = op.get_bind()
+    inspector = Inspector.from_engine(conn)
+
+    if RESOURCE_TABLE in inspector.get_table_names():
+        op.drop_table(RESOURCE_TABLE)
