@@ -84,7 +84,6 @@ def check_guide_links_in_operator_descriptions() -> List[DocBuildError]:
 
     def generate_build_error(path, line_no, operator_name):
         return DocBuildError(
-            package_name=None,
             file_path=path,
             line_no=line_no,
             message=(
