@@ -49,6 +49,7 @@ _breeze_allowed_test_types="All Core Providers API CLI Integration Other WWW Hei
 }
 
 _breeze_allowed_install_airflow_versions=$(cat <<-EOF
+1.10.13
 1.10.12
 1.10.11
 1.10.10

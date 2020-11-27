@@ -77,7 +77,7 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|              | Master version (2.0.0dev) | Stable version (1.10.12) |
+|              | Master version (2.0.0dev) | Stable version (1.10.13) |
 | ------------ | ------------------------- | ------------------------ |
 | Python       | 3.6, 3.7, 3.8             | 2.7, 3.5, 3.6, 3.7, 3.8  |
 | PostgreSQL   | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      |
@@ -123,15 +123,15 @@ correct Airflow tag/version/branch and python versions in the URL.
 1. Installing just Airflow:
 
 ```bash
-pip install apache-airflow==1.10.12 \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.7.txt"
+pip install apache-airflow==1.10.13 \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.13/constraints-3.7.txt"
 ```
 
 2. Installing with extras (for example postgres,google)
 
 ```bash
-pip install apache-airflow[postgres,google]==1.10.12 \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.7.txt"
+pip install apache-airflow[postgres,google]==1.10.13 \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.13/constraints-3.7.txt"
 ```
 
 For information on installing backport providers check [/docs/backport-providers.rst][/docs/backport-providers.rst].

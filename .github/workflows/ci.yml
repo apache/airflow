@@ -340,7 +340,7 @@ jobs:
     runs-on: ubuntu-20.04
     needs: [build-info, ci-images]
     env:
-      INSTALL_AIRFLOW_VERSION: "1.10.12"
+      INSTALL_AIRFLOW_VERSION: "1.10.13"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       BACKPORT_PACKAGES: "true"
       VERSION_SUFFIX_FOR_SVN: "rc1"
