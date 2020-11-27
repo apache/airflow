@@ -70,7 +70,7 @@ Usage
 Use the :class:`~airflow.providers.jdbc.operators.jdbc` to execute
 commands against a database (or data storage) accessible via a JDBC driver.
 
-The :doc:`JDBC Connection </howto/connection/jdbc>` must be passed as
+The :doc:`JDBC Connection <apache-airflow-providers-jdbc:connections/jdbc>` must be passed as
 ``jdbc_conn_id``.
 
 .. exampleinclude:: /../airflow/providers/jdbc/example_dags/example_jdbc_queries.py

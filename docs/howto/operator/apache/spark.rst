@@ -26,7 +26,7 @@ Apache Spark Operators
 Prerequisite
 ------------
 
-To use ``SparkJDBCOperator`` and ``SparkSubmitOperator``, you must configure a :doc:`Spark Connection <../../connection/spark>`. For ``SparkJDBCOperator``, you must also configure a :doc:`JDBC connection <../../connection/jdbc>`.
+To use ``SparkJDBCOperator`` and ``SparkSubmitOperator``, you must configure a :doc:`Spark Connection <apache-airflow-providers-apache-spark:connections/spark>`. For ``SparkJDBCOperator``, you must also configure a :doc:`JDBC connection <apache-airflow-providers-jdbc:connections/jdbc>`.
 
 ``SparkSqlOperator`` gets all the configurations from operator parameters.
 

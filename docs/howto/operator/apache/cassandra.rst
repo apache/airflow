@@ -29,7 +29,7 @@ Apache Cassandra Operators
 Prerequisite
 ------------
 
-To use operators, you must configure a :doc:`Cassandra Connection <../../connection/cassandra>`.
+To use operators, you must configure a :doc:`Cassandra Connection <apache-airflow-providers-apache-cassandra:connections/cassandra>`.
 
 .. _howto/operator:CassandraTableSensor:
 

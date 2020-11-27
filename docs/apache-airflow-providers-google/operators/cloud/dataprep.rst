@@ -28,7 +28,7 @@ Before using Dataprep within Airflow you need to authenticate your account with 
 To get connection Dataprep with Airflow you need Dataprep token. Please follow Dataprep `instructions <https://clouddataprep.com/documentation/api#section/Authentication>`_ to do it.
 
 TOKEN should be added to the Connection in Airflow in JSON format.
-You can check :doc:`apache-airflow:howto/connection/index`
+You can check :doc:`apache-airflow:howto/connection`
 
 The DataprepRunJobGroupOperator will run specified job. Operator required a recipe id. To identify the recipe id please use `API documentation for runJobGroup <https://clouddataprep.com/documentation/api#operation/runJobGroup>`_
 E.g. if the URL is /flows/10?recipe=7, the recipe id is 7. The recipe cannot be created via this operator. It can be created only via UI which is available `here <https://clouddataprep.com/>`_.

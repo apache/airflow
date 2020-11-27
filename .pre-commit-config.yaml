@@ -322,7 +322,7 @@ repos:
           ^airflow/providers/apache/hive/.*PROVIDER_CHANGES_*|
           ^airflow/providers/apache/hive/.*README.md$|
           ^tests/providers/apache/cassandra/hooks/test_cassandra.py$|
-          ^docs/howto/connection/cassandra.rst$|
+          ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
           ^CHANGELOG.txt$
       - id: consistent-pylint
         language: pygrep

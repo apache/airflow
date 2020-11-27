@@ -28,7 +28,7 @@ To use these operators, you must do a few things:
 
     Detailed information is available :doc:`/installation`
 
-  * :doc:`Setup Connection </howto/connection/aws>`.
+  * :doc:`Setup Connection <apache-airflow-providers-amazon:connections/aws>`.
 
 .. _AWS Console: https://console.aws.amazon.com
 .. _AWS CLI: https://aws.amazon.com/cli

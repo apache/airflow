@@ -124,7 +124,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
     passwords when using operators or hooks.
 
     .. seealso::
-        For more information on how to use this class, see: :doc:`/howto/connection/index`
+        For more information on how to use this class, see: :doc:`/howto/connection`
 
     :param conn_id: The connection ID.
     :type conn_id: str

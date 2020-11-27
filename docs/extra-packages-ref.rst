@@ -168,7 +168,7 @@ Here's the list of the :ref:`subpackages <installation:extra_packages>` and what
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
 | odbc                | ``pip install 'apache-airflow[odbc]'``              | ODBC data sources including MS SQL Server.  Can use MsSqlOperator,                 |
 |                     |                                                     | or as metastore database backend.  Uses pyodbc.                                    |
-|                     |                                                     | See :ref:`howto/connection/odbc` for more info.                                    |
+|                     |                                                     | See :doc:`apache-airflow-providers-odbc:index` for more info.                      |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
 | openfaas            | ``pip install 'apache-airflow[openfaas]'``          | OpenFaaS hooks                                                                     |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+

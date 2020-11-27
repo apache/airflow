@@ -732,7 +732,7 @@ need to supply an explicit connection ID. For example, the default
 ``conn_id`` for the :class:`~airflow.providers.postgres.hooks.postgres.PostgresHook` is
 ``postgres_default``.
 
-See :doc:`howto/connection/index` for details on creating and managing connections.
+See :doc:`howto/connection` for details on creating and managing connections.
 
 .. _concepts:xcom:
 

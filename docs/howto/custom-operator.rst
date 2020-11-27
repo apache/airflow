@@ -91,7 +91,7 @@ Hooks act as an interface to communicate with the external shared resources in a
 For example, multiple tasks in a DAG can require access to a MySQL database. Instead of
 creating a connection per task, you can retrieve a connection from the hook and utilize it.
 Hook also helps to avoid storing connection auth parameters in a DAG.
-See :doc:`connection/index` for how to create and manage connections.
+See :doc:`connection` for how to create and manage connections.
 
 Let's extend our previous example to fetch name from MySQL:
 

@@ -29,7 +29,7 @@ class OdbcHook(DbApiHook):
     """
     Interact with odbc data sources using pyodbc.
 
-    See :ref:`apache-airflow:howto/connection/odbc` for full documentation.
+    See :doc:`/connections/odbc` for full documentation.
     """
 
     DEFAULT_SQLALCHEMY_SCHEME = 'mssql+pyodbc'

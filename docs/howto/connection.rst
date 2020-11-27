@@ -23,7 +23,7 @@ such as hostname, port, login and passwords to other systems and services is
 handled in the ``Admin->Connections`` section of the UI. The pipeline code you
 will author will reference the 'conn_id' of the Connection objects.
 
-.. image:: ../../img/connections.png
+.. image:: ../img/connections.png
 
 Connections can be created and managed using either the UI or environment
 variables.
@@ -37,7 +37,7 @@ Creating a Connection with the UI
 Open the ``Admin->Connections`` section of the UI. Click the ``Create`` link
 to create a new connection.
 
-.. image:: ../../img/connection_create.png
+.. image:: ../img/connection_create.png
 
 1. Fill in the ``Conn Id`` field with the desired connection ID. It is
    recommended that you use lower-case characters and separate words with
@@ -54,7 +54,7 @@ Editing a Connection with the UI
 Open the ``Admin->Connections`` section of the UI. Click the pencil icon next
 to the connection you wish to edit in the connection list.
 
-.. image:: ../../img/connection_edit.png
+.. image:: ../img/connection_edit.png
 
 Modify the connection properties and click the ``Save`` button to save your
 changes.
@@ -322,12 +322,3 @@ Passwords cannot be manipulated or read without the key. For information on conf
 
 In addition to retrieving connections from environment variables or the metastore database, you can enable
 an secrets backend to retrieve connections. For more details see :doc:`/security/secrets/secrets-backend/index`.
-
-Connection Types
-----------------
-
-.. toctree::
-    :maxdepth: 1
-    :glob:
-
-    *
