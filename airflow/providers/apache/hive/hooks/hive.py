@@ -829,7 +829,7 @@ class HiveServer2Hook(DbApiHook):
         if auth_mechanism == 'GSSAPI':
             self.log.warning(
                 "Detected deprecated 'GSSAPI' for authMechanism for %s. Please use 'KERBEROS' instead",
-                self.conn_name
+                self.conn_name,
             )
             auth_mechanism = 'KERBEROS'
 

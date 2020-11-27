@@ -37,11 +37,9 @@ class TestPostgresHookConn(unittest.TestCase):
         class UnitTestPostgresHook(PostgresHook):
             conn_name_attr = 'test_conn_id'
 
-            @property
-            def connection(self) -> Connection:
-                return conn
-
         self.db_hook = UnitTestPostgresHook()
+        self.db_hook.get_connection = mock.Mock()
+        self.db_hook.get_connection.return_value = self.connection
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     def test_get_conn_non_default_id(self, mock_connect):
@@ -61,7 +59,7 @@ class TestPostgresHookConn(unittest.TestCase):
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     def test_get_conn_cursor(self, mock_connect):
-        self.conn.extra = '{"cursor": "dictcursor"}'
+        self.connection.extra = '{"cursor": "dictcursor"}'
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(
             cursor_factory=psycopg2.extras.DictCursor,
@@ -74,7 +72,7 @@ class TestPostgresHookConn(unittest.TestCase):
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     def test_get_conn_with_invalid_cursor(self, mock_connect):
-        self.conn.extra = '{"cursor": "mycursor"}'
+        self.connection.extra = '{"cursor": "mycursor"}'
         with self.assertRaises(ValueError):
             self.db_hook.get_conn()
 
@@ -126,7 +124,7 @@ class TestPostgresHookConn(unittest.TestCase):
         }
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(
-            user=login, password='aws_token', host=self.conn.host, dbname='schema', port=5439
+            user=login, password='aws_token', host=self.connection.host, dbname='schema', port=5439
         )
 
 

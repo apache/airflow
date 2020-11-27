@@ -65,9 +65,7 @@ class DbApiHook(BaseHook):
 
     @property
     def conn_name(self) -> str:
-        """
-        Get the name of the database connection attribute which identifies the connection.
-        """
+        """Get the name of the database connection attribute which identifies the connection."""
         return getattr(self, self.conn_name_attr)
 
     @property

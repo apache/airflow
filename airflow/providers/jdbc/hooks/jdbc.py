@@ -21,7 +21,6 @@ from typing import Optional
 import jaydebeapi
 
 from airflow.hooks.dbapi_hook import DbApiHook
-from airflow.models.connection import Connection
 
 
 class JdbcHook(DbApiHook):

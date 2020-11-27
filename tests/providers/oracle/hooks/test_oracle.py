@@ -72,9 +72,7 @@ class TestOracleHookConn(unittest.TestCase):
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
         self.assertEqual(args, ())
-        self.assertEqual(
-            kwargs['dsn'], cx_Oracle.makedsn(dsn_sid['dsn'], self.conn.port, dsn_sid['sid'])
-        )
+        self.assertEqual(kwargs['dsn'], cx_Oracle.makedsn(dsn_sid['dsn'], self.conn.port, dsn_sid['sid']))
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
     def test_get_conn_service_name(self, mock_connect):

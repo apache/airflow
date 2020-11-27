@@ -20,8 +20,6 @@
 import unittest
 from unittest import mock
 
-from parameterized import parameterized
-
 from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.models import Connection
 
