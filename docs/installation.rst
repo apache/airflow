@@ -31,7 +31,7 @@ if needed. This means that from time to time plain ``pip install apache-airflow`
 produce unusable Airflow installation.
 
 In order to have repeatable installation, however, starting from **Airflow 1.10.10** and updated in
-**Airflow 1.10.12** we also keep a set of "known-to-be-working" constraint files in the
+**Airflow 1.10.13** we also keep a set of "known-to-be-working" constraint files in the
 ``constraints-master`` and ``constraints-1-10`` orphan branches.
 Those "known-to-be-working" constraints are per major/minor python version. You can use them as constraint
 files when installing Airflow from PyPI. Note that you have to specify correct Airflow version
@@ -47,22 +47,22 @@ and python versions in the URL.
       sudo apt-get install build-essential
 
 
-1. Installing just airflow
+1. Installing just Airflow
 
 .. code-block:: bash
 
-    AIRFLOW_VERSION=1.10.12
+    AIRFLOW_VERSION=1.10.13
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
     # For example: 3.6
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
-    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.6.txt
+    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-1.10.13/constraints-3.6.txt
     pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
 2. Installing with extras (for example postgres, google)
 
 .. code-block:: bash
 
-    AIRFLOW_VERSION=1.10.12
+    AIRFLOW_VERSION=1.10.13
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
     pip install "apache-airflow[postgres,google]==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
