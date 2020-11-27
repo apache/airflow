@@ -18,7 +18,6 @@
 #
 import json
 import warnings
-
 from typing import Optional
 
 from airflow.exceptions import AirflowException
@@ -110,7 +109,6 @@ class SlackWebhookHook(HttpHook):
             if getattr(conn, 'password', None):
                 return conn.password
             else:
-
                 warnings.warn(
                     "'webhook_token' in 'extra' is deprecated. Please use 'password' field",
                     DeprecationWarning,
