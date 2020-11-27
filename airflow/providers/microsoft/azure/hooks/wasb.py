@@ -18,6 +18,7 @@
 #
 """
 This module contains integration with Azure Blob Storage.
+
 It communicate via the Window Azure Storage Blob protocol. Make sure that a
 Airflow connection of type `wasb` exists. Authorization can be done by supplying a
 login (=Storage account name) and password (=KEY), or login and SAS token in the extra
@@ -37,7 +38,13 @@ from airflow.hooks.base import BaseHook
 
 class WasbHook(BaseHook):
     """
-    Interacts with Azure Blob Storage.
+    Interacts with Azure Blob Storage through the ``wasb://`` protocol.
+
+    These parameters have to be passed in Airflow Data Base: account_name and account_key.
+
+    Additional options passed in the 'extra' field of the connection will be
+    passed to the `BlockBlockService()` constructor. For example, authenticate
+    using a SAS token by adding {"sas_token": "YOUR_TOKEN"}.
 
     :param wasb_conn_id: Reference to the wasb connection.
     :type wasb_conn_id: str
@@ -59,7 +66,7 @@ class WasbHook(BaseHook):
     def get_conn(self) -> BlobServiceClient:
         """Return the BlobServiceClient object."""
         conn = self.get_connection(self.conn_id)
-        extra = conn.extra_dejson
+        extra = conn.extra_dejson or {}
 
         if self.public_read:
             # Here we use anonymous public read
@@ -78,8 +85,15 @@ class WasbHook(BaseHook):
             app_secret = conn.password
             token_credential = ClientSecretCredential(extra.get('tenant_id'), app_id, app_secret)
             return BlobServiceClient(account_url=conn.host, credential=token_credential)
-        if extra.get('sas_token'):
+        sas_token = extra.get('sas_token')
+        if sas_token and sas_token.startswith('https'):
             return BlobServiceClient(account_url=extra.get('sas_token'))
+        if sas_token and not sas_token.startswith('https'):
+            return BlobServiceClient(account_url=f"https://{conn.login}.blob.core.windows.net/"+sas_token)
+        if conn.login:
+            # Fall back to old auth
+            return BlobServiceClient(account_url=f"https://{conn.login}.blob.core.windows.net/",
+                                     credential=conn.password, **extra)
         else:
             raise AirflowException('Unknown connection type')
 
