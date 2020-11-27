@@ -96,7 +96,7 @@ class TestSlackWebhookHook(unittest.TestCase):
         self.assertEqual(webhook_token, manual_token)
 
     def test_get_token_conn_id(self):
-        # GivenSlackWebhookHook
+        # Given
         conn_id = 'slack-webhook-default'
         hook = SlackWebhookHook(http_conn_id=conn_id)
         expected_webhook_token = 'your_token_here'
@@ -108,7 +108,7 @@ class TestSlackWebhookHook(unittest.TestCase):
         self.assertEqual(webhook_token, expected_webhook_token)
 
     def test_get_token_conn_id_password(self):
-        # GivenSlackWebhookHook
+        # Given
         conn_id = 'slack-webhook-with-password'
         hook = SlackWebhookHook(http_conn_id=conn_id)
         expected_webhook_token = 'your_token_here'
