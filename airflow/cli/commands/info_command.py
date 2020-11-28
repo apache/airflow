@@ -28,6 +28,9 @@ from urllib.parse import urlsplit, urlunsplit
 
 import requests
 import tenacity
+from rich.box import ASCII_DOUBLE_HEAD
+from rich.console import Console
+from rich.table import Table
 from tabulate import tabulate
 
 from airflow import configuration
@@ -36,6 +39,20 @@ from airflow.typing_compat import Protocol
 from airflow.version import version as airflow_version
 
 log = logging.getLogger(__name__)
+
+
+class SimpleTable(Table):
+    """A rich Table with some default hardcoded for consistency."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.show_edge = False
+        self.pad_edge = False
+        self.box = ASCII_DOUBLE_HEAD
+        self.show_header = kwargs.get("show_header", False)
+        self.title_style = "bold green"
+        self.title_justify = "left"
+        self.caption = " "
 
 
 class Anonymizer(Protocol):
@@ -218,6 +235,18 @@ class AirflowInfo:
             )
         )
 
+    def show(self):
+        """Renders the info using rich"""
+        console = Console()
+        console.print(
+            f"[bold][green]Apache Airflow[/bold][/green]: {self.airflow_version}\n", highlight=False
+        )
+        self.system.show()
+        self.tools.show()
+        self.paths.show()
+        self.config.show()
+        self.provider.show()
+
 
 class SystemInfo:
     """Basic system and python information"""
@@ -250,6 +279,18 @@ class SystemInfo:
                 python_location=self.python_location,
             )
         )
+
+    def show(self):
+        """Renders the info using rich"""
+        console = Console()
+        table = SimpleTable(title="System info")
+        table.add_row("OS", self.operating_system or "NOT AVAILABLE")
+        table.add_row("architecture", self.arch or "NOT AVAILABLE")
+        table.add_row("uname", str(self.uname))
+        table.add_row("locale", str(self.locale))
+        table.add_row("python_version", self.python_version)
+        table.add_row("python_location", self.python_location)
+        console.print(table)
 
 
 class PathsInfo:
@@ -284,6 +325,16 @@ class PathsInfo:
             )
         )
 
+    def show(self):
+        """Renders the info using rich"""
+        console = Console()
+        table = SimpleTable(title="Paths info")
+        table.add_row("airflow_home", self.airflow_home)
+        table.add_row("system_path", os.pathsep.join(self.system_path))
+        table.add_row("system_path", os.pathsep.join(self.python_path))
+        table.add_row("airflow_on_path", str(self.airflow_on_path))
+        console.print(table)
+
 
 class ProvidersInfo:
     """providers information"""
@@ -298,6 +349,16 @@ class ProvidersInfo:
             for version, provider in ProvidersManager().providers.values()
         ]
         return tabulate(tabulate_data, headers='keys')
+
+    def show(self):
+        """Renders the info using rich"""
+        console = Console()
+        table = SimpleTable(title="Providers info")
+        table.add_column("Package")
+        table.add_column("Version")
+        for _, provider in ProvidersManager().providers.values():
+            table.add_row(provider['package-name'], provider['versions'][0])
+        console.print(table)
 
 
 class ConfigInfo:
@@ -361,6 +422,18 @@ class ConfigInfo:
             )
         )
 
+    def show(self):
+        """Renders the info using rich"""
+        console = Console()
+        table = SimpleTable(title="Config info")
+        table.add_row("executor", self.executor)
+        table.add_row("task_logging_handler", self.task_logging_handler)
+        table.add_row("sql_alchemy_conn", self.sql_alchemy_conn)
+        table.add_row("dags_folder", self.dags_folder)
+        table.add_row("plugins_folder", self.plugins_folder)
+        table.add_row("base_log_folder", self.base_log_folder)
+        console.print(table)
+
 
 class ToolsInfo:
     """The versions of the tools that Airflow uses"""
@@ -418,6 +491,22 @@ class ToolsInfo:
             )
         )
 
+    def show(self):
+        """Renders the info using rich"""
+        console = Console()
+        table = SimpleTable(title="Tools info")
+        table.add_column("Tool")
+        table.add_column("Version")
+        table.add_row("git", self.git_version)
+        table.add_row("ssh", self.ssh_version)
+        table.add_row("kubectl", self.kubectl_version)
+        table.add_row("gcloud", self.gcloud_version)
+        table.add_row("cloud_sql_proxy", self.cloud_sql_proxy_version)
+        table.add_row("mysql", self.mysql_version)
+        table.add_row("sqlite3", self.sqlite3_version)
+        table.add_row("psql", self.psql_version)
+        console.print(table)
+
 
 class FileIoException(Exception):
     """Raises when error happens in FileIo.io integration"""
@@ -462,4 +551,4 @@ def show_info(args):
     if args.file_io:
         _send_report_to_fileio(info)
     else:
-        print(info)
+        info.show()
