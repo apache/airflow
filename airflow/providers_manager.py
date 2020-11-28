@@ -24,7 +24,6 @@ from collections import OrderedDict
 from typing import Dict, Tuple
 
 import jsonschema
-import pkg_resources
 import yaml
 
 try:
@@ -90,19 +89,13 @@ class ProvidersManager:
         via the 'apache_airflow_provider' entrypoint as a dictionary conforming to the
         'airflow/provider.yaml.schema.json' schema.
         """
-        for entry_point in pkg_resources.iter_entry_points('apache_airflow_provider'):
-            package_name = entry_point.dist.project_name
+        from airflow.plugins_manager import entry_points_with_dist
+
+        for (entry_point, dist) in entry_points_with_dist('apache_airflow_provider'):
+            package_name = dist.metadata['name']
             log.debug("Loading %s from package %s", entry_point, package_name)
-            version = entry_point.dist.version
-            try:
-                provider_info = entry_point.load()()
-            except pkg_resources.VersionConflict as e:
-                log.warning(
-                    "The provider package %s could not be registered because of version conflict : %s",
-                    package_name,
-                    e,
-                )
-                continue
+            version = dist.version
+            provider_info = entry_point.load()()
             self._validator.validate(provider_info)
             provider_info_package_name = provider_info['package-name']
             if package_name != provider_info_package_name:

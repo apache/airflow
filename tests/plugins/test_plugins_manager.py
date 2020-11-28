@@ -78,30 +78,6 @@ class TestPluginsRBAC(unittest.TestCase):
         self.assertTrue('test_plugin' in self.app.blueprints)
         self.assertEqual(self.app.blueprints['test_plugin'].name, bp.name)
 
-    @mock.patch('airflow.plugins_manager.pkg_resources.iter_entry_points')
-    def test_entrypoint_plugin_errors_dont_raise_exceptions(self, mock_ep_plugins):
-        """
-        Test that Airflow does not raise an Error if there is any Exception because of the
-        Plugin.
-        """
-        from airflow.plugins_manager import import_errors, load_entrypoint_plugins
-
-        mock_entrypoint = mock.Mock()
-        mock_entrypoint.name = 'test-entrypoint'
-        mock_entrypoint.module_name = 'test.plugins.test_plugins_manager'
-        mock_entrypoint.load.side_effect = Exception('Version Conflict')
-        mock_ep_plugins.return_value = [mock_entrypoint]
-
-        with self.assertLogs("airflow.plugins_manager", level="ERROR") as log_output:
-            load_entrypoint_plugins()
-
-            received_logs = log_output.output[0]
-            # Assert Traceback is shown too
-            assert "Traceback (most recent call last):" in received_logs
-            assert "Version Conflict" in received_logs
-            assert "Failed to import plugin test-entrypoint" in received_logs
-            assert ("test.plugins.test_plugins_manager", "Version Conflict") in import_errors.items()
-
 
 class TestPluginsManager:
     def test_no_log_when_no_plugins(self, caplog):
@@ -210,6 +186,33 @@ class TestPluginsManager:
 
         assert caplog.record_tuples == []
 
+    def test_entrypoint_plugin_errors_dont_raise_exceptions(self, caplog):
+        """
+        Test that Airflow does not raise an error if there is any Exception because of a plugin.
+        """
+        from airflow.plugins_manager import import_errors, load_entrypoint_plugins
+
+        mock_dist = mock.Mock()
+
+        mock_entrypoint = mock.Mock()
+        mock_entrypoint.name = 'test-entrypoint'
+        mock_entrypoint.group = 'airflow.plugins'
+        mock_entrypoint.module_name = 'test.plugins.test_plugins_manager'
+        mock_entrypoint.load.side_effect = ImportError('my_fake_module not found')
+        mock_dist.entry_points = [mock_entrypoint]
+
+        with mock.patch('importlib_metadata.distributions', return_value=[mock_dist]), caplog.at_level(
+            logging.ERROR, logger='airflow.plugins_manager'
+        ):
+            load_entrypoint_plugins()
+
+            received_logs = caplog.text
+            # Assert Traceback is shown too
+            assert "Traceback (most recent call last):" in received_logs
+            assert "my_fake_module not found" in received_logs
+            assert "Failed to import plugin test-entrypoint" in received_logs
+            assert ("test.plugins.test_plugins_manager", "my_fake_module not found") in import_errors.items()
+
 
 class TestPluginsDirectorySource(unittest.TestCase):
     def test_should_return_correct_path_name(self):
@@ -221,20 +224,23 @@ class TestPluginsDirectorySource(unittest.TestCase):
         self.assertEqual("<em>$PLUGINS_FOLDER/</em>test_plugins_manager.py", source.__html__())
 
 
-class TestEntryPointSource(unittest.TestCase):
-    @mock.patch('airflow.plugins_manager.pkg_resources.iter_entry_points')
-    def test_should_return_correct_source_details(self, mock_ep_plugins):
+class TestEntryPointSource:
+    def test_should_return_correct_source_details(self):
         from airflow import plugins_manager
 
         mock_entrypoint = mock.Mock()
         mock_entrypoint.name = 'test-entrypoint-plugin'
         mock_entrypoint.module_name = 'module_name_plugin'
-        mock_entrypoint.dist = 'test-entrypoint-plugin==1.0.0'
-        mock_ep_plugins.return_value = [mock_entrypoint]
 
-        plugins_manager.load_entrypoint_plugins()
+        mock_dist = mock.Mock()
+        mock_dist.metadata = {'name': 'test-entrypoint-plugin'}
+        mock_dist.version = '1.0.0'
+        mock_dist.entry_points = [mock_entrypoint]
 
-        source = plugins_manager.EntryPointSource(mock_entrypoint)
-        self.assertEqual(str(mock_entrypoint), source.entrypoint)
-        self.assertEqual("test-entrypoint-plugin==1.0.0: " + str(mock_entrypoint), str(source))
-        self.assertEqual("<em>test-entrypoint-plugin==1.0.0:</em> " + str(mock_entrypoint), source.__html__())
+        with mock.patch('importlib_metadata.distributions', return_value=[mock_dist]):
+            plugins_manager.load_entrypoint_plugins()
+
+        source = plugins_manager.EntryPointSource(mock_entrypoint, mock_dist)
+        assert str(mock_entrypoint) == source.entrypoint
+        assert "test-entrypoint-plugin==1.0.0: " + str(mock_entrypoint) == str(source)
+        assert "<em>test-entrypoint-plugin==1.0.0:</em> " + str(mock_entrypoint) == source.__html__()

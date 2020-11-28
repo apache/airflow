@@ -27,7 +27,7 @@ import time
 import types
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
-import pkg_resources
+import importlib_metadata
 
 from airflow import settings
 from airflow.utils.file import find_path_from_directory
@@ -88,15 +88,16 @@ class PluginsDirectorySource(AirflowPluginSource):
 class EntryPointSource(AirflowPluginSource):
     """Class used to define Plugins loaded from entrypoint."""
 
-    def __init__(self, entrypoint):
-        self.dist = str(entrypoint.dist)
+    def __init__(self, entrypoint: importlib_metadata.EntryPoint, dist: importlib_metadata.Distribution):
+        self.dist = dist.metadata['name']
+        self.version = dist.version
         self.entrypoint = str(entrypoint)
 
     def __str__(self):
-        return f"{self.dist}: {self.entrypoint}"
+        return f"{self.dist}=={self.version}: {self.entrypoint}"
 
     def __html__(self):
-        return f"<em>{self.dist}:</em> {self.entrypoint}"
+        return f"<em>{self.dist}=={self.version}:</em> {self.entrypoint}"
 
 
 class AirflowPluginException(Exception):
@@ -169,6 +170,23 @@ def is_valid_plugin(plugin_obj):
     return False
 
 
+def entry_points_with_dist(group: str):
+    """
+    Return EntryPoint objects of the given group, along with the distribution information.
+
+    This is like the ``entry_points()`` function from importlib.metadata,
+    except it also returns the distribution the entry_point was loaded from.
+
+    :param group: FIlter results to only this entrypoint group
+    :return: Generator of (EntryPoint, Distribution) objects for the specified groups
+    """
+    for dist in importlib_metadata.distributions():
+        for e in dist.entry_points:
+            if e.group != group:
+                continue
+            yield (e, dist)
+
+
 def load_entrypoint_plugins():
     """
     Load and register plugins AirflowPlugin subclasses from the entrypoints.
@@ -177,20 +195,20 @@ def load_entrypoint_plugins():
     global import_errors  # pylint: disable=global-statement
     global plugins  # pylint: disable=global-statement
 
-    entry_points = pkg_resources.iter_entry_points('airflow.plugins')
-
     log.debug("Loading plugins from entrypoints")
 
-    for entry_point in entry_points:  # pylint: disable=too-many-nested-blocks
+    for entry_point, dist in entry_points_with_dist('airflow.plugins'):
         log.debug('Importing entry_point plugin %s', entry_point.name)
         try:
             plugin_class = entry_point.load()
-            if is_valid_plugin(plugin_class):
-                plugin_instance = plugin_class()
-                if callable(getattr(plugin_instance, 'on_load', None)):
-                    plugin_instance.on_load()
-                    plugin_instance.source = EntryPointSource(entry_point)
-                    plugins.append(plugin_instance)
+            if not is_valid_plugin(plugin_class):
+                continue
+
+            plugin_instance = plugin_class()
+            if callable(getattr(plugin_instance, 'on_load', None)):
+                plugin_instance.on_load()
+                plugin_instance.source = EntryPointSource(entry_point, dist)
+                plugins.append(plugin_instance)
         except Exception as e:  # pylint: disable=broad-except
             log.exception("Failed to import plugin %s", entry_point.name)
             import_errors[entry_point.module_name] = str(e)
