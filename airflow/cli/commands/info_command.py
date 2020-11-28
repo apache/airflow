@@ -255,6 +255,8 @@ class SystemInfo(_BaseInfo):
 
     def info(self, console: Console):
         table = SimpleTable(title="System info")
+        table.add_column()
+        table.add_column(width=100)
         table.add_row("OS", self.operating_system or "NOT AVAILABLE")
         table.add_row("architecture", self.arch or "NOT AVAILABLE")
         table.add_row("uname", str(self.uname))
@@ -293,6 +295,8 @@ class ProvidersInfo(_BaseInfo):
 
     def info(self, console: Console):
         table = SimpleTable(title="Providers info")
+        table.add_column()
+        table.add_column(width=100)
         for _, provider in ProvidersManager().providers.values():
             table.add_row(provider['package-name'], provider['versions'][0])
         console.print(table)
@@ -338,6 +342,8 @@ class ConfigInfo(_BaseInfo):
 
     def info(self, console: Console):
         table = SimpleTable(title="Config info")
+        table.add_column()
+        table.add_column(width=100)
         table.add_row("executor", self.executor)
         table.add_row("task_logging_handler", self.task_logging_handler)
         table.add_row("sql_alchemy_conn", self.sql_alchemy_conn)
@@ -378,6 +384,8 @@ class ToolsInfo(_BaseInfo):
 
     def info(self, console: Console):
         table = SimpleTable(title="Tools info")
+        table.add_column()
+        table.add_column(width=100)
         table.add_row("git", self.git_version)
         table.add_row("ssh", self.ssh_version)
         table.add_row("kubectl", self.kubectl_version)
