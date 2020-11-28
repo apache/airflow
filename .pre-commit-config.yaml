@@ -484,7 +484,6 @@ repos:
         pass_filenames: false
         files: ^chart
         require_serial: true
-
       - id: airflow-providers-available
         name: Checks for providers being available when declared by extras in setup.py
         language: python

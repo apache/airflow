@@ -66,14 +66,14 @@ EOF
 )
 
 _breeze_allowed_static_checks=$(cat <<-EOF
-airflow-config-yaml
-airflow-provider-yaml-files-ok
-airflow-providers-available
 all
 all-but-pylint
+airflow-config-yaml
+airflow-providers-available
+airflow-provider-yaml-files-ok
 base-operator
-bats-in-container-tests
 bats-tests
+bats-in-container-tests
 black
 build
 build-providers-dependencies
