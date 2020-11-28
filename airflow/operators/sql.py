@@ -43,9 +43,10 @@ ALLOWED_CONN_TYPE = {
 
 class BaseSQLOperator(BaseOperator):
     """
-    This is a base class for generic SQL Operator
+    This is a base class for generic SQL Operator to get a DB Hook
 
-    The default behavior will try to retrieve the DB hook based on connection type.
+    The provided method is .get_db_hook(). The default behavior will try to 
+    retrieve the DB hook based on connection type.
     You can custom the behaivor by overriding the .get_db_hook() method.
     """
 
@@ -530,7 +531,6 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
         self.follow_task_ids_if_true = follow_task_ids_if_true
         self.follow_task_ids_if_false = follow_task_ids_if_false
         self.database = database
-        self._hook = None
 
     def execute(self, context: Dict):
         if self._hook is None:
