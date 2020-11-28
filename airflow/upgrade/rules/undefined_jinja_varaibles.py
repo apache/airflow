@@ -17,7 +17,6 @@
 
 from __future__ import absolute_import
 
-import logging
 import re
 
 import jinja2
@@ -132,14 +131,8 @@ The user should do either of the following to fix this -
 
     def check(self, dagbag=None):
         if not dagbag:
-            logger = logging.root
-            old_level = logger.level
-            try:
-                logger.setLevel(logging.ERROR)
-                dag_folder = conf.get("core", "dags_folder")
-                dagbag = DagBag(dag_folder)
-            finally:
-                logger.setLevel(old_level)
+            dag_folder = conf.get("core", "dags_folder")
+            dagbag = DagBag(dag_folder)
         dags = dagbag.dags
         messages = []
         for dag_id, dag in dags.items():

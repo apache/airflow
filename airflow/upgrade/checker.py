@@ -70,18 +70,20 @@ def run(args):
     else:
         formatter = ConsoleFormatter()
 
-    if args.ignore:
-        rules = [r for r in ALL_RULES if r.__class__.__name__ not in args.ignore]
-    else:
-        rules = ALL_RULES
+    rules = ALL_RULES
+    ignored_rules = args.ignore or []
 
     if args.config:
-        print("Using config file from:", args.config)
+        print("Using config file:", args.config)
         upgrade_config = UpgradeConfig.read(path=args.config)
-        rules = upgrade_config.register_custom_rules(rules)
-        rules = upgrade_config.remove_ignored_rules(rules)
+        rules.extend(upgrade_config.get_custom_rules())
+        ignored_rules.extend(upgrade_config.get_ignored_rules())
 
-    logging.disable(logging.WARNING)
+    rules = [r for r in rules if r.__class__.__name__ not in ignored_rules]
+
+    # Disable ERROR and below logs to avoid them in console output.
+    # We want to show only output of upgrade_check command
+    logging.disable(logging.ERROR)
 
     all_problems = check_upgrade(formatter, rules)
     if all_problems:

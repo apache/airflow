@@ -17,31 +17,35 @@
 
 from __future__ import absolute_import
 import yaml
+from jsonschema import validate
 
 from airflow.utils.module_loading import import_string
+
+SCHEMA = {
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "properties": {
+        "ignored_rules": {"type": ["array", "null"], "items": {"type": "string"}},
+        "custom_rules": {"type": ["array", "null"], "items": {"type": "string"}},
+    },
+    "additionalProperties": False,
+}
 
 
 class UpgradeConfig(object):
     def __init__(self, raw_config):
         self._raw_config = raw_config
 
-    def remove_ignored_rules(self, rules):
-        rules_to_ignore = self._raw_config.get("ignored_rules")
-        if not rules_to_ignore:
-            return rules
-        return [r for r in rules if r.__class__.__name__ not in rules_to_ignore]
+    def get_ignored_rules(self):
+        return self._raw_config.get("ignored_rules") or []
 
-    def register_custom_rules(self, rules):
-        custom_rules = self._raw_config.get("custom_rules")
-        if not custom_rules:
-            return rules
-        for custom_rule in custom_rules:
-            rule = import_string(custom_rule)
-            rules.append(rule())
-        return rules
+    def get_custom_rules(self):
+        custom_rules = self._raw_config.get("custom_rules") or []
+        return [import_string(r)() for r in custom_rules]
 
     @classmethod
     def read(cls, path):
         with open(path) as f:
             raw_config = yaml.safe_load(f)
+        validate(raw_config, schema=SCHEMA)
         return cls(raw_config)

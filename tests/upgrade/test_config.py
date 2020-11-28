@@ -16,9 +16,10 @@
 # under the License.
 
 import tempfile
-from unittest import mock
+from tests.compat import mock
 
 import pytest
+from jsonschema import ValidationError
 
 from airflow.upgrade.config import UpgradeConfig
 
@@ -28,6 +29,19 @@ ignored_rules:
 - MockRule2
 custom_rules:
 - custom.rule.one
+"""
+
+dummy_config2 = """\
+ignored_rules:
+custom_rules:
+"""
+
+invalid_config = """\
+ignored_rules:
+- MockRule1
+- MockRule2
+custom_rules:
+unexpected:
 """
 
 
@@ -59,15 +73,31 @@ class TestUpgradeConfig:
         assert len(config._raw_config["ignored_rules"]) == 2
         assert len(config._raw_config["custom_rules"]) == 1
 
+    def test_read_no_data(self):
+        with tempfile.NamedTemporaryFile("w+") as f:
+            f.write(dummy_config2)
+            f.flush()
+            cfg = UpgradeConfig.read(f.name)
+
+        assert cfg.get_custom_rules() == []
+        assert cfg.get_ignored_rules() == []
+
+    def test_read_wrong_schema(self):
+        with tempfile.NamedTemporaryFile("w+") as f:
+            f.write(invalid_config)
+            f.flush()
+            with pytest.raises(ValidationError):
+                UpgradeConfig.read(f.name)
+
     def test_ignore(self, config):
-        rules = [MockRule1(), MockRule2(), MockRule3()]
-        assert config.remove_ignored_rules(rules) == [rules[-1]]
+        ignored_rules = config.get_ignored_rules()
+        assert len(ignored_rules) == 2
+        assert ignored_rules == ["MockRule1", "MockRule2"]
 
     @mock.patch("airflow.upgrade.config.import_string")
     def test_register_custom_rules(self, mock_import, config):
-        rules = [MockRule1, MockRule2]
         mock_import.return_value = MockRule3
-        rules = config.register_custom_rules(rules)
+        new_rules = config.get_custom_rules()
         mock_import.assert_called_once_with("custom.rule.one")
-        assert len(rules) == 3
-        assert isinstance(rules[-1], MockRule3)
+        assert len(new_rules) == 1
+        assert isinstance(new_rules[0], MockRule3)
