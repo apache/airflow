@@ -18,7 +18,94 @@
 Production Deployment
 ^^^^^^^^^^^^^^^^^^^^^
 
-This document describes various aspects of the production deployments of Apache Airflow.
+It is time to deploy your DAG in production. To do this, first, you need to make sure that the Airflow is itself production-ready.
+Let's see what precautions you need to take.
+
+Database backend
+================
+
+Airflow comes with an ``SQLite`` backend by default. This allows the user to run Airflow without any external database.
+However, such a setup is meant to be used for testing purposes only; running the default setup in production can lead to data loss in multiple scenarios.
+If you want to run production-grade Airflow, make sure you :doc:`configure the backend <howto/initialize-database>` to be an external database such as PostgreSQL or MySQL.
+
+You can change the backend using the following config
+
+.. code-block:: ini
+
+ [core]
+ sql_alchemy_conn = my_conn_string
+
+Once you have changed the backend, airflow needs to create all the tables required for operation.
+Create an empty DB and give airflow's user the permission to ``CREATE/ALTER`` it.
+Once that is done, you can run -
+
+.. code-block:: bash
+
+ airflow db upgrade
+
+``upgrade`` keeps track of migrations already applied, so it's safe to run as often as you need.
+
+.. note::
+
+ Do not use ``airflow db init`` as it can create a lot of default connections, charts, etc. which are not required in production DB.
+
+
+Multi-Node Cluster
+==================
+
+Airflow uses :class:`airflow.executors.sequential_executor.SequentialExecutor` by default. However, by its nature, the user is limited to executing at most
+one task at a time. ``Sequential Executor`` also pauses the scheduler when it runs a task, hence not recommended in a production setup.
+You should use the :class:`Local executor <airflow.executors.local_executor.LocalExecutor>` for a single machine.
+For a multi-node setup, you should use the :doc:`Kubernetes executor <../executor/kubernetes>` or the :doc:`Celery executor <../executor/celery>`.
+
+
+Once you have configured the executor, it is necessary to make sure that every node in the cluster contains the same configuration and dags.
+Airflow sends simple instructions such as "execute task X of dag Y", but does not send any dag files or configuration. You can use a simple cronjob or
+any other mechanism to sync DAGs and configs across your nodes, e.g., checkout DAGs from git repo every 5 minutes on all nodes.
+
+
+Logging
+=======
+
+If you are using disposable nodes in your cluster, configure the log storage to be a distributed file system (DFS) such as ``S3`` and ``GCS``, or external services such as
+Stackdriver Logging, Elasticsearch or Amazon CloudWatch.
+This way, the logs are available even after the node goes down or gets replaced. See :doc:`logging-monitoring/logging-tasks` for configurations.
+
+.. note::
+
+    The logs only appear in your DFS after the task has finished. You can view the logs while the task is running in UI itself.
+
+
+Configuration
+=============
+
+Airflow comes bundled with a default ``airflow.cfg`` configuration file.
+You should use environment variables for configurations that change across deployments
+e.g. metadata DB, password, etc. You can accomplish this using the format :envvar:`AIRFLOW__{SECTION}__{KEY}`
+
+.. code-block:: bash
+
+ AIRFLOW__CORE__SQL_ALCHEMY_CONN=my_conn_id
+ AIRFLOW__WEBSERVER__BASE_URL=http://host:port
+
+Some configurations such as the Airflow Backend connection URI can be derived from bash commands as well:
+
+.. code-block:: ini
+
+ sql_alchemy_conn_cmd = bash_command_to_run
+
+
+Scheduler Uptime
+================
+
+Airflow users have for a long time been affected by a
+`core Airflow bug <https://issues.apache.org/jira/browse/AIRFLOW-401>`_
+that causes the scheduler to hang without a trace.
+
+Until fully resolved, you can mitigate this issue via a few short-term workarounds:
+
+* Set a reasonable run_duration setting in your ``airflow.cfg``. `Example config <https://github.com/astronomer/airflow-chart/blob/63bc503c67e2cd599df0b6f831d470d09bad7ee7/templates/configmap.yaml#L44>`_.
+* Add an ``exec`` style health check to your helm charts on the scheduler deployment to fail if the scheduler has not heartbeat in a while. `Example health check definition <https://github.com/astronomer/helm.astronomer.io/pull/200/files>`_.
 
 Production Container Images
 ===========================
