@@ -28,8 +28,10 @@ from urllib.parse import urlsplit, urlunsplit
 
 import requests
 import tenacity
+from tabulate import tabulate
 
 from airflow import configuration
+from airflow.providers_manager import ProvidersManager
 from airflow.typing_compat import Protocol
 from airflow.version import version as airflow_version
 
@@ -186,6 +188,7 @@ class AirflowInfo:
         self.tools = ToolsInfo(anonymizer)
         self.paths = PathsInfo(anonymizer)
         self.config = ConfigInfo(anonymizer)
+        self.provider = ProvidersInfo()
 
     def __str__(self):
         return (
@@ -200,6 +203,8 @@ class AirflowInfo:
                 {paths}
 
                 {config}
+
+                {provider}
                 """
             )
             .strip()
@@ -209,6 +214,7 @@ class AirflowInfo:
                 tools=self.tools,
                 paths=self.paths,
                 config=self.config,
+                provider=self.provider,
             )
         )
 
@@ -277,6 +283,21 @@ class PathsInfo:
                 airflow_on_path=self.airflow_on_path,
             )
         )
+
+
+class ProvidersInfo:
+    """providers information"""
+
+    def __str__(self):
+
+        tabulate_data = [
+            {
+                'Provider name': provider['package-name'],
+                'Version': provider['versions'][0],
+            }
+            for version, provider in ProvidersManager().providers.values()
+        ]
+        return tabulate(tabulate_data, headers='keys')
 
 
 class ConfigInfo:

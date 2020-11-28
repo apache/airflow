@@ -37,8 +37,7 @@ def _tabulate_providers(providers: List[Dict], tablefmt: str):
         for version, provider in providers
     ]
 
-    msg = tabulate(tabulate_data, tablefmt=tablefmt, headers='keys')
-    return msg
+    return tabulate(tabulate_data, tablefmt=tablefmt, headers='keys')
 
 
 def provider_get(args):
@@ -64,5 +63,4 @@ def provider_get(args):
 
 def providers_list(args):
     """Lists all providers at the command line"""
-    msg = _tabulate_providers(ProvidersManager().providers.values(), args.output)
-    print(msg)
+    print(_tabulate_providers(ProvidersManager().providers.values(), args.output))
