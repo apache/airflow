@@ -22,7 +22,6 @@ import os
 import platform
 import subprocess
 import sys
-import textwrap
 from typing import Optional
 from urllib.parse import urlsplit, urlunsplit
 
@@ -31,7 +30,6 @@ import tenacity
 from rich.box import ASCII_DOUBLE_HEAD
 from rich.console import Console
 from rich.table import Table
-from tabulate import tabulate
 
 from airflow import configuration
 from airflow.providers_manager import ProvidersManager
@@ -207,45 +205,27 @@ class AirflowInfo:
         self.config = ConfigInfo(anonymizer)
         self.provider = ProvidersInfo()
 
-    def __str__(self):
-        return (
-            textwrap.dedent(
-                """\
-                Apache Airflow [{version}]
-
-                {system}
-
-                {tools}
-
-                {paths}
-
-                {config}
-
-                {provider}
-                """
-            )
-            .strip()
-            .format(
-                version=self.airflow_version,
-                system=self.system,
-                tools=self.tools,
-                paths=self.paths,
-                config=self.config,
-                provider=self.provider,
-            )
+    def _show_all(self, console: Console):
+        console.print(
+            f"[bold][green]Apache Airflow[/bold][/green]: {self.airflow_version}\n", highlight=False
         )
+        self.system.show(console)
+        self.tools.show(console)
+        self.paths.show(console)
+        self.config.show(console)
+        self.provider.show(console)
 
     def show(self):
         """Renders the info using rich"""
         console = Console()
-        console.print(
-            f"[bold][green]Apache Airflow[/bold][/green]: {self.airflow_version}\n", highlight=False
-        )
-        self.system.show()
-        self.tools.show()
-        self.paths.show()
-        self.config.show()
-        self.provider.show()
+        self._show_all(console)
+
+    def render_text(self):
+        """Exports the info to string"""
+        console = Console(record=True)
+        with console.capture():
+            self._show_all(console)
+        return console.export_text()
 
 
 class SystemInfo:
@@ -259,30 +239,9 @@ class SystemInfo:
         self.python_location = anonymizer.process_path(sys.executable)
         self.python_version = sys.version.replace("\n", " ")
 
-    def __str__(self):
-        return (
-            textwrap.dedent(
-                """\
-                Platform: [{os}, {arch}] {uname}
-                Locale: {locale}
-                Python Version: [{python_version}]
-                Python Location: [{python_location}]
-                """
-            )
-            .strip()
-            .format(
-                os=self.operating_system or "NOT AVAILABLE",
-                arch=self.arch or "NOT AVAILABLE",
-                uname=self.uname,
-                locale=self.locale,
-                python_version=self.python_version,
-                python_location=self.python_location,
-            )
-        )
-
-    def show(self):
+    def show(self, console: Optional[Console] = None):
         """Renders the info using rich"""
-        console = Console()
+        console = console or Console()
         table = SimpleTable(title="System info")
         table.add_row("OS", self.operating_system or "NOT AVAILABLE")
         table.add_row("architecture", self.arch or "NOT AVAILABLE")
@@ -306,28 +265,9 @@ class PathsInfo:
             os.path.exists(os.path.join(path_elem, "airflow")) for path_elem in system_path
         )
 
-    def __str__(self):
-        return (
-            textwrap.dedent(
-                """\
-                Airflow Home: [{airflow_home}]
-                System PATH: [{system_path}]
-                Python PATH: [{python_path}]
-                airflow on PATH: [{airflow_on_path}]
-                """
-            )
-            .strip()
-            .format(
-                airflow_home=self.airflow_home,
-                system_path=os.pathsep.join(self.system_path),
-                python_path=os.pathsep.join(self.python_path),
-                airflow_on_path=self.airflow_on_path,
-            )
-        )
-
-    def show(self):
+    def show(self, console: Optional[Console] = None):
         """Renders the info using rich"""
-        console = Console()
+        console = console or Console()
         table = SimpleTable(title="Paths info")
         table.add_row("airflow_home", self.airflow_home)
         table.add_row("system_path", os.pathsep.join(self.system_path))
@@ -339,20 +279,9 @@ class PathsInfo:
 class ProvidersInfo:
     """providers information"""
 
-    def __str__(self):
-
-        tabulate_data = [
-            {
-                'Provider name': provider['package-name'],
-                'Version': provider['versions'][0],
-            }
-            for version, provider in ProvidersManager().providers.values()
-        ]
-        return tabulate(tabulate_data, headers='keys')
-
-    def show(self):
+    def show(self, console: Optional[Console] = None):
         """Renders the info using rich"""
-        console = Console()
+        console = console or Console()
         table = SimpleTable(title="Providers info")
         table.add_column("Package")
         table.add_column("Version")
@@ -399,32 +328,9 @@ class ConfigInfo:
         except Exception:  # noqa pylint: disable=broad-except
             return "NOT AVAILABLE"
 
-    def __str__(self):
-        return (
-            textwrap.dedent(
-                """\
-                Executor: [{executor}]
-                Task Logging Handlers: [{task_logging_handler}]
-                SQL Alchemy Conn: [{sql_alchemy_conn}]
-                DAGS Folder: [{dags_folder}]
-                Plugins Folder: [{plugins_folder}]
-                Base Log Folder: [{base_log_folder}]
-                """
-            )
-            .strip()
-            .format(
-                executor=self.executor,
-                task_logging_handler=self.task_logging_handler,
-                sql_alchemy_conn=self.sql_alchemy_conn,
-                dags_folder=self.dags_folder,
-                plugins_folder=self.plugins_folder,
-                base_log_folder=self.base_log_folder,
-            )
-        )
-
-    def show(self):
+    def show(self, console: Optional[Console] = None):
         """Renders the info using rich"""
-        console = Console()
+        console = console or Console()
         table = SimpleTable(title="Config info")
         table.add_row("executor", self.executor)
         table.add_row("task_logging_handler", self.task_logging_handler)
@@ -464,36 +370,9 @@ class ToolsInfo:
         else:
             return data[0].decode()
 
-    def __str__(self):
-        return (
-            textwrap.dedent(
-                """\
-                git: [{git}]
-                ssh: [{ssh}]
-                kubectl: [{kubectl}]
-                gcloud: [{gcloud}]
-                cloud_sql_proxy: [{cloud_sql_proxy}]
-                mysql: [{mysql}]
-                sqlite3: [{sqlite3}]
-                psql: [{psql}]
-                """
-            )
-            .strip()
-            .format(
-                git=self.git_version,
-                ssh=self.ssh_version,
-                kubectl=self.kubectl_version,
-                gcloud=self.gcloud_version,
-                cloud_sql_proxy=self.cloud_sql_proxy_version,
-                mysql=self.mysql_version,
-                sqlite3=self.sqlite3_version,
-                psql=self.psql_version,
-            )
-        )
-
-    def show(self):
+    def show(self, console: Optional[Console] = None):
         """Renders the info using rich"""
-        console = Console()
+        console = console or Console()
         table = SimpleTable(title="Tools info")
         table.add_column("Tool")
         table.add_column("Version")
@@ -521,8 +400,10 @@ class FileIoException(Exception):
 )
 def _upload_text_to_fileio(content):
     """Upload text file to File.io service and return lnk"""
-    resp = requests.post("https://file.io", files={"file": ("airflow-report.txt", content)})
+    print(content)
+    resp = requests.post("https://file.io", data={"text": content})
     if not resp.ok:
+        print(resp.json())
         raise FileIoException("Failed to send report to file.io service.")
     try:
         return resp.json()["link"]
@@ -549,6 +430,6 @@ def show_info(args):
     anonymizer = PiiAnonymizer() if args.anonymize or args.file_io else NullAnonymizer()
     info = AirflowInfo(anonymizer)
     if args.file_io:
-        _send_report_to_fileio(info)
+        _send_report_to_fileio(info.render_text())
     else:
         info.show()
