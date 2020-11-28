@@ -221,7 +221,7 @@ doc = [
     'sphinxcontrib-httpdomain>=1.7.0',
     "sphinxcontrib-redoc>=1.6.0",
     "sphinxcontrib-spelling==5.2.1",
-    # f"sphinx-airflow-theme @ {_SPHINX_AIRFLOW_THEME_URL}",
+    f"sphinx-airflow-theme @ {_SPHINX_AIRFLOW_THEME_URL}",
 ]
 docker = [
     'docker~=3.0',
