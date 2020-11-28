@@ -20,7 +20,7 @@ from typing import Iterable, List, Optional, Union
 from rich.console import Console
 
 from airflow.cli.cli_parser import ActionCommand, GroupCommand, airflow_commands
-from airflow.cli.commands.info_command import SimpleTable
+from airflow.cli.simple_table import SimpleTable
 from airflow.utils.helpers import partition
 
 

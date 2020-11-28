@@ -27,35 +27,15 @@ from urllib.parse import urlsplit, urlunsplit
 
 import requests
 import tenacity
-from rich.box import ASCII_DOUBLE_HEAD
 from rich.console import Console
-from rich.table import Table
 
 from airflow import configuration
+from airflow.cli.simple_table import SimpleTable
 from airflow.providers_manager import ProvidersManager
 from airflow.typing_compat import Protocol
 from airflow.version import version as airflow_version
 
 log = logging.getLogger(__name__)
-
-
-class SimpleTable(Table):
-    """A rich Table with some default hardcoded for consistency."""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.show_edge = kwargs.get("show_edge", False)
-        self.pad_edge = kwargs.get("pad_edge", False)
-        self.box = kwargs.get("box", ASCII_DOUBLE_HEAD)
-        self.show_header = kwargs.get("show_header", False)
-        self.title_style = kwargs.get("title_style", "bold green")
-        self.title_justify = kwargs.get("title_justify", "left")
-        self.caption = kwargs.get("caption", " ")
-
-    def add_column(self, *args, **kwargs) -> None:  # pylint: disable=signature-differs
-        """Add a column to the table. We use different default"""
-        kwargs["overflow"] = kwargs.get("overflow", None)  # to avoid truncating
-        super().add_column(*args, **kwargs)
 
 
 class Anonymizer(Protocol):
