@@ -18,7 +18,7 @@
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-setup_provider_packages
+setup_provider_package_variables
 
 cd "${AIRFLOW_SOURCES}" || exit 1
 

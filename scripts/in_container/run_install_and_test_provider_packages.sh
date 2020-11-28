@@ -199,10 +199,14 @@ function discover_all_field_behaviours() {
     group_end
 }
 
-setup_provider_packages
+setup_provider_package_variables
 verify_parameters
 install_airflow_as_specified
 install_deps
+
+# No matter which airflow version - providers/backport providers should use constraints from master
+export CONSTRAINTS_BRANCH="constraints-master"
+
 install_provider_packages
 import_all_provider_classes
 

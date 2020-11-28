@@ -149,10 +149,17 @@ function initialization::initialize_base_variables() {
     AIRFLOW_HOME_DIR=${AIRFLOW_HOME:=${HOME}/airflow}
     export AIRFLOW_HOME_DIR
 
+    # determines if providers are installed directly from sources (for editable installs)
+    # or as package dependencies (for regular installs)
     INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES:="true"}
     export INSTALL_PROVIDERS_FROM_SOURCES
 
-    INSTALLED_PROVIDERS+=(
+    # determines if remaining packages excluded during the CI install should be installed
+    INSTALL_ALL_REMAINING_DEPENDENCIES=${INSTALL_ALL_REMAINING_DEPENDENCIES:="false"}
+    export INSTALL_ALL_REMAINING_DEPENDENCIES
+
+    # Providers installed by default in CI And DockerHub in the production image
+    export INSTALLED_PROVIDERS+=(
         "amazon"
         "celery"
         "cncf.kubernetes"
@@ -169,15 +176,14 @@ function initialization::initialize_base_variables() {
         "postgres"
         "redis"
         "sendgrid"
-        "sqlite"
         "sftp"
         "slack"
         "sqlite"
         "ssh"
     )
     export INSTALLED_PROVIDERS
+    # Extras installed by default in CI and DockerHub in the production image
     export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
-
     # default version of PIP USED (This has to be < 20.3 until https://github.com/apache/airflow/issues/12838 is solved)
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="20.2.4"}
     export AIRFLOW_PIP_VERSION

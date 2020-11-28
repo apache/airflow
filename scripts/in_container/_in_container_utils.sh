@@ -277,12 +277,14 @@ function install_airflow_from_wheel() {
     echo "Found package: ${airflow_package}. Installing."
     echo
     if [[ -z "${airflow_package}" ]]; then
-        >&2 echo
-        >&2 echo "ERROR! Could not find airflow wheel package to install in dist"
-        >&2 echo
+        echo
+        echo "${COLOR_RED_ERROR} ERROR! Could not find airflow wheel package to install in dist  ${COLOR_RESET}"
+        echo
         exit 4
     fi
-    pip install "${airflow_package}${1}" >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
+    pip install "${airflow_package}${extras}" \
+        --constraint "https://raw.githubusercontent.com/apache/airflow/${CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt" \
+        >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
 }
 
 function install_airflow_from_sdist() {
@@ -294,16 +296,63 @@ function install_airflow_from_sdist() {
     echo "Found package: ${airflow_package}. Installing."
     echo
     if [[ -z "${airflow_package}" ]]; then
-        >&2 echo
-        >&2 echo "ERROR! Could not find airflow sdist package to install in dist"
-        >&2 echo
+        echo
+        echo "${COLOR_RED_ERROR} ERROR! Could not find airflow sdist package to install in dist  ${COLOR_RESET}"
+        echo
         exit 4
     fi
-    pip install "${airflow_package}${1}" >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
+    pip install "${airflow_package}${extras}" \
+        --constraint "https://raw.githubusercontent.com/apache/airflow/${CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt" \
+        >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
 }
 
 function install_remaining_dependencies() {
-    pip install apache-beam[gcp] >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
+    echo
+    echo "Installing apache beam - which is excluded in CI"
+    echo
+    pip install apache-beam[gcp] \
+        --constraint "https://raw.githubusercontent.com/apache/airflow/${CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt" \
+        >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
+}
+
+function get_constraints_for_just_installed_airflow() {
+    group_start "Get constraints for just installed airflow ${AIRFLOW_VERSION} (install: ${INSTALL_AIRFLOW_VERSION})"
+    if [[ ${AIRFLOW_VERSION} == 1.10* || ${INSTALL_AIRFLOW_VERSION} == 1.10* ]]; then
+        export RUN_AIRFLOW_1_10="true"
+        export CONSTRAINTS_BRANCH="constraints-1-10"
+        # downgrade pendulum - the version required by Airflow 2.0 is higher and it is in the
+        # install-requires section so it will not be downgraded automatically !
+        pip install "pendulum==1.4.4"
+    else
+        export RUN_AIRFLOW_1_10="false"
+        export CONSTRAINTS_BRANCH="constraints-master"
+    fi
+}
+
+function install_airflow() {
+    group_start "Install Airflow from Version: ${INSTALL_AIRFLOW_VERSION} extras: ${AIRFLOW_EXTRAS}"
+    if [[ ${INSTALL_AIRFLOW_VERSION} == "none"  ]]; then
+        echo
+        echo "Skip installing airflow - only install wheel packages that are present locally"
+        echo
+        uninstall_airflow_and_providers
+    elif [[ ${INSTALL_AIRFLOW_VERSION} == "wheel"  ]]; then
+        echo
+        echo "Install airflow from wheel package with [all] extras but uninstalling providers."
+        echo
+        uninstall_airflow_and_providers
+        install_airflow_from_wheel "[${AIRFLOW_EXTRAS}]"
+    elif [[ ${INSTALL_AIRFLOW_VERSION} == "sdist"  ]]; then
+        echo
+        echo "Install airflow from sdist package with [all] extras but uninstalling providers."
+        echo
+        uninstall_airflow_and_providers
+        install_airflow_from_sdist "[${AIRFLOW_EXTRAS}]"
+    else
+        uninstall_airflow_and_providers
+        install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}" "[${AIRFLOW_EXTRAS}]"
+    fi
+    group_end
 }
 
 function uninstall_airflow() {
@@ -341,24 +390,28 @@ function install_released_airflow_version() {
     echo
 
     rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
-    pip install --upgrade "apache-airflow${extras}==${version}" >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
+    pip install --upgrade "apache-airflow${extras}==${version}" \
+        --constraint "https://raw.githubusercontent.com/apache/airflow/${CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt" \
+        >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
 }
 
 function install_all_provider_packages_from_wheels() {
     echo
     echo "Installing all provider packages from wheels"
     echo
-    pip install /dist/apache_airflow*providers_*.whl >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
+    pip install /dist/apache_airflow*providers_*.whl \
+        --constraint "https://raw.githubusercontent.com/apache/airflow/${CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt" \
+        >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
 }
 
-function install_all_provider_packages_from_tar_gz_files() {
+function install_all_provider_packages_from_sdist() {
     echo
     echo "Installing all provider packages from .tar.gz"
     echo
-    pip install /dist/apache-airflow-*providers-*.tar.gz >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
+    pip install /dist/apache-airflow-*providers-*.tar.gz --no-deps >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
 }
 
-function setup_provider_packages() {
+function setup_provider_package_variables() {
     if [[ ${BACKPORT_PACKAGES:=} == "true" ]]; then
         export PACKAGE_TYPE="backport"
         export PACKAGE_PREFIX_UPPERCASE="BACKPORT_"

@@ -64,11 +64,8 @@ if [[ ${GITHUB_ACTIONS:="false"} == "false" ]]; then
     source <(bash scripts/in_container/run_cli_tool.sh)
 fi
 
-if [[ ${AIRFLOW_VERSION} == *1.10* || ${INSTALL_AIRFLOW_VERSION} == *1.10* ]]; then
-    export RUN_AIRFLOW_1_10="true"
-else
-    export RUN_AIRFLOW_1_10="false"
-fi
+AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS:="all"}
+export AIRFLOW_EXTRAS
 
 if [[ -z ${INSTALL_AIRFLOW_VERSION=} ]]; then
     echo
@@ -81,30 +78,9 @@ if [[ -z ${INSTALL_AIRFLOW_VERSION=} ]]; then
     mkdir -p "${AIRFLOW_SOURCES}"/logs/
     mkdir -p "${AIRFLOW_SOURCES}"/tmp/
     export PYTHONPATH=${AIRFLOW_SOURCES}
-elif [[ ${INSTALL_AIRFLOW_VERSION} == "none"  ]]; then
-    echo
-    echo "Skip installing airflow - only install wheel/tar.gz packages that are present locally"
-    echo
-    uninstall_airflow_and_providers
-elif [[ ${INSTALL_AIRFLOW_VERSION} == "wheel"  ]]; then
-    echo
-    echo "Install airflow from wheel package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers."
-    echo
-    uninstall_airflow_and_providers
-    install_airflow_from_wheel "[${AIRFLOW_EXTRAS}]"
-    uninstall_providers
-elif [[ ${INSTALL_AIRFLOW_VERSION} == "sdist"  ]]; then
-    echo
-    echo "Install airflow from sdist package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers."
-    echo
-    uninstall_airflow_and_providers
-    install_airflow_from_sdist "[${AIRFLOW_EXTRAS}]"
-    uninstall_providers
 else
-    echo
-    echo "Install airflow from PyPI including [${AIRFLOW_EXTRAS}] extras"
-    echo
-    install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}" "[${AIRFLOW_EXTRAS}]"
+    get_constraints_for_just_installed_airflow
+    install_airflow
 fi
 if [[ ${INSTALL_PACKAGES_FROM_DIST=} == "true" ]]; then
     echo
@@ -141,7 +117,6 @@ if [[ ${INSTALL_PACKAGES_FROM_DIST=} == "true" ]]; then
     fi
 fi
 
-export RUN_AIRFLOW_1_10=${RUN_AIRFLOW_1_10:="false"}
 
 # Added to have run-tests on path
 export PATH=${PATH}:${AIRFLOW_SOURCES}
