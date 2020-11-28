@@ -126,7 +126,7 @@ class TestConfigInfoLogging(unittest.TestCase):
             configure_logging()
             instance = info_command.ConfigInfo(info_command.NullAnonymizer())
             text = capture_show_output(instance)
-            self.assertIn("StackdriverTaskHandler", text)
+            self.assertIn("stackdriver", text)
 
     def tearDown(self) -> None:
         importlib.reload(airflow_local_settings)
