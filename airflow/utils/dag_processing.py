@@ -801,8 +801,6 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 Stats.gauge(f'dag_processing.last_run.seconds_ago.{file_name}', seconds_ago)
             if runtime:
                 Stats.timing(f'dag_processing.last_duration.{file_name}', runtime)
-                # TODO: Remove before Airflow 2.0
-                Stats.timing(f'dag_processing.last_runtime.{file_name}', runtime)
 
             rows.append((file_path, processor_pid, runtime, num_dags, num_errors, last_runtime, last_run))
 
@@ -1152,10 +1150,6 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         Stats.gauge(
             'dag_processing.import_errors', sum(stat.import_errors for stat in self._file_stats.values())
         )
-
-        # TODO: Remove before Airflow 2.0
-        Stats.gauge('collect_dags', parse_time)
-        Stats.gauge('dagbag_import_errors', sum(stat.import_errors for stat in self._file_stats.values()))
 
     # pylint: disable=missing-docstring
     @property

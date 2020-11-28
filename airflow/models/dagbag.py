@@ -438,45 +438,35 @@ class DagBag(LoggingMixin):
             return
 
         self.log.info("Filling up the DagBag from %s", dag_folder)
-        with Stats.timer('collect_dags'):
-            dag_folder = dag_folder or self.dag_folder
-            # Used to store stats around DagBag processing
-            stats = []
+        dag_folder = dag_folder or self.dag_folder
+        # Used to store stats around DagBag processing
+        stats = []
 
-            dag_folder = correct_maybe_zipped(dag_folder)
-            for filepath in list_py_file_paths(
-                dag_folder,
-                safe_mode=safe_mode,
-                include_examples=include_examples,
-                include_smart_sensor=include_smart_sensor,
-            ):
-                try:
-                    file_parse_start_dttm = timezone.utcnow()
-                    found_dags = self.process_file(
-                        filepath, only_if_updated=only_if_updated, safe_mode=safe_mode
+        dag_folder = correct_maybe_zipped(dag_folder)
+        for filepath in list_py_file_paths(
+            dag_folder,
+            safe_mode=safe_mode,
+            include_examples=include_examples,
+            include_smart_sensor=include_smart_sensor,
+        ):
+            try:
+                file_parse_start_dttm = timezone.utcnow()
+                found_dags = self.process_file(filepath, only_if_updated=only_if_updated, safe_mode=safe_mode)
+
+                file_parse_end_dttm = timezone.utcnow()
+                stats.append(
+                    FileLoadStat(
+                        file=filepath.replace(settings.DAGS_FOLDER, ''),
+                        duration=file_parse_end_dttm - file_parse_start_dttm,
+                        dag_num=len(found_dags),
+                        task_num=sum([len(dag.tasks) for dag in found_dags]),
+                        dags=str([dag.dag_id for dag in found_dags]),
                     )
+                )
+            except Exception as e:  # pylint: disable=broad-except
+                self.log.exception(e)
 
-                    file_parse_end_dttm = timezone.utcnow()
-                    stats.append(
-                        FileLoadStat(
-                            file=filepath.replace(settings.DAGS_FOLDER, ''),
-                            duration=file_parse_end_dttm - file_parse_start_dttm,
-                            dag_num=len(found_dags),
-                            task_num=sum([len(dag.tasks) for dag in found_dags]),
-                            dags=str([dag.dag_id for dag in found_dags]),
-                        )
-                    )
-                except Exception as e:  # pylint: disable=broad-except
-                    self.log.exception(e)
-
-        Stats.gauge('dagbag_size', len(self.dags), 1)
-        Stats.gauge('dagbag_import_errors', len(self.import_errors), 1)
         self.dagbag_stats = sorted(stats, key=lambda x: x.duration, reverse=True)
-        for file_stat in self.dagbag_stats:
-            # file_stat.file similar format: /subdir/dag_name.py
-            # TODO: Remove for Airflow 2.0
-            filename = file_stat.file.split('/')[-1].replace('.py', '')
-            Stats.timing(f'dag.loading-duration.{filename}', file_stat.duration)
 
     def collect_dags_from_db(self):
         """Collects DAGs from database."""
