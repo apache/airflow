@@ -264,7 +264,7 @@ numpy==1.19.4
 oauthlib==2.1.0
 openapi-spec-validator==0.2.9
 oscrypto==1.2.1
-packaging==20.5
+packaging==20.4
 pandas-gbq==0.14.1
 pandas==1.1.4
 papermill==2.2.2
@@ -294,8 +294,8 @@ psycopg2-binary==2.8.6
 ptyprocess==0.6.0
 py4j==0.10.9
 py==1.9.0
-pyOpenSSL==20.0.0
-pyarrow==2.0.0
+pyOpenSSL==19.1.0
+pyarrow==0.17.1
 pyasn1-modules==0.2.8
 pyasn1==0.4.8
 pycodestyle==2.6.0
