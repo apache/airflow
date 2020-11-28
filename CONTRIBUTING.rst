@@ -681,7 +681,7 @@ constraints file when installing Apache Airflow - either from the sources:
 .. code-block:: bash
 
   pip install -e . \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+    --requirement "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
 
 
 or from the pypi package:
@@ -689,7 +689,7 @@ or from the pypi package:
 .. code-block:: bash
 
   pip install apache-airflow \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+    --requirement "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
 
 
 This works also with extras - for example:
@@ -697,7 +697,7 @@ This works also with extras - for example:
 .. code-block:: bash
 
   pip install .[ssh] \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+    --requirement "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
 
 
 As of apache-airflow 1.10.12 it is also possible to use constraints directly from GitHub using specific
@@ -707,7 +707,7 @@ fixed valid constraints 1.10.12 can be used by using ``constraints-1.10.12`` tag
 .. code-block:: bash
 
   pip install apache-airflow[ssh]==1.10.12 \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.6.txt"
+      --requirement "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.6.txt"
 
 There are different set of fixed constraint files for different python major/minor versions and you should
 use the right file for the right python version.

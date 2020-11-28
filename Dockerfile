@@ -176,7 +176,7 @@ RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
        fi; \
        pip install --user \
           "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
-          --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" \
+          --requirement "${AIRFLOW_CONSTRAINTS_LOCATION}" \
           && pip uninstall --yes apache-airflow; \
     fi
 
@@ -223,10 +223,10 @@ RUN if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then \
     fi; \
     if [[ ${INSTALL_AIRFLOW_VIA_PIP} == "true" ]]; then \
         pip install --user "${AIRFLOW_INSTALL_SOURCES}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
-            --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+            --requirement "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
     fi; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
-        pip install --user ${ADDITIONAL_PYTHON_DEPS} --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+        pip install --user ${ADDITIONAL_PYTHON_DEPS} --requirement "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
     fi; \
     if [[ ${AIRFLOW_LOCAL_PIP_WHEELS} == "true" ]]; then \
         if ls /docker-context-files/*.whl 1> /dev/null 2>&1; then \

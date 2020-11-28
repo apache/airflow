@@ -30,7 +30,7 @@ build_images::prepare_ci_build
 build_images::rebuild_ci_image_if_needed
 
 python -m pip install pre-commit \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+  --requirement "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
 
 if [[ $# == "0" ]]; then
     pre-commit run --all-files --show-diff-on-failure --color always

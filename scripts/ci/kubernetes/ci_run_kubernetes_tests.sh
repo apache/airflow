@@ -89,10 +89,10 @@ fi
 pip install --upgrade "pip==${PIP_VERSION}" "wheel==${WHEEL_VERSION}"
 
 pip install pytest freezegun pytest-cov \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${HOST_PYTHON_VERSION}.txt"
+  --requirement "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${HOST_PYTHON_VERSION}.txt"
 
 pip install -e ".[kubernetes]" \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${HOST_PYTHON_VERSION}.txt"
+  --requirement "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${HOST_PYTHON_VERSION}.txt"
 
 if [[ ${interactive} == "true" ]]; then
     echo

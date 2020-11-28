@@ -125,7 +125,7 @@ for different python versions:
    .. code-block:: bash
 
     pip install -U -e ".[devel,<OTHER EXTRAS>]" \
-        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+        --requirement "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
 
 Note: when you first initialize database (the next step), you may encounter some problems.
 This is because airflow by default will try to load in example dags where some of them requires dependencies ``google`` and ``postgres``.

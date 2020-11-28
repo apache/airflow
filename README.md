@@ -124,14 +124,14 @@ correct Airflow tag/version/branch and python versions in the URL.
 
 ```bash
 pip install apache-airflow==1.10.13 \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.13/constraints-3.7.txt"
+ --requirement "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.13/constraints-3.7.txt"
 ```
 
 2. Installing with extras (for example postgres,google)
 
 ```bash
 pip install apache-airflow[postgres,google]==1.10.13 \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.13/constraints-3.7.txt"
+ --requirement "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.13/constraints-3.7.txt"
 ```
 
 For information on installing backport providers check [/docs/backport-providers.rst][/docs/backport-providers.rst].

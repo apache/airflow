@@ -224,7 +224,7 @@ Preparing the constraint files and wheel files:
     https://raw.githubusercontent.com/apache/airflow/constraints-1-10/constraints-3.7.txt
 
   pip download --dest docker-context-files \
-    --constraint docker-context-files/constraints-1-10.txt  \
+    --requirement docker-context-files/constraints-1-10.txt  \
     apache-airflow[async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,ssh,statsd,virtualenv]==1.10.13
 
 
