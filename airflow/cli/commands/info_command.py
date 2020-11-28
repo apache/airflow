@@ -44,13 +44,18 @@ class SimpleTable(Table):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.show_edge = False
-        self.pad_edge = False
-        self.box = ASCII_DOUBLE_HEAD
+        self.show_edge = kwargs.get("show_edge", False)
+        self.pad_edge = kwargs.get("pad_edge", False)
+        self.box = kwargs.get("box", ASCII_DOUBLE_HEAD)
         self.show_header = kwargs.get("show_header", False)
-        self.title_style = "bold green"
-        self.title_justify = "left"
-        self.caption = " "
+        self.title_style = kwargs.get("title_style", "bold green")
+        self.title_justify = kwargs.get("title_justify", "left")
+        self.caption = kwargs.get("caption", " ")
+
+    def add_column(self, *args, **kwargs) -> None:
+        """Add a column to the table. We use different default"""
+        kwargs["overflow"] = kwargs.get("overflow", None)  # to avoid truncating
+        super().add_column(*args, **kwargs)
 
 
 class Anonymizer(Protocol):
@@ -194,7 +199,28 @@ _MACHINE_TO_ARCHITECTURE = {
 }
 
 
-class AirflowInfo:
+class _BaseInfo:
+    def info(self, console: Console) -> None:
+        """
+        Print required information to provided console.
+        You should implement this function in custom classes.
+        """
+        raise NotImplementedError()
+
+    def show(self) -> None:
+        """Shows info"""
+        console = Console()
+        self.info(console)
+
+    def render_text(self) -> str:
+        """Exports the info to string"""
+        console = Console(record=True)
+        with console.capture():
+            self.info(console)
+        return console.export_text()
+
+
+class AirflowInfo(_BaseInfo):
     """All information related to Airflow, system and other."""
 
     def __init__(self, anonymizer: Anonymizer):
@@ -205,30 +231,18 @@ class AirflowInfo:
         self.config = ConfigInfo(anonymizer)
         self.provider = ProvidersInfo()
 
-    def _show_all(self, console: Console):
+    def info(self, console: Console):
         console.print(
             f"[bold][green]Apache Airflow[/bold][/green]: {self.airflow_version}\n", highlight=False
         )
-        self.system.show(console)
-        self.tools.show(console)
-        self.paths.show(console)
-        self.config.show(console)
-        self.provider.show(console)
-
-    def show(self):
-        """Renders the info using rich"""
-        console = Console()
-        self._show_all(console)
-
-    def render_text(self):
-        """Exports the info to string"""
-        console = Console(record=True)
-        with console.capture():
-            self._show_all(console)
-        return console.export_text()
+        self.system.info(console)
+        self.tools.info(console)
+        self.paths.info(console)
+        self.config.info(console)
+        self.provider.info(console)
 
 
-class SystemInfo:
+class SystemInfo(_BaseInfo):
     """Basic system and python information"""
 
     def __init__(self, anonymizer: Anonymizer):
@@ -239,9 +253,7 @@ class SystemInfo:
         self.python_location = anonymizer.process_path(sys.executable)
         self.python_version = sys.version.replace("\n", " ")
 
-    def show(self, console: Optional[Console] = None):
-        """Renders the info using rich"""
-        console = console or Console()
+    def info(self, console: Console):
         table = SimpleTable(title="System info")
         table.add_row("OS", self.operating_system or "NOT AVAILABLE")
         table.add_row("architecture", self.arch or "NOT AVAILABLE")
@@ -252,7 +264,7 @@ class SystemInfo:
         console.print(table)
 
 
-class PathsInfo:
+class PathsInfo(_BaseInfo):
     """Path information"""
 
     def __init__(self, anonymizer: Anonymizer):
@@ -265,32 +277,28 @@ class PathsInfo:
             os.path.exists(os.path.join(path_elem, "airflow")) for path_elem in system_path
         )
 
-    def show(self, console: Optional[Console] = None):
-        """Renders the info using rich"""
-        console = console or Console()
+    def info(self, console: Console):
         table = SimpleTable(title="Paths info")
+        table.add_column()
+        table.add_column(width=100)
         table.add_row("airflow_home", self.airflow_home)
         table.add_row("system_path", os.pathsep.join(self.system_path))
-        table.add_row("system_path", os.pathsep.join(self.python_path))
+        table.add_row("python_path", os.pathsep.join(self.python_path))
         table.add_row("airflow_on_path", str(self.airflow_on_path))
         console.print(table)
 
 
-class ProvidersInfo:
+class ProvidersInfo(_BaseInfo):
     """providers information"""
 
-    def show(self, console: Optional[Console] = None):
-        """Renders the info using rich"""
-        console = console or Console()
+    def info(self, console: Console):
         table = SimpleTable(title="Providers info")
-        table.add_column("Package")
-        table.add_column("Version")
         for _, provider in ProvidersManager().providers.values():
             table.add_row(provider['package-name'], provider['versions'][0])
         console.print(table)
 
 
-class ConfigInfo:
+class ConfigInfo(_BaseInfo):
     """Most critical config properties"""
 
     def __init__(self, anonymizer: Anonymizer):
@@ -328,9 +336,7 @@ class ConfigInfo:
         except Exception:  # noqa pylint: disable=broad-except
             return "NOT AVAILABLE"
 
-    def show(self, console: Optional[Console] = None):
-        """Renders the info using rich"""
-        console = console or Console()
+    def info(self, console: Console):
         table = SimpleTable(title="Config info")
         table.add_row("executor", self.executor)
         table.add_row("task_logging_handler", self.task_logging_handler)
@@ -341,7 +347,7 @@ class ConfigInfo:
         console.print(table)
 
 
-class ToolsInfo:
+class ToolsInfo(_BaseInfo):
     """The versions of the tools that Airflow uses"""
 
     def __init__(self, anonymize: Anonymizer):
@@ -370,12 +376,8 @@ class ToolsInfo:
         else:
             return data[0].decode()
 
-    def show(self, console: Optional[Console] = None):
-        """Renders the info using rich"""
-        console = console or Console()
+    def info(self, console: Console):
         table = SimpleTable(title="Tools info")
-        table.add_column("Tool")
-        table.add_column("Version")
         table.add_row("git", self.git_version)
         table.add_row("ssh", self.ssh_version)
         table.add_row("kubectl", self.kubectl_version)
@@ -400,7 +402,6 @@ class FileIoException(Exception):
 )
 def _upload_text_to_fileio(content):
     """Upload text file to File.io service and return lnk"""
-    print(content)
     resp = requests.post("https://file.io", data={"text": content})
     if not resp.ok:
         print(resp.json())
@@ -417,8 +418,7 @@ def _send_report_to_fileio(info):
     try:
         link = _upload_text_to_fileio(str(info))
         print("Report uploaded.")
-        print()
-        print("Link:\t", link)
+        print(link)
         print()
     except FileIoException as ex:
         print(str(ex))

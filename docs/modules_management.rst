@@ -232,29 +232,45 @@ Below is the sample output of the ``airflow info`` command:
 
 .. code-block:: none
 
-    Apache Airflow [1.10.11]
+    Apache Airflow: 2.0.0b3
 
-    Platform: [Linux, x86_64] uname_result(system='Linux', node='Shekhar', release='5.4.0-42-generic', version='#46-Ubuntu SMP Fri Jul 10 00:24:02 UTC 2020', machine='x86_64', processor='x86_64')
-    Locale: ('en_US', 'UTF-8')
-    Python Version: [3.8.2 (default, Jul 16 2020, 14:00:26)  [GCC 9.3.0]]
-    Python Location: [/home/rootcss/venvs/airflow/bin/python3]
+    System info
+    OS              | Linux
+    architecture    | x86_64
+    uname           | uname_result(system='Linux', node='85cd7ab7018e', release='4.19.76-linuxkit', version='#1 SMP Tue May 26 11:42:35 UTC 2020', machine='x86_64', processor='')
+    locale          | ('en_US', 'UTF-8')
+    python_version  | 3.8.6 (default, Nov 25 2020, 02:47:44)  [GCC 8.3.0]
+    python_location | /usr/local/bin/python
 
-    git: [git version 2.25.1]
-    ssh: [OpenSSH_8.2p1 Ubuntu-4ubuntu0.1, OpenSSL 1.1.1f  31 Mar 2020]
-    kubectl: [NOT AVAILABLE]
-    gcloud: [NOT AVAILABLE]
-    cloud_sql_proxy: [NOT AVAILABLE]
-    mysql: [NOT AVAILABLE]
-    sqlite3: [3.31.1 2020-01-27 19:55:54 3bfa9cc97da10598521b342961df8f5f68c7388fa117345eeb516eaa837balt1]
-    psql: [psql (PostgreSQL) 12.2 (Ubuntu 12.2-4)]
+    Tools info
+    git             | git version 2.20.1
+    ssh             | OpenSSH_7.9p1 Debian-10+deb10u2, OpenSSL 1.1.1d  10 Sep 2019
+    kubectl         | NOT AVAILABLE
+    gcloud          | NOT AVAILABLE
+    cloud_sql_proxy | NOT AVAILABLE
+    mysql           | mysql  Ver 8.0.22 for Linux on x86_64 (MySQL Community Server - GPL)
+    sqlite3         | 3.27.2 2019-02-25 16:06:06 bd49a8271d650fa89e446b42e513b595a717b9212c91dd384aab871fc1d0alt1
+    psql            | psql (PostgreSQL) 11.9 (Debian 11.9-0+deb10u1)
 
-    Airflow Home: [/home/rootcss/airflow]
-    System PATH: [/home/rootcss/venvs/airflow/bin:/home/rootcss/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/home/rootcss/.rvm/bin:/usr/local/go/bin:/home/rootcss/.rvm/bin]
-    Python PATH: [/home/rootcss/venvs/airflow/bin:/usr/lib/python38.zip:/usr/lib/python3.8:/usr/lib/python3.8/lib-dynload:/home/rootcss/venvs/airflow/lib/python3.8/site-packages:/home/rootcss/airflow/dags:/home/rootcss/airflow/config:/home/rootcss/airflow/plugins]
-    airflow on PATH: [True]
+    Paths info
+    airflow_home    | /root/airflow
+    system_path     | /opt/bats/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    python_path     | /usr/local/bin:/opt/airflow:/files/plugins:/usr/local/lib/python38.zip:/usr/local/lib/python3.8:/usr/
+                    | local/lib/python3.8/lib-dynload:/usr/local/lib/python3.8/site-packages:/files/dags:/root/airflow/conf
+                    | ig:/root/airflow/plugins
+    airflow_on_path | True
 
-    Executor: [SequentialExecutor]
-    SQL Alchemy Conn: [sqlite:////home/rootcss/airflow/airflow.db]
-    DAGS Folder: [/home/rootcss/airflow/dags]
-    Plugins Folder: [/home/rootcss/airflow/plugins]
-    Base Log Folder: [/home/rootcss/airflow/logs]
+    Config info
+    executor             | LocalExecutor
+    task_logging_handler | airflow.utils.log.file_task_handler.FileTaskHandler
+    sql_alchemy_conn     | postgresql+psycopg2://postgres:airflow@postgres/airflow
+    dags_folder          | /files/dags
+    plugins_folder       | /root/airflow/plugins
+    base_log_folder      | /root/airflow/logs
+
+    Providers info
+    apache-airflow-providers-amazon           | 1.0.0b2
+    apache-airflow-providers-apache-cassandra | 1.0.0b2
+    apache-airflow-providers-apache-druid     | 1.0.0b2
+    apache-airflow-providers-apache-hdfs      | 1.0.0b2
+    apache-airflow-providers-apache-hive      | 1.0.0b2
