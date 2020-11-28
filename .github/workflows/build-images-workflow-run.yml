@@ -23,7 +23,6 @@ on:  # yamllint disable-line rule:truthy
     types: ['requested']
 env:
   MOUNT_LOCAL_SOURCES: "false"
-  MOUNT_FILES: "true"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
   FORCE_PULL_IMAGES: "true"
   CHECK_IMAGE_FOR_REBUILD: "true"
@@ -319,7 +318,7 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+          python-version: ${{  matrix.python-version }}
         if: steps.defaults.outputs.proceed == 'true'
       - name: >
           Override "scripts/ci" with the "${{ needs.cancel-workflow-runs.outputs.targetBranch }}" branch
@@ -336,7 +335,8 @@ jobs:
         if: steps.defaults.outputs.proceed == 'true'
       - name: "Build CI images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-        if: matrix.image-type == 'CI' && steps.defaults.outputs.proceed == 'true'
+        # locally built CI image is needed to prepare packages for PROD image build
+        if: steps.defaults.outputs.proceed == 'true'
       - name: "Push CI images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
         run: ./scripts/ci/images/ci_push_ci_images.sh
         if: matrix.image-type == 'CI' && steps.defaults.outputs.proceed == 'true'

@@ -778,6 +778,7 @@ gpus
 greenlet
 groupId
 grpc
+gz
 hadoop
 hadoopcmd
 hashicorp

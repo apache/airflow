@@ -223,38 +223,38 @@ omitting the package ids altogether.
 * To build the release candidate packages for SVN Apache upload run the following command:
 
 ```bash
-./breeze --backports prepare-provider-packages --version-suffix-for-svn=rc1 [PACKAGE_ID] ...
+./breeze --backports prepare-provider-packages package-format both --version-suffix-for-svn=rc1 [PACKAGE_ID] ...
 ```
 
 for example:
 
 ```bash
-./breeze --backports prepare-provider-packages --version-suffix-for-svn=rc1 http ...
+./breeze --backports prepare-provider-packages package-format both --version-suffix-for-svn=rc1 http ...
 ```
 
 * To build the release candidate packages for PyPI upload run the following command:
 
 ```bash
-./breeze --backports prepare-provider-packages --version-suffix-for-pypi=rc1 [PACKAGE_ID] ...
+./breeze --backports prepare-provider-packages package-format both --version-suffix-for-pypi=rc1 [PACKAGE_ID] ...
 ```
 
 for example:
 
 ```bash
-./breeze --backports prepare-provider-packages --version-suffix-for-pypi=rc1 http ...
+./breeze --backports prepare-provider-packages package-format both --version-suffix-for-pypi=rc1 http ...
 ```
 
 
 * To build the final release packages run the following command:
 
 ```bash
-./breeze --backports prepare-provider-packages [PACKAGE_ID] ...
+./breeze --backports prepare-provider-packages package-format both [PACKAGE_ID] ...
 ```
 
 for example:
 
 ```bash
-./breeze --backports prepare-provider-packages http ...
+./breeze --backports prepare-provider-packages package-format both  http ...
 ```
 
 * For each package, this creates a wheel package and source distribution package in your `dist` folder with
@@ -293,38 +293,38 @@ omitting the package ids altogether.
 * To build the release candidate packages for SVN Apache upload run the following command:
 
 ```bash
-./breeze prepare-provider-packages --version-suffix-for-svn=rc1 [PACKAGE_ID] ...
+./breeze prepare-provider-packages package-format both --version-suffix-for-svn=rc1 [PACKAGE_ID] ...
 ```
 
 for example:
 
 ```bash
-./breeze prepare-provider-packages --version-suffix-for-svn=rc1 http ...
+./breeze prepare-provider-packages package-format both --version-suffix-for-svn=rc1 http ...
 ```
 
 * To build the release candidate packages for PyPI upload run the following command:
 
 ```bash
-./breeze prepare-provider-packages --version-suffix-for-pypi=rc1 [PACKAGE_ID] ...
+./breeze prepare-provider-packages package-format both --version-suffix-for-pypi=rc1 [PACKAGE_ID] ...
 ```
 
 for example:
 
 ```bash
-./breeze prepare-provider-packages --version-suffix-for-pypi=rc1 http ...
+./breeze prepare-provider-packages package-format both --version-suffix-for-pypi=rc1 http ...
 ```
 
 
 * To build the final release packages run the following command:
 
 ```bash
-./breeze prepare-provider-packages [PACKAGE_ID] ...
+./breeze prepare-provider-packages package-format both [PACKAGE_ID] ...
 ```
 
 for example:
 
 ```bash
-./breeze prepare-provider-packages http ...
+./breeze prepare-provider-packages package-format both http ...
 ```
 
 * For each package, this creates a wheel package and source distribution package in your `dist` folder with

@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,10 +15,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-version: "2.2"
-services:
-  airflow:
-    volumes:
-      - ../../../files:/files:cached
-      - ../../../dist:/dist:cached
+
+# Build airflow packages
+function build_airflow_packages::build_airflow_packages() {
+    rm -rf -- *egg-info*
+    rm -rf -- build
+
+    pip install --upgrade "pip==${PIP_VERSION}" "wheel==${WHEEL_VERSION}"
+
+    local packages=()
+
+    if [[ ${PACKAGE_FORMAT} == "wheel" || ${PACKAGE_FORMAT} == "both" ]] ; then
+        packages+=("bdist_wheel")
+    fi
+    if [[ ${PACKAGE_FORMAT} == "sdist" || ${PACKAGE_FORMAT} == "both" ]] ; then
+        packages+=("sdist")
+    fi
+
+    # Prepare airflow's wheel
+    python setup.py compile_assets "${packages[@]}"
+
+    # clean-up
+    rm -rf -- *egg-info*
+    rm -rf -- build
+
+    echo
+    echo "Airflow package prepared: ${PACKAGE_FORMAT}"
+    echo
+}

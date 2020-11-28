@@ -101,15 +101,12 @@ build_images::prepare_ci_build
 
 build_images::rebuild_ci_image_if_needed
 
-DOCKER_COMPOSE_LOCAL=()
+DOCKER_COMPOSE_LOCAL=("-f" "${SCRIPTS_CI_DIR}/docker-compose/files.yml")
 
 if [[ ${MOUNT_LOCAL_SOURCES} == "true" ]]; then
     DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/local.yml")
 fi
 
-if [[ ${MOUNT_FILES} == "true" ]]; then
-    DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/files.yml")
-fi
 
 if [[ ${GITHUB_ACTIONS} == "true" ]]; then
     DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/ga.yml")

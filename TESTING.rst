@@ -426,6 +426,56 @@ Those tests are marked with ``@pytest.mark.heisentests`` annotation.
 Those tests are skipped by default. You can enable them with ``--include-heisentests`` flag. You
 can also decide to only run tests with ``-m heisentests`` flag to run only those tests.
 
+Running Tests with provider packages
+====================================
+
+Airflow 2.0 introduced the concept of splitting the monolithic Airflow package into separate
+providers packages. The main "apache-airflow" package contains the bare Airflow implementation,
+and additionally we have 70+ providers that we can install additionally to get integrations with
+external services. Those providers live in the same monorepo as Airflow, but we build separate
+packages for them and the main "apache-airflow" package does not contain the providers.
+
+Most of the development in Breeze happens by iterating on sources and when you run
+your tests during development, you usually do not want to build packages and install them separately.
+Therefore by default when you enter Breeze airflow and all providers are available directly from
+sources rather than installed from packages. This is for example to test the "provider discovery"
+mechanism available that reads provider information from the package meta-data.
+
+When Airflow is run from sources, the metadata is read from provider.yaml
+files, but when Airflow is installed from packages, it is read via the package entrypoint
+``apache_airflow_provider``.
+
+By default all packages are prepared in wheel format. In order to install Airflow from packages you
+need to run the following steps:
+
+1. Prepare provider packages
+
+.. code-block:: bash
+
+     ./breeze prepare-provider-packages [PACKAGE ...]
+
+If you run this command without packages, you will prepare all packages, you can however specify
+providers that you would like to build if you just want to build few provider packages.
+The packages are prepared in ``dist`` folder. Note, that this command cleans up the ``dist`` folder
+before running so you should run it before generating airflow package.
+
+2. Prepare airflow packages
+
+.. code-block:: bash
+
+     ./breeze prepare-airflow-packages
+
+This prepares airflow .whl package in the dist folder.
+
+3. Enter breeze installing both airflow and providers from the packages
+
+This installs airflow and enters
+
+.. code-block:: bash
+
+     ./breeze --install-airflow-version wheel --install-packages-from-dist --skip-mounting-local-sources
+
+
 
 Running Tests with Kubernetes
 =============================
@@ -893,8 +943,8 @@ Preparing provider packages for System Tests for Airflow 1.10.* series
 ----------------------------------------------------------------------
 
 To run system tests with old Airflow version you need to prepare provider packages. This
-can be done by running ``./breeze prepare-provider-packages -- <PACKAGES TO BUILD>``. For
-example the below command will build google postgres and mysql packages:
+can be done by running ``./breeze prepare-provider-packages <PACKAGES TO BUILD>``. For
+example the below command will build google postgres and mysql wheel packages:
 
 .. code-block:: bash
 

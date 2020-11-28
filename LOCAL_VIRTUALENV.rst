@@ -182,6 +182,31 @@ Activate your virtualenv, e.g. by using ``workon``, and once you are in it, run:
     cd airflow/www
     yarn build
 
+Developing Providers
+--------------------
+
+In Airflow 2.0 we introduced split of Apache Airflow into separate packages - there is one main
+apache-airflow package with core of Airflow and 70+ packages for all providers (external services
+and software Airflow can communicate with).
+
+Developing providers is part of Airflow development, but when you install airflow as editable in your local
+development environment, the corresponding provider packages will be also installed from PyPI. However, the
+providers will also be present in your "airflow/providers" folder. This might lead to confusion,
+which sources of providers are imported during development. It will depend on your
+environment's PYTHONPATH setting in general.
+
+In order to avoid the confusion, you can set ``INSTALL_PROVIDERS_FROM_SOURCES`` environment to ``true``
+before running ``pip install`` command:
+
+.. code-block:: bash
+
+  INSTALL_PROVIDERS_FROM_SOURCES="true" pip install -U -e ".[devel,<OTHER EXTRAS>]" \
+     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+
+This way no providers packages will be installed and they will always be imported from the "airflow/providers"
+folder.
+
+
 Running Tests
 -------------
 

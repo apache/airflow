@@ -321,7 +321,7 @@ Building the image (after copying the files downloaded to the "docker-context-fi
 
   ./breeze build-image \
       --production-image --python 3.7 --install-airflow-version=1.10.13 \
-      --disable-mysql-client-installation --disable-pip-cache --add-local-pip-wheels \
+      --disable-mysql-client-installation --disable-pip-cache --install-from-local-files-when-building \
       --constraints-location="/docker-context-files/constraints-1-10.txt"
 
 or
@@ -338,7 +338,7 @@ or
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
     --build-arg INSTALL_MYSQL_CLIENT="false" \
     --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="false" \
-    --build-arg AIRFLOW_LOCAL_PIP_WHEELS="true" \
+    --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="true" \
     --build-arg AIRFLOW_CONSTRAINTS_LOCATION="/docker-context-files/constraints-1-10.txt"
 
 
@@ -500,14 +500,16 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``AIRFLOW_EXTRAS``                       | (see Dockerfile)                         | Default extras with which airflow is     |
 |                                          |                                          | installed                                |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``INSTALL_AIRFLOW_VIA_PIP``              | ``false``                                | If set to true, Airflow is installed via |
-|                                          |                                          | pip install. if you want to install      |
+| ``INSTALL_FROM_PYPI``                    | ``true``                                 | If set to true, Airflow is installed     |
+|                                          |                                          | from pypi. if you want to install        |
 |                                          |                                          | Airflow from externally provided binary  |
 |                                          |                                          | package you can set it to false, place   |
 |                                          |                                          | the package in ``docker-context-files``  |
-|                                          |                                          | and set ``AIRFLOW_LOCAL_PIP_WHEELS`` to  |
-|                                          |                                          | true. You have to also set to true the   |
+|                                          |                                          | and set                                  |
+|                                          |                                          | ``INSTALL_FROM_DOCKER_CONTEXT_FILES`` to |
+|                                          |                                          | true. For this you have to also set the  |
 |                                          |                                          | ``AIRFLOW_PRE_CACHED_PIP_PACKAGES`` flag |
+|                                          |                                          | to false                                 |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_PRE_CACHED_PIP_PACKAGES``      | ``true``                                 | Allows to pre-cache airflow PIP packages |
 |                                          |                                          | from the GitHub of Apache Airflow        |
@@ -517,9 +519,9 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | might be forbidden to download anything  |
 |                                          |                                          | from public repositories.                |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_LOCAL_PIP_WHEELS``             | ``false``                                | If set to true, Airflow and it's         |
+| ``INSTALL_FROM_DOCKER_CONTEXT_FILES``    | ``false``                                | If set to true, Airflow and it's         |
 |                                          |                                          | dependencies are installed during build  |
-|                                          |                                          | from locally downloaded .whl             |
+|                                          |                                          | from locally downloaded .whl .tar.gz     |
 |                                          |                                          | files placed in the                      |
 |                                          |                                          | ``docker-context-files``.                |
 +------------------------------------------+------------------------------------------+------------------------------------------+

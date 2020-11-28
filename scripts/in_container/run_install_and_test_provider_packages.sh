@@ -26,48 +26,52 @@ echo
 
 if [[ ${INSTALL_AIRFLOW_VERSION=""} == "" ]]; then
     echo
-    echo  "${COLOR_RED_ERROR} You have to specify airflow version to install - might be from PyPI or local wheels  ${COLOR_RESET}"
+    echo "${COLOR_RED_ERROR} You have to specify airflow version to install.${COLOR_RESET}"
+    echo
+    echo "It might be version from PyPI, wheel with extras or none to uninstall airflow"
     echo
     exit 1
 fi
 
-if (($# < 1)); then
-    echo
-    echo  "${COLOR_RED_ERROR} Missing installation type (whl/tar.gz) as first argument  ${COLOR_RESET}"
-    echo
-    exit 2
-fi
+PACKAGE_FORMAT=${PACKAGE_FORMAT=}
 
-INSTALL_TYPE=${1}
-readonly INSTALL_TYPE
-
-if [[ ${INSTALL_TYPE} != "whl" && ${INSTALL_TYPE} != "tar.gz" ]]; then
+if [[ ${PACKAGE_FORMAT} != "wheel" && ${PACKAGE_FORMAT} != "sdist" ]]; then
     echo
-    echo  "${COLOR_RED_ERROR} Wrong install type ${INSTALL_TYPE}. Should be 'whl' or 'tar.gz'  ${COLOR_RESET}"
+    echo  "${COLOR_RED_ERROR} Wrong install type ${PACKAGE_FORMAT}. Should be 'wheel' or 'sdist'  ${COLOR_RESET}"
     echo
     exit 3
 fi
 
-if [[ ${INSTALL_AIRFLOW_VERSION} == "wheel"  ]]; then
+if [[ ${INSTALL_AIRFLOW_VERSION} == "none"  ]]; then
     echo
-    echo "Installing the airflow prepared from wheels"
+    echo "Skip installing airflow - only install wheel packages that are present locally"
     echo
-    uninstall_airflow
-    install_airflow_from_wheel
+    uninstall_airflow_and_providers
+elif [[ ${INSTALL_AIRFLOW_VERSION} == "wheel"  ]]; then
+    echo
+    echo "Install airflow from wheel including [all] extras"
+    echo
+    uninstall_airflow_and_providers
+    install_airflow_from_wheel "[all]"
 else
-    uninstall_airflow
+    echo
+    echo "Install airflow from PyPI including [all] extras"
+    echo
     install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}" "[all]"
 fi
 
+echo
+echo "Installs all remaining dependencies that are not installed by 'all' "
+echo
 install_remaining_dependencies
 
-if [[ ${INSTALL_TYPE} == "whl" ]]; then
+if [[ ${PACKAGE_FORMAT} == "wheel" ]]; then
     install_all_provider_packages_from_wheels
-elif [[ ${INSTALL_TYPE} == "tar.gz" ]]; then
+elif [[ ${PACKAGE_FORMAT} == "sdist" ]]; then
     install_all_provider_packages_from_tar_gz_files
 else
     echo
-    echo  "${COLOR_RED_ERROR} Wrong package type ${1}. Should be whl or tar.gz  ${COLOR_RESET}"
+    echo "${COLOR_RED_ERROR} Wrong package format ${PACKAGE_FORMAT}. Should be wheel or sdist${COLOR_RESET}"
     echo
     exit 1
 fi

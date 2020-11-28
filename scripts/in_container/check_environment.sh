@@ -17,8 +17,6 @@
 # under the License.
 # Script to check licences for all code. Can be started from any working directory
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
-
 EXIT_CODE=0
 
 DISABLED_INTEGRATIONS=""
@@ -170,5 +168,3 @@ if [[ -n ${DISABLED_INTEGRATIONS=} ]]; then
     echo "Enable them via --integration <INTEGRATION_NAME> flags (you can use 'all' for all)"
     echo
 fi
-
-exit 0
