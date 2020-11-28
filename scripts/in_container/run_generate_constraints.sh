@@ -36,6 +36,7 @@ echo
 
 pip freeze | sort | \
     grep -v "apache_airflow" | \
+    grep -v "@" | \
     grep -v "/opt/airflow" >"${CURRENT_CONSTRAINT_FILE}"
 
 echo
