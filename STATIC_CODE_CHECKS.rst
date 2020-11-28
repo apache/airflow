@@ -114,6 +114,8 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``isort``                             Sorts imports in python files.
 ----------------------------------- ---------------------------------------------------------------- ------------
+``json-schema``                       Checks that the files complies with the JSON Schema spec
+----------------------------------- ---------------------------------------------------------------- ------------
 ``language-matters``                  Check for language that we do not accept as community
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``lint-dockerfile``                   Lints a dockerfile.

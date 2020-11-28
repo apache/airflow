@@ -501,14 +501,17 @@ repos:
         files: \.(md|mdown|markdown)$
         additional_dependencies: ['markdownlint-cli']
       - id: json-schema
-        name: Lint .github/worklows files
+        name: Lint JSON Schema files with JSON Schema
         entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
         args:
           - --spec-url
-          - https://json.schemastore.org/github-workflow
+          - https://json-schema.org/draft-07/schema
         language: python
         pass_filenames: true
-        files: ^\.github/workflows
+        files: >
+          (?x)
+          ^airflow/provider.yaml.schema.json$|
+          ^airflow/serialization/schema.json$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE

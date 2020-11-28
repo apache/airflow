@@ -2008,15 +2008,15 @@ This is the current syntax for  `./breeze <./breeze>`_:
         Run selected static checks for currently changed files. You should specify static check that
         you would like to run or 'all' to run all checks. One of:
 
-                 all all-but-pylint airflow-config-yaml airflow-providers-available
-                 airflow-provider-yaml-files-ok base-operator bats-tests bats-in-container-tests
-                 black build build-providers-dependencies check-apache-license check-builtin-literals
+                 airflow-config-yaml airflow-provider-yaml-files-ok airflow-providers-available all
+                 all-but-pylint base-operator bats-in-container-tests bats-tests black build
+                 build-providers-dependencies check-apache-license check-builtin-literals
                  check-executables-have-shebangs check-hooks-apply check-integrations
                  check-merge-conflict check-xml consistent-pylint daysago-import-check
                  debug-statements detect-private-key doctoc dont-use-safe-filter end-of-file-fixer
                  fix-encoding-pragma flake8 forbid-tabs helm-lint incorrect-use-of-LoggingMixin
-                 insert-license isort language-matters lint-dockerfile lint-openapi markdownlint
-                 mermaid mixed-line-ending mypy mypy-helm no-providers-in-core-examples
+                 insert-license isort json-schema language-matters lint-dockerfile lint-openapi
+                 markdownlint mermaid mixed-line-ending mypy mypy-helm no-providers-in-core-examples
                  no-relative-imports pre-commit-descriptions provide-create-sessions
                  providers-init-file provider-yamls pydevd pydocstyle pylint pylint-tests
                  python-no-log-warn pyupgrade restrict-start_date rst-backticks setup-order
