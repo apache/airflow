@@ -412,6 +412,7 @@ function run_all_tests_if_environment_files_changed() {
         "^Dockerfile"
         "^scripts"
         "^setup.py"
+        "^setup.cfg"
     )
     show_changed_files
 
