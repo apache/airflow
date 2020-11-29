@@ -28,7 +28,6 @@ from parameterized import parameterized
 from airflow import models
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, TaskFail, TaskInstance, XCom
-from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCheckOperator,
     BigQueryConsoleIndexableLink,
