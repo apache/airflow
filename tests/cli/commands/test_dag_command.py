@@ -334,7 +334,7 @@ class TestCliDags(unittest.TestCase):
             dag_command.dag_report(args)
             out = temp_stdout.getvalue()
 
-        self.assertIn("airflow/example_dags/example_complex.py ", out)
+        self.assertIn("airflow/example_dags/example_complex.py", out)
         self.assertIn("example_complex", out)
 
     @conf_vars({('core', 'load_examples'): 'true'})
