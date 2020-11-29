@@ -190,7 +190,7 @@ Both ``json`` and ``yaml`` formats make it easier to manipulate the data using c
 
 .. code-block:: bash
 
-  airflow tasks states-for-dag-run  example_complex 2020-11-13T00:00:00+00:00 --output json | jq ".[] | {sd: .start_date, ed: .end_date}"
+  airflow tasks states-for-dag-run example_complex 2020-11-13T00:00:00+00:00 --output json | jq ".[] | {sd: .start_date, ed: .end_date}"
   {
     "sd": "2020-11-29T14:53:46.811030+00:00",
     "ed": "2020-11-29T14:53:46.974545+00:00"

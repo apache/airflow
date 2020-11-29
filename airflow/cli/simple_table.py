@@ -64,14 +64,16 @@ class AirflowConsole(Console):
 
     def print_as(self, data: List[Union[Dict, Any]], output: str, mapper: Optional[Callable] = None):
         """Prints provided using format specified by output argument"""
-        output_to_rendered = {
+        output_to_renderer = {
             "json": self.print_as_json,
             "yaml": self.print_as_yaml,
             "table": self.print_as_table,
         }
-        renderer = output_to_rendered.get(output)
+        renderer = output_to_renderer.get(output)
         if not renderer:
-            raise ValueError("The output")
+            raise ValueError(
+                f"Unknown formatter: {output}. Allowed options: {list(output_to_renderer.keys())}"
+            )
 
         if not all(isinstance(d, dict) for d in data) and not mapper:
             raise ValueError("To tabulate non-dictionary data you need to provider `mapper` function")
