@@ -659,10 +659,9 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         # pylint: enable=comparison-with-callable
 
         # pylint: disable=no-member
-        if selected_dag_ids:
-            running_dag_run_query_result = running_dag_run_query_result.filter(
-                DagRun.dag_id.in_(filter_dag_ids)
-            )
+        running_dag_run_query_result = running_dag_run_query_result.filter(
+            DagRun.dag_id.in_(filter_dag_ids)
+        )
         # pylint: enable=no-member
 
         running_dag_run_query_result = running_dag_run_query_result.subquery('running_dag_run')
@@ -678,10 +677,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 running_dag_run_query_result.c.execution_date == TaskInstance.execution_date,
             ),
         )
-        if selected_dag_ids:
-            running_task_instance_query_result = running_task_instance_query_result.filter(
-                TaskInstance.dag_id.in_(filter_dag_ids)
-            )
         # pylint: enable=no-member
 
         if conf.getboolean('webserver', 'SHOW_RECENT_STATS_FOR_COMPLETED_RUNS', fallback=True):
@@ -694,8 +689,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             )
             # pylint: enable=comparison-with-callable
             # pylint: disable=no-member
-            if selected_dag_ids:
-                last_dag_run = last_dag_run.filter(DagRun.dag_id.in_(filter_dag_ids))
+            last_dag_run = last_dag_run.filter(DagRun.dag_id.in_(filter_dag_ids))
             last_dag_run = last_dag_run.subquery('last_dag_run')
             # pylint: enable=no-member
 
@@ -710,12 +704,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                     last_dag_run.c.execution_date == TaskInstance.execution_date,
                 ),
             )
-            # pylint: disable=no-member
-            if selected_dag_ids:
-                last_task_instance_query_result = last_task_instance_query_result.filter(
-                    TaskInstance.dag_id.in_(filter_dag_ids)
-                )
-            # pylint: enable=no-member
 
             final_task_instance_query_result = union_all(
                 last_task_instance_query_result, running_task_instance_query_result
