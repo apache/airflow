@@ -182,11 +182,13 @@ atlas = [
     'atlasclient>=0.1.2',
 ]
 aws = [
-    'boto3~=1.10',
+    'boto3~=1.10,<1.11',  # required by snowflake
 ]
 azure_blob_storage = [
     'azure-storage>=0.34.0, <0.37.0',
-    'azure-storage-blob<12.0',
+    'azure-storage-blob<12.0.0;python_version<"3.6"',
+    'azure-storage-blob;python_version>="3.6"',
+    'azure-storage-common',
 ]
 azure_container_instances = [
     'azure-mgmt-containerinstance>=1.5.0,<2'
@@ -198,6 +200,7 @@ azure_data_lake = [
     'azure-datalake-store>=0.0.45'
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
+    'cffi<1.14.0;python_version<"3.0"'
 ]
 azure_secrets = [
     'azure-identity>=1.3.1',
@@ -207,7 +210,8 @@ cassandra = [
     'cassandra-driver>=3.13.0,<3.21.0',
 ]
 celery = [
-    'celery~=4.3',
+    'celery~=4.3;python_version>="3.0"',
+    'celery==4.3.1;python_version<"3.0"',
     'flower>=0.7.3, <1.0',
     'kombu==4.6.3;python_version<"3.0"',
     'tornado>=4.2.0, <6.0',  # Dep of flower. Pin to a version that works on Py3.5.2
@@ -222,7 +226,8 @@ cloudant = [
 crypto = [
     # Cryptography 3.2 for python 2.7 is broken
     # https://github.com/pyca/cryptography/issues/5359#issuecomment-727622403
-    'cryptography>=0.9.3,<3.2; python_version<"3.0"',
+    # Snowflake requires <3.0
+    'cryptography>=0.9.3,<3.0; python_version<"3.0"',
     'cryptography>=0.9.3;python_version>="3.0"',
 ]
 dask = [
@@ -260,7 +265,8 @@ flask_oauth = [
     'requests-oauthlib==1.1.0',
 ]
 gcp = [
-    'PyOpenSSL',
+    'PyOpenSSL<20.0.0;python_version<"3.0"',
+    'PyOpenSSL;python_version>="3.0"',
     'google-api-python-client>=1.6.0, <2.0.0',
     'google-auth>=1.0.0, <2.0.0',
     'google-auth-httplib2>=0.0.1',
@@ -306,7 +312,8 @@ jira = [
 kerberos = [
     'pykerberos>=1.1.13',
     'requests_kerberos>=0.10.0',
-    'thrift_sasl>=0.2.0',
+    'thrift_sasl>=0.2.0,<0.4.1;python_version<"3.0"',
+    'thrift_sasl>=0.2.0;python_version>="3.0"',
 ]
 kubernetes = [
     'cryptography>=2.0.0',
@@ -336,7 +343,9 @@ papermill = [
     'papermill[all]>=1.0.0',
     'nteract-scrapbook[all]>=0.2.1',
     'pyarrow<1.0.0',
-    'fsspec<0.8.0;python_version=="3.5"'
+    'fsspec<0.8.0;python_version=="3.5"',
+    'black==20.8b0;python_version>="3.6"'  # we need to limit black version as we have click < 7
+
 ]
 password = [
     'bcrypt>=2.0.0',
@@ -355,7 +364,7 @@ qds = [
     'qds-sdk>=1.10.4',
 ]
 rabbitmq = [
-    'amqp',
+    'amqp<5.0.0',
 ]
 redis = [
     'redis~=3.2',
@@ -378,6 +387,7 @@ sentry = [
 ]
 slack = [
     'slackclient>=1.0.0,<2.0.0',
+    'websocket-client<0.55.0'
 ]
 snowflake = [
     'snowflake-connector-python>=1.5.2',
@@ -421,11 +431,14 @@ devel = [
     'click==6.7',
     'contextdecorator;python_version<"3.4"',
     'coverage',
+    'docutils>=0.14, <0.16',
+    'ecdsa<0.15',  # Required for moto 1.3.14
     'flake8>=3.6.0',
     'flake8-colors',
     'flaky',
     'freezegun',
     'gitpython',
+    'idna<2.9',  # Required for moto 1.3.14
     'importlib-metadata~=2.0; python_version<"3.8"',
     'ipdb',
     'jira',
@@ -436,14 +449,15 @@ devel = [
     'packaging',
     'parameterized',
     'paramiko',
+    'pipdeptree',
     'pre-commit',
+    'pyrsistent<=0.16.0;python_version<"3.0"',
+    'pyrsistent;python_version>="3.0"',
     'pysftp',
     'pytest<6.0.0',  # FIXME: pylint complaining for pytest.mark.* on v6.0
     'pytest-cov',
     'pytest-instafail',
-    'pytest-rerunfailures',
     'pytest-timeouts',
-    'pytest-xdist',
     'pywinrm',
     'qds-sdk>=1.9.6',
     'requests_mock',
@@ -590,6 +604,8 @@ INSTALL_REQUIREMENTS = [
     'colorlog==4.0.2',
     'configparser>=3.5.0, <3.6.0',
     'croniter>=0.3.17, <0.4',
+    'cryptography>=0.9.3,<3.0; python_version<"3.0"',  # required by snowflake
+    'cryptography>=0.9.3;python_version>="3.0"',
     'dill>=0.2.2, <0.4',
     'email-validator',
     'enum34~=1.1.6;python_version<"3.4"',
@@ -606,11 +622,12 @@ INSTALL_REQUIREMENTS = [
     'graphviz>=0.12',
     'gunicorn>=19.5.0, <21.0',
     'importlib-metadata~=2.0; python_version<"3.8"',
+    'importlib_resources~=1.4',
     'iso8601>=0.1.12',
     'jinja2>=2.10.1, <2.12.0',
     'json-merge-patch==0.2',
     'jsonschema~=3.0',
-    'lazy_object_proxy~=1.3',
+    'lazy_object_proxy<1.5.0',  # Required to keep pip-check happy with astroid
     'markdown>=2.5.2, <3.0',
     'marshmallow-sqlalchemy>=0.16.1, <0.24.0;python_version>="3.6"',
     'marshmallow-sqlalchemy>=0.16.1, <0.19.0;python_version<"3.6"',
@@ -624,14 +641,15 @@ INSTALL_REQUIREMENTS = [
     'python-dateutil>=2.3, <3',
     'python-nvd3~=0.15.0',
     'python-slugify>=3.0.0,<5.0',
-    'requests>=2.20.0, <3',
+    'requests>=2.20.0, <2.23.0;python_version<"3.0"',  # Required to keep snowflake happy
+    'requests>=2.20.0, <2.24.0;python_version>="3.0"',  # Required to keep snowflake happy
     'setproctitle>=1.1.8, <2',
     'sqlalchemy~=1.3',
     'sqlalchemy_jsonfield==0.8.0;python_version<"3.5"',
     'sqlalchemy_jsonfield~=0.9;python_version>="3.5"',
     'tabulate>=0.7.5, <0.9',
     'tenacity==4.12.0',
-    'thrift>=0.9.2',
+    'thrift>=0.11.0',
     'typing;python_version<"3.5"',
     'typing-extensions>=3.7.4;python_version<"3.8"',
     'tzlocal>=1.4,<2.0.0',

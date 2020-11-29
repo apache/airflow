@@ -1355,6 +1355,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           If you use this flag, automatically --github-registry is enabled.
 
+
           Default: latest.
 
   -v, --verbose
@@ -1507,6 +1508,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           that occurred in CI.
 
           If you use this flag, automatically --github-registry is enabled.
+
 
           Default: latest.
 
@@ -2275,6 +2277,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           that occurred in CI.
 
           If you use this flag, automatically --github-registry is enabled.
+
 
           Default: latest.
 

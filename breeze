@@ -1078,6 +1078,7 @@ function breeze::parse_arguments() {
             echo
             echo "Force pulling the image, using github registry and skip mounting local sources."
             echo "This is in order to get the exact same version as used in CI environment for SHA/RUN_ID!."
+            echo "You can specify --skip-mounting-local-sources to not mount local sources. "
             echo
             export FORCE_PULL_IMAGES="true"
             export USE_GITHUB_REGISTRY="true"
@@ -2384,6 +2385,7 @@ function breeze::flag_pull_push_docker_images() {
         that occurred in CI.
 
         If you use this flag, automatically --github-registry is enabled.
+
 
         Default: ${_breeze_default_github_image_id:=}.
 
