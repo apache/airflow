@@ -329,7 +329,7 @@ class TestCliDags(unittest.TestCase):
 
     @conf_vars({('core', 'load_examples'): 'true'})
     def test_cli_report(self):
-        args = self.parser.parse_args(['dags', 'report'])
+        args = self.parser.parse_args(['dags', 'report', '--output', 'json'])
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_report(args)
             out = temp_stdout.getvalue()

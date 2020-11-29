@@ -43,7 +43,7 @@ class TestCliGetConnection(unittest.TestCase):
     def test_cli_connection_get(self):
         with redirect_stdout(io.StringIO()) as stdout:
             connection_command.connections_get(
-                self.parser.parse_args(["connections", "get", "google_cloud_default"])
+                self.parser.parse_args(["connections", "get", "google_cloud_default", "--output", "json"])
             )
             stdout = stdout.getvalue()
         self.assertIn("google-cloud-platform:///default", stdout)
