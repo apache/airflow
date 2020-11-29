@@ -3191,6 +3191,8 @@ class TestSchedulerJob(unittest.TestCase):
 
         ignored_files = {
             'helper.py',
+            'example_kubernetes_executor.py',
+            'example_kubernetes_executor_config.py',
         }
         example_dag_folder = airflow.example_dags.__path__[0]
         for root, _, files in os.walk(example_dag_folder):  # pylint: disable=too-many-nested-blocks
