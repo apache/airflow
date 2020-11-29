@@ -19,6 +19,13 @@ import logging
 import unittest
 from unittest import mock
 
+try:
+    # Python 3.8 and up
+    from importlib import metadata as importlib_metadata
+except ImportError:
+    # Use the backport
+    import importlib_metadata
+
 from airflow.hooks.base_hook import BaseHook
 from airflow.plugins_manager import AirflowPlugin
 from airflow.www import app as application
@@ -201,9 +208,9 @@ class TestPluginsManager:
         mock_entrypoint.load.side_effect = ImportError('my_fake_module not found')
         mock_dist.entry_points = [mock_entrypoint]
 
-        with mock.patch('importlib_metadata.distributions', return_value=[mock_dist]), caplog.at_level(
-            logging.ERROR, logger='airflow.plugins_manager'
-        ):
+        with mock.patch.object(
+            importlib_metadata, 'distributions', return_value=[mock_dist]
+        ), caplog.at_level(logging.ERROR, logger='airflow.plugins_manager'):
             load_entrypoint_plugins()
 
             received_logs = caplog.text
@@ -237,7 +244,7 @@ class TestEntryPointSource:
         mock_dist.version = '1.0.0'
         mock_dist.entry_points = [mock_entrypoint]
 
-        with mock.patch('importlib_metadata.distributions', return_value=[mock_dist]):
+        with mock.patch.object(importlib_metadata, 'distributions', return_value=[mock_dist]):
             plugins_manager.load_entrypoint_plugins()
 
         source = plugins_manager.EntryPointSource(mock_entrypoint, mock_dist)

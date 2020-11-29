@@ -26,7 +26,12 @@ import sys
 import types
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
-import importlib_metadata
+try:
+    # Python 3.8 and up
+    from importlib import metadata as importlib_metadata
+except ImportError:
+    # Use the backport
+    import importlib_metadata
 
 from airflow import settings
 from airflow.utils.entry_points import entry_points_with_dist
