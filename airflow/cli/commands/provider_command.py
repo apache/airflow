@@ -15,13 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """Providers sub-commands"""
+import re
 from typing import Dict, List
 
 import pygments
 import yaml
 from pygments.lexers.data import YamlLexer
+from rich.console import Console
 from tabulate import tabulate
 
+from airflow.cli.simple_table import SimpleTable
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.cli import should_use_colors
 from airflow.utils.code_utils import get_terminal_formatter
@@ -40,17 +43,20 @@ def _tabulate_providers(providers: List[Dict], tablefmt: str):
     return tabulate(tabulate_data, tablefmt=tablefmt, headers='keys')
 
 
+def _remove_rst_syntax(value: str) -> str:
+    return re.sub("[`_<>]", "", value.strip(" \n."))
+
+
 def provider_get(args):
     """Get a provider info."""
     providers = ProvidersManager().providers
     if args.provider_name in providers:
         provider_version = providers[args.provider_name][0]
         provider_info = providers[args.provider_name][1]
-        print("#")
-        print(f"# Provider: {args.provider_name}")
-        print(f"# Version: {provider_version}")
-        print("#")
+        print(f"Provider: {args.provider_name}")
+        print(f"Version: {provider_version}")
         if args.full:
+            provider_info["description"] = _remove_rst_syntax(provider_info["description"])
             yaml_content = yaml.dump(provider_info)
             if should_use_colors(args):
                 yaml_content = pygments.highlight(
@@ -63,4 +69,15 @@ def provider_get(args):
 
 def providers_list(args):
     """Lists all providers at the command line"""
-    print(_tabulate_providers(ProvidersManager().providers.values(), args.output))
+    console = Console()
+    table = SimpleTable(title="Installed providers")
+    table.add_column("Name")
+    table.add_column("Description")
+    table.add_column("Version")
+    for _, provider in ProvidersManager().providers.values():
+        table.add_row(
+            provider['package-name'],
+            _remove_rst_syntax(provider['description']),
+            provider['versions'][0],
+        )
+    console.print(table)
