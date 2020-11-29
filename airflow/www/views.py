@@ -659,9 +659,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         # pylint: enable=comparison-with-callable
 
         # pylint: disable=no-member
-        running_dag_run_query_result = running_dag_run_query_result.filter(
-            DagRun.dag_id.in_(filter_dag_ids)
-        )
+        running_dag_run_query_result = running_dag_run_query_result.filter(DagRun.dag_id.in_(filter_dag_ids))
         # pylint: enable=no-member
 
         running_dag_run_query_result = running_dag_run_query_result.subquery('running_dag_run')
