@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 import importlib_metadata
 
 from airflow import settings
-from airflow.utils.entry_points_with_dist import entry_points_with_dist
+from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.file import find_path_from_directory
 
 if TYPE_CHECKING:

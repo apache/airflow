@@ -27,7 +27,7 @@ from typing import Dict, Tuple
 import jsonschema
 import yaml
 
-from airflow.utils.entry_points_with_dist import entry_points_with_dist
+from airflow.utils.entry_points import entry_points_with_dist
 
 try:
     import importlib.resources as importlib_resources
@@ -77,7 +77,7 @@ class ProvidersManager:
         self._discover_all_providers_from_packages()
         self._discover_hooks()
         self._provider_dict = OrderedDict(sorted(self.providers.items()))
-        self._hooks_dict = OrderedDict(sorted(self.providers.items()))
+        self._hooks_dict = OrderedDict(sorted(self.hooks.items()))
 
     def _discover_all_providers_from_packages(self) -> None:
         """
