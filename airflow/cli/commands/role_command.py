@@ -17,8 +17,8 @@
 # under the License.
 #
 """Roles sub-commands"""
-from tabulate import tabulate
 
+from airflow.cli.simple_table import AirflowConsole
 from airflow.utils import cli as cli_utils
 from airflow.www.app import cached_app
 
@@ -27,10 +27,9 @@ def roles_list(args):
     """Lists all existing roles"""
     appbuilder = cached_app().appbuilder  # pylint: disable=no-member
     roles = appbuilder.sm.get_all_roles()
-    print("Existing roles:\n")
-    role_names = sorted([[r.name] for r in roles])
-    msg = tabulate(role_names, headers=['Role'], tablefmt=args.output)
-    print(msg)
+    AirflowConsole().print_as(
+        data=sorted([r.name for r in roles]), output=args.output, mapper=lambda x: {"name": x}
+    )
 
 
 @cli_utils.action_logging

@@ -24,8 +24,7 @@ import re
 import string
 import sys
 
-from tabulate import tabulate
-
+from airflow.cli.simple_table import AirflowConsole
 from airflow.utils import cli as cli_utils
 from airflow.www.app import cached_app
 
@@ -35,9 +34,10 @@ def users_list(args):
     appbuilder = cached_app().appbuilder  # pylint: disable=no-member
     users = appbuilder.sm.get_all_users()
     fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
-    users = [[user.__getattribute__(field) for field in fields] for user in users]
-    msg = tabulate(users, [field.capitalize().replace('_', ' ') for field in fields], tablefmt=args.output)
-    print(msg)
+
+    AirflowConsole().print_as(
+        data=users, output=args.output, mapper=lambda x: {f: x.__getattribute__(f) for f in fields}
+    )
 
 
 @cli_utils.action_logging

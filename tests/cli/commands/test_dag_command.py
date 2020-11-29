@@ -47,6 +47,7 @@ EXAMPLE_DAGS_FOLDER = os.path.join(
 )
 
 
+# TODO: Check if tests needs side effects - locally there's missing DAG
 class TestCliDags(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -332,18 +333,19 @@ class TestCliDags(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_report(args)
             out = temp_stdout.getvalue()
+            print(out)
 
         self.assertIn("airflow/example_dags/example_complex.py ", out)
         self.assertIn("['example_complex']", out)
 
     @conf_vars({('core', 'load_examples'): 'true'})
     def test_cli_list_dags(self):
-        args = self.parser.parse_args(['dags', 'list', '--output=fancy_grid'])
+        args = self.parser.parse_args(['dags', 'list'])
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_list_dags(args)
             out = temp_stdout.getvalue()
-        self.assertIn("Owner", out)
-        self.assertIn("│ airflow │", out)
+        self.assertIn("owner", out)
+        self.assertIn("airflow", out)
         self.assertIn("airflow/example_dags/example_complex.py", out)
 
     def test_cli_list_dag_runs(self):
@@ -383,7 +385,7 @@ class TestCliDags(unittest.TestCase):
                 '--limit',
                 '100',
                 '--output',
-                'tsv',
+                'json',
             ]
         )
         dag_command.dag_list_jobs(args)

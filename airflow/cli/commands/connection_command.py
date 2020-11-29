@@ -19,60 +19,36 @@ import io
 import json
 import os
 import sys
-from typing import List
+from typing import Any, Dict, List
 from urllib.parse import urlparse, urlunparse
 
-import pygments
 import yaml
-from pygments.lexers.data import YamlLexer
 from sqlalchemy.orm import exc
-from tabulate import tabulate
 
+from airflow.cli.simple_table import AirflowConsole
 from airflow.exceptions import AirflowNotFoundException
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import Connection
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import should_use_colors
-from airflow.utils.code_utils import get_terminal_formatter
 from airflow.utils.session import create_session
 
 
-def _tabulate_connection(conns: List[Connection], tablefmt: str):
-    tabulate_data = [
-        {
-            'Conn Id': conn.conn_id,
-            'Conn Type': conn.conn_type,
-            'Description': conn.description,
-            'Host': conn.host,
-            'Port': conn.port,
-            'Is Encrypted': conn.is_encrypted,
-            'Is Extra Encrypted': conn.is_encrypted,
-            'Extra': conn.extra,
-        }
-        for conn in conns
-    ]
-
-    msg = tabulate(tabulate_data, tablefmt=tablefmt, headers='keys')
-    return msg
-
-
-def _yamulate_connection(conn: Connection):
-    yaml_data = {
-        'Id': conn.id,
-        'Conn Id': conn.conn_id,
-        'Conn Type': conn.conn_type,
-        'Description': conn.description,
-        'Host': conn.host,
-        'Schema': conn.schema,
-        'Login': conn.login,
-        'Password': conn.password,
-        'Port': conn.port,
-        'Is Encrypted': conn.is_encrypted,
-        'Is Extra Encrypted': conn.is_encrypted,
-        'Extra': conn.extra_dejson,
-        'URI': conn.get_uri(),
+def _connection_mapper(conn: Connection) -> Dict[str, Any]:
+    return {
+        'id': conn.id,
+        'conn_id': conn.conn_id,
+        'conn_type': conn.conn_type,
+        'description': conn.description,
+        'host': conn.host,
+        'schema': conn.schema,
+        'login': conn.login,
+        'password': conn.password,
+        'port': conn.port,
+        'is_encrypted': conn.is_encrypted,
+        'is_extra_encrypted': conn.is_encrypted,
+        'extra_dejson': conn.extra_dejson,
+        'get_uri()': conn.get_uri(),
     }
-    return yaml.safe_dump(yaml_data, sort_keys=False)
 
 
 def connections_get(args):
@@ -81,14 +57,11 @@ def connections_get(args):
         conn = BaseHook.get_connection(args.conn_id)
     except AirflowNotFoundException:
         raise SystemExit("Connection not found.")
-
-    yaml_content = _yamulate_connection(conn)
-    if should_use_colors(args):
-        yaml_content = pygments.highlight(
-            code=yaml_content, formatter=get_terminal_formatter(), lexer=YamlLexer()
-        )
-
-    print(yaml_content)
+    AirflowConsole().print_as(
+        data=[conn],
+        output=args.output,
+        mapper=_connection_mapper,
+    )
 
 
 def connections_list(args):
@@ -99,9 +72,11 @@ def connections_list(args):
             query = query.filter(Connection.conn_id == args.conn_id)
         conns = query.all()
 
-        tablefmt = args.output
-        msg = _tabulate_connection(conns, tablefmt)
-        print(msg)
+        AirflowConsole().print_as(
+            data=conns,
+            output=args.output,
+            mapper=_connection_mapper,
+        )
 
 
 def _format_connections(conns: List[Connection], fmt: str) -> str:

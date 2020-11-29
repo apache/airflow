@@ -21,28 +21,35 @@ import os
 import sys
 from json import JSONDecodeError
 
-from tabulate import tabulate
-
 from airflow.api.client import get_current_api_client
+from airflow.cli.simple_table import AirflowConsole
 from airflow.utils import cli as cli_utils
 
 
-def _tabulate_pools(pools, tablefmt="fancy_grid"):
-    return "\n%s" % tabulate(pools, ['Pool', 'Slots', 'Description'], tablefmt=tablefmt)
+def _show_pools(pools, output):
+    AirflowConsole().print_as(
+        data=pools,
+        output=output,
+        mapper=lambda x: {
+            "pool": x[0],
+            "slots": x[1],
+            "description": x[2],
+        },
+    )
 
 
 def pool_list(args):
     """Displays info of all the pools"""
     api_client = get_current_api_client()
     pools = api_client.get_pools()
-    print(_tabulate_pools(pools=pools, tablefmt=args.output))
+    _show_pools(pools=pools, output=args.output)
 
 
 def pool_get(args):
     """Displays pool info by a given name"""
     api_client = get_current_api_client()
     pools = [api_client.get_pool(name=args.pool)]
-    print(_tabulate_pools(pools=pools, tablefmt=args.output))
+    _show_pools(pools=pools, output=args.output)
 
 
 @cli_utils.action_logging
@@ -50,7 +57,7 @@ def pool_set(args):
     """Creates new pool with a given name and slots"""
     api_client = get_current_api_client()
     pools = [api_client.create_pool(name=args.pool, slots=args.slots, description=args.description)]
-    print(_tabulate_pools(pools=pools, tablefmt=args.output))
+    _show_pools(pools=pools, output=args.output)
 
 
 @cli_utils.action_logging
@@ -58,7 +65,7 @@ def pool_delete(args):
     """Deletes pool by a given name"""
     api_client = get_current_api_client()
     pools = [api_client.delete_pool(name=args.pool)]
-    print(_tabulate_pools(pools=pools, tablefmt=args.output))
+    _show_pools(pools=pools, output=args.output)
 
 
 @cli_utils.action_logging
@@ -67,7 +74,7 @@ def pool_import(args):
     if not os.path.exists(args.file):
         sys.exit("Missing pools file.")
     pools, failed = pool_import_helper(args.file)
-    print(_tabulate_pools(pools=pools, tablefmt=args.output))
+    _show_pools(pools=pools, output=args.output)
     if len(failed) > 0:
         sys.exit("Failed to update pool(s): {}".format(", ".join(failed)))
 
@@ -75,7 +82,7 @@ def pool_import(args):
 def pool_export(args):
     """Exports all of the pools to the file"""
     pools = pool_export_helper(args.file)
-    print(_tabulate_pools(pools=pools, tablefmt=args.output))
+    _show_pools(pools=pools, output=args.output)
 
 
 def pool_import_helper(filepath):

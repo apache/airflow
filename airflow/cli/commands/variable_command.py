@@ -21,6 +21,7 @@ import os
 import sys
 from json import JSONDecodeError
 
+from airflow.cli.simple_table import AirflowConsole
 from airflow.models import Variable
 from airflow.utils import cli as cli_utils
 from airflow.utils.session import create_session
@@ -30,7 +31,7 @@ def variables_list(args):
     """Displays all of the variables"""
     with create_session() as session:
         variables = session.query(Variable)
-    print("\n".join(var.key for var in variables))
+    AirflowConsole().print_as(data=variables, output=args.output, mapper=lambda x: {"key": x.key})
 
 
 def variables_get(args):
