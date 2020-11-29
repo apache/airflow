@@ -76,8 +76,8 @@ class ProvidersManager:
         self._discover_all_airflow_builtin_providers_from_local_sources()
         self._discover_all_providers_from_packages()
         self._discover_hooks()
-        self._provider_dict = OrderedDict(sorted(self._provider_dict.items()))
-        self._hooks_dict = OrderedDict(sorted(self._hooks_dict.items()))
+        self._provider_dict = OrderedDict(sorted(self.providers.items()))
+        self._hooks_dict = OrderedDict(sorted(self.providers.items()))
 
     def _discover_all_providers_from_packages(self) -> None:
         """
@@ -85,7 +85,7 @@ class ProvidersManager:
         via the 'apache_airflow_provider' entrypoint as a dictionary conforming to the
         'airflow/provider.yaml.schema.json' schema.
         """
-        for (entry_point, dist) in entry_points_with_dist('apache_airflow_provider'):
+        for entry_point, dist in entry_points_with_dist('apache_airflow_provider'):
             package_name = dist.metadata['name']
             log.debug("Loading %s from package %s", entry_point, package_name)
             version = dist.version
