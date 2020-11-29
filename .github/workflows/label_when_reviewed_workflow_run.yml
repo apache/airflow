@@ -97,21 +97,23 @@ jobs:
           require_committers_approval: 'true'
           pullRequestNumber: ${{ steps.source-run-info.outputs.pullRequestNumber }}
           comment: >
-            The PR needs to run all tests because it modifies core of Airflow! Please rebase it to latest
-            master or ask committer to re-run it!
+            The PR most likely needs to run full matrix of tests because it modifies parts of the core
+            of Airflow. However, committers might decide to merge it quickly and take the risk.
+            If they don't merge it quickly - please rebase it to the latest master at your convenience,
+            or amend the last commit of the PR, and push it with --force-with-lease.
       - name: "Initiate GitHub Check forcing rerun of SH ${{ github.event.pull_request.head.sha }}"
         uses: LouisBrunner/checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798  # v1.1.0
         id: full-test-check
         if: steps.label-full-test-prs-when-approved-by-commiters.outputs.labelSet == 'true'
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          name: "Please rebase or re-run to run full tests"
+          name: "Please rebase or amend, and force push the PR to run full tests"
           status: "in_progress"
           sha: ${{ steps.source-run-info.outputs.sourceHeadSha }}
           details_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           output: >
             {"summary":
-            "The PR needs to run all tests! This was determined via
+            "The PR likely needs to run all tests! This was determined via selective check in
             [the run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
             "}
       - name: "Label when approved by committers for PRs that do not require full tests"
@@ -126,9 +128,11 @@ jobs:
           require_committers_approval: 'true'
           pullRequestNumber: ${{ steps.source-run-info.outputs.pullRequestNumber }}
           comment: >
-            The PR should be OK to be merged with just subset of tests as it does not modify Core of
-            Airflow. The committers might merge it or can add a label 'full tests needed' and re-run it
-            to run all tests if they see it is needed!
+            The PR is likely OK to be merged with just subset of tests for default Python and Database
+            versions without running the full matrix of tests, because it does not modify the core of
+            Airflow. If the committers decide that the full tests matrix is needed, they will add the label
+            'full tests needed'. Then you should rebase to the latest master or amend the last commit
+            of the PR, and push it with --force-with-lease.
       - name: "Label when approved by committers for PRs that do not require tests at all"
         uses: TobKed/label-when-approved-action@4c5190fec5661e98d83f50bbd4ef9ebb48bd1194  # v1.3
         id: label-no-test-prs-when-approved-by-commiters
@@ -138,7 +142,11 @@ jobs:
           label: 'okay to merge'
           pullRequestNumber: ${{ steps.source-run-info.outputs.pullRequestNumber }}
           require_committers_approval: 'true'
-          comment: "The PR is ready to be merged. No tests are needed!"
+          comment: >
+            The PR is likely ready to be merged. No tests are needed as no important environment files,
+            nor python files were modified by it. However, committers might decide that full test matrix is
+            needed and add the 'full tests needed' label. Then you should rebase it to the latest master
+            or amend the last commit of the PR, and push it with --force-with-lease.
       - name: Update Selective Build check
         uses: LouisBrunner/checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798  # v1.1.0
         if: always()
