@@ -45,7 +45,7 @@ class BaseSQLOperator(BaseOperator):
     """
     This is a base class for generic SQL Operator to get a DB Hook
 
-    The provided method is .get_db_hook(). The default behavior will try to 
+    The provided method is .get_db_hook(). The default behavior will try to
     retrieve the DB hook based on connection type.
     You can custom the behaivor by overriding the .get_db_hook() method.
     """
