@@ -704,9 +704,6 @@ reached, runnable tasks get queued and their state will show as such in the
 UI. As slots free up, queued tasks start running based on the
 ``priority_weight`` (of the task and its descendants).
 
-Pools are not thread-safe , in case of more than one scheduler in localExecutor Mode
-you can't ensure the non-scheduling of task even if the pool is full.
-
 Note that if tasks are not given a pool, they are assigned to a default
 pool ``default_pool``.  ``default_pool`` is initialized with 128 slots and
 can changed through the UI or CLI (though it cannot be removed).
