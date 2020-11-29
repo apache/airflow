@@ -21,19 +21,18 @@ from contextlib import redirect_stdout
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import plugins_command
-from airflow.models.baseoperator import BaseOperator
+from airflow.hooks.base_hook import BaseHook
 from airflow.plugins_manager import AirflowPlugin
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
 
-class PluginOperator(BaseOperator):
+class PluginHook(BaseHook):
     pass
 
 
 class TestPlugin(AirflowPlugin):
     name = "test-plugin-cli"
-
-    operators = [PluginOperator]
+    hooks = [PluginHook]
 
 
 class TestPluginsCommand(unittest.TestCase):
@@ -46,16 +45,15 @@ class TestPluginsCommand(unittest.TestCase):
         with redirect_stdout(io.StringIO()) as temp_stdout:
             plugins_command.dump_plugins(self.parser.parse_args(['plugins']))
             stdout = temp_stdout.getvalue()
-
-        self.assertIn('plugins = []', stdout)
         self.assertIn('No plugins loaded', stdout)
-        self.assertIn("PLUGINS MANGER:", stdout)
-        self.assertIn("PLUGINS:", stdout)
 
     @mock_plugin_manager(plugins=[TestPlugin])
     def test_should_display_one_plugins(self):
         with redirect_stdout(io.StringIO()) as temp_stdout:
             plugins_command.dump_plugins(self.parser.parse_args(['plugins']))
             stdout = temp_stdout.getvalue()
-        self.assertIn('plugins = [<class ', stdout)
+        print(stdout)
+        self.assertIn('Plugins directory:', stdout)
+        self.assertIn("Loaded plugins: 1", stdout)
         self.assertIn('test-plugin-cli', stdout)
+        self.assertIn('PluginHook', stdout)

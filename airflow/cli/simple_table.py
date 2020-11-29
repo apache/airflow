@@ -28,6 +28,7 @@ class SimpleTable(Table):
         self.pad_edge = kwargs.get("pad_edge", False)
         self.box = kwargs.get("box", ASCII_DOUBLE_HEAD)
         self.show_header = kwargs.get("show_header", False)
+        self.header_style = kwargs.get("header_style", "bold green")
         self.title_style = kwargs.get("title_style", "bold green")
         self.title_justify = kwargs.get("title_justify", "left")
         self.caption = kwargs.get("caption", " ")
