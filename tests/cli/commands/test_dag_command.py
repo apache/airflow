@@ -333,14 +333,13 @@ class TestCliDags(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_report(args)
             out = temp_stdout.getvalue()
-            print(out)
 
         self.assertIn("airflow/example_dags/example_complex.py ", out)
-        self.assertIn("['example_complex']", out)
+        self.assertIn("example_complex", out)
 
     @conf_vars({('core', 'load_examples'): 'true'})
     def test_cli_list_dags(self):
-        args = self.parser.parse_args(['dags', 'list'])
+        args = self.parser.parse_args(['dags', 'list', '--output', 'yaml'])
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_list_dags(args)
             out = temp_stdout.getvalue()

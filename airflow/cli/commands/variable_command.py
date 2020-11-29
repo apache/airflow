@@ -24,9 +24,11 @@ from json import JSONDecodeError
 from airflow.cli.simple_table import AirflowConsole
 from airflow.models import Variable
 from airflow.utils import cli as cli_utils
+from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.session import create_session
 
 
+@suppress_logs_and_warning()
 def variables_list(args):
     """Displays all of the variables"""
     with create_session() as session:

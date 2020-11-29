@@ -83,7 +83,7 @@ function discover_all_provider_packages() {
 
     local expected_number_of_providers=60
     local actual_number_of_providers
-    actual_number_of_providers=$(airflow providers list --output simple | grep -c apache-airflow-providers | xargs)
+    actual_number_of_providers=$(airflow providers list --output table | grep -c apache-airflow-providers | xargs)
     if [[ ${actual_number_of_providers} != "${expected_number_of_providers}" ]]; then
         >&2 echo "ERROR! Number of providers installed is wrong!"
         >&2 echo "Expected number was '${expected_number_of_providers}' and got '${actual_number_of_providers}'"
@@ -102,7 +102,7 @@ function discover_all_hooks() {
 
     local expected_number_of_hooks=33
     local actual_number_of_hooks
-    actual_number_of_hooks=$(airflow providers hooks --output simple | grep -c conn_id | xargs)
+    actual_number_of_hooks=$(airflow providers hooks --output table | grep -c conn_id | xargs)
     if [[ ${actual_number_of_hooks} != "${expected_number_of_hooks}" ]]; then
         >&2 echo "ERROR! Number of hooks registered is wrong!"
         >&2 echo "Expected number was '${expected_number_of_hooks}' and got '${actual_number_of_hooks}'"

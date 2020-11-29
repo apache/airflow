@@ -30,6 +30,7 @@ from airflow.exceptions import AirflowNotFoundException
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import Connection
 from airflow.utils import cli as cli_utils
+from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.session import create_session
 
 
@@ -51,6 +52,7 @@ def _connection_mapper(conn: Connection) -> Dict[str, Any]:
     }
 
 
+@suppress_logs_and_warning()
 def connections_get(args):
     """Get a connection."""
     try:
@@ -64,6 +66,7 @@ def connections_get(args):
     )
 
 
+@suppress_logs_and_warning()
 def connections_list(args):
     """Lists all connections at the command line"""
     with create_session() as session:

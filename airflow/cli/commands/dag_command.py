@@ -36,7 +36,13 @@ from airflow.jobs.base_job import BaseJob
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import get_dag, get_dag_by_file_location, process_subdir, sigint_handler
+from airflow.utils.cli import (
+    get_dag,
+    get_dag_by_file_location,
+    process_subdir,
+    sigint_handler,
+    suppress_logs_and_warning,
+)
 from airflow.utils.dot_renderer import render_dag
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
@@ -265,6 +271,7 @@ def dag_next_execution(args):
 
 
 @cli_utils.action_logging
+@suppress_logs_and_warning()
 def dag_list_dags(args):
     """Displays dags with or without stats at the command line"""
     dagbag = DagBag(process_subdir(args.subdir))
@@ -280,6 +287,7 @@ def dag_list_dags(args):
 
 
 @cli_utils.action_logging
+@suppress_logs_and_warning()
 def dag_report(args):
     """Displays dagbag stats at the command line"""
     dagbag = DagBag(process_subdir(args.subdir))
@@ -297,6 +305,7 @@ def dag_report(args):
 
 
 @cli_utils.action_logging
+@suppress_logs_and_warning()
 def dag_list_jobs(args, dag=None):
     """Lists latest n jobs"""
     queries = []
@@ -331,6 +340,7 @@ def dag_list_jobs(args, dag=None):
 
 
 @cli_utils.action_logging
+@suppress_logs_and_warning()
 def dag_list_dag_runs(args, dag=None):
     """Lists dag runs for a given DAG"""
     if dag:

@@ -112,17 +112,6 @@ class TestCliListConnections(unittest.TestCase):
     def tearDown(self):
         clear_db_connections()
 
-    def test_cli_connections_list(self):
-        with redirect_stdout(io.StringIO()) as stdout:
-            connection_command.connections_list(self.parser.parse_args(["connections", "list"]))
-            stdout = stdout.getvalue()
-
-        for conn_id, conn_type in self.EXPECTED_CONS:
-            # Tables sometimes wrap the content so full name may not be present
-            if len(conn_id) < 20 and len(conn_type) < 20:
-                self.assertIn(conn_type, stdout)
-                self.assertIn(conn_id, stdout)
-
     def test_cli_connections_list_as_json(self):
         args = self.parser.parse_args(["connections", "list", "--output", "json"])
         with redirect_stdout(io.StringIO()) as stdout:

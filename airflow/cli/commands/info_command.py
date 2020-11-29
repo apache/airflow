@@ -33,6 +33,7 @@ from airflow import configuration
 from airflow.cli.simple_table import SimpleTable
 from airflow.providers_manager import ProvidersManager
 from airflow.typing_compat import Protocol
+from airflow.utils.cli import suppress_logs_and_warning
 from airflow.version import version as airflow_version
 
 log = logging.getLogger(__name__)
@@ -412,6 +413,7 @@ def _send_report_to_fileio(info):
         print(str(ex))
 
 
+@suppress_logs_and_warning()
 def show_info(args):
     """Show information related to Airflow, system and other."""
     # Enforce anonymization, when file_io upload is tuned on.

@@ -20,9 +20,11 @@
 
 from airflow.cli.simple_table import AirflowConsole
 from airflow.utils import cli as cli_utils
+from airflow.utils.cli import suppress_logs_and_warning
 from airflow.www.app import cached_app
 
 
+@suppress_logs_and_warning()
 def roles_list(args):
     """Lists all existing roles"""
     appbuilder = cached_app().appbuilder  # pylint: disable=no-member

@@ -21,9 +21,11 @@ from rich.console import Console
 
 from airflow.cli.cli_parser import ActionCommand, GroupCommand, airflow_commands
 from airflow.cli.simple_table import SimpleTable
+from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.helpers import partition
 
 
+@suppress_logs_and_warning()
 def cheat_sheet(args):
     """Display cheat-sheet."""
     display_commands_index()

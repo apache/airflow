@@ -25,6 +25,8 @@ from airflow.configuration import conf
 from airflow.plugins_manager import PluginsDirectorySource
 
 # list to maintain the order of items.
+from airflow.utils.cli import suppress_logs_and_warning
+
 PLUGINS_MANAGER_ATTRIBUTES_TO_DUMP = [
     "plugins",
     "import_errors",
@@ -64,6 +66,7 @@ def _join_plugins_names(value: Union[List[Any], Any]) -> str:
     return ",".join(_get_name(v) for v in value)
 
 
+@suppress_logs_and_warning()
 def dump_plugins(args):
     """Dump plugins information"""
     plugins_manager.ensure_plugins_loaded()

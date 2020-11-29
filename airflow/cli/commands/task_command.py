@@ -35,7 +35,13 @@ from airflow.models.dag import DAG
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import get_dag, get_dag_by_file_location, get_dag_by_pickle, get_dags
+from airflow.utils.cli import (
+    get_dag,
+    get_dag_by_file_location,
+    get_dag_by_pickle,
+    get_dags,
+    suppress_logs_and_warning,
+)
 from airflow.utils.log.logging_mixin import StreamLogWriter
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
@@ -303,6 +309,7 @@ def _guess_debugger():
 
 
 @cli_utils.action_logging
+@suppress_logs_and_warning()
 def task_states_for_dag_run(args):
     """Get the status of all task instances in a DagRun"""
     with create_session() as session:
