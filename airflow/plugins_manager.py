@@ -32,8 +32,12 @@ import sys
 import warnings
 from typing import Any, Dict, List, Type
 
-import pkg_resources
 from six import with_metaclass
+
+try:
+    import importlib.metadata as importlib_metadata
+except ImportError:
+    import importlib_metadata
 
 from airflow import settings
 from airflow.models.baseoperator import BaseOperatorLink
@@ -109,6 +113,23 @@ class AirflowPlugin(with_metaclass(_MetaPluginClass, object)):
         """
 
 
+def entry_points_with_dist(group):
+    """
+    Return EntryPoint objects of the given group, along with the distribution information.
+
+    This is like the ``entry_points()`` function from importlib.metadata,
+    except it also returns the distribution the entry_point was loaded from.
+
+    :param group: FIlter results to only this entrypoint group
+    :return: Generator of (EntryPoint, Distribution) objects for the specified groups
+    """
+    for dist in importlib_metadata.distributions():
+        for e in dist.entry_points:
+            if e.group != group:
+                continue
+            yield (e, dist)
+
+
 def load_entrypoint_plugins(entry_points, airflow_plugins):
     """
     Load AirflowPlugin subclasses from the entrypoints
@@ -122,16 +143,18 @@ def load_entrypoint_plugins(entry_points, airflow_plugins):
     :rtype: list[airflow.plugins_manager.AirflowPlugin]
     """
     global import_errors  # pylint: disable=global-statement
-    for entry_point in entry_points:
+    for entry_point, dist in entry_points:
         log.debug('Importing entry_point plugin %s', entry_point.name)
         try:
             plugin_obj = entry_point.load()
-            plugin_obj.__usable_import_name = entry_point.module_name
-            if is_valid_plugin(plugin_obj, airflow_plugins):
-                if callable(getattr(plugin_obj, 'on_load', None)):
-                    plugin_obj.on_load()
+            plugin_obj.__usable_import_name = entry_point.module
+            if not is_valid_plugin(plugin_obj, airflow_plugins):
+                continue
 
-                    airflow_plugins.append(plugin_obj)
+            if callable(getattr(plugin_obj, 'on_load', None)):
+                plugin_obj.on_load()
+
+                airflow_plugins.append(plugin_obj)
         except Exception as e:  # pylint: disable=broad-except
             log.exception("Failed to import plugin %s", entry_point.name)
             import_errors[entry_point.module_name] = str(e)
@@ -204,7 +227,7 @@ for root, dirs, files in os.walk(settings.PLUGINS_FOLDER, followlinks=True):
             import_errors[filepath] = str(e)
 
 plugins = load_entrypoint_plugins(
-    pkg_resources.iter_entry_points('airflow.plugins'),
+    entry_points_with_dist('airflow.plugins'),
     plugins
 )
 

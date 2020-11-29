@@ -22,17 +22,16 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import unittest
-import six
-from tests.compat import mock
+import logging
 
-import pkg_resources
+import pytest
 
 from airflow.www_rbac import app as application
+from tests.compat import mock
 
 
-class PluginsTestRBAC(unittest.TestCase):
-    def setUp(self):
+class TestPluginsRBAC(object):
+    def setup_method(self, method):
         self.app, self.appbuilder = application.create_app(testing=True)
 
     def test_flaskappbuilder_views(self):
@@ -41,18 +40,18 @@ class PluginsTestRBAC(unittest.TestCase):
         plugin_views = [view for view in self.appbuilder.baseviews
                         if view.blueprint.name == appbuilder_class_name]
 
-        self.assertTrue(len(plugin_views) == 1)
+        assert len(plugin_views) == 1
 
         # view should have a menu item matching category of v_appbuilder_package
         links = [menu_item for menu_item in self.appbuilder.menu.menu
                  if menu_item.name == v_appbuilder_package['category']]
 
-        self.assertTrue(len(links) == 1)
+        assert len(links) == 1
 
         # menu link should also have a link matching the name of the package.
         link = links[0]
-        self.assertEqual(link.name, v_appbuilder_package['category'])
-        self.assertEqual(link.childs[0].name, v_appbuilder_package['name'])
+        assert link.name == v_appbuilder_package['category']
+        assert link.childs[0].name == v_appbuilder_package['name']
 
     def test_flaskappbuilder_menu_links(self):
         from tests.plugins.test_plugin import appbuilder_mitem
@@ -61,40 +60,45 @@ class PluginsTestRBAC(unittest.TestCase):
         links = [menu_item for menu_item in self.appbuilder.menu.menu
                  if menu_item.name == appbuilder_mitem['category']]
 
-        self.assertTrue(len(links) == 1)
+        assert len(links) == 1
 
         # menu link should also have a link matching the name of the package.
         link = links[0]
-        self.assertEqual(link.name, appbuilder_mitem['category'])
-        self.assertEqual(link.childs[0].name, appbuilder_mitem['name'])
+        assert link.name == appbuilder_mitem['category']
+        assert link.childs[0].name == appbuilder_mitem['name']
 
     def test_app_blueprints(self):
         from tests.plugins.test_plugin import bp
 
         # Blueprint should be present in the app
-        self.assertTrue('test_plugin' in self.app.blueprints)
-        self.assertEqual(self.app.blueprints['test_plugin'].name, bp.name)
+        assert 'test_plugin' in self.app.blueprints
+        assert self.app.blueprints['test_plugin'].name == bp.name
 
-    @unittest.skipIf(six.PY2, 'self.assertLogs not available for Python 2')
-    @mock.patch('pkg_resources.iter_entry_points')
-    def test_entrypoint_plugin_errors_dont_raise_exceptions(self, mock_ep_plugins):
+    @pytest.mark.quarantined
+    def test_entrypoint_plugin_errors_dont_raise_exceptions(self, caplog):
         """
         Test that Airflow does not raise an Error if there is any Exception because of the
         Plugin.
         """
-        from airflow.plugins_manager import load_entrypoint_plugins, import_errors
+        from airflow.plugins_manager import import_errors, load_entrypoint_plugins, entry_points_with_dist
+
+        mock_dist = mock.Mock()
 
         mock_entrypoint = mock.Mock()
         mock_entrypoint.name = 'test-entrypoint'
+        mock_entrypoint.group = 'airflow.plugins'
         mock_entrypoint.module_name = 'test.plugins.test_plugins_manager'
-        mock_entrypoint.load.side_effect = Exception('Version Conflict')
-        mock_ep_plugins.return_value = [mock_entrypoint]
+        mock_entrypoint.load.side_effect = ImportError('my_fake_module not found')
+        mock_dist.entry_points = [mock_entrypoint]
 
-        with self.assertLogs("airflow.plugins_manager", level="ERROR") as log_output:
-            load_entrypoint_plugins(pkg_resources.iter_entry_points('airflow.plugins'), [])
-            received_logs = log_output.output[0]
+        with mock.patch('importlib_metadata.distributions', return_value=[mock_dist]), caplog.at_level(
+            logging.ERROR, logger='airflow.plugins_manager'
+        ):
+            load_entrypoint_plugins(entry_points_with_dist('airflow.plugins'), [])
+
+            received_logs = caplog.text
             # Assert Traceback is shown too
             assert "Traceback (most recent call last):" in received_logs
-            assert "Version Conflict" in received_logs
+            assert "my_fake_module not found" in received_logs
             assert "Failed to import plugin test-entrypoint" in received_logs
-            assert ('test.plugins.test_plugins_manager', 'Version Conflict') in import_errors.items()
+            assert ("test.plugins.test_plugins_manager", "my_fake_module not found") in import_errors.items()

@@ -23,7 +23,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import six
-from mock import MagicMock, PropertyMock
+from mock import MagicMock, Mock
 
 from flask.blueprints import Blueprint
 from flask_admin.menu import MenuLink, MenuView
@@ -119,11 +119,16 @@ class PluginsTestEntrypointLoad(unittest.TestCase):
         ]
 
     def _build_mock(self, plugin_obj):
-        m = MagicMock(**{
-            'load.return_value': plugin_obj
-        })
-        type(m).name = PropertyMock(return_value='plugin-' + plugin_obj.name)
-        return m
+
+        mock_dist = Mock()
+
+        mock_entrypoint = Mock()
+        mock_entrypoint.name = 'plugin-' + plugin_obj.name
+        mock_entrypoint.group = 'airflow.plugins'
+        mock_entrypoint.load.return_value = plugin_obj
+        mock_dist.entry_points = [mock_entrypoint]
+
+        return (mock_entrypoint, mock_dist)
 
     def test_load_entrypoint_plugins(self):
         self.assertListEqual(
