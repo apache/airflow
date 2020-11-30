@@ -27,10 +27,11 @@ export PYTHONPATH="${AIRFLOW_SOURCES}"
 
 verify_suffix_versions_for_package_preparation
 
+# TODO: remove it when devel_all == devel_ci
 echo
 echo "Installing remaining packages from 'all' extras"
 echo
-pip install -e ".[devel_all]" >"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
+pip install -e ".[devel_all]"
 
 cd "${AIRFLOW_SOURCES}/provider_packages" || exit 1
 
