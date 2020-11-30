@@ -409,3 +409,4 @@ Currently, **officially** using Airflow:
 1. [liligo](http://liligo.com/) [[@tromika](https://github.com/tromika)]
 1. [proton.ai](https://proton.ai/) [[@prmsolutions](https://github.com/prmsolutions)]
 1. [uSmart Securities](https://www.usmartsecurities.com/hk/en/) [[@yangrong688](https://github.com/yangrong688)]
+1. [Getir](https://www.getir.com/) [[@mpolatcan](https://github.com/mpolatcan)]
