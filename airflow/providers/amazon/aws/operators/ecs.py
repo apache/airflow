@@ -273,9 +273,9 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         if self._aws_logs_enabled():
             task_id = self.arn.split("/")[-1]
             stream_name = f"{self.awslogs_stream_prefix}/{task_id}"
-            return self.get_logs_hook().get_log_events(self.awslogs_group, stream_name)
+            yield from self.get_logs_hook().get_log_events(self.awslogs_group, stream_name)
         else:
-            return
+            yield from ()
 
     def _aws_logs_enabled(self):
         return self.awslogs_group and self.awslogs_stream_prefix
@@ -285,7 +285,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         if log_events:
             return deque(log_events, maxlen=1).pop()["message"]
 
-        return
+        return None
 
     def _check_success_task(self) -> None:
         if not self.client or not self.arn:
