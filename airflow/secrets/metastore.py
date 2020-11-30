@@ -45,6 +45,7 @@ class MetastoreBackend(BaseSecretsBackend):
             "This method is deprecated. Please use "
             "`airflow.secrets.metastore.MetastoreBackend.get_connection`.",
             PendingDeprecationWarning,
+            stacklevel=3,
         )
         conn = self.get_connection(conn_id=conn_id, session=session)
         if conn:

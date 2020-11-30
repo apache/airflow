@@ -78,6 +78,7 @@ class BaseSecretsBackend(ABC):
             "This method is deprecated. Please use "
             "`airflow.secrets.base_secrets.BaseSecretsBackend.get_connection`.",
             PendingDeprecationWarning,
+            stacklevel=2,
         )
         conn = self.get_connection(conn_id=conn_id)
         if conn:

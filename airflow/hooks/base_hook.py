@@ -47,6 +47,7 @@ class BaseHook(LoggingMixin):
             "`BaseHook.get_connections` method will be deprecated in the future."
             "Please use `BaseHook.get_connection` instead.",
             PendingDeprecationWarning,
+            stacklevel=2,
         )
         return [cls.get_connection(conn_id)]
 

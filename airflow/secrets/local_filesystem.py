@@ -330,6 +330,7 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
             "This method is deprecated. Please use "
             "`airflow.secrets.local_filesystem.LocalFilesystemBackend.get_connection`.",
             PendingDeprecationWarning,
+            stacklevel=2,
         )
         conn = self.get_connection(conn_id=conn_id)
         if conn:
