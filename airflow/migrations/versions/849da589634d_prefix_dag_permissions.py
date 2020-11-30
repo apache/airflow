@@ -46,7 +46,7 @@ def prefix_individual_dag_permissions(session):  # noqa: D103
         .filter(Permission.name.in_(dag_perms))
         .join(ViewMenu)
         .filter(ViewMenu.name != 'all_dags')
-        .filter(ViewMenu.name.notlike('DAG:%'))
+        .filter(ViewMenu.name.notlike(prefix + '%'))
         .all()
     )
     view_menu_ids = {pvm.view_menu.id for pvm in permission_view_menus}
@@ -159,16 +159,11 @@ def migrate_to_new_dag_permissions(db):  # noqa: D103
 
 
 def upgrade():  # noqa: D103
-    try:
-        db = SQLA()
-        db.session = settings.Session
-        migrate_to_new_dag_permissions(db)
-        db.session.commit()
-    except:  # noqa: E722
-        db.session.rollback()
-        raise
-    finally:
-        db.session.close()
+    db = SQLA()
+    db.session = settings.Session
+    migrate_to_new_dag_permissions(db)
+    db.session.commit()
+    db.session.close()
 
 
 def downgrade():  # noqa: D103
