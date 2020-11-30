@@ -57,20 +57,26 @@ def prefix_individual_dag_permissions(session):  # noqa: D103
 
 def get_or_create_dag_resource(session):  # noqa: D103
     dag_resource = get_resource_query(session, permissions.RESOURCE_DAG).first()
-    if not dag_resource:
-        dag_resource = ViewMenu(ViewMenu.name == permissions.RESOURCE_DAG)
-        session.add(dag_resource)
-        session.commit()
+    if dag_resource:
+        return dag_resource
+
+    dag_resource = ViewMenu()
+    dag_resource.name = permissions.RESOURCE_DAG
+    session.add(dag_resource)
+    session.commit()
 
     return dag_resource
 
 
 def get_or_create_action(session, action_name):  # noqa: D103
     action = get_action_query(session, action_name).first()
-    if not action:
-        action = Permission(Permission.name == action)
-        session.add(action)
-        session.commit()
+    if action:
+        return action
+
+    action = Permission()
+    action.name = action_name
+    session.add(action)
+    session.commit()
 
     return action
 
@@ -88,7 +94,7 @@ def get_pv_with_action_query(session, action):  # noqa: D103
 
 
 def get_pv_with_resource_query(session, resource):  # noqa: D103
-    return session.query(PermissionView).filter(PermissionView.view_menu == resource)
+    return session.query(PermissionView).filter(PermissionView.view_menu_id == resource)
 
 
 def update_pv_action(session, pv_query, action):  # noqa: D103
@@ -119,28 +125,36 @@ def migrate_to_new_dag_permissions(db):  # noqa: D103
     # Prefix individual dag perms with `DAG:`
     prefix_individual_dag_permissions(db.session)
 
-    # Update existing can_dag_read PVs to apply to can_read
+    # Update existing PVs to use `can_read` instead of `can_dag_read`
     can_dag_read_action = get_action_query(db.session, 'can_dag_read').first()
     old_can_dag_read_pvs = get_pv_with_action_query(db.session, can_dag_read_action)
     can_read_action = get_or_create_action(db.session, 'can_read')
     update_pv_action(db.session, old_can_dag_read_pvs, can_read_action)
 
-    # Update existing can_dag_edit PVs to apply to can_edit
+    # Update existing PVs to use `can_edit` instead of `can_dag_edit`
     can_dag_edit_action = get_action_query(db.session, 'can_dag_edit').first()
     old_can_dag_edit_pvs = get_pv_with_action_query(db.session, can_dag_edit_action)
     can_edit_action = get_or_create_action(db.session, 'can_edit')
     update_pv_action(db.session, old_can_dag_edit_pvs, can_edit_action)
 
-    # Update permission views for old `all_dags` resource to use `DAGs` resource.
+    # Update existing PVs for `all_dags` resource to use `DAGs` resource.
     all_dags_resource = get_resource_query(db.session, 'all_dags').first()
-    old_all_dags_pv = get_pv_with_resource_query(db.session, all_dags_resource)
-    dag_resource = get_or_create_dag_resource(db.session)
-    update_pv_resource(db.session, old_all_dags_pv, dag_resource)
+    if all_dags_resource:
+        old_all_dags_pv = get_pv_with_resource_query(db.session, all_dags_resource)
+        dag_resource = get_or_create_dag_resource(db.session)
+        update_pv_resource(db.session, old_all_dags_pv, dag_resource)
 
-    # Delete old resources and actions
-    db.session.delete(all_dags_resource)
-    db.session.delete(can_dag_read_action)
-    db.session.delete(can_dag_edit_action)
+        # Delete the `all_dags` resource
+        db.session.delete(all_dags_resource)
+
+    # Delete `can_dag_read` action
+    if can_dag_read_action:
+        db.session.delete(can_dag_read_action)
+
+    # Delete `can_dag_edit` action
+    if can_dag_edit_action:
+        db.session.delete(can_dag_edit_action)
+
     db.session.commit()
 
 
