@@ -17,6 +17,7 @@
 
 from __future__ import absolute_import
 import argparse
+import logging
 import sys
 from typing import List
 
@@ -28,11 +29,11 @@ from airflow.upgrade.rules.base_rule import BaseRule
 ALL_RULES = [cls() for cls in get_rules()]  # type: List[BaseRule]
 
 
-def check_upgrade(formatter):
-    # type: (BaseFormatter) -> List[RuleStatus]
-    formatter.start_checking(ALL_RULES)
+def check_upgrade(formatter, rules):
+    # type: (BaseFormatter, List[BaseRule]) -> List[RuleStatus]
+    formatter.start_checking(rules)
     all_rule_statuses = []  # List[RuleStatus]
-    for rule in ALL_RULES:
+    for rule in rules:
         rule_status = RuleStatus.from_rule(rule)
         all_rule_statuses.append(rule_status)
         formatter.on_next_rule_status(rule_status)
@@ -45,11 +46,22 @@ def register_arguments(subparser):
         "-s", "--save",
         help="Saves the result to the indicated file. The file format is determined by the file extension."
     )
+    subparser.add_argument(
+        "-i", "--ignore",
+        help="Ignore a rule. Can be used multiple times.",
+        action='append',
+    )
+    subparser.add_argument(
+        "-c", "--config",
+        help="Path to upgrade check config yaml file.",
+    )
     subparser.set_defaults(func=run)
 
 
 def run(args):
     from airflow.upgrade.formatters import (ConsoleFormatter, JSONFormatter)
+    from airflow.upgrade.config import UpgradeConfig
+
     if args.save:
         filename = args.save
         if not filename.lower().endswith(".json"):
@@ -57,7 +69,23 @@ def run(args):
         formatter = JSONFormatter(args.save)
     else:
         formatter = ConsoleFormatter()
-    all_problems = check_upgrade(formatter)
+
+    rules = ALL_RULES
+    ignored_rules = args.ignore or []
+
+    if args.config:
+        print("Using config file:", args.config)
+        upgrade_config = UpgradeConfig.read(path=args.config)
+        rules.extend(upgrade_config.get_custom_rules())
+        ignored_rules.extend(upgrade_config.get_ignored_rules())
+
+    rules = [r for r in rules if r.__class__.__name__ not in ignored_rules]
+
+    # Disable ERROR and below logs to avoid them in console output.
+    # We want to show only output of upgrade_check command
+    logging.disable(logging.ERROR)
+
+    all_problems = check_upgrade(formatter, rules)
     if all_problems:
         sys.exit(1)
 

@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import json
 from tempfile import NamedTemporaryFile
 from tests.compat import mock
@@ -37,7 +36,8 @@ class MockRule(BaseRule):
 
 class TestJSONFormatter:
     @mock.patch("airflow.upgrade.checker.ALL_RULES", [MockRule()])
-    def test_output(self):
+    @mock.patch("airflow.upgrade.checker.logging.disable")  # mock to avoid side effects
+    def test_output(self, _):
         expected = [
             {
                 "rule": MockRule.__name__,
