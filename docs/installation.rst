@@ -153,7 +153,7 @@ run tasks:
 
 .. code-block:: bash
 
-    airflow db init
+    airflow initdb  
 
 Docker image
 ''''''''''''
