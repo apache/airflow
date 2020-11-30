@@ -141,6 +141,8 @@ else:
 exclude_patterns: List[str]
 if PACKAGE_NAME == 'apache-airflow':
     exclude_patterns = [
+        # We only link to selected subpackages.
+        '_api/airflow/index.rst',
         'README.rst',
     ]
 elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
