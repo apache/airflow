@@ -26,7 +26,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import DAG, Connection, DagRun, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.sql import (
-    BaseSQLOperator,
     BranchSQLOperator,
     SQLCheckOperator,
     SQLIntervalCheckOperator,
@@ -72,26 +71,18 @@ SUPPORTED_FALSE_VALUES = [
     'airflow.operators.sql.BaseHook.get_connection',
     return_value=Connection(conn_id='sql_default', conn_type='postgres'),
 )
-class TestBaseSQLOperator(unittest.TestCase):
-    def setUp(self):
+class TestSQLCheckOperatorDbHook:
+    def setup_method(self):
         self.task_id = "test_task"
         self.conn_id = "sql_default"
-        op = BaseSQLOperator(task_id=self.task_id)
-        op.conn_id = self.conn_id
-        op.database = None
-        self._operator = op
+        self._operator = SQLCheckOperator(task_id=self.task_id, conn_id=self.conn_id, sql="sql")
 
-    def test_get_hook_not_override_db(self, mock_get_conn):
+    @pytest.mark.parametrize('database', [None, 'test-db'])
+    def test_get_hook(self, mock_get_conn, database):
+        if database:
+            self._operator.database = database
         assert isinstance(self._operator._hook, PostgresHook)
-        mock_get_conn.assert_called_once_with(self.conn_id)
-
-    def test_get_hook_override_db(self, mock_get_conn):
-        TEST_DB = 'test_db'
-        self._operator.database = TEST_DB
-
-        assert isinstance(self._operator._hook, PostgresHook)
-        assert self._operator._hook.schema == TEST_DB
-
+        assert self._operator._hook.schema == database
         mock_get_conn.assert_called_once_with(self.conn_id)
 
     def test_not_allowed_conn_type(self, mock_get_conn):

@@ -47,7 +47,7 @@ class BaseSQLOperator(BaseOperator):
 
     The provided method is .get_db_hook(). The default behavior will try to
     retrieve the DB hook based on connection type.
-    You can custom the behaivor by overriding the .get_db_hook() method.
+    You can custom the behavior by overriding the .get_db_hook() method.
     """
 
     @cached_property
