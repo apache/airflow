@@ -45,5 +45,10 @@ hooks:
     python-modules:
       - airflow.providers.redis.hooks.redis
 
+xcom:
+  - integration-name: Redis
+    python-modules:
+      - airflow.providers.redis.xcom.redis_xcom
+
 hook-class-names:
   - airflow.providers.redis.hooks.redis.RedisHook
