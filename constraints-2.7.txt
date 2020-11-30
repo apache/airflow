@@ -62,7 +62,7 @@ azure-mgmt-core==1.2.2
 azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==15.0.0
 azure-nspkg==3.0.2
-azure-storage-blob==12.6.0
+azure-storage-blob==2.1.0
 azure-storage-common==2.1.0
 azure-storage-nspkg==3.1.0
 azure-storage==0.36.0
@@ -86,7 +86,7 @@ cassandra-driver==3.20.2
 cattrs==1.0.0
 celery==4.3.1
 certifi==2020.11.8
-cffi==1.14.4
+cffi==1.13.2
 cfgv==2.0.1
 cfn-lint==0.42.0
 cgroupspy==0.1.6
