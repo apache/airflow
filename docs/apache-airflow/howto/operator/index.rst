@@ -25,7 +25,7 @@ determine what actually executes when your DAG runs.
 
 .. note::
     See the :ref:`Operators Concepts <concepts:operators>` documentation and the
-    :doc:`Operators API Reference <../../_api/index>` for more
+    :doc:`Operators API Reference </python-api-ref>` for more
     information.
 
 .. toctree::

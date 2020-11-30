@@ -25,7 +25,7 @@ PythonOperator
 Use the :class:`~airflow.operators.python.PythonOperator` to execute
 Python callables.
 
-.. exampleinclude:: /../airflow/example_dags/example_python_operator.py
+.. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
     :language: python
     :start-after: [START howto_operator_python]
     :end-before: [END howto_operator_python]
@@ -36,7 +36,7 @@ Passing in arguments
 Use the ``op_args`` and ``op_kwargs`` arguments to pass additional arguments
 to the Python callable.
 
-.. exampleinclude:: /../airflow/example_dags/example_python_operator.py
+.. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
     :language: python
     :start-after: [START howto_operator_python_kwargs]
     :end-before: [END howto_operator_python_kwargs]
@@ -61,7 +61,7 @@ PythonVirtualenvOperator
 Use the :class:`~airflow.operators.python.PythonVirtualenvOperator` to execute
 Python callables inside a new Python virtual environment.
 
-.. exampleinclude:: ../../../airflow/example_dags/example_python_operator.py
+.. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
     :language: python
     :start-after: [START howto_operator_python_venv]
     :end-before: [END howto_operator_python_venv]

@@ -20,4 +20,4 @@
 Changelog
 =========
 
-.. include:: ../CHANGELOG.txt
+.. include:: ../../CHANGELOG.txt

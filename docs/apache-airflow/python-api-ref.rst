@@ -62,9 +62,9 @@ All operators are in the following packages:
   :glob:
   :maxdepth: 1
 
-  airflow/operators/index
+  _api/airflow/operators/index
 
-  airflow/sensors/index
+  _api/airflow/sensors/index
 
 
 .. _pythonapi:hooks:
@@ -84,7 +84,7 @@ All hooks are in the following packages:
   :glob:
   :maxdepth: 1
 
-  airflow/hooks/index
+  _api/airflow/hooks/index
 
 Executors
 ---------
@@ -100,7 +100,7 @@ All executors are in the following packages:
   :glob:
   :maxdepth: 1
 
-  airflow/executors/index
+  _api/airflow/executors/index
 
 Models
 ------
@@ -112,7 +112,7 @@ persisted in the database.
   :glob:
   :maxdepth: 1
 
-  airflow/models/index
+  _api/airflow/models/index
 
 .. _pythonapi:exceptions:
 
@@ -124,7 +124,7 @@ Exceptions
   :glob:
   :maxdepth: 1
 
-  airflow/exceptions/index
+  _api/airflow/exceptions/index
 
 Secrets Backends
 ----------------
@@ -136,4 +136,4 @@ All secrets backends derive from :class:`~airflow.secrets.BaseSecretsBackend`.
   :glob:
   :maxdepth: 1
 
-  airflow/secrets/index
+  _api/airflow/secrets/index

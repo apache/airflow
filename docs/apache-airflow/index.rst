@@ -18,7 +18,7 @@
 
 
 
-.. image:: ../airflow/www/static/pin_large.png
+.. image:: ../../airflow/www/static/pin_large.png
     :width: 100
 
 Apache Airflow Documentation
@@ -112,7 +112,7 @@ Content
     Operators and hooks <operators-and-hooks-ref>
     CLI <cli-and-env-variables-ref>
     Macros <macros-ref>
-    Python API <_api/index>
+    Python API <python-api-ref>
     Experimental REST API <rest-api-ref>
     Stable REST API <stable-rest-api-ref>
     Configurations <configurations-ref>

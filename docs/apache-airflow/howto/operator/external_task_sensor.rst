@@ -44,7 +44,7 @@ wait for another task on a different DAG for a specific ``execution_date``.
 ExternalTaskSensor also provide options to set if the Task on a remote DAG succeeded or failed
 via ``allowed_states`` and ``failed_states`` parameters.
 
-.. exampleinclude:: /../airflow/example_dags/example_external_task_marker_dag.py
+.. exampleinclude:: /../../airflow/example_dags/example_external_task_marker_dag.py
     :language: python
     :start-after: [START howto_operator_external_task_sensor]
     :end-before: [END howto_operator_external_task_sensor]
@@ -58,7 +58,7 @@ on ``child_dag`` for a specific ``execution_date`` should also be cleared, ``Ext
 should be used. Note that ``child_task1`` will only be cleared if "Recursive" is selected when the
 user clears ``parent_task``.
 
-.. exampleinclude:: /../airflow/example_dags/example_external_task_marker_dag.py
+.. exampleinclude:: /../../airflow/example_dags/example_external_task_marker_dag.py
     :language: python
     :start-after: [START howto_operator_external_task_marker]
     :end-before: [END howto_operator_external_task_marker]

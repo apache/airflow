@@ -85,3 +85,4 @@ errors.rst logging-monitoring/errors.rst
 howto/write-logs.rst logging-monitoring/logging-tasks.rst
 metrics.rst logging-monitoring/metrics.rst
 howto/tracking-user-activity.rst logging-monitoring/tracking-user-activity.rst
+_api/index.rst python-api-ref.rst

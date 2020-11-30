@@ -27,4 +27,4 @@ Security
     *
     secrets/index
 
-.. include:: /../.github/SECURITY.rst
+.. include:: /../../.github/SECURITY.rst

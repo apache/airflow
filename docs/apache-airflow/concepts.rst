@@ -183,7 +183,7 @@ You can also use the parameters on jinja templates by using the ``{{context.para
 
 Example DAG with decorator:
 
-.. exampleinclude:: /../airflow/example_dags/example_dag_decorator.py
+.. exampleinclude:: /../../airflow/example_dags/example_dag_decorator.py
     :language: python
     :start-after: [START dag_decorator_usage]
     :end-before: [END dag_decorator_usage]
@@ -939,14 +939,14 @@ Note that SubDAG operators should contain a factory method that returns a DAG
 object. This will prevent the SubDAG from being treated like a separate DAG in
 the main UI. For example:
 
-.. exampleinclude:: /../airflow/example_dags/subdags/subdag.py
+.. exampleinclude:: /../../airflow/example_dags/subdags/subdag.py
     :language: python
     :start-after: [START subdag]
     :end-before: [END subdag]
 
 This SubDAG can then be referenced in your main DAG file:
 
-.. exampleinclude:: /../airflow/example_dags/example_subdag_operator.py
+.. exampleinclude:: /../../airflow/example_dags/example_subdag_operator.py
     :language: python
     :start-after: [START example_subdag_operator]
     :end-before: [END example_subdag_operator]
@@ -1013,7 +1013,7 @@ and then puts both tasks upstream of ``task3``:
 
 Here is a more complicated example DAG with multiple levels of nested TaskGroups:
 
-.. exampleinclude:: /../airflow/example_dags/example_task_group.py
+.. exampleinclude:: /../../airflow/example_dags/example_task_group.py
     :language: python
     :start-after: [START howto_task_group]
     :end-before: [END howto_task_group]
@@ -1158,7 +1158,7 @@ right now is not between its ``execution_time`` and the next scheduled
 
 For example, consider the following DAG:
 
-.. exampleinclude:: /../airflow/example_dags/example_latest_only_with_trigger.py
+.. exampleinclude:: /../../airflow/example_dags/example_latest_only_with_trigger.py
     :language: python
     :start-after: [START example]
     :end-before: [END example]
@@ -1240,7 +1240,7 @@ DAG level cluster policy
 In this example we check if each DAG has at least one tag defined.
 Here is what it may look like:
 
-.. literalinclude:: /../tests/cluster_policies/__init__.py
+.. literalinclude:: /../../tests/cluster_policies/__init__.py
       :language: python
       :start-after: [START example_dag_cluster_policy]
       :end-before: [END example_dag_cluster_policy]
@@ -1252,7 +1252,7 @@ using a specific operator, or enforce a task timeout policy, making sure
 that no tasks run for more than 48 hours. Here's an example of what this
 may look like:
 
-.. literalinclude:: /../tests/cluster_policies/__init__.py
+.. literalinclude:: /../../tests/cluster_policies/__init__.py
       :language: python
       :start-after: [START example_task_cluster_policy]
       :end-before: [END example_task_cluster_policy]
@@ -1263,7 +1263,7 @@ reviewer, rather than as technical security controls.
 
 For example, don't run tasks without airflow owners:
 
-.. literalinclude:: /../tests/cluster_policies/__init__.py
+.. literalinclude:: /../../tests/cluster_policies/__init__.py
       :language: python
       :start-after: [START example_cluster_policy_rule]
       :end-before: [END example_cluster_policy_rule]
@@ -1276,7 +1276,7 @@ the UI (and import errors table in the database).
 
 For Example in ``airflow_local_settings.py``:
 
-.. literalinclude:: /../tests/cluster_policies/__init__.py
+.. literalinclude:: /../../tests/cluster_policies/__init__.py
       :language: python
       :start-after: [START example_list_of_cluster_policy_rules]
       :end-before: [END example_list_of_cluster_policy_rules]
@@ -1286,7 +1286,7 @@ Task instance mutation hook
 Task instance mutation hook can be used for example to re-routes the task to
 execute in a different queue during retries:
 
-.. literalinclude:: /../tests/cluster_policies/__init__.py
+.. literalinclude:: /../../tests/cluster_policies/__init__.py
       :language: python
       :start-after: [START example_task_mutation_hook]
       :end-before: [END example_task_mutation_hook]
