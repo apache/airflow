@@ -18,18 +18,6 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-function verify_prod_image_dependencies {
-    echo
-    echo "Checking if Airflow dependencies are non-conflicting in PROD image."
-    echo
-
-    push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_PROD_IMAGE}" \
-        "${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
-
-    # TODO(potiuk) - disable the check once https://github.com/apache/airflow/pull/12188 is merged
-    docker run --rm --entrypoint /bin/bash "${AIRFLOW_PROD_IMAGE}" -c 'pip check' || true
-}
-
 push_pull_remove_images::check_if_github_registry_wait_for_image_enabled
 
 push_pull_remove_images::check_if_jq_installed
@@ -44,9 +32,3 @@ echo
 
 push_pull_remove_images::wait_for_github_registry_image \
     "${AIRFLOW_PROD_IMAGE_NAME}" "${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
-
-echo
-echo "Verifying the ${AIRFLOW_PROD_IMAGE_NAME} image after pulling it"
-echo
-
-verify_prod_image_dependencies
