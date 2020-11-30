@@ -178,8 +178,8 @@ You will see a similar result as in the screenshot below.
 Formatting commands output
 --------------------------
 
-Some Airflow commands like ``dags list`` or ``tasks states-for-dag-run`` support ``--output`` flag which allow users
-to change the formatting of command's output. Possible options:
+Some Airflow commands like ``airflow dags list`` or ``airflow tasks states-for-dag-run`` support ``--output`` flag
+which allow users to change the formatting of command's output. Possible options:
 
   - ``table`` - renders the information as a plain text table
   - ``json`` - renders the information in form of json string

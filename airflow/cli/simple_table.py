@@ -76,7 +76,7 @@ class AirflowConsole(Console):
             )
 
         if not all(isinstance(d, dict) for d in data) and not mapper:
-            raise ValueError("To tabulate non-dictionary data you need to provider `mapper` function")
+            raise ValueError("To tabulate non-dictionary data you need to provide `mapper` function")
 
         if mapper:
             dict_data: List[Dict] = [mapper(d) for d in data]

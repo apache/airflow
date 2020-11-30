@@ -77,10 +77,12 @@ Affected commands:
 - `airflow pools get`
 - `airflow pools set`
 - `airflow pools delete`
+- `airflow pools import`
 - `airflow pools export`
 - `airflow role list`
 - `airflow providers list`
 - `airflow providers get`
+- `airflow providers hooks`
 - `airflow tasks states-for-dag-run`
 - `airflow users list`
 - `airflow variables list`
