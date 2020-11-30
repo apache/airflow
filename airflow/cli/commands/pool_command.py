@@ -23,6 +23,7 @@ from json import JSONDecodeError
 
 from airflow.api.client import get_current_api_client
 from airflow.cli.simple_table import AirflowConsole
+from airflow.exceptions import PoolNotFound
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
 
@@ -60,8 +61,8 @@ def pool_get(args):
 def pool_set(args):
     """Creates new pool with a given name and slots"""
     api_client = get_current_api_client()
-    pools = [api_client.create_pool(name=args.pool, slots=args.slots, description=args.description)]
-    _show_pools(pools=pools, output=args.output)
+    api_client.create_pool(name=args.pool, slots=args.slots, description=args.description)
+    print("Pool created")
 
 
 @cli_utils.action_logging
@@ -69,8 +70,11 @@ def pool_set(args):
 def pool_delete(args):
     """Deletes pool by a given name"""
     api_client = get_current_api_client()
-    pools = [api_client.delete_pool(name=args.pool)]
-    _show_pools(pools=pools, output=args.output)
+    try:
+        api_client.delete_pool(name=args.pool)
+        print("Pool deleted")
+    except PoolNotFound:
+        sys.exit(f"Pool {args.pool} does not exist")
 
 
 @cli_utils.action_logging
@@ -79,16 +83,15 @@ def pool_import(args):
     """Imports pools from the file"""
     if not os.path.exists(args.file):
         sys.exit("Missing pools file.")
-    pools, failed = pool_import_helper(args.file)
-    _show_pools(pools=pools, output=args.output)
+    _, failed = pool_import_helper(args.file)
     if len(failed) > 0:
-        sys.exit("Failed to update pool(s): {}".format(", ".join(failed)))
+        sys.exit(f"Failed to update pool(s): {', '.join(failed)}")
 
 
 def pool_export(args):
     """Exports all of the pools to the file"""
     pools = pool_export_helper(args.file)
-    _show_pools(pools=pools, output=args.output)
+    print(f"Exported {len(pools)} pools to {args.file}")
 
 
 def pool_import_helper(filepath):
@@ -121,5 +124,4 @@ def pool_export_helper(filepath):
         pool_dict[pool[0]] = {"slots": pool[1], "description": pool[2]}
     with open(filepath, 'w') as poolfile:
         poolfile.write(json.dumps(pool_dict, sort_keys=True, indent=4))
-    print("{} pools successfully exported to {}".format(len(pool_dict), filepath))
     return pools
