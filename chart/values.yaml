@@ -715,9 +715,9 @@ dags:
     # If using a custom storageClass, pass name here
     storageClassName:
     # access mode of the persistent volume
-    accessMode: ReadWriteMany
+    accessMode: ReadWriteOnce
     ## the name of an existing PVC to use
-    existingClaim: ~
+    existingClaim:
   gitSync:
     enabled: false
     # git repo clone url

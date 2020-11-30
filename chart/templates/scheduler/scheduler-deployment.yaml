@@ -158,8 +158,6 @@ spec:
               mountPath: {{ template "airflow_dags_mount_path" . }}
 {{- end }}
 {{- if .Values.dags.gitSync.enabled }}
-            - name: dags
-              mountPath: {{ template "airflow_dags_mount_path" . }}
         {{- include "git_sync_container" . | indent 8 }}
 {{- end }}
 {{- if .Values.scheduler.extraVolumeMounts }}
