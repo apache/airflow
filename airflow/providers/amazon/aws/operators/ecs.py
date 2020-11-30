@@ -19,7 +19,7 @@ import re
 import sys
 from collections import deque
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, Generator, Optional
 
 from botocore.waiter import Waiter
 
@@ -269,24 +269,20 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
 
         return
 
-    def _cloudwatch_log_events(self):
-        if not self.awslogs_group:
-            return None
-
-        if not self.awslogs_stream_prefix:
-            return None
-
-        task_id = self.arn.split("/")[-1]
-        stream_name = f"{self.awslogs_stream_prefix}/{task_id}"
-
-        return self.get_logs_hook().get_log_events(self.awslogs_group, stream_name)
+    def _cloudwatch_log_events(self) -> Generator:
+        if self.awslogs_group and self.awslogs_stream_prefix:
+            task_id = self.arn.split("/")[-1]
+            stream_name = f"{self.awslogs_stream_prefix}/{task_id}"
+            return self.get_logs_hook().get_log_events(self.awslogs_group, stream_name)
+        else:
+            return
 
     def _last_log_event(self):
         log_events = self._cloudwatch_log_events()
-        if log_events is None:
-            return None
+        if log_events:
+            return deque(log_events, maxlen=1).pop()["message"]
 
-        return deque(log_events, maxlen=1).pop()["message"]
+        return
 
     def _check_success_task(self) -> None:
         if not self.client or not self.arn:
@@ -296,11 +292,9 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.log.info('ECS Task stopped, check status: %s', response)
 
         # Get logs from CloudWatch if the awslogs log driver was used
-        log_events = self._cloudwatch_log_events()
-        if log_events is not None:
-            for event in log_events:
-                event_dt = datetime.fromtimestamp(event['timestamp'] / 1000.0)
-                self.log.info("[%s] %s", event_dt.isoformat(), event['message'])
+        for event in self._cloudwatch_log_events():
+            event_dt = datetime.fromtimestamp(event['timestamp'] / 1000.0)
+            self.log.info("[%s] %s", event_dt.isoformat(), event['message'])
 
         if len(response.get('failures', [])) > 0:
             raise AirflowException(response)
