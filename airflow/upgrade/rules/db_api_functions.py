@@ -66,6 +66,12 @@ def return_error_string(cls, method):
 
 
 class DbApiRule(BaseRule):
+    title = "Hooks that run DB functions must inherit from DBApiHook"
+
+    description = (
+        "Hooks that run DB functions must inherit from DBApiHook instead of BaseHook"
+    )
+
     def check(self):
         subclasses = BaseHook.__subclasses__()
         incorrect_implementations = []
