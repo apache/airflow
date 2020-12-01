@@ -2787,6 +2787,11 @@ class XComModelView(AirflowModelView):
         item.execution_date = timezone.make_aware(item.execution_date)
         item.value = XCom.serialize_value(item.value)
 
+    def pre_delete(self, item):
+        """Pre delete hook"""
+        if XCom.__class__.__name__ != 'BaseXCom':
+            XCom.delete(item)
+
 
 class ConnectionModelView(AirflowModelView):
     """View to show records from Connections table"""

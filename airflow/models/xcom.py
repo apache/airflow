@@ -223,6 +223,8 @@ class BaseXCom(Base, LoggingMixin):
         for xcom in xcoms:
             if not isinstance(xcom, XCom):
                 raise TypeError(f'Expected XCom; received {xcom.__class__.__name__}')
+            if XCom is not BaseXCom:
+                XCom.delete(xcom)
             session.delete(xcom)
         session.commit()
 
@@ -268,7 +270,7 @@ class BaseXCom(Base, LoggingMixin):
         creating XCom orm model. This is used when viewing XCom listing
         in the webserver, for example.
         """
-        return BaseXCom.deserialize_value(self)
+        return XCom.deserialize_value(self)
 
 
 def resolve_xcom_backend():
