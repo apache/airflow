@@ -47,6 +47,8 @@ ARG CASS_DRIVER_BUILD_CONCURRENCY="8"
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 ARG PYTHON_MAJOR_MINOR_VERSION="3.6"
 
+ARG PIP_VERSION=20.2.4
+
 ##############################################################################################
 # This is the build image where we build all dependencies
 ##############################################################################################
@@ -58,6 +60,9 @@ ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE}
 
 ARG PYTHON_MAJOR_MINOR_VERSION
 ENV PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION}
+
+ARG PIP_VERSION
+ENV PIP_VERSION=${PIP_VERSION}
 
 # Make sure noninteractive debian install is used and language variables set
 ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
@@ -167,6 +172,8 @@ ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES}
 RUN if [[ -f /docker-context-files/.pypirc ]]; then \
         cp /docker-context-files/.pypirc /root/.pypirc; \
     fi
+
+RUN pip install --upgrade "pip==${PIP_VERSION}"
 
 # In case of Production build image segment we want to pre-install master version of airflow
 # dependencies from GitHub so that we do not have to always reinstall it from the scratch.
@@ -295,6 +302,9 @@ ENV AIRFLOW_VERSION=${AIRFLOW_VERSION}
 ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
 
+ARG PIP_VERSION
+ENV PIP_VERSION=${PIP_VERSION}
+
 # Install curl and gnupg2 - needed for many other installation steps
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -394,6 +404,8 @@ COPY --chown=airflow:root --from=airflow-build-image /root/.local "${AIRFLOW_USE
 COPY --chown=airflow:root scripts/in_container/prod/entrypoint_prod.sh /entrypoint
 COPY --chown=airflow:root scripts/in_container/prod/clean-logs.sh /clean-logs
 RUN chmod a+x /entrypoint /clean-logs
+
+RUN pip install --upgrade "pip==${PIP_VERSION}"
 
 # Make /etc/passwd root-group-writeable so that user can be dynamically added by OpenShift
 # See https://github.com/apache/airflow/issues/9248
