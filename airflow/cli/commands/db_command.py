@@ -67,7 +67,7 @@ def shell(args):
                 host     = {url.host}
                 user     = {url.username}
                 password = {url.password or ""}
-                port     = {url.port or ""}
+                port     = {url.port or "3306"}
                 database = {url.database}
                 """
             ).strip()
