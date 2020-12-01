@@ -21,9 +21,9 @@ export MOUNT_LOCAL_SOURCES="false"
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
 if (($# < 1)); then
-    >&2 echo
-    >&2 echo "Missing installation type (whl/tar.gz) as first argument"
-    >&2 echo
+    echo
+    echo  "${COLOR_RED_ERROR} Missing installation type (whl/tar.gz) as first argument  ${COLOR_RESET}"
+    echo
     exit 2
 fi
 
@@ -31,9 +31,9 @@ INSTALL_TYPE=${1}
 readonly INSTALL_TYPE
 
 if [[ ${INSTALL_TYPE} != "whl" && ${INSTALL_TYPE} != "tar.gz" ]]; then
-    >&2 echo
-    >&2 echo "ERROR! Wrong install type ${INSTALL_TYPE}. Should be 'whl' or 'tar.gz'"
-    >&2 echo
+    echo
+    echo  "${COLOR_RED_ERROR} Wrong install type ${INSTALL_TYPE}. Should be 'whl' or 'tar.gz'  ${COLOR_RESET}"
+    echo
     exit 3
 fi
 

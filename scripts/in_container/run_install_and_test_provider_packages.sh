@@ -25,16 +25,16 @@ echo "Testing if all classes in import packages can be imported"
 echo
 
 if [[ ${INSTALL_AIRFLOW_VERSION=""} == "" ]]; then
-    >&2 echo
-    >&2 echo "You have to specify airflow version to install - might be from PyPI or local wheels"
-    >&2 echo
+    echo
+    echo  "${COLOR_RED_ERROR} You have to specify airflow version to install - might be from PyPI or local wheels  ${COLOR_RESET}"
+    echo
     exit 1
 fi
 
 if (($# < 1)); then
-    >&2 echo
-    >&2 echo "Missing installation type (whl/tar.gz) as first argument"
-    >&2 echo
+    echo
+    echo  "${COLOR_RED_ERROR} Missing installation type (whl/tar.gz) as first argument  ${COLOR_RESET}"
+    echo
     exit 2
 fi
 
@@ -42,9 +42,9 @@ INSTALL_TYPE=${1}
 readonly INSTALL_TYPE
 
 if [[ ${INSTALL_TYPE} != "whl" && ${INSTALL_TYPE} != "tar.gz" ]]; then
-    >&2 echo
-    >&2 echo "ERROR! Wrong install type ${INSTALL_TYPE}. Should be 'whl' or 'tar.gz'"
-    >&2 echo
+    echo
+    echo  "${COLOR_RED_ERROR} Wrong install type ${INSTALL_TYPE}. Should be 'whl' or 'tar.gz'  ${COLOR_RESET}"
+    echo
     exit 3
 fi
 
@@ -66,9 +66,9 @@ if [[ ${INSTALL_TYPE} == "whl" ]]; then
 elif [[ ${INSTALL_TYPE} == "tar.gz" ]]; then
     install_all_provider_packages_from_tar_gz_files
 else
-    >&2 echo
-    >&2 echo "ERROR! Wrong package type ${1}. Should be whl or tar.gz"
-    >&2 echo
+    echo
+    echo  "${COLOR_RED_ERROR} Wrong package type ${1}. Should be whl or tar.gz  ${COLOR_RESET}"
+    echo
     exit 1
 fi
 
@@ -85,11 +85,12 @@ function discover_all_provider_packages() {
     local actual_number_of_providers
     actual_number_of_providers=$(airflow providers list --output simple | grep -c apache-airflow-providers | xargs)
     if [[ ${actual_number_of_providers} != "${expected_number_of_providers}" ]]; then
-        >&2 echo "ERROR! Number of providers installed is wrong!"
-        >&2 echo "Expected number was '${expected_number_of_providers}' and got '${actual_number_of_providers}'"
-        >&2 echo
-        >&2 echo "Either increase the number of providers if you added one or fix the problem with imports if you see one."
-        >&2 echo
+        echo
+        echo  "${COLOR_RED_ERROR} Number of providers installed is wrong  ${COLOR_RESET}"
+        echo "Expected number was '${expected_number_of_providers}' and got '${actual_number_of_providers}'"
+        echo
+        echo "Either increase the number of providers if you added one or fix the problem with imports if you see one."
+        echo
     fi
 }
 
@@ -104,11 +105,12 @@ function discover_all_hooks() {
     local actual_number_of_hooks
     actual_number_of_hooks=$(airflow providers hooks --output simple | grep -c conn_id | xargs)
     if [[ ${actual_number_of_hooks} != "${expected_number_of_hooks}" ]]; then
-        >&2 echo "ERROR! Number of hooks registered is wrong!"
-        >&2 echo "Expected number was '${expected_number_of_hooks}' and got '${actual_number_of_hooks}'"
-        >&2 echo
-        >&2 echo "Either increase the number of hooks if you added one or fix problem with imports if you see one."
-        >&2 echo
+        echo
+        echo  "${COLOR_RED_ERROR} Number of hooks registered is wrong  ${COLOR_RESET}"
+        echo "Expected number was '${expected_number_of_hooks}' and got '${actual_number_of_hooks}'"
+        echo
+        echo "Either increase the number of hooks if you added one or fix problem with imports if you see one."
+        echo
     fi
 }
 

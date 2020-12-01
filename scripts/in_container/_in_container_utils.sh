@@ -39,12 +39,13 @@ function add_trap() {
 function assert_in_container() {
     export VERBOSE=${VERBOSE:="false"}
     if [[ ! -f /.dockerenv ]]; then
-        echo >&2
-        echo >&2 "You are not inside the Airflow docker container!"
-        echo >&2 "You should only run this script in the Airflow docker container as it may override your files."
-        echo >&2 "Learn more about how we develop and test airflow in:"
-        echo >&2 "https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst"
-        echo >&2
+        echo
+        echo "${COLOR_RED_ERROR} You are not inside the Airflow docker container!  ${COLOR_RESET}"
+        echo
+        echo "You should only run this script in the Airflow docker container as it may override your files."
+        echo "Learn more about how we develop and test airflow in:"
+        echo "https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst"
+        echo
         exit 1
     fi
 }
@@ -62,16 +63,22 @@ function in_container_script_end() {
     if [[ ${EXIT_CODE} != 0 ]]; then
         if [[ "${PRINT_INFO_FROM_SCRIPTS=="true"}" == "true" ]]; then
             if [[ -f "${OUT_FILE_PRINTED_ON_ERROR}" ]]; then
-                echo "  ERROR ENCOUNTERED!"
-                echo
-                echo "  Output:"
-                echo
-                cat "${OUT_FILE_PRINTED_ON_ERROR}"
                 echo "###########################################################################################"
+                echo
+                echo "${COLOR_BLUE} EXIT CODE: ${EXIT_CODE} in container (See above for error message). Below is the output of the last action! ${COLOR_RESET}"
+                echo
+                echo "${COLOR_BLUE}***  BEGINNING OF THE LAST COMMAND OUTPUT *** ${COLOR_RESET}"
+                cat "${OUT_FILE_PRINTED_ON_ERROR}"
+                echo "${COLOR_BLUE}***  END OF THE LAST COMMAND OUTPUT ***  ${COLOR_RESET}"
+                echo
+                echo "${COLOR_BLUE} EXIT CODE: ${EXIT_CODE} in container. The actual error might be above the output!  ${COLOR_RESET}"
+                echo
+                echo "###########################################################################################"
+            else
+                echo "########################################################################################################################"
+                echo "${COLOR_BLUE} [IN CONTAINER]   EXITING ${0} WITH EXIT CODE ${EXIT_CODE}  ${COLOR_RESET}"
+                echo "########################################################################################################################"
             fi
-            echo "###########################################################################################"
-            echo "  [IN CONTAINER]   EXITING ${0} WITH STATUS CODE ${EXIT_CODE}"
-            echo "###########################################################################################"
         fi
     fi
 
@@ -362,10 +369,11 @@ function verify_suffix_versions_for_package_preparation() {
     fi
 
     if [[ ${VERSION_SUFFIX_FOR_SVN} =~ ^rc ]]; then
-        echo >&2
-        echo >&2 "The version suffix for SVN is used only for file names in RC version"
-        echo >&2 "This suffix is only added to the files '${VERSION_SUFFIX_FOR_SVN}' "
-        echo >&2
+        echo
+        echo "${COLOR_RED_ERROR} The version suffix for SVN is used only for file names in RC version  ${COLOR_RESET}"
+        echo
+        echo "This suffix is only added to the files '${VERSION_SUFFIX_FOR_SVN}' "
+        echo
         FILE_VERSION_SUFFIX=${VERSION_SUFFIX_FOR_SVN}
         VERSION_SUFFIX_FOR_SVN=""
     fi
@@ -378,17 +386,19 @@ function verify_suffix_versions_for_package_preparation() {
 
     if [[ ${VERSION_SUFFIX_FOR_PYPI} != '' && ${VERSION_SUFFIX_FOR_SVN} != '' ]]; then
         if [[ ${VERSION_SUFFIX_FOR_PYPI} != "${VERSION_SUFFIX_FOR_SVN}" ]]; then
-            echo >&2
-            echo >&2 "If you specify both version suffixes they must match"
-            echo >&2 "However they are different: '${VERSION_SUFFIX_FOR_PYPI}' vs. '${VERSION_SUFFIX_FOR_SVN}'"
-            echo >&2
+            echo
+            echo "${COLOR_RED_ERROR} If you specify both PyPI and SVN version suffixes they must match  ${COLOR_RESET}"
+            echo
+            echo "However they are different: PyPI:'${VERSION_SUFFIX_FOR_PYPI}' vs. SVN:'${VERSION_SUFFIX_FOR_SVN}'"
+            echo
             exit 1
         else
             if [[ ${VERSION_SUFFIX_FOR_PYPI} =~ ^rc ]]; then
-                echo >&2
-                echo >&2 "If you prepare an RC candidate, you need to specify only PyPI suffix"
-                echo >&2 "However you specified both: '${VERSION_SUFFIX_FOR_PYPI}' vs. '${VERSION_SUFFIX_FOR_SVN}'"
-                echo >&2
+                echo
+                echo "${COLOR_RED_ERROR} If you prepare an RC candidate, you need to specify only PyPI suffix  ${COLOR_RESET}"
+                echo
+                echo "However you specified both: PyPI'${VERSION_SUFFIX_FOR_PYPI}' and SVN '${VERSION_SUFFIX_FOR_SVN}'"
+                echo
                 exit 2
             fi
             # Just use one of them - they are both the same:
@@ -401,18 +411,20 @@ function verify_suffix_versions_for_package_preparation() {
         else
 
             if [[ ${VERSION_SUFFIX_FOR_PYPI} == '' ]]; then
-                echo >&2
-                echo >&2 "You should never specify version for PYPI only. Version for SVN can't be empty if the SVN is not."
-                echo >&2 "You specified: '${VERSION_SUFFIX_FOR_PYPI}'"
-                echo >&2
+                echo
+                echo "${COLOR_RED_ERROR} You should never specify version for PyPI only.  ${COLOR_RESET}"
+                echo
+                echo "You specified PyPI suffix: '${VERSION_SUFFIX_FOR_PYPI}'"
+                echo
                 exit 3
             fi
             TARGET_VERSION_SUFFIX=${VERSION_SUFFIX_FOR_PYPI}${VERSION_SUFFIX_FOR_SVN}
             if [[ ! ${TARGET_VERSION_SUFFIX} =~ rc.* ]]; then
-                echo >&2
-                echo >&2 "If you prepare an alpha/beta release, you need to specify both PyPI/SVN suffixes"
-                echo >&2 "And they have to match. You specified only one."
-                echo >&2
+                echo
+                echo "${COLOR_RED_ERROR} If you prepare an alpha/beta release, you need to specify both PyPI/SVN suffixes and they have to match.  ${COLOR_RESET}"
+                echo
+                echo "And they have to match. You specified only one suffix:  ${TARGET_VERSION_SUFFIX}."
+                echo
                 exit 4
             fi
         fi
@@ -430,10 +442,9 @@ function filename_to_python_module() {
     echo "${no_init//\//.}"
 }
 
-
 function import_all_provider_classes() {
     echo
-    echo  Importing all Airflow classes
+    echo Importing all Airflow classes
     echo
 
     # We have to move to a directory where "airflow" is
@@ -444,7 +455,8 @@ function import_all_provider_classes() {
 
     declare -a IMPORT_CLASS_PARAMETERS
 
-    PROVIDER_PATHS=$(python3 <<EOF 2>/dev/null
+    PROVIDER_PATHS=$(
+        python3 <<EOF 2>/dev/null
 import airflow.providers;
 path=airflow.providers.__path__
 for p in path._path:
@@ -456,13 +468,30 @@ EOF
     echo "Searching for providers packages in:"
     echo "${PROVIDER_PATHS}"
 
-
-    while read -r provider_path
-    do
+    while read -r provider_path; do
         IMPORT_CLASS_PARAMETERS+=("--path" "${provider_path}")
     done < <(echo "${PROVIDER_PATHS}")
 
     python3 /opt/airflow/dev/import_all_classes.py "${IMPORT_CLASS_PARAMETERS[@]}"
+}
+
+function in_container_set_colors() {
+    COLOR_BLUE=$'\e[34m'
+    COLOR_GREEN=$'\e[32m'
+    COLOR_GREEN_OK=$'\e[32mOK.'
+    COLOR_RED=$'\e[31m'
+    COLOR_RED_ERROR=$'\e[31mERROR:'
+    COLOR_RESET=$'\e[0m'
+    COLOR_YELLOW=$'\e[33m'
+    COLOR_YELLOW_WARNING=$'\e[33mWARNING:'
+    export COLOR_BLUE
+    export COLOR_GREEN
+    export COLOR_GREEN_OK
+    export COLOR_RED
+    export COLOR_RED_ERROR
+    export COLOR_RESET
+    export COLOR_YELLOW
+    export COLOR_YELLOW_WARNING
 }
 
 export CI=${CI:="false"}

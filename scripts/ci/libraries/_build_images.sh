@@ -180,14 +180,17 @@ function build_images::confirm_image_rebuild() {
         export FORCE_ANSWER_TO_QUESTIONS="no"
         echo 'export FORCE_ANSWER_TO_QUESTIONS="no"' >"${LAST_FORCE_ANSWER_FILE}"
     elif [[ ${RES} == "2" ]]; then
-        echo >&2
-        echo >&2 "ERROR: The ${THE_IMAGE_TYPE} needs to be rebuilt - it is outdated. "
-        echo >&2 "   Make sure you build the images bu running"
-        echo >&2
-        echo >&2 "      ./breeze --python ${PYTHON_MAJOR_MINOR_VERSION}" build-image
-        echo >&2
-        echo >&2 "   If you run it via pre-commit as individual hook, you can run 'pre-commit run build'."
-        echo >&2
+        echo
+        echo  "${COLOR_RED_ERROR} The ${THE_IMAGE_TYPE} needs to be rebuilt - it is outdated.   ${COLOR_RESET}"
+        echo """
+
+   Make sure you build the images bu running
+
+      ./breeze --python ${PYTHON_MAJOR_MINOR_VERSION} build-image
+
+   If you run it via pre-commit as individual hook, you can run 'pre-commit run build'.
+
+"""
         exit 1
     else
         # Force "yes" also to subsequent questions
@@ -535,9 +538,9 @@ function build_images::build_ci_image() {
             "--cache-from" "${AIRFLOW_CI_IMAGE}"
         )
     else
-        echo >&2
-        echo >&2 "Error - the ${DOCKER_CACHE} cache is unknown!"
-        echo >&2
+        echo
+        echo  "${COLOR_RED_ERROR} The ${DOCKER_CACHE} cache is unknown!  ${COLOR_RESET}"
+        echo
         exit 1
     fi
     EXTRA_DOCKER_CI_BUILD_FLAGS=(
@@ -712,9 +715,10 @@ function build_images::build_prod_images() {
             "--cache-from" "${AIRFLOW_PROD_BUILD_IMAGE}"
         )
     else
-        echo >&2
-        echo >&2 "Error - thee ${DOCKER_CACHE} cache is unknown!"
-        echo >&2
+        echo
+        echo  "${COLOR_RED_ERROR} The ${DOCKER_CACHE} cache is unknown  ${COLOR_RESET}"
+        echo
+        echo
         exit 1
     fi
     set +u
@@ -856,60 +860,64 @@ function build_images::determine_docker_cache_strategy() {
 
 # Useful information for people who stumble upon a pip check failure
 function build_images::inform_about_pip_check() {
-        >&2 echo """
+        echo """
+${COLOR_BLUE}***** Beginning of the instructions ****${COLOR_RESET}
 
 The image did not pass 'pip check' verification. This means that there are some conflicting dependencies
-in the image. Usually it means that some setup.py or setup.cfg limits need to be adjusted to fix it.
+in the image.
 
-Usually it happens when one of the dependencies gets upgraded and it has more strict requirements
-than the other dependencies and they are conflicting.
+It can mean one of those:
 
-In case you did not update setup.py or any of your dependencies, this error might happen in case
-someone accidentally merges conflicting dependencies in master. This
-should not happen as we are running 'pip check' as dependency before we upgrade the constrained
-dependencies, but we could miss some edge cases (thank you for your patience). Please let committer now
-and apologies for the troubles. You do not have to do anything in this case. You might be asked to
-rebase to the latest master after the problem is fixed.
+1) The master is currently broken (other PRs will fail with the same error)
+2) You changed some dependencies in setup.py or setup.cfg and they are conflicting.
 
-In case you actually updated setup.py, there are some steps you can take to address that:
 
-* first of all ask the committer to set 'upgrade to newer dependencies' and 'full tests needed' labels
-  for your PR. This will turn your PR in mode where all the dependencies are upgraded to latest matching
-  dependencies and the checks will run for all python versions
+In case 1) - apologies for the trouble.Please let committers know and they will fix it. You might
+be asked to rebase to the latest master after the problem is fixed.
 
-* run locally the image that is failing with Breeze - this will make it easy to manually try to update
-  the setup.py and test the consequences of changing constraints. You can do it by checking out your PR
-  and running this command:
+In case 2) - Follow the steps below:
+
+* consult the committers if you are unsure what to do. Just comment in the PR that you need help, if you do,
+  but try to follow those instructions first!
+
+* ask the committer to set 'upgrade to newer dependencies'. All dependencies in your PR will be updated
+  to latest 'good' versions and you will be able to check if they are not conflicting.
+
+* run locally the image that is failing with Breeze:
 
     ./breeze ${1}--github-image-id ${GITHUB_REGISTRY_PULL_IMAGE_TAG} --backend ${BACKEND} --python ${PYTHON_MAJOR_MINOR_VERSION}
 
-* your setup.py and setup.cfg will be mounted to the container and you will be able to iterate with
+* your setup.py and setup.cfg will be mounted to the container. You will be able to iterate with
   different setup.py versions.
 
-* run 'pipdeptree' to figure out where the dependency conflict comes from. Useful commands that can help you
-  to find out dependencies you have are:
+* in container your can run 'pipdeptree' to figure out where the dependency conflict comes from.
+
+* Some useful commands that can help yoy to find out dependencies you have:
+
      * 'pipdeptree | less' (you can then search through the dependencies with vim-like shortcuts)
+
      * 'pipdeptree > /files/pipdeptree.txt' - this will produce a pipdeptree.txt file in your source
        'files' directory and you can open it in editor of your choice,
+
      * 'pipdeptree | grep YOUR_DEPENDENCY' - to see all the requirements your dependency has as specified
        by other packages
 
-* figure out which dependency limits should be upgraded. First try to upgrade them in setup.py extras
+* figure out which dependency limits should be upgraded. Upgrade them in corresponding setup.py extras
   and run pip to upgrade your dependencies accordingly:
 
      pip install '.[all]' --upgrade --upgrade-strategy eager
 
-* run pip check to figure out if the dependencies have been fixed (it should let you know which dependencies
+* run pip check to figure out if the dependencies have been fixed. It should let you know which dependencies
   are conflicting or (hurray!) if there are no conflicts:
 
      pip check
 
 * in some, rare, cases, pip will not limit the requirement in case you specify it in extras, you might
-  need to add such requirement in 'install_requires' section of setup.cfg in order to have pip take it into
-  account. This will happen if higher version of your dependency is already installed in 'install_requires'
-  section. In such case update 'setup.cfg' and run pip install/pip check from the previous steps
+  need to add such requirement in 'install_requires' section of setup.cfg instead of extras in setup.py.
 
 * iterate until all such dependency conflicts are fixed.
+
+${COLOR_BLUE}***** End of the instructions ****${COLOR_RESET}
 
 """
 }

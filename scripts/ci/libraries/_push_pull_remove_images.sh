@@ -29,17 +29,17 @@ function push_pull_remove_images::push_image_with_retries() {
         local res=$?
         set -e
         if [[ ${res} != "0" ]]; then
-            >&2 echo
-            >&2 echo "Error ${res} when pushing image on ${try_num} try"
-            >&2 echo
+            echo
+            echo  "${COLOR_YELLOW_WARNING}: Error ${res} when pushing image on ${try_num} try  ${COLOR_RESET}"
+            echo
             continue
         else
             return 0
         fi
     done
-    >&2 echo
-    >&2 echo "Error ${res} when pushing image on ${try_num} try. Giving up!"
-    >&2 echo
+    echo
+    echo  "${COLOR_RED_ERROR} Error ${res} when pushing image on ${try_num} try. Giving up!  ${COLOR_RESET}"
+    echo
     return 1
 }
 
@@ -64,17 +64,19 @@ function push_pull_remove_images::pull_image_if_not_present_or_forced() {
         docker pull "${IMAGE_TO_PULL}"
         EXIT_VALUE="$?"
         if [[ ${EXIT_VALUE} != "0" && ${FAIL_ON_GITHUB_DOCKER_PULL_ERROR} == "true" ]]; then
-            >&2 echo
-            >&2 echo "ERROR! Exiting on docker pull error"
-            >&2 echo
-            >&2 echo "If you have authorisation problems, you might want to run:"
-            >&2 echo
-            >&2 echo "docker login ${IMAGE_TO_PULL%%\/*}"
-            >&2 echo
-            >&2 echo "You need to use generate token as the password, not your personal password."
-            >&2 echo "You can generate one at https://github.com/settings/tokens"
-            >&2 echo "Make sure to choose 'read:packages' scope".
-            >&2 echo
+            echo
+            echo """
+${COLOR_RED_ERROR} Exiting on docker pull error
+
+If you have authorisation problems, you might want to run:
+
+docker login ${IMAGE_TO_PULL%%\/*}
+
+You need to use generate token as the password, not your personal password.
+You can generate one at https://github.com/settings/tokens
+Make sure to choose 'read:packages' scope.
+${COLOR_RESET}
+"""
             exit ${EXIT_VALUE}
         fi
         echo
@@ -282,7 +284,7 @@ function push_pull_remove_images::wait_for_github_registry_image() {
         digest=$(jq '.config.digest' < "${OUTPUT_LOG}")
         echo -n "."
         if [[ ${digest} != "null" ]]; then
-            echo -e " \e[32mOK.\e[0m"
+            echo  "${COLOR_GREEN_OK}  ${COLOR_RESET}"
             break
         fi
         sleep 10

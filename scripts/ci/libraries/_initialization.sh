@@ -470,8 +470,28 @@ function initialization::initialize_build_image_variables() {
     REMOTE_IMAGE_BUILD_CACHE_HASH_FILE="${AIRFLOW_SOURCES}/manifests/remote-build-cache-hash"
 }
 
+function initialization::set_output_color_variables() {
+    COLOR_BLUE=$'\e[37m'
+    COLOR_GREEN=$'\e[32m'
+    COLOR_GREEN_OK=$'\e[32mOK.'
+    COLOR_RED=$'\e[31m'
+    COLOR_RED_ERROR=$'\e[31mERROR:'
+    COLOR_RESET=$'\e[0m'
+    COLOR_YELLOW=$'\e[33m'
+    COLOR_YELLOW_WARNING=$'\e[33mWARNING:'
+    export COLOR_BLUE
+    export COLOR_GREEN
+    export COLOR_GREEN_OK
+    export COLOR_RED
+    export COLOR_RED_ERROR
+    export COLOR_RESET
+    export COLOR_YELLOW
+    export COLOR_YELLOW_WARNING
+}
+
 # Common environment that is initialized by both Breeze and CI scripts
 function initialization::initialize_common_environment() {
+    initialization::set_output_color_variables
     initialization::create_directories
     initialization::initialize_base_variables
     initialization::initialize_branch_variables

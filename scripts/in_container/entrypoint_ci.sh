@@ -288,9 +288,9 @@ else
             ${TEST_TYPE} == "Integration" ]]; then
         SELECTED_TESTS=("${ALL_TESTS[@]}")
     else
-        >&2 echo
-        >&2 echo "Wrong test type ${TEST_TYPE}"
-        >&2 echo
+        echo
+        echo  "${COLOR_RED_ERROR} Wrong test type ${TEST_TYPE}  ${COLOR_RESET}"
+        echo
         exit 1
     fi
 
