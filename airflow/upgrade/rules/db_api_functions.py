@@ -70,7 +70,11 @@ class DbApiRule(BaseRule):
         subclasses = BaseHook.__subclasses__()
         incorrect_implementations = []
         for s in subclasses:
-            if "airflow.hooks" in s.__module__ or 'airflow.contrib.hooks.grpc_hook' in s.__module__:
+            if (
+                "airflow.hooks" in s.__module__
+                or "airflow.contrib.hooks.grpc_hook" in s.__module__
+                or "tests.plugins.test_plugin.PluginHook" in str(s)
+            ):
                 pass
             else:
                 pandas_df = check_get_pandas_df(s)
