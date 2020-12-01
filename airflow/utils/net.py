@@ -21,7 +21,6 @@ import importlib
 import socket
 from airflow.configuration import (conf, AirflowConfigException)
 
-
 def get_host_ip_address():
     return socket.gethostbyname(socket.getfqdn())
 
@@ -43,7 +42,10 @@ def get_hostname():
         return socket.getfqdn()
 
     # Since we have a callable path, we try to import and run it next.
-    module_path, attr_name = callable_path.split(':')
-    module = importlib.import_module(module_path)
-    callable = getattr(module, attr_name)
-    return callable()
+    if ":" in callable_path:
+        module_path, attr_name = callable_path.split(':')
+        module = importlib.import_module(module_path)
+        callable = getattr(module, attr_name)
+        return callable()
+    else:
+        return conf.getimport('core', 'hostname_callable',fallback='socket.getfqdn')()
