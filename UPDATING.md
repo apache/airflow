@@ -54,9 +54,8 @@ assists users migrating to a new version.
 
 ### Changes to output argument in commands
 
-Instead of using [tabulate](https://pypi.org/project/tabulate/) to render commands output
-we use [rich](https://github.com/willmcgugan/rich). Due to this change the `--output` argument
-will no longer accept formats of tabulate tables. Instead it accepts:
+From Airflow 2.0, We are replacing [tabulate](https://pypi.org/project/tabulate/) with [rich](https://github.com/willmcgugan/rich) to render commands output. Due to this change, the `--output` argument
+will no longer accept formats of tabulate tables. Instead, it now accepts:
 
 - `table` - will render the output in predefined table
 - `json` - will render the output as a json
