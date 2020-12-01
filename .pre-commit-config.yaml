@@ -247,7 +247,7 @@ repos:
       - id: setup-extra-packages
         name: Checks if all the libraries in setup.py are listed in extra-packages-ref.rst file
         language: python
-        files: ^setup.py$|^docs/extra-packages-ref.rst$
+        files: ^setup.py$|^docs/apache-airflow/extra-packages-ref.rst$
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_setup_extra_packages_ref.py
         additional_dependencies: ['rich==9.2.0']
