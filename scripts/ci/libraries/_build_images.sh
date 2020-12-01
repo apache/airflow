@@ -849,3 +849,64 @@ function build_images::determine_docker_cache_strategy() {
     verbosity::print_info "Using ${DOCKER_CACHE} cache strategy for the build."
     verbosity::print_info
 }
+
+
+# Useful information for people who stumble upon a pip check failure
+function build_images::inform_about_pip_check() {
+        >&2 echo """
+
+The image did not pass 'pip check' verification. This means that there are some conflicting dependencies
+in the image. Usually it means that some setup.py or setup.cfg limits need to be adjusted to fix it.
+
+Usually it happens when one of the dependencies gets upgraded and it has more strict requirements
+than the other dependencies and they are conflicting.
+
+In case you did not update setup.py or any of your dependencies, this error might happen in case
+someone accidentally merges conflicting dependencies in master. This
+should not happen as we are running 'pip check' as dependency before we upgrade the constrained
+dependencies, but we could miss some edge cases (thank you for your patience). Please let committer now
+and apologies for the troubles. You do not have to do anything in this case. You might be asked to
+rebase to the latest master after the problem is fixed.
+
+In case you actually updated setup.py, there are some steps you can take to address that:
+
+* first of all ask the committer to set 'upgrade to newer dependencies' and 'full tests needed' labels
+  for your PR. This will turn your PR in mode where all the dependencies are upgraded to latest matching
+  dependencies and the checks will run for all python versions
+
+* run locally the image that is failing with Breeze - this will make it easy to manually try to update
+  the setup.py and test the consequences of changing constraints. You can do it by checking out your PR
+  and running this command:
+
+    ./breeze ${1}--github-image-id ${GITHUB_REGISTRY_PULL_IMAGE_TAG} --backend ${BACKEND} --python ${PYTHON_MAJOR_MINOR_VERSION}
+
+* your setup.py and setup.cfg will be mounted to the container and you will be able to iterate with
+  different setup.py versions.
+
+* run 'pipdeptree' to figure out where the dependency conflict comes from. Useful commands that can help you
+  to find out dependencies you have are:
+     * 'pipdeptree | less' (you can then search through the dependencies with vim-like shortcuts)
+     * 'pipdeptree > /files/pipdeptree.txt' - this will produce a pipdeptree.txt file in your source
+       'files' directory and you can open it in editor of your choice,
+     * 'pipdeptree | grep YOUR_DEPENDENCY' - to see all the requirements your dependency has as specified
+       by other packages
+
+* figure out which dependency limits should be upgraded. First try to upgrade them in setup.py extras
+  and run pip to upgrade your dependencies accordingly:
+
+     pip install '.[all]' --upgrade --upgrade-strategy eager
+
+* run pip check to figure out if the dependencies have been fixed (it should let you know which dependencies
+  are conflicting or (hurray!) if there are no conflicts:
+
+     pip check
+
+* in some, rare, cases, pip will not limit the requirement in case you specify it in extras, you might
+  need to add such requirement in 'install_requires' section of setup.cfg in order to have pip take it into
+  account. This will happen if higher version of your dependency is already installed in 'install_requires'
+  section. In such case update 'setup.cfg' and run pip install/pip check from the previous steps
+
+* iterate until all such dependency conflicts are fixed.
+
+"""
+}

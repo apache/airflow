@@ -47,5 +47,4 @@ function build_prod_images_on_ci() {
     unset FORCE_BUILD
 }
 
-
 build_prod_images_on_ci
