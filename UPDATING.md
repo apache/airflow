@@ -268,7 +268,7 @@ The following table shows changes in import paths.
 |-------------------------------------|----------------------------|
 | airflow.hooks.base_hook.BaseHook | airflow.hooks.base.BaseHook |
 | airflow.hooks.dbapi_hook.DbApiHook | airflow.hooks.dbapi.DbApiHook |
-| airflow.operators.dummy_operator.py | airflow.operators.dummy.py |
+| airflow.operators.dummy_operator.DummyOperator | airflow.operators.dummy.DummyOperator |
 | airflow.operators.branch_operator.BaseBranchOperator | airflow.operators.branch.BaseBranchOperator |
 | airflow.operators.subdag_operator.SubDagOperator | airflow.operators.subdag.SubDagOperator |
 | airflow.sensors.base_sensor_operator.BaseSensorOperator | airflow.sensors.base.BaseSensorOperator |
