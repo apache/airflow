@@ -1,9 +1,7 @@
 import json
 import logging
 import hashlib
-from json import JSONDecodeError
-import pendulum
-from typing import Any, Iterable, Optional, Union
+from typing import Any
 
 from airflow.configuration import conf
 from airflow.models.xcom import BaseXCom
@@ -12,6 +10,7 @@ from airflow.providers.redis.hooks.redis import RedisHook
 log = logging.getLogger(__name__)
 redis_conn_id = conf.get('xcom', 'redis_conn_id', fallback=RedisHook.default_conn_name)
 redis_hook = RedisHook(redis_conn_id=redis_conn_id)
+
 
 class RedisXCom(BaseXCom):
 
