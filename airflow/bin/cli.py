@@ -4298,13 +4298,15 @@ class CLIFactory(object):
             'args': (),
         },
     )
-    deprecated_subparsers_dict = {sp['func'].__name__: sp for sp in deprecated_subparsers}
     deprecated_dag_subparsers = (
         'list_tasks', 'backfill', 'test', 'run', 'pause', 'unpause', 'list_dag_runs')
 
     @classmethod
     def get_parser(cls, dag_parser=False):
         """Creates and returns command line argument parser"""
+
+        deprecated_subparsers_dict = {sp['func'].__name__: sp for sp in cls.deprecated_subparsers}
+
         class DefaultHelpParser(argparse.ArgumentParser):
             """Override argparse.ArgumentParser.error and use print_help instead of print_usage"""
             def error(self, message):
@@ -4321,9 +4323,9 @@ class CLIFactory(object):
             # Deprecated "mode select", and new sub-command version? Merge them
             # so they both work, but don't show help for the deprecated
             # options!
-            if sub_name in cls.deprecated_subparsers_dict and action is not None:
+            if sub_name in deprecated_subparsers_dict and action is not None:
                 sp, sub_subparsers = action
-                deprecated = cls.deprecated_subparsers_dict.pop(sub_name)
+                deprecated = deprecated_subparsers_dict.pop(sub_name)
                 sp.set_defaults(func=deprecated['func'])
                 sub_subparsers.required = False
 
@@ -4338,12 +4340,12 @@ class CLIFactory(object):
 
         if dag_parser:
             subparser_list = [
-                (cls.deprecated_subparsers_dict[name], False)
+                (deprecated_subparsers_dict[name], False)
                 for name in cls.deprecated_dag_subparsers
             ]
         else:
             current = zip(cls.subparsers, itertools.repeat(False))
-            deprecated = zip(cls.deprecated_subparsers_dict.values(), itertools.repeat(True))
+            deprecated = zip(deprecated_subparsers_dict.values(), itertools.repeat(True))
             subparser_list = itertools.chain(current, deprecated)
         for (sub, hide_from_toplevel_help) in subparser_list:
             if hide_from_toplevel_help and BUILD_DOCS:
