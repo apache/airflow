@@ -79,7 +79,7 @@ class DbApiRule(BaseRule):
             if (
                 "airflow.hooks" in s.__module__
                 or "airflow.contrib.hooks.grpc_hook" in s.__module__
-                or "tests.plugins.test_plugin.PluginHook" in str(s)
+                or ".PluginHook" in str(s)
             ):
                 pass
             else:
