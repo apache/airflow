@@ -21,6 +21,8 @@ import unittest
 from itertools import dropwhile
 from unittest.mock import call, patch
 
+from parameterized import parameterized
+
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook
@@ -98,7 +100,7 @@ class TestSparkSqlHook(unittest.TestCase):
                         'default-name',
                         '--verbose',
                         '--queue',
-                        'default',
+                        'root.default',
                     ],
                 )
                 mock_info.assert_called_once_with('Spark-sql communicates using stdout')
@@ -117,7 +119,7 @@ class TestSparkSqlHook(unittest.TestCase):
                     'default-name',
                     '--verbose',
                     '--queue',
-                    'default',
+                    'root.default',
                 ],
                 stderr=-2,
                 stdout=-1,
@@ -147,7 +149,7 @@ class TestSparkSqlHook(unittest.TestCase):
                     'default-name',
                     '--verbose',
                     '--queue',
-                    'default',
+                    'root.default',
                     '--deploy-mode',
                     'cluster',
                 ],
@@ -179,7 +181,7 @@ class TestSparkSqlHook(unittest.TestCase):
                     'default-name',
                     '--verbose',
                     '--queue',
-                    'default',
+                    'root.default',
                     '--deploy-mode',
                     'cluster',
                 ],
@@ -192,18 +194,14 @@ class TestSparkSqlHook(unittest.TestCase):
     def test_spark_process_runcmd_and_fail(self, mock_popen):
         # Given
         sql = 'SELECT 1'
-        master = 'local'
+        master = 'yarn'
         params = '--deploy-mode cluster'
         status = 1
         mock_popen.return_value.wait.return_value = status
 
         # When
         with self.assertRaises(AirflowException) as e:
-            hook = SparkSqlHook(
-                conn_id='spark_default',
-                sql=sql,
-                master=master,
-            )
+            hook = SparkSqlHook(conn_id='spark_default', sql=sql)
             hook.run_query(params)
 
         # Then
@@ -213,3 +211,15 @@ class TestSparkSqlHook(unittest.TestCase):
                 sql, master, params, status
             ),
         )
+
+    @parameterized.expand([('spark_default', {'master': 'yarn', 'queue': 'root.default', 'deploy_mode': None}),
+                           ('spark_yarn_cluster', {'master': 'yarn://yarn-master',
+                                                   'queue': 'root.etl',
+                                                   'deploy_mode': 'cluster'}),
+                           ('spark_standalone_cluster', {'master': 'spark://spark-standalone-master:6066',
+                                                         'queue': None,
+                                                         'deploy_mode': 'cluster'})])
+    def test_resolve_connections(self, connection_id, expected_spark_connection):
+        hook = SparkSqlHook(conn_id=connection_id, sql='SELECT 1')
+        connection = hook._connection
+        self.assertEqual(connection, expected_spark_connection)

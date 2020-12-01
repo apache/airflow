@@ -17,7 +17,7 @@
 # under the License.
 #
 import subprocess
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -44,7 +44,9 @@ class SparkSqlHook(BaseHook):
     :type executor_memory: str
     :param keytab: Full path to the file that contains the keytab
     :type keytab: str
-    :param master: spark://host:port, mesos://host:port, yarn, or local
+    :param master: (Deprecated) spark://host:port, mesos://host:port, yarn, or local
+        This parameter has been deprecated. Master and connection parameters (such as YARN queue)
+        are determined by the conn_id parameter.
     :type master: str
     :param name: Name of the job.
     :type name: str
@@ -52,7 +54,9 @@ class SparkSqlHook(BaseHook):
     :type num_executors: int
     :param verbose: Whether to pass the verbose flag to spark-sql
     :type verbose: bool
-    :param yarn_queue: The YARN queue to submit to (Default: "default")
+    :param yarn_queue: (Deprecated) The YARN queue to submit to (Default: "default")
+        This parameter has been deprecated. Master and connection parameters (such as YARN queue)
+        are determined by the conn_id parameter.
     :type yarn_queue: str
     """
 
@@ -76,7 +80,7 @@ class SparkSqlHook(BaseHook):
         super().__init__()
         self._sql = sql
         self._conf = conf
-        self._conn = self.get_connection(conn_id)
+        self._conn_id = conn_id
         self._total_executor_cores = total_executor_cores
         self._executor_cores = executor_cores
         self._executor_memory = executor_memory
@@ -88,6 +92,29 @@ class SparkSqlHook(BaseHook):
         self._verbose = verbose
         self._yarn_queue = yarn_queue
         self._sp: Any = None
+        self._connection = self._resolve_connection()
+
+    def _resolve_connection(self) -> Dict[str, Any]:
+        # Build from connection master or default to yarn if not available
+        conn_data = {'master': "yarn", 'queue': None, 'deploy_mode': None}
+
+        try:
+            conn = self.get_connection(self._conn_id)
+            if conn.port:
+                conn_data['master'] = f"{conn.host}:{conn.port}"
+            else:
+                conn_data['master'] = conn.host
+
+            # Determine optional yarn queue from the extra field
+            extra = conn.extra_dejson
+            conn_data['queue'] = extra.get('queue')
+            conn_data['deploy_mode'] = extra.get('deploy-mode')
+        except AirflowException:
+            self.log.info(
+                "Could not load connection string %s, defaulting to %s", self._conn_id, conn_data['master']
+            )
+
+        return conn_data
 
     def get_conn(self) -> Any:
         pass
@@ -123,14 +150,16 @@ class SparkSqlHook(BaseHook):
                 connection_cmd += ["-f", sql]
             else:
                 connection_cmd += ["-e", sql]
-        if self._master:
-            connection_cmd += ["--master", self._master]
+        if self._connection['master']:
+            connection_cmd += ["--master", self._connection['master']]
         if self._name:
             connection_cmd += ["--name", self._name]
         if self._verbose:
             connection_cmd += ["--verbose"]
-        if self._yarn_queue:
-            connection_cmd += ["--queue", self._yarn_queue]
+        if self._connection['queue']:
+            connection_cmd += ["--queue", self._connection['queue']]
+        if self._connection['deploy_mode']:
+            connection_cmd += ["--deploy-mode", self._connection['deploy_mode']]
 
         if isinstance(cmd, str):
             connection_cmd += cmd.split()
@@ -163,7 +192,7 @@ class SparkSqlHook(BaseHook):
         if returncode:
             raise AirflowException(
                 "Cannot execute '{}' on {} (additional parameters: '{}'). Process exit code: {}.".format(
-                    self._sql, self._master, cmd, returncode
+                    self._sql, self._connection['master'], cmd, returncode
                 )
             )
 

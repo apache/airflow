@@ -26,9 +26,7 @@ Apache Spark Operators
 Prerequisite
 ------------
 
-To use ``SparkJDBCOperator`` and ``SparkSubmitOperator``, you must configure a :doc:`Spark Connection <connections/spark>`. For ``SparkJDBCOperator``, you must also configure a :doc:`JDBC connection <apache-airflow-providers-jdbc:connections/jdbc>`.
-
-``SparkSqlOperator`` gets all the configurations from operator parameters.
+To use ``SparkJDBCOperator``, ``SparkSubmitOperator``, and ``SparkSqlOperator``, you must configure a :doc:`Spark Connection <connections/spark>`. For ``SparkJDBCOperator``, you must also configure a :doc:`JDBC connection <apache-airflow-providers-jdbc:connections/jdbc>`.
 
 .. _howto/operator:SparkJDBCOperator:
 
@@ -63,6 +61,7 @@ SparkSqlOperator
 
 Launches applications on a Apache Spark server, it requires that the ``spark-sql`` script is in the PATH.
 The operator will run the SQL query on Spark Hive metastore service, the ``sql`` parameter can be templated and be a ``.sql`` or ``.hql`` file.
+There are two deprecated parameters, ``master`` and ``yarn_queue``, which were originally used to provide configuration; configuration is now determined through the supplied connection ID.
 
 For parameter definition take a look at :class:`~airflow.providers.apache.spark.operators.spark_sql.SparkSqlOperator`.
 

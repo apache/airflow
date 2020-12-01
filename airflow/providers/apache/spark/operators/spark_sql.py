@@ -47,7 +47,9 @@ class SparkSqlOperator(BaseOperator):
     :type executor_memory: str
     :param keytab: Full path to the file that contains the keytab
     :type keytab: str
-    :param master: spark://host:port, mesos://host:port, yarn, or local
+    :param master: (Deprecated) spark://host:port, mesos://host:port, yarn, or local
+        This parameter has been deprecated. Master and connection parameters (such as YARN queue)
+        are determined by the conn_id parameter.
     :type master: str
     :param name: Name of the job
     :type name: str
@@ -56,6 +58,8 @@ class SparkSqlOperator(BaseOperator):
     :param verbose: Whether to pass the verbose flag to spark-sql
     :type verbose: bool
     :param yarn_queue: The YARN queue to submit to (Default: "default")
+        This parameter has been deprecated. Master and connection parameters (such as YARN queue)
+        are determined by the conn_id parameter.
     :type yarn_queue: str
     """
 
