@@ -1374,6 +1374,9 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     @property
     def inherits_from_dummy_operator(self):
         """Used to determine if an Operator is inherited from DummyOperator"""
+        # This looks like `isinstance(self, DummyOperator) would work, but this also
+        # needs to cope when `self` is a Serialized instance of a DummyOperator or one
+        # of its sub-classes (which don't inherit from anything but BaseOperator).
         return getattr(self, '_is_dummy', False)
 
 
