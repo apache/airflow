@@ -557,6 +557,23 @@ notacommand = OK
             # the environment variable's echo command
             self.assertEqual(test_cmdenv_conf.get('testcmdenv', 'notacommand'), 'OK')
 
+    def test_sensitive_config_values(self):
+        config_parser = AirflowConfigParser()
+        self.assertEqual(
+            config_parser.sensitive_config_values,
+            {
+                ('core', 'sql_alchemy_conn'),
+                ('core', 'fernet_key'),
+                ('celery', 'broker_url'),
+                ('celery', 'flower_basic_auth'),
+                ('celery', 'result_backend'),
+                ('atlas', 'password'),
+                ('smtp', 'smtp_password'),
+                ('kubernetes', 'git_password'),
+                ('webserver', 'secret_key'),
+            }
+        )
+
     def test_parameterized_config_gen(self):
 
         cfg = parameterized_config(DEFAULT_CONFIG)

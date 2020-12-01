@@ -130,6 +130,7 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
         ('atlas', 'password'),
         ('smtp', 'smtp_password'),
         ('kubernetes', 'git_password'),
+        ('webserver', 'secret_key'),
     }
 
     # A mapping of (new option -> old option). where option is a tuple of section name and key.
