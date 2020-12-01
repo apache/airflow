@@ -139,7 +139,8 @@ def create_mock_args(
     args.ignore_dependencies = ignore_dependencies
     args.force = force
     args.interactive = interactive
-    args.subcommand = None
+    # Needed for CLI deprecation warning decorator
+    args.subcommand = "fake-group"
     return args
 
 
