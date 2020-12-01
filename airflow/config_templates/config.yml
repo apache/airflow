@@ -321,13 +321,6 @@
       type: string
       example: ~
       default: "True"
-    - name: worker_precheck
-      description: |
-        Worker initialisation check to validate Metadata Database connection
-      version_added: 1.10.1
-      type: string
-      example: ~
-      default: "False"
     - name: dag_discovery_safe_mode
       description: |
         When discovering DAGs, ignore any files that don't contain the strings ``DAG`` and ``airflow``.
@@ -1512,6 +1505,13 @@
       type: int
       example: ~
       default: "3"
+    - name: worker_precheck
+      description: |
+        Worker initialisation check to validate Metadata Database connection
+      version_added: 1.10.1
+      type: string
+      example: ~
+      default: "False"
 - name: celery_broker_transport_options
   description: |
     This section is for specifying options which can be passed to the

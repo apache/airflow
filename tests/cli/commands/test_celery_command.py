@@ -42,7 +42,7 @@ class TestWorkerPrecheck(unittest.TestCase):
             celery_command.worker(Namespace(queues=1, concurrency=1))
         self.assertEqual(cm.exception.code, 1)
 
-    @conf_vars({('core', 'worker_precheck'): 'False'})
+    @conf_vars({('celery', 'worker_precheck'): 'False'})
     def test_worker_precheck_exception(self):
         """
         Test to check the behaviour of validate_session method
@@ -51,7 +51,7 @@ class TestWorkerPrecheck(unittest.TestCase):
         self.assertTrue(airflow.settings.validate_session())
 
     @mock.patch('sqlalchemy.orm.session.Session.execute')
-    @conf_vars({('core', 'worker_precheck'): 'True'})
+    @conf_vars({('celery', 'worker_precheck'): 'True'})
     def test_validate_session_dbapi_exception(self, mock_session):
         """
         Test to validate connection failure scenario on SELECT 1 query
