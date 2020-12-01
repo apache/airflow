@@ -560,7 +560,7 @@ notacommand = OK
     def test_sensitive_config_values(self):
         config_parser = AirflowConfigParser()
         self.assertEqual(
-            config_parser.sensitive_config_values,
+            sorted(config_parser.sensitive_config_values),
             {
                 ('core', 'sql_alchemy_conn'),
                 ('core', 'fernet_key'),
