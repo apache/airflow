@@ -30,8 +30,8 @@ class HostnameCallable(BaseRule):
         hostname_callable_conf = conf.get("core", "hostname_callable")
         if ":" in hostname_callable_conf:
             return (
-                "Error: hostname_callable {} "
-                "contains a colon instead of a dot. please change to {}".format(
+                "Error: hostname_callable `{}` "
+                "contains a colon instead of a dot. please change to `{}`".format(
                     hostname_callable_conf, hostname_callable_conf.replace(":", ".")
                 )
             )
