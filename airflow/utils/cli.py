@@ -211,11 +211,12 @@ def deprecated_action(func=None, new_name=None, sub_commands=False):
     @functools.wraps(func)
     def wrapper(args):
         if getattr(args, 'deprecation_warning', True):
+            command = args.subcommand or args.func.__name__
             if sub_commands:
                 msg = (
                     "The mode (-l, -d, etc) options to {!r} have been deprecated and removed in Airflow 2.0,"
                     " please use the get/set/list subcommands instead"
-                ).format(args.subcommand)
+                ).format(command)
             else:
                 prefix = "The {!r} command is deprecated and removed in Airflow 2.0, please use "
                 if isinstance(new_name, list):
@@ -224,7 +225,7 @@ def deprecated_action(func=None, new_name=None, sub_commands=False):
                     msg += "{}, or {}".format(", ".join(new_names[:-1]), new_names[-1])
                     msg += " instead"
                 else:
-                    msg = (prefix + "{!r} instead").format(args.subcommand, new_name)
+                    msg = (prefix + "{!r} instead").format(command, new_name)
 
             if should_color():
                 msg = "".join([colorama.Fore.YELLOW, msg, colorama.Style.RESET_ALL])

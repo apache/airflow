@@ -139,6 +139,7 @@ def create_mock_args(
     args.ignore_dependencies = ignore_dependencies
     args.force = force
     args.interactive = interactive
+    args.subcommand = None
     return args
 
 

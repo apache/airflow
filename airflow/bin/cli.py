@@ -4346,6 +4346,10 @@ class CLIFactory(object):
             deprecated = zip(cls.deprecated_subparsers_dict.values(), itertools.repeat(True))
             subparser_list = itertools.chain(current, deprecated)
         for (sub, hide_from_toplevel_help) in subparser_list:
+            if hide_from_toplevel_help and BUILD_DOCS:
+                # Don't show the deprecated commands in the docs
+                continue
+
             sp = subparsers.add_parser(sub['func'].__name__, help=sub['help'])
             sp.hide_from_toplevel_help = hide_from_toplevel_help
             sp.set_defaults(func=sub['func'])
