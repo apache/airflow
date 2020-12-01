@@ -136,6 +136,7 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
     # When reading new option, the old option will be checked to see if it exists. If it does a
     # DeprecationWarning will be issued and the old option will be used instead
     deprecated_options = {
+        ('celery', 'worker_precheck'): ('core', 'worker_precheck'),
         ('logging', 'base_log_folder'): ('core', 'base_log_folder'),
         ('logging', 'remote_logging'): ('core', 'remote_logging'),
         ('logging', 'remote_log_conn_id'): ('core', 'remote_log_conn_id'),
