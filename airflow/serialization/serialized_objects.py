@@ -31,6 +31,7 @@ from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
 from airflow.serialization.json_schema import Validator, load_dag_schema
@@ -350,6 +351,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
         serialize_op['_task_type'] = op.__class__.__name__
         serialize_op['_task_module'] = op.__class__.__module__
+
+        # Used to determine if an Operator is inherited from DummyOperator
+        serialize_op['_is_dummy'] = cls._is_inherited_from_dummy_operator(op)
+
         if op.operator_extra_links:
             serialize_op['_operator_extra_links'] = cls._serialize_operator_extra_links(
                 op.operator_extra_links
@@ -431,6 +436,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         for field in op.template_fields:
             if not hasattr(op, field):
                 setattr(op, field, None)
+
+        # Used to determine if an Operator is inherited from DummyOperator
+        setattr(op, "_is_dummy", bool(encoded_op.get("_is_dummy")))
 
         return op
 
@@ -531,6 +539,13 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             )
 
         return serialize_operator_extra_links
+
+    @classmethod
+    def _is_inherited_from_dummy_operator(cls, op: BaseOperator) -> bool:
+        """Used to determine if an Operator is inherited from DummyOperator"""
+        if op.task_type == "DummyOperator" or isinstance(op, DummyOperator):
+            return True
+        return False
 
 
 class SerializedDAG(DAG, BaseSerialization):

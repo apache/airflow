@@ -158,7 +158,8 @@
         "_downstream_task_ids": {
           "type": "array",
           "items": { "type": "string" }
-        }
+        },
+        "_is_dummy": { "type": "boolean" }
       },
       "additionalProperties": true
     },
