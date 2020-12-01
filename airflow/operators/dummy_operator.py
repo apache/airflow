@@ -29,6 +29,7 @@ class DummyOperator(BaseOperator):
     """
 
     ui_color = '#e8f7e4'
+    inherits_from_dummy_operator = True
 
     @apply_defaults
     def __init__(self, **kwargs) -> None:

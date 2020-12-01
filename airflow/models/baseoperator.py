@@ -1371,6 +1371,11 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         """Return if this operator can use smart service. Default False."""
         return False
 
+    @property
+    def inherits_from_dummy_operator(self):
+        """Used to determine if an Operator is inherited from DummyOperator"""
+        return getattr(self, '_is_dummy', False)
+
 
 def chain(*tasks: Union[BaseOperator, Sequence[BaseOperator]]):
     r"""

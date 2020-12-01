@@ -724,7 +724,7 @@ class DagRun(Base, LoggingMixin):
             ti
             for ti in schedulable_tis
             if (
-                (ti.task.task_type == "DummyOperator" or getattr(ti.task, "_is_dummy", False))
+                ti.task.inherits_from_dummy_operator
                 and not ti.task.on_execute_callback
                 and not ti.task.on_success_callback
             )
