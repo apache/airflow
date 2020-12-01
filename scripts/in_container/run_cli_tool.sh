@@ -19,19 +19,27 @@
 set -euo pipefail
 
 if [ -z "${AIRFLOW_CI_IMAGE=}" ]; then
-    >&2 echo "Missing environment variable AIRFLOW_CI_IMAGE"
+    echo
+    echo  "${COLOR_RED_ERROR} Missing environment variable AIRFLOW_CI_IMAGE  ${COLOR_RESET}"
+    echo
     exit 1
 fi
 if [ -z "${HOST_AIRFLOW_SOURCES=}" ]; then
-    >&2 echo "Missing environment variable HOST_AIRFLOW_SOURCES"
+    echo
+    echo  "${COLOR_RED_ERROR} Missing environment variable HOST_AIRFLOW_SOURCES  ${COLOR_RESET}"
+    echo
     exit 1
 fi
 if [ -z "${HOST_USER_ID=}" ]; then
-    >&2 echo "Missing environment variable HOST_USER_ID"
+    echo
+    echo  "${COLOR_RED_ERROR} Missing environment variable HOST_USER_ID  ${COLOR_RESET}"
+    echo
     exit 1
 fi
 if [ -z "${HOST_GROUP_ID=}" ]; then
-    >&2 echo "Missing environment variable HOST_GROUP_ID"
+    echo
+    echo  "${COLOR_RED_ERROR} Missing environment variable HOST_GROUP_ID   ${COLOR_RESET}"
+    echo
     exit 1
 fi
 
@@ -122,7 +130,9 @@ case "${TOOL_NAME}" in
         COMMAND=("/usr/local/openjdk-8/bin/java" "${@}")
         ;;
     * )
-        >&2 echo "Unsupported tool name: ${TOOL_NAME}"
+        echo
+        echo  "${COLOR_RED_ERROR} Unsupported tool name: ${TOOL_NAME}  ${COLOR_RESET}"
+        echo
         exit 1
         ;;
 esac

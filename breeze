@@ -215,11 +215,11 @@ function breeze::initialize_virtualenv() {
     local res=$?
     set -e
     if [[ ${res} != "0" ]]; then
-        echo >&2
-        echo >&2 "ERROR:  Initializing local virtualenv only works when you have virtualenv activated"
-        echo >&2
-        echo >&2 "Please enter your local virtualenv before (for example using 'pyenv activate' or 'workon') "
-        echo >&2
+        echo
+        echo  "${COLOR_RED_ERROR} Initializing local virtualenv only works when you have virtualenv activated  ${COLOR_RESET}"
+        echo
+        echo "Please enter your local virtualenv before (for example using 'pyenv activate' or 'workon') "
+        echo
         exit 1
     else
         echo
@@ -1138,9 +1138,9 @@ function breeze::parse_arguments() {
             ;;
         *)
             breeze::flags
-            echo >&2
-            echo >&2 "ERROR: Unknown flag ${1}"
-            echo >&2
+            echo
+            echo  "${COLOR_RED_ERROR} Unknown flag  ${COLOR_RESET}"
+            echo
             exit 1
             ;;
         esac
@@ -1323,9 +1323,9 @@ function breeze::parse_arguments() {
             ;;
         *)
             breeze::usage
-            echo >&2
-            echo >&2 "ERROR: Unknown command ${1}"
-            echo >&2
+            echo
+            echo  "${COLOR_RED_ERROR} Unknown command  ${COLOR_RESET}"
+            echo
             exit 1
             ;;
         esac
@@ -2769,10 +2769,9 @@ function breeze::make_sure_precommit_is_installed() {
     elif command -v pip >/dev/null; then
         pip_binary=pip
     else
-        echo >&2
-        echo >&2 "ERROR: You need to have pip or pip3 in your PATH"
-        echo >&2
-        S
+        echo
+        echo  "${COLOR_RED_ERROR} You need to have pip or pip3 in your PATH  ${COLOR_RESET}"
+        echo
         exit 1
     fi
     "${pip_binary}" install --upgrade pre-commit >/dev/null 2>&1
@@ -2934,9 +2933,9 @@ function breeze::run_build_command() {
         fi
         ;;
     *)
-        echo >&2
-        echo >&2 "ERROR: Unknown command to run ${command_to_run}"
-        echo >&2
+        echo
+        echo  "${COLOR_RED_ERROR} Unknown command to run ${command_to_run}  ${COLOR_RESET}"
+        echo
         exit 1
         ;;
     esac
@@ -3059,9 +3058,9 @@ function breeze::run_breeze_command() {
         fi
         ;;
     *)
-        echo >&2
-        echo >&2 "ERROR: Unknown command to run ${command_to_run}"
-        echo >&2
+        echo
+        echo  "${COLOR_RED_ERROR} Unknown command to run ${command_to_run}  ${COLOR_RESET}"
+        echo
         ;;
     esac
     set -u

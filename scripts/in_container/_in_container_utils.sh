@@ -40,17 +40,19 @@ function add_trap() {
 function assert_in_container() {
     export VERBOSE=${VERBOSE:="false"}
     if [[ ! -f /.dockerenv ]]; then
-        echo >&2
-        echo >&2 "You are not inside the Airflow docker container!"
-        echo >&2 "You should only run this script in the Airflow docker container as it may override your files."
-        echo >&2 "Learn more about how we develop and test airflow in:"
-        echo >&2 "https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst"
-        echo >&2
+        echo
+        echo "${COLOR_RED_ERROR} You are not inside the Airflow docker container!  ${COLOR_RESET}"
+        echo
+        echo "You should only run this script in the Airflow docker container as it may override your files."
+        echo "Learn more about how we develop and test airflow in:"
+        echo "https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst"
+        echo
         exit 1
     fi
 }
 
 function in_container_script_start() {
+    OUT_FILE_PRINTED_ON_ERROR=$(mktemp)
     if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
         set -x
     fi
@@ -61,17 +63,23 @@ function in_container_script_end() {
     EXIT_CODE=$?
     if [[ ${EXIT_CODE} != 0 ]]; then
         if [[ "${PRINT_INFO_FROM_SCRIPTS=="true"}" == "true" ]] ;then
-            if [[ -n ${OUT_FILE_PRINTED_ON_ERROR=} ]]; then
-                echo "  ERROR ENCOUNTERED!"
-                echo
-                echo "  Output:"
-                echo
-                cat "${OUT_FILE_PRINTED_ON_ERROR}"
+            if [[ -f ${OUT_FILE_PRINTED_ON_ERROR} ]]; then
                 echo "###########################################################################################"
+                echo
+                echo "${COLOR_BLUE} EXIT CODE: ${EXIT_CODE} in container (See above for error message). Below is the output of the last action! ${COLOR_RESET}"
+                echo
+                echo "${COLOR_BLUE}***  BEGINNING OF THE LAST COMMAND OUTPUT *** ${COLOR_RESET}"
+                cat "${OUT_FILE_PRINTED_ON_ERROR}"
+                echo "${COLOR_BLUE}***  END OF THE LAST COMMAND OUTPUT ***  ${COLOR_RESET}"
+                echo
+                echo "${COLOR_BLUE} EXIT CODE: ${EXIT_CODE} in container. The actual error might be above the output!  ${COLOR_RESET}"
+                echo
+                echo "###########################################################################################"
+            else
+                echo "########################################################################################################################"
+                echo "${COLOR_BLUE} [IN CONTAINER]   EXITING ${0} WITH EXIT CODE ${EXIT_CODE}  ${COLOR_RESET}"
+                echo "########################################################################################################################"
             fi
-            echo "###########################################################################################"
-            echo "  [IN CONTAINER]   EXITING ${0} WITH STATUS CODE ${EXIT_CODE}"
-            echo "###########################################################################################"
         fi
     fi
 
@@ -240,6 +248,25 @@ function install_released_airflow_version() {
     pip install --upgrade "${INSTALLS[@]}"
 }
 
+
+function in_container_set_colors() {
+    COLOR_BLUE=$'\e[34m'
+    COLOR_GREEN=$'\e[32m'
+    COLOR_GREEN_OK=$'\e[32mOK.'
+    COLOR_RED=$'\e[31m'
+    COLOR_RED_ERROR=$'\e[31mERROR:'
+    COLOR_RESET=$'\e[0m'
+    COLOR_YELLOW=$'\e[33m'
+    COLOR_YELLOW_WARNING=$'\e[33mWARNING:'
+    export COLOR_BLUE
+    export COLOR_GREEN
+    export COLOR_GREEN_OK
+    export COLOR_RED
+    export COLOR_RED_ERROR
+    export COLOR_RESET
+    export COLOR_YELLOW
+    export COLOR_YELLOW_WARNING
+}
 
 export CI=${CI:="false"}
 export GITHUB_ACTIONS=${GITHUB_ACTIONS:="false"}

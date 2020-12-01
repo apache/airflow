@@ -34,12 +34,13 @@ function repeats::run_with_retry() {
         if [[ ${res} == "0" ]]; then
             return 0
         fi
-        >&2 echo
-        >&2 echo "Unsuccessful attempt no. ${n}. Result: ${res}"
-        >&2 echo
+        echo
+        echo  "${COLOR_YELLOW_WARNING}: Unsuccessful attempt no. ${n}. Result: ${res}  ${COLOR_RESET}"
+        echo
+        echo
     done
-    >&2 echo
-    >&2 echo "Giving up after ${num_repeats} attempts!"
-    >&2 echo
+    echo
+    echo  "${COLOR_RED_ERROR} Giving up after ${num_repeats} attempts!  ${COLOR_RESET}"
+    echo
     return ${res}
 }
