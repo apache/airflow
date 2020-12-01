@@ -438,7 +438,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 setattr(op, field, None)
 
         # Used to determine if an Operator is inherited from DummyOperator
-        setattr(op, "_is_dummy", bool(encoded_op.get("_is_dummy")))
+        setattr(op, "_is_dummy", bool(encoded_op.get("_is_dummy", False)))
 
         return op
 
