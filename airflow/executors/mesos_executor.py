@@ -75,7 +75,6 @@ class AirflowMesosScheduler(MesosClient):
         self.mesos_docker_volume_logs_container_path = conf.get(
             'mesos', 'DOCKER_VOLUME_LOGS_CONTAINER_PATH'
         ).replace('"', '')
-        self.mesos_docker_sock = conf.get('mesos', 'DOCKER_SOCK')
         self.core_sql_alchemy_conn = conf.get('core', 'SQL_ALCHEMY_CONN')
         self.core_fernet_key = conf.get('core', 'FERNET_KEY')
 
@@ -120,9 +119,6 @@ class AirflowMesosScheduler(MesosClient):
             self.task_counter += 1
             self.task_key_map[str(tid)] = key
 
-            port_begin = 31000 + tid
-            port_end = 31000 + tid
-
             self.log.debug("Launching task %d using offer %s", tid, offer['id']['value'])
 
             task = {
@@ -132,11 +128,6 @@ class AirflowMesosScheduler(MesosClient):
                 'resources': [
                     {'name': 'cpus', 'type': 'SCALAR', 'scalar': {'value': self.task_cpu}},
                     {'name': 'mem', 'type': 'SCALAR', 'scalar': {'value': self.task_mem}},
-                    {
-                        'name': 'ports',
-                        'type': 'RANGES',
-                        'ranges': {'range': [{'begin': port_begin, 'end': port_end}]},
-                    },
                 ],
                 'command': {
                     'shell': 'true',
@@ -154,7 +145,7 @@ class AirflowMesosScheduler(MesosClient):
                     'volumes': [
                         {
                             'container_path': self.mesos_docker_volume_dag_container_path,
-                            'mode': 'RO',
+                            'mode': 'RW',
                             'source': {
                                 'type': 'DOCKER_VOLUME',
                                 'docker_volume': {
@@ -179,9 +170,6 @@ class AirflowMesosScheduler(MesosClient):
                         'image': self.mesos_slave_docker_image,
                         'force_pull_image': 'true',
                         'privileged': 'true',
-                        'parameters': [
-                            {'key': 'volume', 'value': self.mesos_docker_sock + ':/var/run/docker.sock'}
-                        ],
                     },
                 },
             }

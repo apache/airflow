@@ -2169,14 +2169,6 @@
       type: string
       example: ~
       default: "/home/airflow/airflow/dags"
-    - name: docker_sock
-      description: |
-        Docker Sock path to mount into the airflow container. Thats important if we
-        want to use the DockerOperator
-      version_added: ~
-      type: string
-      example: ~
-      default: "/var/run/docker.sock"
     - name: docker_volume_logs_name
       description: |
         Docker Volume Name which will hold all log files of the DAG's run. It will be
