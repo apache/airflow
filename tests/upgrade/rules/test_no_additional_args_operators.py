@@ -20,13 +20,9 @@ from tempfile import NamedTemporaryFile
 from unittest import TestCase
 import textwrap
 from airflow.upgrade.rules.no_additional_args_in_operators import NoAdditionalArgsInOperatorsRule
-from tests.test_utils.db import clear_db_connections
 
 
 class TestNoAdditionalArgsInOperatorsRule(TestCase):
-    def tearDown(self):
-        clear_db_connections()
-
     def test_check(self):
         rule = NoAdditionalArgsInOperatorsRule()
 
@@ -42,8 +38,7 @@ class TestNoAdditionalArgsInOperatorsRule(TestCase):
 
             with DAG(dag_id="test", start_date=days_ago(0)):
                 BashOperator(task_id='test', bash_command="true", extra_param=42)
-                '''
-                                ))
+                '''))
             dag_file.flush()
             msgs = rule.check(dags_folder=dag_file.name)
-            assert list(msgs) != []
+            assert len(list(msgs)) == 1

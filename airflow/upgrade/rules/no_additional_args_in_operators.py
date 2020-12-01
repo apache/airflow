@@ -30,9 +30,9 @@ from airflow.upgrade.rules.base_rule import BaseRule
 class NoAdditionalArgsInOperatorsRule(BaseRule):
     title = "No additional argument allowed in BaseOperator."
 
-    description = """
-                Passing unrecognized arguments to operators is not allowed in Airflow 2.0 anymore,
-                and will cause an exception.
+    description = """\
+Passing unrecognized arguments to operators is not allowed in Airflow 2.0 anymore,
+and will cause an exception.
                   """
 
     def check(self, dags_folder=None):
@@ -59,7 +59,7 @@ class NoAdditionalArgsInOperatorsRule(BaseRule):
                     pass
 
                 for warning in captured_warnings:
-                    if warning.category == PendingDeprecationWarning \
+                    if warning.category in (DeprecationWarning, PendingDeprecationWarning) \
                             and str(warning.message).startswith("Invalid arguments were passed"):
                         m = re.match(r'''
                                     .* \(task_id:\ ([^\)]+)\) .* \n
