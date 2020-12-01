@@ -29,6 +29,9 @@ ENV AIRFLOW_VERSION=$AIRFLOW_VERSION
 ARG PYTHON_MAJOR_MINOR_VERSION="3.6"
 ENV PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION}
 
+ARG PIP_VERSION=20.2.4
+ENV PIP_VERSION=${PIP_VERSION}
+
 # Print versions
 RUN echo "Base image: ${PYTHON_BASE_IMAGE}"
 RUN echo "Airflow version: ${AIRFLOW_VERSION}"
@@ -265,6 +268,8 @@ ENV AIRFLOW_LOCAL_PIP_WHEELS=${AIRFLOW_LOCAL_PIP_WHEELS}
 
 ARG INSTALL_AIRFLOW_VIA_PIP="true"
 ENV INSTALL_AIRFLOW_VIA_PIP=${INSTALL_AIRFLOW_VIA_PIP}
+
+RUN pip install --upgrade "pip==${PIP_VERSION}"
 
 # In case of CI builds we want to pre-install master version of airflow dependencies so that
 # We do not have to always reinstall it from the scratch.
