@@ -45,7 +45,7 @@ jobs:
           echo $(pwd)
           sudo apt-get update
           sudo apt-get install $(grep -vE "^\s*#" apt-requirements.txt  | tr "\n" " ")
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip==20.2.4
           pip install setuptools wheel gitpython
           pip install -r requirements.txt --cache-dir .pip_cache
       - name: Compile translation
