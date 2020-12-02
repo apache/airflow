@@ -21,17 +21,15 @@ Kubernetes
 ----------
 
 Apache Airflow aims to be a very Kubernetes-friendly project, and many users run Airflow
-from within a Kubernetes cluster in order to take advantage of Kubernetes autoscaling
-features.
+from within a Kubernetes cluster in order to take advantage of the increased stability
+and autoscaling options that Kubernetes provides.
 
 
 Helm Chart
 ^^^^^^^^^^
 
-Deploying your Airflow cluster to Kubernetes, even when using CeleryExecutor, is
-recommended due to the increased stability and autoscaling options that Kubernetes provides.
-
-The community is working on an
+`Helm https://helm.sh/`_ provides a simple mechanism to deploy software to a
+Kubernetes cluster, and the community is working on an
 `offical Helm chart https://github.com/apache/airflow/tree/master/chart`_ for Airflow
 which will be released with Airflow 2.1. The chart has
 `KEDA integration https://github.com/apache/airflow/tree/master/chart#autoscaling-with-keda`_
