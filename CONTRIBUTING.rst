@@ -541,6 +541,14 @@ extras can be specified after the usual pip install - for example
 installs all development dependencies. There is also ``devel_ci`` that installs
 all dependencies needed in the CI environment.
 
+.. note::
+   On 30th of November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver.
+   This resolver does not yet work with Apache Airflow and might leads to errors in installation -
+   depends on your choice of extras. In order to install Airflow you need to either downgrade
+   pip to version 20.2.4 ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``--use-deprecated legacy-resolver`` to your pip install command.
+
+
 This is the full list of those extras:
 
   .. START EXTRAS HERE
@@ -590,6 +598,14 @@ the other provider package you can install it adding [extra] after the
 ``apache-airflow-backport-providers-PROVIDER`` for example:
 ``pip install apache-airflow-backport-providers-google[amazon]`` in case you want to use GCP
 transfer operators from Amazon ECS.
+
+.. note::
+   On 30th of November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver.
+   This resolver does not yet work with Apache Airflow and might leads to errors in installation -
+   depends on your choice of extras. In order to install Airflow you need to either downgrade
+   pip to version 20.2.4 ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``--use-deprecated legacy-resolver`` to your pip install command.
+
 
 If you add a new dependency between different providers packages, it will be detected automatically during
 pre-commit phase and pre-commit will fail - and add entry in dependencies.json so that the package extra
@@ -671,6 +687,14 @@ install in case a direct or transitive dependency is released that breaks the in
 when installing ``apache-airflow``, you might need to provide additional constraints (for
 example ``pip install apache-airflow==1.10.2 Werkzeug<1.0.0``)
 
+.. note::
+   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+   ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``--use-deprecated legacy-resolver`` to your pip install command.
+
+
 However we now have ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` files generated
 automatically and committed to orphan ``constraints-master`` and ``constraint-1-10`` branches based on
 the set of all latest working and tested dependency versions. Those
@@ -682,14 +706,12 @@ constraints file when installing Apache Airflow - either from the sources:
   pip install -e . \
     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1-10/constraints-3.6.txt"
 
-
 or from the pypi package:
 
 .. code-block:: bash
 
   pip install apache-airflow \
     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1-10/constraints-3.6.txt"
-
 
 This works also with extras - for example:
 
