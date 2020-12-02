@@ -571,7 +571,7 @@ notacommand = OK
                 ('smtp', 'smtp_password'),
                 ('kubernetes', 'git_password'),
                 ('webserver', 'secret_key'),
-            }
+            },
         )
 
     def test_parameterized_config_gen(self):
