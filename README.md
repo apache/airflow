@@ -76,7 +76,7 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|              | Master version (2.0.0dev) | Stable version (1.10.13) |
+|              | Master version (2.0.0dev) | Stable version (1.10.14) |
 | ------------ | ------------------------- | ------------------------ |
 | Python       | 3.6, 3.7, 3.8             | 2.7, 3.5, 3.6, 3.7, 3.8  |
 | PostgreSQL   | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      |
@@ -109,7 +109,7 @@ if needed. This means that from time to time plain `pip install apache-airflow` 
 produce unusable Airflow installation.
 
 In order to have repeatable installation, however, introduced in **Airflow 1.10.10** and updated in
-**Airflow 1.10.13** we also keep a set of "known-to-be-working" constraint files in the
+**Airflow 1.10.12** we also keep a set of "known-to-be-working" constraint files in the
 orphan `constraints-master` and `constraints-1-10` branches. We keep those "known-to-be-working"
 constraints files separately per major/minor python version.
 You can use them as constraint files when installing Airflow from PyPI. Note that you have to specify
@@ -118,8 +118,8 @@ correct Airflow tag/version/branch and python versions in the URL.
 1. Installing just Airflow:
 
 ```bash
-pip install apache-airflow==1.10.13 \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.13/constraints-3.7.txt"
+pip install apache-airflow==1.10.14 \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.14/constraints-3.7.txt"
 ```
 
 **NOTE!!!**
@@ -133,8 +133,8 @@ pip to version 20.2.4 `pip upgrade --pip==20.2.4` or, in case you use Pip 20.3, 
 
 2. Installing with extras (for example postgres,gcp)
 ```bash
-pip install apache-airflow[postgres,gcp]==1.10.13 \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.13/constraints-3.7.txt"
+pip install apache-airflow[postgres,gcp]==1.10.14 \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.14/constraints-3.7.txt"
 ```
 
 For information on installing backport providers check https://airflow.readthedocs.io/en/latest/backport-providers.html.
