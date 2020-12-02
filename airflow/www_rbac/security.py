@@ -56,6 +56,8 @@ ENV_SUC_ROOT_URL = os.getenv('ENV_SUC_ROOT_URL', 'http://localhost:8080')
 ENV_PORTAL_INDEX_URL = os.getenv('ENV_PORTAL_INDEX_URL', 'http://idas-pv.smicmotor.com/ids/index.html')
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
 
+from pprint import pprint, pformat
+
 
 @retry(wait=wait_exponential(multiplier=1, max=3), stop=stop_after_delay(5), retry=retry_if_exception_type())
 def doGetLoginInfo(crcCode: str) -> Optional[Dict]:
@@ -65,6 +67,7 @@ def doGetLoginInfo(crcCode: str) -> Optional[Dict]:
         if resp.status_code != 200:
             return None
         data = resp.json()
+        print("Get SSO Auth Info: {}".format(pformat(data, indent=4)))
         if not data.get('success'):
             return None
         rData = data.get('data')
@@ -78,7 +81,7 @@ def doGetLoginInfo(crcCode: str) -> Optional[Dict]:
         raise e
 
 
-from flask import redirect
+from flask import redirect, url_for
 from flask_login import login_user, logout_user
 
 
@@ -147,7 +150,7 @@ class AuthOAuthView(AV):
         session.commit()
         login_user(SUCUser(user))
         session.commit()
-        return redirect('/home')
+        return redirect(url_for('Airflow.index'))
 
     @expose("/logout/")
     def logout(self):
