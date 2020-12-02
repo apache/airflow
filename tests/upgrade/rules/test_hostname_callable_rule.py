@@ -27,8 +27,7 @@ class TestFernetEnabledRule(TestCase):
         self.assertEqual(
             result,
             "Error: hostname_callable `dummyhostname:function` "
-            "contains a colon instead of a dot. please change to `dummyhostname.function`."
-            "This will be deprecated in 2.0.",
+            "contains a colon instead of a dot. please change to `dummyhostname.function`",
         )
 
     @conf_vars({("core", "hostname_callable"): "dummyhostname.function"})
