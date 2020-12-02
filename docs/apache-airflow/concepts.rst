@@ -739,22 +739,22 @@ XComs
 XComs let tasks exchange messages, allowing more nuanced forms of control and
 shared state. The name is an abbreviation of "cross-communication". XComs are
 principally defined by a key, value, and timestamp, but also track attributes
-like the task/DAG that created the XCom and when it should become visible. Any
-object that can be pickled can be used as an XCom value, so users should make
-sure to use objects of appropriate size.
+like the task/DAG that created the XCom and when it should become visible.
+
+Note that XComs are similar to :ref:`variables <concepts:variables>`, but are specifically
+designed for inter-task communication rather than global settings.
 
 XComs can be "pushed" (sent) or "pulled" (received). When a task pushes an
 XCom, it makes it generally available to other tasks. Tasks can push XComs at
-any time by calling the ``xcom_push()`` method. In addition, if a task returns
-a value (either from its Operator's ``execute()`` method, or from a
+any time by calling the ``xcom_push()`` method.
+
+In addition, if a task returns a value (either in ``execute()`` method, or from a
 PythonOperator's ``python_callable`` function), then an XCom containing that
-value is automatically pushed.
+value is automatically pushed under ``return_value`` key.
 
 Tasks call ``xcom_pull()`` to retrieve XComs, optionally applying filters
 based on criteria like ``key``, source ``task_ids``, and source ``dag_id``. By
-default, ``xcom_pull()`` filters for the keys that are automatically given to
-XComs when they are pushed by being returned from execute functions (as
-opposed to XComs that are pushed manually).
+default, ``xcom_pull()`` filters for the default ``return_value`` key.
 
 If ``xcom_pull`` is passed a single string for ``task_ids``, then the most
 recent XCom value from that task is returned; if a list of ``task_ids`` is
@@ -770,27 +770,58 @@ passed, then a corresponding list of XCom values is returned.
     def pull_function(task_instance):
         value = task_instance.xcom_pull(task_ids='pushing_task')
 
-When specifying arguments that are part of the context, they will be
-automatically passed to the function.
-
 It is also possible to pull XCom directly in a template, here's an example
 of what this may look like:
 
-.. code-block:: jinja
+.. code-block:: python
 
-    SELECT * FROM {{ task_instance.xcom_pull(task_ids='foo', key='table_name') }}
+    "SELECT * FROM {{ task_instance.xcom_pull(task_ids='foo_task', key='table_name') }}"
 
-Note that XComs are similar to `Variables`_, but are specifically designed
-for inter-task communication rather than global settings.
+This can also be done using the ``output`` attribute of an operator. The above example can be then
+simplified:
 
-Custom XCom backend
--------------------
+.. code-block:: python
 
-It is possible to change ``XCom`` behaviour of serialization and deserialization of tasks' result.
-To do this one have to change ``xcom_backend`` parameter in Airflow config. Provided value should point
-to a class that is subclass of :class:`~airflow.models.xcom.BaseXCom`. To alter the serialization /
-deserialization mechanism the custom class should override ``serialize_value`` and ``deserialize_value``
-methods.
+    f"SELECT * FROM { foo_task.output['table_name'] }"
+
+
+XCom backend
+------------
+
+XCom to work needs a storage where the data can be persisted between tasks execution. The mechanism of
+persisting and retrieving the XCom data is called XCom backend.
+
+Base XCom backend
+~~~~~~~~~~~~~~~~~
+
+Airflow by default uses :class:`~airflow.models.xcom.BaseXCom`. This backend uses the Airflow metadatabase
+as a storage for XCom values. This is most common XCom and it work perfectly well. It's only limitation are:
+- the stored data has to be JSON-serializable (strings, lists, dictionaries, numbers)
+- the size of the data to persist is limited to 48kB
+
+When using this backend you have to remember about those two limitations. Base backend is designed to store
+**metadata**. So if you want to persist larger or more complex objects between tasks you have to store them
+in some other place (for example GCS or S3 buckets) and keep in XCom a reference to those object.
+
+This however, means that if you are often passing complex data between tasks in your DAGs you can end up with
+a lot of boilerplate code of retrieving and persisting the data. That's where you may consider using a custom
+XCom backend.
+
+Custom XCom backends
+~~~~~~~~~~~~~~~~~~~~
+
+A custom XCom backend is an additional layer over the base XCom. It still uses Airflow metadatabase under the
+hood but it allows users to perform some additional actions before saving and after retrieving the data.
+
+To use a custom XCom backend users should configure ``xcom_backend`` parameter in Airflow config. Provided value
+should point to a class that is subclass of :class:`~airflow.models.xcom.BaseXCom` (See :doc:`modules_management` for
+details on how Python and Airflow manage modules).
+
+A custom XCom class has to implement the tow following methods:
+- ``serialize_value``  - invoked when the task data is saved (at the end of task) and is responsible for handling
+  objects that you expect that may be exchanged between tasks
+- ``deserialize_value`` - invoked when retrieving a data (at the beginning of a task) and is responsible to changing
+  the persisted data into an python object
 
 It is also possible to override the ``orm_deserialize_value`` method which is used for deserialization when
 recreating ORM XCom object. This happens every time we query the XCom table, for example when we want to populate
@@ -798,7 +829,72 @@ XCom list view in webserver. If your XCom backend performs expensive operations,
 useful to show in such a view, override this method to provide an alternative representation. By default Airflow will
 use ``BaseXCom.orm_deserialize_value`` method which returns the value stored in Airflow database.
 
-See :doc:`modules_management` for details on how Python and Airflow manage modules.
+Custom XCom backends are simple to implement and their versatility is their biggest strength. For example let's
+consider the following example:
+
+.. code-block:: python
+
+  import uuid
+  import pandas as pd
+  from typing import Any
+
+  from airflow.models.xcom import BaseXCom
+  from airflow.providers.google.cloud.hooks.gcs import GCSHook
+
+
+  class GCSXComBackend(BaseXCom):
+      PREFIX = "xcom_gs://"
+      BUCKET_NAME = "airflow-xcom-backend"
+
+      @staticmethod
+      def serialize_value(value: Any):
+          # Custom action only if value is data frame
+          if isinstance(value, pd.DataFrame):
+              object_name = "data_" + str(uuid.uuid4())
+              with GCSHook().provide_file_and_upload(
+                  bucket_name=GCSXComBackend.BUCKET_NAME,
+                  object_name=object_name,
+              ) as f:
+                  value.to_csv(f.name)
+              # Append prefix to persist information that the file
+              # has to be downloaded from GCS
+              value = GCSXComBackend.PREFIX + object_name
+          # In the end we use base serialization to save data to airflow db in case
+          # of dataframe it will be a string in form of xcom_gs://data_03u2038497cn28
+          return BaseXCom.serialize_value(value)
+
+      @staticmethod
+      def deserialize_value(result) -> Any:
+          # First read data from airflow db using base xcom
+          result = BaseXCom.deserialize_value(result)
+          # Check if the value has a known "custom" format if, yes then retrieve
+          # if from external storage (a GCS bucket in this case)
+          if isinstance(result, str) and result.startswith(GCSXComBackend.PREFIX):
+              object_name = result.replace(GCSXComBackend.PREFIX, "")
+              with GCSHook().provide_file(
+                  bucket_name=GCSXComBackend.BUCKET_NAME,
+                  object_name=object_name,
+              ) as f:
+                  result = pd.read_csv(f.name)
+          return result
+
+
+This ``GCSXComBackend`` is designed to allow users to pass pandas data frames between tasks without worrying
+about how and where the data will be stored. This is really helpful when DAGs are authored using
+:ref:`TaskFlow API <concepts:task_flow_api>`.
+
+Airflow does not have other built-in backends than base XCom. This is because to take a full advantage of
+custom XCom backend users should design it to suits their needs. Before creating custom backend it's good
+to answer the following questions:
+- What complex data types are currently passed between tasks in your DAGs?
+- How often it happens? In every DAG or just in few ones?
+- Will you have resources to manage an additional component of your deployment (external storage)?
+
+Once you decide that a custom XCom backend will empower your DAGs then remember to consider:
+- security of the solution - for example pickle is not the safest format
+- extensibility and maintainability - how easy will it be to handle new data types?
+- removing data which is no longer required - delete after use or consider periodical cleaning
+
 
 .. _concepts:variables:
 
