@@ -335,15 +335,6 @@
       type: string
       example: ~
       default: "0"
-    - name: store_serialized_dags
-      description: |
-        Whether to serialise DAGs and persist them in DB.
-        If set to True, Webserver reads from DB instead of parsing DAG files
-        More details: https://airflow.apache.org/docs/stable/dag-serialization.html
-      version_added: 1.10.7
-      type: string
-      example: ~
-      default: "True"
     - name: min_serialized_dag_update_interval
       description: |
         Updating serialized DAG can not be faster than a minimum interval to reduce database write rate.
