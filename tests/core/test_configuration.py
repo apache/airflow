@@ -561,17 +561,19 @@ notacommand = OK
         config_parser = AirflowConfigParser()
         self.assertEqual(
             sorted(config_parser.sensitive_config_values),
-            {
-                ('core', 'sql_alchemy_conn'),
-                ('core', 'fernet_key'),
-                ('celery', 'broker_url'),
-                ('celery', 'flower_basic_auth'),
-                ('celery', 'result_backend'),
-                ('atlas', 'password'),
-                ('smtp', 'smtp_password'),
-                ('kubernetes', 'git_password'),
-                ('webserver', 'secret_key'),
-            },
+            sorted(
+                {
+                    ('core', 'sql_alchemy_conn'),
+                    ('core', 'fernet_key'),
+                    ('celery', 'broker_url'),
+                    ('celery', 'flower_basic_auth'),
+                    ('celery', 'result_backend'),
+                    ('atlas', 'password'),
+                    ('smtp', 'smtp_password'),
+                    ('kubernetes', 'git_password'),
+                    ('webserver', 'secret_key'),
+                }
+            ),
         )
 
     def test_parameterized_config_gen(self):
