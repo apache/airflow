@@ -2719,7 +2719,8 @@ ALTERNATIVE_CONN_SPECS_ARGS = [
 # supresses the warning for the new form.
 NOT_DEPRECATED = Arg(("--deprecation_warning",), help=argparse.SUPPRESS, default=False, required=False)
 
-_ActionCommand = namedtuple('ActionCommand', ['name', 'help', 'func', 'args', 'description', 'epilog'])
+_ActionCommand = namedtuple('ActionCommand', ['name', 'help', 'func', 'args', 'description', 'epilog',
+                                              'prog'])
 _GroupCommand = namedtuple('GroupCommand', ['name', 'help', 'subcommands', 'description', 'epilog'])
 
 _ActionCommand.__new__.__defaults__ = (None,) * len(_ActionCommand._fields)  # type: ignore
@@ -4074,6 +4075,21 @@ class CLIFactory(object):
             def error(self, message):
                 self.print_help()
                 self.exit(2, '\n{} command error: {}, see help above.\n'.format(self.prog, message))
+
+            def parse_known_args(self, args, namespace):
+                # Compat hack for optional sub-arguments in Py 2.7
+                fake_opt = getattr(self, "_fake_optional_subparser", False) and \
+                    (args == [] or args[0].startswith('-'))
+                if fake_opt:
+                    args = ["deprecated_"] + args
+
+                args, remain = super(DefaultHelpParser, self).parse_known_args(args, namespace)
+
+                if fake_opt:
+                    # So it doesn't show up as "deprecated_"
+                    args.subcommand = self._fake_optional_subparser
+                return args, remain
+
         parser = DefaultHelpParser(formatter_class=AirflowHelpFormatter)
         subparsers = parser.add_subparsers(dest='subcommand', metavar="GROUP_OR_COMMAND")
         subparsers.required = True
@@ -4089,16 +4105,27 @@ class CLIFactory(object):
                 sp, sub_subparsers = action
                 deprecated = deprecated_subparsers_dict.pop(sub_name)
                 sp.set_defaults(func=deprecated['func'])
-                sub_subparsers.required = False
+                if six.PY3:
+                    sub_subparsers.required = False
 
-                for arg in deprecated['args']:
-                    if 'dag_id' in arg and dag_parser:
-                        continue
-                    arg = cls.args[arg]
-                    # Don't show these options in the help output
-                    kwargs = arg.kwargs.copy()
-                    kwargs['help'] = argparse.SUPPRESS
-                    sp.add_argument(*arg.flags, **kwargs)
+                    for arg in deprecated['args']:
+                        if 'dag_id' in arg and dag_parser:
+                            continue
+                        arg = cls.args[arg]
+                        # Don't show these options in the help output
+                        kwargs = arg.kwargs.copy()
+                        kwargs['help'] = argparse.SUPPRESS
+                        sp.add_argument(*arg.flags, **kwargs)
+                else:
+                    # Py2 doesn't support optional subcommands, so we have to fake it
+                    sp._fake_optional_subparser = sub_name
+                    _add_command(sub_subparsers, ActionCommand(
+                        prog=sp.prog,
+                        name='deprecated_',
+                        help=deprecated['help'],
+                        func=deprecated['func'],
+                        args=(cls.args[arg] for arg in deprecated['args']),
+                    ))
 
         if dag_parser:
             subparser_list = [
