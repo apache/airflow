@@ -1844,7 +1844,7 @@ class TestTaskInstance(unittest.TestCase):
             'spec': {
                 'containers': [
                     {
-                        'command': [
+                        'args': [
                             'airflow',
                             'tasks',
                             'run',
