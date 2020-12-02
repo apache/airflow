@@ -36,7 +36,7 @@ class TestNoAdditionalArgsInOperatorsRule(TestCase):
             from airflow.utils.dates import days_ago
             from airflow.operators.bash_operator import BashOperator
 
-            with DAG(dag_id="test", start_date=days_ago(0)):
+            with DAG(dag_id="test_no_additional_args_operators", start_date=days_ago(0)):
                 BashOperator(task_id='test', bash_command="true", extra_param=42)
                 '''))
             dag_file.flush()
