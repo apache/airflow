@@ -94,7 +94,7 @@ def get_pv_with_action_query(session, action):  # noqa: D103
 
 
 def get_pv_with_resource_query(session, resource):  # noqa: D103
-    return session.query(PermissionView).filter(PermissionView.view_menu_id == resource)
+    return session.query(PermissionView).filter(PermissionView.view_menu_id == resource.id)
 
 
 def update_pv_action(session, pv_query, action):  # noqa: D103
