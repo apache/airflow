@@ -282,6 +282,7 @@ class DockerOperator(BaseOperator):
             raise Exception("The 'cli' should be initialized before!")
 
         # Pull the docker image if `force_pull` is set or image does not exist locally
+        # pylint: disable=too-many-nested-blocks
         if self.force_pull or not self.cli.images(name=self.image):
             self.log.info('Pulling docker image %s', self.image)
             latest_status = {}
