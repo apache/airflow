@@ -2857,7 +2857,7 @@ ARG_CONN_EXTRA = Arg(
 ARG_CONN_EXPORT = Arg(
     ('file',),
     help='Output file path for exporting the connections',
-    type=argparse.FileType('w', encoding='UTF-8'),
+    type=argparse.FileType('w'),
 )
 ARG_CONN_EXPORT_FORMAT = Arg(
     ('--format',), help='Format of the connections data in file', type=str, choices=['json', 'yaml', 'env']
