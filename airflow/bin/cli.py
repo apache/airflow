@@ -3305,14 +3305,17 @@ def _sort_args(args):
 
 
 def _add_command(subparsers, sub):
+
     sub_proc = subparsers.add_parser(
-        sub.name, help=sub.help, description=sub.description or sub.help, epilog=sub.epilog
+        sub.name, help=sub.help, description=sub.description or sub.help, epilog=sub.epilog,
     )
     sub_proc.formatter_class = argparse.RawTextHelpFormatter
 
     if isinstance(sub, GroupCommand):
         return _add_group_command(sub, sub_proc)
     elif isinstance(sub, ActionCommand):
+        if sub.prog:
+            sub_proc.prog = sub.prog
         return _add_action_command(sub, sub_proc)
     else:
         raise AirflowException("Invalid command definition.")
