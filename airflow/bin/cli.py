@@ -1138,6 +1138,17 @@ def webserver(args):
     py2_deprecation_waring()
     print(settings.HEADER)
 
+    # Check for old/insecure config, and fail safe (i.e. don't launch) if the config is wildly insecure.
+    if conf.get('webserver', 'secret_key') == 'temporary_key':
+        print(
+            "ERROR: The `secret_key` setting under the webserver config has an insecure "
+            "value - Airflow has failed safe and refuses to start. Please change this value to a new, "
+            "per-environment, randomly generated string, for example using this command `openssl rand "
+            "-hex 30`",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     access_logfile = args.access_logfile or conf.get('webserver', 'access_logfile')
     error_logfile = args.error_logfile or conf.get('webserver', 'error_logfile')
     num_workers = args.workers or conf.get('webserver', 'workers')
