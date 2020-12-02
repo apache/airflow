@@ -109,13 +109,17 @@ class SlackWebhookHook(HttpHook):
             if getattr(conn, 'password', None):
                 return conn.password
             else:
-                warnings.warn(
-                    "'webhook_token' in 'extra' is deprecated. Please use 'password' field",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
                 extra = conn.extra_dejson
-                return extra.get('webhook_token', '')
+                web_token = extra.get('webhook_token', '')
+
+                if web_token:
+                    warnings.warn(
+                        "'webhook_token' in 'extra' is deprecated. Please use 'password' field",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+
+                return web_token
         else:
             raise AirflowException('Cannot get token: No valid Slack webhook token nor conn_id supplied')
 
