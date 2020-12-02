@@ -177,12 +177,10 @@ def dag_show(args):
     imgcat = args.imgcat
 
     if filename and imgcat:
-        print(
+        raise SystemExit(
             "Option --save and --imgcat are mutually exclusive. "
             "Please remove one option to execute the command.",
-            file=sys.stderr,
         )
-        sys.exit(1)
     elif filename:
         _save_dot_to_file(dot, filename)
     elif imgcat:
@@ -197,7 +195,7 @@ def _display_dot_via_imgcat(dot: Dot):
         proc = subprocess.Popen("imgcat", stdout=subprocess.PIPE, stdin=subprocess.PIPE)
     except OSError as e:
         if e.errno == errno.ENOENT:
-            raise AirflowException(
+            raise SystemExit(
                 "Failed to execute. Make sure the imgcat executables are on your systems \'PATH\'"
             )
         else:

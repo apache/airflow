@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Celery command"""
-import sys
+
 from multiprocessing import Process
 from typing import Optional
 
@@ -95,8 +95,7 @@ def _serve_logs(skip_serve_logs: bool = False) -> Optional[Process]:
 def worker(args):
     """Starts Airflow Celery worker"""
     if not settings.validate_session():
-        print("Worker exiting... database connection precheck failed! ")
-        sys.exit(1)
+        raise SystemExit("Worker exiting, database connection precheck failed.")
 
     autoscale = args.autoscale
     skip_serve_logs = args.skip_serve_logs

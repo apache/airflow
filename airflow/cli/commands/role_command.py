@@ -35,8 +35,10 @@ def roles_list(args):
 
 
 @cli_utils.action_logging
+@suppress_logs_and_warning()
 def roles_create(args):
     """Creates new empty role in DB"""
     appbuilder = cached_app().appbuilder  # pylint: disable=no-member
     for role_name in args.role:
         appbuilder.sm.add_role(role_name)
+    print(f"Added {len(args.role)} role(s)")

@@ -18,7 +18,6 @@
 """Pools sub-commands"""
 import json
 import os
-import sys
 from json import JSONDecodeError
 
 from airflow.api.client import get_current_api_client
@@ -52,8 +51,11 @@ def pool_list(args):
 def pool_get(args):
     """Displays pool info by a given name"""
     api_client = get_current_api_client()
-    pools = [api_client.get_pool(name=args.pool)]
-    _show_pools(pools=pools, output=args.output)
+    try:
+        pools = [api_client.get_pool(name=args.pool)]
+        _show_pools(pools=pools, output=args.output)
+    except PoolNotFound:
+        raise SystemExit(f"Pool {args.pool} does not exist")
 
 
 @cli_utils.action_logging
@@ -74,7 +76,7 @@ def pool_delete(args):
         api_client.delete_pool(name=args.pool)
         print("Pool deleted")
     except PoolNotFound:
-        sys.exit(f"Pool {args.pool} does not exist")
+        raise SystemExit(f"Pool {args.pool} does not exist")
 
 
 @cli_utils.action_logging
@@ -82,10 +84,11 @@ def pool_delete(args):
 def pool_import(args):
     """Imports pools from the file"""
     if not os.path.exists(args.file):
-        sys.exit("Missing pools file.")
-    _, failed = pool_import_helper(args.file)
+        raise SystemExit("Missing pools file.")
+    pools, failed = pool_import_helper(args.file)
     if len(failed) > 0:
-        sys.exit(f"Failed to update pool(s): {', '.join(failed)}")
+        raise SystemExit(f"Failed to update pool(s): {', '.join(failed)}")
+    print(f"Uploaded {len(pools)} pool(s)")
 
 
 def pool_export(args):
@@ -103,7 +106,7 @@ def pool_import_helper(filepath):
     try:  # pylint: disable=too-many-nested-blocks
         pools_json = json.loads(data)
     except JSONDecodeError as e:
-        sys.exit("Invalid json file: " + str(e))
+        raise SystemExit("Invalid json file: " + str(e))
     pools = []
     failed = []
     for k, v in pools_json.items():
@@ -111,7 +114,6 @@ def pool_import_helper(filepath):
             pools.append(api_client.create_pool(name=k, slots=v["slots"], description=v["description"]))
         else:
             failed.append(k)
-    print(f"{len(pools)} of {len(pools_json)} pool(s) successfully updated.")
     return pools, failed
 
 

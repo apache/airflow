@@ -29,7 +29,7 @@ def initdb(args):
     """Initializes the metadata database"""
     print("DB: " + repr(settings.engine.url))
     db.initdb()
-    print("Done.")
+    print("Initialization done")
 
 
 def resetdb(args):

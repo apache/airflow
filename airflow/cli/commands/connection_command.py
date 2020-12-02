@@ -112,17 +112,13 @@ def _format_connections(conns: List[Connection], fmt: str) -> str:
 
 
 def _is_stdout(fileio: io.TextIOWrapper) -> bool:
-    if fileio.name == '<stdout>':
-        return True
-    return False
+    return fileio.name == '<stdout>'
 
 
 def _valid_uri(uri: str) -> bool:
     """Check if a URI is valid, by checking if both scheme and netloc are available"""
     uri_parts = urlparse(uri)
-    if uri_parts.scheme == '' or uri_parts.netloc == '':
-        return False
-    return True
+    return uri_parts.scheme != '' or uri_parts.netloc != ''
 
 
 def connections_export(args):
@@ -140,20 +136,19 @@ def connections_export(args):
             _, filetype = os.path.splitext(args.file.name)
             filetype = filetype.lower()
             if filetype not in allowed_formats:
-                msg = (
-                    f"Unsupported file format. "
-                    f"The file must have the extension {', '.join(allowed_formats)}"
+                raise SystemExit(
+                    f"Unsupported file format. The file must have "
+                    f"the extension {', '.join(allowed_formats)}."
                 )
-                raise SystemExit(msg)
 
         connections = session.query(Connection).order_by(Connection.conn_id).all()
         msg = _format_connections(connections, filetype)
         args.file.write(msg)
 
         if _is_stdout(args.file):
-            print("Connections successfully exported.", file=sys.stderr)
+            print(f"Connections successfully exported to {args.file.name}.")
         else:
-            print(f"Connections successfully exported to {args.file.name}")
+            print("Connections successfully exported.", file=sys.stderr)
 
 
 alternative_conn_specs = ['conn_type', 'conn_host', 'conn_login', 'conn_password', 'conn_schema', 'conn_port']
@@ -167,20 +162,19 @@ def connections_add(args):
     invalid_args = []
     if args.conn_uri:
         if not _valid_uri(args.conn_uri):
-            msg = f'The URI provided to --conn-uri is invalid: {args.conn_uri}'
-            raise SystemExit(msg)
+            raise SystemExit(f'The URI provided to --conn-uri is invalid: {args.conn_uri}')
         for arg in alternative_conn_specs:
             if getattr(args, arg) is not None:
                 invalid_args.append(arg)
     elif not args.conn_type:
         missing_args.append('conn-uri or conn-type')
     if missing_args:
-        msg = f'The following args are required to add a connection: {missing_args!r}'
-        raise SystemExit(msg)
+        raise SystemExit(f'The following args are required to add a connection: {missing_args!r}')
     if invalid_args:
-        msg = 'The following args are not compatible with the add flag and --conn-uri flag: {invalid!r}'
-        msg = msg.format(invalid=invalid_args)
-        raise SystemExit(msg)
+        raise SystemExit(
+            f'The following args are not compatible with the '
+            f'add flag and --conn-uri flag: {invalid_args!r}'
+        )
 
     if args.conn_uri:
         new_conn = Connection(conn_id=args.conn_id, description=args.conn_description, uri=args.conn_uri)
@@ -201,7 +195,7 @@ def connections_add(args):
     with create_session() as session:
         if not session.query(Connection).filter(Connection.conn_id == new_conn.conn_id).first():
             session.add(new_conn)
-            msg = '\n\tSuccessfully added `conn_id`={conn_id} : {uri}\n'
+            msg = 'Successfully added `conn_id`={conn_id} : {uri}'
             msg = msg.format(
                 conn_id=new_conn.conn_id,
                 uri=args.conn_uri
@@ -223,7 +217,7 @@ def connections_add(args):
             )
             print(msg)
         else:
-            msg = f'\n\tA connection with `conn_id`={new_conn.conn_id} already exists\n'
+            msg = f'A connection with `conn_id`={new_conn.conn_id} already exists.'
             raise SystemExit(msg)
 
 
@@ -234,13 +228,11 @@ def connections_delete(args):
         try:
             to_delete = session.query(Connection).filter(Connection.conn_id == args.conn_id).one()
         except exc.NoResultFound:
-            msg = f'\n\tDid not find a connection with `conn_id`={args.conn_id}\n'
+            msg = f'Did not find a connection with `conn_id`={args.conn_id}'
             raise SystemExit(msg)
         except exc.MultipleResultsFound:
-            msg = f'\n\tFound more than one connection with `conn_id`={args.conn_id}\n'
+            msg = f'Found more than one connection with `conn_id`={args.conn_id}'
             raise SystemExit(msg)
         else:
-            deleted_conn_id = to_delete.conn_id
             session.delete(to_delete)
-            msg = f'\n\tSuccessfully deleted `conn_id`={deleted_conn_id}\n'
-            print(msg)
+            print(f"Successfully deleted connection with `conn_id`={to_delete.conn_id}")

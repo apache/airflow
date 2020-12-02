@@ -22,7 +22,6 @@ import os
 import random
 import re
 import string
-import sys
 
 from airflow.cli.simple_table import AirflowConsole
 from airflow.utils import cli as cli_utils
@@ -59,16 +58,16 @@ def users_create(args):
         password = getpass.getpass('Password:')
         password_confirmation = getpass.getpass('Repeat for confirmation:')
         if password != password_confirmation:
-            raise SystemExit('Passwords did not match!')
+            raise SystemExit('Passwords did not match')
 
     if appbuilder.sm.find_user(args.username):
         print(f'{args.username} already exist in the db')
         return
     user = appbuilder.sm.add_user(args.username, args.firstname, args.lastname, args.email, role, password)
     if user:
-        print(f'{args.role} user {args.username} created.')
+        print(f'{args.role} user {args.username} created')
     else:
-        raise SystemExit('Failed to create user.')
+        raise SystemExit('Failed to create user')
 
 
 @cli_utils.action_logging
@@ -79,12 +78,12 @@ def users_delete(args):
     try:
         user = next(u for u in appbuilder.sm.get_all_users() if u.username == args.username)
     except StopIteration:
-        raise SystemExit(f'{args.username} is not a valid user.')
+        raise SystemExit(f'{args.username} is not a valid user')
 
     if appbuilder.sm.del_register_user(user):
-        print(f'User {args.username} deleted.')
+        print(f'User {args.username} deleted')
     else:
-        raise SystemExit('Failed to delete user.')
+        raise SystemExit('Failed to delete user')
 
 
 @cli_utils.action_logging
@@ -110,16 +109,16 @@ def users_manage_role(args, remove=False):
         if role in user.roles:
             user.roles = [r for r in user.roles if r != role]
             appbuilder.sm.update_user(user)
-            print(f'User "{user}" removed from role "{args.role}".')
+            print(f'User "{user}" removed from role "{args.role}"')
         else:
-            raise SystemExit(f'User "{user}" is not a member of role "{args.role}".')
+            raise SystemExit(f'User "{user}" is not a member of role "{args.role}"')
     else:
         if role in user.roles:
-            raise SystemExit(f'User "{user}" is already a member of role "{args.role}".')
+            raise SystemExit(f'User "{user}" is already a member of role "{args.role}"')
         else:
             user.roles.append(role)
             appbuilder.sm.update_user(user)
-            print(f'User "{user}" added to role "{args.role}".')
+            print(f'User "{user}" added to role "{args.role}"')
 
 
 def users_export(args):
@@ -153,16 +152,14 @@ def users_import(args):
     """Imports users from the json file"""
     json_file = getattr(args, 'import')
     if not os.path.exists(json_file):
-        print("File '{}' does not exist")
-        sys.exit(1)
+        raise SystemExit(f"File '{json_file}' does not exist")
 
     users_list = None  # pylint: disable=redefined-outer-name
     try:
         with open(json_file) as file:
             users_list = json.loads(file.read())
     except ValueError as e:
-        print(f"File '{json_file}' is not valid JSON. Error: {e}")
-        sys.exit(1)
+        raise SystemExit(f"File '{json_file}' is not valid JSON. Error: {e}")
 
     users_created, users_updated = _import_users(users_list)
     if users_created:
@@ -183,16 +180,14 @@ def _import_users(users_list):  # pylint: disable=redefined-outer-name
             role = appbuilder.sm.find_role(rolename)
             if not role:
                 valid_roles = appbuilder.sm.get_all_roles()
-                print(f"Error: '{rolename}' is not a valid role. Valid roles are: {valid_roles}")
-                sys.exit(1)
+                raise SystemExit(f"Error: '{rolename}' is not a valid role. Valid roles are: {valid_roles}")
             else:
                 roles.append(role)
 
         required_fields = ['username', 'firstname', 'lastname', 'email', 'roles']
         for field in required_fields:
             if not user.get(field):
-                print(f"Error: '{field}' is a required field, but was not specified")
-                sys.exit(1)
+                raise SystemExit(f"Error: '{field}' is a required field, but was not specified")
 
         existing_user = appbuilder.sm.find_user(email=user['email'])
         if existing_user:
@@ -202,12 +197,11 @@ def _import_users(users_list):  # pylint: disable=redefined-outer-name
             existing_user.last_name = user['lastname']
 
             if existing_user.username != user['username']:
-                print(
+                raise SystemExit(
                     "Error: Changing the username is not allowed - "
                     "please delete and recreate the user with "
                     "email '{}'".format(user['email'])
                 )
-                sys.exit(1)
 
             appbuilder.sm.update_user(existing_user)
             users_updated.append(user['email'])
