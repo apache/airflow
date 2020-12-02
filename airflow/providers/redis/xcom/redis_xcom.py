@@ -1,6 +1,6 @@
 import json
 import logging
-import hashlib
+import pendulum
 from typing import Any
 
 from airflow.configuration import conf
@@ -15,19 +15,27 @@ redis_hook = RedisHook(redis_conn_id=redis_conn_id)
 class RedisXCom(BaseXCom):
 
     @staticmethod
-    def _gen_key(val: Any):
-        return f'airflow.xcom.{hashlib.md5(val).hexdigest()}'
+    def _gen_key(key: str, execution_date: pendulum.DateTime, task_id: str, dag_id: str):
+        """
+        Generate a Redis key from XCom Candidate keys
+        ex "example_xcom.push.valuefrompusher1202011301618318228340000"
+        """
+        key = f'{key}{execution_date}'
+        key = ''.join(filter(str.isalnum, key))
+        return f'{dag_id}.{task_id}.{key}'
 
     @classmethod
     def delete(cls, xcom):
         """Delete XCom value from Redis"""
-        val = json.dumps(xcom.value).encode('UTF-8')
-        redis_hook.get_conn().delete(RedisXCom._gen_key(val))
+        key = RedisXCom._gen_key(xcom.key, xcom.execution_date, xcom.task_id, xcom.dag_id)
+        log.info(key)
+        result = redis_hook.get_conn().delete(key)
+        log.info("result %s", result)
 
     @staticmethod
-    def serialize_value(value: Any):
+    def serialize_value(key: str, value: Any, execution_date: pendulum.DateTime, task_id: str, dag_id: str):
         val = json.dumps(value).encode('UTF-8')
-        key = RedisXCom._gen_key(val)
+        key = RedisXCom._gen_key(key, execution_date, task_id, dag_id)
 
         log.debug('Setting XCom key %s to Redis', key)
         result = redis_hook.get_conn().set(key, val)
