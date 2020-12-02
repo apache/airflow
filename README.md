@@ -175,27 +175,27 @@ following the ASF Policy.
 
 - **DAGs**: Overview of all DAGs in your environment.
 
-  ![DAGs](/docs/img/dags.png)
+  ![DAGs](/docs/apache-airflow/img/dags.png)
 
 - **Tree View**: Tree representation of a DAG that spans across time.
 
-  ![Tree View](/docs/img/tree.png)
+  ![Tree View](/docs/apache-airflow/img/tree.png)
 
 - **Graph View**: Visualization of a DAG's dependencies and their current status for a specific run.
 
-  ![Graph View](/docs/img/graph.png)
+  ![Graph View](/docs/apache-airflow/img/graph.png)
 
 - **Task Duration**: Total time spent on different tasks over time.
 
-  ![Task Duration](/docs/img/duration.png)
+  ![Task Duration](/docs/apache-airflow/img/duration.png)
 
 - **Gantt View**: Duration and overlap of a DAG.
 
-  ![Gantt View](/docs/img/gantt.png)
+  ![Gantt View](/docs/apache-airflow/img/gantt.png)
 
 - **Code View**:  Quick way to view source code of a DAG.
 
-  ![Code View](/docs/img/code.png)
+  ![Code View](/docs/apache-airflow/img/code.png)
 
 
 ## Contributing
@@ -216,7 +216,7 @@ If you would like to become a maintainer, please review the Apache Airflow
 
 ## Can I use the Apache Airflow logo in my presentation?
 
-Yes! Be sure to abide by the Apache Foundation [trademark policies](https://www.apache.org/foundation/marks/#books) and the Apache Airflow [Brandbook](https://cwiki.apache.org/confluence/display/AIRFLOW/Brandbook). The most up to date logos are found in [this repo](/docs/img/logos) and on the Apache Software Foundation [website](https://www.apache.org/logos/about.html).
+Yes! Be sure to abide by the Apache Foundation [trademark policies](https://www.apache.org/foundation/marks/#books) and the Apache Airflow [Brandbook](https://cwiki.apache.org/confluence/display/AIRFLOW/Brandbook). The most up to date logos are found in [this repo](/docs/apache-airflow/img/logos) and on the Apache Software Foundation [website](https://www.apache.org/logos/about.html).
 
 ## Airflow merchandise
 

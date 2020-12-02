@@ -1326,7 +1326,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         Following is a graphic representation of these steps.
 
-        .. image:: ../docs/img/scheduler_loop.jpg
+        .. image:: ../docs/apache-airflow/img/scheduler_loop.jpg
 
         :rtype: None
         """
