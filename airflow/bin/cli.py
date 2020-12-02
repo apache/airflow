@@ -2508,99 +2508,8 @@ ARG_STATE = Arg(("--state",), help="Only list the dag runs corresponding to the 
 ARG_MARK_SUCCESS = Arg(
     ("-m", "--mark-success"), help="Mark jobs as succeeded without running them", action="store_true"
 )
-ARG_VERBOSE = Arg(("-v", "--verbose"), help="Make logging output more verbose", action="store_true")
 ARG_LOCAL = Arg(("-l", "--local"), help="Run the task using the LocalExecutor", action="store_true")
-ARG_DONOT_PICKLE = Arg(
-    ("-x", "--donot-pickle"),
-    help=(
-        "Do not attempt to pickle the DAG object to send over "
-        "to the workers, just tell the workers to run their version "
-        "of the code"
-    ),
-    action="store_true",
-)
-ARG_BF_IGNORE_DEPENDENCIES = Arg(
-    ("-i", "--ignore-dependencies"),
-    help=(
-        "Skip upstream tasks, run only the tasks "
-        "matching the regexp. Only works in conjunction "
-        "with task_regex"
-    ),
-    action="store_true",
-)
-ARG_BF_IGNORE_FIRST_DEPENDS_ON_PAST = Arg(
-    ("-I", "--ignore-first-depends-on-past"),
-    help=(
-        "Ignores depends_on_past dependencies for the first "
-        "set of tasks only (subsequent executions in the backfill "
-        "DO respect depends_on_past)"
-    ),
-    action="store_true",
-)
 ARG_POOL = Arg(("--pool",), "Resource pool to use")
-ARG_DELAY_ON_LIMIT = Arg(
-    ("--delay-on-limit",),
-    help=(
-        "Amount of time in seconds to wait when the limit "
-        "on maximum active dag runs (max_active_runs) has "
-        "been reached before trying to execute a dag run "
-        "again"
-    ),
-    type=float,
-    default=1.0,
-)
-ARG_RESET_DAG_RUN = Arg(
-    ("--reset-dagruns",),
-    help=(
-        "if set, the backfill will delete existing "
-        "backfill-related DAG runs and start "
-        "anew with fresh, running DAG runs"
-    ),
-    action="store_true",
-)
-ARG_RERUN_FAILED_TASKS = Arg(
-    ("--rerun-failed-tasks",),
-    help=(
-        "if set, the backfill will auto-rerun "
-        "all the failed tasks for the backfill date range "
-        "instead of throwing exceptions"
-    ),
-    action="store_true",
-)
-ARG_RUN_BACKWARDS = Arg(
-    (
-        "-B",
-        "--run-backwards",
-    ),
-    help=(
-        "if set, the backfill will run tasks from the most "
-        "recent day first.  if there are tasks that depend_on_past "
-        "this option will throw an exception"
-    ),
-    action="store_true",
-)
-# test_dag
-ARG_SHOW_DAGRUN = Arg(
-    ("--show-dagrun",),
-    help=(
-        "After completing the backfill, shows the diagram for current DAG Run.\n"
-        "\n"
-        "The diagram is in DOT language\n"
-    ),
-    action='store_true',
-)
-ARG_IMGCAT_DAGRUN = Arg(
-    ("--imgcat-dagrun",),
-    help=(
-        "After completing the dag run, prints a diagram on the screen for the "
-        "current DAG Run using the imgcat tool.\n"
-    ),
-    action='store_true',
-)
-ARG_SAVE_DAGRUN = Arg(
-    ("--save-dagrun",),
-    help="After completing the backfill, saves the diagram for current DAG Run to the indicated file.\n\n",
-)
 
 # list_tasks
 ARG_TREE = Arg(("-t", "--tree"), help="Tree view", action="store_true")
@@ -2693,90 +2602,6 @@ ARG_SHIP_DAG = Arg(
 ARG_PICKLE = Arg(("-p", "--pickle"), help="Serialized pickle object of the entire dag (used internally)")
 ARG_JOB_ID = Arg(("-j", "--job-id"), help=argparse.SUPPRESS)
 ARG_CFG_PATH = Arg(("--cfg-path",), help="Path to config file to use instead of airflow.cfg")
-ARG_MIGRATION_TIMEOUT = Arg(
-    ("-t", "--migration-wait-timeout"),
-    help="timeout to wait for db to migrate ",
-    type=int,
-    default=0,
-)
-
-# webserver
-ARG_PORT = Arg(
-    ("-p", "--port"),
-    default=conf.get('webserver', 'WEB_SERVER_PORT'),
-    type=int,
-    help="The port on which to run the server",
-)
-ARG_SSL_CERT = Arg(
-    ("--ssl-cert",),
-    default=conf.get('webserver', 'WEB_SERVER_SSL_CERT'),
-    help="Path to the SSL certificate for the webserver",
-)
-ARG_SSL_KEY = Arg(
-    ("--ssl-key",),
-    default=conf.get('webserver', 'WEB_SERVER_SSL_KEY'),
-    help="Path to the key to use with the SSL certificate",
-)
-ARG_WORKERS = Arg(
-    ("-w", "--workers"),
-    default=conf.get('webserver', 'WORKERS'),
-    type=int,
-    help="Number of workers to run the webserver on",
-)
-ARG_WORKERCLASS = Arg(
-    ("-k", "--workerclass"),
-    default=conf.get('webserver', 'WORKER_CLASS'),
-    choices=['sync', 'eventlet', 'gevent', 'tornado'],
-    help="The worker class to use for Gunicorn",
-)
-ARG_WORKER_TIMEOUT = Arg(
-    ("-t", "--worker-timeout"),
-    default=conf.get('webserver', 'WEB_SERVER_WORKER_TIMEOUT'),
-    type=int,
-    help="The timeout for waiting on webserver workers",
-)
-ARG_HOSTNAME = Arg(
-    ("-H", "--hostname"),
-    default=conf.get('webserver', 'WEB_SERVER_HOST'),
-    help="Set the hostname on which to run the web server",
-)
-ARG_DEBUG = Arg(
-    ("-d", "--debug"), help="Use the server that ships with Flask in debug mode", action="store_true"
-)
-ARG_ACCESS_LOGFILE = Arg(
-    ("-A", "--access-logfile"),
-    default=conf.get('webserver', 'ACCESS_LOGFILE'),
-    help="The logfile to store the webserver access log. Use '-' to print to stderr",
-)
-ARG_ERROR_LOGFILE = Arg(
-    ("-E", "--error-logfile"),
-    default=conf.get('webserver', 'ERROR_LOGFILE'),
-    help="The logfile to store the webserver error log. Use '-' to print to stderr",
-)
-
-# scheduler
-ARG_NUM_RUNS = Arg(
-    ("-n", "--num-runs"),
-    default=conf.getint('scheduler', 'num_runs'),
-    type=int,
-    help="Set the number of runs to execute before exiting",
-)
-ARG_RUN_DURATION = Arg(
-    ("-r", "--run-duration"),
-    default=None,
-    type=int,
-    help="Set the number of seconds before exiting",
-)
-ARG_DO_PICKLE = Arg(
-    ("-p", "--do-pickle"),
-    default=False,
-    help=(
-        "Attempt to pickle the DAG object to send over "
-        "to the workers, instead of letting workers run their version "
-        "of the code"
-    ),
-    action="store_true",
-)
 
 # worker
 ARG_QUEUES = Arg(
@@ -2825,11 +2650,6 @@ ARG_TASK_PARAMS = Arg(("-t", "--task-params"), help="Sends a JSON params dict to
 ARG_POST_MORTEM = Arg(
     ("-m", "--post-mortem"), action="store_true", help="Open debugger on uncaught exception"
 )
-ARG_ENV_VARS = Arg(
-    ("--env-vars",),
-    help="Set env var in both parsing time and runtime for each of entry supplied in a JSON dict",
-    type=json.loads,
-)
 
 # connections
 ARG_CONN_ID = Arg(('conn_id',), help='Connection id, required to get/add/delete a connection', type=str)
@@ -2838,9 +2658,6 @@ ARG_CONN_URI = Arg(
 )
 ARG_CONN_TYPE = Arg(
     ('--conn-type',), help='Connection type, required to add a connection without conn_uri', type=str
-)
-ARG_CONN_DESCRIPTION = Arg(
-    ('--conn-description',), help='Connection description, optional when adding a connection', type=str
 )
 ARG_CONN_HOST = Arg(('--conn-host',), help='Connection host, optional when adding a connection', type=str)
 ARG_CONN_LOGIN = Arg(('--conn-login',), help='Connection login, optional when adding a connection', type=str)
@@ -2854,18 +2671,9 @@ ARG_CONN_PORT = Arg(('--conn-port',), help='Connection port, optional when addin
 ARG_CONN_EXTRA = Arg(
     ('--conn-extra',), help='Connection `Extra` field, optional when adding a connection', type=str
 )
-ARG_CONN_EXPORT = Arg(
-    ('file',),
-    help='Output file path for exporting the connections',
-    type=argparse.FileType('w'),
-)
-ARG_CONN_EXPORT_FORMAT = Arg(
-    ('--format',), help='Format of the connections data in file', type=str, choices=['json', 'yaml', 'env']
-)
 
 # users
 ARG_USERNAME = Arg(('-u', '--username'), help='Username of the user', required=True, type=str)
-ARG_USERNAME_OPTIONAL = Arg(('-u', '--username'), help='Username of the user', type=str)
 ARG_FIRSTNAME = Arg(('-f', '--firstname'), help='First name of the user', required=True, type=str)
 ARG_LASTNAME = Arg(('-l', '--lastname'), help='Last name of the user', required=True, type=str)
 ARG_ROLE = Arg(
@@ -2875,7 +2683,6 @@ ARG_ROLE = Arg(
     type=str,
 )
 ARG_EMAIL = Arg(('-e', '--email'), help='Email of the user', required=True, type=str)
-ARG_EMAIL_OPTIONAL = Arg(('-e', '--email'), help='Email of the user', type=str)
 ARG_PASSWORD = Arg(
     ('-p', '--password'),
     help='Password of the user, required to create a user without --use-random-password',
@@ -2888,32 +2695,8 @@ ARG_USE_RANDOM_PASSWORD = Arg(
     default=False,
     action='store_true',
 )
-ARG_USER_IMPORT = Arg(
-    ("import",),
-    metavar="FILEPATH",
-    help="Import users from JSON file. Example format::\n"
-    + textwrap.indent(
-        textwrap.dedent(
-            '''
-            [
-                {
-                    "email": "foo@bar.org",
-                    "firstname": "Jon",
-                    "lastname": "Doe",
-                    "roles": ["Public"],
-                    "username": "jondoe"
-                }
-            ]'''
-        ),
-        " " * 4,
-    ),
-)
-ARG_USER_EXPORT = Arg(("export",), metavar="FILEPATH", help="Export all users to JSON file")
 
 # roles
-ARG_CREATE_ROLE = Arg(('-c', '--create'), help='Create a new role', action='store_true')
-ARG_LIST_ROLES = Arg(('-l', '--list'), help='List roles', action='store_true')
-ARG_ROLES = Arg(('role',), help='The name of a role', nargs='*')
 ARG_AUTOSCALE = Arg(('-a', '--autoscale'), help="Minimum and Maximum number of worker to autoscale")
 ARG_SKIP_SERVE_LOGS = Arg(
     ("-s", "--skip-serve-logs"),
@@ -2922,29 +2705,8 @@ ARG_SKIP_SERVE_LOGS = Arg(
     action="store_true",
 )
 
-# info
-ARG_ANONYMIZE = Arg(
-    ('--anonymize',),
-    help='Minimize any personal identifiable information. Use it when sharing output with others.',
-    action='store_true',
-)
-ARG_FILE_IO = Arg(
-    ('--file-io',), help='Send output to file.io service and returns link.', action='store_true'
-)
-
-# config
-ARG_SECTION = Arg(
-    ("section",),
-    help="The section name",
-)
-ARG_OPTION = Arg(
-    ("option",),
-    help="The option name",
-)
-
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE,
-    ARG_CONN_DESCRIPTION,
     ARG_CONN_HOST,
     ARG_CONN_LOGIN,
     ARG_CONN_PASSWORD,
@@ -3519,7 +3281,7 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
             # return a single string
             return self._join_parts(parts)
 
-        return super()._format_action(action)
+        return super(AirflowHelpFormatter, self)._format_action(action)
 
 
 def partition(pred, iterable):
