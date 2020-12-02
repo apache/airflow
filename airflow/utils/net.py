@@ -21,6 +21,7 @@ import importlib
 import socket
 from airflow.configuration import (conf, AirflowConfigException)
 
+
 def get_host_ip_address():
     return socket.gethostbyname(socket.getfqdn())
 
@@ -48,4 +49,4 @@ def get_hostname():
         callable = getattr(module, attr_name)
         return callable()
     else:
-        return conf.getimport('core', 'hostname_callable',fallback='socket.getfqdn')()
+        return conf.getimport('core', 'hostname_callable', fallback='socket.getfqdn')()
