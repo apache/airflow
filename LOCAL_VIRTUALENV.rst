@@ -118,6 +118,14 @@ To create and initialize the local virtualenv:
 
     pip install -U -e ".[devel,<OTHER EXTRAS>]" # for example: pip install -U -e ".[devel,gcp,postgres]"
 
+.. note::
+   On 30th of November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver.
+   This resolver does not yet work with Apache Airflow and might leads to errors in installation -
+   depends on your choice of extras. In order to install Airflow you need to either downgrade
+   pip to version 20.2.4 ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``--use-deprecated legacy-resolver`` to your pip install command.
+
+
 In case you have problems with installing airflow because of some requirements are not installable, you can
 try to install it with the set of working constraints (note that there are different constraint files
 for different python versions:
