@@ -118,7 +118,7 @@ def _is_stdout(fileio: io.TextIOWrapper) -> bool:
 def _valid_uri(uri: str) -> bool:
     """Check if a URI is valid, by checking if both scheme and netloc are available"""
     uri_parts = urlparse(uri)
-    return uri_parts.scheme != '' or uri_parts.netloc != ''
+    return uri_parts.scheme != '' and uri_parts.netloc != ''
 
 
 def connections_export(args):
