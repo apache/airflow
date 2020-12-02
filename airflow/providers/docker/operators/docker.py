@@ -284,11 +284,14 @@ class DockerOperator(BaseOperator):
         # Pull the docker image if `force_pull` is set or image does not exist locally
         if self.force_pull or not self.cli.images(name=self.image):
             self.log.info('Pulling docker image %s', self.image)
+            latest_status = {}
             for output in self.cli.pull(self.image, stream=True, decode=True):
                 if isinstance(output, str):
                     self.log.info("%s", output)
-                if isinstance(output, dict) and 'status' in output:
-                    self.log.info("%s", output['status'])
+                if isinstance(output, dict) and 'status' in output and 'id' in output:
+                    if latest_status.get(output['id']) != output['status']:
+                        self.log.info("%s: %s", output['id'], output['status'])
+                        latest_status[output['id']] = output['status']
 
         self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
         return self._run_image()
