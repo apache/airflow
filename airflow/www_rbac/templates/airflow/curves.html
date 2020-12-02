@@ -42,7 +42,7 @@
               <input id="{{ task.entity_id }}" class="action_check m-2" name="rowid" value="{{ task.entity_id }}"
                      type="checkbox">
               <a type="button" class="btn btn-sm btn-default"
-                 href="/view_curve/{{ task.dag_id }}/dag_runs/{{ task.execution_date }}/tasks/{{ task.task_id }}"
+                 href="{{url_for('Airflow.view_curve_page',dag_id=task.dag_id,execution_date=task.execution_date,task_id=task.task_id)}}"
                  target="_blank">
                 <i class="glyphicon glyphicon-new-window"></i>
               </a>

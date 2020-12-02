@@ -73,7 +73,7 @@
           <center>
             {{ lib.btn_crud(can_show, can_edit, can_delete, pk, modelview_name, filters) }}
           </center>
-            <a href="/variable/list/?_flt_0_key={{ item.controller_name }}&_flt_0_is_curve_template=y"
+            <a href="{{url_for('VariableModelView.list',_flt_0_key=item.controller_name,_flt_0_is_curve_template='y')}}"
                target="_blank" style="display:block">查看模板</a>
         </td>
       {% endif %}
