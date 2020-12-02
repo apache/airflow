@@ -19,6 +19,7 @@
 
 import unittest
 import mock
+import six
 
 from airflow.utils import net
 from tests.test_utils.config import conf_vars
@@ -75,7 +76,8 @@ class GetHostname(unittest.TestCase):
 
     @conf_vars({('core', 'hostname_callable'): 'tests.utils.test_net.missing_func'})
     def test_get_hostname_set_missing_2_0(self):
-        with self.assertRaisesRegex(
+        with six.assertRaisesRegex(
+            self,
             AirflowConfigException,
             re.escape(
                 'The object could not be loaded. Please check "hostname_callable" key in "core" section. '
