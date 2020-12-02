@@ -27,11 +27,10 @@
 function add_trap() {
     trap="${1}"
     shift
-    for signal in "${@}"
-    do
+    for signal in "${@}"; do
         # adding trap to exiting trap
         local handlers
-        handlers="$( trap -p "${signal}" | cut -f2 -d \' )"
+        handlers="$(trap -p "${signal}" | cut -f2 -d \')"
         # shellcheck disable=SC2064
         trap "${trap};${handlers}" "${signal}"
     done
@@ -40,17 +39,19 @@ function add_trap() {
 function assert_in_container() {
     export VERBOSE=${VERBOSE:="false"}
     if [[ ! -f /.dockerenv ]]; then
-        echo >&2
-        echo >&2 "You are not inside the Airflow docker container!"
-        echo >&2 "You should only run this script in the Airflow docker container as it may override your files."
-        echo >&2 "Learn more about how we develop and test airflow in:"
-        echo >&2 "https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst"
-        echo >&2
+        echo
+        echo "${COLOR_RED_ERROR} You are not inside the Airflow docker container!  ${COLOR_RESET}"
+        echo
+        echo "You should only run this script in the Airflow docker container as it may override your files."
+        echo "Learn more about how we develop and test airflow in:"
+        echo "https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst"
+        echo
         exit 1
     fi
 }
 
 function in_container_script_start() {
+    OUT_FILE_PRINTED_ON_ERROR=$(mktemp)
     if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
         set -x
     fi
@@ -60,18 +61,24 @@ function in_container_script_end() {
     #shellcheck disable=2181
     EXIT_CODE=$?
     if [[ ${EXIT_CODE} != 0 ]]; then
-        if [[ "${PRINT_INFO_FROM_SCRIPTS=="true"}" == "true" ]] ;then
-            if [[ -n ${OUT_FILE_PRINTED_ON_ERROR=} ]]; then
-                echo "  ERROR ENCOUNTERED!"
-                echo
-                echo "  Output:"
-                echo
-                cat "${OUT_FILE_PRINTED_ON_ERROR}"
+        if [[ "${PRINT_INFO_FROM_SCRIPTS=="true"}" == "true" ]]; then
+            if [[ -f "${OUT_FILE_PRINTED_ON_ERROR}" ]]; then
                 echo "###########################################################################################"
+                echo
+                echo "${COLOR_BLUE} EXIT CODE: ${EXIT_CODE} in container (See above for error message). Below is the output of the last action! ${COLOR_RESET}"
+                echo
+                echo "${COLOR_BLUE}***  BEGINNING OF THE LAST COMMAND OUTPUT *** ${COLOR_RESET}"
+                cat "${OUT_FILE_PRINTED_ON_ERROR}"
+                echo "${COLOR_BLUE}***  END OF THE LAST COMMAND OUTPUT ***  ${COLOR_RESET}"
+                echo
+                echo "${COLOR_BLUE} EXIT CODE: ${EXIT_CODE} in container. The actual error might be above the output!  ${COLOR_RESET}"
+                echo
+                echo "###########################################################################################"
+            else
+                echo "########################################################################################################################"
+                echo "${COLOR_BLUE} [IN CONTAINER]   EXITING ${0} WITH EXIT CODE ${EXIT_CODE}  ${COLOR_RESET}"
+                echo "########################################################################################################################"
             fi
-            echo "###########################################################################################"
-            echo "  [IN CONTAINER]   EXITING ${0} WITH STATUS CODE ${EXIT_CODE}"
-            echo "###########################################################################################"
         fi
     fi
 
@@ -129,9 +136,9 @@ function in_container_fix_ownership() {
         if [[ ${VERBOSE} == "true" ]]; then
             echo "Fixing ownership of mounted files"
         fi
-        sudo find "${DIRECTORIES_TO_FIX[@]}" -print0 -user root 2>/dev/null \
-            | sudo xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference ||
-                true >/dev/null 2>&1
+        sudo find "${DIRECTORIES_TO_FIX[@]}" -print0 -user root 2>/dev/null |
+            sudo xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference ||
+            true >/dev/null 2>&1
         if [[ ${VERBOSE} == "true" ]]; then
             echo "Fixed ownership of mounted files"
         fi
@@ -149,7 +156,7 @@ function in_container_clear_tmp() {
 }
 
 function in_container_go_to_airflow_sources() {
-    pushd "${AIRFLOW_SOURCES}"  &>/dev/null || exit 1
+    pushd "${AIRFLOW_SOURCES}" &>/dev/null || exit 1
 }
 
 function in_container_basic_sanity_check() {
@@ -182,13 +189,13 @@ function in_container_refresh_pylint_todo() {
         -path "./build" -prune -o \
         -path "./tests" -prune -o \
         -name "*.py" \
-        -not -name 'webserver_config.py' | \
-        grep  ".*.py$" | \
+        -not -name 'webserver_config.py' |
+        grep ".*.py$" |
         xargs pylint | tee "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt"
 
-    grep -v "\*\*" < "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt" | \
-       grep -v "^$" | grep -v "\-\-\-" | grep -v "^Your code has been" | \
-       awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq > "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt"
+    grep -v "\*\*" <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt" |
+        grep -v "^$" | grep -v "\-\-\-" | grep -v "^Your code has been" |
+        awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq >"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt"
 
     if [[ ${VERBOSE} == "true" ]]; then
         echo
@@ -199,12 +206,12 @@ function in_container_refresh_pylint_todo() {
         echo "Finding list of all non-pylint compliant files in 'tests' folder"
         echo
     fi
-    find "./tests" -name "*.py" -print0 | \
+    find "./tests" -name "*.py" -print0 |
         xargs -0 pylint --disable="${DISABLE_CHECKS_FOR_TESTS}" | tee "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt"
 
-    grep -v "\*\*" < "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt" | \
-        grep -v "^$" | grep -v "\-\-\-" | grep -v "^Your code has been" | \
-        awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq >> "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt"
+    grep -v "\*\*" <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt" |
+        grep -v "^$" | grep -v "\-\-\-" | grep -v "^Your code has been" |
+        awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq >>"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt"
 
     rm -fv "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt" "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt"
     mv -v "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt" "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo.txt"
@@ -225,7 +232,7 @@ function start_output_heartbeat() {
     echo "Starting output heartbeat"
     echo
 
-    bash 2> /dev/null <<EOF &
+    bash 2>/dev/null <<EOF &
 while true; do
   echo "\$(date): ${MESSAGE} "
   sleep ${INTERVAL}
@@ -236,7 +243,7 @@ EOF
 
 function stop_output_heartbeat() {
     kill "${HEARTBEAT_PID}" || true
-    wait "${HEARTBEAT_PID}" || true 2> /dev/null
+    wait "${HEARTBEAT_PID}" || true 2>/dev/null
 }
 
 function dump_airflow_logs() {
@@ -252,19 +259,72 @@ function dump_airflow_logs() {
     echo "###########################################################################################"
 }
 
-function install_released_airflow_version() {
+function install_airflow_from_wheel() {
+    echo
+    echo "Install airflow wheel package from dist"
+    echo
+    pip install /dist/apache_airflow-*.whl >"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
+}
+
+function install_remaining_dependencies() {
+    echo
+    echo "Installs all remaining dependencies that are not installed by 'all' "
+    echo
+    pip install apache-beam[gcp] >"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
+}
+
+function uninstall_airflow() {
+    echo
+    echo "Uninstalling all provider packages"
+    echo
+    pip freeze | grep apache-airflow-providers | xargs pip uninstall -y || true
+    echo
+    echo "Uninstalling airflow"
+    echo
     pip uninstall -y apache-airflow || true
+    echo
+    echo "Remove all AIRFLOW_HOME remnants"
+    echo
     find /root/airflow/ -type f -print0 | xargs -0 rm -f --
-    if [[ ${1} == "1.10.2" || ${1} == "1.10.1" ]]; then
+}
+
+function install_all_airflow_dependencies() {
+    echo
+    echo "Installing dependencies from 'all' extras"
+    echo
+    pip install ".[all]" >"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
+}
+
+function install_released_airflow_version() {
+    local version="${1}"
+    local extras="${2}"
+    echo
+    echo "Installing released ${1} version of airflow with extras ${2}"
+    echo
+
+    if [[ ${version} == "1.10.2" || ${version} == "1.10.1" ]]; then
         export SLUGIFY_USES_TEXT_UNIDECODE=yes
     fi
     rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
     if [[ ${INSTALL_AIRFLOW_VERSION} == "wheel" ]]; then
-        pip install /dist/apache_airflow-*.whl
+        pip install /dist/apache_airflow-*.whl >"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
     else
-        INSTALLS=("apache-airflow==${1}")
-        pip install --upgrade "${INSTALLS[@]}"
+        pip install --upgrade "apache-airflow${extras}==${1}" >"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
     fi
+}
+
+function install_all_provider_packages_from_wheels() {
+    echo
+    echo "Installing all provider packages from wheels"
+    echo
+    pip install /dist/apache_airflow*providers_*.whl >"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
+}
+
+function install_all_provider_packages_from_tar_gz_files() {
+    echo
+    echo "Installing all provider packages from .tar.gz"
+    echo
+    pip install /dist/apache-airflow-*providers-*.tar.gz >"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
 }
 
 function setup_provider_packages() {
@@ -288,7 +348,7 @@ function setup_provider_packages() {
     export BACKPORT_PACKAGES
 }
 
-function verify_suffix_versions_for_package_preparation {
+function verify_suffix_versions_for_package_preparation() {
     TARGET_VERSION_SUFFIX=""
     FILE_VERSION_SUFFIX=""
 
@@ -309,10 +369,11 @@ function verify_suffix_versions_for_package_preparation {
     fi
 
     if [[ ${VERSION_SUFFIX_FOR_SVN} =~ ^rc ]]; then
-        >&2 echo
-        >&2 echo "The version suffix for SVN is used only for file names in RC version"
-        >&2 echo "This suffix is only added to the files '${VERSION_SUFFIX_FOR_SVN}' "
-        >&2 echo
+        echo
+        echo "${COLOR_RED_ERROR} The version suffix for SVN is used only for file names in RC version  ${COLOR_RESET}"
+        echo
+        echo "This suffix is only added to the files '${VERSION_SUFFIX_FOR_SVN}' "
+        echo
         FILE_VERSION_SUFFIX=${VERSION_SUFFIX_FOR_SVN}
         VERSION_SUFFIX_FOR_SVN=""
     fi
@@ -325,17 +386,19 @@ function verify_suffix_versions_for_package_preparation {
 
     if [[ ${VERSION_SUFFIX_FOR_PYPI} != '' && ${VERSION_SUFFIX_FOR_SVN} != '' ]]; then
         if [[ ${VERSION_SUFFIX_FOR_PYPI} != "${VERSION_SUFFIX_FOR_SVN}" ]]; then
-            >&2 echo
-            >&2 echo "If you specify both version suffixes they must match"
-            >&2 echo "However they are different: '${VERSION_SUFFIX_FOR_PYPI}' vs. '${VERSION_SUFFIX_FOR_SVN}'"
-            >&2 echo
+            echo
+            echo "${COLOR_RED_ERROR} If you specify both PyPI and SVN version suffixes they must match  ${COLOR_RESET}"
+            echo
+            echo "However they are different: PyPI:'${VERSION_SUFFIX_FOR_PYPI}' vs. SVN:'${VERSION_SUFFIX_FOR_SVN}'"
+            echo
             exit 1
         else
             if [[ ${VERSION_SUFFIX_FOR_PYPI} =~ ^rc ]]; then
-                >&2 echo
-                >&2 echo "If you prepare an RC candidate, you need to specify only PyPI suffix"
-                >&2 echo "However you specified both: '${VERSION_SUFFIX_FOR_PYPI}' vs. '${VERSION_SUFFIX_FOR_SVN}'"
-                >&2 echo
+                echo
+                echo "${COLOR_RED_ERROR} If you prepare an RC candidate, you need to specify only PyPI suffix  ${COLOR_RESET}"
+                echo
+                echo "However you specified both: PyPI'${VERSION_SUFFIX_FOR_PYPI}' and SVN '${VERSION_SUFFIX_FOR_SVN}'"
+                echo
                 exit 2
             fi
             # Just use one of them - they are both the same:
@@ -348,18 +411,20 @@ function verify_suffix_versions_for_package_preparation {
         else
 
             if [[ ${VERSION_SUFFIX_FOR_PYPI} == '' ]]; then
-                >&2 echo
-                >&2 echo "You should never specify version for PYPI only. Version for SVN can't be empty if the SVN is not."
-                >&2 echo "You specified: '${VERSION_SUFFIX_FOR_PYPI}'"
-                >&2 echo
+                echo
+                echo "${COLOR_RED_ERROR} You should never specify version for PyPI only.  ${COLOR_RESET}"
+                echo
+                echo "You specified PyPI suffix: '${VERSION_SUFFIX_FOR_PYPI}'"
+                echo
                 exit 3
             fi
             TARGET_VERSION_SUFFIX=${VERSION_SUFFIX_FOR_PYPI}${VERSION_SUFFIX_FOR_SVN}
             if [[ ! ${TARGET_VERSION_SUFFIX} =~ rc.* ]]; then
-                >&2 echo
-                >&2 echo "If you prepare an alpha/beta release, you need to specify both PyPI/SVN suffixes"
-                >&2 echo "And they have to match. You specified only one."
-                >&2 echo
+                echo
+                echo "${COLOR_RED_ERROR} If you prepare an alpha/beta release, you need to specify both PyPI/SVN suffixes and they have to match.  ${COLOR_RESET}"
+                echo
+                echo "And they have to match. You specified only one suffix:  ${TARGET_VERSION_SUFFIX}."
+                echo
                 exit 4
             fi
         fi
@@ -368,15 +433,65 @@ function verify_suffix_versions_for_package_preparation {
     export TARGET_VERSION_SUFFIX
 }
 
-function filenames_to_python_module() {
-  for file in "$@";
-  do
+function filename_to_python_module() {
     # Turn the file name into a python package name
+    file="$1"
     no_leading_dotslash="${file#./}"
     no_py="${no_leading_dotslash/.py/}"
     no_init="${no_py/\/__init__/}"
     echo "${no_init//\//.}"
-  done
+}
+
+function import_all_provider_classes() {
+    echo
+    echo Importing all Airflow classes
+    echo
+
+    # We have to move to a directory where "airflow" is
+    unset PYTHONPATH
+    # We need to make sure we are not in the airflow checkout, otherwise it will automatically be added to the
+    # import path
+    cd /
+
+    declare -a IMPORT_CLASS_PARAMETERS
+
+    PROVIDER_PATHS=$(
+        python3 <<EOF 2>/dev/null
+import airflow.providers;
+path=airflow.providers.__path__
+for p in path._path:
+    print(p)
+EOF
+    )
+    export PROVIDER_PATHS
+
+    echo "Searching for providers packages in:"
+    echo "${PROVIDER_PATHS}"
+
+    while read -r provider_path; do
+        IMPORT_CLASS_PARAMETERS+=("--path" "${provider_path}")
+    done < <(echo "${PROVIDER_PATHS}")
+
+    python3 /opt/airflow/dev/import_all_classes.py "${IMPORT_CLASS_PARAMETERS[@]}"
+}
+
+function in_container_set_colors() {
+    COLOR_BLUE=$'\e[34m'
+    COLOR_GREEN=$'\e[32m'
+    COLOR_GREEN_OK=$'\e[32mOK.'
+    COLOR_RED=$'\e[31m'
+    COLOR_RED_ERROR=$'\e[31mERROR:'
+    COLOR_RESET=$'\e[0m'
+    COLOR_YELLOW=$'\e[33m'
+    COLOR_YELLOW_WARNING=$'\e[33mWARNING:'
+    export COLOR_BLUE
+    export COLOR_GREEN
+    export COLOR_GREEN_OK
+    export COLOR_RED
+    export COLOR_RED_ERROR
+    export COLOR_RESET
+    export COLOR_YELLOW
+    export COLOR_YELLOW_WARNING
 }
 
 export CI=${CI:="false"}

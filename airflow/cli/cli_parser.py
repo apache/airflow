@@ -304,7 +304,7 @@ ARG_IMGCAT_DAGRUN = Arg(
 )
 ARG_SAVE_DAGRUN = Arg(
     ("--save-dagrun",),
-    help=("After completing the backfill, saves the diagram for current DAG Run to the indicated file.\n\n"),
+    help="After completing the backfill, saves the diagram for current DAG Run to the indicated file.\n\n",
 )
 
 # list_tasks
@@ -328,7 +328,7 @@ ARG_DAG_REGEX = Arg(
 # show_dag
 ARG_SAVE = Arg(("-s", "--save"), help="Saves the result to the indicated file.")
 
-ARG_IMGCAT = Arg(("--imgcat",), help=("Displays graph using the imgcat tool."), action='store_true')
+ARG_IMGCAT = Arg(("--imgcat",), help="Displays graph using the imgcat tool.", action='store_true')
 
 # trigger_dag
 ARG_RUN_ID = Arg(("-r", "--run-id"), help="Helps to identify this run")
@@ -458,6 +458,11 @@ ARG_ERROR_LOGFILE = Arg(
     default=conf.get('webserver', 'ERROR_LOGFILE'),
     help="The logfile to store the webserver error log. Use '-' to print to stderr",
 )
+ARG_ACCESS_LOGFORMAT = Arg(
+    ("-L", "--access-logformat"),
+    default=conf.get('webserver', 'ACCESS_LOGFORMAT'),
+    help="The access log format for gunicorn logs",
+)
 
 # scheduler
 ARG_NUM_RUNS = Arg(
@@ -491,7 +496,7 @@ ARG_CONCURRENCY = Arg(
 )
 ARG_CELERY_HOSTNAME = Arg(
     ("-H", "--celery-hostname"),
-    help=("Set the hostname of celery worker if you have multiple workers on a single machine"),
+    help="Set the hostname of celery worker if you have multiple workers on a single machine",
 )
 ARG_UMASK = Arg(
     ("-u", "--umask"),
@@ -546,6 +551,9 @@ ARG_CONN_URI = Arg(
 ARG_CONN_TYPE = Arg(
     ('--conn-type',), help='Connection type, required to add a connection without conn_uri', type=str
 )
+ARG_CONN_DESCRIPTION = Arg(
+    ('--conn-description',), help='Connection description, optional when adding a connection', type=str
+)
 ARG_CONN_HOST = Arg(('--conn-host',), help='Connection host, optional when adding a connection', type=str)
 ARG_CONN_LOGIN = Arg(('--conn-login',), help='Connection login, optional when adding a connection', type=str)
 ARG_CONN_PASSWORD = Arg(
@@ -566,6 +574,18 @@ ARG_CONN_EXPORT = Arg(
 ARG_CONN_EXPORT_FORMAT = Arg(
     ('--format',), help='Format of the connections data in file', type=str, choices=['json', 'yaml', 'env']
 )
+
+# providers
+ARG_PROVIDER_NAME = Arg(
+    ('provider_name',), help='Provider name, required to get provider information', type=str
+)
+ARG_FULL = Arg(
+    ('-f', '--full'),
+    help='Full information about the provider, including documentation information.',
+    required=False,
+    action="store_true",
+)
+
 # users
 ARG_USERNAME = Arg(('-u', '--username'), help='Username of the user', required=True, type=str)
 ARG_USERNAME_OPTIONAL = Arg(('-u', '--username'), help='Username of the user', type=str)
@@ -632,7 +652,7 @@ ARG_ANONYMIZE = Arg(
     action='store_true',
 )
 ARG_FILE_IO = Arg(
-    ('--file-io',), help=('Send output to file.io service and returns link.'), action='store_true'
+    ('--file-io',), help='Send output to file.io service and returns link.', action='store_true'
 )
 
 # config
@@ -654,6 +674,7 @@ ARG_NAMESPACE = Arg(
 
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE,
+    ARG_CONN_DESCRIPTION,
     ARG_CONN_HOST,
     ARG_CONN_LOGIN,
     ARG_CONN_PASSWORD,
@@ -1055,7 +1076,7 @@ DB_COMMANDS = (
     ActionCommand(
         name="check-migrations",
         help="Check if migration have finished",
-        description=("Check if migration have finished (or continually check until timeout)"),
+        description="Check if migration have finished (or continually check until timeout)",
         func=lazy_load_command('airflow.cli.commands.db_command.check_migrations'),
         args=(ARG_MIGRATION_TIMEOUT,),
     ),
@@ -1107,7 +1128,7 @@ CONNECTIONS_COMMANDS = (
         name='delete',
         help='Delete a connection',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_delete'),
-        args=(ARG_CONN_ID,),
+        args=(ARG_CONN_ID, ARG_COLOR),
     ),
     ActionCommand(
         name='export',
@@ -1131,6 +1152,27 @@ CONNECTIONS_COMMANDS = (
         ),
     ),
 )
+PROVIDERS_COMMANDS = (
+    ActionCommand(
+        name='hooks',
+        help='List registered provider hooks',
+        func=lazy_load_command('airflow.cli.commands.provider_command.hooks_list'),
+        args=(ARG_OUTPUT,),
+    ),
+    ActionCommand(
+        name='list',
+        help='List installed providers',
+        func=lazy_load_command('airflow.cli.commands.provider_command.providers_list'),
+        args=(ARG_OUTPUT,),
+    ),
+    ActionCommand(
+        name='get',
+        help='Get detailed information about a provider',
+        func=lazy_load_command('airflow.cli.commands.provider_command.provider_get'),
+        args=(ARG_OUTPUT, ARG_FULL, ARG_COLOR, ARG_PROVIDER_NAME),
+    ),
+)
+
 USERS_COMMANDS = (
     ActionCommand(
         name='list',
@@ -1339,6 +1381,7 @@ airflow_commands: List[CLICommand] = [
             ARG_STDERR,
             ARG_ACCESS_LOGFILE,
             ARG_ERROR_LOGFILE,
+            ARG_ACCESS_LOGFORMAT,
             ARG_LOG_FILE,
             ARG_SSL_CERT,
             ARG_SSL_KEY,
@@ -1386,6 +1429,11 @@ airflow_commands: List[CLICommand] = [
         subcommands=CONNECTIONS_COMMANDS,
     ),
     GroupCommand(
+        name='providers',
+        help="Display providers",
+        subcommands=PROVIDERS_COMMANDS,
+    ),
+    GroupCommand(
         name='users',
         help="Manage users",
         subcommands=USERS_COMMANDS,
@@ -1407,7 +1455,7 @@ airflow_commands: List[CLICommand] = [
         help='Rotate encrypted connection credentials and variables',
         description=(
             'Rotate all encrypted connection credentials and variables; see '
-            'https://airflow.readthedocs.io/en/stable/howto/secure-connections.html'
+            'https://airflow.apache.org/docs/stable/howto/secure-connections.html'
             '#rotating-encryption-keys'
         ),
         args=(),
@@ -1433,7 +1481,7 @@ airflow_commands: List[CLICommand] = [
         help='Celery components',
         description=(
             'Start celery components. Works only when using CeleryExecutor. For more information, see '
-            'https://airflow.readthedocs.io/en/stable/executor/celery.html'
+            'https://airflow.apache.org/docs/stable/executor/celery.html'
         ),
         subcommands=CELERY_COMMANDS,
     ),

@@ -65,7 +65,7 @@ def variables_import(args):
     if os.path.exists(args.file):
         _import_helper(args.file)
     else:
-        print("Missing variables file.")
+        raise SystemExit("Missing variables file.")
 
 
 def variables_export(args):
@@ -81,7 +81,7 @@ def _import_helper(filepath):
     try:
         var_json = json.loads(data)
     except JSONDecodeError:
-        print("Invalid variables file.")
+        raise SystemExit("Invalid variables file.")
     else:
         suc_count = fail_count = 0
         for k, v in var_json.items():

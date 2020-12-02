@@ -45,7 +45,11 @@ class AzureCosmosDBHook(BaseHook):
     :type azure_cosmos_conn_id: str
     """
 
-    def __init__(self, azure_cosmos_conn_id: str = 'azure_cosmos_default') -> None:
+    conn_name_attr = 'azure_cosmos_conn_id'
+    default_conn_name = 'azure_cosmos_default'
+    conn_type = 'azure_cosmos'
+
+    def __init__(self, azure_cosmos_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn_id = azure_cosmos_conn_id
         self._conn = None

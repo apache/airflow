@@ -976,6 +976,15 @@
       type: string
       example: ~
       default: "-"
+    - name: access_logformat
+      description: |
+        Access log format for gunicorn webserver.
+        default format is %%(h)s %%(l)s %%(u)s %%(t)s "%%(r)s" %%(s)s %%(b)s "%%(f)s" "%%(a)s"
+        documentation - https://docs.gunicorn.org/en/stable/settings.html#access-log-format
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
     - name: expose_config
       description: |
         Expose the configuration file in the web server
@@ -1182,8 +1191,8 @@
     - name: session_lifetime_minutes
       description: |
         The UI cookie lifetime in minutes. User will be logged out from UI after
-        `session_lifetime_minutes` of non-activity
-      version_added: 2.0.0
+        ``session_lifetime_minutes`` of non-activity
+      version_added: 1.10.13
       type: int
       example: ~
       default: "43200"
@@ -1723,10 +1732,10 @@
       version_added: 2.0.0
       type: boolean
       default: ~
-    - name: max_threads
+    - name: parsing_processes
       description: |
-        The scheduler can run multiple threads in parallel to schedule dags.
-        This defines how many threads will run.
+        The scheduler can run multiple processes in parallel to parse dags.
+        This defines how many processes will run.
       version_added: ~
       type: string
       example: ~
@@ -1744,84 +1753,6 @@
         Allow externally triggered DagRuns for Execution Dates in the future
         Only has effect if schedule_interval is set to None in DAG
       version_added: 1.10.8
-      type: string
-      example: ~
-      default: "False"
-- name: ldap
-  description: ~
-  options:
-    - name: uri
-      description: |
-        set this to ldaps://<your.ldap.server>:<port>
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    - name: user_filter
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "objectClass=*"
-    - name: user_name_attr
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "uid"
-    - name: group_member_attr
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "memberOf"
-    - name: superuser_filter
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    - name: data_profiler_filter
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    - name: bind_user
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "cn=Manager,dc=example,dc=com"
-    - name: bind_password
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "insecure"
-    - name: basedn
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "dc=example,dc=com"
-    - name: cacert
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "/etc/ca/ldap_ca.crt"
-    - name: search_scope
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "LEVEL"
-    - name: ignore_malformed_schema
-      description: |
-        This setting allows the use of LDAP servers that either return a
-        broken schema, or do not return a schema.
-      version_added: 1.10.3
       type: string
       example: ~
       default: "False"

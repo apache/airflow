@@ -205,7 +205,7 @@ class TestCeleryExecutor(unittest.TestCase):
     @pytest.mark.integration("rabbitmq")
     @pytest.mark.backend("mysql", "postgres")
     def test_retry_on_error_sending_task(self):
-        """Test that Airflow retries publishing tasks to Celery Broker atleast 3 times"""
+        """Test that Airflow retries publishing tasks to Celery Broker at least 3 times"""
 
         def fake_execute_command(command):
             print(command)

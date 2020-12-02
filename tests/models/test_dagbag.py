@@ -714,9 +714,10 @@ class TestDagBag(unittest.TestCase):
             self.assertEqual(serialized_dag.dag_id, dag.dag_id)
             self.assertEqual(set(serialized_dag.task_dict), set(dag.task_dict))
 
-    @patch("airflow.settings.policy", cluster_policies.cluster_policy)
-    def test_cluster_policy_violation(self):
-        """test that file processing results in import error when task does not
+    @patch("airflow.settings.task_policy", cluster_policies.cluster_policy)
+    def test_task_cluster_policy_violation(self):
+        """
+        test that file processing results in import error when task does not
         obey cluster policy.
         """
         dag_file = os.path.join(TEST_DAGS_FOLDER, "test_missing_owner.py")
@@ -732,9 +733,10 @@ class TestDagBag(unittest.TestCase):
         }
         self.assertEqual(expected_import_errors, dagbag.import_errors)
 
-    @patch("airflow.settings.policy", cluster_policies.cluster_policy)
-    def test_cluster_policy_obeyed(self):
-        """test that dag successfully imported without import errors when tasks
+    @patch("airflow.settings.task_policy", cluster_policies.cluster_policy)
+    def test_task_cluster_policy_obeyed(self):
+        """
+        test that dag successfully imported without import errors when tasks
         obey cluster policy.
         """
         dag_file = os.path.join(TEST_DAGS_FOLDER, "test_with_non_default_owner.py")
@@ -743,3 +745,11 @@ class TestDagBag(unittest.TestCase):
         self.assertEqual({"test_with_non_default_owner"}, set(dagbag.dag_ids))
 
         self.assertEqual({}, dagbag.import_errors)
+
+    @patch("airflow.settings.dag_policy", cluster_policies.dag_policy)
+    def test_dag_cluster_policy_obeyed(self):
+        dag_file = os.path.join(TEST_DAGS_FOLDER, "test_dag_with_no_tags.py")
+
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False, include_smart_sensor=False)
+        assert len(dagbag.dag_ids) == 0
+        assert "has no tags" in dagbag.import_errors[dag_file]

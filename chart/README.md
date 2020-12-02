@@ -158,8 +158,12 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `images.pgbouncerExporter.repository`                 | Docker repository to pull image from. Update this to deploy a custom image                                   | `apache/airflow`                                  |
 | `images.pgbouncerExporter.tag`                        | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `airflow-pgbouncer-exporter-2020.09.25-0.5.0`     |
 | `images.pgbouncerExporter.pullPolicy`                 | PullPolicy for pgbouncer-exporter image                                                                      | `IfNotPresent`                                    |
-| `env`                                                 | Environment variables key/values to mount into Airflow pods                                                  | `[]`                                              |
+| `env`                                                 | Environment variables key/values to mount into Airflow pods (deprecated, prefer using extraEnv)              | `[]`                                              |
 | `secret`                                              | Secret name/key pairs to mount into Airflow pods                                                             | `[]`                                              |
+| `extraEnv`                                            | Extra env 'items' that will be added to the definition of airflow containers                                 | `~`                                               |
+| `extraEnvFrom`                                        | Extra envFrom 'items' that will be added to the definition of airflow containers                             | `~`                                               |
+| `extraSecrets`                                        | Extra Secrets that will be managed by the chart                                                              | `{}`                                              |
+| `extraConfigMaps`                                     | Extra ConfigMaps that will be managed by the chart                                                           | `{}`                                              |
 | `data.metadataSecretName`                             | Secret name to mount Airflow connection string from                                                          | `~`                                               |
 | `data.resultBackendSecretName`                        | Secret name to mount Celery result backend connection string from                                            | `~`                                               |
 | `data.metadataConection`                              | Field separated connection data (alternative to secret name)                                                 | `{}`                                              |
@@ -310,23 +314,31 @@ to port-forward the Airflow UI to http://localhost:8080/ to confirm Airflow is w
 
 1. Start a project using [astro-cli](https://github.com/astronomer/astro-cli), which will generate a Dockerfile, and load your DAGs in. You can test locally before pushing to kind with `astro airflow start`.
 
-        mkdir my-airflow-project && cd my-airflow-project
-        astro dev init
+    ```shell script
+    mkdir my-airflow-project && cd my-airflow-project
+    astro dev init
+    ```
 
 2. Then build the image:
 
-        docker build -t my-dags:0.0.1 .
+    ```shell script
+    docker build -t my-dags:0.0.1 .
+    ```
 
 3. Load the image into kind:
 
-        kind load docker-image my-dags:0.0.1
+    ```shell script
+    kind load docker-image my-dags:0.0.1
+    ```
 
 4. Upgrade Helm deployment:
 
-        helm upgrade airflow -n airflow \
-            --set images.airflow.repository=my-dags \
-            --set images.airflow.tag=0.0.1 \
-            astronomer/airflow
+    ```shell script
+    helm upgrade airflow -n airflow \
+        --set images.airflow.repository=my-dags \
+        --set images.airflow.tag=0.0.1 \
+        astronomer/airflow
+    ```
 
 ## Contributing
 

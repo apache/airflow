@@ -400,37 +400,32 @@ class DagRun(Base, LoggingMixin):
 
         start_dttm = timezone.utcnow()
         self.last_scheduling_decision = start_dttm
+        with Stats.timer(f"dagrun.dependency-check.{self.dag_id}"):
+            dag = self.get_dag()
+            info = self.task_instance_scheduling_decisions(session)
 
-        dag = self.get_dag()
-        info = self.task_instance_scheduling_decisions(session)
+            tis = info.tis
+            schedulable_tis = info.schedulable_tis
+            changed_tis = info.changed_tis
+            finished_tasks = info.finished_tasks
+            unfinished_tasks = info.unfinished_tasks
 
-        tis = info.tis
-        schedulable_tis = info.schedulable_tis
-        changed_tis = info.changed_tis
-        finished_tasks = info.finished_tasks
-        unfinished_tasks = info.unfinished_tasks
+            none_depends_on_past = all(not t.task.depends_on_past for t in unfinished_tasks)
+            none_task_concurrency = all(t.task.task_concurrency is None for t in unfinished_tasks)
 
-        none_depends_on_past = all(not t.task.depends_on_past for t in unfinished_tasks)
-        none_task_concurrency = all(t.task.task_concurrency is None for t in unfinished_tasks)
-
-        if unfinished_tasks and none_depends_on_past and none_task_concurrency:
-            # small speed up
-            are_runnable_tasks = (
-                schedulable_tis
-                or self._are_premature_tis(unfinished_tasks, finished_tasks, session)
-                or changed_tis
-            )
-
-        duration = timezone.utcnow() - start_dttm
-        Stats.timing(f"dagrun.dependency-check.{self.dag_id}", duration)
+            if unfinished_tasks and none_depends_on_past and none_task_concurrency:
+                # small speed up
+                are_runnable_tasks = (
+                    schedulable_tis
+                    or self._are_premature_tis(unfinished_tasks, finished_tasks, session)
+                    or changed_tis
+                )
 
         leaf_task_ids = {t.task_id for t in dag.leaves}
         leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids]
 
         # if all roots finished and at least one failed, the run failed
-        if not unfinished_tasks and any(
-            leaf_ti.state in {State.FAILED, State.UPSTREAM_FAILED} for leaf_ti in leaf_tis
-        ):
+        if not unfinished_tasks and any(leaf_ti.state in State.failed_states for leaf_ti in leaf_tis):
             self.log.error('Marking run %s failed', self)
             self.set_state(State.FAILED)
             if execute_callbacks:
@@ -445,9 +440,7 @@ class DagRun(Base, LoggingMixin):
                 )
 
         # if all leafs succeeded and no unfinished tasks, the run succeeded
-        elif not unfinished_tasks and all(
-            leaf_ti.state in {State.SUCCESS, State.SKIPPED} for leaf_ti in leaf_tis
-        ):
+        elif not unfinished_tasks and all(leaf_ti.state in State.success_states for leaf_ti in leaf_tis):
             self.log.info('Marking run %s successful', self)
             self.set_state(State.SUCCESS)
             if execute_callbacks:
@@ -480,6 +473,7 @@ class DagRun(Base, LoggingMixin):
         else:
             self.set_state(State.RUNNING)
 
+        self._emit_true_scheduling_delay_stats_for_finished_state(finished_tasks)
         self._emit_duration_stats_for_finished_state()
 
         session.merge(self)
@@ -564,6 +558,41 @@ class DagRun(Base, LoggingMixin):
             ):
                 return True
         return False
+
+    def _emit_true_scheduling_delay_stats_for_finished_state(self, finished_tis):
+        """
+        This is a helper method to emit the true scheduling delay stats, which is defined as
+        the time when the first task in DAG starts minus the expected DAG run datetime.
+        This method will be used in the update_state method when the state of the DagRun
+        is updated to a completed status (either success or failure). The method will find the first
+        started task within the DAG and calculate the expected DagRun start time (based on
+        dag.execution_date & dag.schedule_interval), and minus these two values to get the delay.
+        The emitted data may contains outlier (e.g. when the first task was cleared, so
+        the second task's start_date will be used), but we can get rid of the the outliers
+        on the stats side through the dashboards tooling built.
+        Note, the stat will only be emitted if the DagRun is a scheduler triggered one
+        (i.e. external_trigger is False).
+        """
+        try:
+            if self.state == State.RUNNING:
+                return
+            if self.external_trigger:
+                return
+            if not finished_tis:
+                return
+            dag = self.get_dag()
+            ordered_tis_by_start_date = [ti for ti in finished_tis if ti.start_date]
+            ordered_tis_by_start_date.sort(key=lambda ti: ti.start_date, reverse=False)
+            first_start_date = ordered_tis_by_start_date[0].start_date
+            if first_start_date:
+                # dag.following_schedule calculates the expected start datetime for a scheduled dagrun
+                # i.e. a daily flow for execution date 1/1/20 actually runs on 1/2/20 hh:mm:ss,
+                # and ti.start_date will be 1/2/20 hh:mm:ss so the following schedule is comparison
+                true_delay = (first_start_date - dag.following_schedule(self.execution_date)).total_seconds()
+                if true_delay >= 0:
+                    Stats.timing(f'dagrun.{dag.dag_id}.first_task_scheduling_delay', true_delay)
+        except Exception as e:
+            self.log.warning(f'Failed to record first_task_scheduling_delay metric:\n{e}')
 
     def _emit_duration_stats_for_finished_state(self):
         if self.state == State.RUNNING:

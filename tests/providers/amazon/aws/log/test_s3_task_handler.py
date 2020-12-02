@@ -20,6 +20,8 @@ import os
 import unittest
 from unittest import mock
 
+from botocore.exceptions import ClientError
+
 from airflow.models import DAG, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -106,7 +108,8 @@ class TestS3TaskHandler(unittest.TestCase):
     def test_log_exists_no_hook(self):
         with mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook") as mock_hook:
             mock_hook.side_effect = Exception('Failed to connect')
-            self.assertFalse(self.s3_task_handler.s3_log_exists(self.remote_log_location))
+            with self.assertRaises(Exception):
+                self.s3_task_handler.s3_log_exists(self.remote_log_location)
 
     def test_set_context_raw(self):
         self.ti.raw = True
@@ -143,12 +146,27 @@ class TestS3TaskHandler(unittest.TestCase):
         self.assertIn('*** Log file does not exist:', log[0][0][-1])
         self.assertEqual({'end_of_log': True}, metadata[0])
 
+    def test_s3_read_when_log_missing(self):
+        handler = self.s3_task_handler
+        url = 's3://bucket/foo'
+        with mock.patch.object(handler.log, 'error') as mock_error:
+            result = handler.s3_read(url, return_error=True)
+            msg = (
+                f'Could not read logs from {url} with error: An error occurred (404) when calling the '
+                f'HeadObject operation: Not Found'
+            )
+            self.assertEqual(result, msg)
+            mock_error.assert_called_once_with(msg, exc_info=True)
+
     def test_read_raises_return_error(self):
         handler = self.s3_task_handler
         url = 's3://nonexistentbucket/foo'
         with mock.patch.object(handler.log, 'error') as mock_error:
             result = handler.s3_read(url, return_error=True)
-            msg = 'Could not read logs from %s' % url
+            msg = (
+                f'Could not read logs from {url} with error: An error occurred (NoSuchBucket) when '
+                f'calling the HeadObject operation: The specified bucket does not exist'
+            )
             self.assertEqual(result, msg)
             mock_error.assert_called_once_with(msg, exc_info=True)
 
@@ -200,5 +218,5 @@ class TestS3TaskHandler(unittest.TestCase):
         self.assertFalse(self.s3_task_handler.upload_on_close)
         self.s3_task_handler.close()
 
-        with self.assertRaises(self.conn.exceptions.NoSuchKey):
+        with self.assertRaises(ClientError):
             boto3.resource('s3').Object('bucket', self.remote_log_key).get()  # pylint: disable=no-member

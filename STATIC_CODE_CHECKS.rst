@@ -50,6 +50,8 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``airflow-providers-available``       Checks that providers are properly declared by extras
 ----------------------------------- ---------------------------------------------------------------- ------------
+``airflow-provider-yaml-files-ok``    Checks that providers yaml files are valid
+----------------------------------- ---------------------------------------------------------------- ------------
 ``base-operator``                     Checks that BaseOperator is imported properly
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``bats-tests``                        Runs BATS bash unit tests
@@ -112,6 +114,8 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``isort``                             Sorts imports in python files.
 ----------------------------------- ---------------------------------------------------------------- ------------
+``json-schema``                       Checks that the files complies with the JSON Schema spec
+----------------------------------- ---------------------------------------------------------------- ------------
 ``language-matters``                  Check for language that we do not accept as community
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``lint-dockerfile``                   Lints a dockerfile.
@@ -134,6 +138,8 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``providers-init-file``               Check that provider's __init__.py file is removed
 ----------------------------------- ---------------------------------------------------------------- ------------
+``provider-yamls``                    Checks that provider.yaml files have the correct content
+----------------------------------- ---------------------------------------------------------------- ------------
 ``pydevd``                            Check for accidentally committed pydevd statements.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``pydocstyle``                        Runs pydocstyle.
@@ -148,7 +154,7 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``setup-order``                       Checks for an order of dependencies in setup.py
 ----------------------------------- ---------------------------------------------------------------- ------------
-``setup-installation``                Checks if all the libraries in setup.py are listed in docs
+``setup-extra-packages``              Checks if all the libraries in setup.py are listed in docs
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``shellcheck``                        Checks shell files with shellcheck.
 ----------------------------------- ---------------------------------------------------------------- ------------

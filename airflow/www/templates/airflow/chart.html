@@ -40,17 +40,18 @@
         <div class="form-group">
           <label class="sr-only" for="base_date">Base date</label>
           <div class="input-group">
-            {{ form.base_date(class_="form-control") }}
+            {{ form.base_date(class_="form-control", disabled=not(dag.has_dag_runs())) }}
           </div>
         </div>
         <div class="form-group">
           <label class="sr-only" for="num_runs">Number of runs</label>
           <div class="input-group">
             <div class="input-group-addon">Runs</div>
-            {{ form.num_runs(class_="form-control") }}
+            {{ form.num_runs(class_="form-control", disabled=not(dag.has_dag_runs())) }}
           </div>
         </div>
-        <button type="submit" class="btn">Update</button>
+        <button type="submit" class="btn"{{' disabled' if not dag.has_dag_runs() else ''}}>Update</button>
+        {% if not dag.has_dag_runs() %}<span class="text-warning" style="margin-left:16px;">No DAG runs yet.</span>{% endif %}
       </form>
     </div>
   </div>

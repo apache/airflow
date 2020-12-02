@@ -40,15 +40,16 @@ function parameters::check_allowed_param() {
     _ALLOWED_VALUES=" ${!_ALLOWED_VALUES_ENV_NAME//$'\n'/ } "
     _VALUE=${!_VARIABLE_NAME}
     if [[ ${_ALLOWED_VALUES:=} != *" ${_VALUE} "* ]]; then
-        echo >&2
-        echo >&2 "ERROR:  Allowed ${_VARIABLE_DESCRIPTIVE_NAME}: [${_ALLOWED_VALUES}]. Passed: '${!_VARIABLE_NAME}'."
-        echo >&2
-        echo >&2 "Switch to supported value with ${_FLAG} flag."
-
+        echo
+        echo  "${COLOR_RED_ERROR} Allowed ${_VARIABLE_DESCRIPTIVE_NAME}: [${_ALLOWED_VALUES}]. Passed: '${!_VARIABLE_NAME}'  ${COLOR_RESET}"
+        echo
+        echo "Switch to supported value with ${_FLAG} flag."
+        echo
         if [[ -n ${!_VARIABLE_NAME} && -f "${BUILD_CACHE_DIR}/.${_VARIABLE_NAME}" && ${!_VARIABLE_NAME} == $(cat "${BUILD_CACHE_DIR}/.${_VARIABLE_NAME}") ]]; then
-            echo >&2
-            echo >&2 "Removing ${BUILD_CACHE_DIR}/.${_VARIABLE_NAME}. Next time you run it, it should be OK."
-            echo >&2
+            echo
+            echo  "${COLOR_YELLOW_WARNING}: Removing ${BUILD_CACHE_DIR}/.${_VARIABLE_NAME}. Next time you run it, it should be OK.  ${COLOR_RESET}"
+            echo
+            echo
             rm -f "${BUILD_CACHE_DIR}/.${_VARIABLE_NAME}"
         fi
         exit 1

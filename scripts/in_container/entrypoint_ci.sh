@@ -99,7 +99,8 @@ if [[ -z ${INSTALL_AIRFLOW_VERSION=} ]]; then
     mkdir -p "${AIRFLOW_SOURCES}"/tmp/
     export PYTHONPATH=${AIRFLOW_SOURCES}
 else
-    install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}"
+    # Installs released airflow version without adding more extras
+    install_released_airflow_version  "" "${INSTALL_AIRFLOW_VERSION}"
 fi
 
 if [[ ${INSTALL_WHEELS=} == "true" ]]; then
@@ -287,9 +288,9 @@ else
             ${TEST_TYPE} == "Integration" ]]; then
         SELECTED_TESTS=("${ALL_TESTS[@]}")
     else
-        >&2 echo
-        >&2 echo "Wrong test type ${TEST_TYPE}"
-        >&2 echo
+        echo
+        echo  "${COLOR_RED_ERROR} Wrong test type ${TEST_TYPE}  ${COLOR_RESET}"
+        echo
         exit 1
     fi
 

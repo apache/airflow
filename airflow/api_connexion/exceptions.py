@@ -22,13 +22,17 @@ from connexion import FlaskApi, ProblemException, problem
 from airflow import version
 
 if any(suffix in version.version for suffix in ['dev', 'a', 'b']):
-    doc_link = "https://airflow.readthedocs.io/en/latest/stable-rest-api-ref.html"
+    doc_link = (
+        "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/latest"
+        "/stable-rest-api-ref.html"
+    )
 else:
     doc_link = f'https://airflow.apache.org/docs/{version.version}/stable-rest-api-ref.html'
 
 EXCEPTIONS_LINK_MAP = {
     400: f"{doc_link}#section/Errors/BadRequest",
     404: f"{doc_link}#section/Errors/NotFound",
+    405: f"{doc_link}#section/Errors/MethodNotAllowed",
     401: f"{doc_link}#section/Errors/Unauthenticated",
     409: f"{doc_link}#section/Errors/AlreadyExists",
     403: f"{doc_link}#section/Errors/PermissionDenied",

@@ -23,7 +23,7 @@ jobs:
 
   label-when-reviewed:
     name: "Label PRs when reviewed"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: "Do nothing. Only trigger corresponding workflow_run event"
         run: echo

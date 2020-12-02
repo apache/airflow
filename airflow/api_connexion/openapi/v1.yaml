@@ -171,7 +171,7 @@ info:
     The default is to deny all requests.
 
     For details on configuring the authentication, see
-    [API Authorization](https://airflow.readthedocs.io/en/latest/security/api.html).
+    [API Authorization](https://airflow.apache.org/docs/stable/security/api.html).
 
     # Errors
 
@@ -192,6 +192,8 @@ info:
     framing, or deceptive request routing). To resolve this, please ensure that your syntax is correct.
     ## NotFound
     This client error response indicates that the server cannot find the requested resource.
+    ## MethodNotAllowed
+    Indicates that the request method is known by the server but is not supported by the target resource.
     ## NotAcceptable
     The target resource does not have a current representation that would be acceptable to the user
     agent, according to the proactive negotiation header fields received in the request, and the
@@ -1722,14 +1724,17 @@ components:
         start_date:
           type: string
           format: datetime
+          nullable: true
         end_date:
           type: string
           format: datetime
+          nullable: true
         duration:
           type: number
           nullable: true
         state:
           $ref: '#/components/schemas/TaskState'
+          nullable: true
         try_number:
           type: integer
         max_tries:
@@ -1875,7 +1880,7 @@ components:
         DAG details.
 
         For details see:
-        (airflow.models.DAG)[https://airflow.readthedocs.io/en/stable/_api/airflow/models/index.html#airflow.models.DAG]
+        (airflow.models.DAG)[https://airflow.apache.org/docs/stable/_api/airflow/models/index.html#airflow.models.DAG]
       allOf:
         - $ref: '#/components/schemas/DAG'
         - type: object
@@ -1932,7 +1937,7 @@ components:
       type: object
       description: |
         For details see:
-        (airflow.models.BaseOperator)[https://airflow.readthedocs.io/en/stable/_api/airflow/models/index.html#airflow.models.BaseOperator]
+        (airflow.models.BaseOperator)[https://airflow.apache.org/docs/stable/_api/airflow/models/index.html#airflow.models.BaseOperator]
       properties:
         class_ref:
           $ref: '#/components/schemas/ClassReference'
@@ -2792,6 +2797,13 @@ components:
     # 404
     'NotFound':
       description: A specified resource is not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    # 405
+    'MethodNotAllowed':
+      description: Request method is known by the server but is not supported by the target resource.
       content:
         application/json:
           schema:

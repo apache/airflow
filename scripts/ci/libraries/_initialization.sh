@@ -102,10 +102,10 @@ function initialization::initialize_base_variables() {
     export CURRENT_MYSQL_VERSIONS
 
     # Default Postgres versions
-    export POSTGRES_VERSION=${CURRENT_POSTGRES_VERSIONS[0]}
+    export POSTGRES_VERSION=${POSTGRES_VERSION:=${CURRENT_POSTGRES_VERSIONS[0]}}
 
     # Default MySQL versions
-    export MYSQL_VERSION=${CURRENT_MYSQL_VERSIONS[0]}
+    export MYSQL_VERSION=${MYSQL_VERSION:=${CURRENT_MYSQL_VERSIONS[0]}}
 
     # If set to true, the database will be reset at entry. Works for Postgres and MySQL
     export DB_RESET=${DB_RESET:="false"}
@@ -147,6 +147,12 @@ function initialization::initialize_base_variables() {
 
     INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES:="true"}
     export INSTALL_PROVIDERS_FROM_SOURCES
+
+    PIP_VERSION="20.2.4"
+    export PIP_VERSION
+
+    WHEEL_VERSION="0.35.1"
+    export WHEEL_VERSION
 }
 
 # Determine current branch
@@ -458,8 +464,34 @@ function initialization::initialize_test_variables() {
     export TEST_TYPE=${TEST_TYPE:=""}
 }
 
+function initialization::initialize_build_image_variables() {
+    REMOTE_IMAGE_CONTAINER_ID_FILE="${AIRFLOW_SOURCES}/manifests/remote-airflow-manifest-image"
+    LOCAL_IMAGE_BUILD_CACHE_HASH_FILE="${AIRFLOW_SOURCES}/manifests/local-build-cache-hash"
+    REMOTE_IMAGE_BUILD_CACHE_HASH_FILE="${AIRFLOW_SOURCES}/manifests/remote-build-cache-hash"
+}
+
+function initialization::set_output_color_variables() {
+    COLOR_BLUE=$'\e[37m'
+    COLOR_GREEN=$'\e[32m'
+    COLOR_GREEN_OK=$'\e[32mOK.'
+    COLOR_RED=$'\e[31m'
+    COLOR_RED_ERROR=$'\e[31mERROR:'
+    COLOR_RESET=$'\e[0m'
+    COLOR_YELLOW=$'\e[33m'
+    COLOR_YELLOW_WARNING=$'\e[33mWARNING:'
+    export COLOR_BLUE
+    export COLOR_GREEN
+    export COLOR_GREEN_OK
+    export COLOR_RED
+    export COLOR_RED_ERROR
+    export COLOR_RESET
+    export COLOR_YELLOW
+    export COLOR_YELLOW_WARNING
+}
+
 # Common environment that is initialized by both Breeze and CI scripts
 function initialization::initialize_common_environment() {
+    initialization::set_output_color_variables
     initialization::create_directories
     initialization::initialize_base_variables
     initialization::initialize_branch_variables
@@ -475,6 +507,7 @@ function initialization::initialize_common_environment() {
     initialization::initialize_git_variables
     initialization::initialize_github_variables
     initialization::initialize_test_variables
+    initialization::initialize_build_image_variables
 }
 
 function initialization::set_default_python_version_if_empty() {
@@ -727,6 +760,10 @@ function initialization::make_constants_read_only() {
     readonly BUILT_CI_IMAGE_FLAG_FILE
     readonly INIT_SCRIPT_FILE
 
+    readonly REMOTE_IMAGE_CONTAINER_ID_FILE
+    readonly LOCAL_IMAGE_BUILD_CACHE_HASH_FILE
+    readonly REMOTE_IMAGE_BUILD_CACHE_HASH_FILE
+
 }
 
 # converts parameters to json array
@@ -749,6 +786,6 @@ function initialization::ga_output() {
 
 function initialization::ga_env() {
     if [[ ${GITHUB_ENV=} != "" ]]; then
-        echo "${1}=${2}" >> "${GITHUB_ENV}"
+        echo "${1}=${2}" >>"${GITHUB_ENV}"
     fi
 }

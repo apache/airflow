@@ -562,6 +562,46 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
     @parameterized.expand(
         [
             (
+                "task_instance properties",
+                [
+                    {"task": "test_1"},
+                    {"task": "test_2"},
+                ],
+                True,
+                {"dag_ids": ["latest_only"]},
+                2,
+            ),
+        ],
+    )
+    @provide_session
+    def test_should_respond_200_when_task_instance_properties_are_none(
+        self, _, task_instances, single_dag_run, payload, expected_ti_count, session
+    ):
+        self.ti_extras.update(
+            {
+                "start_date": None,
+                "end_date": None,
+                "state": None,
+            }
+        )
+        self.create_task_instances(
+            session,
+            dag_id="latest_only",
+            task_instances=task_instances,
+            single_dag_run=single_dag_run,
+        )
+        response = self.client.post(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/list",
+            environ_overrides={"REMOTE_USER": "test"},
+            json=payload,
+        )
+        self.assertEqual(response.status_code, 200, response.json)
+        self.assertEqual(expected_ti_count, response.json["total_entries"])
+        self.assertEqual(expected_ti_count, len(response.json["task_instances"]))
+
+    @parameterized.expand(
+        [
+            (
                 "with dag filter",
                 {"dag_ids": ["example_python_operator", "example_skip_dag"]},
                 15,

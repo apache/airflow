@@ -30,6 +30,7 @@ class OracleHook(DbApiHook):
 
     conn_name_attr = 'oracle_conn_id'
     default_conn_name = 'oracle_default'
+    conn_type = 'oracle'
     supports_autocommit = False
 
     # pylint: disable=c-extension-no-member

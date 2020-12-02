@@ -1206,8 +1206,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified, installs Airflow directly from PIP released version. This happens at
           image building time in production image and at container entering time for CI image. One of:
 
-                 1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2
-                 wheel
+                 1.10.13 1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3
+                 1.10.2 wheel
 
           When 'wheel' is used, Airflow is installed from /dist/apache_airflow-*.whl file.
 
@@ -1381,6 +1381,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           If you use this flag, automatically --github-registry is enabled.
 
+
           Default: latest.
 
   -v, --verbose
@@ -1539,6 +1540,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           that occurred in CI.
 
           If you use this flag, automatically --github-registry is enabled.
+
 
           Default: latest.
 
@@ -2006,18 +2008,19 @@ This is the current syntax for  `./breeze <./breeze>`_:
         Run selected static checks for currently changed files. You should specify static check that
         you would like to run or 'all' to run all checks. One of:
 
-                 all all-but-pylint airflow-config-yaml airflow-providers-available base-operator
-                 bats-tests bats-in-container-tests black build build-providers-dependencies
-                 check-apache-license check-builtin-literals check-executables-have-shebangs
-                 check-hooks-apply check-integrations check-merge-conflict check-xml
-                 consistent-pylint daysago-import-check debug-statements detect-private-key doctoc
-                 dont-use-safe-filter end-of-file-fixer fix-encoding-pragma flake8 forbid-tabs
-                 helm-lint incorrect-use-of-LoggingMixin insert-license isort language-matters
-                 lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending mypy mypy-helm
-                 no-providers-in-core-examples no-relative-imports pre-commit-descriptions
-                 provide-create-sessions providers-init-file pydevd pydocstyle pylint pylint-tests
+                 all all-but-pylint airflow-config-yaml airflow-providers-available
+                 airflow-provider-yaml-files-ok base-operator bats-tests bats-in-container-tests
+                 black build build-providers-dependencies check-apache-license check-builtin-literals
+                 check-executables-have-shebangs check-hooks-apply check-integrations
+                 check-merge-conflict check-xml consistent-pylint daysago-import-check
+                 debug-statements detect-private-key doctoc dont-use-safe-filter end-of-file-fixer
+                 fix-encoding-pragma flake8 forbid-tabs helm-lint incorrect-use-of-LoggingMixin
+                 insert-license isort json-schema language-matters lint-dockerfile lint-openapi
+                 markdownlint mermaid mixed-line-ending mypy mypy-helm no-providers-in-core-examples
+                 no-relative-imports pre-commit-descriptions provide-create-sessions
+                 providers-init-file provider-yamls pydevd pydocstyle pylint pylint-tests
                  python-no-log-warn pyupgrade restrict-start_date rst-backticks setup-order
-                 setup-installation shellcheck sort-in-the-wild stylelint trailing-whitespace
+                 setup-extra-packages shellcheck sort-in-the-wild stylelint trailing-whitespace
                  update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
                  version-sync yamllint
 
@@ -2027,6 +2030,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
         'breeze static-check mypy' or
         'breeze static-check mypy -- --files tests/core.py'
         'breeze static-check mypy -- --all-files'
+
+        To check all files that differ between you current branch and master run:
+
+        'breeze static-check all -- --from-ref $(git merge-base master HEAD) --to-ref HEAD'
 
         You can see all the options by adding --help EXTRA_ARG:
 
@@ -2241,8 +2248,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified, installs Airflow directly from PIP released version. This happens at
           image building time in production image and at container entering time for CI image. One of:
 
-                 1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2
-                 wheel
+                 1.10.13 1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3
+                 1.10.2 wheel
 
           When 'wheel' is used, Airflow is installed from /dist/apache_airflow-*.whl file.
 
@@ -2425,6 +2432,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           that occurred in CI.
 
           If you use this flag, automatically --github-registry is enabled.
+
 
           Default: latest.
 

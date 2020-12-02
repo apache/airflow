@@ -4,3 +4,6 @@ contact_links:
   - name: Ask a question or get support
     url: https://github.com/apache/airflow/discussions/
     about: Ask a question or request support for using Apache Airflow
+  - name: Questions on Stack Overflow
+    url: https://stackoverflow.com/questions/tagged/airflow
+    about: Look at questions/answers at Stack Overflow

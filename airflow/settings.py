@@ -118,13 +118,15 @@ def custom_show_warning(message, category, filename, lineno, file=None, line=Non
 warnings.showwarning = custom_show_warning
 
 
-def policy(task):  # pylint: disable=unused-argument
+def task_policy(task) -> None:  # pylint: disable=unused-argument
     """
     This policy setting allows altering tasks after they are loaded in
-    the DagBag. It allows administrator to rewire some task parameters.
+    the DagBag. It allows administrator to rewire some task's parameters.
+    Alternatively you can raise ``AirflowClusterPolicyViolation`` exception
+    to stop DAG from being executed.
 
     To define policy, add a ``airflow_local_settings`` module
-    to your PYTHONPATH that defines this ``policy`` function.
+    to your PYTHONPATH that defines this ``task_policy`` function.
 
     Here are a few examples of how this can be useful:
 
@@ -133,7 +135,29 @@ def policy(task):  # pylint: disable=unused-argument
         tasks get wired to the right workers
     * You could enforce a task timeout policy, making sure that no tasks run
         for more than 48 hours
-    * ...
+
+    :param task: task to be mutated
+    :type task: airflow.models.baseoperator.BaseOperator
+    """
+
+
+def dag_policy(dag) -> None:  # pylint: disable=unused-argument
+    """
+    This policy setting allows altering DAGs after they are loaded in
+    the DagBag. It allows administrator to rewire some DAG's parameters.
+    Alternatively you can raise ``AirflowClusterPolicyViolation`` exception
+    to stop DAG from being executed.
+
+    To define policy, add a ``airflow_local_settings`` module
+    to your PYTHONPATH that defines this ``dag_policy`` function.
+
+    Here are a few examples of how this can be useful:
+
+    * You could enforce default user for DAGs
+    * Check if every DAG has configured tags
+
+    :param dag: dag to be mutated
+    :type dag: airflow.models.dag.DAG
     """
 
 
@@ -146,6 +170,9 @@ def task_instance_mutation_hook(task_instance):  # pylint: disable=unused-argume
     to your PYTHONPATH that defines this ``task_instance_mutation_hook`` function.
 
     This could be used, for instance, to modify the task instance during retries.
+
+    :param task_instance: task instance to be mutated
+    :type task_instance: airflow.models.taskinstance.TaskInstance
     """
 
 
@@ -337,6 +364,36 @@ def prepare_syspath():
         sys.path.append(PLUGINS_FOLDER)
 
 
+def get_session_lifetime_config():
+    """Gets session timeout configs and handles outdated configs gracefully."""
+    session_lifetime_minutes = conf.get('webserver', 'session_lifetime_minutes', fallback=None)
+    session_lifetime_days = conf.get('webserver', 'session_lifetime_days', fallback=None)
+    uses_deprecated_lifetime_configs = session_lifetime_days or conf.get(
+        'webserver', 'force_log_out_after', fallback=None
+    )
+
+    minutes_per_day = 24 * 60
+    default_lifetime_minutes = '43200'
+    if uses_deprecated_lifetime_configs and session_lifetime_minutes == default_lifetime_minutes:
+        warnings.warn(
+            '`session_lifetime_days` option from `[webserver]` section has been '
+            'renamed to `session_lifetime_minutes`. The new option allows to configure '
+            'session lifetime in minutes. The `force_log_out_after` option has been removed '
+            'from `[webserver]` section. Please update your configuration.',
+            category=DeprecationWarning,
+        )
+        if session_lifetime_days:
+            session_lifetime_minutes = minutes_per_day * int(session_lifetime_days)
+
+    if not session_lifetime_minutes:
+        session_lifetime_days = 30
+        session_lifetime_minutes = minutes_per_day * session_lifetime_days
+
+    logging.debug('User session lifetime is set to %s minutes.', session_lifetime_minutes)
+
+    return int(session_lifetime_minutes)
+
+
 def import_local_settings():
     """Import airflow_local_settings.py files to allow overriding any configs in settings.py file"""
     try:  # pylint: disable=too-many-nested-blocks
@@ -349,6 +406,17 @@ def import_local_settings():
             for k, v in airflow_local_settings.__dict__.items():
                 if not k.startswith("__"):
                     globals()[k] = v
+
+        # TODO: Remove once deprecated
+        if "policy" in globals() and "task_policy" not in globals():
+            warnings.warn(
+                "Using `policy` in airflow_local_settings.py is deprecated. "
+                "Please rename your `policy` to `task_policy`.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            globals()["task_policy"] = globals()["policy"]
+            del globals()["policy"]
 
         log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
     except ImportError:

@@ -1047,7 +1047,7 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
     :param gcp_cloudsql_conn_id: The connection ID used to connect to Google Cloud SQL
        its schema should be gcpcloudsql://.
        See :class:`~airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook` for
-       details on how to define gcpcloudsql:// connection.
+       details on how to define ``gcpcloudsql://`` connection.
     :type gcp_cloudsql_conn_id: str
     """
 

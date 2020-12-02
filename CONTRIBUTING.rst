@@ -250,7 +250,7 @@ Step 4: Prepare PR
 
    For example, to address this example issue, do the following:
 
-   * Read about `email configuration in Airflow <https://airflow.readthedocs.io/en/latest/howto/email-config.html>`__.
+   * Read about `email configuration in Airflow </docs/howto/email-config.rst>`__.
 
    * Find the class you should modify. For the example GitHub issue,
      this is `email.py <https://github.com/apache/airflow/blob/master/airflow/utils/email.py>`__.
@@ -298,7 +298,7 @@ Step 4: Prepare PR
 
 5. Depending on "scope" of your changes, your Pull Request might go through one of few paths after approval.
    We run some non-standard workflow with high degree of automation that allows us to optimize the usage
-   of queue slots in Github Actions. Our automated workflows determine the "scope" of changes in your PR
+   of queue slots in GitHub Actions. Our automated workflows determine the "scope" of changes in your PR
    and send it through the right path:
 
    * In case of a "no-code" change, approval will generate a comment that the PR can be merged and no
@@ -320,6 +320,11 @@ Step 4: Prepare PR
      * when your change changes the "core" of Airflow you will get the comment that PR needs full tests and
        the "full tests needed" label is set for your PR. Additional check is set that prevents from
        accidental merging of the request until full matrix of tests succeeds for the PR.
+
+     * when your change has "upgrade to newer dependencies" label set, constraints will be automatically
+       upgraded to latest constraints matching your setup.py. This is useful in case you want to force
+       upgrade to a latest version of dependencies. You can ask committers to set the label for you
+       when you need it in your PR.
 
    More details about the PR workflow be found in `PULL_REQUEST_WORKFLOW.rst <PULL_REQUEST_WORKFLOW.rst>`_.
 
@@ -541,14 +546,15 @@ This is the full list of those extras:
   .. START EXTRAS HERE
 
 all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.druid, apache.hdfs,
-apache.hive, apache.kylin, apache.pinot, apache.spark, apache.webhdfs, async, atlas, aws, azure,
-cassandra, celery, cgroups, cloudant, cncf.kubernetes, dask, databricks, datadog, devel,
-devel_hadoop, doc, docker, druid, elasticsearch, exasol, facebook, gcp, gcp_api, github_enterprise,
-google, google_auth, grpc, hashicorp, hdfs, hive, jdbc, jira, kerberos, kubernetes, ldap,
-microsoft.azure, microsoft.mssql, microsoft.winrm, mongo, mssql, mysql, odbc, oracle, pagerduty,
-papermill, password, pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, salesforce,
-samba, segment, sendgrid, sentry, singularity, slack, snowflake, spark, ssh, statsd, tableau,
-vertica, virtualenv, webhdfs, winrm, yandex, yandexcloud, all, devel_ci
+apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark, apache.sqoop,
+apache.webhdfs, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant, cncf.kubernetes,
+dask, databricks, datadog, dingding, discord, docker, druid, elasticsearch, exasol, facebook, ftp,
+gcp, gcp_api, github_enterprise, google, google_auth, grpc, hashicorp, hdfs, hive, http, imap, jdbc,
+jenkins, jira, kerberos, kubernetes, ldap, microsoft.azure, microsoft.mssql, microsoft.winrm, mongo,
+mssql, mysql, odbc, openfaas, opsgenie, oracle, pagerduty, papermill, password, pinot, plexus,
+postgres, presto, qds, qubole, rabbitmq, redis, salesforce, samba, segment, sendgrid, sentry, sftp,
+singularity, slack, snowflake, spark, sqlite, ssh, statsd, tableau, vertica, virtualenv, webhdfs,
+winrm, yandex, yandexcloud, zendesk, all, devel, devel_hadoop, doc, devel_all, devel_ci
 
   .. END EXTRAS HERE
 
@@ -713,47 +719,9 @@ jobs for each python version.
 Documentation
 =============
 
-The latest API documentation (for the master branch) is usually available
-`here <https://airflow.readthedocs.io/en/latest/>`__.
+Documentation for ``apache-airflow`` package and other packages that are closely related to it ie. providers packages are in ``/docs/`` directory. For detailed information on documentation development, see: `docs/README.md <docs/README.md>`_
 
-To generate a local version you can use `<BREEZE.rst>`_.
-
-The documentation build consists of verifying consistency of documentation and two steps:
-
-* spell checking
-* building documentation
-
-You can only run one of the steps via ``--spellcheck-only`` or ``--docs-only``.
-
-.. code-block:: bash
-
-    ./breeze build-docs
-
-or just to run spell-check
-
-.. code-block:: bash
-
-     ./breeze build-docs -- --spellcheck-only
-
-or just to run documentation building
-
-.. code-block:: bash
-
-     ./breeze build-docs -- --docs-only
-
-Also documentation is available as downloadable artifact in GitHub Actions after the CI builds your PR.
-
-**Known issues:**
-
-If you are creating a new directory for new integration in the ``airflow.providers`` package,
-you should also update the ``docs/autoapi_templates/index.rst`` file.
-
-If you are creating new ``hooks``, ``sensors``, ``operators`` directory in
-the ``airflow.providers`` package, you should also update
-the ``docs/operators-and-hooks-ref.rst`` file.
-
-If you are creating ``example_dags`` directory, you need to create ``example_dags/__init__.py`` with Apache
-license or copy another ``__init__.py`` file that contains the necessary license.
+For Helm Chart documentation, see: `/chart/README.md <../chart/READMe.md>`__
 
 Static code checks
 ==================
@@ -805,6 +773,47 @@ If this function is designed to be called by "end-users" (i.e. DAG authors) then
     def my_method(arg, arg, session=None)
       ...
       # You SHOULD not commit the session here. The wrapper will take care of commit()/rollback() if exception
+
+Don't use time() for duration calcuations
+-----------------------------------------
+
+If you wish to compute the time difference between two events with in the same process, use
+``time.monotonic()``, not ``time.time()`` nor ``timzeone.utcnow()``.
+
+If you are measuring duration for performance reasons, then ``time.perf_counter()`` should be used. (On many
+platforms, this uses the same underlying clock mechanism as monotonic, but ``perf_counter`` is guaranteed to be
+the highest accuracy clock on the system, monotonic is simply "guaranteed" to not go backwards.)
+
+If you wish to time how long a block of code takes, use ``Stats.timer()`` -- either with a metric name, which
+will be timed and submitted automatically:
+
+.. code-block:: python
+
+    from airflow.stats import Stats
+
+    ...
+
+    with Stats.timer("my_timer_metric"):
+        ...
+
+or to time but not send a metric:
+
+.. code-block:: python
+
+    from airflow.stats import Stats
+
+    ...
+
+    with Stats.timer() as timer:
+        ...
+
+    log.info("Code took %.3f seconds", timer.duration)
+
+For full docs on ``timer()`` check out `airflow/stats.py`_.
+
+If the start_date of a duration calculation needs to be stored in a database, then this has to be done using
+datetime objects. In all other cases, using datetime for duration calculation MUST be avoided as creating and
+diffing datetime operations are (comparatively) slow.
 
 Naming Conventions for provider packages
 ----------------------------------------

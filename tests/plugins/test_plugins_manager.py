@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import logging
 import unittest
 from unittest import mock
 
@@ -77,33 +78,18 @@ class TestPluginsRBAC(unittest.TestCase):
         self.assertTrue('test_plugin' in self.app.blueprints)
         self.assertEqual(self.app.blueprints['test_plugin'].name, bp.name)
 
-    @mock.patch('airflow.plugins_manager.pkg_resources.iter_entry_points')
-    def test_entrypoint_plugin_errors_dont_raise_exceptions(self, mock_ep_plugins):
-        """
-        Test that Airflow does not raise an Error if there is any Exception because of the
-        Plugin.
-        """
-        from airflow.plugins_manager import import_errors, load_entrypoint_plugins
 
-        mock_entrypoint = mock.Mock()
-        mock_entrypoint.name = 'test-entrypoint'
-        mock_entrypoint.module_name = 'test.plugins.test_plugins_manager'
-        mock_entrypoint.load.side_effect = Exception('Version Conflict')
-        mock_ep_plugins.return_value = [mock_entrypoint]
+class TestPluginsManager:
+    def test_no_log_when_no_plugins(self, caplog):
 
-        with self.assertLogs("airflow.plugins_manager", level="ERROR") as log_output:
-            load_entrypoint_plugins()
+        with mock_plugin_manager(plugins=[]):
+            from airflow import plugins_manager
 
-            received_logs = log_output.output[0]
-            # Assert Traceback is shown too
-            assert "Traceback (most recent call last):" in received_logs
-            assert "Version Conflict" in received_logs
-            assert "Failed to import plugin test-entrypoint" in received_logs
-            assert ("test.plugins.test_plugins_manager", "Version Conflict") in import_errors.items()
+            plugins_manager.ensure_plugins_loaded()
 
+        assert caplog.record_tuples == []
 
-class TestPluginsManager(unittest.TestCase):
-    def test_should_load_plugins_from_property(self):
+    def test_should_load_plugins_from_property(self, caplog):
         class AirflowTestPropertyPlugin(AirflowPlugin):
             name = "test_property_plugin"
 
@@ -119,10 +105,13 @@ class TestPluginsManager(unittest.TestCase):
 
             plugins_manager.ensure_plugins_loaded()
 
-            self.assertIn('AirflowTestPropertyPlugin', str(plugins_manager.plugins))
-            self.assertIn("TestPropertyHook", str(plugins_manager.registered_hooks))
+            assert 'AirflowTestPropertyPlugin' in str(plugins_manager.plugins)
+            assert 'TestPropertyHook' in str(plugins_manager.registered_hooks)
 
-    def test_should_warning_about_incompatible_plugins(self):
+        assert caplog.records[0].levelname == 'INFO'
+        assert caplog.records[0].msg == 'Loading %d plugin(s) took %.2f seconds'
+
+    def test_should_warning_about_incompatible_plugins(self, caplog):
         class AirflowAdminViewsPlugin(AirflowPlugin):
             name = "test_admin_views_plugin"
 
@@ -133,26 +122,29 @@ class TestPluginsManager(unittest.TestCase):
 
             menu_links = [mock.MagicMock()]
 
-        with mock_plugin_manager(plugins=[AirflowAdminViewsPlugin(), AirflowAdminMenuLinksPlugin()]):
+        with mock_plugin_manager(
+            plugins=[AirflowAdminViewsPlugin(), AirflowAdminMenuLinksPlugin()]
+        ), caplog.at_level(logging.WARNING, logger='airflow.plugins_manager'):
             from airflow import plugins_manager
 
-            # assert not logs
-            with self.assertLogs(plugins_manager.log) as cm:
-                plugins_manager.initialize_web_ui_plugins()
+            plugins_manager.initialize_web_ui_plugins()
 
-        self.assertEqual(
-            cm.output,
-            [
-                'WARNING:airflow.plugins_manager:Plugin \'test_admin_views_plugin\' may not be '
-                'compatible with the current Airflow version. Please contact the author of '
-                'the plugin.',
-                'WARNING:airflow.plugins_manager:Plugin \'test_menu_links_plugin\' may not be '
-                'compatible with the current Airflow version. Please contact the author of '
-                'the plugin.',
-            ],
-        )
+        assert caplog.record_tuples == [
+            (
+                "airflow.plugins_manager",
+                logging.WARNING,
+                "Plugin 'test_admin_views_plugin' may not be compatible with the current Airflow version. "
+                "Please contact the author of the plugin.",
+            ),
+            (
+                "airflow.plugins_manager",
+                logging.WARNING,
+                "Plugin 'test_menu_links_plugin' may not be compatible with the current Airflow version. "
+                "Please contact the author of the plugin.",
+            ),
+        ]
 
-    def test_should_not_warning_about_fab_plugins(self):
+    def test_should_not_warning_about_fab_plugins(self, caplog):
         class AirflowAdminViewsPlugin(AirflowPlugin):
             name = "test_admin_views_plugin"
 
@@ -163,14 +155,16 @@ class TestPluginsManager(unittest.TestCase):
 
             appbuilder_menu_items = [mock.MagicMock()]
 
-        with mock_plugin_manager(plugins=[AirflowAdminViewsPlugin(), AirflowAdminMenuLinksPlugin()]):
+        with mock_plugin_manager(
+            plugins=[AirflowAdminViewsPlugin(), AirflowAdminMenuLinksPlugin()]
+        ), caplog.at_level(logging.WARNING, logger='airflow.plugins_manager'):
             from airflow import plugins_manager
 
-            # assert not logs
-            with self.assertRaises(AssertionError), self.assertLogs(plugins_manager.log):
-                plugins_manager.initialize_web_ui_plugins()
+            plugins_manager.initialize_web_ui_plugins()
 
-    def test_should_not_warning_about_fab_and_flask_admin_plugins(self):
+        assert caplog.record_tuples == []
+
+    def test_should_not_warning_about_fab_and_flask_admin_plugins(self, caplog):
         class AirflowAdminViewsPlugin(AirflowPlugin):
             name = "test_admin_views_plugin"
 
@@ -183,12 +177,41 @@ class TestPluginsManager(unittest.TestCase):
             menu_links = [mock.MagicMock()]
             appbuilder_menu_items = [mock.MagicMock()]
 
-        with mock_plugin_manager(plugins=[AirflowAdminViewsPlugin(), AirflowAdminMenuLinksPlugin()]):
+        with mock_plugin_manager(
+            plugins=[AirflowAdminViewsPlugin(), AirflowAdminMenuLinksPlugin()]
+        ), caplog.at_level(logging.WARNING, logger='airflow.plugins_manager'):
             from airflow import plugins_manager
 
-            # assert not logs
-            with self.assertRaises(AssertionError), self.assertLogs(plugins_manager.log):
-                plugins_manager.initialize_web_ui_plugins()
+            plugins_manager.initialize_web_ui_plugins()
+
+        assert caplog.record_tuples == []
+
+    def test_entrypoint_plugin_errors_dont_raise_exceptions(self, caplog):
+        """
+        Test that Airflow does not raise an error if there is any Exception because of a plugin.
+        """
+        from airflow.plugins_manager import import_errors, load_entrypoint_plugins
+
+        mock_dist = mock.Mock()
+
+        mock_entrypoint = mock.Mock()
+        mock_entrypoint.name = 'test-entrypoint'
+        mock_entrypoint.group = 'airflow.plugins'
+        mock_entrypoint.module_name = 'test.plugins.test_plugins_manager'
+        mock_entrypoint.load.side_effect = ImportError('my_fake_module not found')
+        mock_dist.entry_points = [mock_entrypoint]
+
+        with mock.patch('importlib_metadata.distributions', return_value=[mock_dist]), caplog.at_level(
+            logging.ERROR, logger='airflow.plugins_manager'
+        ):
+            load_entrypoint_plugins()
+
+            received_logs = caplog.text
+            # Assert Traceback is shown too
+            assert "Traceback (most recent call last):" in received_logs
+            assert "my_fake_module not found" in received_logs
+            assert "Failed to import plugin test-entrypoint" in received_logs
+            assert ("test.plugins.test_plugins_manager", "my_fake_module not found") in import_errors.items()
 
 
 class TestPluginsDirectorySource(unittest.TestCase):
@@ -201,20 +224,23 @@ class TestPluginsDirectorySource(unittest.TestCase):
         self.assertEqual("<em>$PLUGINS_FOLDER/</em>test_plugins_manager.py", source.__html__())
 
 
-class TestEntryPointSource(unittest.TestCase):
-    @mock.patch('airflow.plugins_manager.pkg_resources.iter_entry_points')
-    def test_should_return_correct_source_details(self, mock_ep_plugins):
+class TestEntryPointSource:
+    def test_should_return_correct_source_details(self):
         from airflow import plugins_manager
 
         mock_entrypoint = mock.Mock()
         mock_entrypoint.name = 'test-entrypoint-plugin'
         mock_entrypoint.module_name = 'module_name_plugin'
-        mock_entrypoint.dist = 'test-entrypoint-plugin==1.0.0'
-        mock_ep_plugins.return_value = [mock_entrypoint]
 
-        plugins_manager.load_entrypoint_plugins()
+        mock_dist = mock.Mock()
+        mock_dist.metadata = {'name': 'test-entrypoint-plugin'}
+        mock_dist.version = '1.0.0'
+        mock_dist.entry_points = [mock_entrypoint]
 
-        source = plugins_manager.EntryPointSource(mock_entrypoint)
-        self.assertEqual(str(mock_entrypoint), source.entrypoint)
-        self.assertEqual("test-entrypoint-plugin==1.0.0: " + str(mock_entrypoint), str(source))
-        self.assertEqual("<em>test-entrypoint-plugin==1.0.0:</em> " + str(mock_entrypoint), source.__html__())
+        with mock.patch('importlib_metadata.distributions', return_value=[mock_dist]):
+            plugins_manager.load_entrypoint_plugins()
+
+        source = plugins_manager.EntryPointSource(mock_entrypoint, mock_dist)
+        assert str(mock_entrypoint) == source.entrypoint
+        assert "test-entrypoint-plugin==1.0.0: " + str(mock_entrypoint) == str(source)
+        assert "<em>test-entrypoint-plugin==1.0.0:</em> " + str(mock_entrypoint) == source.__html__()

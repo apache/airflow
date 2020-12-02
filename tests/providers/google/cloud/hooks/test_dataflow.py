@@ -24,6 +24,7 @@ import unittest
 from typing import Any, Dict
 from unittest import mock
 from unittest.mock import MagicMock
+from uuid import UUID
 
 from parameterized import parameterized
 
@@ -40,8 +41,9 @@ from airflow.providers.google.cloud.hooks.dataflow import (
 
 TASK_ID = 'test-dataflow-operator'
 JOB_NAME = 'test-dataflow-pipeline'
-MOCK_UUID = '12345678'
-UNIQUE_JOB_NAME = f'test-dataflow-pipeline-{MOCK_UUID}'
+MOCK_UUID = UUID('cf4a56d2-8101-4217-b027-2af6216feb48')
+MOCK_UUID_PREFIX = str(MOCK_UUID)[:8]
+UNIQUE_JOB_NAME = f'test-dataflow-pipeline-{MOCK_UUID_PREFIX}'
 TEST_TEMPLATE = 'gs://dataflow-templates/wordcount/template_file'
 PARAMETERS = {
     'inputFile': 'gs://dataflow-samples/shakespeare/kinglear.txt',
@@ -216,7 +218,7 @@ class TestDataflowHook(unittest.TestCase):
             '--project=test',
             '--labels=foo=bar',
             '--staging_location=gs://test/staging',
-            f'--job_name={JOB_NAME}-{MOCK_UUID}',
+            f'--job_name={JOB_NAME}-{MOCK_UUID_PREFIX}',
         ]
         self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
 
@@ -250,7 +252,7 @@ class TestDataflowHook(unittest.TestCase):
             '--project=test',
             '--labels=foo=bar',
             '--staging_location=gs://test/staging',
-            f'--job_name={JOB_NAME}-{MOCK_UUID}',
+            f'--job_name={JOB_NAME}-{MOCK_UUID_PREFIX}',
         ]
         self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
 
@@ -283,7 +285,7 @@ class TestDataflowHook(unittest.TestCase):
             '--project=test',
             '--labels=foo=bar',
             '--staging_location=gs://test/staging',
-            f'--job_name={JOB_NAME}-{MOCK_UUID}',
+            f'--job_name={JOB_NAME}-{MOCK_UUID_PREFIX}',
         ]
         self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
 
@@ -320,7 +322,7 @@ class TestDataflowHook(unittest.TestCase):
             '--project=test',
             '--labels=foo=bar',
             '--staging_location=gs://test/staging',
-            f'--job_name={JOB_NAME}-{MOCK_UUID}',
+            f'--job_name={JOB_NAME}-{MOCK_UUID_PREFIX}',
         ]
         self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
 
@@ -368,7 +370,7 @@ class TestDataflowHook(unittest.TestCase):
             '--project=test',
             '--labels=foo=bar',
             '--staging_location=gs://test/staging',
-            f'--job_name={JOB_NAME}-{MOCK_UUID}',
+            f'--job_name={JOB_NAME}-{MOCK_UUID_PREFIX}',
         ]
         self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
 
@@ -418,7 +420,7 @@ class TestDataflowHook(unittest.TestCase):
             '--project=test',
             '--labels=foo=bar',
             '--staging_location=gs://test/staging',
-            f'--job_name={JOB_NAME}-{MOCK_UUID}',
+            f'--job_name={JOB_NAME}-{MOCK_UUID_PREFIX}',
         ]
         self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
 
@@ -467,7 +469,7 @@ class TestDataflowHook(unittest.TestCase):
             '--project=test',
             '--stagingLocation=gs://test/staging',
             '--labels={"foo":"bar"}',
-            f'--jobName={JOB_NAME}-{MOCK_UUID}',
+            f'--jobName={JOB_NAME}-{MOCK_UUID_PREFIX}',
         ]
         self.assertListEqual(
             sorted(expected_cmd),
@@ -504,7 +506,7 @@ class TestDataflowHook(unittest.TestCase):
             '--project=test',
             '--stagingLocation=gs://test/staging',
             '--labels={"foo":"bar"}',
-            f'--jobName={JOB_NAME}-{MOCK_UUID}',
+            f'--jobName={JOB_NAME}-{MOCK_UUID_PREFIX}',
         ]
         self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
 
@@ -537,7 +539,7 @@ class TestDataflowHook(unittest.TestCase):
             '--project=test',
             '--stagingLocation=gs://test/staging',
             '--labels={"foo":"bar"}',
-            f'--jobName={JOB_NAME}-{MOCK_UUID}',
+            f'--jobName={JOB_NAME}-{MOCK_UUID_PREFIX}',
         ]
         self.assertListEqual(
             sorted(expected_cmd),
@@ -573,7 +575,7 @@ class TestDataflowHook(unittest.TestCase):
             '--project=test',
             '--stagingLocation=gs://test/staging',
             '--labels={"foo":"bar"}',
-            f'--jobName={JOB_NAME}-{MOCK_UUID}',
+            f'--jobName={JOB_NAME}-{MOCK_UUID_PREFIX}',
         ]
         self.assertListEqual(
             sorted(expected_cmd),
@@ -604,7 +606,7 @@ class TestDataflowHook(unittest.TestCase):
             '--project=test',
             '--stagingLocation=gs://test/staging',
             '--labels={"foo":"bar"}',
-            f'--jobName={JOB_NAME}-{MOCK_UUID}',
+            f'--jobName={JOB_NAME}-{MOCK_UUID_PREFIX}',
         ]
         self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
 
@@ -612,8 +614,8 @@ class TestDataflowHook(unittest.TestCase):
         [
             (JOB_NAME, JOB_NAME, False),
             ('test-example', 'test_example', False),
-            ('test-dataflow-pipeline-12345678', JOB_NAME, True),
-            ('test-example-12345678', 'test_example', True),
+            (f'test-dataflow-pipeline-{MOCK_UUID_PREFIX}', JOB_NAME, True),
+            (f'test-example-{MOCK_UUID_PREFIX}', 'test_example', True),
             ('df-job-1', 'df-job-1', False),
             ('df-job', 'df-job', False),
             ('dfjob', 'dfjob', False),
@@ -633,6 +635,85 @@ class TestDataflowHook(unittest.TestCase):
         self.assertRaises(
             ValueError, self.dataflow_hook._build_dataflow_job_name, job_name=job_name, append_job_name=False
         )
+
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    def test_get_job(self, mock_conn, mock_dataflowjob):
+        method_fetch_job_by_id = mock_dataflowjob.return_value.fetch_job_by_id
+
+        self.dataflow_hook.get_job(job_id=TEST_JOB_ID, project_id=TEST_PROJECT_ID, location=TEST_LOCATION)
+        mock_conn.assert_called_once()
+        mock_dataflowjob.assert_called_once_with(
+            dataflow=mock_conn.return_value,
+            project_number=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+        )
+        method_fetch_job_by_id.assert_called_once_with(TEST_JOB_ID)
+
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    def test_fetch_job_metrics_by_id(self, mock_conn, mock_dataflowjob):
+        method_fetch_job_metrics_by_id = mock_dataflowjob.return_value.fetch_job_metrics_by_id
+
+        self.dataflow_hook.fetch_job_metrics_by_id(
+            job_id=TEST_JOB_ID, project_id=TEST_PROJECT_ID, location=TEST_LOCATION
+        )
+        mock_conn.assert_called_once()
+        mock_dataflowjob.assert_called_once_with(
+            dataflow=mock_conn.return_value,
+            project_number=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+        )
+        method_fetch_job_metrics_by_id.assert_called_once_with(TEST_JOB_ID)
+
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    def test_fetch_job_metrics_by_id_controller(self, mock_conn):
+        method_get_metrics = (
+            mock_conn.return_value.projects.return_value.locations.return_value.jobs.return_value.getMetrics
+        )
+        self.dataflow_hook.fetch_job_metrics_by_id(
+            job_id=TEST_JOB_ID, project_id=TEST_PROJECT_ID, location=TEST_LOCATION
+        )
+
+        mock_conn.assert_called_once()
+        method_get_metrics.return_value.execute.assert_called_once_with(num_retries=0)
+        method_get_metrics.assert_called_once_with(
+            jobId=TEST_JOB_ID, projectId=TEST_PROJECT_ID, location=TEST_LOCATION
+        )
+
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    def test_fetch_job_messages_by_id(self, mock_conn, mock_dataflowjob):
+        method_fetch_job_messages_by_id = mock_dataflowjob.return_value.fetch_job_messages_by_id
+
+        self.dataflow_hook.fetch_job_messages_by_id(
+            job_id=TEST_JOB_ID, project_id=TEST_PROJECT_ID, location=TEST_LOCATION
+        )
+        mock_conn.assert_called_once()
+        mock_dataflowjob.assert_called_once_with(
+            dataflow=mock_conn.return_value,
+            project_number=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+        )
+        method_fetch_job_messages_by_id.assert_called_once_with(TEST_JOB_ID)
+
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    def test_fetch_job_autoscaling_events_by_id(self, mock_conn, mock_dataflowjob):
+        method_fetch_job_autoscaling_events_by_id = (
+            mock_dataflowjob.return_value.fetch_job_autoscaling_events_by_id
+        )
+
+        self.dataflow_hook.fetch_job_autoscaling_events_by_id(
+            job_id=TEST_JOB_ID, project_id=TEST_PROJECT_ID, location=TEST_LOCATION
+        )
+        mock_conn.assert_called_once()
+        mock_dataflowjob.assert_called_once_with(
+            dataflow=mock_conn.return_value,
+            project_number=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+        )
+        method_fetch_job_autoscaling_events_by_id.assert_called_once_with(TEST_JOB_ID)
 
 
 class TestDataflowTemplateHook(unittest.TestCase):
@@ -660,7 +741,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
 
         launch_method.assert_called_once_with(
             body={
-                'jobName': 'test-dataflow-pipeline-12345678',
+                'jobName': f'test-dataflow-pipeline-{MOCK_UUID_PREFIX}',
                 'parameters': PARAMETERS,
                 'environment': variables,
             },
@@ -672,7 +753,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
         mock_controller.assert_called_once_with(
             dataflow=mock_conn.return_value,
             job_id='test-job-id',
-            name='test-dataflow-pipeline-12345678',
+            name=f'test-dataflow-pipeline-{MOCK_UUID_PREFIX}',
             num_retries=5,
             poll_sleep=10,
             project_number=TEST_PROJECT,
@@ -795,7 +876,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             dataflow=mock_conn.return_value,
             job_id=TEST_JOB_ID,
             location=DEFAULT_DATAFLOW_LOCATION,
-            name=f'test-dataflow-pipeline-{MOCK_UUID}',
+            name=f'test-dataflow-pipeline-{MOCK_UUID_PREFIX}',
             num_retries=5,
             poll_sleep=10,
             project_number=TEST_PROJECT,
@@ -843,7 +924,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             dataflow=mock_conn.return_value,
             job_id=TEST_JOB_ID,
             location=DEFAULT_DATAFLOW_LOCATION,
-            name=f'test-dataflow-pipeline-{MOCK_UUID}',
+            name=f'test-dataflow-pipeline-{MOCK_UUID_PREFIX}',
             num_retries=5,
             poll_sleep=10,
             project_number=TEST_PROJECT,
@@ -1010,7 +1091,12 @@ class TestDataflowJob(unittest.TestCase):
         mock_list.assert_called_once_with(projectId=TEST_PROJECT, location=TEST_LOCATION)
 
     def test_dataflow_job_wait_for_multiple_jobs(self):
-        job = {"id": TEST_JOB_ID, "name": UNIQUE_JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DONE}
+        job = {
+            "id": TEST_JOB_ID,
+            "name": UNIQUE_JOB_NAME,
+            "type": DataflowJobType.JOB_TYPE_BATCH,
+            "currentState": DataflowJobStatus.JOB_STATE_DONE,
+        }
         # fmt: off
         (
             self.mock_dataflow.projects.return_value.
@@ -1050,7 +1136,19 @@ class TestDataflowJob(unittest.TestCase):
 
         self.assertEqual(dataflow_job.get_jobs(), [job, job])
 
-    def test_dataflow_job_wait_for_multiple_jobs_and_one_failed(self):
+    @parameterized.expand(
+        [
+            (DataflowJobStatus.JOB_STATE_FAILED, "Google Cloud Dataflow job name-2 has failed\\."),
+            (DataflowJobStatus.JOB_STATE_CANCELLED, "Google Cloud Dataflow job name-2 was cancelled\\."),
+            (DataflowJobStatus.JOB_STATE_DRAINED, "Google Cloud Dataflow job name-2 was drained\\."),
+            (DataflowJobStatus.JOB_STATE_UPDATED, "Google Cloud Dataflow job name-2 was updated\\."),
+            (
+                DataflowJobStatus.JOB_STATE_UNKNOWN,
+                "Google Cloud Dataflow job name-2 was unknown state: JOB_STATE_UNKNOWN",
+            ),
+        ]
+    )
+    def test_dataflow_job_wait_for_multiple_jobs_and_one_in_terminal_state(self, state, exception_regex):
         # fmt: off
         (
             self.mock_dataflow.projects.return_value.
@@ -1060,8 +1158,16 @@ class TestDataflowJob(unittest.TestCase):
             execute.return_value
         ) = {
             "jobs": [
-                {"id": "id-1", "name": "name-1", "currentState": DataflowJobStatus.JOB_STATE_DONE},
-                {"id": "id-2", "name": "name-2", "currentState": DataflowJobStatus.JOB_STATE_FAILED}
+                {
+                    "id": "id-1", "name": "name-1",
+                    "type": DataflowJobType.JOB_TYPE_BATCH,
+                    "currentState": DataflowJobStatus.JOB_STATE_DONE
+                },
+                {
+                    "id": "id-2", "name": "name-2",
+                    "type": DataflowJobType.JOB_TYPE_BATCH,
+                    "currentState": state
+                }
             ]
         }
         (
@@ -1081,75 +1187,7 @@ class TestDataflowJob(unittest.TestCase):
             num_retries=20,
             multiple_jobs=True,
         )
-        with self.assertRaisesRegex(Exception, 'Google Cloud Dataflow job name-2 has failed\\.'):
-            dataflow_job.wait_for_done()
-
-    def test_dataflow_job_wait_for_multiple_jobs_and_one_cancelled(self):
-        # fmt: off
-        (
-            self.mock_dataflow.projects.return_value.
-            locations.return_value.
-            jobs.return_value.
-            list.return_value.
-            execute.return_value
-        ) = {
-            "jobs": [
-                {"id": "id-1", "name": "name-1", "currentState": DataflowJobStatus.JOB_STATE_DONE},
-                {"id": "id-2", "name": "name-2", "currentState": DataflowJobStatus.JOB_STATE_CANCELLED}
-            ]
-        }
-        (
-            self.mock_dataflow.projects.return_value.
-            locations.return_value.
-            jobs.return_value.
-            list_next.return_value
-        ) = None
-        # fmt: on
-        dataflow_job = _DataflowJobsController(
-            dataflow=self.mock_dataflow,
-            project_number=TEST_PROJECT,
-            name="name-",
-            location=TEST_LOCATION,
-            poll_sleep=0,
-            job_id=None,
-            num_retries=20,
-            multiple_jobs=True,
-        )
-        with self.assertRaisesRegex(Exception, 'Google Cloud Dataflow job name-2 was cancelled\\.'):
-            dataflow_job.wait_for_done()
-
-    def test_dataflow_job_wait_for_multiple_jobs_and_one_unknown(self):
-        # fmt: off
-        (
-            self.mock_dataflow.projects.return_value.
-            locations.return_value.
-            jobs.return_value.
-            list.return_value.
-            execute.return_value
-        ) = {
-            "jobs": [
-                {"id": "id-1", "name": "name-1", "currentState": DataflowJobStatus.JOB_STATE_DONE},
-                {"id": "id-2", "name": "name-2", "currentState": "unknown"}
-            ]
-        }
-        (
-            self.mock_dataflow.projects.return_value.
-            locations.return_value.
-            jobs.return_value.
-            list_next.return_value
-        ) = None
-        # fmt: on
-        dataflow_job = _DataflowJobsController(
-            dataflow=self.mock_dataflow,
-            project_number=TEST_PROJECT,
-            name="name-",
-            location=TEST_LOCATION,
-            poll_sleep=0,
-            job_id=None,
-            num_retries=20,
-            multiple_jobs=True,
-        )
-        with self.assertRaisesRegex(Exception, 'Google Cloud Dataflow job name-2 was unknown state: unknown'):
+        with self.assertRaisesRegex(Exception, exception_regex):
             dataflow_job.wait_for_done()
 
     def test_dataflow_job_wait_for_multiple_jobs_and_streaming_jobs(self):
@@ -1192,7 +1230,12 @@ class TestDataflowJob(unittest.TestCase):
         self.assertEqual(1, mock_jobs_list.call_count)
 
     def test_dataflow_job_wait_for_single_jobs(self):
-        job = {"id": TEST_JOB_ID, "name": UNIQUE_JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DONE}
+        job = {
+            "id": TEST_JOB_ID,
+            "name": UNIQUE_JOB_NAME,
+            "type": DataflowJobType.JOB_TYPE_BATCH,
+            "currentState": DataflowJobStatus.JOB_STATE_DONE,
+        }
         # fmt: off
         self.mock_dataflow.projects.return_value.locations.return_value. \
             jobs.return_value.get.return_value.execute.return_value = job
@@ -1259,6 +1302,81 @@ class TestDataflowJob(unittest.TestCase):
         result = dataflow_job.is_job_running()
 
         self.assertEqual(False, result)
+
+    # fmt: off
+    @parameterized.expand([
+        # RUNNING
+        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_RUNNING, None, False),
+        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_RUNNING, None, True),
+        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_RUNNING, True, False),
+        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_RUNNING, True, False),
+        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_RUNNING, False, True),
+        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_RUNNING, False, True),
+        # AWAITING STATE
+        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_PENDING, None, False),
+        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_PENDING, None, False),
+        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_PENDING, True, False),
+        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_PENDING, True, False),
+        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_PENDING, False, True),
+        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_PENDING, False, True),
+    ])
+    # fmt: on
+    def test_check_dataflow_job_state_wait_until_finished(
+        self, job_type, job_state, wait_until_finished, expected_result
+    ):
+        job = {"id": "id-2", "name": "name-2", "type": job_type, "currentState": job_state}
+        dataflow_job = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name="name-",
+            location=TEST_LOCATION,
+            poll_sleep=0,
+            job_id=None,
+            num_retries=20,
+            multiple_jobs=True,
+            wait_until_finished=wait_until_finished,
+        )
+        result = dataflow_job._check_dataflow_job_state(job)
+        self.assertEqual(result, expected_result)
+
+    # fmt: off
+    @parameterized.expand([
+        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_FAILED,
+            "Google Cloud Dataflow job name-2 has failed\\."),
+        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_FAILED,
+         "Google Cloud Dataflow job name-2 has failed\\."),
+        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_UNKNOWN,
+         "Google Cloud Dataflow job name-2 was unknown state: JOB_STATE_UNKNOWN"),
+        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_UNKNOWN,
+         "Google Cloud Dataflow job name-2 was unknown state: JOB_STATE_UNKNOWN"),
+        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_CANCELLED,
+            "Google Cloud Dataflow job name-2 was cancelled\\."),
+        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_CANCELLED,
+         "Google Cloud Dataflow job name-2 was cancelled\\."),
+        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_DRAINED,
+            "Google Cloud Dataflow job name-2 was drained\\."),
+        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_DRAINED,
+         "Google Cloud Dataflow job name-2 was drained\\."),
+        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_UPDATED,
+            "Google Cloud Dataflow job name-2 was updated\\."),
+        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_UPDATED,
+         "Google Cloud Dataflow job name-2 was updated\\."),
+    ])
+    # fmt: on
+    def test_check_dataflow_job_state_terminal_state(self, job_type, job_state, exception_regex):
+        job = {"id": "id-2", "name": "name-2", "type": job_type, "currentState": job_state}
+        dataflow_job = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name="name-",
+            location=TEST_LOCATION,
+            poll_sleep=0,
+            job_id=None,
+            num_retries=20,
+            multiple_jobs=True,
+        )
+        with self.assertRaisesRegex(Exception, exception_regex):
+            dataflow_job._check_dataflow_job_state(job)
 
     def test_dataflow_job_cancel_job(self):
         mock_jobs = self.mock_dataflow.projects.return_value.locations.return_value.jobs
@@ -1429,6 +1547,78 @@ class TestDataflowJob(unittest.TestCase):
 
         self.mock_dataflow.new_batch_http_request.assert_not_called()
         mock_jobs.return_value.update.assert_not_called()
+
+    def test_fetch_list_job_messages_responses(self):
+        # fmt: off
+        mock_list = (
+            self.mock_dataflow
+            .projects.return_value
+            .locations.return_value
+            .jobs.return_value
+            .messages.return_value
+            .list
+        )
+        mock_list_next = (
+            self.mock_dataflow.
+            projects.return_value.
+            locations.return_value.
+            jobs.return_value
+            .messages.return_value
+            .list_next
+        )
+        # fmt: on
+        mock_list.return_value.execute.return_value = "response_1"
+        mock_list_next.return_value = None
+
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            location=TEST_LOCATION,
+            job_id=TEST_JOB_ID,
+        )
+        result = list(jobs_controller._fetch_list_job_messages_responses(TEST_JOB_ID))
+
+        mock_list.assert_called_once_with(projectId=TEST_PROJECT, location=TEST_LOCATION, jobId=TEST_JOB_ID)
+        mock_list_next.assert_called_once_with(
+            previous_request=mock_list.return_value, previous_response="response_1"
+        )
+        self.assertEqual(result, ["response_1"])
+
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController._fetch_list_job_messages_responses'))
+    def test_fetch_job_messages_by_id(self, mock_fetch_responses):
+        mock_fetch_responses.return_value = iter(
+            [
+                {"jobMessages": ["message_1"]},
+                {"jobMessages": ["message_2"]},
+            ]
+        )
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            location=TEST_LOCATION,
+            job_id=TEST_JOB_ID,
+        )
+        result = jobs_controller.fetch_job_messages_by_id(TEST_JOB_ID)
+        mock_fetch_responses.assert_called_once_with(job_id=TEST_JOB_ID)
+        self.assertEqual(result, ['message_1', 'message_2'])
+
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController._fetch_list_job_messages_responses'))
+    def test_fetch_job_autoscaling_events_by_id(self, mock_fetch_responses):
+        mock_fetch_responses.return_value = iter(
+            [
+                {"autoscalingEvents": ["event_1"]},
+                {"autoscalingEvents": ["event_2"]},
+            ]
+        )
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            location=TEST_LOCATION,
+            job_id=TEST_JOB_ID,
+        )
+        result = jobs_controller.fetch_job_autoscaling_events_by_id(TEST_JOB_ID)
+        mock_fetch_responses.assert_called_once_with(job_id=TEST_JOB_ID)
+        self.assertEqual(result, ['event_1', 'event_2'])
 
 
 APACHE_BEAM_V_2_14_0_JAVA_SDK_LOG = f""""\

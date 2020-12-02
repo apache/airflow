@@ -19,9 +19,9 @@
 import datetime
 import hashlib
 import os
+import time
 from datetime import timedelta
-from time import sleep
-from typing import Any, Dict, Iterable
+from typing import Any, Callable, Dict, Iterable
 
 from airflow.configuration import conf
 from airflow.exceptions import (
@@ -197,17 +197,36 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         return result
 
     def execute(self, context: Dict) -> Any:
-        started_at = timezone.utcnow()
-        try_number = 1
-        log_dag_id = self.dag.dag_id if self.has_dag() else ""
+        started_at = None
+
         if self.reschedule:
+
             # If reschedule, use first start date of current try
             task_reschedules = TaskReschedule.find_for_task_instance(context['ti'])
             if task_reschedules:
                 started_at = task_reschedules[0].start_date
                 try_number = len(task_reschedules) + 1
+            else:
+                started_at = timezone.utcnow()
+
+            def run_duration() -> float:
+                # If we are in reschedule mode, then we have to compute diff
+                # based on the time in a DB, so can't use time.monotonic
+                nonlocal started_at
+                return (timezone.utcnow() - started_at).total_seconds()
+
+        else:
+            started_at = time.monotonic()
+
+            def run_duration() -> float:
+                nonlocal started_at
+                return time.monotonic() - started_at
+
+        try_number = 1
+        log_dag_id = self.dag.dag_id if self.has_dag() else ""
+
         while not self.poke(context):
-            if (timezone.utcnow() - started_at).total_seconds() > self.timeout:
+            if run_duration() > self.timeout:
                 # If sensor is in soft fail mode but will be retried then
                 # give it a chance and fail with timeout.
                 # This gives the ability to set up non-blocking AND soft-fail sensors.
@@ -217,19 +236,18 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                     raise AirflowSensorTimeout(f"Snap. Time is OUT. DAG id: {log_dag_id}")
             if self.reschedule:
                 reschedule_date = timezone.utcnow() + timedelta(
-                    seconds=self._get_next_poke_interval(started_at, try_number)
+                    seconds=self._get_next_poke_interval(started_at, run_duration, try_number)
                 )
                 raise AirflowRescheduleException(reschedule_date)
             else:
-                sleep(self._get_next_poke_interval(started_at, try_number))
+                time.sleep(self._get_next_poke_interval(started_at, run_duration, try_number))
                 try_number += 1
         self.log.info("Success criteria met. Exiting.")
 
-    def _get_next_poke_interval(self, started_at, try_number):
+    def _get_next_poke_interval(self, started_at: Any, run_duration: Callable[[], int], try_number):
         """Using the similar logic which is used for exponential backoff retry delay for operators."""
         if self.exponential_backoff:
             min_backoff = int(self.poke_interval * (2 ** (try_number - 2)))
-            current_time = timezone.utcnow()
 
             run_hash = int(
                 hashlib.sha1(
@@ -240,9 +258,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             modded_hash = min_backoff + run_hash % min_backoff
 
             delay_backoff_in_seconds = min(modded_hash, timedelta.max.total_seconds() - 1)
-            new_interval = min(
-                self.timeout - int((current_time - started_at).total_seconds()), delay_backoff_in_seconds
-            )
+            new_interval = min(self.timeout - int(run_duration()), delay_backoff_in_seconds)
             self.log.info("new %s interval is %s", self.mode, new_interval)
             return new_interval
         else:

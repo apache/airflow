@@ -31,7 +31,11 @@ class RedisHook(BaseHook):
     ``{"ssl": true, "ssl_cert_reqs": "require", "ssl_cert_file": "/path/to/cert.pem", etc}``.
     """
 
-    def __init__(self, redis_conn_id: str = 'redis_default') -> None:
+    conn_name_attr = 'redis_conn_id'
+    default_conn_name = 'redis_default'
+    conn_type = 'redis'
+
+    def __init__(self, redis_conn_id: str = default_conn_name) -> None:
         """
         Prepares hook to connect to a Redis database.
 

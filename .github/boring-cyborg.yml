@@ -126,6 +126,21 @@ labelPRBasedOnFilePath:
     - tests/www_rbac/**/*
     - tests/www_rbac/*
 
+  area:UI:
+    - airflow/www/static/**/*
+    - airflow/www/static/*
+    - airflow/www/templates/**/*
+    - airflow/www/templates/*
+    - airflow/www/.eslintignore
+    - airflow/www/.eslintrc
+    - airflow/www/.stylelintignore
+    - airflow/www/.stylelintrc
+    - airflow/www/compile_assets.sh
+    - airflow/www/package.json
+    - airflow/www/webpack.config.js
+    - airflow/www/yarn.lock
+    - docs/ui.rst
+
   area:CLI:
     - airflow/bin/cli.py
     - airflow/cli/**/*.py

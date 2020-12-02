@@ -25,4 +25,5 @@ set -x
 AIRFLOW_VERSION_STRING=$(grep "version =" "${AIRFLOW_SOURCES}/airflow/version.py")
 readonly AIRFLOW_VERSION_STRING
 
-sed "s/version =.*$/${AIRFLOW_VERSION_STRING}/" -i "${AIRFLOW_SOURCES}/setup.py"
+sed -i".out" -e "s/version =.*$/${AIRFLOW_VERSION_STRING}/" "${AIRFLOW_SOURCES}/setup.py"
+rm setup.py.out

@@ -218,11 +218,11 @@ function breeze::initialize_virtualenv() {
     local res=$?
     set -e
     if [[ ${res} != "0" ]]; then
-        echo >&2
-        echo >&2 "ERROR:  Initializing local virtualenv only works when you have virtualenv activated"
-        echo >&2
-        echo >&2 "Please enter your local virtualenv before (for example using 'pyenv activate' or 'workon') "
-        echo >&2
+        echo
+        echo  "${COLOR_RED_ERROR} Initializing local virtualenv only works when you have virtualenv activated  ${COLOR_RESET}"
+        echo
+        echo "Please enter your local virtualenv before (for example using 'pyenv activate' or 'workon') "
+        echo
         exit 1
     else
         echo
@@ -247,6 +247,8 @@ function breeze::initialize_virtualenv() {
             echo
             if [[ ${OSTYPE} == "darwin"* ]]; then
                 echo "  brew install sqlite mysql postgresql openssl"
+                echo "  export LDFLAGS=\"-L/usr/local/opt/openssl/lib\""
+                echo "  export CPPFLAGS=\"-I/usr/local/opt/openssl/include\""
             else
                 echo "  sudo apt install build-essentials python3.6-dev python3.7-dev python3.8-dev python-dev openssl \\"
                 echo "              sqlite sqlite-dev default-libmysqlclient-dev libmysqld-dev postgresql"
@@ -1086,6 +1088,7 @@ function breeze::parse_arguments() {
             echo
             echo "Force pulling the image, using GitHub registry and skip mounting local sources."
             echo "This is in order to get the exact same version as used in CI environment for SHA/RUN_ID!."
+            echo "You can specify --skip-mounting-local-sources to not mount local sources. "
             echo
             export FORCE_PULL_IMAGES="true"
             export USE_GITHUB_REGISTRY="true"
@@ -1093,7 +1096,6 @@ function breeze::parse_arguments() {
             export GITHUB_REGISTRY_PUSH_IMAGE_TAG="${2}"
             export CHECK_IMAGE_FOR_REBUILD="false"
             export SKIP_BUILDING_PROD_IMAGE="true"
-            export MOUNT_LOCAL_SOURCES="false"
             export SKIP_CHECK_REMOTE_IMAGE="true"
             export FAIL_ON_GITHUB_DOCKER_PULL_ERROR="true"
             shift 2
@@ -1164,9 +1166,9 @@ function breeze::parse_arguments() {
             ;;
         *)
             breeze::flags
-            echo >&2
-            echo >&2 "ERROR: Unknown flag ${1}"
-            echo >&2
+            echo
+            echo  "${COLOR_RED_ERROR} Unknown flag  ${COLOR_RESET}"
+            echo
             exit 1
             ;;
         esac
@@ -1359,9 +1361,9 @@ function breeze::parse_arguments() {
             ;;
         *)
             breeze::usage
-            echo >&2
-            echo >&2 "ERROR: Unknown command ${1}"
-            echo >&2
+            echo
+            echo  "${COLOR_RED_ERROR} Unknown command  ${COLOR_RESET}"
+            echo
             exit 1
             ;;
         esac
@@ -1862,6 +1864,10 @@ ${FORMATTED_STATIC_CHECKS}
       '${CMDNAME} static-check mypy' or
       '${CMDNAME} static-check mypy -- --files tests/core.py'
       '${CMDNAME} static-check mypy -- --all-files'
+
+      To check all files that differ between you current branch and master run:
+
+      '${CMDNAME} static-check all -- --from-ref \$(git merge-base master HEAD) --to-ref HEAD'
 
       You can see all the options by adding --help EXTRA_ARG:
 
@@ -2496,6 +2502,7 @@ function breeze::flag_pull_push_docker_images() {
 
         If you use this flag, automatically --github-registry is enabled.
 
+
         Default: ${_breeze_default_github_image_id:=}.
 
 "
@@ -2793,12 +2800,12 @@ function breeze::check_and_save_all_params() {
 
     if [[ ${PYTHON_MAJOR_MINOR_VERSION} == "2.7" || ${PYTHON_MAJOR_MINOR_VERSION} == "3.5" ]]; then
         if [[ ${BRANCH_NAME} == "master" ]]; then
-            echo >&2
-            echo >&2 "The ${PYTHON_MAJOR_MINOR_VERSION} can only be used when installing Airflow 1.10.*"
-            echo >&2
-            echo >&2 "You can use it only when you specify 1.10 Airflow via --install-airflow-version"
-            echo >&2 "or --install-airflow-reference and they point to 1.10 version of Airflow"
-            echo >&2
+            echo
+            echo  "${COLOR_RED_ERROR} The ${PYTHON_MAJOR_MINOR_VERSION} can only be used when installing Airflow 1.10.*  ${COLOR_RESET}"
+            echo
+            echo "You can use it only when you specify 1.10 Airflow via --install-airflow-version"
+            echo "or --install-airflow-reference and they point to 1.10 version of Airflow"
+            echo
             exit 1
         fi
     fi
@@ -2923,10 +2930,9 @@ function breeze::make_sure_precommit_is_installed() {
     elif command -v pip >/dev/null; then
         pip_binary=pip
     else
-        echo >&2
-        echo >&2 "ERROR: You need to have pip or pip3 in your PATH"
-        echo >&2
-        S
+        echo
+        echo  "${COLOR_RED_ERROR} You need to have pip or pip3 in your PATH  ${COLOR_RESET}"
+        echo
         exit 1
     fi
     "${pip_binary}" install --upgrade pre-commit >/dev/null 2>&1
@@ -3040,11 +3046,9 @@ function breeze::run_build_command() {
             build_images::prepare_prod_build
             build_images::build_prod_images
         else
+
             build_images::prepare_ci_build
-            md5sum::calculate_md5sum_for_all_files
-            build_images::build_ci_image
-            md5sum::update_all_md5
-            build_images::build_ci_image_manifest
+            build_images::rebuild_ci_image_if_needed
         fi
         ;;
     cleanup_image | run_exec)
@@ -3096,9 +3100,9 @@ function breeze::run_build_command() {
         fi
         ;;
     *)
-        echo >&2
-        echo >&2 "ERROR: Unknown command to run ${command_to_run}"
-        echo >&2
+        echo
+        echo  "${COLOR_RED_ERROR} Unknown command to run ${command_to_run}  ${COLOR_RESET}"
+        echo
         exit 1
         ;;
     esac
@@ -3238,9 +3242,9 @@ function breeze::run_breeze_command() {
         fi
         ;;
     *)
-        echo >&2
-        echo >&2 "ERROR: Unknown command to run ${command_to_run}"
-        echo >&2
+        echo
+        echo  "${COLOR_RED_ERROR} Unknown command to run ${command_to_run}  ${COLOR_RESET}"
+        echo
         ;;
     esac
     set -u

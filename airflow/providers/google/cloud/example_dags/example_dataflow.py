@@ -20,14 +20,23 @@
 Example Airflow DAG for Google Cloud Dataflow service
 """
 import os
+from typing import Callable, Dict, List
 from urllib.parse import urlparse
 
 from airflow import models
+from airflow.exceptions import AirflowException
+from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
 from airflow.providers.google.cloud.operators.dataflow import (
     CheckJobRunning,
     DataflowCreateJavaJobOperator,
     DataflowCreatePythonJobOperator,
     DataflowTemplatedJobStartOperator,
+)
+from airflow.providers.google.cloud.sensors.dataflow import (
+    DataflowJobAutoScalingEventsSensor,
+    DataflowJobMessagesSensor,
+    DataflowJobMetricsSensor,
+    DataflowJobStatusSensor,
 )
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
 from airflow.utils.dates import days_ago
@@ -127,6 +136,91 @@ with models.DAG(
         py_interpreter='python3',
         py_system_site_packages=False,
     )
+
+with models.DAG(
+    "example_gcp_dataflow_native_python_async",
+    default_args=default_args,
+    start_date=days_ago(1),
+    schedule_interval=None,  # Override to match your needs
+    tags=['example'],
+) as dag_native_python_async:
+    start_python_job_async = DataflowCreatePythonJobOperator(
+        task_id="start-python-job-async",
+        py_file=GCS_PYTHON,
+        py_options=[],
+        job_name='{{task.task_id}}',
+        options={
+            'output': GCS_OUTPUT,
+        },
+        py_requirements=['apache-beam[gcp]==2.25.0'],
+        py_interpreter='python3',
+        py_system_site_packages=False,
+        location='europe-west3',
+        wait_until_finished=False,
+    )
+
+    wait_for_python_job_async_done = DataflowJobStatusSensor(
+        task_id="wait-for-python-job-async-done",
+        job_id="{{task_instance.xcom_pull('start-python-job-async')['job_id']}}",
+        expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
+        location='europe-west3',
+    )
+
+    def check_metric_scalar_gte(metric_name: str, value: int) -> Callable:
+        """Check is metric greater than equals to given value."""
+
+        def callback(metrics: List[Dict]) -> bool:
+            dag_native_python_async.log.info("Looking for '%s' >= %d", metric_name, value)
+            for metric in metrics:
+                context = metric.get("name", {}).get("context", {})
+                original_name = context.get("original_name", "")
+                tentative = context.get("tentative", "")
+                if original_name == "Service-cpu_num_seconds" and not tentative:
+                    return metric["scalar"] >= value
+            raise AirflowException(f"Metric '{metric_name}' not found in metrics")
+
+        return callback
+
+    wait_for_python_job_async_metric = DataflowJobMetricsSensor(
+        task_id="wait-for-python-job-async-metric",
+        job_id="{{task_instance.xcom_pull('start-python-job-async')['job_id']}}",
+        location='europe-west3',
+        callback=check_metric_scalar_gte(metric_name="Service-cpu_num_seconds", value=100),
+    )
+
+    def check_message(messages: List[dict]) -> bool:
+        """Check message"""
+        for message in messages:
+            if "Adding workflow start and stop steps." in message.get("messageText", ""):
+                return True
+        return False
+
+    wait_for_python_job_async_message = DataflowJobMessagesSensor(
+        task_id="wait-for-python-job-async-message",
+        job_id="{{task_instance.xcom_pull('start-python-job-async')['job_id']}}",
+        location='europe-west3',
+        callback=check_message,
+    )
+
+    def check_autoscaling_event(autoscaling_events: List[dict]) -> bool:
+        """Check autoscaling event"""
+        for autoscaling_event in autoscaling_events:
+            if "Worker pool started." in autoscaling_event.get("description", {}).get("messageText", ""):
+                return True
+        return False
+
+    wait_for_python_job_async_autoscaling_event = DataflowJobAutoScalingEventsSensor(
+        task_id="wait-for-python-job-async-autoscaling-event",
+        job_id="{{task_instance.xcom_pull('start-python-job-async')['job_id']}}",
+        location='europe-west3',
+        callback=check_autoscaling_event,
+    )
+
+    start_python_job_async >> wait_for_python_job_async_done
+    start_python_job_async >> wait_for_python_job_async_metric
+    start_python_job_async >> wait_for_python_job_async_message
+    start_python_job_async >> wait_for_python_job_async_autoscaling_event
+
 
 with models.DAG(
     "example_gcp_dataflow_template",

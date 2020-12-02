@@ -1,0 +1,19 @@
+{%- for item in items %}
+{{ item["integration"]["integration-name"] }}
+{{ header_separator * (item["integration"]["integration-name"]|length) }}
+{# Force new line #}
+{%- if "operators" in item %}
+:Operators: {% for python_module in item["operators"]["python-modules"] %}:mod:`{{ python_module }}`{% if not loop.last %}, {% else %}.{% endif %}{%- endfor %}
+{%- endif %}
+{%- if "hooks" in item %}
+:Hooks: {% for python_module in item["hooks"]["python-modules"] %}:mod:`{{ python_module }}`{% if not loop.last %}, {% else %}.{% endif %}{%- endfor %}
+{%- endif %}
+{%- if "sensors" in item %}
+:Sensors: {% for python_module in item["sensors"]["python-modules"] %}:mod:`{{ python_module }}`{% if not loop.last %}, {% else %}.{% endif %}{%- endfor %}
+{%- endif %}
+{%- if "operators" in item and 'how-to-guide' in item["integration"] %}
+:Guides: {% for guide in item["integration"]['how-to-guide'] %}:doc:`{{ guide }}`{% if not loop.last %}, {% else %}.{% endif %}{%- endfor %}
+{%- endif %}
+:Provider: :provider:`{{ item["integration"]["package-name"] }}`
+:Product documentation: `{{ item["integration"]["integration-name"] }} <{{ item["integration"]["external-doc-url"] }}>`__
+{% endfor %}

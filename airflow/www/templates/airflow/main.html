@@ -1,0 +1,101 @@
+{#
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+#}
+
+{% extends 'appbuilder/baselayout.html' %}
+
+{% block head_css %}
+  {{ super() }}
+
+  {% if not appbuilder.app_theme %}
+    {# airflowDefaultTheme.css file contains the styles from local bootstrap-theme.css #}
+    <link rel="stylesheet" type="text/css" href="{{ url_for_asset('airflowDefaultTheme.css') }}">
+  {% endif %}
+  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('materialIcons.css') }}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('main.css') }}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('loadingDots.css') }}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('bootstrap-datetimepicker.min.css') }}">
+  <style type="text/css">
+    {% for state, state_color in state_color_mapping.items() %}
+      span.{{state}} {
+        background-color: {{state_color}};
+      }
+    {% endfor %}
+  </style>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='pin_32.png') }}">
+{% endblock %}
+
+{% block messages %}
+  {% include 'appbuilder/flash.html' %}
+  {% if scheduler_job is defined and (not scheduler_job or not scheduler_job.is_alive()) %}
+    <div class="alert alert-warning">
+      <p>The scheduler does not appear to be running.
+      {% if scheduler_job %}
+      Last heartbeat was received
+      <time class="scheduler-last-heartbeat"
+        title="{{ scheduler_job.latest_heartbeat.isoformat() }}"
+        datetime="{{ scheduler_job.latest_heartbeat.isoformat() }}"
+        data-datetime-convert="false"
+      >{{ macros.datetime_diff_for_humans(scheduler_job.latest_heartbeat) }}</time>.
+      {% endif %}
+      </p>
+      <p>The DAGs list may not update, and new tasks will not be scheduled.</p>
+    </div>
+  {% endif %}
+{% endblock %}
+
+{% block footer %}
+  {% if not current_user.is_anonymous %}
+    {% set version_label = 'Version' %}
+    <footer class="footer">
+      <div class="container">
+        <div>
+          {{ version_label }}: {% if airflow_version %}<a href="https://pypi.python.org/pypi/apache-airflow/{{ airflow_version }}" target="_blank">v{{ airflow_version }}</a>{% else %} N/A{% endif %}
+          {% if git_version %}<br>Git Version:<strong>{{ git_version }}</strong>{% endif %}
+        </div>
+        <div></div>
+      </div>
+    </footer>
+  {% endif %}
+{% endblock %}
+
+{% block tail_js %}
+  {{ super() }}
+
+  <script>
+    // below variables are used in main.js
+    var Airflow = {
+      serverTimezone: '{{ server_timezone }}',
+      defaultUITimezone: '{{ default_ui_timezone }}'
+    };
+    var hostName = '{{ hostname }}';
+    var csrfToken = '{{ csrf_token() }}';
+    $("time[title]").tooltip()
+  </script>
+  <!--[if IE ]>
+  <script src="{{ url_for_asset('ie.js') }}"></script>
+  <![endif]-->
+  <script src="{{ url_for_asset('moment.js') }}"></script>
+  <script src="{{ url_for_asset('main.js') }}"></script>
+  <script src="{{ url_for_asset('bootstrap-datetimepicker.min.js') }}"></script>
+  <script src="{{ url_for_asset('bootstrap3-typeahead.min.js') }}"></script>
+
+  {% if analytics_tool is defined and analytics_tool %}
+    {% include "analytics/" + analytics_tool + ".html" %}
+  {% endif %}
+{% endblock %}

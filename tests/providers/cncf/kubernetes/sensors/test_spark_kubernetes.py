@@ -697,7 +697,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
             task_id="test_task_id",
         )
         self.assertRaises(AirflowException, sensor.poke, None)
-        mock_log_call.assert_called_once_with("spark_pi-driver")
+        mock_log_call.assert_called_once_with("spark-pi-driver", namespace="default")
         error_log_call.assert_called_once_with(TEST_POD_LOG_RESULT)
 
     @patch(
@@ -719,7 +719,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
             task_id="test_task_id",
         )
         sensor.poke(None)
-        mock_log_call.assert_called_once_with("spark_pi-driver")
+        mock_log_call.assert_called_once_with("spark-pi-2020-02-24-1-driver", namespace="default")
         log_info_call = info_log_call.mock_calls[1]
         log_value = log_info_call[1][0]
         self.assertEqual(log_value, TEST_POD_LOG_RESULT)

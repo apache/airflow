@@ -26,12 +26,12 @@ It accepts the following arguments:
 
 - ``--prediction_path``:
   The GCS folder that contains BatchPrediction results, containing
-  prediction.results-NNNNN-of-NNNNN files in the json format.
+  ``prediction.results-NNNNN-of-NNNNN`` files in the json format.
   Output will be also stored in this folder, as 'prediction.summary.json'.
 - ``--metric_fn_encoded``:
   An encoded function that calculates and returns a tuple of metric(s)
   for a given instance (as a dictionary). It should be encoded
-  via base64.b64encode(dill.dumps(fn, recurse=True)).
+  via ``base64.b64encode(dill.dumps(fn, recurse=True))``.
 - ``--metric_keys``:
   A comma-separated key(s) of the aggregated metric(s) in the summary
   output. The order and the size of the keys must match to the output

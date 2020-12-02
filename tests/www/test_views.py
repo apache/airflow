@@ -52,7 +52,7 @@ from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.plugins_manager import AirflowPlugin, EntryPointSource, PluginsDirectorySource
+from airflow.plugins_manager import AirflowPlugin, EntryPointSource
 from airflow.security import permissions
 from airflow.ti_deps.dependencies_states import QUEUEABLE_STATES, RUNNABLE_STATES
 from airflow.utils import dates, timezone
@@ -62,11 +62,12 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from airflow.www import app as application
-from airflow.www.views import ConnectionModelView
+from airflow.www.views import ConnectionModelView, get_safe_url
 from tests.test_utils import fab_utils
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
+from tests.test_utils.mock_plugins import mock_plugin_manager
 
 
 class TemplateWithContext(NamedTuple):
@@ -230,6 +231,7 @@ class TestConnectionModelView(TestBase):
         self.connection = {
             'conn_id': 'test_conn',
             'conn_type': 'http',
+            'description': 'description',
             'host': 'localhost',
             'port': 8080,
             'username': 'root',
@@ -336,10 +338,6 @@ class PluginOperator(BaseOperator):
     pass
 
 
-class EntrypointPlugin(AirflowPlugin):
-    name = 'test-entrypoint-testpluginview'
-
-
 class TestPluginView(TestBase):
     def test_should_list_plugins_on_page_with_details(self):
         resp = self.client.get('/plugin')
@@ -348,43 +346,20 @@ class TestPluginView(TestBase):
         self.check_content_in_response("source", resp)
         self.check_content_in_response("<em>$PLUGINS_FOLDER/</em>test_plugin.py", resp)
 
-    @mock.patch('airflow.plugins_manager.pkg_resources.iter_entry_points')
-    def test_should_list_entrypoint_plugins_on_page_with_details(self, mock_ep_plugins):
-        from airflow.plugins_manager import load_entrypoint_plugins
+    def test_should_list_entrypoint_plugins_on_page_with_details(self):
 
-        mock_entrypoint = mock.Mock()
-        mock_entrypoint.name = 'test-entrypoint-testpluginview'
-        mock_entrypoint.module_name = 'module_name_testpluginview'
-        mock_entrypoint.dist = 'test-entrypoint-testpluginview==1.0.0'
-        mock_entrypoint.load.return_value = EntrypointPlugin
-        mock_ep_plugins.return_value = [mock_entrypoint]
-
-        load_entrypoint_plugins()
-        resp = self.client.get('/plugin')
+        mock_plugin = AirflowPlugin()
+        mock_plugin.name = "test_plugin"
+        mock_plugin.source = EntryPointSource(
+            mock.Mock(), mock.Mock(version='1.0.0', metadata={'name': 'test-entrypoint-testpluginview'})
+        )
+        with mock_plugin_manager(plugins=[mock_plugin]):
+            resp = self.client.get('/plugin')
 
         self.check_content_in_response("test_plugin", resp)
         self.check_content_in_response("Airflow Plugins", resp)
         self.check_content_in_response("source", resp)
         self.check_content_in_response("<em>test-entrypoint-testpluginview==1.0.0:</em> <Mock id=", resp)
-
-
-class TestPluginsDirectorySource(unittest.TestCase):
-    def test_should_provide_correct_attribute_values(self):
-        source = PluginsDirectorySource("./test_views.py")
-        self.assertEqual("$PLUGINS_FOLDER/../../test_views.py", str(source))
-        self.assertEqual("<em>$PLUGINS_FOLDER/</em>../../test_views.py", source.__html__())
-        self.assertEqual("../../test_views.py", source.path)
-
-
-class TestEntryPointSource(unittest.TestCase):
-    def test_should_provide_correct_attribute_values(self):
-        mock_entrypoint = mock.Mock()
-        mock_entrypoint.dist = 'test-entrypoint-dist==1.0.0'
-        source = EntryPointSource(mock_entrypoint)
-        self.assertEqual("test-entrypoint-dist==1.0.0", source.dist)
-        self.assertEqual(str(mock_entrypoint), source.entrypoint)
-        self.assertEqual("test-entrypoint-dist==1.0.0: " + str(mock_entrypoint), str(source))
-        self.assertEqual("<em>test-entrypoint-dist==1.0.0:</em> " + str(mock_entrypoint), source.__html__())
 
 
 class TestPoolModelView(TestBase):
@@ -520,7 +495,9 @@ class TestAirflowBaseViews(TestBase):
     def test_doc_urls(self):
         resp = self.client.get('/', follow_redirects=True)
         if "dev" in version.version:
-            airflow_doc_site = "https://airflow.readthedocs.io/en/latest"
+            airflow_doc_site = (
+                "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/"
+            )
         else:
             airflow_doc_site = f'https://airflow.apache.org/docs/{version.version}'
 
@@ -2771,6 +2748,10 @@ class TestTriggerDag(TestBase):
         [
             ("javascript:alert(1)", "/home"),
             ("http://google.com", "/home"),
+            (
+                "%2Ftree%3Fdag_id%3Dexample_bash_operator';alert(33)//",
+                "/tree?dag_id=example_bash_operator%27&amp;alert%2833%29%2F%2F=",
+            ),
             ("%2Ftree%3Fdag_id%3Dexample_bash_operator", "/tree?dag_id=example_bash_operator"),
             ("%2Fgraph%3Fdag_id%3Dexample_bash_operator", "/graph?dag_id=example_bash_operator"),
         ]
@@ -3292,3 +3273,26 @@ class TestDecorators(TestBase):
         self.check_last_log(
             "example_bash_operator", event="clear", execution_date=self.EXAMPLE_DAG_DEFAULT_DATE
         )
+
+
+class TestHelperFunctions(TestBase):
+    @parameterized.expand(
+        [
+            ("", "/home"),
+            ("http://google.com", "/home"),
+            (
+                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%test_dag';alert(33)//",
+                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3F"
+                "dag_id%25test_dag%27&alert%2833%29%2F%2F=",
+            ),
+            (
+                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%test_dag",
+                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%25test_dag",
+            ),
+        ]
+    )
+    @mock.patch("airflow.www.views.url_for")
+    def test_get_safe_url(self, test_url, expected_url, mock_url_for):
+        mock_url_for.return_value = "/home"
+        with self.app.test_request_context(base_url="http://localhost:8080"):
+            self.assertEqual(get_safe_url(test_url), expected_url)

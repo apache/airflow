@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional
 
 import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, String, and_
-from sqlalchemy.orm import Session, backref, relationship
+from sqlalchemy.orm import Session, backref, foreign, relationship
 from sqlalchemy.sql import exists
 
 from airflow.models.base import ID_LEN, Base
@@ -73,8 +73,7 @@ class SerializedDagModel(Base):
 
     dag_runs = relationship(
         DagRun,
-        primaryjoin=dag_id == DagRun.dag_id,
-        foreign_keys=dag_id,
+        primaryjoin=dag_id == foreign(DagRun.dag_id),
         backref=backref('serialized_dag', uselist=False, innerjoin=True),
     )
 

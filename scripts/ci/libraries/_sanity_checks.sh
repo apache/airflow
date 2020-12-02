@@ -77,32 +77,36 @@ function sanity_checks::check_if_coreutils_installed() {
     if [[ ${GETOPT_RETVAL} != 4 || "${STAT_PRESENT}" != "0" || "${MD5SUM_PRESENT}" != "0" ]]; then
         verbosity::print_info
         if [[ $(uname -s) == 'Darwin' ]] ; then
-            echo >&2 "You are running ${CMDNAME} in OSX environment"
-            echo >&2 "And you need to install gnu commands"
-            echo >&2
-            echo >&2 "Run 'brew install gnu-getopt coreutils'"
-            echo >&2
-            echo >&2 "Then link the gnu-getopt to become default as suggested by brew."
-            echo >&2
-            echo >&2 "If you use bash, you should run these commands:"
-            echo >&2
-            echo >&2 "echo 'export PATH=\"/usr/local/opt/gnu-getopt/bin:\$PATH\"' >> ~/.bash_profile"
-            echo >&2 ". ~/.bash_profile"
-            echo >&2
-            echo >&2 "If you use zsh, you should run these commands:"
-            echo >&2
-            echo >&2 "echo 'export PATH=\"/usr/local/opt/gnu-getopt/bin:\$PATH\"' >> ~/.zprofile"
-            echo >&2 ". ~/.zprofile"
-            echo >&2
-            echo >&2 "Either source the profile file as shown above, or re-login afterwards."
-            echo >&2
-            echo >&2 "After that, your PATH variable should start with \"/usr/local/opt/gnu-getopt/bin\""
-            echo >&2 "Your current path is ${PATH}"
-            echo >&2
+            echo """
+${COLOR_RED_ERROR} You are running ${CMDNAME} in OSX environment and ou need to install gnu commands
+
+Run 'brew install gnu-getopt coreutils'
+
+Then link the gnu-getopt to become default as suggested by brew.
+
+If you use bash, you should run these commands:
+
+echo 'export PATH=\"/usr/local/opt/gnu-getopt/bin:\$PATH\"' >> ~/.bash_profile
+. ~/.bash_profile
+
+If you use zsh, you should run these commands:
+
+echo 'export PATH=\"/usr/local/opt/gnu-getopt/bin:\$PATH\"' >> ~/.zprofile
+. ~/.zprofile
+
+Either source the profile file as shown above, or re-login afterwards.
+
+After that, your PATH variable should start with \"/usr/local/opt/gnu-getopt/bin\"
+Your current path is ${PATH}
+${COLOR_RESET}
+"""
         else
-            echo >&2 "You do not have necessary tools in your path (getopt, stat, md5sum)."
-            echo >&2 "Please install latest/GNU version of getopt and coreutils."
-            echo >&2 "This can usually be done with 'apt install util-linux coreutils'"
+            echo """
+${COLOR_RED_ERROR} You do not have necessary tools in your path (getopt, stat, md5sum).
+Please install latest/GNU version of getopt and coreutils.
+This can usually be done with 'apt install util-linux coreutils'
+${COLOR_RESET}
+"""
         fi
         verbosity::print_info
         exit 1
@@ -117,12 +121,14 @@ function sanity_checks::assert_not_in_container() {
         return
     fi
     if [[ -f /.dockerenv ]]; then
-        echo >&2
-        echo >&2 "You are inside the Airflow docker container!"
-        echo >&2 "You should only run this script from the host."
-        echo >&2 "Learn more about how we develop and test airflow in:"
-        echo >&2 "https://github.com/apache/airflow/blob/master/TESTING.rst"
-        echo >&2
+        echo """
+\e[31mERROR: You are inside the Airflow docker container
+
+You should only run this script from the host.
+Learn more about how we develop and test airflow at:
+https://github.com/apache/airflow/blob/master/TESTING.rst
+
+"""
         exit 1
     fi
 }

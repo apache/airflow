@@ -1691,7 +1691,6 @@ class TestSchedulerJob(unittest.TestCase):
             ti.refresh_from_db()
             self.assertEqual(State.QUEUED, ti.state)
 
-    @pytest.mark.quarantined
     def test_change_state_for_tis_without_dagrun(self):
         dag1 = DAG(dag_id='test_change_state_for_tis_without_dagrun', start_date=DEFAULT_DATE)
 
@@ -1739,12 +1738,12 @@ class TestSchedulerJob(unittest.TestCase):
         session.merge(ti3)
         session.commit()
 
-        with mock.patch.object(settings, "STORE_SERIALIZED_DAGS", True):
-            dagbag = DagBag("/dev/null", include_examples=False)
-            dagbag.bag_dag(dag1, root_dag=dag1)
-            dagbag.bag_dag(dag2, root_dag=dag2)
-            dagbag.bag_dag(dag3, root_dag=dag3)
-            dagbag.sync_to_db(session)
+        dagbag = DagBag("/dev/null", include_examples=False, read_dags_from_db=False)
+        dagbag.bag_dag(dag1, root_dag=dag1)
+        dagbag.bag_dag(dag2, root_dag=dag2)
+        dagbag.bag_dag(dag3, root_dag=dag3)
+        dagbag.sync_to_db(session)
+        session.commit()
 
         scheduler = SchedulerJob(num_runs=0)
         scheduler.dagbag.collect_dags_from_db()
@@ -1774,15 +1773,18 @@ class TestSchedulerJob(unittest.TestCase):
         dr1.refresh_from_db(session=session)
         dr1.state = State.FAILED
 
-        # why o why
+        # Push the changes to DB
         session.merge(dr1)
         session.commit()
 
         scheduler._change_state_for_tis_without_dagrun(
             old_states=[State.SCHEDULED, State.QUEUED], new_state=State.NONE, session=session
         )
+
+        # Clear the session objects
+        session.expunge_all()
         ti1a.refresh_from_db(session=session)
-        self.assertEqual(ti1a.state, State.SCHEDULED)
+        self.assertEqual(ti1a.state, State.NONE)
 
         # don't touch ti1b
         ti1b.refresh_from_db(session=session)

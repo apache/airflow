@@ -29,10 +29,9 @@ assists users migrating to a new version.
 - [Step 1: Upgrade to Python 3](#step-1-upgrade-to-python-3)
 - [Step 2: Upgrade to Airflow 1.10.13 (a.k.a our "bridge" release)](#step-2-upgrade-to-airflow-11013-aka-our-bridge-release)
 - [Step 3: Set Operators to Backport Providers](#step-3-set-operators-to-backport-providers)
-- [Step 3: Upgrade Airflow DAGs](#step-3-upgrade-airflow-dags)
+- [Step 4: Upgrade Airflow DAGs](#step-4-upgrade-airflow-dags)
   - [Change to undefined variable handling in templates](#change-to-undefined-variable-handling-in-templates)
   - [Changes to the KubernetesPodOperator](#changes-to-the-kubernetespodoperator)
-- [Step 4: Update system configurations](#step-4-update-system-configurations)
   - [Change default value for dag_run_conf_overrides_params](#change-default-value-for-dag_run_conf_overrides_params)
   - [DAG discovery safe mode is now case insensitive](#dag-discovery-safe-mode-is-now-case-insensitive)
   - [Change to Permissions](#change-to-permissions)
@@ -47,6 +46,7 @@ assists users migrating to a new version.
   - [Changes to Exception handling for from DAG callbacks](#changes-to-exception-handling-for-from-dag-callbacks)
   - [Airflow CLI changes in 2.0](#airflow-cli-changes-in-20)
   - [Changes to Airflow Plugins](#changes-to-airflow-plugins)
+  - [Changes to extras names](#changes-to-extras-names)
   - [Support for Airflow 1.10.x releases](#support-for-airflow-110x-releases)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -131,7 +131,7 @@ pip install airflow[docker]
 automatically installs the `apache-airflow-providers-docker` package.
 But you can manage/upgrade remove provider packages separately from the airflow core.
 
-## Step 3: Upgrade Airflow DAGs
+## Step 4: Upgrade Airflow DAGs
 
 ### Change to undefined variable handling in templates
 
@@ -245,7 +245,6 @@ Kubernetes secrets into workers.
 
 For a more detailed list of changes to the KubernetesPodOperator API, please read [here](#Changed-Parameters-for-the-KubernetesPodOperator)
 
-## Step 4: Update system configurations
 
 ### Change default value for dag_run_conf_overrides_params
 
@@ -817,7 +816,9 @@ The table below shows the differences:
 This endpoint ``/api/v1/dags/{dag_id}/dagRuns`` also allows you to filter dag_runs with parameters such as ``start_date``, ``end_date``, ``execution_date`` etc in the query string.
 Therefore the operation previously performed by this endpoint
 
-    /api/experimental/dags/<string:dag_id>/dag_runs/<string:execution_date>
+```
+/api/experimental/dags/<string:dag_id>/dag_runs/<string:execution_date>
+```
 
 can now be handled with filter parameters in the query string.
 Getting information about latest runs can be accomplished with the help of
@@ -919,23 +920,23 @@ airflow users remove-role --username jondoe --role Public
 
 #### Use exactly single character for short option style change in CLI
 
-For Airflow short option, use exactly one single character, New commands are available according to the following table:
+For Airflow short option, use exactly one single character. New commands are available according to the following table:
 
 | Old command                                          | New command                                         |
 | :----------------------------------------------------| :---------------------------------------------------|
 | ``airflow (dags\|tasks\|scheduler) [-sd, --subdir]`` | ``airflow (dags\|tasks\|scheduler) [-S, --subdir]`` |
-| ``airflow tasks test [-dr, --dry_run]``              | ``airflow tasks test [-n, --dry-run]``              |
-| ``airflow dags backfill [-dr, --dry_run]``           | ``airflow dags backfill [-n, --dry-run]``           |
-| ``airflow tasks clear [-dx, --dag_regex]``           | ``airflow tasks clear [-R, --dag-regex]``           |
+| ``airflow test [-dr, --dry_run]``                    | ``airflow tasks test [-n, --dry-run]``              |
+| ``airflow test [-tp, --task_params]``                | ``airflow tasks test [-t, --task-params]``          |
+| ``airflow test [-pm, --post_mortem]``                | ``airflow tasks test [-m, --post-mortem]``          |
+| ``airflow run [-int, --interactive]``                | ``airflow tasks run [-N, --interactive]``           |
+| ``airflow backfill [-dr, --dry_run]``                | ``airflow dags backfill [-n, --dry-run]``           |
+| ``airflow clear [-dx, --dag_regex]``                 | ``airflow tasks clear [-R, --dag-regex]``           |
 | ``airflow kerberos [-kt, --keytab]``                 | ``airflow kerberos [-k, --keytab]``                 |
-| ``airflow tasks run [-int, --interactive]``          | ``airflow tasks run [-N, --interactive]``           |
 | ``airflow webserver [-hn, --hostname]``              | ``airflow webserver [-H, --hostname]``              |
-| ``airflow celery worker [-cn, --celery_hostname]``   | ``airflow celery worker [-H, --celery-hostname]``   |
-| ``airflow celery flower [-hn, --hostname]``          | ``airflow celery flower [-H, --hostname]``          |
-| ``airflow celery flower [-fc, --flower_conf]``       | ``airflow celery flower [-c, --flower-conf]``       |
-| ``airflow celery flower [-ba, --basic_auth]``        | ``airflow celery flower [-A, --basic-auth]``        |
-| ``airflow celery flower [-tp, --task_params]``       | ``airflow celery flower [-t, --task-params]``       |
-| ``airflow celery flower [-pm, --post_mortem]``       | ``airflow celery flower [-m, --post-mortem]``       |
+| ``airflow worker [-cn, --celery_hostname]``          | ``airflow celery worker [-H, --celery-hostname]``   |
+| ``airflow flower [-hn, --hostname]``                 | ``airflow celery flower [-H, --hostname]``          |
+| ``airflow flower [-fc, --flower_conf]``              | ``airflow celery flower [-c, --flower-conf]``       |
+| ``airflow flower [-ba, --basic_auth]``               | ``airflow celery flower [-A, --basic-auth]``        |
 
 For Airflow long option, use [kebab-case](https://en.wikipedia.org/wiki/Letter_case) instead of [snake_case](https://en.wikipedia.org/wiki/Snake_case)
 
@@ -1073,6 +1074,12 @@ class AirflowTestPlugin(AirflowPlugin):
     appbuilder_views = [v_appbuilder_package]
     appbuilder_menu_items = [appbuilder_mitem]
 ```
+
+### Changes to extras names
+
+The `all` extra were reduced to include only user-facing dependencies. This means
+that this extra does not contain development dependencies. If you were using it and
+depending on the development packages then you should use `devel_all`.
 
 ### Support for Airflow 1.10.x releases
 

@@ -49,6 +49,7 @@ _breeze_allowed_test_types="All Core Providers API CLI Integration Other WWW Hei
 }
 
 _breeze_allowed_install_airflow_versions=$(cat <<-EOF
+1.10.13
 1.10.12
 1.10.11
 1.10.10
@@ -69,6 +70,7 @@ all
 all-but-pylint
 airflow-config-yaml
 airflow-providers-available
+airflow-provider-yaml-files-ok
 base-operator
 bats-tests
 bats-in-container-tests
@@ -96,6 +98,7 @@ helm-lint
 incorrect-use-of-LoggingMixin
 insert-license
 isort
+json-schema
 language-matters
 lint-dockerfile
 lint-openapi
@@ -109,6 +112,7 @@ no-relative-imports
 pre-commit-descriptions
 provide-create-sessions
 providers-init-file
+provider-yamls
 pydevd
 pydocstyle
 pylint
@@ -118,7 +122,7 @@ pyupgrade
 restrict-start_date
 rst-backticks
 setup-order
-setup-installation
+setup-extra-packages
 shellcheck
 sort-in-the-wild
 stylelint

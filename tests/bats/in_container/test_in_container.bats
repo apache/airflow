@@ -23,6 +23,8 @@ source "/opt/bats/lib/load.bash"
 setup() {
 # shellcheck source=scripts/in_container/_in_container_utils.sh
     source "${AIRFLOW_SOURCES}/scripts/in_container/_in_container_utils.sh"
+
+    in_container_set_colors
 }
 
 @test "test in_container" {

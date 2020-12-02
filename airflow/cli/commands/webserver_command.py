@@ -99,7 +99,7 @@ class GunicornMonitor(LoggingMixin):
 
         self._num_workers_running = 0
         self._num_ready_workers_running = 0
-        self._last_refresh_time = time.time() if worker_refresh_interval > 0 else None
+        self._last_refresh_time = time.monotonic() if worker_refresh_interval > 0 else None
         self._last_plugin_state = self._generate_plugin_state() if reload_on_plugin_change else None
         self._restart_on_next_plugin_check = False
 
@@ -149,9 +149,9 @@ class GunicornMonitor(LoggingMixin):
 
     def _wait_until_true(self, fn, timeout: int = 0) -> None:
         """Sleeps until fn is true"""
-        start_time = time.time()
+        start_time = time.monotonic()
         while not fn():
-            if 0 < timeout <= time.time() - start_time:
+            if 0 < timeout <= time.monotonic() - start_time:
                 raise AirflowWebServerTimeout(f"No response from gunicorn master within {timeout} seconds")
             sleep(0.1)
 
@@ -274,7 +274,7 @@ class GunicornMonitor(LoggingMixin):
         # If workers should be restarted periodically.
         if self.worker_refresh_interval > 0 and self._last_refresh_time:
             # and we refreshed the workers a long time ago, refresh the workers
-            last_refresh_diff = time.time() - self._last_refresh_time
+            last_refresh_diff = time.monotonic() - self._last_refresh_time
             if self.worker_refresh_interval < last_refresh_diff:
                 num_new_workers = self.worker_refresh_batch_size
                 self.log.debug(
@@ -284,7 +284,7 @@ class GunicornMonitor(LoggingMixin):
                     num_new_workers,
                 )
                 self._spawn_new_workers(num_new_workers)
-                self._last_refresh_time = time.time()
+                self._last_refresh_time = time.monotonic()
                 return
 
         # if we should check the directory with the plugin,
@@ -308,7 +308,7 @@ class GunicornMonitor(LoggingMixin):
                     num_workers_running,
                 )
                 self._restart_on_next_plugin_check = False
-                self._last_refresh_time = time.time()
+                self._last_refresh_time = time.monotonic()
                 self._reload_gunicorn()
 
 
@@ -319,6 +319,7 @@ def webserver(args):
 
     access_logfile = args.access_logfile or conf.get('webserver', 'access_logfile')
     error_logfile = args.error_logfile or conf.get('webserver', 'error_logfile')
+    access_logformat = args.access_logformat or conf.get('webserver', 'access_logformat')
     num_workers = args.workers or conf.get('webserver', 'workers')
     worker_timeout = args.worker_timeout or conf.get('webserver', 'web_server_worker_timeout')
     ssl_cert = args.ssl_cert or conf.get('webserver', 'web_server_ssl_cert')
@@ -360,6 +361,7 @@ def webserver(args):
                 Host: {hostname}:{port}
                 Timeout: {worker_timeout}
                 Logfiles: {access_logfile} {error_logfile}
+                Access Logformat: {access_logformat}
                 =================================================================\
             '''.format(
                     num_workers=num_workers,
@@ -369,6 +371,7 @@ def webserver(args):
                     worker_timeout=worker_timeout,
                     access_logfile=access_logfile,
                     error_logfile=error_logfile,
+                    access_logformat=access_logformat,
                 )
             )
         )
@@ -396,6 +399,9 @@ def webserver(args):
 
         if args.error_logfile:
             run_args += ['--error-logfile', str(args.error_logfile)]
+
+        if args.access_logformat and args.access_logformat.strip():
+            run_args += ['--access-logformat', str(args.access_logformat)]
 
         if args.daemon:
             run_args += ['--daemon']

@@ -23,6 +23,7 @@ from airflow.providers.amazon.aws.hooks.cloud_formation import AWSCloudFormation
 
 try:
     from moto import mock_cloudformation
+    from moto.ec2.models import NetworkInterface as some_model
 except ImportError:
     mock_cloudformation = None
 
@@ -35,7 +36,14 @@ class TestAWSCloudFormationHook(unittest.TestCase):
     def create_stack(self, stack_name):
         timeout = 15
         template_body = json.dumps(
-            {'Resources': {"myResource": {"Type": "emr", "Properties": {"myProperty": "myPropertyValue"}}}}
+            {
+                'Resources': {
+                    "myResource": {
+                        "Type": some_model.cloudformation_type(),
+                        "Properties": {"myProperty": "myPropertyValue"},
+                    }
+                }
+            }
         )
 
         self.hook.create_stack(

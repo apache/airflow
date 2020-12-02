@@ -89,6 +89,10 @@ class ComputeEngineSSHHook(SSHHook):
     :type delegate_to: str
     """
 
+    conn_name_attr = 'gcp_conn_id'
+    default_conn_name = 'google_cloud_default'
+    conn_type = 'gcpssh'
+
     def __init__(  # pylint: disable=too-many-arguments
         self,
         gcp_conn_id: str = 'google_cloud_default',

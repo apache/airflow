@@ -46,7 +46,7 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
         files: >
-          \.properties$|\.cfg$|\.conf$|\.ini$|\.ldif$|\.readthedocs$|\.service$|\.tf$|^Dockerfile.*$
+          \.properties$|\.cfg$|\.conf$|\.ini$|\.ldif$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
       - id: insert-license
         name: Add license for all rst files
         exclude: ^\.github/.*$
@@ -142,7 +142,7 @@ repos:
     hooks:
       - id: doctoc
         name: Add TOC for md files
-        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.*.md$|^dev/README\.md$|^dev/PROVIDER_PACKAGES.md$
+        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.*.md$|^dev/.*.md$
         args:
           - "--maxlevel"
           - "2"
@@ -176,7 +176,7 @@ repos:
         args:
           - --remove
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.7.3
+    rev: v2.7.4
     hooks:
       - id: pyupgrade
         args: ["--py36-plus"]
@@ -239,17 +239,17 @@ repos:
         files: Dockerfile.*$
         pass_filenames: true
       - id: setup-order
-        name: Checks for an order of dependencies in setup.py
+        name: Check order of dependencies in setup.py
         language: python
         files: ^setup.py$
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_order_setup.py
-      - id: setup-installation
-        name: Checks if all the libraries in setup.py are listed in installation.rst file
+      - id: setup-extra-packages
+        name: Checks if all the libraries in setup.py are listed in extra-packages-ref.rst file
         language: python
-        files: ^setup.py$|^docs/installation.rst$
+        files: ^setup.py$|^docs/apache-airflow/extra-packages-ref.rst$
         pass_filenames: false
-        entry: ./scripts/ci/pre_commit/pre_commit_check_setup_installation.py
+        entry: ./scripts/ci/pre_commit/pre_commit_check_setup_extra_packages_ref.py
         additional_dependencies: ['rich==9.2.0']
       - id: update-breeze-file
         name: Update output of breeze command in BREEZE.rst
@@ -322,7 +322,7 @@ repos:
           ^airflow/providers/apache/hive/.*PROVIDER_CHANGES_*|
           ^airflow/providers/apache/hive/.*README.md$|
           ^tests/providers/apache/cassandra/hooks/test_cassandra.py$|
-          ^docs/howto/connection/cassandra.rst$|
+          ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
           ^CHANGELOG.txt$
       - id: consistent-pylint
         language: pygrep
@@ -451,6 +451,14 @@ repos:
         always_run: true
         entry: ./scripts/ci/pre_commit/pre_commit_check_providers_init.sh
         language: system
+      - id: provider-yamls
+        name: Validate providers.yaml files
+        pass_filenames: false
+        entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
+        language: python
+        require_serial: true
+        files: provider.yaml$|scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py$
+        additional_dependencies: ['PyYAML==5.3.1', 'jsonschema==3.2.0', 'tabulate==0.8.7']
       - id: mermaid
         name: Generate mermaid images
         entry: ./scripts/ci/pre_commit/pre_commit_mermaid.sh
@@ -483,6 +491,30 @@ repos:
         files: "setup.py|^airflow/providers/.*.py"
         pass_filenames: false
         require_serial: true
+      - id: markdownlint
+        name: Run markdownlint
+        description: "Checks the style of Markdown files."
+        entry: markdownlint
+        language: node
+        types: [markdown]
+        files: \.(md|mdown|markdown)$
+        additional_dependencies: ['markdownlint-cli']
+      - id: json-schema
+        name: Lint JSON Schema files with JSON Schema
+        entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
+        args:
+          - --spec-url
+          - https://json-schema.org/draft-07/schema
+        language: python
+        pass_filenames: true
+        files: >
+          (?x)
+          ^airflow/provider.yaml.schema.json$|
+          ^airflow/serialization/schema.json$
+        require_serial: true
+        additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+        ## ADD MOST PRE-COMMITS ABOVE THAT LINE
+        # The below pre-commits are those requiring CI image to be built
       - id: build
         name: Check if image build is needed
         entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.6 false
@@ -494,12 +526,19 @@ repos:
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_mypy.sh"
         files: \.py$
-        exclude: ^dev|^provider_packages|^chart
+        exclude: ^dev|^provider_packages|^chart|^docs
       - id: mypy
         name: Run mypy for helm chart tests
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_mypy.sh"
         files: ^chart/.*\.py$
+        require_serial: true
+      - id: mypy
+        name: Run mypy for /docs/ folder
+        language: system
+        entry: "./scripts/ci/pre_commit/pre_commit_mypy.sh"
+        files: ^docs/.*\.py$
+        exclude: rtd-deprecation
         require_serial: true
       - id: pylint
         name: Run pylint
@@ -528,11 +567,4 @@ repos:
         entry: "./scripts/ci/pre_commit/pre_commit_in_container_bats_test.sh"
         files: ^tests/bats/in_container/.*.bats$|^scripts/in_container/.*sh
         pass_filenames: false
-      - id: markdownlint
-        name: Run markdownlint
-        description: "Checks the style of Markdown files."
-        entry: markdownlint
-        language: node
-        types: [markdown]
-        files: \.(md|mdown|markdown)$
-        additional_dependencies: ['markdownlint-cli']
+        ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE

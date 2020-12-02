@@ -386,8 +386,11 @@ class DagBag(LoggingMixin):
         dag.resolve_template_files()
         dag.last_loaded = timezone.utcnow()
 
+        # Check policies
+        settings.dag_policy(dag)
+
         for task in dag.tasks:
-            settings.policy(task)
+            settings.task_policy(task)
 
         subdags = dag.subdags
 
@@ -435,7 +438,6 @@ class DagBag(LoggingMixin):
             return
 
         self.log.info("Filling up the DagBag from %s", dag_folder)
-        start_dttm = timezone.utcnow()
         dag_folder = dag_folder or self.dag_folder
         # Used to store stats around DagBag processing
         stats = []
@@ -464,39 +466,27 @@ class DagBag(LoggingMixin):
             except Exception as e:  # pylint: disable=broad-except
                 self.log.exception(e)
 
-        end_dttm = timezone.utcnow()
-        durations = (end_dttm - start_dttm).total_seconds()
-        Stats.gauge('collect_dags', durations, 1)
-        Stats.gauge('dagbag_size', len(self.dags), 1)
-        Stats.gauge('dagbag_import_errors', len(self.import_errors), 1)
         self.dagbag_stats = sorted(stats, key=lambda x: x.duration, reverse=True)
-        for file_stat in self.dagbag_stats:
-            # file_stat.file similar format: /subdir/dag_name.py
-            # TODO: Remove for Airflow 2.0
-            filename = file_stat.file.split('/')[-1].replace('.py', '')
-            Stats.timing(f'dag.loading-duration.{filename}', file_stat.duration)
 
     def collect_dags_from_db(self):
         """Collects DAGs from database."""
         from airflow.models.serialized_dag import SerializedDagModel
 
-        start_dttm = timezone.utcnow()
-        self.log.info("Filling up the DagBag from database")
+        with Stats.timer('collect_db_dags'):
+            self.log.info("Filling up the DagBag from database")
 
-        # The dagbag contains all rows in serialized_dag table. Deleted DAGs are deleted
-        # from the table by the scheduler job.
-        self.dags = SerializedDagModel.read_all_dags()
+            # The dagbag contains all rows in serialized_dag table. Deleted DAGs are deleted
+            # from the table by the scheduler job.
+            self.dags = SerializedDagModel.read_all_dags()
 
-        # Adds subdags.
-        # DAG post-processing steps such as self.bag_dag and croniter are not needed as
-        # they are done by scheduler before serialization.
-        subdags = {}
-        for dag in self.dags.values():
-            for subdag in dag.subdags:
-                subdags[subdag.dag_id] = subdag
-        self.dags.update(subdags)
-
-        Stats.timing('collect_db_dags', timezone.utcnow() - start_dttm)
+            # Adds subdags.
+            # DAG post-processing steps such as self.bag_dag and croniter are not needed as
+            # they are done by scheduler before serialization.
+            subdags = {}
+            for dag in self.dags.values():
+                for subdag in dag.subdags:
+                    subdags[subdag.dag_id] = subdag
+            self.dags.update(subdags)
 
     def dagbag_report(self):
         """Prints a report around DagBag loading stats"""

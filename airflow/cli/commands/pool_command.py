@@ -18,6 +18,7 @@
 """Pools sub-commands"""
 import json
 import os
+import sys
 from json import JSONDecodeError
 
 from tabulate import tabulate
@@ -63,13 +64,12 @@ def pool_delete(args):
 @cli_utils.action_logging
 def pool_import(args):
     """Imports pools from the file"""
-    api_client = get_current_api_client()
-    if os.path.exists(args.file):
-        pools = pool_import_helper(args.file)
-    else:
-        print("Missing pools file.")
-        pools = api_client.get_pools()
+    if not os.path.exists(args.file):
+        sys.exit("Missing pools file.")
+    pools, failed = pool_import_helper(args.file)
     print(_tabulate_pools(pools=pools, tablefmt=args.output))
+    if len(failed) > 0:
+        sys.exit("Failed to update pool(s): {}".format(", ".join(failed)))
 
 
 def pool_export(args):
@@ -87,24 +87,16 @@ def pool_import_helper(filepath):
     try:  # pylint: disable=too-many-nested-blocks
         pools_json = json.loads(data)
     except JSONDecodeError as e:
-        print("Please check the validity of the json file: " + str(e))
-    else:
-        try:
-            pools = []
-            counter = 0
-            for k, v in pools_json.items():
-                if isinstance(v, dict) and len(v) == 2:
-                    pools.append(
-                        api_client.create_pool(name=k, slots=v["slots"], description=v["description"])
-                    )
-                    counter += 1
-                else:
-                    pass
-        except Exception:  # pylint: disable=broad-except
-            pass
-        finally:
-            print("{} of {} pool(s) successfully updated.".format(counter, len(pools_json)))
-            return pools  # pylint: disable=lost-exception
+        sys.exit("Invalid json file: " + str(e))
+    pools = []
+    failed = []
+    for k, v in pools_json.items():
+        if isinstance(v, dict) and len(v) == 2:
+            pools.append(api_client.create_pool(name=k, slots=v["slots"], description=v["description"]))
+        else:
+            failed.append(k)
+    print(f"{len(pools)} of {len(pools_json)} pool(s) successfully updated.")
+    return pools, failed
 
 
 def pool_export_helper(filepath):

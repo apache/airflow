@@ -20,19 +20,13 @@
 /* global window, dagTZ, moment, convertSecsToHumanReadable */
 
 // We don't re-import moment again, otherwise webpack will include it twice in the bundle!
-import { escapeHtml } from './base';
+import { escapeHtml } from './main';
 import { defaultFormat, formatDateTime } from './datetime-utils';
 
 function makeDateTimeHTML(start, end) {
   // check task ended or not
-  if (end && end instanceof moment) {
-    return (
-      `Started: ${start.format(defaultFormat)} <br> Ended: ${end.format(defaultFormat)} <br>`
-    );
-  }
-  return (
-    `Started: ${start.format(defaultFormat)} <br> Ended: Not ended yet <br>`
-  );
+  const isEnded = end && end instanceof moment && end.isValid();
+  return `Started: ${start.format(defaultFormat)}<br>Ended: ${isEnded ? end.format(defaultFormat) : 'Not ended yet'}<br>`;
 }
 
 function generateTooltipDateTimes(startDate, endDate, dagTZ) {

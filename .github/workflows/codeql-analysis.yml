@@ -21,15 +21,13 @@ name: "CodeQL"
 on:  # yamllint disable-line rule:truthy
   push:
     branches: [master]
-  pull_request:
-    branches: [master]
   schedule:
     - cron: '0 2 * * *'
 
 jobs:
   selective-checks:
     name: Selective checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     outputs:
       needs-python-scans: ${{ steps.selective-checks.outputs.needs-python-scans }}
       needs-javascript-scans: ${{ steps.selective-checks.outputs.needs-javascript-scans }}
@@ -42,11 +40,11 @@ jobs:
         id: selective-checks
         env:
           EVENT_NAME: ${{ github.event_name }}
-          INCOMING_COMMIT_SHA: ${{ github.sha }}
+          TARGET_COMMIT_SHA: ${{ github.sha }}
         run: |
           if [[ ${EVENT_NAME} == "pull_request" ]]; then
             # Run selective checks
-            ./scripts/ci/selective_ci_checks.sh "${INCOMING_COMMIT_SHA}"
+            ./scripts/ci/selective_ci_checks.sh "${TARGET_COMMIT_SHA}"
           else
             # Run all checks
             ./scripts/ci/selective_ci_checks.sh
@@ -54,7 +52,7 @@ jobs:
 
   analyze:
     name: Analyze
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [selective-checks]
     strategy:
       fail-fast: false

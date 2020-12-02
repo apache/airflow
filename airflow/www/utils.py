@@ -326,7 +326,7 @@ def wrapped_markdown(s, css_class=None):
     if s is None:
         return None
 
-    return Markup(f'<div class="rich_doc {css_class}" >' + markdown.markdown(s) + "</div>")
+    return Markup(f'<div class="{css_class}" >' + markdown.markdown(s) + "</div>")
 
 
 # pylint: disable=no-member

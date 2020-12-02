@@ -16,9 +16,6 @@
 # under the License.
 #
 ---
-# MD003/heading-style/header-style
-MD003: false
-
 # MD004/ul-style
 MD004: false
 
@@ -30,9 +27,6 @@ MD012: false
 
 # MD013 Line length
 MD013: false
-
-# MD014/commands-show-output
-MD014: false
 
 # MD024/no-duplicate-heading/no-duplicate-header
 MD024: false
@@ -60,9 +54,3 @@ MD040: false
 
 # MD041/first-line-heading/first-line-h1
 MD041: false
-
-# MD045/no-alt-text
-MD045: false
-
-# MD046/code-block-style
-MD046: false

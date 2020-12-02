@@ -709,6 +709,11 @@ class CloudSQLDatabaseHook(BaseHook):  # noqa
            in the connection URL
     :type default_gcp_project_id: str
     """
+
+    conn_name_attr = 'gcp_cloudsql_conn_id'
+    default_conn_name = 'google_cloud_sql_default'
+    conn_type = 'gcpcloudsql'
+
     _conn = None  # type: Optional[Any]
 
     def __init__(
@@ -735,7 +740,7 @@ class CloudSQLDatabaseHook(BaseHook):  # noqa
         self.user = self.cloudsql_connection.login  # type: Optional[str]
         self.password = self.cloudsql_connection.password  # type: Optional[str]
         self.public_ip = self.cloudsql_connection.host  # type: Optional[str]
-        self.public_port = self.cloudsql_connection.port  # type: Optional[str]
+        self.public_port = self.cloudsql_connection.port  # type: Optional[int]
         self.sslcert = self.extras.get('sslcert')  # type: Optional[str]
         self.sslkey = self.extras.get('sslkey')  # type: Optional[str]
         self.sslrootcert = self.extras.get('sslrootcert')  # type: Optional[str]

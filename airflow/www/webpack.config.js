@@ -37,7 +37,6 @@ const BUILD_DIR = path.resolve(__dirname, './static/dist');
 const config = {
   entry: {
     airflowDefaultTheme: `${STATIC_DIR}/css/bootstrap-theme.css`,
-    base: `${STATIC_DIR}/js/base.js`,
     connectionForm: `${STATIC_DIR}/js/connection_form.js`,
     dags: `${STATIC_DIR}/css/dags.css`,
     flash: `${STATIC_DIR}/css/flash.css`,
@@ -46,7 +45,7 @@ const config = {
     graph: `${STATIC_DIR}/css/graph.css`,
     ie: `${STATIC_DIR}/js/ie.js`,
     loadingDots: `${STATIC_DIR}/css/loading-dots.css`,
-    main: `${STATIC_DIR}/css/main.css`,
+    main: [`${STATIC_DIR}/css/main.css`, `${STATIC_DIR}/js/main.js`],
     materialIcons: `${STATIC_DIR}/css/material-icons.css`,
     moment: 'moment-timezone',
     switch: `${STATIC_DIR}/css/switch.css`,

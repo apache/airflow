@@ -48,7 +48,7 @@ jobs:
   trigger-tests:
     timeout-minutes: 5
     name: "Checks if tests should be run"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     outputs:
       run-tests: ${{ steps.trigger-tests.outputs.run-tests }}
     steps:
@@ -60,7 +60,7 @@ jobs:
   tests-quarantined:
     timeout-minutes: 80
     name: "Quarantined tests"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     continue-on-error: true
     needs: [trigger-tests]
     strategy:

@@ -287,7 +287,7 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
     def test_missing_example_for_operator(self):
         missing_operators = []
 
-        for resource_type in ["operators", "sensors", "tranfers"]:
+        for resource_type in ["operators", "sensors", "transfers"]:
             operator_files = set(
                 self.find_resource_files(top_level_directory="airflow", resource_type=resource_type)
             )
@@ -313,7 +313,7 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         self.assertEqual(set(missing_operators), self.MISSING_EXAMPLES_FOR_OPERATORS)
 
     @parameterized.expand(
-        itertools.product(["_system.py", "_system_helper.py"], ["operators", "sensors", "tranfers"])
+        itertools.product(["_system.py", "_system_helper.py"], ["operators", "sensors", "transfers"])
     )
     def test_detect_invalid_system_tests(self, resource_type, filename_suffix):
         operators_tests = self.find_resource_files(top_level_directory="tests", resource_type=resource_type)

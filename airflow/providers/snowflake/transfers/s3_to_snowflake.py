@@ -28,12 +28,16 @@ class S3ToSnowflakeOperator(BaseOperator):
     """
     Executes an COPY command to load files from s3 to Snowflake
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3ToSnowflakeOperator`
+
     :param s3_keys: reference to a list of S3 keys
     :type s3_keys: list
     :param table: reference to a specific table in snowflake database
     :type table: str
-    :param s3_bucket: reference to a specific S3 bucket
-    :type s3_bucket: str
+    :param stage: reference to a specific snowflake stage
+    :type stage: str
     :param file_format: reference to a specific file format
     :type file_format: str
     :param schema: reference to a specific schema in snowflake database

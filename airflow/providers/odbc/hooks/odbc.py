@@ -29,12 +29,13 @@ class OdbcHook(DbApiHook):
     """
     Interact with odbc data sources using pyodbc.
 
-    See :ref:`howto/connection/odbc` for full documentation.
+    See :doc:`/connections/odbc` for full documentation.
     """
 
     DEFAULT_SQLALCHEMY_SCHEME = 'mssql+pyodbc'
     conn_name_attr = 'odbc_conn_id'
     default_conn_name = 'odbc_default'
+    conn_type = 'odbc'
     supports_autocommit = True
 
     def __init__(

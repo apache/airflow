@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Save Rendered Template Fields"""
+import os
 from typing import Optional
 
 import sqlalchemy_jsonfield
@@ -26,7 +27,7 @@ from airflow.configuration import conf
 from airflow.models.base import ID_LEN, Base
 from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.helpers import serialize_template_field
-from airflow.settings import IS_K8S_OR_K8SCELERY_EXECUTOR, json
+from airflow.settings import json
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -50,7 +51,7 @@ class RenderedTaskInstanceFields(Base):
         self.ti = ti
         if render_templates:
             ti.render_templates()
-        if IS_K8S_OR_K8SCELERY_EXECUTOR:
+        if os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD", None):
             self.k8s_pod_yaml = ti.render_k8s_pod_yaml()
         self.rendered_fields = {
             field: serialize_template_field(getattr(self.task, field)) for field in self.task.template_fields

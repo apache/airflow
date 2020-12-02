@@ -181,7 +181,7 @@ class TestPatchEnviron(unittest.TestCase):
                 with process_utils.patch_environ({"TEST_NOT_EXISTS": "AFTER", "TEST_EXISTS": "AFTER"}):
                     self.assertEqual("AFTER", os.environ["TEST_NOT_EXISTS"])
                     self.assertEqual("AFTER", os.environ["TEST_EXISTS"])
-                    raise AirflowException("Unknown excepiton")
+                    raise AirflowException("Unknown exception")
 
             self.assertEqual("BEFORE", os.environ["TEST_EXISTS"])
             self.assertNotIn("TEST_NOT_EXISTS", os.environ)

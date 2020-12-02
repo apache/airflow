@@ -1814,7 +1814,7 @@ class TestTaskInstance(unittest.TestCase):
         with create_session() as session:
             session.query(RenderedTaskInstanceFields).delete()
 
-    @patch("airflow.models.renderedtifields.IS_K8S_OR_K8SCELERY_EXECUTOR", new=True)
+    @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
     def test_get_rendered_k8s_spec(self):
         with DAG('test_get_rendered_k8s_spec', start_date=DEFAULT_DATE):
             task = BashOperator(task_id='op1', bash_command="{{ task.task_id }}")
@@ -1854,6 +1854,7 @@ class TestTaskInstance(unittest.TestCase):
                         ],
                         'image': ':',
                         'name': 'base',
+                        'env': [{'name': 'AIRFLOW_IS_K8S_EXECUTOR_POD', 'value': 'True'}],
                     }
                 ]
             },
@@ -1975,6 +1976,20 @@ class TestTaskInstance(unittest.TestCase):
                 scheduler._critical_section_execute_task_instances(session=session)
                 task_instance_b.run()
                 self.validate_ti_states(dag_run, second_run_state, error_message)
+
+    def test_set_state_up_for_retry(self):
+        dag = DAG('dag', start_date=DEFAULT_DATE)
+        op1 = DummyOperator(task_id='op_1', owner='test', dag=dag)
+
+        ti = TI(task=op1, execution_date=timezone.utcnow(), state=State.RUNNING)
+        start_date = timezone.utcnow()
+        ti.start_date = start_date
+
+        ti.set_state(State.UP_FOR_RETRY)
+        assert ti.state == State.UP_FOR_RETRY
+        assert ti.start_date == start_date, "Start date should have been left alone"
+        assert ti.start_date < ti.end_date
+        assert ti.duration > 0
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])

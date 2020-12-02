@@ -103,21 +103,23 @@ def check_alias_dependent_group(setup_context: str) -> None:
         _check_list_sorted(src, f"Order of alias dependencies group: {dependent}")
 
 
-def check_install_and_setup_requires(setup_context: str) -> None:
+def check_install_and_setup_requires() -> None:
     """
     Test for an order of dependencies in function do_setup section
     install_requires and setup_requires in setup.py
     """
-    pattern_install_and_setup_requires = re.compile('(setup_requires) ?= ?\\[(.*?)\\]', re.DOTALL)
-    install_and_setup_requires = pattern_install_and_setup_requires.findall(setup_context)
 
-    for dependent_requires in install_and_setup_requires:
-        pattern_dependent = re.compile('\'(.*?)\'')
-        dependent = pattern_dependent.findall(dependent_requires[1])
-        pattern_dependent_version = re.compile('[~|><=;].*')
+    from setuptools.config import read_configuration
 
-        src = [pattern_dependent_version.sub('', p) for p in dependent]
-        _check_list_sorted(src, f"Order of dependencies in do_setup section: {dependent_requires[0]}")
+    path = abspath(os.path.join(dirname(__file__), os.pardir, os.pardir, os.pardir, 'setup.cfg'))
+    config = read_configuration(path)
+
+    pattern_dependent_version = re.compile('[~|><=;].*')
+
+    for key in ('install_requires', 'setup_requires'):
+        deps = config['options'][key]
+        dists = [pattern_dependent_version.sub('', p) for p in deps]
+        _check_list_sorted(dists, f"Order of dependencies in do_setup section: {key}")
 
 
 def check_extras_require(setup_context: str) -> None:
@@ -187,7 +189,7 @@ if __name__ == '__main__':
     check_main_dependent_group(setup_context_main)
     check_alias_dependent_group(setup_context_main)
     check_sub_dependent_group(setup_context_main)
-    check_install_and_setup_requires(setup_context_main)
+    check_install_and_setup_requires()
     check_extras_require(setup_context_main)
     check_provider_requirements(setup_context_main)
     check_extras_provider_packages(setup_context_main)

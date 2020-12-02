@@ -35,7 +35,6 @@ env:
   SKIP_CHECK_REMOTE_IMAGE: "true"
   DB_RESET: "true"
   VERBOSE: "true"
-  UPGRADE_TO_LATEST_CONSTRAINTS: ${{ github.event_name == 'push' || github.event_name == 'scheduled' }}
   DOCKER_CACHE: "pulled"
   USE_GITHUB_REGISTRY: "true"
   GITHUB_REPOSITORY: ${{ github.repository }}
@@ -65,11 +64,12 @@ jobs:
 
   build-info:
     name: "Build info"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
       waitForImage: ${{ steps.wait-for-image.outputs.wait-for-image }}
+      upgradeToLatestConstraints: ${{ steps.selective-checks.outputs.upgrade-to-latest-constraints }}
       pythonVersions: ${{ steps.selective-checks.outputs.python-versions }}
       pythonVersionsListAsString: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
       defaultPythonVersion: ${{ steps.selective-checks.outputs.default-python-version }}
@@ -102,7 +102,7 @@ jobs:
       pullRequestLabels: ${{ steps.source-run-info.outputs.pullRequestLabels }}
     steps:
       - name: "Get information about the PR"
-        uses: potiuk/get-workflow-origin@2ef0b065db6b688a2231f8a7f464df1aac254328  # v1_2
+        uses: potiuk/get-workflow-origin@588cc14f9f1cdf1b8be3db816855e96422204fec  # v1_3
         id: source-run-info
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -134,12 +134,12 @@ jobs:
         id: selective-checks
         env:
           EVENT_NAME: ${{ github.event_name }}
-          INCOMING_COMMIT_SHA: ${{ github.sha }}
+          TARGET_COMMIT_SHA: ${{ github.sha }}
           PR_LABELS: "${{ steps.source-run-info.outputs.pullRequestLabels }}"
         run: |
           if [[ ${EVENT_NAME} == "pull_request" ]]; then
             # Run selective checks
-            ./scripts/ci/selective_ci_checks.sh "${INCOMING_COMMIT_SHA}"
+            ./scripts/ci/selective_ci_checks.sh "${TARGET_COMMIT_SHA}"
           else
             # Run all checks
             ./scripts/ci/selective_ci_checks.sh
@@ -147,7 +147,7 @@ jobs:
 
   test-openapi-client-generation:
     name: "Test OpenAPI client generation"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [build-info]
     if: needs.build-info.outputs.needs-api-codegen == 'true'
     steps:
@@ -161,11 +161,12 @@ jobs:
   ci-images:
     timeout-minutes: 120
     name: "Wait for CI images"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [build-info]
     if: needs.build-info.outputs.image-build == 'true'
     env:
       BACKEND: sqlite
+      UPGRADE_TO_LATEST_CONSTRAINTS: ${{ needs.build-info.outputs.upgradeToLatestConstraints }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -192,10 +193,32 @@ jobs:
         run: ./scripts/ci/images/ci_wait_for_all_ci_images.sh
         if: needs.build-info.outputs.waitForImage == 'true'
 
+  verify-ci-images:
+    timeout-minutes: 20
+    name: "Verify CI Image Py${{matrix.python-version}}"
+    runs-on: ubuntu-20.04
+    needs: [build-info, ci-images]
+    strategy:
+      matrix:
+        python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
+    env:
+      BACKEND: sqlite
+    if: needs.build-info.outputs.image-build == 'true'
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        if: needs.build-info.outputs.waitForImage == 'true'
+      - name: "Free space"
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        if: needs.build-info.outputs.waitForImage == 'true'
+      - name: "Verify CI image Py${{matrix.python-version}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_verify_ci_image.sh
+        if: needs.build-info.outputs.waitForImage == 'true'
+
   static-checks:
     timeout-minutes: 30
     name: "Static checks"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [build-info, ci-images]
     env:
       SKIP: "pylint"
@@ -231,7 +254,7 @@ jobs:
   static-checks-basic-checks-only:
     timeout-minutes: 30
     name: "Static checks: basic checks only"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [build-info]
     env:
       SKIP: "build,mypy,flake8,pylint,bats-in-container-tests"
@@ -268,7 +291,7 @@ jobs:
   static-checks-pylint:
     timeout-minutes: 30
     name: "Pylint"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [build-info, ci-images]
     if: needs.build-info.outputs.basic-checks-only == 'false'
     env:
@@ -300,9 +323,9 @@ jobs:
           VERBOSE: false
 
   docs:
-    timeout-minutes: 30
+    timeout-minutes: 45
     name: "Build docs"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [build-info, ci-images]
     if: needs.build-info.outputs.docs-build == 'true'
     steps:
@@ -311,37 +334,37 @@ jobs:
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Build docs"
-        run: ./scripts/ci/docs/ci_docs.sh --docs-only
+        run: ./scripts/ci/docs/ci_docs.sh
       - name: "Upload documentation"
         uses: actions/upload-artifact@v2
-        if: always()
+        if: always() && github.event_name == 'pull_request'
         with:
           name: airflow-documentation
           path: "./files/documentation"
-
-  docs-spell-check:
-    timeout-minutes: 30
-    name: "Spell check docs"
-    runs-on: ubuntu-latest
-    needs: [build-info, ci-images]
-    env:
-      PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-    if: needs.build-info.outputs.docs-build == 'true'
-    steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
-      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Spell check docs"
-        run: ./scripts/ci/docs/ci_docs.sh --spellcheck-only
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        if: >
+          github.ref == 'refs/heads/master' && github.repository == 'apache/airflow' &&
+          github.event_name == 'push'
+        with:
+          aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+      - name: "Upload documentation to AWS S3"
+        if: >
+          github.ref == 'refs/heads/master' && github.repository == 'apache/airflow' &&
+          github.event_name == 'push'
+        run: aws s3 sync ./files/documentation s3://apache-airflow-docs
 
   prepare-backport-provider-packages:
     timeout-minutes: 30
     name: "Backport packages"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [build-info, ci-images]
     env:
-      INSTALL_AIRFLOW_VERSION: "1.10.12"
+      # In this case we want to install airflow from the latest released 1.10 version
+      # all provider packages are installed from wheels or .tar.gz files
+      INSTALL_AIRFLOW_VERSION: "1.10.13"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       BACKPORT_PACKAGES: "true"
       VERSION_SUFFIX_FOR_SVN: "rc1"
@@ -357,8 +380,14 @@ jobs:
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Prepare & test provider packages"
-        run: ./scripts/ci/provider_packages/ci_prepare_and_test_provider_packages.sh
+      - name: "Prepare provider readmes"
+        run: ./scripts/ci/provider_packages/ci_prepare_provider_readmes.sh
+      - name: "Prepare provider packages"
+        run: ./scripts/ci/provider_packages/ci_prepare_provider_packages.sh
+      - name: "Install and test provider packages via .whl files"
+        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh whl
+      - name: "Install and test provider packages via .tar.gz files"
+        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh tar.gz
       - name: "Upload provider package artifacts"
         uses: actions/upload-artifact@v2
         if: always()
@@ -375,7 +404,7 @@ jobs:
   prepare-provider-packages:
     timeout-minutes: 30
     name: "Provider packages"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [build-info, ci-images]
     env:
       INSTALL_AIRFLOW_VERSION: "wheel"
@@ -394,8 +423,16 @@ jobs:
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Prepare & test provider packages"
-        run: ./scripts/ci/provider_packages/ci_prepare_and_test_provider_packages.sh
+      - name: "Prepare provider readmes"
+        run: ./scripts/ci/provider_packages/ci_prepare_provider_readmes.sh
+      - name: "Prepare provider packages"
+        run: ./scripts/ci/provider_packages/ci_prepare_provider_packages.sh
+      - name: "Prepare airflow packages so that they can be installed"
+        run: ./scripts/ci/build_airflow/ci_build_airflow_package.sh
+      - name: "Install and test provider packages via .whl files"
+        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh whl
+      - name: "Install and test provider packages via .tar.gz files"
+        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh tar.gz
       - name: "Upload provider package artifacts"
         uses: actions/upload-artifact@v2
         if: always()
@@ -412,7 +449,7 @@ jobs:
   tests-helm:
     timeout-minutes: 20
     name: "Python unit tests for helm chart"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [build-info, ci-images]
     env:
       MOUNT_LOCAL_SOURCES: "true"
@@ -460,7 +497,7 @@ jobs:
     name: >
       Postgres${{matrix.postgres-version}},Py${{matrix.python-version}}:
       ${{needs.build-info.outputs.testTypes}}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [build-info, ci-images]
     strategy:
       matrix:
@@ -512,7 +549,7 @@ jobs:
     timeout-minutes: 80
     name: >
       MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}: ${{needs.build-info.outputs.testTypes}}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [build-info, ci-images]
     strategy:
       matrix:
@@ -563,7 +600,7 @@ jobs:
     timeout-minutes: 60
     name: >
       Sqlite Py${{matrix.python-version}}: ${{needs.build-info.outputs.testTypes}}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [build-info, ci-images]
     strategy:
       matrix:
@@ -611,7 +648,7 @@ jobs:
   tests-quarantined:
     timeout-minutes: 60
     name: "Quarantined tests"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     continue-on-error: true
     needs: [build-info, ci-images]
     strategy:
@@ -683,7 +720,7 @@ jobs:
   upload-coverage:
     timeout-minutes: 5
     name: "Upload coverage"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     continue-on-error: true
     needs:
       - tests-kubernetes
@@ -706,11 +743,12 @@ jobs:
   prod-images:
     timeout-minutes: 120
     name: "Wait for PROD images"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [build-info]
     env:
       BACKEND: sqlite
-      PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
+      PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
+      UPGRADE_TO_LATEST_CONSTRAINTS: ${{ needs.build-info.outputs.upgradeToLatestConstraints }}
     if: needs.build-info.outputs.image-build == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -733,10 +771,31 @@ jobs:
         run: ./scripts/ci/images/ci_wait_for_all_prod_images.sh
         if: needs.build-info.outputs.waitForImage == 'true'
 
+  verify-prod-images:
+    timeout-minutes: 20
+    name: "Verify Prod Image Py${{matrix.python-version}}"
+    runs-on: ubuntu-20.04
+    needs: [build-info, prod-images]
+    strategy:
+      matrix:
+        python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
+    env:
+      BACKEND: sqlite
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        if: needs.build-info.outputs.waitForImage == 'true'
+      - name: "Free space"
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        if: needs.build-info.outputs.waitForImage == 'true'
+      - name: "Verify PROD image Py${{matrix.python-version}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_verify_prod_image.sh
+        if: needs.build-info.outputs.waitForImage == 'true'
+
   tests-kubernetes:
     timeout-minutes: 50
     name: K8s ${{matrix.python-version}} ${{matrix.kubernetes-version}} ${{matrix.kubernetes-mode}}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [build-info, prod-images]
     strategy:
       matrix:
@@ -762,7 +821,7 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare PROD Image"
@@ -776,17 +835,20 @@ jobs:
       - name: "Cache virtualenv for kubernetes testing"
         uses: actions/cache@v2
         env:
-          cache-name: cache-kubernetes-tests-virtualenv-v6
+          cache-name: cache-kubernetes-tests-v7-master
         with:
-          path: .build/.kubernetes_venv
-          key: "${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}"
+          path: ".build/.kubernetes_venv*"
+          key: "venv-${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}\
+-${{ hashFiles('setup.cfg') }}\
+-${{ needs.build-info.outputs.defaultPythonVersion }}"
       - name: "Cache bin folder with tools for kubernetes testing"
         uses: actions/cache@v2
         env:
-          cache-name: cache-kubernetes-tests-bin-v6
+          cache-name: cache-kubernetes-tests-v7-master
         with:
-          path: .build/bin
-          key: "${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}\
+          path: ".build/bin"
+          key: "bin-${{ env.cache-name }}-${{ github.job }}\
+-${{ needs.build-info.outputs.defaultPythonVersion }}\
 -${{ needs.build-info.outputs.defaultKindVersion }}\
 -${{ needs.build-info.outputs.defaultHelmVersion }}\
 -${{ matrix.kubernetes-version }}"
@@ -809,7 +871,7 @@ jobs:
   push-prod-images-to-github-registry:
     timeout-minutes: 10
     name: "Push PROD images"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs:
       - build-info
       - static-checks
@@ -821,8 +883,8 @@ jobs:
       - prepare-backport-provider-packages
       - prepare-provider-packages
       - prod-images
+      - verify-prod-images
       - docs
-      - docs-spell-check
     if: >
       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test') &&
       github.event_name != 'schedule'
@@ -849,7 +911,7 @@ jobs:
   push-ci-images-to-github-registry:
     timeout-minutes: 10
     name: "Push CI images"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs:
       - build-info
       - static-checks
@@ -860,8 +922,8 @@ jobs:
       - tests-kubernetes
       - prepare-backport-provider-packages
       - ci-images
+      - verify-ci-images
       - docs
-      - docs-spell-check
     if: >
       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ) &&
       github.event_name != 'schedule'
@@ -888,7 +950,7 @@ jobs:
   constraints:
     timeout-minutes: 10
     name: "Constraints"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
@@ -921,10 +983,12 @@ jobs:
   constraints-push:
     timeout-minutes: 10
     name: "Constraints push"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs:
       - build-info
       - constraints
+      - verify-ci-images
+      - verify-prod-images
       - static-checks
       - static-checks-pylint
       - tests-sqlite
@@ -959,10 +1023,9 @@ jobs:
   tag-repo-nightly:
     timeout-minutes: 10
     name: "Tag repo nightly"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs:
       - docs
-      - docs-spell-check
       - static-checks
       - static-checks-pylint
       - tests-sqlite

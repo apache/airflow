@@ -28,7 +28,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from json import JSONDecodeError
 from typing import Dict, List, Optional, Tuple
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 import lazy_object_proxy
 import nvd3
@@ -108,7 +108,13 @@ def get_safe_url(url):
     valid_schemes = ['http', 'https', '']
     valid_netlocs = [request.host, '']
 
+    if not url:
+        return url_for('Airflow.index')
+
     parsed = urlparse(url)
+
+    query = parse_qsl(parsed.query, keep_blank_values=True)
+    url = parsed._replace(query=urlencode(query)).geturl()
 
     if parsed.scheme in valid_schemes and parsed.netloc in valid_netlocs:
         return url
@@ -491,9 +497,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             if arg_tags_filter:
                 dags_query = dags_query.filter(DagModel.tags.any(DagTag.name.in_(arg_tags_filter)))
 
-            if permissions.RESOURCE_DAG not in filter_dag_ids:
-                dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
-                # pylint: enable=no-member
+            dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
+            # pylint: enable=no-member
 
             all_dags = dags_query
             active_dags = dags_query.filter(~DagModel.is_paused)
@@ -588,8 +593,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         dr = models.DagRun
 
         allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
-        if permissions.RESOURCE_DAG in allowed_dag_ids:
-            allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
         dag_state_stats = session.query(dr.dag_id, dr.state, sqla.func.count(dr.state)).group_by(
             dr.dag_id, dr.state
@@ -639,9 +642,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         if not allowed_dag_ids:
             return wwwutils.json_response({})
 
-        if permissions.RESOURCE_DAG in allowed_dag_ids:
-            allowed_dag_ids = {dag_id for dag_id, in session.query(models.DagModel.dag_id)}
-
         # Filter by post parameters
         selected_dag_ids = {unquote(dag_id) for dag_id in request.form.getlist('dag_ids') if dag_id}
 
@@ -659,10 +659,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         # pylint: enable=comparison-with-callable
 
         # pylint: disable=no-member
-        if selected_dag_ids:
-            running_dag_run_query_result = running_dag_run_query_result.filter(
-                DagRun.dag_id.in_(filter_dag_ids)
-            )
+        running_dag_run_query_result = running_dag_run_query_result.filter(DagRun.dag_id.in_(filter_dag_ids))
         # pylint: enable=no-member
 
         running_dag_run_query_result = running_dag_run_query_result.subquery('running_dag_run')
@@ -678,10 +675,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 running_dag_run_query_result.c.execution_date == TaskInstance.execution_date,
             ),
         )
-        if selected_dag_ids:
-            running_task_instance_query_result = running_task_instance_query_result.filter(
-                TaskInstance.dag_id.in_(filter_dag_ids)
-            )
         # pylint: enable=no-member
 
         if conf.getboolean('webserver', 'SHOW_RECENT_STATS_FOR_COMPLETED_RUNS', fallback=True):
@@ -694,8 +687,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             )
             # pylint: enable=comparison-with-callable
             # pylint: disable=no-member
-            if selected_dag_ids:
-                last_dag_run = last_dag_run.filter(DagRun.dag_id.in_(filter_dag_ids))
+            last_dag_run = last_dag_run.filter(DagRun.dag_id.in_(filter_dag_ids))
             last_dag_run = last_dag_run.subquery('last_dag_run')
             # pylint: enable=no-member
 
@@ -710,12 +702,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                     last_dag_run.c.execution_date == TaskInstance.execution_date,
                 ),
             )
-            # pylint: disable=no-member
-            if selected_dag_ids:
-                last_task_instance_query_result = last_task_instance_query_result.filter(
-                    TaskInstance.dag_id.in_(filter_dag_ids)
-                )
-            # pylint: enable=no-member
 
             final_task_instance_query_result = union_all(
                 last_task_instance_query_result, running_task_instance_query_result
@@ -754,9 +740,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     def last_dagruns(self, session=None):
         """Last DAG runs"""
         allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
-
-        if permissions.RESOURCE_DAG in allowed_dag_ids:
-            allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
         # Filter by post parameters
         selected_dag_ids = {unquote(dag_id) for dag_id in request.form.getlist('dag_ids') if dag_id}
@@ -1588,9 +1571,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Mark Dag Blocked."""
         allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
 
-        if permissions.RESOURCE_DAG in allowed_dag_ids:
-            allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
-
         # Filter by post parameters
         selected_dag_ids = {unquote(dag_id) for dag_id in request.form.getlist('dag_ids') if dag_id}
 
@@ -1981,9 +1961,14 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             'instances': [dag_runs.get(d) or {'execution_date': d.isoformat()} for d in dates],
         }
 
-        form = DateTimeWithNumRunsForm(data={'base_date': max_date, 'num_runs': num_runs})
+        form = DateTimeWithNumRunsForm(
+            data={
+                'base_date': max_date or timezone.utcnow(),
+                'num_runs': num_runs,
+            }
+        )
 
-        doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None), css_class='dag-doc')
+        doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None))
 
         task_log_reader = TaskLogReader()
         if task_log_reader.supports_external_link:
@@ -2069,7 +2054,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         if not tasks:
             flash("No tasks found", "error")
         session.commit()
-        doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None), css_class='dag-doc')
+        doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None))
 
         task_log_reader = TaskLogReader()
         if task_log_reader.supports_external_link:
@@ -2204,7 +2189,12 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         session.commit()
 
-        form = DateTimeWithNumRunsForm(data={'base_date': max_date, 'num_runs': num_runs})
+        form = DateTimeWithNumRunsForm(
+            data={
+                'base_date': max_date or timezone.utcnow(),
+                'num_runs': num_runs,
+            }
+        )
         chart.buildcontent()
         cum_chart.buildcontent()
         s_index = cum_chart.htmlcontent.rfind('});')
@@ -2278,7 +2268,12 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         session.commit()
 
-        form = DateTimeWithNumRunsForm(data={'base_date': max_date, 'num_runs': num_runs})
+        form = DateTimeWithNumRunsForm(
+            data={
+                'base_date': max_date or timezone.utcnow(),
+                'num_runs': num_runs,
+            }
+        )
 
         chart.buildcontent()
 
@@ -2360,7 +2355,12 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         session.commit()
 
-        form = DateTimeWithNumRunsForm(data={'base_date': max_date, 'num_runs': num_runs})
+        form = DateTimeWithNumRunsForm(
+            data={
+                'base_date': max_date or timezone.utcnow(),
+                'num_runs': num_runs,
+            }
+        )
         chart.buildcontent()
         return self.render_template(
             'airflow/chart.html',
@@ -2473,38 +2473,33 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             )
         )
 
-        # determine bars to show in the gantt chart
-        gantt_bar_items = []
-
         tasks = []
         for ti in tis:
-            end_date = ti.end_date or timezone.utcnow()
             # prev_attempted_tries will reflect the currently running try_number
             # or the try_number of the last complete run
             # https://issues.apache.org/jira/browse/AIRFLOW-2143
-            try_count = ti.prev_attempted_tries
-            gantt_bar_items.append((ti.task_id, ti.start_date, end_date, ti.state, try_count))
+            try_count = ti.prev_attempted_tries if ti.prev_attempted_tries != 0 else ti.try_number
             task_dict = alchemy_to_dict(ti)
+            task_dict['end_date'] = task_dict['end_date'] or timezone.utcnow()
             task_dict['extraLinks'] = dag.get_task(ti.task_id).extra_links
+            task_dict['try_number'] = try_count
             tasks.append(task_dict)
 
         tf_count = 0
         try_count = 1
         prev_task_id = ""
         for failed_task_instance in ti_fails:
-            end_date = failed_task_instance.end_date or timezone.utcnow()
-            start_date = failed_task_instance.start_date or end_date
             if tf_count != 0 and failed_task_instance.task_id == prev_task_id:
                 try_count += 1
             else:
                 try_count = 1
             prev_task_id = failed_task_instance.task_id
-            gantt_bar_items.append(
-                (failed_task_instance.task_id, start_date, end_date, State.FAILED, try_count)
-            )
             tf_count += 1
             task = dag.get_task(failed_task_instance.task_id)
             task_dict = alchemy_to_dict(failed_task_instance)
+            end_date = task_dict['end_date'] or timezone.utcnow()
+            task_dict['end_date'] = end_date
+            task_dict['start_date'] = task_dict['start_date'] or end_date
             task_dict['state'] = State.FAILED
             task_dict['operator'] = task.task_type
             task_dict['try_number'] = try_count
@@ -2837,10 +2832,19 @@ class ConnectionModelView(AirflowModelView):
         'extra__kubernetes__kube_config',
         'extra__kubernetes__namespace',
     ]
-    list_columns = ['conn_id', 'conn_type', 'host', 'port', 'is_encrypted', 'is_extra_encrypted']
+    list_columns = [
+        'conn_id',
+        'conn_type',
+        'description',
+        'host',
+        'port',
+        'is_encrypted',
+        'is_extra_encrypted',
+    ]
     add_columns = edit_columns = [
         'conn_id',
         'conn_type',
+        'description',
         'host',
         'schema',
         'login',
@@ -3247,9 +3251,6 @@ class DagRunModelView(AirflowModelView):
         """Multiple delete."""
         self.datamodel.delete_all(items)
         self.update_redirect()
-        dirty_ids = []
-        for item in items:
-            dirty_ids.append(item.dag_id)
         return redirect(self.get_redirect())
 
     @action('set_running', "Set state to 'running'", '', single=False)
@@ -3258,11 +3259,9 @@ class DagRunModelView(AirflowModelView):
         """Set state to running."""
         try:
             count = 0
-            dirty_ids = []
             for dr in (
                 session.query(DagRun).filter(DagRun.id.in_([dagrun.id for dagrun in drs])).all()
             ):  # noqa pylint: disable=no-member
-                dirty_ids.append(dr.dag_id)
                 count += 1
                 dr.start_date = timezone.utcnow()
                 dr.state = State.RUNNING
@@ -3284,12 +3283,10 @@ class DagRunModelView(AirflowModelView):
         """Set state to failed."""
         try:
             count = 0
-            dirty_ids = []
             altered_tis = []
             for dr in (
                 session.query(DagRun).filter(DagRun.id.in_([dagrun.id for dagrun in drs])).all()
             ):  # noqa pylint: disable=no-member
-                dirty_ids.append(dr.dag_id)
                 count += 1
                 altered_tis += set_dag_run_state_to_failed(
                     current_app.dag_bag.get_dag(dr.dag_id), dr.execution_date, commit=True, session=session
@@ -3314,12 +3311,10 @@ class DagRunModelView(AirflowModelView):
         """Set state to success."""
         try:
             count = 0
-            dirty_ids = []
             altered_tis = []
             for dr in (
                 session.query(DagRun).filter(DagRun.id.in_([dagrun.id for dagrun in drs])).all()
             ):  # noqa pylint: disable=no-member
-                dirty_ids.append(dr.dag_id)
                 count += 1
                 altered_tis += set_dag_run_state_to_success(
                     current_app.dag_bag.get_dag(dr.dag_id), dr.execution_date, commit=True, session=session
@@ -3716,9 +3711,8 @@ class DagModelView(AirflowModelView):
 
         filter_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
         # pylint: disable=no-member
-        if permissions.RESOURCE_DAG not in filter_dag_ids:
-            dag_ids_query = dag_ids_query.filter(DagModel.dag_id.in_(filter_dag_ids))
-            owners_query = owners_query.filter(DagModel.dag_id.in_(filter_dag_ids))
+        dag_ids_query = dag_ids_query.filter(DagModel.dag_id.in_(filter_dag_ids))
+        owners_query = owners_query.filter(DagModel.dag_id.in_(filter_dag_ids))
         # pylint: enable=no-member
 
         payload = [row[0] for row in dag_ids_query.union(owners_query).limit(10).all()]

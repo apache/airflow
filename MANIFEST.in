@@ -32,5 +32,6 @@ global-exclude __pycache__  *.pyc
 include airflow/alembic.ini
 include airflow/api_connexion/openapi/v1.yaml
 include airflow/git_version
+include airflow/provider.yaml.schema.json
 include airflow/serialization/schema.json
 include airflow/utils/python_virtualenv_script.jinja2
