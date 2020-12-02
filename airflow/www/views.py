@@ -536,7 +536,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 for name, in dagtags
             ]
 
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.query(errors.ImportError).order_by(errors.ImportError.id).all()
 
         for import_error in import_errors:
             flash("Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=import_error), "dag_import_error")
