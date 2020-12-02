@@ -125,6 +125,14 @@ This will build the image using command similar to:
       apache-airflow[async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,ssh,statsd,virtualenv,presto]==1.10.13 \
       --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.13/constraints-3.6.txt"
 
+.. note::
+   On 30th of November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver.
+   This resolver does not yet work with Apache Airflow and might leads to errors in installation -
+   depends on your choice of extras. In order to install Airflow you need to either downgrade
+   pip to version 20.2.4 ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``--use-deprecated legacy-resolver`` to your pip install command.
+
+
 You can also build production images from specific Git version via providing ``--install-airflow-reference``
 parameter to Breeze (this time constraints are taken from the ``constraints-master`` branch which is the
 HEAD of development for constraints):

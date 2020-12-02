@@ -31,16 +31,36 @@ source PATH_TO_YOUR_VENV/bin/activate
 # [required] building and installing by pip (preferred)
 pip install .
 
-# or directly
+NOTE!
+
+On 30th of November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver.
+This resolver does not yet work with Apache Airflow and might leads to errors in installation -
+depends on your choice of extras. In order to install Airflow you need to either downgrade
+pip to version 20.2.4 ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+``--use-deprecated legacy-resolver`` to your pip install command.
+
+
+# or you can install it directly via setup.py
 python setup.py install
+
 
 # You can also install recommended version of the dependencies by using
 # constraint-python<PYTHON_MAJOR_MINOR_VERSION>.txt files as constraint file. This is needed in case
 # you have problems with installing the current requirements from PyPI.
-# There are different constraint files for different python versions. For example"
+# There are different constraint files for different python versions and you shopuld choose the
+# version of constraints specific for your version.
+# For example:
 
 pip install . \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.14/constraints-3.6.txt"
+
+
+.. note::
+   On 30th of November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver.
+   This resolver does not yet work with Apache Airflow and might leads to errors in installation -
+   depends on your choice of extras. In order to install Airflow you need to either downgrade
+   pip to version 20.2.4 ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``--use-deprecated legacy-resolver`` to your pip install command.
 
 # You can also install Airflow with extras specified. The list of available extras:
 # START EXTRAS HERE
