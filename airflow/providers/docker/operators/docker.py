@@ -289,6 +289,7 @@ class DockerOperator(BaseOperator):
             for output in self.cli.pull(self.image, stream=True, decode=True):
                 if isinstance(output, str):
                     self.log.info("%s", output)
+                    continue
                 if isinstance(output, dict) and 'status' in output:
                     if 'id' in output:
                         if latest_status.get(output['id']) != output['status']:
