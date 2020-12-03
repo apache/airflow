@@ -135,7 +135,7 @@ function initialization::initialize_base_variables() {
     export INIT_SCRIPT_FILE=${INIT_SCRIPT_FILE:=""}
 
     # Read airflow version from the setup.py.
-    AIRFLOW_VERSION=$(python "${AIRFLOW_SOURCES}/setup.py" --version)
+    AIRFLOW_VERSION=$(awk '/^version =/ {print $3}' "${AIRFLOW_SOURCES}/setup.py"  | sed "s/['+]//g")
     export AIRFLOW_VERSION
 
     # Whether credentials should be forwarded to inside the docker container
