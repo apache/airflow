@@ -68,7 +68,7 @@ class HttpSensor(BaseSensorOperator):
         depends on the option that's being modified.
     """
 
-    template_fields = ('endpoint', 'request_params')
+    template_fields = ('endpoint', 'request_params', 'headers')
 
     @apply_defaults
     def __init__(
