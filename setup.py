@@ -197,7 +197,7 @@ azure_cosmos = [
     'azure-cosmos>=3.0.1,<4',
 ]
 azure_data_lake = [
-    'azure-datalake-store>=0.0.45'
+    'azure-datalake-store>=0.0.45',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
     'cffi<1.14.0;python_version<"3.0"'
