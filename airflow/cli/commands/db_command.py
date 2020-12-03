@@ -71,6 +71,7 @@ def shell(args):
                 database = {url.database}
                 """
             ).strip()
+            print(content)
             f.write(content.encode())
             f.flush()
             execute_interactive(["mysql", f"--defaults-extra-file={f.name}"])
@@ -79,7 +80,7 @@ def shell(args):
     elif url.get_backend_name() == 'postgresql':
         env = os.environ.copy()
         env['PGHOST'] = url.host or ""
-        env['PGPORT'] = str(url.port or "")
+        env['PGPORT'] = str(url.port or "5432")
         env['PGUSER'] = url.username or ""
         # PostgreSQL does not allow the use of PGPASSFILE if the current user is root.
         env["PGPASSWORD"] = url.password or ""
