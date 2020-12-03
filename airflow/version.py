@@ -17,4 +17,13 @@
 # under the License.
 #
 
-version = '2.0.0b3'
+__all__ = ['version']
+
+try:
+    from importlib import metadata
+except ImportError:
+    import importlib_metadata as metadata
+
+version = metadata.version('apache-airflow')
+
+del metadata

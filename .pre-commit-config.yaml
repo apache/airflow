@@ -440,11 +440,6 @@ repos:
         files: ^airflow/www/.*\.(css|scss|sass)$
         # Keep dependency versions in sync w/ airflow/www/package.json
         additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0']
-      - id: version-sync
-        name: Version sync
-        files: ^airflow/version.py$|setup.py
-        entry: ./scripts/ci/pre_commit/pre_commit_sync_version.sh
-        language: system
       - id: providers-init-file
         name: Provider init file
         pass_filenames: false
