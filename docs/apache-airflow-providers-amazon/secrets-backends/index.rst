@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -16,28 +15,13 @@
     specific language governing permissions and limitations
     under the License.
 
-``apache-airflow-providers-microsoft-azure``
-============================================
 
-Content
--------
 
-.. toctree::
-    :maxdepth: 1
-    :caption: Guides
-
-    Connection types <connections/azure>
-    Operators <operators/index>
-    Secrets backends <secrets-backends/azure-key-vault-secrets-backend>
+Secret Backends
+===============
 
 .. toctree::
     :maxdepth: 1
-    :caption: References
+    :glob:
 
-    Python API <_api/airflow/providers/microsoft/azure/index>
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Resources
-
-    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/microsoft/azure/example_dags>
+    *
