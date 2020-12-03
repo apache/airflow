@@ -23,6 +23,7 @@ import shlex
 import shutil
 import sys
 from collections import defaultdict
+from contextlib import contextmanager
 from glob import glob
 from subprocess import run
 from tempfile import NamedTemporaryFile, TemporaryDirectory
@@ -67,6 +68,19 @@ ERRORS_ELIGIBLE_TO_REBUILD = [
 ]
 
 
+@contextmanager
+def with_groups(title):
+    """
+    Creates an expandable group in the Github Action log.
+
+    For more information, see:
+    https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-commands-for-github-actions#grouping-log-lines
+    """
+    print(f"::group::{title}")
+    yield
+    print("::endgroup::")
+
+
 class AirflowDocsBuilder:
     """Documentation builder for Airflow."""
 
@@ -104,7 +118,7 @@ class AirflowDocsBuilder:
     def check_spelling(self):
         """Checks spelling."""
         spelling_errors = []
-        with TemporaryDirectory() as tmp_dir:
+        with TemporaryDirectory() as tmp_dir, with_groups(f"Check spelling: {self.package_name}"):
             build_cmd = [
                 "sphinx-build",
                 "-W",  # turn warnings into errors
@@ -148,7 +162,7 @@ class AirflowDocsBuilder:
     def build_sphinx_docs(self) -> List[DocBuildError]:
         """Build Sphinx documentation"""
         build_errors = []
-        with NamedTemporaryFile() as tmp_file:
+        with NamedTemporaryFile() as tmp_file, with_groups(f"Building docs: {self.package_name}"):
             build_cmd = [
                 "sphinx-build",
                 "-T",  # show full traceback on exception
