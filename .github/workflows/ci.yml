@@ -341,6 +341,7 @@ jobs:
         with:
           name: airflow-documentation
           path: "./files/documentation"
+          retention-days: 7
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         if: >
@@ -394,12 +395,14 @@ jobs:
         with:
           name: airflow-backport-packages
           path: "./files/airflow-packages-*"
+          retention-days: 7
       - name: "Upload readme artifacts"
         uses: actions/upload-artifact@v2
         if: always()
         with:
           name: airflow-backport-readmes
           path: "./files/airflow-readme-*"
+          retention-days: 7
 
   prepare-provider-packages:
     timeout-minutes: 30
@@ -439,12 +442,14 @@ jobs:
         with:
           name: airflow-provider-packages
           path: "./files/airflow-packages-*"
+          retention-days: 7
       - name: "Upload readme artifacts"
         uses: actions/upload-artifact@v2
         if: always()
         with:
           name: airflow-provider-readmes
           path: "./files/airflow-readme-*"
+          retention-days: 7
 
   tests-helm:
     timeout-minutes: 20
@@ -479,18 +484,21 @@ jobs:
         with:
           name: airflow-logs-helm
           path: "./files/airflow_logs*"
+          retention-days: 7
       - name: "Upload container logs"
         uses: actions/upload-artifact@v2
         if: failure()
         with:
           name: container-logs-helm
           path: "./files/container_logs*"
+          retention-days: 7
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
           name: >
             coverage-helm
           path: "./files/coverage.xml"
+          retention-days: 7
 
   tests-postgres:
     timeout-minutes: 80
@@ -532,18 +540,21 @@ jobs:
         with:
           name: airflow-logs-${{matrix.python-version}}-${{matrix.postgres-version}}
           path: "./files/airflow_logs*"
+          retention-days: 7
       - name: "Upload container logs"
         uses: actions/upload-artifact@v2
         if: failure()
         with:
           name: container-logs-postgres-${{matrix.python-version}}-${{matrix.postgres-version}}
           path: "./files/container_logs*"
+          retention-days: 7
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
           name: >
             coverage-postgres-${{matrix.python-version}}-${{matrix.postgres-version}}
           path: "./files/coverage.xml"
+          retention-days: 7
 
   tests-mysql:
     timeout-minutes: 80
@@ -584,17 +595,20 @@ jobs:
         with:
           name: airflow-logs-${{matrix.python-version}}-${{matrix.mysql-version}}
           path: "./files/airflow_logs*"
+          retention-days: 7
       - name: "Upload container logs"
         uses: actions/upload-artifact@v2
         if: failure()
         with:
           name: container-logs-mysql-${{matrix.python-version}}-${{matrix.mysql-version}}
           path: "./files/container_logs*"
+          retention-days: 7
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
           name: coverage-mysql-${{matrix.python-version}}-${{matrix.mysql-version}}
           path: "./files/coverage.xml"
+          retention-days: 7
 
   tests-sqlite:
     timeout-minutes: 60
@@ -633,17 +647,20 @@ jobs:
         with:
           name: airflow-logs-${{matrix.python-version}}
           path: './files/airflow_logs*'
+          retention-days: 7
       - name: "Upload container logs"
         uses: actions/upload-artifact@v2
         if: failure()
         with:
           name: container-logs-sqlite-${{matrix.python-version}}
           path: "./files/container_logs*"
+          retention-days: 7
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
           name: coverage-sqlite-${{matrix.python-version}}
           path: ./files/coverage.xml
+          retention-days: 7
 
   tests-quarantined:
     timeout-minutes: 60
@@ -699,23 +716,27 @@ jobs:
         with:
           name: quarantined_tests
           path: "files/test_result.xml"
+          retention-days: 7
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
         if: failure()
         with:
           name: airflow-logs-quarantined-${{ matrix.backend }}
           path: "./files/airflow_logs*"
+          retention-days: 7
       - name: "Upload container logs"
         uses: actions/upload-artifact@v2
         if: failure()
         with:
           name: container-logs-quarantined-${{ matrix.backend }}
           path: "./files/container_logs*"
+          retention-days: 7
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
           name: coverage-quarantined-${{ matrix.backend }}
           path: "./files/coverage.xml"
+          retention-days: 7
 
   upload-coverage:
     timeout-minutes: 5
@@ -861,12 +882,14 @@ jobs:
           name: >
             kind-logs-${{matrix.kubernetes-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}
           path: /tmp/kind_logs_*
+          retention-days: 7
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
           name: >
             coverage-k8s-${{matrix.kubernetes-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}
           path: "./files/coverage.xml"
+          retention-days: 7
 
   push-prod-images-to-github-registry:
     timeout-minutes: 10
@@ -979,6 +1002,7 @@ jobs:
         with:
           name: 'constraints-${{matrix.python-version}}'
           path: './files/constraints-${{matrix.python-version}}/constraints-${{matrix.python-version}}.txt'
+          retention-days: 7
 
   constraints-push:
     timeout-minutes: 10
