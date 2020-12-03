@@ -17,6 +17,7 @@
 # under the License.
 import importlib
 import logging
+import sys
 import unittest
 from unittest import mock
 
@@ -214,12 +215,23 @@ class TestPluginsManager:
             assert "Failed to import plugin test-entrypoint" in received_logs
             assert ("test.plugins.test_plugins_manager", "my_fake_module not found") in import_errors.items()
 
-    def test_registering_plugin_macros(self):
+    def test_registering_plugin_macros(self, request):
         """
         Tests whether macros that originate from plugins are being registered correctly.
         """
         from airflow import macros
         from airflow.plugins_manager import integrate_macros_plugins
+
+        def cleanup_macros():
+            """Reloads the airflow.macros module such that the symbol table is reset after the test."""
+            # We're explicitly deleting the module from sys.modules and importing it again
+            # using import_module() as opposed to using importlib.reload() because the latter
+            # does not undo the changes to the airflow.macros module that are being caused by
+            # invoking integrate_macros_plugins()
+            del sys.modules['airflow.macros']
+            importlib.import_module('airflow.macros')
+
+        request.addfinalizer(cleanup_macros)
 
         def custom_macro():
             return 'foo'
