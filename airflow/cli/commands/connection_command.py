@@ -146,9 +146,9 @@ def connections_export(args):
         args.file.write(msg)
 
         if _is_stdout(args.file):
-            print(f"Connections successfully exported to {args.file.name}.")
-        else:
             print("Connections successfully exported.", file=sys.stderr)
+        else:
+            print(f"Connections successfully exported to {args.file.name}.")
 
 
 alternative_conn_specs = ['conn_type', 'conn_host', 'conn_login', 'conn_password', 'conn_schema', 'conn_port']
