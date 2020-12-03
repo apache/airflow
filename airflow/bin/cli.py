@@ -761,6 +761,7 @@ def rotate_fernet_key(args):
 @cli_utils.action_logging
 def list_dags(args):
     dagbag = DagBag(process_subdir(args.subdir))
+    errors=len(dagbag.import_errors)
     s = textwrap.dedent("""\n
     -------------------------------------------------------------------
     DAGS
@@ -771,6 +772,9 @@ def list_dags(args):
     print(s.format(dag_list=dag_list))
     if getattr(args, 'report', False):
         print(dagbag.dagbag_report())
+    if errors>0:
+        exit(1)
+
 
 
 def list_dags_report(args):
