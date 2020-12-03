@@ -163,35 +163,19 @@ class DagRunForm(DynamicForm):
             item.conf = json.loads(item.conf)
 
 
-class DagRunEditForm(DynamicForm):
+class DagRunEditForm(DagRunForm):
     """Form for editing DAG Run"""
 
     dag_id = StringField(lazy_gettext('Dag Id'), validators=[DataRequired()], widget=BS3TextFieldROWidget())
     start_date = DateTimeWithTimezoneField(lazy_gettext('Start Date'), widget=AirflowDateTimePickerROWidget())
     end_date = DateTimeWithTimezoneField(lazy_gettext('End Date'), widget=AirflowDateTimePickerROWidget())
     run_id = StringField(lazy_gettext('Run Id'), validators=[DataRequired()], widget=BS3TextFieldROWidget())
-    state = SelectField(
-        lazy_gettext('State'),
-        choices=(
-            ('success', 'success'),
-            ('running', 'running'),
-            ('failed', 'failed'),
-        ),
-        widget=Select2Widget(),
-    )
     execution_date = DateTimeWithTimezoneField(
         lazy_gettext('Execution Date'), widget=AirflowDateTimePickerROWidget()
     )
     conf = TextAreaField(
         lazy_gettext('Conf'), validators=[ValidJson(), Optional()], widget=BS3TextAreaROWidget()
     )
-
-    def populate_obj(self, item):
-        """Populates the attributes of the passed obj with data from the form’s fields."""
-        super().populate_obj(item)  # pylint: disable=no-member
-        item.run_type = DagRunType.from_run_id(item.run_id)
-        if item.conf:
-            item.conf = json.loads(item.conf)
 
 
 class TaskInstanceEditForm(DynamicForm):
