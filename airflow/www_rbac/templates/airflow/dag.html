@@ -282,10 +282,14 @@
                 Downstream
               </label>
             </span>
+            <hr/>
+            <button id="btn_cancel" type="button" class="btn btn-warning"
+                      data-action="{{ url_for('Airflow.cancel') }}">
+                Cancel Task Instance
+              </button>
           </form>
           <hr/>
-            <span class="btn-group" id="extra_links">
-            </span>
+            <span class="btn-group" id="extra_links"></span>
         </div>
 
         <div class="modal-footer">
@@ -324,6 +328,9 @@
             </button>
             <button id="btn_dagrun_success" type="button" class="btn btn-primary" data-action="{{ url_for('Airflow.dagrun_success') }}">
               Mark Success
+            </button>
+            <button id="btn_dagrun_cancel" type="button" class="btn btn-warning" data-action="{{ url_for('Airflow.cancel_specific_dagrun') }}">
+              Cancel DAG Run
             </button>
           </form>
         </div>
@@ -546,7 +553,6 @@ function updateQueryStringParameter(uri, key, value) {
       form.action = $(this).data("action");
       form.submit();
     })
-
 
     $("#pause_resume").change(function() {
       var dag_id = $(this).attr('dag_id');
