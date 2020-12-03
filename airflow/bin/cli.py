@@ -3871,6 +3871,12 @@ class CLIFactory(object):
             'help': "Serve logs generate by worker",
             'args': tuple(),
         }, {
+            'func': scheduler,
+            'help': "Start a scheduler instance",
+            'args': ('dag_id_opt', 'subdir', 'run_duration', 'num_runs',
+                     'do_pickle', 'pid', 'daemon', 'stdout', 'stderr',
+                     'log_file'),
+        }, {
             'func': webserver,
             'help': "Start a Airflow webserver instance",
             'args': ('port', 'workers', 'workerclass', 'worker_timeout', 'hostname',
