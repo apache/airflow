@@ -493,7 +493,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             if arg_search_query:
                 dags_query = dags_query.filter(
                     DagModel.dag_id.ilike('%' + arg_search_query + '%')
-                    | DagModel.owners.ilike('%' + arg_search_query + '%')  # noqa  # noqa
+                    | DagModel.owners.ilike('%' + arg_search_query + '%')  # noqa
                 )
 
             if arg_tags_filter:
