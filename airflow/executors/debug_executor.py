@@ -77,7 +77,6 @@ class DebugExecutor(BaseExecutor):
         try:
             params = self.tasks_params.pop(ti.key, {})
             ti._run_raw_task(job_id=ti.job_id, **params)  # pylint: disable=protected-access
-            ti.set_state(State.SUCCESS)
             self.change_state(key, State.SUCCESS)
             ti._run_finished_callback()  # pylint: disable=protected-access
             return True
