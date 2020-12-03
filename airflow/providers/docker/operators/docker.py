@@ -291,12 +291,15 @@ class DockerOperator(BaseOperator):
                     self.log.info("%s", output)
                     continue
                 if isinstance(output, dict) and 'status' in output:
-                    if 'id' in output:
-                        if latest_status.get(output['id']) != output['status']:
-                            self.log.info("%s: %s", output['id'], output['status'])
-                            latest_status[output['id']] = output['status']
-                    else:
-                        self.log.info("%s", output['status'])
+                    output_status = output["status"]
+                    if 'id' not in output:
+                        self.log.info("%s", output_status)
+                        continue
+
+                    output_id = output["id"]
+                    if latest_status.get(output_id) != output_status:
+                        self.log.info("%s: %s", output_id, output_status)
+                        latest_status[output_id] = output_status
 
         self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
         return self._run_image()
