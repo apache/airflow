@@ -71,7 +71,6 @@ def shell(args):
                 database = {url.database}
                 """
             ).strip()
-            print(content)
             f.write(content.encode())
             f.flush()
             execute_interactive(["mysql", f"--defaults-extra-file={f.name}"])
