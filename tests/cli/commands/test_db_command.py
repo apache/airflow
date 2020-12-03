@@ -110,27 +110,27 @@ class TestCliDb(unittest.TestCase):
             postgres_env,
         )
 
-        @mock.patch("airflow.cli.commands.db_command.execute_interactive")
-        @mock.patch(
-            "airflow.cli.commands.db_command.settings.engine.url",
-            make_url("postgresql+psycopg2://postgres:airflow@postgres/airflow"),
+    @mock.patch("airflow.cli.commands.db_command.execute_interactive")
+    @mock.patch(
+        "airflow.cli.commands.db_command.settings.engine.url",
+        make_url("postgresql+psycopg2://postgres:airflow@postgres/airflow"),
+    )
+    def test_cli_shell_postgres_without_port(self, mock_execute_interactive):
+        db_command.shell(self.parser.parse_args(['db', 'shell']))
+        mock_execute_interactive.assert_called_once_with(['psql'], env=mock.ANY)
+        _, kwargs = mock_execute_interactive.call_args
+        env = kwargs['env']
+        postgres_env = {k: v for k, v in env.items() if k.startswith('PG')}
+        self.assertEqual(
+            {
+                'PGDATABASE': 'airflow',
+                'PGHOST': 'postgres',
+                'PGPASSWORD': 'airflow',
+                'PGPORT': '5432',
+                'PGUSER': 'postgres',
+            },
+            postgres_env,
         )
-        def test_cli_shell_postgres_without_port(self, mock_execute_interactive):
-            db_command.shell(self.parser.parse_args(['db', 'shell']))
-            mock_execute_interactive.assert_called_once_with(['psql'], env=mock.ANY)
-            _, kwargs = mock_execute_interactive.call_args
-            env = kwargs['env']
-            postgres_env = {k: v for k, v in env.items() if k.startswith('PG')}
-            self.assertEqual(
-                {
-                    'PGDATABASE': 'airflow',
-                    'PGHOST': 'postgres',
-                    'PGPASSWORD': 'airflow',
-                    'PGPORT': '5432',
-                    'PGUSER': 'postgres',
-                },
-                postgres_env,
-            )
 
     @mock.patch(
         "airflow.cli.commands.db_command.settings.engine.url",
