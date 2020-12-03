@@ -55,7 +55,11 @@ class Log(Base):
             self.dag_id = task_instance.dag_id
             self.task_id = task_instance.task_id
             self.execution_date = task_instance.execution_date
-            task_owner = task_instance.task.owner
+            if owner is None:
+                # sometimes we use this model when task_instance is directly from the sqlalchemy
+                # model, in which case the owner is not set bc the task is only set in the init
+                # method of the TaskInstance class
+                task_owner = task_instance.task.owner
 
         if 'task_id' in kwargs:
             self.task_id = kwargs['task_id']
