@@ -1055,7 +1055,7 @@ class TestCleanUpPodsCommand(unittest.TestCase):
             self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
         )
         delete_pod.assert_not_called()
-        load_incluster_config.assert_called_once()
+        load_incluster_config.assert_called_once_with()
 
     @mock.patch('airflow.bin.cli._delete_pod')
     @mock.patch('kubernetes.client.CoreV1Api.list_namespaced_pod')
@@ -1072,7 +1072,7 @@ class TestCleanUpPodsCommand(unittest.TestCase):
             self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
         )
         delete_pod.assert_called_with('dummy', 'awesome-namespace')
-        load_incluster_config.assert_called_once()
+        load_incluster_config.assert_called_once_with()
 
     @mock.patch('airflow.bin.cli._delete_pod')
     @mock.patch('kubernetes.client.CoreV1Api.list_namespaced_pod')
@@ -1092,7 +1092,7 @@ class TestCleanUpPodsCommand(unittest.TestCase):
             self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
         )
         delete_pod.assert_not_called()
-        load_incluster_config.assert_called_once()
+        load_incluster_config.assert_called_once_with()
 
     @mock.patch('airflow.bin.cli._delete_pod')
     @mock.patch('kubernetes.client.CoreV1Api.list_namespaced_pod')
@@ -1112,7 +1112,7 @@ class TestCleanUpPodsCommand(unittest.TestCase):
             self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
         )
         delete_pod.assert_called_with('dummy3', 'awesome-namespace')
-        load_incluster_config.assert_called_once()
+        load_incluster_config.assert_called_once_with()
 
     @mock.patch('airflow.bin.cli._delete_pod')
     @mock.patch('kubernetes.client.CoreV1Api.list_namespaced_pod')
@@ -1130,7 +1130,7 @@ class TestCleanUpPodsCommand(unittest.TestCase):
             self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
         )
         delete_pod.assert_called_with('dummy4', 'awesome-namespace')
-        load_incluster_config.assert_called_once()
+        load_incluster_config.assert_called_once_with()
 
     @mock.patch('airflow.bin.cli._delete_pod')
     @mock.patch('kubernetes.client.CoreV1Api.list_namespaced_pod')
@@ -1147,4 +1147,4 @@ class TestCleanUpPodsCommand(unittest.TestCase):
         cli.cleanup_pods(
             self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
         )
-        load_incluster_config.assert_called_once()
+        load_incluster_config.assert_called_once_with()
