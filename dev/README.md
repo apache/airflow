@@ -200,8 +200,6 @@ pip install twine
 - Set proper permissions for the pypirc file:
 `$ chmod 600 ~/.pypirc`
 
-- Confirm that `airflow/version.py` is set properly.
-
 
 ## Hardware used to prepare and verify the packages
 

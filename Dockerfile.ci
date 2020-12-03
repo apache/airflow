@@ -306,7 +306,6 @@ RUN yarn --cwd airflow/www install --frozen-lockfile --no-cache
 COPY setup.py ${AIRFLOW_SOURCES}/setup.py
 COPY setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
 
-COPY airflow/version.py ${AIRFLOW_SOURCES}/airflow/version.py
 COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
 
 ARG UPGRADE_TO_LATEST_CONSTRAINTS="false"

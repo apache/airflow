@@ -30,7 +30,6 @@ from setuptools import Command, find_namespace_packages, setup
 
 logger = logging.getLogger(__name__)
 
-# This is automatically maintained in sync via pre-commit from airflow/version.py
 version = '2.0.0b3'
 
 PY3 = sys.version_info[0] == 3
