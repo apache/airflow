@@ -185,18 +185,19 @@ def send_mime_email(e_from: str, e_to: List[str], mime_msg: MIMEMultipart, dryru
             try:
                 conn = smtplib.SMTP_SSL(host=smtp_host, port=smtp_port, timeout=smtp_timeout) if smtp_ssl \
                     else smtplib.SMTP(host=smtp_host, port=smtp_port, timeout=smtp_timeout)
-                if smtp_starttls:
-                    conn.starttls()
-                if smtp_user and smtp_password:
-                    conn.login(smtp_user, smtp_password)
-                log.info("Sent an alert email to %s", e_to)
-                conn.sendmail(e_from, e_to, mime_msg.as_string())
-                conn.quit()
-                break
-            except:
+            except smtplib.SMTPServerDisconnected:
                 if attempt < (smtp_retry_limit - 1):
                     continue
                 raise
+
+            if smtp_starttls:
+                conn.starttls()
+            if smtp_user and smtp_password:
+                conn.login(smtp_user, smtp_password)
+            log.info("Sent an alert email to %s", e_to)
+            conn.sendmail(e_from, e_to, mime_msg.as_string())
+            conn.quit()
+            break
 
 
 def get_email_address_list(addresses: Union[str, Iterable[str]]) -> List[str]:
