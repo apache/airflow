@@ -121,8 +121,8 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
     ```shell script
     git checkout constraints-1-10
-    git tag "constraints-${VERSION}"
-    git push origin "constraints-${VERSION}"
+    git tag -s "constraints-${VERSION%rc?}"
+    git push origin "constraints-${VERSION%rc?}"
     ```
 
 - Push the artifacts to ASF dev dist repo
