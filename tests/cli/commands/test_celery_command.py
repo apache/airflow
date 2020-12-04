@@ -40,7 +40,7 @@ class TestWorkerPrecheck(unittest.TestCase):
         mock_validate_session.return_value = False
         with self.assertRaises(SystemExit) as cm:
             celery_command.worker(Namespace(queues=1, concurrency=1))
-        self.assertEqual(cm.exception.code, 1)
+        self.assertEqual(str(cm.exception), "Worker exiting, database connection precheck failed.")
 
     @conf_vars({('celery', 'worker_precheck'): 'False'})
     def test_worker_precheck_exception(self):

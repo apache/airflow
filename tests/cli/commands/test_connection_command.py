@@ -498,7 +498,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn-uri=%s" % TEST_URL,
                     "--conn-description=new0 description",
                 ],
-                "\tSuccessfully added `conn_id`=new0 : postgresql://airflow:airflow@host:5432/airflow",
+                "Successfully added `conn_id`=new0 : postgresql://airflow:airflow@host:5432/airflow",
                 {
                     "conn_type": "postgres",
                     "description": "new0 description",
@@ -518,7 +518,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn-uri=%s" % TEST_URL,
                     "--conn-description=new1 description",
                 ],
-                "\tSuccessfully added `conn_id`=new1 : postgresql://airflow:airflow@host:5432/airflow",
+                "Successfully added `conn_id`=new1 : postgresql://airflow:airflow@host:5432/airflow",
                 {
                     "conn_type": "postgres",
                     "description": "new1 description",
@@ -539,7 +539,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn-extra",
                     "{'extra': 'yes'}",
                 ],
-                "\tSuccessfully added `conn_id`=new2 : postgresql://airflow:airflow@host:5432/airflow",
+                "Successfully added `conn_id`=new2 : postgresql://airflow:airflow@host:5432/airflow",
                 {
                     "conn_type": "postgres",
                     "description": None,
@@ -562,7 +562,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn-description",
                     "new3 description",
                 ],
-                "\tSuccessfully added `conn_id`=new3 : postgresql://airflow:airflow@host:5432/airflow",
+                "Successfully added `conn_id`=new3 : postgresql://airflow:airflow@host:5432/airflow",
                 {
                     "conn_type": "postgres",
                     "description": "new3 description",
@@ -587,7 +587,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn-schema=airflow",
                     "--conn-description=  new4 description  ",
                 ],
-                "\tSuccessfully added `conn_id`=new4 : hive_metastore://airflow:******@host:9083/airflow",
+                "Successfully added `conn_id`=new4 : hive_metastore://airflow:******@host:9083/airflow",
                 {
                     "conn_type": "hive_metastore",
                     "description": "  new4 description  ",
@@ -611,7 +611,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "{'extra': 'yes'}",
                     "--conn-description=new5 description",
                 ],
-                "\tSuccessfully added `conn_id`=new5 : google_cloud_platform://:@:",
+                "Successfully added `conn_id`=new5 : google_cloud_platform://:@:",
                 {
                     "conn_type": "google_cloud_platform",
                     "description": "new5 description",
@@ -703,7 +703,7 @@ class TestCliDeleteConnections(unittest.TestCase):
             stdout = stdout.getvalue()
 
         # Check deletion stdout
-        self.assertIn("\tSuccessfully deleted `conn_id`=new1", stdout)
+        self.assertIn("Successfully deleted connection with `conn_id`=new1", stdout)
 
         # Check deletions
         result = session.query(Connection).filter(Connection.conn_id == "new1").first()

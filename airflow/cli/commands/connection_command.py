@@ -228,11 +228,9 @@ def connections_delete(args):
         try:
             to_delete = session.query(Connection).filter(Connection.conn_id == args.conn_id).one()
         except exc.NoResultFound:
-            msg = f'Did not find a connection with `conn_id`={args.conn_id}'
-            raise SystemExit(msg)
+            raise SystemExit(f'Did not find a connection with `conn_id`={args.conn_id}')
         except exc.MultipleResultsFound:
-            msg = f'Found more than one connection with `conn_id`={args.conn_id}'
-            raise SystemExit(msg)
+            raise SystemExit(f'Found more than one connection with `conn_id`={args.conn_id}')
         else:
             session.delete(to_delete)
             print(f"Successfully deleted connection with `conn_id`={to_delete.conn_id}")
