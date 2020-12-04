@@ -18,10 +18,12 @@
 #
 import json
 import unittest
+from base64 import b64encode
 from unittest import mock
 
 import boto3
 import pytest
+from moto.core import ACCOUNT_ID
 
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -33,6 +35,74 @@ except ImportError:
     mock_dynamodb2 = None
     mock_sts = None
     mock_iam = None
+
+# pylint: disable=line-too-long
+SAML_ASSERTION = """
+<?xml version="1.0"?>
+<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" ID="_00000000-0000-0000-0000-000000000000" Version="2.0" IssueInstant="2012-01-01T12:00:00.000Z" Destination="https://signin.aws.amazon.com/saml" Consent="urn:oasis:names:tc:SAML:2.0:consent:unspecified">
+  <Issuer xmlns="urn:oasis:names:tc:SAML:2.0:assertion">http://localhost/</Issuer>
+  <samlp:Status>
+    <samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/>
+  </samlp:Status>
+  <Assertion xmlns="urn:oasis:names:tc:SAML:2.0:assertion" ID="_00000000-0000-0000-0000-000000000000" IssueInstant="2012-12-01T12:00:00.000Z" Version="2.0">
+    <Issuer>http://localhost:3000/</Issuer>
+    <ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+      <ds:SignedInfo>
+        <ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+        <ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>
+        <ds:Reference URI="#_00000000-0000-0000-0000-000000000000">
+          <ds:Transforms>
+            <ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>
+            <ds:Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+          </ds:Transforms>
+          <ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>
+          <ds:DigestValue>NTIyMzk0ZGI4MjI0ZjI5ZGNhYjkyOGQyZGQ1NTZjODViZjk5YTY4ODFjOWRjNjkyYzZmODY2ZDQ4NjlkZjY3YSAgLQo=</ds:DigestValue>
+        </ds:Reference>
+      </ds:SignedInfo>
+      <ds:SignatureValue>NTIyMzk0ZGI4MjI0ZjI5ZGNhYjkyOGQyZGQ1NTZjODViZjk5YTY4ODFjOWRjNjkyYzZmODY2ZDQ4NjlkZjY3YSAgLQo=</ds:SignatureValue>
+      <KeyInfo xmlns="http://www.w3.org/2000/09/xmldsig#">
+        <ds:X509Data>
+          <ds:X509Certificate>NTIyMzk0ZGI4MjI0ZjI5ZGNhYjkyOGQyZGQ1NTZjODViZjk5YTY4ODFjOWRjNjkyYzZmODY2ZDQ4NjlkZjY3YSAgLQo=</ds:X509Certificate>
+        </ds:X509Data>
+      </KeyInfo>
+    </ds:Signature>
+    <Subject>
+      <NameID Format="urn:oasis:names:tc:SAML:2.0:nameid-format:persistent">{username}</NameID>
+      <SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer">
+        <SubjectConfirmationData NotOnOrAfter="2012-01-01T13:00:00.000Z" Recipient="https://signin.aws.amazon.com/saml"/>
+      </SubjectConfirmation>
+    </Subject>
+    <Conditions NotBefore="2012-01-01T12:00:00.000Z" NotOnOrAfter="2012-01-01T13:00:00.000Z">
+      <AudienceRestriction>
+        <Audience>urn:amazon:webservices</Audience>
+      </AudienceRestriction>
+    </Conditions>
+    <AttributeStatement>
+      <Attribute Name="https://aws.amazon.com/SAML/Attributes/RoleSessionName">
+        <AttributeValue>{username}@localhost</AttributeValue>
+      </Attribute>
+      <Attribute Name="https://aws.amazon.com/SAML/Attributes/Role">
+        <AttributeValue>arn:aws:iam::{account_id}:saml-provider/{provider_name},arn:aws:iam::{account_id}:role/{role_name}</AttributeValue>
+      </Attribute>
+      <Attribute Name="https://aws.amazon.com/SAML/Attributes/SessionDuration">
+        <AttributeValue>900</AttributeValue>
+      </Attribute>
+    </AttributeStatement>
+    <AuthnStatement AuthnInstant="2012-01-01T12:00:00.000Z" SessionIndex="_00000000-0000-0000-0000-000000000000">
+      <AuthnContext>
+        <AuthnContextClassRef>urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport</AuthnContextClassRef>
+      </AuthnContext>
+    </AuthnStatement>
+  </Assertion>
+</samlp:Response>""".format(  # noqa: E501
+    account_id=ACCOUNT_ID,
+    role_name="test-role",
+    provider_name="TestProvFed",
+    username="testuser",
+).replace(
+    "\n", ""
+)
+# pylint: enable=line-too-long
 
 
 class TestAwsBaseHook(unittest.TestCase):
@@ -251,6 +321,78 @@ class TestAwsBaseHook(unittest.TestCase):
         mock_id_token_credentials.assert_has_calls(
             [mock.call.get_default_id_token_credentials(target_audience='aws-federation.airflow.apache.org')]
         )
+
+    @unittest.skipIf(mock_sts is None, 'mock_sts package not present')
+    @mock.patch.object(AwsBaseHook, 'get_connection')
+    @mock_sts
+    def test_assume_role_with_saml(self, mock_get_connection):
+
+        idp_url = "https://my-idp.local.corp"
+        principal_arn = "principal_arn_1234567890"
+        role_arn = "arn:aws:iam::123456:role/role_arn"
+        xpath = "1234"
+        duration_seconds = 901
+
+        mock_connection = Connection(
+            extra=json.dumps(
+                {
+                    "role_arn": role_arn,
+                    "assume_role_method": "assume_role_with_saml",
+                    "assume_role_with_saml": {
+                        "principal_arn": principal_arn,
+                        "idp_url": idp_url,
+                        "idp_auth_method": "http_spegno_auth",
+                        "mutual_authentication": "REQUIRED",
+                        "saml_response_xpath": xpath,
+                        "log_idp_response": True,
+                    },
+                    "assume_role_kwargs": {"DurationSeconds": duration_seconds},
+                }
+            )
+        )
+        mock_get_connection.return_value = mock_connection
+
+        encoded_saml_assertion = b64encode(SAML_ASSERTION.encode("utf-8")).decode("utf-8")
+
+        # Store original __import__
+        orig_import = __import__
+        mock_requests_gssapi = mock.Mock()
+        mock_auth = mock_requests_gssapi.HTTPSPNEGOAuth()
+
+        mock_lxml = mock.Mock()
+        mock_xpath = mock_lxml.etree.fromstring.return_value.xpath
+        mock_xpath.return_value = encoded_saml_assertion
+
+        def import_mock(name, *args, **kwargs):
+            if name == 'requests_gssapi':
+                return mock_requests_gssapi
+            if name == 'lxml':
+                return mock_lxml
+            return orig_import(name, *args, **kwargs)
+
+        with mock.patch('builtins.__import__', side_effect=import_mock), mock.patch(
+            'airflow.providers.amazon.aws.hooks.base_aws.requests.Session.get'
+        ) as mock_get, mock.patch('airflow.providers.amazon.aws.hooks.base_aws.boto3') as mock_boto3:
+            mock_get.return_value.ok = True
+
+            hook = AwsBaseHook(aws_conn_id='aws_default', client_type='s3')
+            hook.get_client_type('s3')
+
+            mock_get.assert_called_once_with(idp_url, auth=mock_auth)
+            mock_xpath.assert_called_once_with(xpath)
+
+        calls_assume_role_with_saml = [
+            mock.call.session.Session().client('sts', config=None),
+            mock.call.session.Session()
+            .client()
+            .assume_role_with_saml(
+                DurationSeconds=duration_seconds,
+                PrincipalArn=principal_arn,
+                RoleArn=role_arn,
+                SAMLAssertion=encoded_saml_assertion,
+            ),
+        ]
+        mock_boto3.assert_has_calls(calls_assume_role_with_saml)
 
     @unittest.skipIf(mock_iam is None, 'mock_iam package not present')
     @mock_iam
