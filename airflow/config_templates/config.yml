@@ -67,6 +67,7 @@
         their website
       version_added: ~
       type: string
+      sensitive: true
       example: ~
       default: "sqlite:///{AIRFLOW_HOME}/airflow.db"
     - name: sql_engine_encoding
@@ -225,6 +226,7 @@
         Secret key to save connection passwords in the db
       version_added: ~
       type: string
+      sensitive: true
       example: ~
       default: "{FERNET_KEY}"
     - name: donot_pickle
@@ -770,6 +772,7 @@
       description: ~
       version_added: ~
       type: string
+      sensitive: true
       example: ~
       default: ""
 - name: operators
@@ -929,6 +932,7 @@
         It should be as random as possible
       version_added: ~
       type: string
+      sensitive: true
       example: ~
       default: "{SECRET_KEY}"
     - name: workers
@@ -1241,6 +1245,7 @@
       description: ~
       version_added: ~
       type: string
+      sensitive: true
       example: "airflow"
       default: ~
     - name: smtp_port
@@ -1374,6 +1379,7 @@
         a sqlalchemy database. Refer to the Celery documentation for more information.
       version_added: ~
       type: string
+      sensitive: true
       example: ~
       default: "redis://redis:6379/0"
     - name: result_backend
@@ -1386,6 +1392,7 @@
         http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-result-backend-settings
       version_added: ~
       type: string
+      sensitive: true
       example: ~
       default: "db+postgresql://postgres:airflow@postgres/airflow"
     - name: flower_host
@@ -1416,6 +1423,7 @@
         Accepts user:password pairs separated by a comma
       version_added: 1.10.2
       type: string
+      sensitive: true
       example: "user1:password1,user2:password2"
       default: ""
     - name: default_queue
