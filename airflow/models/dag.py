@@ -1966,7 +1966,7 @@ class DAG(LoggingMixin):
             )
             dag.is_active = False
             session.merge(dag)
-            session.commit()
+        session.commit()
 
     @staticmethod
     @provide_session

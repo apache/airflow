@@ -718,19 +718,20 @@ class DagRun(Base, LoggingMixin):
         All the TIs should belong to this DagRun, but this code is in the hot-path, this is not checked -- it
         is the caller's responsibility to call this function only with TIs from a single dag run.
         """
-        # Get list of TIs that do not need to executed, these are
+        # Get list of TI IDs that do not need to executed, these are
         # tasks using DummyOperator and without on_execute_callback / on_success_callback
-        dummy_tis = {
-            ti
-            for ti in schedulable_tis
+        dummy_ti_ids = []
+        schedulable_ti_ids = []
+        for ti in schedulable_tis:
             if (
                 ti.task.inherits_from_dummy_operator
                 and not ti.task.on_execute_callback
                 and not ti.task.on_success_callback
-            )
-        }
+            ):
+                dummy_ti_ids.append(ti.task_id)
+            else:
+                schedulable_ti_ids.append(ti.task_id)
 
-        schedulable_ti_ids = [ti.task_id for ti in schedulable_tis if ti not in dummy_tis]
         count = 0
 
         if schedulable_ti_ids:
@@ -745,13 +746,13 @@ class DagRun(Base, LoggingMixin):
             )
 
         # Tasks using DummyOperator should not be executed, mark them as success
-        if dummy_tis:
+        if dummy_ti_ids:
             count += (
                 session.query(TI)
                 .filter(
                     TI.dag_id == self.dag_id,
                     TI.execution_date == self.execution_date,
-                    TI.task_id.in_(ti.task_id for ti in dummy_tis),
+                    TI.task_id.in_(dummy_ti_ids),
                 )
                 .update(
                     {

@@ -103,7 +103,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
 
         # The process that was launched to process the given .
         self._process: Optional[multiprocessing.process.BaseProcess] = None
-        # The result of Scheduler.process_file(file_path).
+        # The result of DagFileProcessor.process_file(file_path).
         self._result: Optional[Tuple[int, int]] = None
         # Whether the process is done running.
         self._done = False
@@ -136,7 +136,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
         :param result_channel: the connection to use for passing back the result
         :type result_channel: multiprocessing.Connection
         :param parent_channel: the parent end of the channel to close in the child
-        :type result_channel: multiprocessing.Connection
+        :type parent_channel: multiprocessing.Connection
         :param file_path: the file to process
         :type file_path: str
         :param pickle_dags: whether to pickle the DAGs found in the file and
@@ -334,7 +334,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
     @property
     def result(self) -> Optional[Tuple[int, int]]:
         """
-        :return: result of running SchedulerJob.process_file()
+        :return: result of running DagFileProcessor.process_file()
         :rtype: tuple[int, int] or None
         """
         if not self.done:
@@ -613,11 +613,6 @@ class DagFileProcessor(LoggingMixin):
         3. For each DAG, see what tasks should run and create appropriate task
         instances in the DB.
         4. Record any errors importing the file into ORM
-        5. Kill (in ORM) any task instances belonging to the DAGs that haven't
-        issued a heartbeat in a while.
-
-        Returns a list of serialized_dag dicts that represent the DAGs found in
-        the file
 
         :param file_path: the path to the Python file that should be executed
         :type file_path: str
@@ -1326,7 +1321,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         Following is a graphic representation of these steps.
 
-        .. image:: ../docs/img/scheduler_loop.jpg
+        .. image:: ../docs/apache-airflow/img/scheduler_loop.jpg
 
         :rtype: None
         """
@@ -1412,7 +1407,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 break
             if self.processor_agent.done:
                 self.log.info(
-                    "Exiting scheduler loop as requested DAG parse count (%d) has been reached after %d "
+                    "Exiting scheduler loop as requested DAG parse count (%d) has been reached after %d"
                     " scheduler loops",
                     self.num_times_parse_dags,
                     loop_count,
