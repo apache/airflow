@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -16,22 +15,11 @@
     specific language governing permissions and limitations
     under the License.
 
-``apache-airflow-providers-elasticsearch``
-==========================================
-
-Content
--------
+Logging for Tasks
+=================
 
 .. toctree::
     :maxdepth: 1
-    :caption: Guides
+    :glob:
 
-    Connection types <connections/aws>
-    Operators <operators/index>
-    Logging for Tasks <logging>
-
-.. toctree::
-    :maxdepth: 1
-    :caption: References
-
-    Python API <_api/airflow/providers/elasticsearch/index>
+    *

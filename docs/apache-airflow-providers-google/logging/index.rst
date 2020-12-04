@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-Connection Types
-----------------
+Task handlers
+-------------
 
 .. toctree::
     :maxdepth: 1
