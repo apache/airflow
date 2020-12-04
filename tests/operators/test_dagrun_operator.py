@@ -101,6 +101,36 @@ class TestDagRunOperator(TestCase):
             self.assertTrue(dagruns[0].external_trigger)
             self.assertEqual(dagruns[0].execution_date, utc_now)
 
+    def test_trigger_dagrun_twice(self):
+        """Test TriggerDagRunOperator with custom execution_date."""
+        utc_now = timezone.utcnow()
+        task = TriggerDagRunOperator(
+            task_id="test_trigger_dagrun_with_execution_date",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            execution_date=utc_now,
+            dag=self.dag,
+            poke_interval=1,
+            reset_dag_run=True,
+            wait_for_completion=True,
+        )
+        run_id = f"manual__{utc_now.isoformat()}"
+        with create_session() as session:
+            dag_run = DagRun(
+                dag_id=TRIGGERED_DAG_ID,
+                execution_date=utc_now,
+                state=State.SUCCESS,
+                run_type="manual",
+                run_id=run_id,
+            )
+            session.add(dag_run)
+            session.commit()
+            task.execute(None)
+
+            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            self.assertEqual(len(dagruns), 1)
+            self.assertTrue(dagruns[0].external_trigger)
+            self.assertEqual(dagruns[0].execution_date, utc_now)
+
     def test_trigger_dagrun_with_templated_execution_date(self):
         """Test TriggerDagRunOperator with templated execution_date."""
         task = TriggerDagRunOperator(
