@@ -78,6 +78,7 @@ def with_groups(title):
     """
     print(f"::group::{title}")
     yield
+    print("\033[0m")
     print("::endgroup::")
 
 
