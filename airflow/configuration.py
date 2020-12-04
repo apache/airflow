@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import copy
 import json
 import logging
 import multiprocessing
@@ -482,7 +481,6 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
         if self.airflow_defaults.has_option(section, option) and remove_default:
             self.airflow_defaults.remove_option(section, option)
 
-    # noinspection PyProtectedMember
     def getsection(self, section: str) -> Optional[Dict[str, Union[str, int, float, bool]]]:
         """
         Returns the section as a dict. Values are converted to int, float, bool
@@ -491,15 +489,16 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
         :param section: section from the config
         :rtype: dict
         """
-        # pylint: disable=protected-access
-        if section not in self._sections and section not in self.airflow_defaults._sections:  # type: ignore
+        if not self.has_section(section) and not self.airflow_defaults.has_section(section):
             return None
-        # pylint: enable=protected-access
 
-        _section = copy.deepcopy(self.airflow_defaults._sections[section])  # pylint: disable=protected-access
+        if self.airflow_defaults.has_section(section):
+            _section = OrderedDict(self.airflow_defaults.items(section))
+        else:
+            _section = OrderedDict()
 
-        if section in self._sections:  # type: ignore
-            _section.update(copy.deepcopy(self._sections[section]))  # type: ignore
+        if self.has_section(section):
+            _section.update(OrderedDict(self.items(section)))
 
         section_prefix = f'AIRFLOW__{section.upper()}__'
         for env_var in sorted(os.environ.keys()):
