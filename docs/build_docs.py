@@ -23,6 +23,7 @@ import shlex
 import shutil
 import sys
 from collections import defaultdict
+from contextlib import contextmanager
 from glob import glob
 from subprocess import run
 from tempfile import NamedTemporaryFile, TemporaryDirectory
@@ -67,6 +68,25 @@ ERRORS_ELIGIBLE_TO_REBUILD = [
 ]
 
 
+@contextmanager
+def with_group(title):
+    """
+    If used in Github Action, creates an expandable group in the Github Action log.
+    Otherwise, dispaly simple text groups.
+
+    For more information, see:
+    https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-commands-for-github-actions#grouping-log-lines
+    """
+    if os.environ.get('GITHUB_ACTIONS', 'false') != "true":
+        print("#" * 20, title, "#" * 20)
+        yield
+        return
+    print(f"::group::{title}")
+    yield
+    print("\033[0m")
+    print("::endgroup::")
+
+
 class AirflowDocsBuilder:
     """Documentation builder for Airflow."""
 
@@ -104,7 +124,7 @@ class AirflowDocsBuilder:
     def check_spelling(self):
         """Checks spelling."""
         spelling_errors = []
-        with TemporaryDirectory() as tmp_dir:
+        with TemporaryDirectory() as tmp_dir, with_group(f"Check spelling: {self.package_name}"):
             build_cmd = [
                 "sphinx-build",
                 "-W",  # turn warnings into errors
@@ -148,7 +168,7 @@ class AirflowDocsBuilder:
     def build_sphinx_docs(self) -> List[DocBuildError]:
         """Build Sphinx documentation"""
         build_errors = []
-        with NamedTemporaryFile() as tmp_file:
+        with NamedTemporaryFile() as tmp_file, with_group(f"Building docs: {self.package_name}"):
             build_cmd = [
                 "sphinx-build",
                 "-T",  # show full traceback on exception
@@ -281,7 +301,9 @@ def main():
     """Main code"""
     args = _get_parser().parse_args()
     available_packages = get_available_packages()
-    print("Available packages: ", available_packages)
+    with with_group("Available packages"):
+        for pkg in available_packages:
+            print(f" - {pkg}")
 
     docs_only = args.docs_only
     spellcheck_only = args.spellcheck_only
@@ -294,7 +316,9 @@ def main():
         if package_filters
         else available_packages
     )
-    print(f"Documentation will be built for {len(current_packages)} package(s): {current_packages}")
+    with with_group(f"Documentation will be built for {len(current_packages)} package(s)"):
+        for pkg in current_packages:
+            print(f" - {pkg}")
 
     all_build_errors: Dict[Optional[str], List[DocBuildError]] = {}
     all_spelling_errors: Dict[Optional[str], List[SpellingError]] = {}
