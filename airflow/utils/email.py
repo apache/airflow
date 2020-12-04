@@ -181,10 +181,9 @@ def send_mime_email(e_from: str, e_to: List[str], mime_msg: MIMEMultipart, dryru
 
     if not dryrun:
         for attempt in range(smtp_retry_limit):
-            log.info("Email alerting: attempt %s", str(attempt+1))
+            log.info("Email alerting: attempt %s", str(attempt + 1))
             try:
-                conn = smtplib.SMTP_SSL(host=smtp_host, port=smtp_port, timeout=smtp_timeout) if smtp_ssl \
-                    else smtplib.SMTP(host=smtp_host, port=smtp_port, timeout=smtp_timeout)
+                conn = _get_smtp_connection(smtp_host, smtp_port, smtp_timeout, smtp_ssl)
             except smtplib.SMTPServerDisconnected:
                 if attempt < (smtp_retry_limit - 1):
                     continue
@@ -212,6 +211,14 @@ def get_email_address_list(addresses: Union[str, Iterable[str]]) -> List[str]:
 
     received_type = type(addresses).__name__
     raise TypeError(f"Unexpected argument type: Received '{received_type}'.")
+
+
+def _get_smtp_connection(host: str, port: int, timeout: int, with_ssl: bool) -> smtplib.SMTP:
+    return (
+        smtplib.SMTP_SSL(host=host, port=port, timeout=timeout)
+        if with_ssl
+        else smtplib.SMTP(host=host, port=port, timeout=timeout)
+    )
 
 
 def _get_email_list_from_str(addresses: str) -> List[str]:

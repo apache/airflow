@@ -21,8 +21,8 @@ import unittest
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from unittest import mock
 from smtplib import SMTPServerDisconnected
+from unittest import mock
 
 from airflow import utils
 from airflow.configuration import conf
@@ -178,7 +178,7 @@ class TestEmailSmtp(unittest.TestCase):
         mock_smtp.assert_called_once_with(
             host=conf.get('smtp', 'SMTP_HOST'),
             port=conf.getint('smtp', 'SMTP_PORT'),
-            timeout=conf.getint('smtp', 'SMTP_TIMEOUT')
+            timeout=conf.getint('smtp', 'SMTP_TIMEOUT'),
         )
         self.assertFalse(mock_smtp_ssl.called)
         self.assertTrue(mock_smtp.return_value.starttls.called)
@@ -199,7 +199,7 @@ class TestEmailSmtp(unittest.TestCase):
         mock_smtp_ssl.assert_called_once_with(
             host=conf.get('smtp', 'SMTP_HOST'),
             port=conf.getint('smtp', 'SMTP_PORT'),
-            timeout=conf.getint('smtp', 'SMTP_TIMEOUT')
+            timeout=conf.getint('smtp', 'SMTP_TIMEOUT'),
         )
 
     @mock.patch('smtplib.SMTP_SSL')
@@ -217,7 +217,7 @@ class TestEmailSmtp(unittest.TestCase):
         mock_smtp.assert_called_once_with(
             host=conf.get('smtp', 'SMTP_HOST'),
             port=conf.getint('smtp', 'SMTP_PORT'),
-            timeout=conf.getint('smtp', 'SMTP_TIMEOUT')
+            timeout=conf.getint('smtp', 'SMTP_TIMEOUT'),
         )
         self.assertFalse(mock_smtp.login.called)
 
@@ -234,12 +234,12 @@ class TestEmailSmtp(unittest.TestCase):
         mock_smtp.side_effect = SMTPServerDisconnected()
         msg = MIMEMultipart()
         with self.assertRaises(SMTPServerDisconnected):
-          utils.email.send_mime_email('from', 'to', msg, dryrun=False)
+            utils.email.send_mime_email('from', 'to', msg, dryrun=False)
 
         mock_smtp.assert_any_call(
             host=conf.get('smtp', 'SMTP_HOST'),
             port=conf.getint('smtp', 'SMTP_PORT'),
-            timeout=conf.getint('smtp', 'SMTP_TIMEOUT')
+            timeout=conf.getint('smtp', 'SMTP_TIMEOUT'),
         )
         self.assertEqual(mock_smtp.call_count, conf.getint('smtp', 'SMTP_RETRY_LIMIT'))
         self.assertFalse(mock_smtp_ssl.called)
@@ -260,7 +260,7 @@ class TestEmailSmtp(unittest.TestCase):
         mock_smtp_ssl.assert_any_call(
             host=conf.get('smtp', 'SMTP_HOST'),
             port=conf.getint('smtp', 'SMTP_PORT'),
-            timeout=conf.getint('smtp', 'SMTP_TIMEOUT')
+            timeout=conf.getint('smtp', 'SMTP_TIMEOUT'),
         )
         self.assertEqual(mock_smtp_ssl.call_count, conf.getint('smtp', 'SMTP_RETRY_LIMIT'))
         self.assertFalse(mock_smtp.called)
@@ -278,15 +278,17 @@ class TestEmailSmtp(unittest.TestCase):
         custom_retry_limit = 10
         custom_timeout = 60
 
-        with conf_vars({('smtp', 'smtp_retry_limit'): str(custom_retry_limit),
-                        ('smtp', 'smtp_timeout'): str(custom_timeout)}):
+        with conf_vars(
+            {
+                ('smtp', 'smtp_retry_limit'): str(custom_retry_limit),
+                ('smtp', 'smtp_timeout'): str(custom_timeout),
+            }
+        ):
             with self.assertRaises(SMTPServerDisconnected):
                 utils.email.send_mime_email('from', 'to', msg, dryrun=False)
 
         mock_smtp.assert_any_call(
-            host=conf.get('smtp', 'SMTP_HOST'),
-            port=conf.getint('smtp', 'SMTP_PORT'),
-            timeout=custom_timeout
+            host=conf.get('smtp', 'SMTP_HOST'), port=conf.getint('smtp', 'SMTP_PORT'), timeout=custom_timeout
         )
         self.assertFalse(mock_smtp_ssl.called)
         self.assertEqual(mock_smtp.call_count, 10)
@@ -304,14 +306,10 @@ class TestEmailSmtp(unittest.TestCase):
         mock_smtp.assert_any_call(
             host=conf.get('smtp', 'SMTP_HOST'),
             port=conf.getint('smtp', 'SMTP_PORT'),
-            timeout=conf.getint('smtp', 'SMTP_TIMEOUT')
+            timeout=conf.getint('smtp', 'SMTP_TIMEOUT'),
         )
         self.assertEqual(mock_smtp.call_count, side_effects.index(final_mock) + 1)
         self.assertFalse(mock_smtp_ssl.called)
         self.assertTrue(final_mock.starttls.called)
-        final_mock.login.assert_called_once_with(
-            conf.get('smtp', 'SMTP_USER'),
-            conf.get('smtp', 'SMTP_PASSWORD'),
-        )
         final_mock.sendmail.assert_called_once_with('from', 'to', msg.as_string())
         self.assertTrue(final_mock.quit.called)
