@@ -180,12 +180,12 @@ def send_mime_email(e_from: str, e_to: List[str], mime_msg: MIMEMultipart, dryru
         log.debug("No user/password found for SMTP, so logging in with no authentication.")
 
     if not dryrun:
-        for attempt in range(smtp_retry_limit):
-            log.info("Email alerting: attempt %s", str(attempt + 1))
+        for attempt in range(1, smtp_retry_limit + 1):
+            log.info("Email alerting: attempt %s", str(attempt))
             try:
                 conn = _get_smtp_connection(smtp_host, smtp_port, smtp_timeout, smtp_ssl)
             except smtplib.SMTPServerDisconnected:
-                if attempt < (smtp_retry_limit - 1):
+                if attempt < smtp_retry_limit:
                     continue
                 raise
 
