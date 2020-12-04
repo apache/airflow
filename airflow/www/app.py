@@ -79,6 +79,7 @@ def create_app(config=None, testing=False, app_name="Airflow"):
     flask_app.config['SESSION_COOKIE_HTTPONLY'] = True
     flask_app.config['SESSION_COOKIE_SECURE'] = conf.getboolean('webserver', 'COOKIE_SECURE')
     flask_app.config['SESSION_COOKIE_SAMESITE'] = conf.get('webserver', 'COOKIE_SAMESITE')
+    flask_app.config['SESSION_COOKIE_NAME'] = conf.get('webserver', 'COOKIE_NAME')
 
     if config:
         flask_app.config.from_mapping(config)
