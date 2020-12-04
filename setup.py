@@ -907,6 +907,7 @@ def do_setup():
         test_suite='setup.airflow_test_suite',
         **setup_kwargs,
     )
+    subprocess.check_call('./airflow/www/compile_assets.sh')
 
 
 if __name__ == "__main__":
