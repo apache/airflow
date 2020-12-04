@@ -645,7 +645,6 @@ class DagFileProcessor(LoggingMixin):
         self.execute_callbacks(dagbag, callback_requests)
 
         # Save individual DAGs in the ORM
-        dagbag.read_dags_from_db = True
         dagbag.sync_to_db()
 
         if pickle_dags:
