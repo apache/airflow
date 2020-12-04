@@ -1255,6 +1255,18 @@
       type: string
       example: ~
       default: "airflow@example.com"
+    - name: smtp_timeout
+      description: ~
+      version_added: ~
+      type: int
+      example: ~
+      default: "30"
+    - name: smtp_retry_limit
+      description: ~
+      version_added: ~
+      type: int
+      example: ~
+      default: "5"
 - name: sentry
   description: |
     Sentry (https://docs.sentry.io) integration. Here you can supply
