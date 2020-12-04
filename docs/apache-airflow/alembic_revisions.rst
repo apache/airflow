@@ -15,11 +15,15 @@
     specific language governing permissions and limitations
     under the License.
 
+
+Alembic Revisions
+=================
+
 The following table shows the list of alembic revisions
 
 
 .. list-table:: Alembic Revisions(until Airflow 2.0.0):
-   :widths: 25 25 50
+   :widths: 20 20 20 40
    :header-rows: 1
 
    * - Revision ID

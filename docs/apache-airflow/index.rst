@@ -102,6 +102,7 @@ Content
     changelog
     best-practices
     production-deployment
+    alembic_revisions
     faq
     privacy_notice
 
