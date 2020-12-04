@@ -229,7 +229,10 @@ class _SessionFactory(LoggingMixin):
             session.mount("https://", adapter)
             session.mount("http://", adapter)
 
-        idp_request_kwargs = saml_config["idp_request_kwargs"]
+        idp_request_kwargs = {}
+        if "idp_request_kwargs" in saml_config:
+            idp_request_kwargs = saml_config["idp_request_kwargs"]
+
         idp_response = session.get(idp_url, auth=auth, **idp_request_kwargs)
         idp_response.raise_for_status()
 
