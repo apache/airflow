@@ -46,7 +46,7 @@ def _cache_dir():
 
 def _gethash(string: str):
     hash_object = hashlib.sha256(string.encode())
-    return hash_object.hexdigest()
+    return hash_object.hexdigest()[:8]
 
 
 def fetch_and_cache(url: str, output_filename: str):
@@ -54,7 +54,7 @@ def fetch_and_cache(url: str, output_filename: str):
     cache_key = _gethash(url)
     cache_dir = _cache_dir()
     cache_metadata_filepath = os.path.join(cache_dir, "cache-metadata.json")
-    cache_filepath = os.path.join(cache_dir, f"{cache_key}-{output_filename}")
+    cache_filepath = os.path.join(cache_dir, f"{cache_key}-{output_filename[:64]}")
     # Create cache directory
     os.makedirs(cache_dir, exist_ok=True)
     # Load cache metadata
@@ -101,7 +101,7 @@ def load_file(file_path: str):
             return json.load(input_file)
     elif file_path.lower().endswith('.yaml') or file_path.lower().endswith('.yml'):
         with open(file_path) as input_file:
-            return yaml.load(input_file)
+            return yaml.safe_load(input_file)
     raise _ValidatorError("Unknown file format. Supported extension: '.yaml', '.json'")
 
 
@@ -121,12 +121,9 @@ def _process_files(validator, file_paths: List[str]):
     exit_code = 0
     for input_path in file_paths:
         print("Processing file: ", input_path)
-        try:
-            instance = load_file(input_path)
-            validator.is_valid(instance)
-        except _ValidatorError as ex:
-            print('Problem processing the file.')
-            print(ex)
+        instance = load_file(input_path)
+        for error in validator.iter_errors(instance):
+            print(error)
             exit_code = 1
     return exit_code
 
