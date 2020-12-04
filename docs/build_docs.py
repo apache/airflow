@@ -369,4 +369,7 @@ def main():
     )
 
 
-main()
+# main()
+del main
+from pprint import pprint
+print(os.environ)
