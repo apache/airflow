@@ -25,7 +25,6 @@ import sys
 from collections import defaultdict
 from contextlib import contextmanager
 from glob import glob
-from pprint import pprint
 from subprocess import run
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Dict, List, Optional, Tuple
@@ -370,7 +369,4 @@ def main():
     )
 
 
-# main()
-del main
-pprint(os.environ)
-sys.exit(1)
+main()
