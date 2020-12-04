@@ -1034,7 +1034,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         results = qry.all()
         count = len(results)
         clear_task_instances(results, session, dag=self.dag)
-        session.commit()
         return count
 
     @provide_session

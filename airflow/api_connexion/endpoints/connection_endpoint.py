@@ -104,7 +104,6 @@ def patch_connection(connection_id, session, update_mask=None):
     for key in data:
         setattr(connection, key, data[key])
     session.add(connection)
-    session.commit()
     return connection_schema.dump(connection)
 
 
@@ -123,6 +122,5 @@ def post_connection(session):
     if not connection:
         connection = Connection(**data)
         session.add(connection)
-        session.commit()
         return connection_schema.dump(connection)
     raise AlreadyExists(detail="Connection already exist. ID: %s" % conn_id)

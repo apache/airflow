@@ -366,7 +366,6 @@ class BackfillJob(BaseJob):
                     ti.set_state(State.SCHEDULED, session=session)
                 if ti.state != State.REMOVED:
                     tasks_to_run[ti.key] = ti
-            session.commit()
         except Exception:
             session.rollback()
             raise
@@ -523,7 +522,6 @@ class BackfillJob(BaseJob):
                         )
                         ti_status.running[key] = ti
                         ti_status.to_run.pop(key)
-                    session.commit()
                     return
 
                 if ti.state == State.UPSTREAM_FAILED:
@@ -897,7 +895,6 @@ class BackfillJob(BaseJob):
         reset_tis = helpers.reduce_in_chunks(query, tis_to_reset, [], self.max_tis_per_query)
 
         task_instance_str = '\n\t'.join([repr(x) for x in reset_tis])
-        session.commit()
 
         self.log.info("Reset the following %s TaskInstances:\n\t%s", len(reset_tis), task_instance_str)
         return len(reset_tis)

@@ -106,7 +106,6 @@ def patch_pool(pool_name, session, update_mask=None):
 
     for key, value in patch_body.items():
         setattr(pool, key, value)
-    session.commit()
     return pool_schema.dump(pool)
 
 
@@ -127,7 +126,6 @@ def post_pool(session):
     pool = Pool(**post_body)
     try:
         session.add(pool)
-        session.commit()
         return pool_schema.dump(pool)
     except IntegrityError:
         raise AlreadyExists(detail=f"Pool: {post_body['pool']} already exists")
