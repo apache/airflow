@@ -69,7 +69,6 @@ The following config options support this ``_cmd`` and ``_secret`` version:
 * ``result_backend`` in ``[celery]`` section
 * ``password`` in ``[atlas]`` section
 * ``smtp_password`` in ``[smtp]`` section
-* ``git_password`` in ``[kubernetes]`` section
 * ``secret_key`` in ``[webserver]`` section
 
 The ``_cmd`` config options can also be set using a corresponding environment variable
