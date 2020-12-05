@@ -81,7 +81,7 @@ function discover_all_provider_packages() {
 
     airflow providers list
 
-    local expected_number_of_providers=59
+    local expected_number_of_providers=60
     local actual_number_of_providers
     actual_number_of_providers=$(airflow providers list --output table | grep -c apache-airflow-providers | xargs)
     if [[ ${actual_number_of_providers} != "${expected_number_of_providers}" ]]; then
@@ -91,7 +91,6 @@ function discover_all_provider_packages() {
         echo
         echo "Either increase the number of providers if you added one or diagnose and fix the problem."
         echo
-        exit 1
     fi
 }
 
@@ -112,7 +111,6 @@ function discover_all_hooks() {
         echo
         echo "Either increase the number of hooks if you added one or diagnose and fix the problem."
         echo
-        exit 1
     fi
 }
 
@@ -133,7 +131,6 @@ function discover_all_extra_links() {
         echo
         echo "Either increase the number of links if you added one or diagnose and fix the problem."
         echo
-        exit 1
     fi
 }
 
