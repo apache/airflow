@@ -173,7 +173,10 @@ ARG_YES = Arg(
     ("-y", "--yes"), help="Do not prompt to confirm reset. Use with care!", action="store_true", default=False
 )
 ARG_OUTPUT = Arg(
-    ("--output",),
+    (
+        "-o",
+        "--output",
+    ),
     help=("Output format. Allowed values: json, yaml, table (default: table)"),
     metavar="(table, json, yaml)",
     choices=("table", "json", "yaml"),
