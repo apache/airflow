@@ -6,6 +6,21 @@ labels: 'kind:bug'
 assignees: ''
 
 ---
+<!--
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! NOTE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+If you have an issue with installing Airflow via PIP, please downgrade PIP to 20.2.4.
+As of Nov 30 2020 there is an ongoing issue with new PIP 20.3. PIP 20.3 cannot be
+used to install Airflow currently.
+
+Follow https://github.com/apache/airflow/issues/12838 to learn more.
+
+For now use those installation instructions:
+
+https://github.com/apache/airflow/blob/v1-10-stable/docs/installation.rst
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! NOTE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+-->
 
 <!--
 
