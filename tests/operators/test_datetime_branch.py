@@ -42,6 +42,14 @@ class TestDateTimeBranchOperator(unittest.TestCase):
             session.query(DagRun).delete()
             session.query(TI).delete()
 
+        cls.targets = [
+            (datetime.datetime(2020, 7, 7, 10, 0, 0), datetime.datetime(2020, 7, 7, 11, 0, 0)),
+            (datetime.time(10, 0, 0), datetime.time(11, 0, 0)),
+            (datetime.datetime(2020, 7, 7, 10, 0, 0), datetime.time(11, 0, 0)),
+            (datetime.time(10, 0, 0), datetime.datetime(2020, 7, 7, 11, 0, 0)),
+            (datetime.time(11, 0, 0), datetime.time(10, 0, 0)),
+        ]
+
     def setUp(self):
         self.dag = DAG(
             'datetime_branch_operator_test',
@@ -76,6 +84,21 @@ class TestDateTimeBranchOperator(unittest.TestCase):
             session.query(DagRun).delete()
             session.query(TI).delete()
 
+    def _assert_task_ids_match_states(self, task_ids_to_states):
+        """Helper that asserts task instances with a given id are in a given state"""
+        tis = self.dr.get_task_instances()
+        for ti in tis:
+            try:
+                expected_state = task_ids_to_states[ti.task_id]
+            except KeyError:
+                raise ValueError(f'Invalid task id {ti.task_id} found!')
+            else:
+                self.assertEqual(
+                    ti.state,
+                    expected_state,
+                    f"Task {ti.task_id} has state {ti.state} instead of expected {expected_state}",
+                )
+
     def test_no_target_time(self):
         """Check if DateTimeBranchOperator raises exception on missing target"""
         with self.assertRaises(AirflowException):
@@ -91,105 +114,113 @@ class TestDateTimeBranchOperator(unittest.TestCase):
     @freezegun.freeze_time("2020-07-07 10:54:05")
     def test_datetime_branch_operator_falls_within_range(self):
         """Check DateTimeBranchOperator branch operation"""
-        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        for target_lower, target_upper in self.targets:
+            with self.subTest(target_lower=target_lower, target_upper=target_upper):
+                print(f"{target_lower}, {target_upper}")
+                self.branch_op.target_lower = target_lower
+                self.branch_op.target_upper = target_upper
+                self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        tis = self.dr.get_task_instances()
-        for ti in tis:
-            if ti.task_id == 'datetime_branch':
-                self.assertEqual(ti.state, State.SUCCESS)
-            elif ti.task_id == 'branch_1':
-                self.assertEqual(ti.state, State.NONE)
-            elif ti.task_id == 'branch_2':
-                self.assertEqual(ti.state, State.SKIPPED)
-            else:
-                raise ValueError(f'Invalid task id {ti.task_id} found!')
+                self._assert_task_ids_match_states(
+                    {
+                        'datetime_branch': State.SUCCESS,
+                        'branch_1': State.NONE,
+                        'branch_2': State.SKIPPED,
+                    }
+                )
 
     def test_datetime_branch_operator_falls_outside_range(self):
         """Check DateTimeBranchOperator branch operation"""
         dates = [
             datetime.datetime(2020, 7, 7, 12, 0, 0, tzinfo=datetime.timezone.utc),
-            datetime.datetime(2020, 6, 7, tzinfo=datetime.timezone.utc),
+            datetime.datetime(2020, 6, 7, 12, 0, 0, tzinfo=datetime.timezone.utc),
         ]
 
-        for date in dates:
-            with freezegun.freeze_time(date):
-                self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        for target_lower, target_upper in self.targets:
+            with self.subTest(target_lower=target_lower, target_upper=target_upper):
+                self.branch_op.target_lower = target_lower
+                self.branch_op.target_upper = target_upper
 
-            tis = self.dr.get_task_instances()
-            for ti in tis:
-                if ti.task_id == 'datetime_branch':
-                    self.assertEqual(ti.state, State.SUCCESS)
-                elif ti.task_id == 'branch_1':
-                    self.assertEqual(ti.state, State.SKIPPED)
-                elif ti.task_id == 'branch_2':
-                    self.assertEqual(ti.state, State.NONE)
-                else:
-                    raise ValueError(f'Invalid task id {ti.task_id} found!')
+                for date in dates:
+                    with freezegun.freeze_time(date):
+                        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+                        self._assert_task_ids_match_states(
+                            {
+                                'datetime_branch': State.SUCCESS,
+                                'branch_1': State.SKIPPED,
+                                'branch_2': State.NONE,
+                            }
+                        )
 
     @freezegun.freeze_time("2020-07-07 10:54:05")
     def test_datetime_branch_operator_upper_comparison_within_range(self):
         """Check DateTimeBranchOperator branch operation"""
-        self.branch_op.target_lower = None
-        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        for _, target_upper in self.targets:
+            with self.subTest(target_upper=target_upper):
+                self.branch_op.target_upper = target_upper
+                self.branch_op.target_lower = None
 
-        tis = self.dr.get_task_instances()
-        for ti in tis:
-            if ti.task_id == 'datetime_branch':
-                self.assertEqual(ti.state, State.SUCCESS)
-            elif ti.task_id == 'branch_1':
-                self.assertEqual(ti.state, State.NONE)
-            elif ti.task_id == 'branch_2':
-                self.assertEqual(ti.state, State.SKIPPED)
-            else:
-                raise ValueError(f'Invalid task id {ti.task_id} found!')
+                self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+                self._assert_task_ids_match_states(
+                    {
+                        'datetime_branch': State.SUCCESS,
+                        'branch_1': State.NONE,
+                        'branch_2': State.SKIPPED,
+                    }
+                )
 
     @freezegun.freeze_time("2020-07-07 10:54:05")
     def test_datetime_branch_operator_lower_comparison_within_range(self):
         """Check DateTimeBranchOperator branch operation"""
-        self.branch_op.target_upper = None
-        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        for target_lower, _ in self.targets:
+            with self.subTest(target_lower=target_lower):
+                self.branch_op.target_lower = target_lower
+                self.branch_op.target_upper = None
 
-        tis = self.dr.get_task_instances()
-        for ti in tis:
-            if ti.task_id == 'datetime_branch':
-                self.assertEqual(ti.state, State.SUCCESS)
-            elif ti.task_id == 'branch_1':
-                self.assertEqual(ti.state, State.NONE)
-            elif ti.task_id == 'branch_2':
-                self.assertEqual(ti.state, State.SKIPPED)
-            else:
-                raise ValueError(f'Invalid task id {ti.task_id} found!')
+                self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+                self._assert_task_ids_match_states(
+                    {
+                        'datetime_branch': State.SUCCESS,
+                        'branch_1': State.NONE,
+                        'branch_2': State.SKIPPED,
+                    }
+                )
 
     @freezegun.freeze_time("2020-07-07 12:00:00")
     def test_datetime_branch_operator_upper_comparison_outside_range(self):
         """Check DateTimeBranchOperator branch operation"""
-        self.branch_op.target_lower = None
-        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        for _, target_upper in self.targets:
+            with self.subTest(target_upper=target_upper):
+                self.branch_op.target_upper = target_upper
+                self.branch_op.target_lower = None
 
-        tis = self.dr.get_task_instances()
-        for ti in tis:
-            if ti.task_id == 'datetime_branch':
-                self.assertEqual(ti.state, State.SUCCESS)
-            elif ti.task_id == 'branch_1':
-                self.assertEqual(ti.state, State.SKIPPED)
-            elif ti.task_id == 'branch_2':
-                self.assertEqual(ti.state, State.NONE)
-            else:
-                raise ValueError(f'Invalid task id {ti.task_id} found!')
+                self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+                self._assert_task_ids_match_states(
+                    {
+                        'datetime_branch': State.SUCCESS,
+                        'branch_1': State.SKIPPED,
+                        'branch_2': State.NONE,
+                    }
+                )
 
     @freezegun.freeze_time("2020-07-07 09:00:00")
     def test_datetime_branch_operator_lower_comparison_outside_range(self):
         """Check DateTimeBranchOperator branch operation"""
-        self.branch_op.target_upper = None
-        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        for target_lower, _ in self.targets:
+            with self.subTest(target_lower=target_lower):
+                self.branch_op.target_lower = target_lower
+                self.branch_op.target_upper = None
 
-        tis = self.dr.get_task_instances()
-        for ti in tis:
-            if ti.task_id == 'datetime_branch':
-                self.assertEqual(ti.state, State.SUCCESS)
-            elif ti.task_id == 'branch_1':
-                self.assertEqual(ti.state, State.SKIPPED)
-            elif ti.task_id == 'branch_2':
-                self.assertEqual(ti.state, State.NONE)
-            else:
-                raise ValueError(f'Invalid task id {ti.task_id} found!')
+                self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+                self._assert_task_ids_match_states(
+                    {
+                        'datetime_branch': State.SUCCESS,
+                        'branch_1': State.SKIPPED,
+                        'branch_2': State.NONE,
+                    }
+                )

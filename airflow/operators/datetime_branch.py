@@ -16,7 +16,7 @@
 # under the License.
 
 import datetime
-from typing import Dict, Iterable, Optional, Union
+from typing import Dict, Iterable, Union
 
 from airflow.exceptions import AirflowException
 from airflow.operators.branch_operator import BaseBranchOperator
@@ -49,8 +49,8 @@ class DateTimeBranchOperator(BaseBranchOperator):
         *,
         follow_task_ids_if_true: Union[str, Iterable[str]],
         follow_task_ids_if_false: Union[str, Iterable[str]],
-        target_lower: Optional[datetime.datetime],
-        target_upper: Optional[datetime.datetime],
+        target_lower: Union[datetime.datetime, datetime.time, None],
+        target_upper: Union[datetime.datetime, datetime.time, None],
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -68,10 +68,34 @@ class DateTimeBranchOperator(BaseBranchOperator):
     def choose_branch(self, context: Dict) -> Union[str, Iterable[str]]:
         now = timezone.make_naive(timezone.utcnow(), self.dag.timezone)
 
-        if self.target_upper is not None and self.target_upper < now:
+        lower, upper = target_times_as_dates(now, self.target_lower, self.target_upper)
+
+        if upper is not None and upper < now:
             return self.follow_task_ids_if_false
 
-        if self.target_lower is not None and self.target_lower > now:
+        if lower is not None and lower > now:
             return self.follow_task_ids_if_false
 
         return self.follow_task_ids_if_true
+
+
+def target_times_as_dates(
+    base_date: datetime.datetime,
+    lower: Union[datetime.datetime, datetime.time, None],
+    upper: Union[datetime.datetime, datetime.time, None],
+):
+    """Ensures upper and lower time targets are datetimes by combining them with base_date"""
+    if isinstance(lower, datetime.datetime) and isinstance(upper, datetime.datetime):
+        return lower, upper
+
+    if lower is not None and isinstance(lower, datetime.time):
+        lower = datetime.datetime.combine(base_date, lower)
+    if upper is not None and isinstance(upper, datetime.time):
+        upper = datetime.datetime.combine(base_date, upper)
+
+    if any(date is None for date in (lower, upper)):
+        return lower, upper
+
+    if upper < lower:
+        upper += datetime.timedelta(days=1)
+    return lower, upper
