@@ -385,9 +385,6 @@ key3 = value3
 
             with mock.patch.dict(
                 "os.environ", {"AIRFLOW__WEBSERVER__SECRET_KEY_CMD": cmd_file.name}
-            ), mock.patch(
-                'airflow.configuration.AirflowConfigParser.sensitive_config_values',
-                {('webserver', 'secret_key')},
             ):
                 content = conf.getsection("webserver")
             os.unlink(cmd_file.name)
