@@ -205,7 +205,7 @@ class SSHHook(BaseHook):
             connect_kwargs.update(pkey=self.pkey)
 
         if self.key_file:
-            connect_kwargs.update(key_filename=self.key_file)
+            connect_kwargs.update(key_filename=os.path.expandvars(self.key_file))
 
         client.connect(**connect_kwargs)
 
