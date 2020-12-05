@@ -345,7 +345,9 @@ class TestCliDags(unittest.TestCase):
             out = temp_stdout.getvalue()
         self.assertIn("owner", out)
         self.assertIn("airflow", out)
+        self.assertIn("paused", out)
         self.assertIn("airflow/example_dags/example_complex.py", out)
+        self.assertIn("False", out)
 
     def test_cli_list_dag_runs(self):
         dag_command.dag_trigger(
