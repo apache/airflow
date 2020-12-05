@@ -29,7 +29,12 @@ from tests.test_utils.db import clear_db_pools
 
 class TestBasicAuth(unittest.TestCase):
     def setUp(self) -> None:
-        with conf_vars({("api", "auth_backend"): "airflow.api.auth.backend.basic_auth"}):
+        with conf_vars(
+            {
+                ("api", "auth_backend"): "airflow.api.auth.backend.basic_auth",
+                ('api', 'enable_experimental_api'): 'true',
+            }
+        ):
             self.app = create_app(testing=True)
 
         self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
