@@ -383,9 +383,7 @@ key3 = value3
             os.chmod(cmd_file.name, 0o0555)
             cmd_file.close()
 
-            with mock.patch.dict(
-                "os.environ", {"AIRFLOW__WEBSERVER__SECRET_KEY_CMD": cmd_file.name}
-            ):
+            with mock.patch.dict("os.environ", {"AIRFLOW__WEBSERVER__SECRET_KEY_CMD": cmd_file.name}):
                 content = conf.getsection("webserver")
             os.unlink(cmd_file.name)
         self.assertEqual(content["secret_key"], "difficult_unpredictable_cat_password")
