@@ -63,7 +63,11 @@ if [[ -z "$*" ]]; then
         echo
         exit 1
     fi
-    PROVIDER_PACKAGES=$(python3 "${PREPARE_PROVIDER_PACKAGES_PY}" list-backportable-packages)
+    if [[ ${BACKPORT_PACKAGES} == "true" ]]; then
+        PROVIDER_PACKAGES=$(python3 "${PREPARE_PROVIDER_PACKAGES_PY}" list-backportable-packages)
+    else
+        PROVIDER_PACKAGES=$(python3 "${PREPARE_PROVIDER_PACKAGES_PY}" list-providers-packages)
+    fi
 else
     if [[ "$1" == "--help" ]]; then
         echo
