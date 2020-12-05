@@ -560,6 +560,7 @@ def test_duplicate_group_id():
             with TaskGroup("group1"):
                 _ = DummyOperator(task_id="upstream_join_id")
 
+
 def test_task_without_dag():
     """
     Test that if a task doesn't have a DAG when it's being set as the relative of another task which
