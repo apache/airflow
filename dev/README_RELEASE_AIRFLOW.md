@@ -65,7 +65,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     export AIRFLOW_REPO_ROOT=$(pwd)
     ```
 
-- Set your version to 1.10.2 in `airflow/version.py` (without the RC tag)
+- Set your version to 1.10.2 in `setup.py` (without the RC tag)
 - Commit the version change.
 
 - Tag your release
@@ -147,7 +147,7 @@ svn commit -m "Add artifacts for Airflow ${VERSION}"
 At this point we have the artefact that we vote on, but as a convenience to developers we also want to
 publish "snapshots" of the RC builds to pypi for installing via pip. To do this we need to
 
-- Edit the `airflow/version.py` to include the RC suffix.
+- Edit the `setup.py` to include the RC suffix.
 
 - Build the package:
 
@@ -176,7 +176,7 @@ https://test.pypi.org/project/apache-airflow/#files
 - Again, confirm that the package is available here:
 https://pypi.python.org/pypi/apache-airflow
 
-- Throw away the change - we don't want to commit this: `git checkout airflow/version.py`
+- Throw away the change - we don't want to commit this: `git checkout setup.py`
 
 It is important to stress that this snapshot should not be named "release", and it
 is not supposed to be used by and advertised to the end-users who do not read the devlist.

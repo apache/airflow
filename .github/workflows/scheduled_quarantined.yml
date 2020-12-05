@@ -107,9 +107,11 @@ jobs:
         with:
           name: 'quarantined_tests'
           path: 'files/test_result.xml'
+          retention-days: 7
       - uses: actions/upload-artifact@v2
         name: Upload airflow logs
         if: always()
         with:
           name: airflow-logs-quarantined-${{matrix.python-version}}-${{ matrix.postgres-version }}
           path: './files/airflow_logs*'
+          retention-days: 7

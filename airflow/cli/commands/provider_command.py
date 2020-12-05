@@ -15,71 +15,60 @@
 # specific language governing permissions and limitations
 # under the License.
 """Providers sub-commands"""
-from typing import Dict, List, Tuple
+import re
 
-import pygments
-import yaml
-from pygments.lexers.data import YamlLexer
-from tabulate import tabulate
-
+from airflow.cli.simple_table import AirflowConsole
 from airflow.providers_manager import ProvidersManager
-from airflow.utils.cli import should_use_colors
-from airflow.utils.code_utils import get_terminal_formatter
+from airflow.utils.cli import suppress_logs_and_warning
 
 
-def _tabulate_providers(providers: List[Dict], tablefmt: str):
-    tabulate_data = [
-        {
-            'Provider name': provider['package-name'],
-            'Description': provider['description'],
-            'Version': provider['versions'][0],
-        }
-        for version, provider in providers
-    ]
-
-    return tabulate(tabulate_data, tablefmt=tablefmt, headers='keys')
+def _remove_rst_syntax(value: str) -> str:
+    return re.sub("[`_<>]", "", value.strip(" \n."))
 
 
+@suppress_logs_and_warning()
 def provider_get(args):
     """Get a provider info."""
     providers = ProvidersManager().providers
     if args.provider_name in providers:
-        provider_version, provider_info = providers[args.provider_name]
-        print("#")
-        print(f"# Provider: {args.provider_name}")
-        print(f"# Version: {provider_version}")
-        print("#")
+        provider_version = providers[args.provider_name][0]
+        provider_info = providers[args.provider_name][1]
         if args.full:
-            yaml_content = yaml.dump(provider_info)
-            if should_use_colors(args):
-                yaml_content = pygments.highlight(
-                    code=yaml_content, formatter=get_terminal_formatter(), lexer=YamlLexer()
-                )
-            print(yaml_content)
+            provider_info["description"] = _remove_rst_syntax(provider_info["description"])
+            AirflowConsole().print_as(
+                data=[provider_info],
+                output=args.output,
+            )
+        else:
+            print(f"Provider: {args.provider_name}")
+            print(f"Version: {provider_version}")
     else:
         raise SystemExit(f"No such provider installed: {args.provider_name}")
 
 
+@suppress_logs_and_warning()
 def providers_list(args):
     """Lists all providers at the command line"""
-    print(_tabulate_providers(ProvidersManager().providers.values(), args.output))
+    AirflowConsole().print_as(
+        data=ProvidersManager().providers.values(),
+        output=args.output,
+        mapper=lambda x: {
+            "package_name": x[1]["package-name"],
+            "description": _remove_rst_syntax(x[1]["description"]),
+            "version": x[0],
+        },
+    )
 
 
-def _tabulate_hooks(hook_items: Tuple[str, Tuple[str, str]], tablefmt: str):
-    tabulate_data = [
-        {
-            'Connection type': hook_item[0],
-            'Hook class': hook_item[1][0],
-            'Hook connection attribute name': hook_item[1][1],
-        }
-        for hook_item in hook_items
-    ]
-
-    msg = tabulate(tabulate_data, tablefmt=tablefmt, headers='keys')
-    return msg
-
-
+@suppress_logs_and_warning()
 def hooks_list(args):
     """Lists all hooks at the command line"""
-    msg = _tabulate_hooks(ProvidersManager().hooks.items(), args.output)
-    print(msg)
+    AirflowConsole().print_as(
+        data=ProvidersManager().hooks.items(),
+        output=args.output,
+        mapper=lambda x: {
+            "connection_type": x[0],
+            "class": x[1][0],
+            "conn_attribute_name": x[1][1],
+        },
+    )

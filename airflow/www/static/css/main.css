@@ -442,5 +442,5 @@ label[for="timezone-other"],
 
 .task-instance-modal-column {
   margin-top: 8px;
-  overflow-x: scroll;
+  overflow-x: auto;
 }

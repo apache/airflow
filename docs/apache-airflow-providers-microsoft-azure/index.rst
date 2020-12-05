@@ -28,6 +28,7 @@ Content
 
     Connection types <connections/azure>
     Operators <operators/index>
+    Secrets backends <secrets-backends/azure-key-vault>
 
 .. toctree::
     :maxdepth: 1

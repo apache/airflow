@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,18 +15,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
----
-name: 'Delete old artifacts'
-on:  # yamllint disable-line rule:truthy
-  schedule:
-    - cron: '27 */6 * * *'  # run every 6 hours
-
-jobs:
-  delete-artifacts:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: kolpav/purge-artifacts-action@04c636a505f26ebc82f8d070b202fb87ff572b10  # v1.0
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          expire-in: 7days  # Setting this to 0 will delete all artifacts

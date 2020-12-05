@@ -18,7 +18,7 @@
 
 import datetime
 import os
-from typing import Any, Callable, FrozenSet, List, Optional, Union
+from typing import Any, Callable, FrozenSet, Iterable, Optional, Union
 
 from sqlalchemy import func
 
@@ -56,10 +56,10 @@ class ExternalTaskSensor(BaseSensorOperator):
     :param external_task_id: The task_id that contains the task you want to
         wait for. If ``None`` (default value) the sensor waits for the DAG
     :type external_task_id: str or None
-    :param allowed_states: list of allowed states, default is ``['success']``
-    :type allowed_states: list
-    :param failed_states: list of failed or dis-allowed states, default is ``None``
-    :type failed_states: list
+    :param allowed_states: Iterable of allowed states, default is ``['success']``
+    :type allowed_states: Iterable
+    :param failed_states: Iterable of failed or dis-allowed states, default is ``None``
+    :type failed_states: Iterable
     :param execution_delta: time difference with the previous execution to
         look at, the default is the same execution_date as the current task or DAG.
         For yesterday, use [positive!] datetime.timedelta(days=1). Either
@@ -93,16 +93,16 @@ class ExternalTaskSensor(BaseSensorOperator):
         *,
         external_dag_id: str,
         external_task_id: Optional[str] = None,
-        allowed_states: Optional[List[str]] = None,
-        failed_states: Optional[List[str]] = None,
+        allowed_states: Optional[Iterable[str]] = None,
+        failed_states: Optional[Iterable[str]] = None,
         execution_delta: Optional[datetime.timedelta] = None,
         execution_date_fn: Optional[Callable] = None,
         check_existence: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.allowed_states = allowed_states or [State.SUCCESS]
-        self.failed_states = failed_states or []
+        self.allowed_states = list(allowed_states) if allowed_states else [State.SUCCESS]
+        self.failed_states = list(failed_states) if failed_states else []
 
         total_states = self.allowed_states + self.failed_states
         total_states = set(total_states)

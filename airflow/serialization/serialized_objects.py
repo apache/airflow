@@ -350,6 +350,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
         serialize_op['_task_type'] = op.__class__.__name__
         serialize_op['_task_module'] = op.__class__.__module__
+
+        # Used to determine if an Operator is inherited from DummyOperator
+        serialize_op['_is_dummy'] = op.inherits_from_dummy_operator
+
         if op.operator_extra_links:
             serialize_op['_operator_extra_links'] = cls._serialize_operator_extra_links(
                 op.operator_extra_links
@@ -373,7 +377,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         plugins_manager.initialize_extra_operators_links_plugins()
 
         if plugins_manager.operator_extra_links is None:
-            raise AirflowException("Cnn't load plugins")
+            raise AirflowException("Can not load plugins")
         op = SerializedBaseOperator(task_id=encoded_op['task_id'])
 
         # Extra Operator Links defined in Plugins
@@ -431,6 +435,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         for field in op.template_fields:
             if not hasattr(op, field):
                 setattr(op, field, None)
+
+        # Used to determine if an Operator is inherited from DummyOperator
+        setattr(op, "_is_dummy", bool(encoded_op.get("_is_dummy", False)))
 
         return op
 

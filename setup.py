@@ -30,7 +30,6 @@ from setuptools import Command, find_namespace_packages, setup
 
 logger = logging.getLogger(__name__)
 
-# This is automatically maintained in sync via pre-commit from airflow/version.py
 version = '2.0.0b3'
 
 PY3 = sys.version_info[0] == 3
@@ -413,6 +412,9 @@ statsd = [
 tableau = [
     'tableauserverclient~=0.12',
 ]
+telegram = [
+    'python-telegram-bot==13.0',
+]
 vertica = [
     'vertica-python>=0.5.1',
 ]
@@ -578,6 +580,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "snowflake": snowflake,
     "sqlite": [],
     "ssh": ssh,
+    "telegram": telegram,
     "vertica": vertica,
     "yandex": yandexcloud,
     "zendesk": zendesk,
@@ -671,6 +674,7 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'ssh': ssh,
     'statsd': statsd,
     'tableau': tableau,
+    'telegram': telegram,
     'vertica': vertica,
     'virtualenv': virtualenv,
     'webhdfs': webhdfs,  # TODO: remove this in Airflow 2.1
@@ -790,6 +794,7 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'ssh': ["ssh"],
     'statsd': [],
     'tableau': [],
+    'telegram': ["telegram"],
     'vertica': ["vertica"],
     'virtualenv': [],
     'webhdfs': ["apache.hdfs"],  # TODO: remove this in Airflow 2.1

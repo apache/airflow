@@ -134,8 +134,8 @@ function initialization::initialize_base_variables() {
     # otherwise it will use files/airflow-breeze-config/init.sh
     export INIT_SCRIPT_FILE=${INIT_SCRIPT_FILE:=""}
 
-    # Read airflow version from the version.py
-    AIRFLOW_VERSION=$(grep version "${AIRFLOW_SOURCES}/airflow/version.py" | awk '{print $3}' | sed "s/['+]//g")
+    # Read airflow version from the setup.py.
+    AIRFLOW_VERSION=$(awk '/^version =/ {print $3}' "${AIRFLOW_SOURCES}/setup.py"  | sed "s/['+]//g")
     export AIRFLOW_VERSION
 
     # Whether credentials should be forwarded to inside the docker container
@@ -194,7 +194,6 @@ function initialization::initialize_files_for_rebuild_check() {
         "setup.cfg"
         "Dockerfile.ci"
         ".dockerignore"
-        "airflow/version.py"
         "airflow/www/package.json"
         "airflow/www/yarn.lock"
         "airflow/www/webpack.config.js"

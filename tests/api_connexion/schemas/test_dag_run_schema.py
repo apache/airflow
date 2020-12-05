@@ -19,6 +19,7 @@ import unittest
 from dateutil.parser import parse
 from parameterized import parameterized
 
+from airflow.api_connexion.exceptions import BadRequest
 from airflow.api_connexion.schemas.dag_run_schema import (
     DAGRunCollection,
     dagrun_collection_schema,
@@ -115,6 +116,12 @@ class TestDAGRunSchema(TestDAGRunBase):
             result,
             {"execution_date": result["execution_date"], "run_id": result["run_id"]},
         )
+
+    def test_invalid_execution_date_raises(self):
+        serialized_dagrun = {"execution_date": "mydate"}
+        with self.assertRaises(BadRequest) as e:
+            dagrun_schema.load(serialized_dagrun)
+        self.assertEqual(str(e.exception), "Incorrect datetime argument")
 
 
 class TestDagRunCollection(TestDAGRunBase):

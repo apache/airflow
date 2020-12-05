@@ -357,6 +357,8 @@ key2 = airflow
         test_config = '''
 [test]
 key1 = hello
+[new_section]
+key = value
 '''
         test_config_default = '''
 [test]
@@ -373,6 +375,16 @@ key3 = value3
         self.assertEqual(
             OrderedDict([('key3', 'value3'), ('testkey', 'testvalue'), ('testpercent', 'with%percent')]),
             test_conf.getsection('testsection'),
+        )
+
+        self.assertEqual(
+            OrderedDict([('key', 'value')]),
+            test_conf.getsection('new_section'),
+        )
+
+        self.assertEqual(
+            None,
+            test_conf.getsection('non_existant_secion'),
         )
 
     def test_get_section_should_respect_cmd_env_variable(self):

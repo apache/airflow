@@ -1206,11 +1206,17 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             )
 
         if dag and not self.has_dag():
+            # If this task does not yet have a dag, add it to the same dag as the other task and
+            # put it in the dag's root TaskGroup.
             self.dag = dag
+            self.dag.task_group.add(self)
 
         for task in task_list:
             if dag and not task.has_dag():
+                # If the other task does not yet have a dag, add it to the same dag as this task and
+                # put it in the dag's root TaskGroup.
                 task.dag = dag
+                task.dag.task_group.add(task)
             if upstream:
                 task.add_only_new(task.get_direct_relative_ids(upstream=False), self.task_id)
                 self.add_only_new(self._upstream_task_ids, task.task_id)
@@ -1370,6 +1376,14 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     def is_smart_sensor_compatible(self):
         """Return if this operator can use smart service. Default False."""
         return False
+
+    @property
+    def inherits_from_dummy_operator(self):
+        """Used to determine if an Operator is inherited from DummyOperator"""
+        # This looks like `isinstance(self, DummyOperator) would work, but this also
+        # needs to cope when `self` is a Serialized instance of a DummyOperator or one
+        # of its sub-classes (which don't inherit from anything but BaseOperator).
+        return getattr(self, '_is_dummy', False)
 
 
 def chain(*tasks: Union[BaseOperator, Sequence[BaseOperator]]):

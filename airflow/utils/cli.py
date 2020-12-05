@@ -17,7 +17,7 @@
 # under the License.
 #
 """Utilities module for cli"""
-
+import contextlib
 import functools
 import getpass
 import json
@@ -28,6 +28,7 @@ import socket
 import sys
 import threading
 import traceback
+import warnings
 from argparse import Namespace
 from datetime import datetime
 from typing import Callable, Optional, TypeVar, cast
@@ -272,3 +273,15 @@ def should_use_colors(args) -> bool:
     if args.color == ColorMode.OFF:
         return False
     return is_terminal_support_colors()
+
+
+@contextlib.contextmanager
+def suppress_logs_and_warning():
+    """Context manager to suppress logging and warning messages"""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        logging.disable(logging.CRITICAL)
+        yield
+        # logging output again depends on the effective
+        # levels of individual loggers
+        logging.disable(logging.NOTSET)

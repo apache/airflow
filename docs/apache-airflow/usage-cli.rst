@@ -174,3 +174,40 @@ You will see a similar result as in the screenshot below.
 .. figure:: img/usage_cli_imgcat.png
 
     Preview of DAG in iTerm2
+
+Formatting commands output
+--------------------------
+
+Some Airflow commands like ``airflow dags list`` or ``airflow tasks states-for-dag-run`` support ``--output`` flag
+which allow users to change the formatting of command's output. Possible options:
+
+  - ``table`` - renders the information as a plain text table
+  - ``json`` - renders the information in form of json string
+  - ``yaml`` - render the information in form of valid yaml
+
+Both ``json`` and ``yaml`` formats make it easier to manipulate the data using command line tools like
+`jq <https://stedolan.github.io/jq/>`__ or `yq <https://kislyuk.github.io/yq/>`__. For example:
+
+.. code-block:: bash
+
+  airflow tasks states-for-dag-run example_complex 2020-11-13T00:00:00+00:00 --output json | jq ".[] | {sd: .start_date, ed: .end_date}"
+  {
+    "sd": "2020-11-29T14:53:46.811030+00:00",
+    "ed": "2020-11-29T14:53:46.974545+00:00"
+  }
+  {
+    "sd": "2020-11-29T14:53:56.926441+00:00",
+    "ed": "2020-11-29T14:53:57.118781+00:00"
+  }
+  {
+    "sd": "2020-11-29T14:53:56.915802+00:00",
+    "ed": "2020-11-29T14:53:57.125230+00:00"
+  }
+  {
+    "sd": "2020-11-29T14:53:56.922131+00:00",
+    "ed": "2020-11-29T14:53:57.129091+00:00"
+  }
+  {
+    "sd": "2020-11-29T14:53:56.931243+00:00",
+    "ed": "2020-11-29T14:53:57.126306+00:00"
+  }

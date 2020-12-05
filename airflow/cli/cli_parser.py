@@ -26,8 +26,6 @@ from argparse import Action, ArgumentError, RawTextHelpFormatter
 from functools import lru_cache
 from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Union
 
-from tabulate import tabulate_formats
-
 from airflow import settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
@@ -176,13 +174,10 @@ ARG_YES = Arg(
 )
 ARG_OUTPUT = Arg(
     ("--output",),
-    help=(
-        "Output table format. The specified value is passed to "
-        "the tabulate module (https://pypi.org/project/tabulate/). "
-    ),
-    metavar="FORMAT",
-    choices=tabulate_formats,
-    default="plain",
+    help=("Output format. Allowed values: json, yaml, table (default: table)"),
+    metavar="(table, json, yaml)",
+    choices=("table", "json", "yaml"),
+    default="table",
 )
 ARG_COLOR = Arg(
     ('--color',),
@@ -1033,7 +1028,7 @@ VARIABLES_COMMANDS = (
         name='list',
         help='List variables',
         func=lazy_load_command('airflow.cli.commands.variable_command.variables_list'),
-        args=(),
+        args=(ARG_OUTPUT,),
     ),
     ActionCommand(
         name='get',
@@ -1110,7 +1105,7 @@ CONNECTIONS_COMMANDS = (
         name='get',
         help='Get a connection',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_get'),
-        args=(ARG_CONN_ID, ARG_COLOR),
+        args=(ARG_CONN_ID, ARG_COLOR, ARG_OUTPUT),
     ),
     ActionCommand(
         name='list',

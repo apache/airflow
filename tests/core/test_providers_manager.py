@@ -77,6 +77,7 @@ ALL_PROVIDERS = [
     'apache-airflow-providers-snowflake',
     'apache-airflow-providers-sqlite',
     'apache-airflow-providers-ssh',
+    'apache-airflow-providers-telegram',
     'apache-airflow-providers-vertica',
     'apache-airflow-providers-yandex',
     'apache-airflow-providers-zendesk',

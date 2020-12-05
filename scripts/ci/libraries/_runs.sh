@@ -19,9 +19,10 @@
 # Docker command to build documentation
 function runs::run_docs() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" -t \
-            --entrypoint "/usr/local/bin/dumb-init"  \
-            "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/in_container/run_docs_build.sh" "${@}"
+        -e "GITHUB_ACTIONS=${GITHUB_ACTIONS="false"}" \
+        --entrypoint "/usr/local/bin/dumb-init"  \
+        "${AIRFLOW_CI_IMAGE}" \
+        "--" "/opt/airflow/scripts/in_container/run_docs_build.sh" "${@}"
 }
 
 

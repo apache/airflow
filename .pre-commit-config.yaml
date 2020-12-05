@@ -440,11 +440,6 @@ repos:
         files: ^airflow/www/.*\.(css|scss|sass)$
         # Keep dependency versions in sync w/ airflow/www/package.json
         additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0']
-      - id: version-sync
-        name: Version sync
-        files: ^airflow/version.py$|setup.py
-        entry: ./scripts/ci/pre_commit/pre_commit_sync_version.sh
-        language: system
       - id: providers-init-file
         name: Provider init file
         pass_filenames: false
@@ -511,6 +506,39 @@ repos:
           (?x)
           ^airflow/provider.yaml.schema.json$|
           ^airflow/serialization/schema.json$
+        require_serial: true
+        additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+      - id: json-schema
+        name: Lint JSON Schema files with JSON Schema
+        entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
+        args:
+          - --spec-url
+          - https://raw.githubusercontent.com/instrumenta/kubernetes-json-schema/master/v1.14.9/service-v1.json
+        language: python
+        pass_filenames: true
+        files: scripts/ci/kubernetes/nodeport.yaml
+        require_serial: true
+        additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+      - id: json-schema
+        name: Lint Docker compose files with JSON Schema
+        entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
+        args:
+          - --spec-url
+          - https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json
+        language: python
+        pass_filenames: true
+        files: scripts/ci/docker-compose/.+.yml
+        require_serial: true
+        additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+      - id: json-schema
+        name: Lint chart/values.yaml file with JSON Schema
+        entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
+        args:
+          - --spec-file
+          - chart/values.schema.json
+        language: python
+        pass_filenames: true
+        files: chart/values.yaml$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE

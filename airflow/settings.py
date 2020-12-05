@@ -325,7 +325,7 @@ def configure_adapters():
 
 def validate_session():
     """Validate ORM Session"""
-    worker_precheck = conf.getboolean('core', 'worker_precheck', fallback=False)
+    worker_precheck = conf.getboolean('celery', 'worker_precheck', fallback=False)
     if not worker_precheck:
         return True
     else:

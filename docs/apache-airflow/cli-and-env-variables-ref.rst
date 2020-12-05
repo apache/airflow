@@ -59,6 +59,27 @@ Environment Variables
   For any specific key in a section in Airflow, execute the command the key is pointing to.
   The result of the command is used as a value of the ``AIRFLOW__{SECTION}__{KEY}`` environment variable.
 
+  This is only supported by the following config options:
+
+* ``sql_alchemy_conn`` in ``[core]`` section
+* ``fernet_key`` in ``[core]`` section
+* ``broker_url`` in ``[celery]`` section
+* ``flower_basic_auth`` in ``[celery]`` section
+* ``result_backend`` in ``[celery]`` section
+* ``password`` in ``[atlas]`` section
+* ``smtp_password`` in ``[smtp]`` section
+* ``git_password`` in ``[kubernetes]`` section
+* ``secret_key`` in ``[webserver]`` section
+
+.. envvar:: AIRFLOW__{SECTION}__{KEY}_SECRET
+
+  For any specific key in a section in Airflow, retrieve the secret from the configured secrets backend.
+  The returned value will be used as the value of the ``AIRFLOW__{SECTION}__{KEY}`` environment variable.
+
+  See :ref:`Secrets Backends<secrets_backend_configuration>` for more information on available secrets backends.
+
+  This form of environment variable configuration is only supported for the same subset of config options as ``AIRFLOW__{SECTION}__{KEY}_CMD``
+
 .. envvar:: AIRFLOW_CONFIG
 
   The path to the Airflow configuration file.

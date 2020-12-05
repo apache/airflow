@@ -52,6 +52,40 @@ assists users migrating to a new version.
 
 ## Master
 
+### Changes to output argument in commands
+
+From Airflow 2.0, We are replacing [tabulate](https://pypi.org/project/tabulate/) with [rich](https://github.com/willmcgugan/rich) to render commands output. Due to this change, the `--output` argument
+will no longer accept formats of tabulate tables. Instead, it now accepts:
+
+- `table` - will render the output in predefined table
+- `json` - will render the output as a json
+- `yaml` - will render the output as yaml
+
+By doing this we increased consistency and gave users possibility to manipulate the
+output programmatically (when using json or yaml).
+
+Affected commands:
+
+- `airflow dags list`
+- `airflow dags report`
+- `airflow dags list-runs`
+- `airflow dags list-jobs`
+- `airflow connections list`
+- `airflow connections get`
+- `airflow pools list`
+- `airflow pools get`
+- `airflow pools set`
+- `airflow pools delete`
+- `airflow pools import`
+- `airflow pools export`
+- `airflow role list`
+- `airflow providers list`
+- `airflow providers get`
+- `airflow providers hooks`
+- `airflow tasks states-for-dag-run`
+- `airflow users list`
+- `airflow variables list`
+
 ### Azure Wasb Hook does not work together with Snowflake hook
 
 The WasbHook in Apache Airflow use a legacy version of Azure library. While the conflict is not

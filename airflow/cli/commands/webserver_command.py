@@ -317,6 +317,19 @@ def webserver(args):
     """Starts Airflow Webserver"""
     print(settings.HEADER)
 
+    # Check for old/insecure config, and fail safe (i.e. don't launch) if the config is wildly insecure.
+    if conf.get('webserver', 'secret_key') == 'temporary_key':
+        from rich import print as rich_print
+
+        rich_print(
+            "[red][bold]ERROR:[/bold] The `secret_key` setting under the webserver config has an insecure "
+            "value - Airflow has failed safe and refuses to start. Please change this value to a new, "
+            "per-environment, randomly generated string, for example using this command `[cyan]openssl rand "
+            "-hex 30[/cyan]`",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     access_logfile = args.access_logfile or conf.get('webserver', 'access_logfile')
     error_logfile = args.error_logfile or conf.get('webserver', 'error_logfile')
     access_logformat = args.access_logformat or conf.get('webserver', 'access_logformat')
