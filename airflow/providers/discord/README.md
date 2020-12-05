@@ -47,6 +47,7 @@ are in `airflow.providers.discord` python package.
 
 ## Installation
 
+
 You can install this package on top of an existing airflow 2.* installation via
 `pip install apache-airflow-providers-discord`
 

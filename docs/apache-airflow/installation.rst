@@ -50,6 +50,15 @@ and python versions in the URL.
 
 1. Installing just Airflow
 
+.. note::
+
+   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+   ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``--use-deprecated legacy-resolver`` to your pip install command.
+
+
 .. code-block:: bash
 
     AIRFLOW_VERSION=1.10.13
@@ -60,6 +69,15 @@ and python versions in the URL.
     pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
 2. Installing with extras (for example postgres, google)
+
+.. note::
+
+   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+   ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``--use-deprecated legacy-resolver`` to your pip install command.
+
 
 .. code-block:: bash
 
@@ -74,11 +92,6 @@ Airflow with such extras, the necessary provider packages are installed automati
 PyPI for those packages). However you can freely upgrade and install provider packages independently from
 the main Airflow installation.
 
-.. note:: Automated installation of Provider packages does not work in Airflow 2.0.0b1 - for this version
-          you have to install provider packages manually. As of Airflow 2.0.0b2 the corresponding
-          provider packages are installed together with the extras.
-
-Read more about it in the :ref:`Provider Packages <installation:provider_packages>` section.
 
 Requirements
 ''''''''''''

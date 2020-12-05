@@ -1,4 +1,4 @@
- .. Licensed to the Apache Software Foundation (ASF) under one
+.. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -532,6 +532,15 @@ than production performance. The production images are not yet officially publis
 Airflow dependencies
 ====================
 
+.. note::
+
+   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+   ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``--use-deprecated legacy-resolver`` to your pip install command.
+
+
 Extras
 ------
 
@@ -665,6 +674,15 @@ as of airflow 1.10.10 and further improved with 1.10.12 (moved to separate orpha
 
 Pinned constraint files
 =======================
+
+.. note::
+
+   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+   ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``--use-deprecated legacy-resolver`` to your pip install command.
+
 
 By default when you install ``apache-airflow`` package - the dependencies are as open as possible while
 still allowing the apache-airflow package to install. This means that ``apache-airflow`` package might fail to
