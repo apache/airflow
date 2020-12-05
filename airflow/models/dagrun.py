@@ -573,14 +573,20 @@ class DagRun(Base, LoggingMixin):
         Note, the stat will only be emitted if the DagRun is a scheduler triggered one
         (i.e. external_trigger is False).
         """
+        if self.state == State.RUNNING:
+            return
+        if self.external_trigger:
+            return
+        if not finished_tis:
+            return
+
         try:
-            if self.state == State.RUNNING:
-                return
-            if self.external_trigger:
-                return
-            if not finished_tis:
-                return
             dag = self.get_dag()
+
+            if not self.dag.schedule_interval or self.dag.schedule_interval == "@once":
+                # We can't emit this metric if there is no following schedule to cacluate from!
+                return
+
             ordered_tis_by_start_date = [ti for ti in finished_tis if ti.start_date]
             ordered_tis_by_start_date.sort(key=lambda ti: ti.start_date, reverse=False)
             first_start_date = ordered_tis_by_start_date[0].start_date
@@ -588,8 +594,8 @@ class DagRun(Base, LoggingMixin):
                 # dag.following_schedule calculates the expected start datetime for a scheduled dagrun
                 # i.e. a daily flow for execution date 1/1/20 actually runs on 1/2/20 hh:mm:ss,
                 # and ti.start_date will be 1/2/20 hh:mm:ss so the following schedule is comparison
-                true_delay = (first_start_date - dag.following_schedule(self.execution_date)).total_seconds()
-                if true_delay >= 0:
+                true_delay = first_start_date - dag.following_schedule(self.execution_date)
+                if true_delay.total_seconds() > 0:
                     Stats.timing(f'dagrun.{dag.dag_id}.first_task_scheduling_delay', true_delay)
         except Exception as e:
             self.log.warning(f'Failed to record first_task_scheduling_delay metric:\n{e}')
