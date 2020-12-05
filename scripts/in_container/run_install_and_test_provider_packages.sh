@@ -79,18 +79,24 @@ function discover_all_provider_packages() {
     echo Listing available providers via 'airflow providers list'
     echo
 
-    airflow providers list
+    # Columns is to force it wider, so it doesn't wrap at 80 characters
+    COLUMNS=180 airflow providers list
 
-    local expected_number_of_providers=60
+    local expected_number_of_providers=61
     local actual_number_of_providers
-    actual_number_of_providers=$(airflow providers list --output table | grep -c apache-airflow-providers | xargs)
-    if [[ ${actual_number_of_providers} != "${expected_number_of_providers}" ]]; then
+    actual_providers=$(airflow providers list --output yaml | grep package_name)
+    actual_number_of_providers=$(wc -l <<<"$actual_providers")
+    if [[ "${actual_number_of_providers}" != "${expected_number_of_providers}" ]]; then
         echo
-        echo  "${COLOR_RED_ERROR} Number of providers installed is wrong  ${COLOR_RESET}"
+        echo  "${COLOR_RED_ERROR}Number of providers installed is wrong${COLOR_RESET}"
         echo "Expected number was '${expected_number_of_providers}' and got '${actual_number_of_providers}'"
         echo
         echo "Either increase the number of providers if you added one or diagnose and fix the problem."
         echo
+        echo "Providers were:"
+        echo
+        echo "$actual_providers"
+        exit 1
     fi
 }
 
@@ -111,6 +117,7 @@ function discover_all_hooks() {
         echo
         echo "Either increase the number of hooks if you added one or diagnose and fix the problem."
         echo
+        exit 1
     fi
 }
 
@@ -131,6 +138,7 @@ function discover_all_extra_links() {
         echo
         echo "Either increase the number of links if you added one or diagnose and fix the problem."
         echo
+        exit 1
     fi
 }
 
