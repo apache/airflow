@@ -40,5 +40,7 @@ services:
       - "${MYSQL_HOST_PORT}:3306"
     command: ['mysqld', '--character-set-server=utf8mb4',
               '--collation-server=utf8mb4_unicode_ci']
+    cap_add:
+      - SYS_NICE  # CAP_SYS_NICE
 volumes:
   mysql-db-volume:
