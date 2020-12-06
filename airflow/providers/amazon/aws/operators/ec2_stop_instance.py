@@ -58,10 +58,7 @@ class EC2StopInstanceOperator(BaseOperator):
         self.check_interval = check_interval
 
     def execute(self, context):
-        ec2_hook = EC2Hook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region_name
-        )
+        ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         self.log.info("Stopping EC2 instance %s", self.instance_id)
         ec2_hook.stop_instances(instance_ids=[self.instance_id])
         ec2_hook.wait_for_state(
