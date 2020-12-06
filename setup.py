@@ -439,7 +439,7 @@ devel = [
     'freezegun',
     'gitpython',
     'idna<2.9',  # Required for moto 1.3.14
-    'importlib-metadata~=2.0; python_version<"3.8"',
+    'importlib-metadata~=2.0; python_version<"3.9"',
     'ipdb',
     'jira',
     'mock;python_version<"3.3"',
