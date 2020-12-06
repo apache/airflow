@@ -56,7 +56,18 @@ cond1 = DateTimeBranchOperator(
 cond1 >> [dummy_task_1, dummy_task_2]
 # [END howto_operator_datetime_branch]
 
+
+dag = DAG(
+    dag_id="example_datetime_branch_operator_2",
+    start_date=days_ago(2),
+    default_args=args,
+    tags=["example"],
+    schedule_interval="@daily",
+)
 # [START howto_operator_datetime_branch_next_day]
+dummy_task_1 = DummyOperator(task_id='date_in_range', dag=dag)
+dummy_task_2 = DummyOperator(task_id='date_outside_range', dag=dag)
+
 cond2 = DateTimeBranchOperator(
     task_id='datetime_branch',
     follow_task_ids_if_true=['date_in_range'],
