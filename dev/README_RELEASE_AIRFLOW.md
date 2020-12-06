@@ -380,7 +380,7 @@ Run this:
 ```shell script
 for i in *.sha512
 do
-    echo "Checking $i"; gpg --print-md SHA512 `basename $i .sha512 ` | diff - $i
+    echo "Checking $i"; shasum -a 512 `basename $i .sha512 ` | diff - $i
 done
 ```
 
