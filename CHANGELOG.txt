@@ -1,4 +1,4 @@
-Airflow 1.10.14, 2020-12-07
+Airflow 1.10.14, 2020-12-09
 ----------------------------
 
 Bug Fixes
@@ -11,7 +11,8 @@ Bug Fixes
 - [AIRFLOW-2809] Fix security issue regarding Flask SECRET_KEY (#3651)
 - [AIRFLOW-2884] Fix Flask SECRET_KEY security issue in www_rbac (#3729)
 - [AIRFLOW-2886] Generate random Flask SECRET_KEY in default config (#3738)
-- Add missing coma in setup.py (#12790)
+- Add missing comma in setup.py (#12790)
+- Bugfix: Unable to import Airflow plugins on Python 3.8 (#12859)
 
 Improvements
 """"""""""""
