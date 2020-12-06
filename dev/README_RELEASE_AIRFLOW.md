@@ -335,7 +335,7 @@ Once you have the keys, the signatures can be verified by running this:
 ```shell script
 for i in *.asc
 do
-   echo "Checking $i"; gpg --verify `basename $i .sha512 `
+   echo "Checking $i"; gpg --verify `basename $i .asc`
 done
 ```
 
