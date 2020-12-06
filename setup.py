@@ -427,7 +427,7 @@ webhdfs = [
 winrm = [
     'pywinrm~=0.4',
 ]
-yandexcloud = [
+yandex = [
     'yandexcloud>=0.22.0',
 ]
 zendesk = [
@@ -582,7 +582,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "ssh": ssh,
     "telegram": telegram,
     "vertica": vertica,
-    "yandex": yandexcloud,
+    "yandex": yandex,
     "zendesk": zendesk,
 }
 
@@ -611,6 +611,7 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'cgroups': cgroups,
     'cloudant': cloudant,
     'cncf.kubernetes': kubernetes,
+    'crypto': [],  # TODO: remove this in Airflow 2.1
     'dask': dask,
     'databricks': databricks,
     'datadog': datadog,
@@ -660,6 +661,7 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'qubole': qubole,
     'rabbitmq': rabbitmq,
     'redis': redis,
+    's3': amazon,  # TODO: Remove this in Airflow 2.1
     'salesforce': salesforce,
     'samba': samba,
     'segment': segment,
@@ -679,8 +681,7 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'virtualenv': virtualenv,
     'webhdfs': webhdfs,  # TODO: remove this in Airflow 2.1
     'winrm': winrm,  # TODO: remove this in Airflow 2.1
-    'yandex': yandexcloud,  # TODO: remove this in Airflow 2.1
-    'yandexcloud': yandexcloud,
+    'yandex': yandex,
     'zendesk': [],
 }
 
@@ -728,6 +729,7 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'cgroups': [],
     'cloudant': ["cloudant"],
     'cncf.kubernetes': ["cncf.kubernetes"],
+    'crypto': [],  # TODO: Remove this in Airflow 2.1
     'dask': [],
     'databricks': ["databricks"],
     'datadog': ["datadog"],
@@ -780,6 +782,7 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'qubole': ["qubole"],
     'rabbitmq': [],
     'redis': ["redis"],
+    's3': ["amazon"],  # TODO: Remove this in Airflow 2.1
     'salesforce': ["salesforce"],
     'samba': ["samba"],
     'segment': ["segment"],

@@ -24,6 +24,13 @@ try:
 except ImportError:
     import importlib_metadata as metadata
 
-version = metadata.version('apache-airflow')
+try:
+    version = metadata.version('apache-airflow')
+except metadata.PackageNotFoundError:
+    import logging
+
+    log = logging.getLogger(__name__)
+    log.warning("Package metadata could not be found. Overriding it with version found in setup.py")
+    from setup import version
 
 del metadata
