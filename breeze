@@ -1676,6 +1676,7 @@ ${CMDNAME} prepare-airflow-packages [FLAGS]
 
 Flags:
 $(breeze::flag_packages)
+$(breeze::flag_version_suffix)
 $(breeze::flag_verbosity)
 "
     readonly DETAILED_USAGE_PREPARE_AIRFLOW_PACKAGES
@@ -2140,6 +2141,7 @@ function breeze::flag_local_file_mounting() {
 -l, --skip-mounting-local-sources
         Skips mounting local volume with sources - you get exactly what is in the
         docker image rather than your current local sources of Airflow.
+
 "
 }
 

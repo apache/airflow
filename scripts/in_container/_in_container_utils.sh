@@ -260,22 +260,6 @@ function uninstall_airflow() {
     find /root/airflow/ -type f -print0 | xargs -0 rm -f --
 }
 
-function uninstall_providers() {
-    echo
-    echo "Uninstalling all provider packages"
-    echo
-    local provider_packages_to_uninstall
-    provider_packages_to_uninstall=$(pip freeze | grep apache-airflow-providers || true)
-    if [[ -n ${provider_packages_to_uninstall} ]]; then
-        echo "${provider_packages_to_uninstall}" | xargs pip uninstall -y || true 2>/dev/null
-    fi
-}
-
-function uninstall_airflow_and_providers() {
-    uninstall_providers
-    uninstall_airflow
-}
-
 function install_released_airflow_version() {
     local version="${1}"
     local extras="${2}"

@@ -140,12 +140,12 @@ build-cache-local build-cache-pulled build-cache-disabled disable-pip-cache
 dockerhub-user: dockerhub-repo: github-registry github-repository: github-image-id:
 postgres-version: mysql-version:
 additional-extras: additional-python-deps: additional-dev-deps: additional-runtime-deps: image-tag:
-disable-mysql-client-installation constraints-location: disable-pip-cache add-local-pip-wheels
+disable-mysql-client-installation constraints-location: disable-pip-cache install-from-docker-context-files
 additional-extras: additional-python-deps: skip-installing-airflow-via-pip
 dev-apt-deps: additional-dev-apt-deps: dev-apt-command: additional-dev-apt-command: additional-dev-apt-env:
 runtime-apt-deps: additional-runtime-apt-deps: runtime-apt-command: additional-runtime-apt-command: additional-runtime-apt-env:
 load-default-connections load-example-dags
-install-wheels no-rbac-ui
+install-packages-from-dist no-rbac-ui package-format:
 test-type:
 preserve-volumes
 "

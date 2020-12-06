@@ -1653,6 +1653,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Default: 
 
+  -S, --version-suffix-for-pypi SUFFIX
+          Adds optional suffix to the version in the generated backport package. It can be used
+          to generate rc1/rc2 ... versions of the packages to be uploaded to PyPI.
+
+  -N, --version-suffix-for-svn SUFFIX
+          Adds optional suffix to the generated names of package. It can be used to generate
+          rc1/rc2 ... versions of the packages to be uploaded to SVN.
+
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
           debugging - when you run breeze with --verbose flags you will be able to see the commands

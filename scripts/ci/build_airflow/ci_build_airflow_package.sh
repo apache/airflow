@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,10 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-version: "2.2"
-services:
-  airflow:
-    volumes:
-      - ../../../files:/files:cached
-      - ../../../dist:/dist:cached
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+
+build_airflow_packages::build_airflow_packages
+
+cd "${AIRFLOW_SOURCES}/dist" || exit 1
+
+dump_file="/tmp/airflow_$(date +"%Y%m%d-%H%M%S").tar.gz"
+tar -cvzf "${dump_file}" .
+
+echo "Airflow is in dist and also tar-gzipped in ${dump_file}"

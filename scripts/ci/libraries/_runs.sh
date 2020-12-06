@@ -19,9 +19,10 @@
 # Docker command to build documentation
 function runs::run_docs() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" -t \
-            --entrypoint "/usr/local/bin/dumb-init"  \
-            "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/in_container/run_docs_build.sh" "${@}"
+        -e "GITHUB_ACTIONS=${GITHUB_ACTIONS="false"}" \
+        --entrypoint "/usr/local/bin/dumb-init"  \
+        "${AIRFLOW_CI_IMAGE}" \
+        "--" "/opt/airflow/scripts/in_container/run_docs_build.sh" "${@}"
 }
 
 
@@ -31,4 +32,14 @@ function runs::run_generate_constraints() {
         --entrypoint "/usr/local/bin/dumb-init"  \
         "${AIRFLOW_CI_IMAGE}" \
         "--" "/opt/airflow/scripts/in_container/run_generate_constraints.sh"
+}
+
+# Docker command to prepare provider packages
+function runs::run_prepare_airflow_packages() {
+    docker run "${EXTRA_DOCKER_FLAGS[@]}" \
+        --entrypoint "/usr/local/bin/dumb-init"  \
+        -t \
+        -v "${AIRFLOW_SOURCES}:/opt/airflow" \
+        "${AIRFLOW_CI_IMAGE}" \
+        "--" "/opt/airflow/scripts/in_container/run_prepare_airflow_packages.sh" "${@}"
 }

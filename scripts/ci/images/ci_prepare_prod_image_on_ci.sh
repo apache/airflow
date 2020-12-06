@@ -23,7 +23,6 @@ export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
 export DOCKER_CACHE="local"
 export VERBOSE="true"
 
-
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
