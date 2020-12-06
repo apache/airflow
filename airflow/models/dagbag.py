@@ -519,7 +519,7 @@ class DagBag(LoggingMixin):
 
         def _serialze_dag_capturing_errors(dag, session):
             """
-            Try to serialized the dag to the DB, but make a note of any errors.
+            Try to serialize the dag to the DB, but make a note of any errors.
 
             We can't place them directly in import_errors, as this may be retried, and work the next time
             """
