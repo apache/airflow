@@ -26,8 +26,6 @@ Content
     :maxdepth: 1
     :caption: Guides
 
-    Connection types <connections/aws>
-    Operators <operators/index>
     Logging for Tasks <logging>
 
 .. toctree::
