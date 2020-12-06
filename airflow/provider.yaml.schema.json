@@ -180,6 +180,13 @@
       "items": {
         "type": "string"
       }
+    },
+    "extra-links": {
+      "type": "array",
+      "description": "Class name that provide extra link functionality",
+      "items": {
+        "type": "string"
+      }
     }
   },
   "additionalProperties": false,

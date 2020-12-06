@@ -27,7 +27,7 @@ Google Cloud Bigtable Operators
 Prerequisite Tasks
 ------------------
 
-.. include:: /operators/_partials/prerequisite_tasks.rst
+.. include::/operators/_partials/prerequisite_tasks.rst
 
 
 .. _howto/operator:BigtableCreateInstanceOperator:

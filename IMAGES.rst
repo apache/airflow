@@ -117,6 +117,16 @@ parameter to Breeze:
   ./breeze build-image --python 3.7 --additional-extras=presto \
       --production-image --install-airflow-version=1.10.13
 
+
+.. note::
+
+   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+   ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``--use-deprecated legacy-resolver`` to your pip install command.
+
+
 This will build the image using command similar to:
 
 .. code-block:: bash

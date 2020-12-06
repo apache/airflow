@@ -1595,7 +1595,7 @@ ${CMDNAME} build-docs [-- <EXTRA_ARGS>]
       is generated ('docs/_build') are also mounted to the container - this way results of
       the documentation build is available in the host.
 
-      The possible extra args are: --docs-only, --spellcheck-only, --help
+      The possible extra args are: --docs-only, --spellcheck-only, --package, --help
 "
     readonly DETAILED_USAGE_BUILD_DOCS
     export DETAILED_USAGE_BUILD_IMAGE="

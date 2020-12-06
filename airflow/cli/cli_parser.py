@@ -173,7 +173,10 @@ ARG_YES = Arg(
     ("-y", "--yes"), help="Do not prompt to confirm reset. Use with care!", action="store_true", default=False
 )
 ARG_OUTPUT = Arg(
-    ("--output",),
+    (
+        "-o",
+        "--output",
+    ),
     help=("Output format. Allowed values: json, yaml, table (default: table)"),
     metavar="(table, json, yaml)",
     choices=("table", "json", "yaml"),
@@ -1165,6 +1168,12 @@ PROVIDERS_COMMANDS = (
         help='Get detailed information about a provider',
         func=lazy_load_command('airflow.cli.commands.provider_command.provider_get'),
         args=(ARG_OUTPUT, ARG_FULL, ARG_COLOR, ARG_PROVIDER_NAME),
+    ),
+    ActionCommand(
+        name='links',
+        help='List extra links registered by the providers',
+        func=lazy_load_command('airflow.cli.commands.provider_command.extra_links_list'),
+        args=(ARG_OUTPUT,),
     ),
 )
 

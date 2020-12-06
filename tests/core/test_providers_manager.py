@@ -119,6 +119,13 @@ CONNECTIONS_LIST = [
     'wasb',
 ]
 
+EXTRA_LINKS = [
+    'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink',
+    'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink',
+    'airflow.providers.google.cloud.operators.mlengine.AIPlatformConsoleLink',
+    'airflow.providers.qubole.operators.qubole.QDSLink',
+]
+
 
 class TestProviderManager(unittest.TestCase):
     def test_providers_are_loaded(self):
@@ -137,3 +144,8 @@ class TestProviderManager(unittest.TestCase):
         provider_manager = ProvidersManager()
         connections_list = list(provider_manager.hooks.keys())
         self.assertEqual(CONNECTIONS_LIST, connections_list)
+
+    def test_extra_links(self):
+        provider_manager = ProvidersManager()
+        extra_link_class_names = list(provider_manager.extra_links_class_names)
+        self.assertEqual(EXTRA_LINKS, extra_link_class_names)

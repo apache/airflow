@@ -436,7 +436,6 @@ Airflow provides operators for many common tasks, including:
   :class:`~airflow.providers.microsoft.mssql.operators.mssql.MsSqlOperator`,
   :class:`~airflow.providers.oracle.operators.oracle.OracleOperator`,
   :class:`~airflow.providers.jdbc.operators.jdbc.JdbcOperator`, etc. - executes a SQL command
-- ``Sensor`` - an Operator that waits (polls) for a certain time, file, database row, S3 key, etc...
 
 In addition to these basic building blocks, there are many more specific
 operators: :class:`~airflow.providers.docker.operators.docker.DockerOperator`,
@@ -448,7 +447,81 @@ Operators are only loaded by Airflow if they are assigned to a DAG.
 
 .. seealso::
     - :ref:`List Airflow operators <pythonapi:operators>`
-    - :doc:`How-to guides for some Airflow operators<howto/operator/index>`.
+    - :doc:`How-to guides for some Airflow operators<howto/operator/index>`
+
+.. _concepts:sensors:
+
+Sensors
+-------
+
+``Sensor`` is an Operator that waits (polls) for a certain time, file, database row, S3 key, , another DAG/task, etc...
+
+There are currently 3 different modes for how a sensor operates:
+
++--------------------+-----------------------+-----------------------+
+| Schedule Mode      | Description           | Use case              |
++====================+=======================+=======================+
+| ``poke`` (default) | The sensor is taking  | Use this mode if the  |
+|                    | up a worker slot for  | expected runtime of   |
+|                    | its whole execution   | the sensor is short   |
+|                    | time and sleeps       | or if a short poke    |
+|                    | between pokes.        | interval is required. |
+|                    |                       | Note that the sensor  |
+|                    |                       | will hold onto a      |
+|                    |                       | worker slot and a     |
+|                    |                       | pool slot for the     |
+|                    |                       | duration of the       |
+|                    |                       | sensor's runtime in   |
+|                    |                       | this mode.            |
++--------------------+-----------------------+-----------------------+
+| ``reschedule``     | The sensor task frees | Use this mode if the  |
+|                    | the worker slot when  | time before the       |
+|                    | the criteria is not   | criteria is met is    |
+|                    | yet met and it's      | expected to be quite  |
+|                    | rescheduled at a      | long. The poke        |
+|                    | later time.           | interval should be    |
+|                    |                       | more than one minute  |
+|                    |                       | to prevent too much   |
+|                    |                       | load on the           |
+|                    |                       | scheduler.            |
++--------------------+-----------------------+-----------------------+
+| ``smart sensor``   | smart sensor is a     | Use this mode if you  |
+|                    | service (run by a     | have a large amount   |
+|                    | builtin DAG) which    | of sensor tasks       |
+|                    | consolidate the       | running in your       |
+|                    | execution of sensors  | airflow cluster. This |
+|                    | in batches. Instead   | can largely reduce    |
+|                    | of holding a long     | airflow’s             |
+|                    | running process for   | infrastructure cost   |
+|                    | each sensor and       | and improve cluster   |
+|                    | poking periodically,  | stability - reduce    |
+|                    | a sensor will only    | meta database load.   |
+|                    | store poke context at |                       |
+|                    | ``sensor_instance``   |                       |
+|                    | table and then exits  |                       |
+|                    | with a 'sensing'      |                       |
+|                    | state.                |                       |
++--------------------+-----------------------+-----------------------+
+
+How to use:
+
+For ``poke|schedule`` mode, you can configure them at the task level by supplying the ``mode`` parameter,
+i.e. ``S3KeySensor(task_id='check-bucket', mode='reschedule', ...)``.
+
+For ``smart sensor``, you need to configure it in ``airflow.cfg``, for example:
+
+.. code-block::
+
+    [smart_sensor]
+    use_smart_sensor = true
+    shard_code_upper_limit = 10000
+
+    # Users can change the following config based on their requirements
+    shards = 5
+    sensors_enabled = NamedHivePartitionSensor, MetastorePartitionSensor
+
+For more information on how to configure ``smart-sensor`` and its architecture, see:
+:doc:`Smart Sensor Architecture and Configuration<smart-sensor>`
 
 DAG Assignment
 --------------

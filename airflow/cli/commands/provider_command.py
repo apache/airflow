@@ -72,3 +72,14 @@ def hooks_list(args):
             "conn_attribute_name": x[1][1],
         },
     )
+
+
+def extra_links_list(args):
+    """Lists all extra links at the command line"""
+    AirflowConsole().print_as(
+        data=ProvidersManager().extra_links_class_names,
+        output=args.output,
+        mapper=lambda x: {
+            "extra_link_class_name": x,
+        },
+    )
