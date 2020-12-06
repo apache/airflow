@@ -27,9 +27,10 @@ assists users migrating to a new version.
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
 - [Step 1: Upgrade to Python 3](#step-1-upgrade-to-python-3)
-- [Step 2: Upgrade to Airflow 1.10.13 (a.k.a our "bridge" release)](#step-2-upgrade-to-airflow-11013-aka-our-bridge-release)
-- [Step 3: Set Operators to Backport Providers](#step-3-set-operators-to-backport-providers)
-- [Step 4: Upgrade Airflow DAGs](#step-4-upgrade-airflow-dags)
+- [Step 2: Upgrade to Airflow 1.10.14 (a.k.a our "bridge" release)](#step-2-upgrade-to-airflow-11014-aka-our-bridge-release)
+- [Step 3: Install and run the Upgrade check scripts](#step-3-install-and-run-the-upgrade-check-scripts)
+- [Step 4: Set Operators to Backport Providers](#step-4-set-operators-to-backport-providers)
+- [Step 5: Upgrade Airflow DAGs](#step-5-upgrade-airflow-dags)
   - [Change to undefined variable handling in templates](#change-to-undefined-variable-handling-in-templates)
   - [Changes to the KubernetesPodOperator](#changes-to-the-kubernetespodoperator)
   - [Change default value for dag_run_conf_overrides_params](#change-default-value-for-dag_run_conf_overrides_params)
@@ -37,7 +38,7 @@ assists users migrating to a new version.
   - [Change to Permissions](#change-to-permissions)
   - [Drop legacy UI in favor of FAB RBAC UI](#drop-legacy-ui-in-favor-of-fab-rbac-ui)
   - [Breaking Change in OAuth](#breaking-change-in-oauth)
-- [Step 5: Upgrade KubernetesExecutor settings](#step-5-upgrade-kubernetesexecutor-settings)
+- [Step 6: Upgrade KubernetesExecutor settings](#step-6-upgrade-kubernetesexecutor-settings)
   - [The KubernetesExecutor Will No Longer Read from the airflow.cfg for Base Pod Configurations](#the-kubernetesexecutor-will-no-longer-read-from-the-airflowcfg-for-base-pod-configurations)
   - [The `executor_config` Will Now Expect a `kubernetes.client.models.V1Pod` Class When Launching Tasks](#the-executor_config-will-now-expect-a-kubernetesclientmodelsv1pod-class-when-launching-tasks)
 - [Appendix](#appendix)
@@ -71,19 +72,19 @@ For a list of breaking changes between Python 2 and Python 3, please refer to th
 from the CouchBaseDB team.
 
 
-## Step 2: Upgrade to Airflow 1.10.13 (a.k.a our "bridge" release)
+## Step 2: Upgrade to Airflow 1.10.14 (a.k.a our "bridge" release)
 
 To minimize friction for users upgrading from Airflow 1.10 to Airflow 2.0 and beyond, a "bridge"
-release and final 1.10 version will be made available. Airflow 1.10.13 includes support for various critical features
+release and final 1.10 version will be made available. Airflow 1.10.14 includes support for various critical features
 that make it easy for users to test DAGs and make sure they're Airflow 2.0 compatible without forcing breaking changes
 and disrupting existing workflows. We strongly recommend that all users upgrading to Airflow 2.0 first
-upgrade to Airflow 1.10.13.
+upgrade to Airflow 1.10.14.
 
-Features in 1.10.13 include:
+Features in 1.10.14 include:
 
-1. All breaking DAG and architecture changes of Airflow 2.0 have been backported to Airflow 1.10.13. This backward-compatibility does not mean
-that 1.10.13 will process these DAGs the same way as Airflow 2.0. What this does mean is that all Airflow 2.0
-compatible DAGs will work in Airflow 1.10.13. Instead, this backport will give users time to modify their DAGs over time without any service
+1. All breaking DAG and architecture changes of Airflow 2.0 have been backported to Airflow 1.10.14. This backward-compatibility does not mean
+that 1.10.14 will process these DAGs the same way as Airflow 2.0. What this does mean is that all Airflow 2.0
+compatible DAGs will work in Airflow 1.10.14. Instead, this backport will give users time to modify their DAGs over time without any service
 disruption.
 2. We have backported the `pod_template_file` capability for the KubernetesExecutor as well as a script that will generate a `pod_template_file`
 based on your `airflow.cfg` settings. To generate this file simply run the following command:
@@ -94,18 +95,25 @@ based on your `airflow.cfg` settings. To generate this file simply run the follo
 
     Once you have performed this step, simply write out the file path to this file in the `pod_template_file` section of the `kubernetes`
 section of your `airflow.cfg`
-3. Airflow 1.10.13 will contain our "upgrade check" scripts. These scripts will read through your `airflow.cfg` and all of your
-Dags and will give a detailed report of all changes required before upgrading. We are testing this script diligently, and our
-goal is that any Airflow setup that can pass these tests will be able to upgrade to 2.0 without any issues.
+
+## Step 3: Install and run the Upgrade check scripts
+
+After upgrading to Airflow 1.10.14, we recommend that you install the "upgrade check" scripts. These scripts will read through your `airflow.cfg` and all of your Dags and will give a detailed report of all changes required before upgrading. We are testing this script diligently, and our goal is that any Airflow setup that can pass these tests will be able to upgrade to 2.0 without any issues.
+
+```shell script
+    pip install apache-airflow-upgrade-check
+```
+
+Once this is installed, please run the upgrade check script.
 
 ```shell script
     airflow upgrade_check
 ```
 
 
-## Step 3: Set Operators to Backport Providers
+## Step 4: Set Operators to Backport Providers
 
-Now that you are set up in airflow 1.10.13 with python a 3.6+ environment, you are ready to start porting your DAGs to Airfow 2.0 compliance!
+Now that you are set up in airflow 1.10.14 with python a 3.6+ environment, you are ready to start porting your DAGs to Airfow 2.0 compliance!
 
 The most important step in this transition is also the easiest step to do in pieces. All Airflow 2.0 operators are backwards compatible with Airflow 1.10
 using the [backport providers](./backport-providers.rst) service. In your own time, you can transition to using these backport-providers
@@ -149,7 +157,7 @@ pip install airflow[docker]
 automatically installs the `apache-airflow-providers-docker` package.
 But you can manage/upgrade remove provider packages separately from the airflow core.
 
-## Step 4: Upgrade Airflow DAGs
+## Step 5: Upgrade Airflow DAGs
 
 ### Change to undefined variable handling in templates
 
@@ -346,7 +354,7 @@ The Old and New provider configuration keys that have changed are as follows
 For more information, visit https://flask-appbuilder.readthedocs.io/en/latest/security.html#authentication-oauth
 
 
-## Step 5: Upgrade KubernetesExecutor settings
+## Step 6: Upgrade KubernetesExecutor settings
 
 ### The KubernetesExecutor Will No Longer Read from the airflow.cfg for Base Pod Configurations
 
@@ -1101,7 +1109,7 @@ depending on the development packages then you should use `devel_all`.
 
 ### Support for Airflow 1.10.x releases
 
-As mentioned earlier in Step 2, the 1.10.13 release is intended to be a "bridge release"
+As mentioned earlier in Step 2, the 1.10.14 release is intended to be a "bridge release"
 which would be a step in the migration to Airflow 2.0.
 
 After the Airflow 2.0 GA (General Availability) release, it expected that all
