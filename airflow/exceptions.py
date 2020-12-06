@@ -131,7 +131,7 @@ class SerializedDagNotFound(DagNotFound):
 
 
 class SerializationError(AirflowException):
-    """A problem occurred when trying to serialized a DAG"""
+    """A problem occurred when trying to serialize a DAG"""
 
 
 class TaskNotFound(AirflowNotFoundException):
