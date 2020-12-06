@@ -657,19 +657,19 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         else:
             return 'adhoc_' + self.owner
 
-    @property
-    def deps(self) -> Set[BaseTIDep]:
-        """
-        Returns the set of dependencies for the operator. These differ from execution
-        context dependencies in that they are specific to tasks and can be
-        extended/overridden by subclasses.
-        """
-        return {
+    deps: Iterable[BaseTIDep] = frozenset(
+        {
             NotInRetryPeriodDep(),
             PrevDagrunDep(),
             TriggerRuleDep(),
             NotPreviouslySkippedDep(),
         }
+    )
+    """
+    Returns the set of dependencies for the operator. These differ from execution
+    context dependencies in that they are specific to tasks and can be
+    extended/overridden by subclasses.
+    """
 
     def prepare_for_execution(self) -> "BaseOperator":
         """

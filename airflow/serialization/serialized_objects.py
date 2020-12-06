@@ -20,7 +20,7 @@ import datetime
 import enum
 import logging
 from inspect import Parameter, signature
-from typing import Any, Dict, Iterable, Optional, Set, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Union
 
 import cattr
 import pendulum
@@ -56,6 +56,10 @@ try:
     HAS_KUBERNETES = True
 except ImportError:
     HAS_KUBERNETES = False
+
+
+if TYPE_CHECKING:
+    from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 
 
 log = logging.getLogger(__name__)
@@ -361,7 +365,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         self._task_type = task_type
 
     @classmethod
-    def serialize_operator(cls, op: BaseOperator) -> dict:
+    def serialize_operator(cls, op: BaseOperator) -> Dict[str, Any]:
         """Serializes operator into a JSON object."""
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
         serialize_op['_task_type'] = op.__class__.__name__
@@ -374,6 +378,22 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             serialize_op['_operator_extra_links'] = cls._serialize_operator_extra_links(
                 op.operator_extra_links
             )
+
+        if op.deps is not BaseOperator.deps:
+            # Are the deps different to BaseOperator, if so serialize the class names!
+            # For Airflow 2.0 expediency we _only_ allow built in Dep classes.
+            # Fix this for 2.0.x or 2.1
+            deps = []
+            for dep in op.deps:
+                klass = type(dep)
+                module_name = klass.__module__
+                if not module_name.startswith("airflow.ti_deps.deps."):
+                    raise ValueError(
+                        f"Cannot serialize task with `deps` from non-core module {module_name!r}"
+                    )
+
+                deps.append(f'{module_name}.{klass.__name__}')
+            serialize_op['deps'] = deps
 
         # Store all template_fields as they are if there are JSON Serializable
         # If not, store them as strings
@@ -438,6 +458,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
                 v = list(op_predefined_extra_links.values())
                 k = "operator_extra_links"
+
+            elif k == "deps":
+                v = cls._deserialize_deps(v)
             elif k in cls._decorated_fields or k not in op.get_serialized_fields():
                 v = cls._deserialize(v)
             # else use v as it is
@@ -466,6 +489,20 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             if var is dag_date or var == dag_date:
                 return True
         return super()._is_excluded(var, attrname, op)
+
+    @classmethod
+    def _deserialize_deps(cls, deps: List[str]) -> Set["BaseTIDep"]:
+        instances = set()
+        for qualname in set(deps):
+            if not qualname.startswith("airflow.ti_deps.deps."):
+                log.error("Dep class %r not registered", qualname)
+                continue
+
+            try:
+                instances.add(import_string(qualname)())
+            except ImportError:
+                log.warning("Error importing dep %r", qualname, exc_info=True)
+        return instances
 
     @classmethod
     def _deserialize_operator_extra_links(cls, encoded_op_links: list) -> Dict[str, BaseOperatorLink]:
