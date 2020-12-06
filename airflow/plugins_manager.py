@@ -26,7 +26,10 @@ import sys
 import types
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
-import importlib_metadata
+try:
+    import importlib_metadata
+except ImportError:
+    from importlib import metadata as importlib_metadata
 
 from airflow import settings
 from airflow.utils.entry_points import entry_points_with_dist
@@ -194,7 +197,7 @@ def load_entrypoint_plugins():
                 plugins.append(plugin_instance)
         except Exception as e:  # pylint: disable=broad-except
             log.exception("Failed to import plugin %s", entry_point.name)
-            import_errors[entry_point.module_name] = str(e)
+            import_errors[entry_point.module] = str(e)
 
 
 def load_plugins_from_plugin_directory():

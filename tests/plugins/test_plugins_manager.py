@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import logging
+import sys
 import unittest
 from unittest import mock
 
@@ -23,6 +24,9 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.plugins_manager import AirflowPlugin
 from airflow.www import app as application
 from tests.test_utils.mock_plugins import mock_plugin_manager
+
+py39 = sys.version_info[0:2] >= (3, 9)
+importlib_metadata = 'importlib.metadata' if py39 else 'importlib_metadata'
 
 
 class TestPluginsRBAC(unittest.TestCase):
@@ -197,11 +201,11 @@ class TestPluginsManager:
         mock_entrypoint = mock.Mock()
         mock_entrypoint.name = 'test-entrypoint'
         mock_entrypoint.group = 'airflow.plugins'
-        mock_entrypoint.module_name = 'test.plugins.test_plugins_manager'
+        mock_entrypoint.module = 'test.plugins.test_plugins_manager'
         mock_entrypoint.load.side_effect = ImportError('my_fake_module not found')
         mock_dist.entry_points = [mock_entrypoint]
 
-        with mock.patch('importlib_metadata.distributions', return_value=[mock_dist]), caplog.at_level(
+        with mock.patch(f'{importlib_metadata}.distributions', return_value=[mock_dist]), caplog.at_level(
             logging.ERROR, logger='airflow.plugins_manager'
         ):
             load_entrypoint_plugins()
@@ -230,14 +234,14 @@ class TestEntryPointSource:
 
         mock_entrypoint = mock.Mock()
         mock_entrypoint.name = 'test-entrypoint-plugin'
-        mock_entrypoint.module_name = 'module_name_plugin'
+        mock_entrypoint.module = 'module_name_plugin'
 
         mock_dist = mock.Mock()
         mock_dist.metadata = {'name': 'test-entrypoint-plugin'}
         mock_dist.version = '1.0.0'
         mock_dist.entry_points = [mock_entrypoint]
 
-        with mock.patch('importlib_metadata.distributions', return_value=[mock_dist]):
+        with mock.patch(f'{importlib_metadata}.distributions', return_value=[mock_dist]):
             plugins_manager.load_entrypoint_plugins()
 
         source = plugins_manager.EntryPointSource(mock_entrypoint, mock_dist)
