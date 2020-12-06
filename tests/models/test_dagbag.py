@@ -647,12 +647,15 @@ class TestDagBag(unittest.TestCase):
             session.rollback()
 
     @patch("airflow.models.dagbag.DagBag.collect_dags")
-    @patch("airflow.models.serialized_dag.SerializedDagModel.bulk_sync_to_db")
+    @patch("airflow.models.serialized_dag.SerializedDagModel.write_dag")
     @patch("airflow.models.dag.DAG.bulk_write_to_db")
-    def test_sync_to_db_is_retried(self, mock_bulk_write_to_db, mock_sdag_sync_to_db, mock_collect_dags):
+    def test_sync_to_db_is_retried(self, mock_bulk_write_to_db, mock_s10n_write_dag, mock_collect_dags):
         """Test that dagbag.sync_to_db is retried on OperationalError"""
 
         dagbag = DagBag("/dev/null")
+        mock_dag = mock.MagicMock(spec=models.DAG)
+        mock_dag.is_subdag = False
+        dagbag.dags['mock_dag'] = mock_dag
 
         op_error = OperationalError(statement=mock.ANY, params=mock.ANY, orig=mock.ANY)
 
@@ -674,10 +677,14 @@ class TestDagBag(unittest.TestCase):
         )
         # Assert that rollback is called twice (i.e. whenever OperationalError occurs)
         mock_session.rollback.assert_has_calls([mock.call(), mock.call()])
-        # Check that 'SerializedDagModel.bulk_sync_to_db' is also called
+        # Check that 'SerializedDagModel.write_dag' is also called
         # Only called once since the other two times the 'DAG.bulk_write_to_db' error'd
-        # and the session was roll-backed before even reaching 'SerializedDagModel.bulk_sync_to_db'
-        mock_sdag_sync_to_db.assert_has_calls([mock.call(mock.ANY, session=mock.ANY)])
+        # and the session was roll-backed before even reaching 'SerializedDagModel.write_dag'
+        mock_s10n_write_dag.assert_has_calls(
+            [
+                mock.call(mock_dag, min_update_interval=mock.ANY, session=mock_session),
+            ]
+        )
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
