@@ -61,8 +61,8 @@ class SubDagOperator(BaseSensorOperator):
     ui_color = '#555'
     ui_fgcolor = '#fff'
 
-    @provide_session
     @apply_defaults
+    @provide_session
     def __init__(
         self,
         *,
