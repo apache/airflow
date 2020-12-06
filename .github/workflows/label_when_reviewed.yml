@@ -17,7 +17,9 @@
 #
 ---
 name: Label when reviewed
-on: pull_request_review  # yamllint disable-line rule:truthy
+on:  # yamllint disable-line rule:truthy
+  pull_request_review:
+    types: [submitted]
 
 jobs:
 
