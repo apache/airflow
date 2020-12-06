@@ -547,6 +547,7 @@ cmd
 cmdline
 cmds
 cname
+cncf
 cnf
 cnt
 codebase
@@ -943,6 +944,7 @@ metarouter
 metastore
 mget
 microservice
+microsoft
 middleware
 mik
 milton
