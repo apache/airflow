@@ -18,7 +18,7 @@
 from functools import wraps
 from typing import Callable, Optional, Sequence, Tuple, TypeVar, cast
 
-from flask import current_app, redirect, request, url_for
+from flask import current_app, flash, redirect, request, url_for
 
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
@@ -32,6 +32,9 @@ def has_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Calla
             appbuilder = current_app.appbuilder
             if appbuilder.sm.check_authorization(permissions, request.args.get('dag_id', None)):
                 return func(*args, **kwargs)
+            else:
+                access_denied = "Access is Denied"
+                flash(access_denied, "danger")
             return redirect(
                 url_for(
                     appbuilder.sm.auth_view.__class__.__name__ + ".login",

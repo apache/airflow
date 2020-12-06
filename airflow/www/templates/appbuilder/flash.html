@@ -41,10 +41,12 @@
 
   {% if regular_alerts %}
     {% for category, m in regular_alerts %}
-      <div class="alert alert-{{ category if category else 'info' }}">
-        <button type="button" class="close" data-dismiss="alert">&times;</button>
-        {{ m }}
-      </div>
+      {% if not ('login' in request.path and 'access is denied' in m.lower()) %}
+        <div class="alert alert-{{ category if category else 'info' }}">
+          <button type="button" class="close" data-dismiss="alert">&times;</button>
+          {{ m }}
+        </div>
+      {% endif %}
     {% endfor %}
   {% endif %}
 
