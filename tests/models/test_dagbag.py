@@ -30,6 +30,7 @@ from sqlalchemy.exc import OperationalError
 
 import airflow.example_dags
 from airflow import models
+from airflow.exceptions import SerializationError
 from airflow.models import DagBag, DagModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.dates import timezone as tz
@@ -621,6 +622,29 @@ class TestDagBag(unittest.TestCase):
 
             new_serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
             self.assertEqual(new_serialized_dags_count, 1)
+
+    @patch("airflow.models.serialized_dag.SerializedDagModel.write_dag")
+    def test_serialized_dag_errors_are_import_errors(self, mock_serialize):
+        """
+        Test that errors serializing a DAG are recorded as import_errors in the DB
+        """
+        mock_serialize.side_effect = SerializationError
+
+        with create_session() as session:
+            path = os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py")
+
+            dagbag = DagBag(
+                dag_folder=path,
+                include_examples=False,
+            )
+            assert dagbag.import_errors == {}
+
+            dagbag.sync_to_db(session=session)
+
+            assert path in dagbag.import_errors
+            err = dagbag.import_errors[path]
+            assert "SerializationError" in err
+            session.rollback()
 
     @patch("airflow.models.dagbag.DagBag.collect_dags")
     @patch("airflow.models.serialized_dag.SerializedDagModel.bulk_sync_to_db")
