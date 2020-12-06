@@ -24,8 +24,8 @@ Airflow has two images (build from Dockerfiles):
 
   * Production image (Dockerfile) - that can be used to build your own production-ready Airflow installation
     You can read more about building and using the production image in the
-    `Production Deployments <docs/production-deployment.rst>`_ document. The image is built using
-    `Dockerfile <Dockerfile>`_
+    `Production Deployments <https://airflow.apache.org/docs/apache-airflow/stable/production-deployment.html>`_ document.
+    The image is built using `Dockerfile <Dockerfile>`_
 
   * CI image (Dockerfile.ci) - used for running tests and local development. The image is built using
     `Dockerfile.ci <Dockerfile.ci>`_
@@ -546,7 +546,7 @@ Production images
 -----------------
 
 You can find details about using, building, extending and customising the production images in the
-`Latest documentation <docs/production-deployment.rst>`_
+`Latest documentation <https://airflow.apache.org/docs/apache-airflow/stable/production-deployment.htmlt>`_
 
 
 Image manifests
@@ -631,10 +631,8 @@ The entrypoint performs those operations:
 Using, customising, and extending the production image
 ======================================================
 
-You can read more about using, customising, and extending the production image in the documentation:
-
-* [Stable docs](https://airflow.apache.org/docs/stable/production-deployment.html)
-* [Latest docs from master branch](https://airflow.readthedocs.io/en/latest/production-deployment.html
+You can read more about using, customising, and extending the production image in the
+`documentation <https://airflow.apache.org/docs/apache-airflow/stable/production-deployment.html>`_.
 
 Alpha versions of 1.10.10 production-ready images
 =================================================
