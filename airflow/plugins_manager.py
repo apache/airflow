@@ -35,9 +35,9 @@ from typing import Any, Dict, List, Type
 from six import with_metaclass
 
 try:
-    import importlib.metadata as importlib_metadata
-except ImportError:
     import importlib_metadata
+except ImportError:
+    import importlib.metadata as importlib_metadata
 
 from airflow import settings
 from airflow.models.baseoperator import BaseOperatorLink
@@ -157,7 +157,7 @@ def load_entrypoint_plugins(entry_points, airflow_plugins):
                 airflow_plugins.append(plugin_obj)
         except Exception as e:  # pylint: disable=broad-except
             log.exception("Failed to import plugin %s", entry_point.name)
-            import_errors[entry_point.module_name] = str(e)
+            import_errors[entry_point.module] = str(e)
     return airflow_plugins
 
 

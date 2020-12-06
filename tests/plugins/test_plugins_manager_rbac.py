@@ -87,7 +87,7 @@ class TestPluginsRBAC(object):
         mock_entrypoint = mock.Mock()
         mock_entrypoint.name = 'test-entrypoint'
         mock_entrypoint.group = 'airflow.plugins'
-        mock_entrypoint.module_name = 'test.plugins.test_plugins_manager'
+        mock_entrypoint.module = 'test.plugins.test_plugins_manager'
         mock_entrypoint.load.side_effect = ImportError('my_fake_module not found')
         mock_dist.entry_points = [mock_entrypoint]
 
