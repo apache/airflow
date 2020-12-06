@@ -32,5 +32,6 @@ determine what actually executes when your DAG runs.
     :maxdepth: 2
 
     bash
+    datetime_branch
     python
     external_task_sensor

@@ -78,6 +78,6 @@ cond2 = DateTimeBranchOperator(
 )
 
 # Since target_lower happens after target_upper, target_upper will be moved to the following day
-# Run dummy_task_1 if cond2 executes between 15:00:00 and 00:00:00 of the following day
+# Run dummy_task_1 if cond2 executes between 15:00:00, and 00:00:00 of the following day
 cond2 >> [dummy_task_1, dummy_task_2]
 # [END howto_operator_datetime_branch_next_day]
