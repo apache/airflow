@@ -601,11 +601,11 @@ def check_migrations(timeout):
             log.info('Waiting for migrations... %s second(s)', ticker)
 
 
-def check_conn_id_duplicates(session=None):
+def check_conn_id_duplicates(session=None) -> str:
     """
     Check unique conn_id in connection table
-    @param session:  session of the sqlalchemy
-    @return: str
+    :param session:  session of the sqlalchemy
+    :rtype: str
     """
     dups = []
     try:
@@ -616,19 +616,20 @@ def check_conn_id_duplicates(session=None):
         # fallback if tables hasn't been created yet
         pass
     if dups:
-        return f'Seems you have non unique conn_id in connection table.\n' \
-               f'You have to manage those duplicate connections ' \
-               f'before upgrading the database.\n' \
+        return 'Seems you have non unique conn_id in connection table.\n' \
+               'You have to manage those duplicate connections ' \
+               'before upgrading the database.\n' \
                f'Duplicated conn_id: {[dup[0] for dup in dups]}'
 
     return ''
 
 
-def check_conn_type_null(session=None):
+def check_conn_type_null(session=None) -> str:
     """
-    Check nullable conn_type column in connection table
-    @param session:  session of the sqlalchemy
-    @return: str
+    Check nullable conn_type column in Connection table
+
+    :param session:  session of the sqlalchemy
+    :rtype: str
     """
     n_nulls = []
     try:
@@ -639,10 +640,10 @@ def check_conn_type_null(session=None):
         pass
 
     if n_nulls:
-        return f'The conn_type column in the connection ' \
-               f'table must contain content.\n' \
-               f'Make sure you don\'t have null ' \
-               f'in the conn_type column.\n' \
+        return 'The conn_type column in the connection ' \
+               'table must contain content.\n' \
+               'Make sure you don\'t have null ' \
+               'in the conn_type column.\n' \
                f'Null conn_type conn_id: {list(n_nulls)}'
     return ''
 
@@ -650,8 +651,8 @@ def check_conn_type_null(session=None):
 @provide_session
 def auto_migrations_available(session=None):
     """
-    @session: session of the sqlalchemy
-    @return: list[str]
+    :session: session of the sqlalchemy
+    :rtype: list[str]
     """
     errors_ = []
 
