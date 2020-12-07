@@ -115,21 +115,24 @@ fi
 if [[ ${AIRFLOW_COMMAND} == "bash" ]]; then
    shift
    exec "/bin/bash" "${@}"
+elif [[ ${AIRFLOW_COMMAND} == "python" ]]; then
+   shift
+   exec "python" "${@}"
 elif [[ ${AIRFLOW_COMMAND} == "airflow" ]]; then
    AIRFLOW_COMMAND="${2}"
-   # Note: the broker backend configuration concerns only a subset of Airflow components
-    if [[ ${AIRFLOW_COMMAND} =~ ^(scheduler|celery|worker|flower)$ ]]; then
-      if [[ -n "${AIRFLOW__CELERY__BROKER_URL_CMD=}" ]]; then
-            verify_db_connection "$(eval "$AIRFLOW__CELERY__BROKER_URL_CMD")"
-        else
-            AIRFLOW__CELERY__BROKER_URL=${AIRFLOW__CELERY__BROKER_URL:=}
-            if [[ -n ${AIRFLOW__CELERY__BROKER_URL=} ]]; then
-                verify_db_connection "${AIRFLOW__CELERY__BROKER_URL}"
-            fi
+   shift
+fi
+
+# Note: the broker backend configuration concerns only a subset of Airflow components
+if [[ ${AIRFLOW_COMMAND} =~ ^(scheduler|celery|worker|flower)$ ]]; then
+  if [[ -n "${AIRFLOW__CELERY__BROKER_URL_CMD=}" ]]; then
+        verify_db_connection "$(eval "$AIRFLOW__CELERY__BROKER_URL_CMD")"
+    else
+        AIRFLOW__CELERY__BROKER_URL=${AIRFLOW__CELERY__BROKER_URL:=}
+        if [[ -n ${AIRFLOW__CELERY__BROKER_URL=} ]]; then
+            verify_db_connection "${AIRFLOW__CELERY__BROKER_URL}"
         fi
     fi
-   shift
-   exec "airflow" "${@}"
-else
-    exec "${@}"
 fi
+
+exec "airflow" "${@}"
