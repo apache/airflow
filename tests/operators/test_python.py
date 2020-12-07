@@ -1266,6 +1266,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             prev_execution_date_success,
             prev_start_date_success,
             # airflow-specific
+            macros,
             conf,
             dag,
             dag_run,

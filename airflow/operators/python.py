@@ -431,7 +431,7 @@ class PythonVirtualenvOperator(PythonOperator):
         'prev_execution_date_success',
         'prev_start_date_success',
     }
-    AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {'conf', 'dag', 'dag_run', 'task'}
+    AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {'macros', 'conf', 'dag', 'dag_run', 'task'}
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
