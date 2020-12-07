@@ -16,19 +16,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Increase text size for MySQL (not relevant for other DBs' text types)
+"""Change field in DagCode to MEDIUMTEXT for MySql
 
-Revision ID: d2ae31099d61
-Revises: 947454bf1dff
-Create Date: 2017-08-18 17:07:16.686130
+Revision ID: e959f08ac86c
+Revises: 64a7d6477aae
+Create Date: 2020-12-07 16:31:43.982353
 
 """
 from alembic import op
 from sqlalchemy.dialects import mysql
 
 # revision identifiers, used by Alembic.
-revision = 'd2ae31099d61'
-down_revision = '947454bf1dff'
+revision = 'e959f08ac86c'
+down_revision = '64a7d6477aae'
 branch_labels = None
 depends_on = None
 
@@ -36,10 +36,10 @@ depends_on = None
 def upgrade():  # noqa: D103
     conn = op.get_bind()  # pylint: disable=no-member
     if conn.dialect.name == "mysql":
-        op.alter_column(table_name='variable', column_name='val', type_=mysql.MEDIUMTEXT)
+        op.alter_column(table_name='dag_code', column_name='source_code', type_=mysql.MEDIUMTEXT)
 
 
 def downgrade():  # noqa: D103
     conn = op.get_bind()  # pylint: disable=no-member
     if conn.dialect.name == "mysql":
-        op.alter_column(table_name='variable', column_name='val', type_=mysql.TEXT)
+        op.alter_column(table_name='dag_code', column_name='source_code', type_=mysql.TEXT)
