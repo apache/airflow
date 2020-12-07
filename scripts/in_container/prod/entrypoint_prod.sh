@@ -98,10 +98,10 @@ if ! whoami &> /dev/null; then
   export HOME="${AIRFLOW_USER_HOME_DIR}"
 fi
 
-
 # Warning: command environment variables (*_CMD) have priority over usual configuration variables
 # for configuration parameters that require sensitive information. This is the case for the SQL database
 # and the broker backend in this entrypoint script.
+
 
 if [[ -n "${AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD=}" ]]; then
     verify_db_connection "$(eval "$AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD")"
@@ -109,6 +109,19 @@ else
     # if no DB configured - use sqlite db by default
     AIRFLOW__CORE__SQL_ALCHEMY_CONN="${AIRFLOW__CORE__SQL_ALCHEMY_CONN:="sqlite:///${AIRFLOW_HOME}/airflow.db"}"
     verify_db_connection "${AIRFLOW__CORE__SQL_ALCHEMY_CONN}"
+fi
+
+# The Bash and python commands still should verify the basic connections so they are run after the
+# DB check but before the broker check
+if [[ ${AIRFLOW_COMMAND} == "bash" ]]; then
+   shift
+   exec "/bin/bash" "${@}"
+elif [[ ${AIRFLOW_COMMAND} == "python" ]]; then
+   shift
+   exec "python" "${@}"
+elif [[ ${AIRFLOW_COMMAND} == "airflow" ]]; then
+   AIRFLOW_COMMAND="${2}"
+   shift
 fi
 
 # Note: the broker backend configuration concerns only a subset of Airflow components
@@ -123,13 +136,6 @@ if [[ ${AIRFLOW_COMMAND} =~ ^(scheduler|worker|flower)$ ]]; then
     fi
 fi
 
-if [[ ${AIRFLOW_COMMAND} == "bash" ]]; then
-   shift
-   exec "/bin/bash" "${@}"
-elif [[ ${AIRFLOW_COMMAND} == "python" ]]; then
-   shift
-   exec "python" "${@}"
-fi
 
 # Run the command
 exec airflow "${@}"

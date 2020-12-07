@@ -24,6 +24,12 @@ Content
 
 .. toctree::
     :maxdepth: 1
+    :caption: Guides
+
+    Secrets backends <secrets-backends/hashicorp-vault>
+
+.. toctree::
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/hashicorp/index>

@@ -119,9 +119,9 @@ function kind::perform_kind_cluster_operation() {
     ALLOWED_KIND_OPERATIONS="[ start restart stop deploy test shell recreate k9s]"
     set +u
     if [[ -z "${1=}" ]]; then
-        echo >&2
-        echo >&2 "Operation must be provided as first parameter. One of: ${ALLOWED_KIND_OPERATIONS}"
-        echo >&2
+        echo
+        echo  "${COLOR_RED_ERROR} Operation must be provided as first parameter. One of: ${ALLOWED_KIND_OPERATIONS}  ${COLOR_RESET}"
+        echo
         exit 1
     fi
     set -u
@@ -200,9 +200,9 @@ function kind::perform_kind_cluster_operation() {
                 -e EDITOR -e K9S_EDITOR \
                 -v "${KUBECONFIG}:/root/.kube/config" quay.io/derailed/k9s
         else
-            echo >&2
-            echo >&2 "Wrong cluster operation: ${OPERATION}. Should be one of: ${ALLOWED_KIND_OPERATIONS}"
-            echo >&2
+            echo
+            echo  "${COLOR_RED_ERROR} Wrong cluster operation: ${OPERATION}. Should be one of: ${ALLOWED_KIND_OPERATIONS}  ${COLOR_RESET}"
+            echo
             exit 1
         fi
     else
@@ -218,14 +218,14 @@ function kind::perform_kind_cluster_operation() {
             echo
             kind::create_cluster
         elif [[ ${OPERATION} == "stop" || ${OPERATION} == "deploy" || ${OPERATION} == "test" || ${OPERATION} == "shell" ]]; then
-            echo >&2
-            echo >&2 "Cluster ${KIND_CLUSTER_NAME} does not exist. It should exist for ${OPERATION} operation"
-            echo >&2
+            echo
+            echo  "${COLOR_RED_ERROR} Cluster ${KIND_CLUSTER_NAME} does not exist. It should exist for ${OPERATION} operation  ${COLOR_RESET}"
+            echo
             exit 1
         else
-            echo >&2
-            echo >&2 "Wrong cluster operation: ${OPERATION}. Should be one of ${ALLOWED_KIND_OPERATIONS}"
-            echo >&2
+            echo
+            echo  "${COLOR_RED_ERROR} Wrong cluster operation: ${OPERATION}. Should be one of ${ALLOWED_KIND_OPERATIONS}  ${COLOR_RESET}"
+            echo
             exit 1
         fi
     fi
@@ -293,9 +293,9 @@ function kind::wait_for_webserver_healthy() {
         sleep "${SLEEP_TIME_FOR_HEALTH_CHECK}"
         num_tries=$((num_tries + 1))
         if [[ ${num_tries} == "${MAX_NUM_TRIES_FOR_HEALTH_CHECK}" ]]; then
-            >&2 echo
-            >&2 echo "Timeout while waiting for the webserver health check"
-            >&2 echo
+            echo
+            echo  "${COLOR_RED_ERROR} Timeout while waiting for the webserver health check  ${COLOR_RESET}"
+            echo
         fi
     done
     echo

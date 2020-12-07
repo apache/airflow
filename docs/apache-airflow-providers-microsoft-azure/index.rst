@@ -24,6 +24,14 @@ Content
 
 .. toctree::
     :maxdepth: 1
+    :caption: Guides
+
+    Connection types <connections/azure>
+    Operators <operators/index>
+    Secrets backends <secrets-backends/azure-key-vault>
+
+.. toctree::
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/microsoft/azure/index>

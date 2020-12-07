@@ -247,7 +247,7 @@ repos:
       - id: setup-extra-packages
         name: Checks if all the libraries in setup.py are listed in extra-packages-ref.rst file
         language: python
-        files: ^setup.py$|^docs/extra-packages-ref.rst$
+        files: ^setup.py$|^docs/apache-airflow/extra-packages-ref.rst$
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_setup_extra_packages_ref.py
         additional_dependencies: ['rich==9.2.0']
@@ -322,7 +322,7 @@ repos:
           ^airflow/providers/apache/hive/.*PROVIDER_CHANGES_*|
           ^airflow/providers/apache/hive/.*README.md$|
           ^tests/providers/apache/cassandra/hooks/test_cassandra.py$|
-          ^docs/howto/connection/cassandra.rst$|
+          ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
           ^CHANGELOG.txt$
       - id: consistent-pylint
         language: pygrep
@@ -440,11 +440,6 @@ repos:
         files: ^airflow/www/.*\.(css|scss|sass)$
         # Keep dependency versions in sync w/ airflow/www/package.json
         additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0']
-      - id: version-sync
-        name: Version sync
-        files: ^airflow/version.py$|setup.py
-        entry: ./scripts/ci/pre_commit/pre_commit_sync_version.sh
-        language: system
       - id: providers-init-file
         name: Provider init file
         pass_filenames: false
@@ -457,7 +452,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
         language: python
         require_serial: true
-        files: provider.yaml$
+        files: provider.yaml$|scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py$
         additional_dependencies: ['PyYAML==5.3.1', 'jsonschema==3.2.0', 'tabulate==0.8.7']
       - id: mermaid
         name: Generate mermaid images
@@ -499,6 +494,53 @@ repos:
         types: [markdown]
         files: \.(md|mdown|markdown)$
         additional_dependencies: ['markdownlint-cli']
+      - id: json-schema
+        name: Lint JSON Schema files with JSON Schema
+        entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
+        args:
+          - --spec-url
+          - https://json-schema.org/draft-07/schema
+        language: python
+        pass_filenames: true
+        files: >
+          (?x)
+          ^airflow/provider.yaml.schema.json$|
+          ^airflow/serialization/schema.json$
+        require_serial: true
+        additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+      - id: json-schema
+        name: Lint JSON Schema files with JSON Schema
+        entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
+        args:
+          - --spec-url
+          - https://raw.githubusercontent.com/instrumenta/kubernetes-json-schema/master/v1.14.9/service-v1.json
+        language: python
+        pass_filenames: true
+        files: scripts/ci/kubernetes/nodeport.yaml
+        require_serial: true
+        additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+      - id: json-schema
+        name: Lint Docker compose files with JSON Schema
+        entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
+        args:
+          - --spec-url
+          - https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json
+        language: python
+        pass_filenames: true
+        files: scripts/ci/docker-compose/.+.yml
+        require_serial: true
+        additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+      - id: json-schema
+        name: Lint chart/values.yaml file with JSON Schema
+        entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
+        args:
+          - --spec-file
+          - chart/values.schema.json
+        language: python
+        pass_filenames: true
+        files: chart/values.yaml$
+        require_serial: true
+        additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: build

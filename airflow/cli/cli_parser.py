@@ -26,8 +26,6 @@ from argparse import Action, ArgumentError, RawTextHelpFormatter
 from functools import lru_cache
 from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Union
 
-from tabulate import tabulate_formats
-
 from airflow import settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
@@ -175,14 +173,14 @@ ARG_YES = Arg(
     ("-y", "--yes"), help="Do not prompt to confirm reset. Use with care!", action="store_true", default=False
 )
 ARG_OUTPUT = Arg(
-    ("--output",),
-    help=(
-        "Output table format. The specified value is passed to "
-        "the tabulate module (https://pypi.org/project/tabulate/). "
+    (
+        "-o",
+        "--output",
     ),
-    metavar="FORMAT",
-    choices=tabulate_formats,
-    default="plain",
+    help=("Output format. Allowed values: json, yaml, table (default: table)"),
+    metavar="(table, json, yaml)",
+    choices=("table", "json", "yaml"),
+    default="table",
 )
 ARG_COLOR = Arg(
     ('--color',),
@@ -574,6 +572,18 @@ ARG_CONN_EXPORT = Arg(
 ARG_CONN_EXPORT_FORMAT = Arg(
     ('--format',), help='Format of the connections data in file', type=str, choices=['json', 'yaml', 'env']
 )
+
+# providers
+ARG_PROVIDER_NAME = Arg(
+    ('provider_name',), help='Provider name, required to get provider information', type=str
+)
+ARG_FULL = Arg(
+    ('-f', '--full'),
+    help='Full information about the provider, including documentation information.',
+    required=False,
+    action="store_true",
+)
+
 # users
 ARG_USERNAME = Arg(('-u', '--username'), help='Username of the user', required=True, type=str)
 ARG_USERNAME_OPTIONAL = Arg(('-u', '--username'), help='Username of the user', type=str)
@@ -1021,7 +1031,7 @@ VARIABLES_COMMANDS = (
         name='list',
         help='List variables',
         func=lazy_load_command('airflow.cli.commands.variable_command.variables_list'),
-        args=(),
+        args=(ARG_OUTPUT,),
     ),
     ActionCommand(
         name='get',
@@ -1098,7 +1108,7 @@ CONNECTIONS_COMMANDS = (
         name='get',
         help='Get a connection',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_get'),
-        args=(ARG_CONN_ID, ARG_COLOR),
+        args=(ARG_CONN_ID, ARG_COLOR, ARG_OUTPUT),
     ),
     ActionCommand(
         name='list',
@@ -1116,7 +1126,7 @@ CONNECTIONS_COMMANDS = (
         name='delete',
         help='Delete a connection',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_delete'),
-        args=(ARG_CONN_ID,),
+        args=(ARG_CONN_ID, ARG_COLOR),
     ),
     ActionCommand(
         name='export',
@@ -1140,6 +1150,33 @@ CONNECTIONS_COMMANDS = (
         ),
     ),
 )
+PROVIDERS_COMMANDS = (
+    ActionCommand(
+        name='hooks',
+        help='List registered provider hooks',
+        func=lazy_load_command('airflow.cli.commands.provider_command.hooks_list'),
+        args=(ARG_OUTPUT,),
+    ),
+    ActionCommand(
+        name='list',
+        help='List installed providers',
+        func=lazy_load_command('airflow.cli.commands.provider_command.providers_list'),
+        args=(ARG_OUTPUT,),
+    ),
+    ActionCommand(
+        name='get',
+        help='Get detailed information about a provider',
+        func=lazy_load_command('airflow.cli.commands.provider_command.provider_get'),
+        args=(ARG_OUTPUT, ARG_FULL, ARG_COLOR, ARG_PROVIDER_NAME),
+    ),
+    ActionCommand(
+        name='links',
+        help='List extra links registered by the providers',
+        func=lazy_load_command('airflow.cli.commands.provider_command.extra_links_list'),
+        args=(ARG_OUTPUT,),
+    ),
+)
+
 USERS_COMMANDS = (
     ActionCommand(
         name='list',
@@ -1394,6 +1431,11 @@ airflow_commands: List[CLICommand] = [
         name='connections',
         help="Manage connections",
         subcommands=CONNECTIONS_COMMANDS,
+    ),
+    GroupCommand(
+        name='providers',
+        help="Display providers",
+        subcommands=PROVIDERS_COMMANDS,
     ),
     GroupCommand(
         name='users',

@@ -27,7 +27,7 @@ integrations:
   - integration-name: Apache Spark
     external-doc-url: https://spark.apache.org/
     how-to-guide:
-      - /docs/howto/operator/apache/spark.rst
+      - /docs/apache-airflow-providers-apache-spark/operators.rst
     tags: [apache]
 
 operators:

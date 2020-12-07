@@ -288,7 +288,7 @@ def dag_link(attr):
     dag_id = attr.get('dag_id')
     execution_date = attr.get('execution_date')
     url = url_for('Airflow.graph', dag_id=dag_id, execution_date=execution_date)
-    return Markup('<a href="{}">{}</a>').format(url, dag_id)  # noqa  # noqa
+    return Markup('<a href="{}">{}</a>').format(url, dag_id)  # noqa
 
 
 def dag_run_link(attr):
@@ -297,7 +297,7 @@ def dag_run_link(attr):
     run_id = attr.get('run_id')
     execution_date = attr.get('execution_date')
     url = url_for('Airflow.graph', dag_id=dag_id, run_id=run_id, execution_date=execution_date)
-    return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)  # noqa  # noqa
+    return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)  # noqa
 
 
 def pygment_html_render(s, lexer=lexers.TextLexer):  # noqa pylint: disable=no-member

@@ -29,17 +29,17 @@ function push_pull_remove_images::push_image_with_retries() {
         local res=$?
         set -e
         if [[ ${res} != "0" ]]; then
-            >&2 echo
-            >&2 echo "Error ${res} when pushing image on ${try_num} try"
-            >&2 echo
+            echo
+            echo  "${COLOR_YELLOW_WARNING}: Error ${res} when pushing image on ${try_num} try  ${COLOR_RESET}"
+            echo
             continue
         else
             return 0
         fi
     done
-    >&2 echo
-    >&2 echo "Error ${res} when pushing image on ${try_num} try. Giving up!"
-    >&2 echo
+    echo
+    echo  "${COLOR_RED_ERROR} Error ${res} when pushing image on ${try_num} try. Giving up!  ${COLOR_RESET}"
+    echo
     return 1
 }
 
@@ -64,17 +64,19 @@ function push_pull_remove_images::pull_image_if_not_present_or_forced() {
         docker pull "${IMAGE_TO_PULL}"
         EXIT_VALUE="$?"
         if [[ ${EXIT_VALUE} != "0" && ${FAIL_ON_GITHUB_DOCKER_PULL_ERROR} == "true" ]]; then
-            >&2 echo
-            >&2 echo "ERROR! Exiting on docker pull error"
-            >&2 echo
-            >&2 echo "If you have authorisation problems, you might want to run:"
-            >&2 echo
-            >&2 echo "docker login ${IMAGE_TO_PULL%%\/*}"
-            >&2 echo
-            >&2 echo "You need to use generate token as the password, not your personal password."
-            >&2 echo "You can generate one at https://github.com/settings/tokens"
-            >&2 echo "Make sure to choose 'read:packages' scope".
-            >&2 echo
+            echo
+            echo """
+${COLOR_RED_ERROR} Exiting on docker pull error
+
+If you have authorisation problems, you might want to run:
+
+docker login ${IMAGE_TO_PULL%%\/*}
+
+You need to use generate token as the password, not your personal password.
+You can generate one at https://github.com/settings/tokens
+Make sure to choose 'read:packages' scope.
+${COLOR_RESET}
+"""
             exit ${EXIT_VALUE}
         fi
         echo
@@ -264,24 +266,56 @@ function push_pull_remove_images::push_prod_images() {
 
 # waits for an image to be available in the GitHub registry
 function push_pull_remove_images::wait_for_github_registry_image() {
+    local github_repository_lowercase
     github_repository_lowercase="$(echo "${GITHUB_REPOSITORY}" |tr '[:upper:]' '[:lower:]')"
-    GITHUB_API_ENDPOINT="https://${GITHUB_REGISTRY}/v2/${github_repository_lowercase}"
-    IMAGE_NAME="${1}"
-    IMAGE_TAG=${2}
-    echo "Waiting for ${IMAGE_NAME}:${IMAGE_TAG} image"
+    local github_api_endpoint
+    github_api_endpoint="https://${GITHUB_REGISTRY}/v2/${github_repository_lowercase}"
+    local image_name_in_github_registry="${1}"
+    local image_tag_in_github_registry=${2}
 
-    GITHUB_API_CALL="${GITHUB_API_ENDPOINT}/${IMAGE_NAME}/manifests/${IMAGE_TAG}"
+    echo
+    echo "Waiting for ${GITHUB_REPOSITORY}/${image_name_in_github_registry}:${image_tag_in_github_registry} image"
+    echo
+
+    GITHUB_API_CALL="${github_api_endpoint}/${image_name_in_github_registry}/manifests/${image_tag_in_github_registry}"
     while true; do
         curl -X GET "${GITHUB_API_CALL}" -u "${GITHUB_USERNAME}:${GITHUB_TOKEN}" 2>/dev/null > "${OUTPUT_LOG}"
         local digest
         digest=$(jq '.config.digest' < "${OUTPUT_LOG}")
         echo -n "."
         if [[ ${digest} != "null" ]]; then
-            echo -e " \e[32mOK.\e[0m"
+            echo  "${COLOR_GREEN_OK}  ${COLOR_RESET}"
             break
         fi
         sleep 10
     done
-    verbosity::print_info "Found ${IMAGE_NAME}:${IMAGE_TAG} image"
+    verbosity::print_info "Found ${image_name_in_github_registry}:${image_tag_in_github_registry} image"
     verbosity::print_info "Digest: '${digest}'"
+}
+
+function push_pull_remove_images::check_if_github_registry_wait_for_image_enabled() {
+    if [[ ${USE_GITHUB_REGISTRY} != "true" ||  ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} != "true" ]]; then
+        echo
+        echo "This script should not be called"
+        echo "It need both USE_GITHUB_REGISTRY and GITHUB_REGISTRY_WAIT_FOR_IMAGE to true!"
+        echo
+        echo "USE_GITHUB_REGISTRY = ${USE_GITHUB_REGISTRY}"
+        echo "GITHUB_REGISTRY_WAIT_FOR_IMAGE =${GITHUB_REGISTRY_WAIT_FOR_IMAGE}"
+        echo
+        exit 1
+    else
+        echo
+        echo "Both USE_GITHUB_REGISTRY and GITHUB_REGISTRY_WAIT_FOR_IMAGE are set to true. Good!"
+    fi
+}
+
+function push_pull_remove_images::check_if_jq_installed() {
+    echo
+    echo "Check if jq is installed"
+    echo
+    command -v jq >/dev/null || (echo "ERROR! You must have 'jq' tool installed!" && exit 1)
+
+    echo
+    echo "The jq version $(jq --version)"
+    echo
 }

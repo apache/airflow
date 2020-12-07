@@ -23,6 +23,13 @@ Content
 
 .. toctree::
     :maxdepth: 1
+    :caption: Guides
+
+    Connection types <connections/spark>
+    Operators <operators>
+
+.. toctree::
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/apache/spark/index>

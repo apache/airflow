@@ -40,13 +40,18 @@ from wtforms.fields import (
     StringField,
     TextAreaField,
 )
-from wtforms.validators import DataRequired, NumberRange, Optional
+from wtforms.validators import InputRequired, NumberRange, Optional
 
 from airflow.configuration import conf
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 from airflow.www.validators import ValidJson
-from airflow.www.widgets import AirflowDateTimePickerWidget
+from airflow.www.widgets import (
+    AirflowDateTimePickerROWidget,
+    AirflowDateTimePickerWidget,
+    BS3TextAreaROWidget,
+    BS3TextFieldROWidget,
+)
 
 
 class DateTimeWithTimezoneField(Field):
@@ -127,12 +132,12 @@ class DateTimeWithNumRunsWithDagRunsForm(DateTimeWithNumRunsForm):
 
 
 class DagRunForm(DynamicForm):
-    """Form for editing and adding DAG Run"""
+    """Form for adding DAG Run"""
 
-    dag_id = StringField(lazy_gettext('Dag Id'), validators=[DataRequired()], widget=BS3TextFieldWidget())
+    dag_id = StringField(lazy_gettext('Dag Id'), validators=[InputRequired()], widget=BS3TextFieldWidget())
     start_date = DateTimeWithTimezoneField(lazy_gettext('Start Date'), widget=AirflowDateTimePickerWidget())
     end_date = DateTimeWithTimezoneField(lazy_gettext('End Date'), widget=AirflowDateTimePickerWidget())
-    run_id = StringField(lazy_gettext('Run Id'), validators=[DataRequired()], widget=BS3TextFieldWidget())
+    run_id = StringField(lazy_gettext('Run Id'), validators=[InputRequired()], widget=BS3TextFieldWidget())
     state = SelectField(
         lazy_gettext('State'),
         choices=(
@@ -141,9 +146,12 @@ class DagRunForm(DynamicForm):
             ('failed', 'failed'),
         ),
         widget=Select2Widget(),
+        validators=[InputRequired()],
     )
     execution_date = DateTimeWithTimezoneField(
-        lazy_gettext('Execution Date'), widget=AirflowDateTimePickerWidget()
+        lazy_gettext('Execution Date'),
+        widget=AirflowDateTimePickerWidget(),
+        validators=[InputRequired()],
     )
     external_trigger = BooleanField(lazy_gettext('External Trigger'))
     conf = TextAreaField(
@@ -156,6 +164,50 @@ class DagRunForm(DynamicForm):
         item.run_type = DagRunType.from_run_id(item.run_id)
         if item.conf:
             item.conf = json.loads(item.conf)
+
+
+class DagRunEditForm(DagRunForm):
+    """Form for editing DAG Run"""
+
+    dag_id = StringField(lazy_gettext('Dag Id'), validators=[InputRequired()], widget=BS3TextFieldROWidget())
+    start_date = DateTimeWithTimezoneField(lazy_gettext('Start Date'), widget=AirflowDateTimePickerROWidget())
+    end_date = DateTimeWithTimezoneField(lazy_gettext('End Date'), widget=AirflowDateTimePickerROWidget())
+    run_id = StringField(lazy_gettext('Run Id'), validators=[InputRequired()], widget=BS3TextFieldROWidget())
+    execution_date = DateTimeWithTimezoneField(
+        lazy_gettext('Execution Date'),
+        widget=AirflowDateTimePickerROWidget(),
+        validators=[InputRequired()],
+    )
+    conf = TextAreaField(
+        lazy_gettext('Conf'), validators=[ValidJson(), Optional()], widget=BS3TextAreaROWidget()
+    )
+
+
+class TaskInstanceEditForm(DynamicForm):
+    """Form for editing TaskInstance"""
+
+    dag_id = StringField(lazy_gettext('Dag Id'), validators=[InputRequired()], widget=BS3TextFieldROWidget())
+    task_id = StringField(
+        lazy_gettext('Task Id'), validators=[InputRequired()], widget=BS3TextFieldROWidget()
+    )
+    start_date = DateTimeWithTimezoneField(lazy_gettext('Start Date'), widget=AirflowDateTimePickerROWidget())
+    end_date = DateTimeWithTimezoneField(lazy_gettext('End Date'), widget=AirflowDateTimePickerROWidget())
+    state = SelectField(
+        lazy_gettext('State'),
+        choices=(
+            ('success', 'success'),
+            ('running', 'running'),
+            ('failed', 'failed'),
+            ('up_for_retry', 'up_for_retry'),
+        ),
+        widget=Select2Widget(),
+        validators=[InputRequired()],
+    )
+    execution_date = DateTimeWithTimezoneField(
+        lazy_gettext('Execution Date'),
+        widget=AirflowDateTimePickerROWidget(),
+        validators=[InputRequired()],
+    )
 
 
 _connection_types = [
@@ -220,11 +272,12 @@ _connection_types = [
 class ConnectionForm(DynamicForm):
     """Form for editing and adding Connection"""
 
-    conn_id = StringField(lazy_gettext('Conn Id'), widget=BS3TextFieldWidget())
+    conn_id = StringField(lazy_gettext('Conn Id'), validators=[InputRequired()], widget=BS3TextFieldWidget())
     conn_type = SelectField(
         lazy_gettext('Conn Type'),
         choices=sorted(_connection_types, key=itemgetter(1)),  # pylint: disable=protected-access
         widget=Select2Widget(),
+        validators=[InputRequired()],
     )
     description = StringField(lazy_gettext('Description'), widget=BS3TextAreaFieldWidget())
     host = StringField(lazy_gettext('Host'), widget=BS3TextFieldWidget())

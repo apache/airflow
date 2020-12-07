@@ -56,14 +56,13 @@ class TestCliPools(unittest.TestCase):
 
     def test_pool_list(self):
         pool_command.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
-        stdout = io.StringIO()
-        with redirect_stdout(stdout):
+        with redirect_stdout(io.StringIO()) as stdout:
             pool_command.pool_list(self.parser.parse_args(['pools', 'list']))
 
         self.assertIn('foo', stdout.getvalue())
 
     def test_pool_list_with_args(self):
-        pool_command.pool_list(self.parser.parse_args(['pools', 'list', '--output', 'tsv']))
+        pool_command.pool_list(self.parser.parse_args(['pools', 'list', '--output', 'json']))
 
     def test_pool_create(self):
         pool_command.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))

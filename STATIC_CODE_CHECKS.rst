@@ -114,6 +114,8 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``isort``                             Sorts imports in python files.
 ----------------------------------- ---------------------------------------------------------------- ------------
+``json-schema``                       Checks that the files complies with the JSON Schema spec
+----------------------------------- ---------------------------------------------------------------- ------------
 ``language-matters``                  Check for language that we do not accept as community
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``lint-dockerfile``                   Lints a dockerfile.
@@ -171,8 +173,6 @@ require Breeze Docker images to be installed locally:
 ``update-setup-cfg-file``             Update setup.cfg file with all licenses.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``update-extras``                     Updates extras in the documentation.
------------------------------------ ---------------------------------------------------------------- ------------
-``version-sync``                      Synchronizes versions setup.py <-> airflow/version.py.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``yamllint``                          Checks yaml files with yamllint.
 =================================== ================================================================ ============

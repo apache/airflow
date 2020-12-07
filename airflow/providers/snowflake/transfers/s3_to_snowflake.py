@@ -30,7 +30,7 @@ class S3ToSnowflakeOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:S3ToSnowflakeOperator`
+        :ref:`howto/operator:S3ToSnowflakeOperator`
 
     :param s3_keys: reference to a list of S3 keys
     :type s3_keys: list

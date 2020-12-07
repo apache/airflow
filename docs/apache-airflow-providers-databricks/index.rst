@@ -24,6 +24,12 @@ Content
 
 .. toctree::
     :maxdepth: 1
+    :caption: Guides
+
+    Operators <operators>
+
+.. toctree::
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/databricks/index>

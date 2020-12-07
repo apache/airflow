@@ -24,6 +24,12 @@ Content
 
 .. toctree::
     :maxdepth: 1
+    :caption: Guides
+
+    Connection types <connections/odbc>
+
+.. toctree::
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/odbc/index>

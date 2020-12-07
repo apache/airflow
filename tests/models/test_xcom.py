@@ -179,6 +179,36 @@ class TestXCom(unittest.TestCase):
 
         self.assertEqual(ret_value, json_obj)
 
+    def test_xcom_deserialize_with_json_to_pickle_switch(self):
+        json_obj = {"key": "value"}
+        execution_date = timezone.utcnow()
+        key = "xcom_test3"
+        dag_id = "test_dag"
+        task_id = "test_task3"
+
+        with conf_vars({("core", "enable_xcom_pickling"): "False"}):
+            XCom.set(key=key, value=json_obj, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
+
+        with conf_vars({("core", "enable_xcom_pickling"): "True"}):
+            ret_value = XCom.get_one(key=key, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
+
+        self.assertEqual(ret_value, json_obj)
+
+    def test_xcom_deserialize_with_pickle_to_json_switch(self):
+        json_obj = {"key": "value"}
+        execution_date = timezone.utcnow()
+        key = "xcom_test3"
+        dag_id = "test_dag"
+        task_id = "test_task3"
+
+        with conf_vars({("core", "enable_xcom_pickling"): "True"}):
+            XCom.set(key=key, value=json_obj, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
+
+        with conf_vars({("core", "enable_xcom_pickling"): "False"}):
+            ret_value = XCom.get_one(key=key, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
+
+        self.assertEqual(ret_value, json_obj)
+
     @conf_vars({("core", "xcom_enable_pickling"): "False"})
     def test_xcom_disable_pickle_type_fail_on_non_json(self):
         class PickleRce:

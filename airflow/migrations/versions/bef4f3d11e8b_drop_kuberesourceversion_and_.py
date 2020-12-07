@@ -26,6 +26,7 @@ Create Date: 2020-09-22 18:45:28.011654
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.engine.reflection import Inspector
 
 # revision identifiers, used by Alembic.
 revision = 'bef4f3d11e8b'
@@ -40,14 +41,26 @@ WORKER_RESOURCEVERSION_TABLE = "kube_resource_version"
 
 def upgrade():
     """Apply Drop KubeResourceVersion and KubeWorkerIdentifier tables"""
-    op.drop_table(WORKER_UUID_TABLE)
-    op.drop_table(WORKER_RESOURCEVERSION_TABLE)
+    conn = op.get_bind()
+    inspector = Inspector.from_engine(conn)
+    tables = inspector.get_table_names()
+
+    if WORKER_UUID_TABLE in tables:
+        op.drop_table(WORKER_UUID_TABLE)
+    if WORKER_RESOURCEVERSION_TABLE in tables:
+        op.drop_table(WORKER_RESOURCEVERSION_TABLE)
 
 
 def downgrade():
     """Unapply Drop KubeResourceVersion and KubeWorkerIdentifier tables"""
-    _add_worker_uuid_table()
-    _add_resource_table()
+    conn = op.get_bind()
+    inspector = Inspector.from_engine(conn)
+    tables = inspector.get_table_names()
+
+    if WORKER_UUID_TABLE not in tables:
+        _add_worker_uuid_table()
+    if WORKER_RESOURCEVERSION_TABLE not in tables:
+        _add_resource_table()
 
 
 def _add_worker_uuid_table():

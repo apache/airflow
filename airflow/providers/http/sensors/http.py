@@ -45,7 +45,7 @@ class HttpSensor(BaseSensorOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:HttpSensor`
+        :ref:`howto/operator:HttpSensor`
 
     :param http_conn_id: The connection to run the sensor against
     :type http_conn_id: str
@@ -68,7 +68,7 @@ class HttpSensor(BaseSensorOperator):
         depends on the option that's being modified.
     """
 
-    template_fields = ('endpoint', 'request_params')
+    template_fields = ('endpoint', 'request_params', 'headers')
 
     @apply_defaults
     def __init__(

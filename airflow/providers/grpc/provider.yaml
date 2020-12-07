@@ -37,3 +37,6 @@ hooks:
   - integration-name: gRPC
     python-modules:
       - airflow.providers.grpc.hooks.grpc
+
+hook-class-names:
+  - airflow.providers.grpc.hooks.grpc.GrpcHook

@@ -23,6 +23,14 @@ Content
 
 .. toctree::
     :maxdepth: 1
+    :caption: Guides
+
+    Connection types <connections/aws>
+    Operators <operators/index>
+    Secrets backends <secrets-backends/index>
+
+.. toctree::
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/amazon/index>

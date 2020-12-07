@@ -36,7 +36,7 @@ class AWSDataSyncOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:AWSDataSyncOperator`
+        :ref:`howto/operator:AWSDataSyncOperator`
 
     .. note:: There may be 0, 1, or many existing DataSync Tasks defined in your AWS
         environment. The default behavior is to create a new Task if there are 0, or

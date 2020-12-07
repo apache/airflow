@@ -37,3 +37,6 @@ hooks:
   - integration-name: MongoDB
     python-modules:
       - airflow.providers.mongo.hooks.mongo
+
+hook-class-names:
+  - airflow.providers.mongo.hooks.mongo.MongoHook

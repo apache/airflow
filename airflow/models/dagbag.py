@@ -438,7 +438,6 @@ class DagBag(LoggingMixin):
             return
 
         self.log.info("Filling up the DagBag from %s", dag_folder)
-        start_dttm = timezone.utcnow()
         dag_folder = dag_folder or self.dag_folder
         # Used to store stats around DagBag processing
         stats = []
@@ -467,39 +466,27 @@ class DagBag(LoggingMixin):
             except Exception as e:  # pylint: disable=broad-except
                 self.log.exception(e)
 
-        end_dttm = timezone.utcnow()
-        durations = (end_dttm - start_dttm).total_seconds()
-        Stats.gauge('collect_dags', durations, 1)
-        Stats.gauge('dagbag_size', len(self.dags), 1)
-        Stats.gauge('dagbag_import_errors', len(self.import_errors), 1)
         self.dagbag_stats = sorted(stats, key=lambda x: x.duration, reverse=True)
-        for file_stat in self.dagbag_stats:
-            # file_stat.file similar format: /subdir/dag_name.py
-            # TODO: Remove for Airflow 2.0
-            filename = file_stat.file.split('/')[-1].replace('.py', '')
-            Stats.timing(f'dag.loading-duration.{filename}', file_stat.duration)
 
     def collect_dags_from_db(self):
         """Collects DAGs from database."""
         from airflow.models.serialized_dag import SerializedDagModel
 
-        start_dttm = timezone.utcnow()
-        self.log.info("Filling up the DagBag from database")
+        with Stats.timer('collect_db_dags'):
+            self.log.info("Filling up the DagBag from database")
 
-        # The dagbag contains all rows in serialized_dag table. Deleted DAGs are deleted
-        # from the table by the scheduler job.
-        self.dags = SerializedDagModel.read_all_dags()
+            # The dagbag contains all rows in serialized_dag table. Deleted DAGs are deleted
+            # from the table by the scheduler job.
+            self.dags = SerializedDagModel.read_all_dags()
 
-        # Adds subdags.
-        # DAG post-processing steps such as self.bag_dag and croniter are not needed as
-        # they are done by scheduler before serialization.
-        subdags = {}
-        for dag in self.dags.values():
-            for subdag in dag.subdags:
-                subdags[subdag.dag_id] = subdag
-        self.dags.update(subdags)
-
-        Stats.timing('collect_db_dags', timezone.utcnow() - start_dttm)
+            # Adds subdags.
+            # DAG post-processing steps such as self.bag_dag and croniter are not needed as
+            # they are done by scheduler before serialization.
+            subdags = {}
+            for dag in self.dags.values():
+                for subdag in dag.subdags:
+                    subdags[subdag.dag_id] = subdag
+            self.dags.update(subdags)
 
     def dagbag_report(self):
         """Prints a report around DagBag loading stats"""
@@ -530,6 +517,27 @@ class DagBag(LoggingMixin):
         from airflow.models.dag import DAG
         from airflow.models.serialized_dag import SerializedDagModel
 
+        def _serialze_dag_capturing_errors(dag, session):
+            """
+            Try to serialize the dag to the DB, but make a note of any errors.
+
+            We can't place them directly in import_errors, as this may be retried, and work the next time
+            """
+            if dag.is_subdag:
+                return []
+            try:
+                # We cant use bulk_write_to_db as we want to capture each error individually
+                SerializedDagModel.write_dag(
+                    dag,
+                    min_update_interval=settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
+                    session=session,
+                )
+                return []
+            except OperationalError:
+                raise
+            except Exception:  # pylint: disable=broad-except
+                return [(dag.fileloc, traceback.format_exc(limit=-self.dagbag_import_error_traceback_depth))]
+
         # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
         # of any Operational Errors
         # In case of failures, provide_session handles rollback
@@ -541,6 +549,7 @@ class DagBag(LoggingMixin):
             reraise=True,
         ):
             with attempt:
+                serialize_errors = []
                 self.log.debug(
                     "Running dagbag.sync_to_db with retries. Try %d of %d",
                     attempt.retry_state.attempt_number,
@@ -550,9 +559,12 @@ class DagBag(LoggingMixin):
                 try:
                     DAG.bulk_write_to_db(self.dags.values(), session=session)
 
-                    # Write Serialized DAGs to DB
-                    self.log.debug("Calling the SerializedDagModel.bulk_sync_to_db method")
-                    SerializedDagModel.bulk_sync_to_db(self.dags.values(), session=session)
+                    # Write Serialized DAGs to DB, capturing errors
+                    for dag in self.dags.values():
+                        serialize_errors.extend(_serialze_dag_capturing_errors(dag, session))
                 except OperationalError:
                     session.rollback()
                     raise
+                # Only now we are "complete" do we update import_errors - don't want to record errors from
+                # previous failed attempts
+                self.import_errors.update(dict(serialize_errors))

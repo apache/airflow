@@ -20,8 +20,6 @@
 
 setup_provider_packages
 
-OUT_FILE_PRINTED_ON_ERROR=$(mktemp)
-
 cd "${AIRFLOW_SOURCES}" || exit 1
 
 # install extra packages missing in devel_ci
@@ -29,12 +27,11 @@ export PYTHONPATH="${AIRFLOW_SOURCES}"
 
 verify_suffix_versions_for_package_preparation
 
+# TODO: remove it when devel_all == devel_ci
 echo
 echo "Installing remaining packages from 'all' extras"
 echo
-pip install -e ".[devel_all]" >>"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
-
-echo > "${OUT_FILE_PRINTED_ON_ERROR}"
+pip install -e ".[devel_all]"
 
 cd "${AIRFLOW_SOURCES}/provider_packages" || exit 1
 
@@ -56,5 +53,5 @@ find airflow/providers \( \
         -print0 | \
     tar --null --no-recursion -cvzf "${AIRFLOW_PROVIDER_README_TGZ_FILE}" -T -
 echo
-echo "Airflow readme for ${PACKAGE_TYPE} provider packages are tar-gzipped in ${AIRFLOW_PROVIDER_README_TGZ_FILE}"
+echo "Airflow readme for ${PACKAGE_TYPE} provider packages format ${PACKAGE_FORMAT} are tar-gzipped in ${AIRFLOW_PROVIDER_README_TGZ_FILE}"
 echo

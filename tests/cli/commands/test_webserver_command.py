@@ -19,8 +19,8 @@ import json
 import os
 import subprocess
 import tempfile
+import time
 import unittest
-from time import sleep, time
 from unittest import mock
 
 import psutil
@@ -85,7 +85,7 @@ class TestGunicornMonitor(unittest.TestCase):
         self.monitor._spawn_new_workers.assert_called_once_with(2)  # pylint: disable=no-member
         self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
         self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
-        self.assertAlmostEqual(self.monitor._last_refresh_time, time(), delta=5)
+        self.assertAlmostEqual(self.monitor._last_refresh_time, time.monotonic(), delta=5)
 
     @mock.patch('airflow.cli.commands.webserver_command.sleep')
     def test_should_reload_when_plugin_has_been_changed(self, mock_sleep):
@@ -112,7 +112,7 @@ class TestGunicornMonitor(unittest.TestCase):
         self.monitor._spawn_new_workers.assert_not_called()  # pylint: disable=no-member
         self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
         self.monitor._reload_gunicorn.assert_called_once_with()  # pylint: disable=no-member
-        self.assertAlmostEqual(self.monitor._last_refresh_time, time(), delta=5)
+        self.assertAlmostEqual(self.monitor._last_refresh_time, time.monotonic(), delta=5)
 
 
 class TestGunicornMonitorGeneratePluginState(unittest.TestCase):
@@ -256,15 +256,15 @@ class TestCliWebServer(unittest.TestCase):
             os.remove(pidfile_monitor)
 
     def _wait_pidfile(self, pidfile):
-        start_time = time()
+        start_time = time.monotonic()
         while True:
             try:
                 with open(pidfile) as file:
                     return int(file.read())
             except Exception:  # pylint: disable=broad-except
-                if start_time - time() > 60:
+                if start_time - time.monotonic() > 60:
                     raise
-                sleep(1)
+                time.sleep(1)
 
     def test_cli_webserver_foreground(self):
         with mock.patch.dict(
@@ -278,7 +278,7 @@ class TestCliWebServer(unittest.TestCase):
             self.assertEqual(None, proc.poll())
 
         # Wait for process
-        sleep(10)
+        time.sleep(10)
 
         # Terminate webserver
         proc.terminate()
@@ -374,7 +374,7 @@ class TestCliWebServer(unittest.TestCase):
     def test_cli_webserver_debug(self):
         env = os.environ.copy()
         proc = psutil.Popen(["airflow", "webserver", "--debug"], env=env)
-        sleep(3)  # wait for webserver to start
+        time.sleep(3)  # wait for webserver to start
         return_code = proc.poll()
         self.assertEqual(
             None, return_code, f"webserver terminated with return code {return_code} in debug mode"
@@ -412,7 +412,7 @@ class TestCliWebServer(unittest.TestCase):
             self.assertEqual(None, proc.poll())
 
             # Wait for webserver process
-            sleep(10)
+            time.sleep(10)
 
             proc2 = subprocess.Popen(["curl", "http://localhost:8080"])
             proc2.wait(10)

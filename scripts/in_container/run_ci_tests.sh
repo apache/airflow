@@ -38,46 +38,53 @@ elif [[ "${RES}" != "0" ]]; then
     elif [[ ${BACKEND} == "mysql" ]]; then
         EXTRA_ARGS="--mysql-version ${MYSQL_VERSION} "
     fi
-
-    >&2 echo "***********************************************************************************************"
-    >&2 echo "*"
-    >&2 echo "* ERROR! Some tests failed, unfortunately. Those might be transient errors,"
-    >&2 echo "*        but usually you have to fix something."
-    >&2 echo "*        See the above log for details."
-    >&2 echo "*"
-    >&2 echo "***********************************************************************************************"
-    >&2 echo "*  You can easily reproduce the failed tests on your dev machine/"
-    >&2 echo "*"
-    >&2 echo "*   When you have the source branch checked out locally:"
-    >&2 echo "*"
-    >&2 echo "*     Run all tests:"
-    >&2 echo "*"
-    >&2 echo "*       ./breeze --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE}  tests"
-    >&2 echo "*"
-    >&2 echo "*     Enter docker shell:"
-    >&2 echo "*"
-    >&2 echo "*       ./breeze --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE}  shell"
-    >&2 echo "*"
+    echo """
+${COLOR_RED_ERROR}
+***********************************************************************************************
+*
+* ERROR! Some tests failed, unfortunately. Those might be transient errors,
+*        but usually you have to fix something.
+*        See the above log for details.
+*
+***********************************************************************************************
+*  You can easily reproduce the failed tests on your dev machine/
+*
+*   When you have the source branch checked out locally:
+*
+*     Run all tests:
+*
+*       ./breeze --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE}  tests
+*
+*     Enter docker shell:
+*
+*       ./breeze --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE}  shell
+*
+"""
     if [[ ${GITHUB_REGISTRY_PULL_IMAGE_TAG=} != "" ]]; then
-        >&2 echo "*   When you do not have sources:"
-        >&2 echo "*"
-        >&2 echo "*     Run all tests:"
-        >&2 echo "*"
-        >&2 echo "*      ./breeze --github-image-id ${GITHUB_REGISTRY_PULL_IMAGE_TAG} --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE} tests"
-        >&2 echo "*"
-        >&2 echo "*     Enter docker shell:"
-        >&2 echo "*"
-        >&2 echo "*      ./breeze --github-image-id ${GITHUB_REGISTRY_PULL_IMAGE_TAG} --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE} shell"
-        >&2 echo "*"
+        echo """
+*   When you do not have sources:
+*
+*     Run all tests:
+*
+*      ./breeze --github-image-id ${GITHUB_REGISTRY_PULL_IMAGE_TAG} --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE} tests
+*
+*     Enter docker shell:
+*
+*      ./breeze --github-image-id ${GITHUB_REGISTRY_PULL_IMAGE_TAG} --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE} shell
+*
+"""
     fi
-    >&2 echo "*"
-    >&2 echo "*   NOTE! Once you are in the docker shell, you can run failed test with:"
-    >&2 echo "*"
-    >&2 echo "*            pytest [TEST_NAME]"
-    >&2 echo "*"
-    >&2 echo "*   You can copy the test name from the output above"
-    >&2 echo "*"
-    >&2 echo "***********************************************************************************************"
+    echo """
+*
+*   NOTE! Once you are in the docker shell, you can run failed test with:
+*
+*            pytest [TEST_NAME]
+*
+*   You can copy the test name from the output above
+*
+***********************************************************************************************
+${COLOR_RESET}
+"""
 fi
 
 MAIN_GITHUB_REPOSITORY="apache/airflow"

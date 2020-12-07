@@ -739,41 +739,60 @@ class TestDagRun(unittest.TestCase):
         dag_run.update_state()
         self.assertNotIn(call(f'dagrun.{dag.dag_id}.first_task_scheduling_delay'), stats_mock.mock_calls)
 
-    @mock.patch.object(Stats, 'timing')
-    def test_emit_scheduling_delay(self, stats_mock):
+    @parameterized.expand(
+        [
+            ("*/5 * * * *", True),
+            (None, False),
+            ("@once", False),
+        ]
+    )
+    def test_emit_scheduling_delay(self, schedule_interval, expected):
         """
         Tests that dag scheduling delay stat is set properly once running scheduled dag.
         dag_run.update_state() invokes the _emit_true_scheduling_delay_stats_for_finished_state method.
         """
-        dag = DAG(dag_id='test_emit_dag_stats', start_date=days_ago(1))
+        dag = DAG(dag_id='test_emit_dag_stats', start_date=days_ago(1), schedule_interval=schedule_interval)
         dag_task = DummyOperator(task_id='dummy', dag=dag, owner='airflow')
 
         session = settings.Session()
-        orm_dag = DagModel(
-            dag_id=dag.dag_id,
-            has_task_concurrency_limits=False,
-            next_dagrun=dag.start_date,
-            next_dagrun_create_after=dag.following_schedule(dag.start_date),
-            is_active=True,
-        )
-        session.add(orm_dag)
-        session.flush()
-        dag_run = dag.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            state=State.SUCCESS,
-            execution_date=dag.start_date,
-            start_date=dag.start_date,
-            session=session,
-        )
-        ti = dag_run.get_task_instance(dag_task.task_id)
-        ti.set_state(State.SUCCESS, session)
-        session.commit()
-        session.close()
-        dag_run.update_state()
-        true_delay = (ti.start_date - dag.following_schedule(dag_run.execution_date)).total_seconds()
-        stats_mock.assert_called()
-        sched_delay_stat_call = call(f'dagrun.{dag.dag_id}.first_task_scheduling_delay', true_delay)
-        self.assertIn(sched_delay_stat_call, stats_mock.mock_calls)
+        try:
+            orm_dag = DagModel(
+                dag_id=dag.dag_id,
+                has_task_concurrency_limits=False,
+                next_dagrun=dag.start_date,
+                next_dagrun_create_after=dag.following_schedule(dag.start_date),
+                is_active=True,
+            )
+            session.add(orm_dag)
+            session.flush()
+            dag_run = dag.create_dagrun(
+                run_type=DagRunType.SCHEDULED,
+                state=State.SUCCESS,
+                execution_date=dag.start_date,
+                start_date=dag.start_date,
+                session=session,
+            )
+            ti = dag_run.get_task_instance(dag_task.task_id, session)
+            ti.set_state(State.SUCCESS, session)
+            session.flush()
+
+            with mock.patch.object(Stats, 'timing') as stats_mock:
+                dag_run.update_state(session)
+
+            metric_name = f'dagrun.{dag.dag_id}.first_task_scheduling_delay'
+
+            if expected:
+                true_delay = ti.start_date - dag.following_schedule(dag_run.execution_date)
+                sched_delay_stat_call = call(metric_name, true_delay)
+                assert sched_delay_stat_call in stats_mock.mock_calls
+            else:
+                # Assert that we never passed the metric
+                sched_delay_stat_call = call(metric_name, mock.ANY)
+                assert sched_delay_stat_call not in stats_mock.mock_calls
+        finally:
+            # Don't write anything to the DB
+            session.rollback()
+            session.close()
 
     def test_states_sets(self):
         """

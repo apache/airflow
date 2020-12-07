@@ -83,7 +83,11 @@ class CassandraHook(BaseHook, LoggingMixin):
     For details of the Cluster config, see cassandra.cluster.
     """
 
-    def __init__(self, cassandra_conn_id: str = 'cassandra_default'):
+    conn_name_attr = 'cassandra_conn_id'
+    default_conn_name = 'cassandra_default'
+    conn_type = 'cassandra'
+
+    def __init__(self, cassandra_conn_id: str = default_conn_name):
         super().__init__()
         conn = self.get_connection(cassandra_conn_id)
 

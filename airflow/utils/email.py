@@ -168,6 +168,8 @@ def send_mime_email(e_from: str, e_to: List[str], mime_msg: MIMEMultipart, dryru
     smtp_port = conf.getint('smtp', 'SMTP_PORT')
     smtp_starttls = conf.getboolean('smtp', 'SMTP_STARTTLS')
     smtp_ssl = conf.getboolean('smtp', 'SMTP_SSL')
+    smtp_retry_limit = conf.getint('smtp', 'SMTP_RETRY_LIMIT')
+    smtp_timeout = conf.getint('smtp', 'SMTP_TIMEOUT')
     smtp_user = None
     smtp_password = None
 
@@ -178,14 +180,23 @@ def send_mime_email(e_from: str, e_to: List[str], mime_msg: MIMEMultipart, dryru
         log.debug("No user/password found for SMTP, so logging in with no authentication.")
 
     if not dryrun:
-        conn = smtplib.SMTP_SSL(smtp_host, smtp_port) if smtp_ssl else smtplib.SMTP(smtp_host, smtp_port)
-        if smtp_starttls:
-            conn.starttls()
-        if smtp_user and smtp_password:
-            conn.login(smtp_user, smtp_password)
-        log.info("Sent an alert email to %s", e_to)
-        conn.sendmail(e_from, e_to, mime_msg.as_string())
-        conn.quit()
+        for attempt in range(1, smtp_retry_limit + 1):
+            log.info("Email alerting: attempt %s", str(attempt))
+            try:
+                conn = _get_smtp_connection(smtp_host, smtp_port, smtp_timeout, smtp_ssl)
+            except smtplib.SMTPServerDisconnected:
+                if attempt < smtp_retry_limit:
+                    continue
+                raise
+
+            if smtp_starttls:
+                conn.starttls()
+            if smtp_user and smtp_password:
+                conn.login(smtp_user, smtp_password)
+            log.info("Sent an alert email to %s", e_to)
+            conn.sendmail(e_from, e_to, mime_msg.as_string())
+            conn.quit()
+            break
 
 
 def get_email_address_list(addresses: Union[str, Iterable[str]]) -> List[str]:
@@ -200,6 +211,14 @@ def get_email_address_list(addresses: Union[str, Iterable[str]]) -> List[str]:
 
     received_type = type(addresses).__name__
     raise TypeError(f"Unexpected argument type: Received '{received_type}'.")
+
+
+def _get_smtp_connection(host: str, port: int, timeout: int, with_ssl: bool) -> smtplib.SMTP:
+    return (
+        smtplib.SMTP_SSL(host=host, port=port, timeout=timeout)
+        if with_ssl
+        else smtplib.SMTP(host=host, port=port, timeout=timeout)
+    )
 
 
 def _get_email_list_from_str(addresses: str) -> List[str]:

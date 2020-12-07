@@ -29,6 +29,9 @@ ENV AIRFLOW_VERSION=$AIRFLOW_VERSION
 ARG PYTHON_MAJOR_MINOR_VERSION="3.6"
 ENV PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION}
 
+ARG PIP_VERSION=20.2.4
+ENV PIP_VERSION=${PIP_VERSION}
+
 # Print versions
 RUN echo "Base image: ${PYTHON_BASE_IMAGE}"
 RUN echo "Airflow version: ${AIRFLOW_VERSION}"
@@ -250,7 +253,7 @@ ENV AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}
 
 # By changing the CI build epoch we can force reinstalling Airflow from the current master
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
-ARG AIRFLOW_CI_BUILD_EPOCH="2"
+ARG AIRFLOW_CI_BUILD_EPOCH="3"
 ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
 
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
@@ -260,11 +263,13 @@ ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES}
 ARG INSTALL_PROVIDERS_FROM_SOURCES="true"
 ENV INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES}
 
-ARG AIRFLOW_LOCAL_PIP_WHEELS=""
-ENV AIRFLOW_LOCAL_PIP_WHEELS=${AIRFLOW_LOCAL_PIP_WHEELS}
+ARG INSTALL_FROM_DOCKER_CONTEXT_FILES=""
+ENV INSTALL_FROM_DOCKER_CONTEXT_FILES=${INSTALL_FROM_DOCKER_CONTEXT_FILES}
 
-ARG INSTALL_AIRFLOW_VIA_PIP="true"
-ENV INSTALL_AIRFLOW_VIA_PIP=${INSTALL_AIRFLOW_VIA_PIP}
+ARG INSTALL_FROM_PYPI="true"
+ENV INSTALL_FROM_PYPI=${INSTALL_FROM_PYPI}
+
+RUN pip install --upgrade "pip==${PIP_VERSION}"
 
 # In case of CI builds we want to pre-install master version of airflow dependencies so that
 # We do not have to always reinstall it from the scratch.
@@ -301,7 +306,6 @@ RUN yarn --cwd airflow/www install --frozen-lockfile --no-cache
 COPY setup.py ${AIRFLOW_SOURCES}/setup.py
 COPY setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
 
-COPY airflow/version.py ${AIRFLOW_SOURCES}/airflow/version.py
 COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
 
 ARG UPGRADE_TO_LATEST_CONSTRAINTS="false"
@@ -313,7 +317,7 @@ ENV UPGRADE_TO_LATEST_CONSTRAINTS=${UPGRADE_TO_LATEST_CONSTRAINTS}
 # Usually we will install versions based on the dependencies in setup.py and upgraded only if needed.
 # But in cron job we will install latest versions matching setup.py to see if there is no breaking change
 # and push the constraints if everything is successful
-RUN if [[ ${INSTALL_AIRFLOW_VIA_PIP} == "true" ]]; then \
+RUN if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
         if [[ "${UPGRADE_TO_LATEST_CONSTRAINTS}" != "false" ]]; then \
             pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy eager; \
         else \
@@ -325,9 +329,9 @@ RUN if [[ ${INSTALL_AIRFLOW_VIA_PIP} == "true" ]]; then \
 # they are also installed additionally to whatever is installed from Airflow.
 COPY docker-context-files/ /docker-context-files/
 
-RUN if [[ ${AIRFLOW_LOCAL_PIP_WHEELS} != "true" ]]; then \
-        if ls /docker-context-files/*.whl 1> /dev/null 2>&1; then \
-            pip install --no-deps /docker-context-files/*.whl; \
+RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} != "true" ]]; then \
+        if ls /docker-context-files/*.{whl,tar.gz} 1> /dev/null 2>&1; then \
+            pip install --no-deps /docker-context-files/*.{whl,tar.gz}; \
         fi ; \
     fi
 

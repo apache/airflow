@@ -17,6 +17,7 @@
 # under the License.
 """Base class for all hooks"""
 import logging
+import warnings
 from typing import Any, List
 
 from airflow.models.connection import Connection
@@ -42,7 +43,13 @@ class BaseHook(LoggingMixin):
         :param conn_id: connection id
         :return: array of connections
         """
-        return Connection.get_connections_from_secrets(conn_id)
+        warnings.warn(
+            "`BaseHook.get_connections` method will be deprecated in the future."
+            "Please use `BaseHook.get_connection` instead.",
+            PendingDeprecationWarning,
+            stacklevel=2,
+        )
+        return [cls.get_connection(conn_id)]
 
     @classmethod
     def get_connection(cls, conn_id: str) -> Connection:
@@ -52,7 +59,7 @@ class BaseHook(LoggingMixin):
         :param conn_id: connection id
         :return: connection
         """
-        conn = cls.get_connections(conn_id)[0]
+        conn = Connection.get_connection_from_secrets(conn_id)
         if conn.host:
             log.info(
                 "Using connection to: id: %s. Host: %s, Port: %s, Schema: %s, Login: %s, Password: %s, "

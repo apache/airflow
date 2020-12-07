@@ -29,7 +29,7 @@ class S3ToRedshiftOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:S3ToRedshiftOperator`
+        :ref:`howto/operator:S3ToRedshiftOperator`
 
     :param schema: reference to a specific schema in redshift database
     :type schema: str

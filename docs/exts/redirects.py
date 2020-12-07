@@ -18,7 +18,6 @@
 import os
 
 from sphinx.builders import html as builders
-from sphinx.errors import ExtensionError
 from sphinx.util import logging
 
 TEMPLATE = '<html><head><meta http-equiv="refresh" content="0; url={}"/></head></html>'
@@ -30,7 +29,8 @@ def generate_redirects(app):
     """Generate redirects files."""
     redirect_file_path = os.path.join(app.srcdir, app.config.redirects_file)
     if not os.path.exists(redirect_file_path):
-        raise ExtensionError(f"Could not find redirects file at '{redirect_file_path}'")
+        log.info("Could not found the redirect file: %s", redirect_file_path)
+        return
 
     in_suffix = next(iter(app.config.source_suffix.keys()))
 

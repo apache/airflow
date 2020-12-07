@@ -42,14 +42,14 @@ else
     FULL_TESTS_NEEDED_LABEL="false"
 fi
 
-if [[ ${PR_LABELS=} == *"upgrade to latest dependencies"* ]]; then
+if [[ ${PR_LABELS=} == *"upgrade to newer dependencies"* ]]; then
     echo
-    echo "Found the right PR labels in '${PR_LABELS=}': 'upgrade to latest dependencies''"
+    echo "Found the right PR labels in '${PR_LABELS=}': 'upgrade to newer dependencies''"
     echo
     UPGRADE_TO_LATEST_CONSTRAINTS_LABEL="true"
 else
     echo
-    echo "Did not find the right PR labels in '${PR_LABELS=}': 'upgrade to latest dependencies'"
+    echo "Did not find the right PR labels in '${PR_LABELS=}': 'upgrade to newer dependencies'"
     echo
     UPGRADE_TO_LATEST_CONSTRAINTS_LABEL="false"
 fi
@@ -145,10 +145,10 @@ function get_changed_files() {
     CHANGED_FILES=$(git diff-tree --no-commit-id --name-only \
         -r "${INCOMING_COMMIT_SHA}^" "${INCOMING_COMMIT_SHA}" || true)
     if [[ ${CHANGED_FILES} == "" ]]; then
-        >&2 echo
-        >&2 echo Warning! Could not find any changed files
-        >&2 echo Assuming that we should run all tests in this case
-        >&2 echo
+        echo
+        echo  "${COLOR_YELLOW_WARNING}: Could not find any changed files  ${COLOR_RESET}"
+        echo Assuming that we should run all tests in this case
+        echo
         set_outputs_run_everything_and_exit
     fi
     echo
@@ -412,6 +412,7 @@ function run_all_tests_if_environment_files_changed() {
         "^Dockerfile"
         "^scripts"
         "^setup.py"
+        "^setup.cfg"
     )
     show_changed_files
 

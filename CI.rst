@@ -135,13 +135,6 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | directories) generated locally on the           |
 |                                         |             |             |            | host during development.                        |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``MOUNT_FILES``                         |     true    |     true    |    true    | Determines whether "files" folder from          |
-|                                         |             |             |            | sources is mounted as "/files" folder           |
-|                                         |             |             |            | inside the container. This is used to           |
-|                                         |             |             |            | share results of local actions to the           |
-|                                         |             |             |            | host, as well as to pass host files to          |
-|                                         |             |             |            | inside container for local development.         |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 |                                                           Force variables                                                          |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``FORCE_PULL_IMAGES``                   |    true     |    true     |    true    | Determines if images are force-pulled,          |
@@ -203,8 +196,9 @@ You can use those variables when you try to reproduce the build locally.
 |                                                           Image variables                                                          |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``INSTALL_AIRFLOW_VERSION``             |             |             |            | Installs Airflow version from PyPI when         |
-|                                         |             |             |            | building image. Can be "wheel" to install from  |
-|                                         |             |             |            | the wheel package instead.                      |
+|                                         |             |             |            | building image. Can be "none" to skip airflow   |
+|                                         |             |             |            | installation so that it can be installed from   |
+|                                         |             |             |            | locally prepared packages.                      |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``INSTALL_AIRFLOW_REFERENCE``           |             |             |            | Installs Airflow version from GitHub            |
 |                                         |             |             |            | branch or tag.                                  |
@@ -254,7 +248,7 @@ You can use those variables when you try to reproduce the build locally.
 |                                                        Image build variables                                                       |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``UPGRADE_TO_LATEST_CONSTRAINTS``       |    false    |    false    |    false   | Determines whether the build should             |
-|                                         |             |             |     (x)    | attempt to eagerly upgrade all                  |
+|                                         |             |             |     (x)    | attempt to upgrade all                          |
 |                                         |             |             |            | PIP dependencies to latest ones matching        |
 |                                         |             |             |            | ``setup.py`` limits. This tries to replicate    |
 |                                         |             |             |            | the situation of "fresh" user who just installs |

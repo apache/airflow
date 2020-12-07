@@ -60,6 +60,9 @@ def get_extras_from_setup() -> Dict[str, List[str]]:
     for extras in extras_regex.findall(extras_section):
         package = extras[1]
         alias = extras[0]
+        if alias == 'crypto':
+            # Skip crypto package - it is there just for backwards compatibility
+            continue
         # if there are no packages, use the extras alias itself
         if package == '[]':
             package = alias
@@ -82,7 +85,7 @@ def get_extras_from_docs() -> List[str]:
     """
     Returns an array of install packages names from installation.rst.
     """
-    docs_content = get_file_content('docs', DOCS_FILE)
+    docs_content = get_file_content('docs', 'apache-airflow', DOCS_FILE)
 
     extras_section_regex = re.compile(
         rf'^\|[^|]+\|.*pip install .apache-airflow\[({PY_IDENTIFIER})\].', re.MULTILINE

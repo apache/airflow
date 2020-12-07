@@ -86,6 +86,7 @@ serialized_simple_dag_ground_truth = {
                 "retry_delay": 300.0,
                 "_downstream_task_ids": [],
                 "_inlets": [],
+                "_is_dummy": False,
                 "_outlets": [],
                 "ui_color": "#f0ede4",
                 "ui_fgcolor": "#000",
@@ -112,6 +113,7 @@ serialized_simple_dag_ground_truth = {
                 "retry_delay": 300.0,
                 "_downstream_task_ids": [],
                 "_inlets": [],
+                "_is_dummy": False,
                 "_outlets": [],
                 "_operator_extra_links": [{"tests.test_utils.mock_operators.CustomOpLink": {}}],
                 "ui_color": "#fff",
@@ -941,6 +943,32 @@ class TestStringifiedDAGs(unittest.TestCase):
                 check_task_group(child)
 
         check_task_group(serialized_dag.task_group)
+
+    @parameterized.expand(
+        [
+            ("poke", False),
+            ("reschedule", True),
+        ]
+    )
+    def test_serialize_sensor(self, mode, expect_custom_deps):
+        from airflow.sensors.base_sensor_operator import BaseSensorOperator
+
+        class DummySensor(BaseSensorOperator):
+            def poke(self, context):
+                return False
+
+        op = DummySensor(task_id='dummy', mode=mode, poke_interval=23)
+
+        blob = SerializedBaseOperator.serialize_operator(op)
+
+        if expect_custom_deps:
+            assert "deps" in blob
+        else:
+            assert "deps" not in blob
+
+        serialized_op = SerializedBaseOperator.deserialize_operator(blob)
+
+        assert op.deps == serialized_op.deps
 
 
 def test_kubernetes_optional():

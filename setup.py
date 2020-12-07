@@ -30,7 +30,6 @@ from setuptools import Command, find_namespace_packages, setup
 
 logger = logging.getLogger(__name__)
 
-# This is automatically maintained in sync via pre-commit from airflow/version.py
 version = '2.0.0b3'
 
 PY3 = sys.version_info[0] == 3
@@ -163,7 +162,8 @@ _SPHINX_AIRFLOW_THEME_URL = (
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
 amazon = [
-    'boto3>=1.12.0,<2.0.0',
+    'boto3>=1.15.0,<1.16.0',
+    'botocore>=1.18.0,<1.19.0',
     'watchtower~=0.7.3',
 ]
 apache_beam = [
@@ -188,7 +188,6 @@ azure = [
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
     'azure-storage>=0.34.0, <0.37.0',
-    'azure-storage-blob<12.0',
 ]
 cassandra = [
     'cassandra-driver>=3.13.0,<3.21.0',
@@ -243,11 +242,11 @@ facebook = [
 flask_oauth = [
     'Flask-OAuthlib>=0.9.1,<0.9.6',  # Flask OAuthLib 0.9.6 requires Flask-Login 0.5.0 - breaks FAB
     'oauthlib!=2.0.3,!=2.0.4,!=2.0.5,<3.0.0,>=1.1.2',
-    'requests-oauthlib==1.1.0',
+    'requests-oauthlib<1.2.0',
 ]
 google = [
     'PyOpenSSL',
-    'google-ads>=4.0.0',
+    'google-ads>=4.0.0,<8.0.0',
     'google-api-python-client>=1.6.0,<2.0.0',
     'google-auth>=1.0.0,<2.0.0',
     'google-auth-httplib2>=0.0.1',
@@ -358,7 +357,7 @@ qubole = [
     'qds-sdk>=1.10.4',
 ]
 rabbitmq = [
-    'amqp',
+    'amqp<5.0.0',
 ]
 redis = [
     'redis~=3.2',
@@ -384,6 +383,15 @@ slack = [
     'slackclient>=2.0.0,<3.0.0',
 ]
 snowflake = [
+    # The `azure` provider uses legacy `azure-storage` library, where `snowflake` uses the
+    # newer and more stable versions of those libraries. Most of `azure` operators and hooks work
+    # fine together with `snowflake` because the deprecated library does not overlap with the
+    # new libraries except the `blob` classes. So while `azure` works fine for most cases
+    # blob is the only exception
+    # Solution to that is being worked on in https://github.com/apache/airflow/pull/12188
+    # once it is merged, we can move those two back to `azure` extra.
+    'azure-storage-blob',
+    'azure-storage-common',
     # snowflake is not compatible with latest version.
     # This library monkey patches the requests library, so SSL is broken globally.
     # See: https://github.com/snowflakedb/snowflake-connector-python/issues/324
@@ -405,6 +413,9 @@ statsd = [
 tableau = [
     'tableauserverclient~=0.12',
 ]
+telegram = [
+    'python-telegram-bot==13.0',
+]
 vertica = [
     'vertica-python>=0.5.1',
 ]
@@ -417,7 +428,7 @@ webhdfs = [
 winrm = [
     'pywinrm~=0.4',
 ]
-yandexcloud = [
+yandex = [
     'yandexcloud>=0.22.0',
 ]
 zendesk = [
@@ -461,10 +472,11 @@ devel = [
     'freezegun',
     'github3.py',
     'gitpython',
+    'importlib-resources~=1.4',
     'ipdb',
     'jira',
     'mongomock',
-    'moto>=1.3.16',
+    'moto',
     'parameterized',
     'paramiko',
     'pipdeptree',
@@ -480,14 +492,14 @@ devel = [
     'pywinrm',
     'qds-sdk>=1.9.6',
     'requests_mock',
-    'setuptools',
     'testfixtures',
     'wheel',
     'yamllint',
 ]
+
 ############################################################################################################
 # IMPORTANT NOTE!!!!!!!!!!!!!!!
-# IF you are removing dependencies from the above list, please make sure that you also increase
+# If you are removing dependencies from the above list, please make sure that you also increase
 # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile.ci
 ############################################################################################################
 
@@ -498,6 +510,18 @@ else:
 
 devel_minreq = cgroups + devel + doc + kubernetes + mysql + password
 devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
+
+
+############################################################################################################
+# IMPORTANT NOTE!!!!!!!!!!!!!!!
+# If you have a 'pip check' problem with dependencies, it might be becasue some dependency has been
+# installed via 'install_requires' in setup.cfg in higher version than required in one of the options below.
+# For example pip check was failing with requests=2.25.1 installed even if in some dependencies below
+# < 2.24.0 was specified for it. Solution in such case is to add such limiting requirement to
+# install_requires in setup.cfg (we've added requests<2.24.0 there to limit requests library).
+# This should be done with appropriate comment explaining why the requirement was added.
+############################################################################################################
+
 
 PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "amazon": amazon,
@@ -557,8 +581,9 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "snowflake": snowflake,
     "sqlite": [],
     "ssh": ssh,
+    "telegram": telegram,
     "vertica": vertica,
-    "yandex": yandexcloud,
+    "yandex": yandex,
     "zendesk": zendesk,
 }
 
@@ -587,6 +612,7 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'cgroups': cgroups,
     'cloudant': cloudant,
     'cncf.kubernetes': kubernetes,
+    'crypto': [],  # TODO: remove this in Airflow 2.1
     'dask': dask,
     'databricks': databricks,
     'datadog': datadog,
@@ -637,6 +663,7 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'qubole': qubole,
     'rabbitmq': rabbitmq,
     'redis': redis,
+    's3': amazon,  # TODO: Remove this in Airflow 2.1
     'salesforce': salesforce,
     'samba': samba,
     'segment': segment,
@@ -651,12 +678,12 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'ssh': ssh,
     'statsd': statsd,
     'tableau': tableau,
+    'telegram': telegram,
     'vertica': vertica,
     'virtualenv': virtualenv,
     'webhdfs': webhdfs,  # TODO: remove this in Airflow 2.1
     'winrm': winrm,  # TODO: remove this in Airflow 2.1
-    'yandex': yandexcloud,  # TODO: remove this in Airflow 2.1
-    'yandexcloud': yandexcloud,
+    'yandex': yandex,
     'zendesk': [],
 }
 
@@ -704,6 +731,7 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'cgroups': [],
     'cloudant': ["cloudant"],
     'cncf.kubernetes': ["cncf.kubernetes"],
+    'crypto': [],  # TODO: Remove this in Airflow 2.1
     'dask': [],
     'databricks': ["databricks"],
     'datadog': ["datadog"],
@@ -757,6 +785,7 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'qubole': ["qubole"],
     'rabbitmq': [],
     'redis': ["redis"],
+    's3': ["amazon"],  # TODO: Remove this in Airflow 2.1
     'salesforce': ["salesforce"],
     'samba': ["samba"],
     'segment': ["segment"],
@@ -771,11 +800,11 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'ssh': ["ssh"],
     'statsd': [],
     'tableau': [],
+    'telegram': ["telegram"],
     'vertica': ["vertica"],
     'virtualenv': [],
     'webhdfs': ["apache.hdfs"],  # TODO: remove this in Airflow 2.1
     'winrm': ["microsoft.winrm"],  # TODO: remove this in Airflow 2.1
-    'yandexcloud': ["yandex"],  # TODO: remove this in Airflow 2.1
     'yandex': ["yandex"],
     'zendesk': ["zendesk"],
 }

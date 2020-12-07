@@ -42,7 +42,11 @@ class ImapHook(BaseHook):
     :type imap_conn_id: str
     """
 
-    def __init__(self, imap_conn_id: str = 'imap_default') -> None:
+    conn_name_attr = 'imap_conn_id'
+    default_conn_name = 'imap_default'
+    conn_type = 'imap'
+
+    def __init__(self, imap_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.imap_conn_id = imap_conn_id
         self.mail_client: Optional[imaplib.IMAP4_SSL] = None

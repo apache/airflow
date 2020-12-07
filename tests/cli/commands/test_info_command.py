@@ -23,6 +23,7 @@ import unittest
 from unittest import mock
 
 from parameterized import parameterized
+from rich.console import Console
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import info_command
@@ -30,6 +31,13 @@ from airflow.config_templates import airflow_local_settings
 from airflow.logging_config import configure_logging
 from airflow.version import version as airflow_version
 from tests.test_utils.config import conf_vars
+
+
+def capture_show_output(instance):
+    console = Console()
+    with console.capture() as capture:
+        instance.info(console)
+    return capture.get()
 
 
 class TestPiiAnonymizer(unittest.TestCase):
@@ -65,20 +73,25 @@ class TestPiiAnonymizer(unittest.TestCase):
 
 
 class TestAirflowInfo(unittest.TestCase):
-    def test_should_be_string(self):
-        text = str(info_command.AirflowInfo(info_command.NullAnonymizer()))
-
-        self.assertIn(f"Apache Airflow [{airflow_version}]", text)
+    def test_info(self):
+        instance = info_command.AirflowInfo(info_command.NullAnonymizer())
+        text = capture_show_output(instance)
+        self.assertIn("Apache Airflow", text)
+        self.assertIn(airflow_version, text)
 
 
 class TestSystemInfo(unittest.TestCase):
-    def test_should_be_string(self):
-        self.assertTrue(str(info_command.SystemInfo(info_command.NullAnonymizer())))
+    def test_info(self):
+        instance = info_command.SystemInfo(info_command.NullAnonymizer())
+        text = capture_show_output(instance)
+        self.assertIn("System info", text)
 
 
 class TestPathsInfo(unittest.TestCase):
-    def test_should_be_string(self):
-        self.assertTrue(str(info_command.PathsInfo(info_command.NullAnonymizer())))
+    def test_info(self):
+        instance = info_command.PathsInfo(info_command.NullAnonymizer())
+        text = capture_show_output(instance)
+        self.assertIn("Paths info", text)
 
 
 class TestConfigInfo(unittest.TestCase):
@@ -93,7 +106,7 @@ class TestConfigInfo(unittest.TestCase):
     )
     def test_should_read_config(self):
         instance = info_command.ConfigInfo(info_command.NullAnonymizer())
-        text = str(instance)
+        text = capture_show_output(instance)
         self.assertIn("TEST_EXECUTOR", text)
         self.assertIn("TEST_DAGS_FOLDER", text)
         self.assertIn("TEST_PLUGINS_FOLDER", text)
@@ -112,17 +125,12 @@ class TestConfigInfoLogging(unittest.TestCase):
             importlib.reload(airflow_local_settings)
             configure_logging()
             instance = info_command.ConfigInfo(info_command.NullAnonymizer())
-            text = str(instance)
-            self.assertIn("StackdriverTaskHandler", text)
+            text = capture_show_output(instance)
+            self.assertIn("stackdriver", text)
 
     def tearDown(self) -> None:
         importlib.reload(airflow_local_settings)
         configure_logging()
-
-
-class TestToolsInfo(unittest.TestCase):
-    def test_should_be_string(self):
-        self.assertTrue(str(info_command.ToolsInfo(info_command.NullAnonymizer())))
 
 
 class TestShowInfo(unittest.TestCase):
@@ -140,7 +148,7 @@ class TestShowInfo(unittest.TestCase):
             info_command.show_info(self.parser.parse_args(["info"]))
 
         output = stdout.getvalue()
-        self.assertIn(f"Apache Airflow [{airflow_version}]", output)
+        self.assertIn(f"Apache Airflow: {airflow_version}", output)
         self.assertIn("postgresql+psycopg2://postgres:airflow@postgres/airflow", output)
 
     @conf_vars(
@@ -153,7 +161,7 @@ class TestShowInfo(unittest.TestCase):
             info_command.show_info(self.parser.parse_args(["info", "--anonymize"]))
 
         output = stdout.getvalue()
-        self.assertIn(f"Apache Airflow [{airflow_version}]", output)
+        self.assertIn(f"Apache Airflow: {airflow_version}", output)
         self.assertIn("postgresql+psycopg2://p...s:PASSWORD@postgres/airflow", output)
 
     @conf_vars(
@@ -178,5 +186,5 @@ class TestShowInfo(unittest.TestCase):
             info_command.show_info(self.parser.parse_args(["info", "--file-io"]))
 
         self.assertIn("https://file.io/TEST", stdout.getvalue())
-        content = mock_requests.post.call_args[1]["files"]["file"][1]
+        content = mock_requests.post.call_args[1]["data"]["text"]
         self.assertIn("postgresql+psycopg2://p...s:PASSWORD@postgres/airflow", content)

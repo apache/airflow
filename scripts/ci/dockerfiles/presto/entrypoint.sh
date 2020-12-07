@@ -32,15 +32,14 @@ function check_service {
         RES=$?
         set -e
         if [[ ${RES} == 0 ]]; then
-            echo -e " \e[32mOK.\e[0m"
+            echo  "${COLOR_GREEN_OK}  ${COLOR_RESET}"
             break
         else
             echo -n "."
             MAX_CHECK=$((MAX_CHECK-1))
         fi
         if [[ ${MAX_CHECK} == 0 ]]; then
-            echo -e " \e[31mERROR!\e[30m"
-            echo "Maximum number of retries while checking service. Exiting"
+            echo "${COLOR_RED_ERROR} Maximum number of retries while checking service. Exiting.${COLOR_RESET}"
             break
         else
             sleep 1
@@ -56,7 +55,7 @@ function check_service {
 }
 
 function log() {
-  echo -e "\u001b[32m[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*\u001b[0m" >&2
+  echo -e "\u001b[32m[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*\u001b[0m"
 }
 
 if [ -f /tmp/presto-initiaalized ]; then

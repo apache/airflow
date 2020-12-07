@@ -52,12 +52,54 @@ assists users migrating to a new version.
 
 ## Master
 
+### Changes to output argument in commands
+
+From Airflow 2.0, We are replacing [tabulate](https://pypi.org/project/tabulate/) with [rich](https://github.com/willmcgugan/rich) to render commands output. Due to this change, the `--output` argument
+will no longer accept formats of tabulate tables. Instead, it now accepts:
+
+- `table` - will render the output in predefined table
+- `json` - will render the output as a json
+- `yaml` - will render the output as yaml
+
+By doing this we increased consistency and gave users possibility to manipulate the
+output programmatically (when using json or yaml).
+
+Affected commands:
+
+- `airflow dags list`
+- `airflow dags report`
+- `airflow dags list-runs`
+- `airflow dags list-jobs`
+- `airflow connections list`
+- `airflow connections get`
+- `airflow pools list`
+- `airflow pools get`
+- `airflow pools set`
+- `airflow pools delete`
+- `airflow pools import`
+- `airflow pools export`
+- `airflow role list`
+- `airflow providers list`
+- `airflow providers get`
+- `airflow providers hooks`
+- `airflow tasks states-for-dag-run`
+- `airflow users list`
+- `airflow variables list`
+
+### Azure Wasb Hook does not work together with Snowflake hook
+
+The WasbHook in Apache Airflow use a legacy version of Azure library. While the conflict is not
+significant for most of the Azure hooks, it is a problem for Wasb Hook because the `blob` folders
+for both libraries overlap. Installing both Snowflake and Azure extra will result in non-importable
+WasbHook.
+
 ### Rename `all` to `devel_all` extra
 
 The `all` extras were reduced to include only user-facing dependencies. This means
 that this extra does not contain development dependencies. If you were relying on
 `all` extra then you should use now `devel_all` or figure out if you need development
 extras at all.
+
 
 ### `[scheduler] max_threads` config has been renamed to `[scheduler] parsing_processes`
 
@@ -1625,6 +1667,16 @@ For example:
 
 If you want to install integration for Microsoft Azure, then instead of `pip install apache-airflow[atlas]`
 you should use `pip install apache-airflow[apache.atlas]`.
+
+
+NOTE!
+
+On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+`pip upgrade --pip==20.2.4` or, in case you use Pip 20.3, you need to add option
+`--use-deprecated legacy-resolver` to your pip install command.
+
 
 If you want to install integration for Microsoft Azure, then instead of
 

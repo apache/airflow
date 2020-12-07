@@ -43,3 +43,6 @@ hooks:
   - integration-name: Atlassian Jira
     python-modules:
       - airflow.providers.jira.hooks.jira
+
+hook-class-names:
+  - airflow.providers.jira.hooks.jira.JiraHook

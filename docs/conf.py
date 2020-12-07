@@ -112,6 +112,7 @@ extensions = [
     'airflow_intersphinx',
     "sphinxcontrib.spelling",
     'sphinx_airflow_theme',
+    'redirects',
 ]
 if PACKAGE_NAME == 'apache-airflow':
     extensions.extend(
@@ -142,24 +143,11 @@ if PACKAGE_NAME == 'apache-airflow':
     exclude_patterns = [
         # We only link to selected subpackages.
         '_api/airflow/index.rst',
-        # We have custom page - operators-and-hooks-ref.rst
-        '_api/airflow/providers/index.rst',
-        # Packages with subpackages
-        "_api/airflow/providers/microsoft/index.rst",
-        "_api/airflow/providers/apache/index.rst",
-        "_api/airflow/providers/cncf/index.rst",
-        # Templates or partials
-        'autoapi_templates',
-        'howto/operator/google/_partials',
-        'howto/operator/microsoft/_partials',
-        'apache-airflow-providers-*/',
-        'apache-airflow-providers',
-        'rtd-deprecation',
         'README.rst',
-    ] + glob.glob('apache-airflow-providers-*')
+    ]
 elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
     exclude_patterns = [
-        '/_partials/',
+        'operators/_partials',
     ]
 else:
     exclude_patterns = []
@@ -227,7 +215,7 @@ html_favicon = "../airflow/www/static/pin_32.png"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 if PACKAGE_NAME == 'apache-airflow':
-    html_static_path = ['static']
+    html_static_path = ['apache-airflow/static']
 else:
     html_static_path = []
 # A list of JavaScript filename. The entry must be a filename string or a
@@ -366,6 +354,7 @@ autodoc_mock_imports = [
     'smbclient',
     'snowflake',
     'sshtunnel',
+    'telegram',
     'tenacity',
     'vertica_python',
     'winrm',
@@ -464,15 +453,12 @@ autoapi_keep_files = True
 
 # Relative path to output the AutoAPI files into. This can also be used to place the generated documentation
 # anywhere in your documentation hierarchy.
-if PACKAGE_NAME == 'apache-airflow':
-    autoapi_root = '_api'
-else:
-    autoapi_root = f'{PACKAGE_NAME}/_api'
+autoapi_root = f'{PACKAGE_NAME}/_api'
 
 # Whether to insert the generated documentation into the TOC tree. If this is False, the default AutoAPI
 # index page is not generated and you will need to include the generated documentation in a
 # TOC tree entry yourself.
-autoapi_add_toctree_entry = bool(PACKAGE_NAME == 'apache-airflow')
+autoapi_add_toctree_entry = False
 
 # -- Options for ext.exampleinclude --------------------------------------------
 exampleinclude_sourceroot = os.path.abspath('..')

@@ -67,7 +67,9 @@ BigQueryJob = Union[CopyJob, QueryJob, LoadJob, ExtractJob]
 class BigQueryHook(GoogleBaseHook, DbApiHook):
     """Interact with BigQuery. This hook uses the Google Cloud connection."""
 
-    conn_name_attr = 'gcp_conn_id'  # type: str
+    conn_name_attr = 'gcp_conn_id'
+    default_conn_name = 'google_cloud_default'
+    conn_type = 'google_cloud_platform'
 
     def __init__(
         self,

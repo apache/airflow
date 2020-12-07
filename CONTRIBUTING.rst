@@ -1,4 +1,4 @@
- .. Licensed to the Apache Software Foundation (ASF) under one
+.. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -321,7 +321,7 @@ Step 4: Prepare PR
        the "full tests needed" label is set for your PR. Additional check is set that prevents from
        accidental merging of the request until full matrix of tests succeeds for the PR.
 
-     * when your change has "upgrade to latest dependencies" label set, constraints will be automatically
+     * when your change has "upgrade to newer dependencies" label set, constraints will be automatically
        upgraded to latest constraints matching your setup.py. This is useful in case you want to force
        upgrade to a latest version of dependencies. You can ask committers to set the label for you
        when you need it in your PR.
@@ -532,6 +532,15 @@ than production performance. The production images are not yet officially publis
 Airflow dependencies
 ====================
 
+.. note::
+
+   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+   ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``--use-deprecated legacy-resolver`` to your pip install command.
+
+
 Extras
 ------
 
@@ -548,14 +557,14 @@ This is the full list of those extras:
 all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.druid, apache.hdfs,
 apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark, apache.sqoop,
 apache.webhdfs, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant, cncf.kubernetes,
-dask, databricks, datadog, dingding, discord, docker, druid, elasticsearch, exasol, facebook, ftp,
-gcp, gcp_api, github_enterprise, google, google_auth, grpc, hashicorp, hdfs, hive, http, imap, jdbc,
-jenkins, jira, kerberos, kubernetes, ldap, mesos, microsoft.azure, microsoft.mssql, microsoft.winrm,
-mongo, mssql, mysql, odbc, openfaas, opsgenie, oracle, pagerduty, papermill, password, pinot,
-plexus, postgres, presto, qds, qubole, rabbitmq, redis, salesforce, samba, segment, sendgrid,
-sentry, sftp, singularity, slack, snowflake, spark, sqlite, ssh, statsd, tableau, vertica,
-virtualenv, webhdfs, winrm, yandex, yandexcloud, zendesk, all, devel, devel_hadoop, doc, devel_all,
-devel_ci
+crypto, dask, databricks, datadog, dingding, discord, docker, druid, elasticsearch, exasol,
+facebook, ftp, gcp, gcp_api, github_enterprise, google, google_auth, grpc, hashicorp, hdfs, hive,
+http, imap, jdbc, jenkins, jira, kerberos, kubernetes, ldap, mesos, microsoft.azure,
+microsoft.mssql, microsoft.winrm, mongo, mssql, mysql, odbc, openfaas, opsgenie, oracle, pagerduty,
+papermill, password, pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce,
+samba, segment, sendgrid, sentry, sftp, singularity, slack, snowflake, spark, sqlite, ssh, statsd,
+tableau, telegram, vertica, virtualenv, webhdfs, winrm, yandex, zendesk, all, devel, devel_hadoop,
+doc, devel_all, devel_ci
 
   .. END EXTRAS HERE
 
@@ -573,7 +582,7 @@ and not installed together with the core, unless you set ``INSTALL_PROVIDERS_FRO
 variable to ``true``.
 
 In Breeze - which is a development environment, ``INSTALL_PROVIDERS_FROM_SOURCES`` variable is set to true,
-but you can add ``--skip-installing-airflow-providers`` flag to Breeze to skip installing providers when
+but you can add ``--skip-installing-airflow-providers-from-sources`` flag to Breeze to skip installing providers when
 building the images.
 
 One watch-out - providers are still always installed (or rather available) if you install airflow from
@@ -667,6 +676,15 @@ as of airflow 1.10.10 and further improved with 1.10.12 (moved to separate orpha
 Pinned constraint files
 =======================
 
+.. note::
+
+   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+   ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``--use-deprecated legacy-resolver`` to your pip install command.
+
+
 By default when you install ``apache-airflow`` package - the dependencies are as open as possible while
 still allowing the apache-airflow package to install. This means that ``apache-airflow`` package might fail to
 install in case a direct or transitive dependency is released that breaks the installation. In such case
@@ -720,9 +738,9 @@ jobs for each python version.
 Documentation
 =============
 
-Documentation for ``apache-airflow`` package and other packages that are closely related to it ie. providers packages are in ``/docs/`` directory. For detailed information on documentation development, see: `docs/README.md <docs/README.md>`_
+Documentation for ``apache-airflow`` package and other packages that are closely related to it ie. providers packages are in ``/docs/`` directory. For detailed information on documentation development, see: `docs/README.rst <docs/README.rst>`_
 
-For Helm Chart documentation, see: `/chart/README.md <../chart/READMe.md>`__
+For Helm Chart documentation, see: `/chart/README.md <../chart/README.md>`__
 
 Static code checks
 ==================
@@ -774,6 +792,47 @@ If this function is designed to be called by "end-users" (i.e. DAG authors) then
     def my_method(arg, arg, session=None)
       ...
       # You SHOULD not commit the session here. The wrapper will take care of commit()/rollback() if exception
+
+Don't use time() for duration calcuations
+-----------------------------------------
+
+If you wish to compute the time difference between two events with in the same process, use
+``time.monotonic()``, not ``time.time()`` nor ``timzeone.utcnow()``.
+
+If you are measuring duration for performance reasons, then ``time.perf_counter()`` should be used. (On many
+platforms, this uses the same underlying clock mechanism as monotonic, but ``perf_counter`` is guaranteed to be
+the highest accuracy clock on the system, monotonic is simply "guaranteed" to not go backwards.)
+
+If you wish to time how long a block of code takes, use ``Stats.timer()`` -- either with a metric name, which
+will be timed and submitted automatically:
+
+.. code-block:: python
+
+    from airflow.stats import Stats
+
+    ...
+
+    with Stats.timer("my_timer_metric"):
+        ...
+
+or to time but not send a metric:
+
+.. code-block:: python
+
+    from airflow.stats import Stats
+
+    ...
+
+    with Stats.timer() as timer:
+        ...
+
+    log.info("Code took %.3f seconds", timer.duration)
+
+For full docs on ``timer()`` check out `airflow/stats.py`_.
+
+If the start_date of a duration calculation needs to be stored in a database, then this has to be done using
+datetime objects. In all other cases, using datetime for duration calculation MUST be avoided as creating and
+diffing datetime operations are (comparatively) slow.
 
 Naming Conventions for provider packages
 ----------------------------------------

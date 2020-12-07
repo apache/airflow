@@ -547,6 +547,7 @@ cmd
 cmdline
 cmds
 cname
+cncf
 cnf
 cnt
 codebase
@@ -690,6 +691,7 @@ encryptor
 enqueue
 enqueued
 entrypoint
+entrypoints
 enum
 env
 envFrom
@@ -776,6 +778,7 @@ gpus
 greenlet
 groupId
 grpc
+gz
 hadoop
 hadoopcmd
 hashicorp
@@ -942,6 +945,7 @@ metarouter
 metastore
 mget
 microservice
+microsoft
 middleware
 mik
 milton
