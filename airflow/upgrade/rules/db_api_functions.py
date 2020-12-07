@@ -66,7 +66,9 @@ def return_error_string(cls, method):
 
 
 def get_all_non_dbapi_children():
-    basehook_children = [child for child in BaseHook.__subclasses__() if child.__name__ != "DbApiHook"]
+    basehook_children = [
+        child for child in BaseHook.__subclasses__() if child.__name__ != "DbApiHook"
+    ]
     res = basehook_children[:]
     while basehook_children:
         next_generation = []

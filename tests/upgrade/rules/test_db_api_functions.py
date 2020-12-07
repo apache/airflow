@@ -42,7 +42,6 @@ class GrandChildHook(MyHook):
 
 
 class ProperDbApiHook(DbApiHook):
-
     def bulk_dump(self, table, tmp_file):
         pass
 
@@ -66,6 +65,7 @@ class TestSqlHookCheck(TestCase):
         grandchild_errors = [d for d in db_api_rule_failures if "GrandChild" in d]
         self.assertEqual(len(myhook_errors), 2)
         self.assertEqual(len(grandchild_errors), 3)
-        proper_db_api_hook_failures = \
-            [failure for failure in db_api_rule_failures if "ProperDbApiHook" in failure]
+        proper_db_api_hook_failures = [
+            failure for failure in db_api_rule_failures if "ProperDbApiHook" in failure
+        ]
         self.assertEqual(len(proper_db_api_hook_failures), 0)
