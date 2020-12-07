@@ -75,6 +75,7 @@ class AirflowMesosScheduler(MesosClient):
         self.mesos_docker_volume_logs_container_path = conf.get(
             'mesos', 'DOCKER_VOLUME_LOGS_CONTAINER_PATH'
         ).replace('"', '')
+        self.mesos_docker_sock = conf.get('mesos', 'DOCKER_SOCK').replace('"', '')
         self.core_sql_alchemy_conn = conf.get('core', 'SQL_ALCHEMY_CONN')
         self.core_fernet_key = conf.get('core', 'FERNET_KEY')
 
