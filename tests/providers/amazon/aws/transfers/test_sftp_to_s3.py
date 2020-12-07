@@ -74,7 +74,7 @@ class TestSFTPToS3Operator(unittest.TestCase):
         # Setting
         test_remote_file_content = (
             "This is remote file content \n which is also multiline "
-            "another line here \n this is last line. EOF"
+            + "another line here \n this is last line. EOF"
         )
 
         # create a test file remotely

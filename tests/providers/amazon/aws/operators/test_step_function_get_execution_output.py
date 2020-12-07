@@ -28,7 +28,7 @@ from airflow.providers.amazon.aws.operators.step_function_get_execution_output i
 TASK_ID = 'step_function_get_execution_output'
 EXECUTION_ARN = (
     'arn:aws:states:us-east-1:123456789012:execution:'
-    'pseudo-state-machine:020f5b16-b1a1-4149-946f-92dd32d97934'
+    + 'pseudo-state-machine:020f5b16-b1a1-4149-946f-92dd32d97934'
 )
 AWS_CONN_ID = 'aws_non_default'
 REGION_NAME = 'us-west-2'

@@ -55,7 +55,7 @@ OAUTH_TOKEN = 'my_oauth_token'
 # Ssh public keys will be placed to Dataproc cluster nodes, allowing to get a root shell at the nodes
 SSH_PUBLIC_KEYS = [
     'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAYQCxO38tKAJXIs9ivPxt7AYdfybgtAR1ow3Qkb9GPQ6wkFHQq'
-    'cFDe6faKCxH6iDRteo4D8L8BxwzN42uZSB0nfmjkIxFTcEU3mFSXEbWByg78aoddMrAAjatyrhH1pON6P0='
+    + 'cFDe6faKCxH6iDRteo4D8L8BxwzN42uZSB0nfmjkIxFTcEU3mFSXEbWByg78aoddMrAAjatyrhH1pON6P0='
 ]
 
 # If Yandex.Cloud credentials are set than full test will be run. Otherwise only mocked tests.

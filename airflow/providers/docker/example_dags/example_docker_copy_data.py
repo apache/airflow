@@ -88,8 +88,8 @@ t_move = DockerOperator(
         "/bin/bash",
         "-c",
         "/bin/sleep 30; "
-        "/bin/mv {{params.source_location}}/{{ ti.xcom_pull('view_file') }} {{params.target_location}};"
-        "/bin/echo '{{params.target_location}}/{{ ti.xcom_pull('view_file') }}';",
+        + "/bin/mv {{params.source_location}}/{{ ti.xcom_pull('view_file') }} {{params.target_location}};"
+        + "/bin/echo '{{params.target_location}}/{{ ti.xcom_pull('view_file') }}';",
     ],
     task_id="move_data",
     do_xcom_push=True,

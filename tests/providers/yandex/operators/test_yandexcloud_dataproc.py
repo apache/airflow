@@ -57,7 +57,7 @@ OAUTH_TOKEN = 'my_oauth_token'
 # Ssh public keys will be placed to Dataproc cluster nodes, allowing to get a root shell at the nodes
 SSH_PUBLIC_KEYS = [
     'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAYQCxO38tKAJXIs9ivPxt7AYdfybgtAR1ow3Qkb9GPQ6wkFHQq'
-    'cFDe6faKCxH6iDRteo4D8L8BxwzN42uZSB0nfmjkIxFTcEU3mFSXEbWByg78aoddMrAAjatyrhH1pON6P0='
+    + 'cFDe6faKCxH6iDRteo4D8L8BxwzN42uZSB0nfmjkIxFTcEU3mFSXEbWByg78aoddMrAAjatyrhH1pON6P0='
 ]
 
 
@@ -111,7 +111,7 @@ class DataprocClusterCreateOperatorTest(TestCase):
             services=('HDFS', 'YARN', 'MAPREDUCE', 'HIVE', 'SPARK'),
             ssh_public_keys=[
                 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAYQCxO38tKAJXIs9ivPxt7AYdfybgtAR1ow3Qkb9GPQ6wkFHQqcFD'
-                'e6faKCxH6iDRteo4D8L8BxwzN42uZSB0nfmjkIxFTcEU3mFSXEbWByg78aoddMrAAjatyrhH1pON6P0='
+                + 'e6faKCxH6iDRteo4D8L8BxwzN42uZSB0nfmjkIxFTcEU3mFSXEbWByg78aoddMrAAjatyrhH1pON6P0='
             ],
             subnet_id='my_subnet_id',
             zone='ru-central1-c',

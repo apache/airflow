@@ -318,7 +318,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
     def test_render_log_id(self):
         expected_log_id = (
             'dag_for_testing_file_task_handler-'
-            'task_for_testing_file_log_handler-2016-01-01T00:00:00+00:00-1'
+            + 'task_for_testing_file_log_handler-2016-01-01T00:00:00+00:00-1'
         )
         log_id = self.es_task_handler._render_log_id(self.ti, 1)
         self.assertEqual(expected_log_id, log_id)

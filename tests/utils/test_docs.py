@@ -30,13 +30,13 @@ class TestGetDocsUrl(unittest.TestCase):
                 '2.0.0.dev0',
                 None,
                 'http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/'
-                'apache-airflow/latest/',
+                + 'apache-airflow/latest/',
             ),
             (
                 '2.0.0.dev0',
                 'migration.html',
                 'http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/'
-                'apache-airflow/latest/migration.html',
+                + 'apache-airflow/latest/migration.html',
             ),
             ('1.10.0', None, 'https://airflow.apache.org/docs/1.10.0/'),
             ('1.10.0', 'migration.html', 'https://airflow.apache.org/docs/1.10.0/migration.html'),

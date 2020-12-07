@@ -61,7 +61,7 @@ class TestStepFunctionStartExecutionOperator(unittest.TestCase):
         # Given
         hook_response = (
             'arn:aws:states:us-east-1:123456789012:execution:'
-            'pseudo-state-machine:020f5b16-b1a1-4149-946f-92dd32d97934'
+            + 'pseudo-state-machine:020f5b16-b1a1-4149-946f-92dd32d97934'
         )
 
         hook_instance = mock_hook.return_value

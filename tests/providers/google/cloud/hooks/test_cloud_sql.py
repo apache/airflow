@@ -1069,10 +1069,10 @@ class TestCloudSqlDatabaseQueryHook(unittest.TestCase):
     def test_hook_with_not_too_long_unix_socket_path(self, get_connection):
         uri = (
             "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&"
-            "project_id=example-project&location=europe-west1&"
-            "instance="
-            "test_db_with_longname_but_with_limit_of_UNIX_socket&"
-            "use_proxy=True&sql_proxy_use_tcp=False"
+            + "project_id=example-project&location=europe-west1&"
+            + "instance="
+            + "test_db_with_longname_but_with_limit_of_UNIX_socket&"
+            + "use_proxy=True&sql_proxy_use_tcp=False"
         )
         get_connection.side_effect = [Connection(uri=uri)]
         hook = CloudSQLDatabaseHook()
@@ -1094,8 +1094,8 @@ class TestCloudSqlDatabaseQueryHook(unittest.TestCase):
     def test_hook_with_correct_parameters_postgres(self, get_connection):
         uri = (
             "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&"
-            "project_id=example-project&location=europe-west1&instance=testdb&"
-            "use_proxy=False&use_ssl=False"
+            + "project_id=example-project&location=europe-west1&instance=testdb&"
+            + "use_proxy=False&use_ssl=False"
         )
         self._verify_postgres_connection(get_connection, uri)
 
@@ -1103,9 +1103,9 @@ class TestCloudSqlDatabaseQueryHook(unittest.TestCase):
     def test_hook_with_correct_parameters_postgres_ssl(self, get_connection):
         uri = (
             "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&"
-            "project_id=example-project&location=europe-west1&instance=testdb&"
-            "use_proxy=False&use_ssl=True&sslcert=/bin/bash&"
-            "sslkey=/bin/bash&sslrootcert=/bin/bash"
+            + "project_id=example-project&location=europe-west1&instance=testdb&"
+            + "use_proxy=False&use_ssl=True&sslcert=/bin/bash&"
+            + "sslkey=/bin/bash&sslrootcert=/bin/bash"
         )
         connection = self._verify_postgres_connection(get_connection, uri)
         self.assertEqual('/bin/bash', connection.extra_dejson['sslkey'])
@@ -1116,8 +1116,8 @@ class TestCloudSqlDatabaseQueryHook(unittest.TestCase):
     def test_hook_with_correct_parameters_postgres_proxy_socket(self, get_connection):
         uri = (
             "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&"
-            "project_id=example-project&location=europe-west1&instance=testdb&"
-            "use_proxy=True&sql_proxy_use_tcp=False"
+            + "project_id=example-project&location=europe-west1&instance=testdb&"
+            + "use_proxy=True&sql_proxy_use_tcp=False"
         )
         get_connection.side_effect = [Connection(uri=uri)]
         hook = CloudSQLDatabaseHook()
@@ -1132,8 +1132,8 @@ class TestCloudSqlDatabaseQueryHook(unittest.TestCase):
     def test_hook_with_correct_parameters_project_id_missing(self, get_connection):
         uri = (
             "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=mysql&"
-            "location=europe-west1&instance=testdb&"
-            "use_proxy=False&use_ssl=False"
+            + "location=europe-west1&instance=testdb&"
+            + "use_proxy=False&use_ssl=False"
         )
         self.verify_mysql_connection(get_connection, uri)
 
@@ -1151,8 +1151,8 @@ class TestCloudSqlDatabaseQueryHook(unittest.TestCase):
     def test_hook_with_correct_parameters_postgres_proxy_tcp(self, get_connection):
         uri = (
             "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&"
-            "project_id=example-project&location=europe-west1&instance=testdb&"
-            "use_proxy=True&sql_proxy_use_tcp=True"
+            + "project_id=example-project&location=europe-west1&instance=testdb&"
+            + "use_proxy=True&sql_proxy_use_tcp=True"
         )
         get_connection.side_effect = [Connection(uri=uri)]
         hook = CloudSQLDatabaseHook()
@@ -1166,8 +1166,8 @@ class TestCloudSqlDatabaseQueryHook(unittest.TestCase):
     def test_hook_with_correct_parameters_mysql(self, get_connection):
         uri = (
             "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=mysql&"
-            "project_id=example-project&location=europe-west1&instance=testdb&"
-            "use_proxy=False&use_ssl=False"
+            + "project_id=example-project&location=europe-west1&instance=testdb&"
+            + "use_proxy=False&use_ssl=False"
         )
         self.verify_mysql_connection(get_connection, uri)
 
@@ -1175,9 +1175,9 @@ class TestCloudSqlDatabaseQueryHook(unittest.TestCase):
     def test_hook_with_correct_parameters_mysql_ssl(self, get_connection):
         uri = (
             "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=mysql&"
-            "project_id=example-project&location=europe-west1&instance=testdb&"
-            "use_proxy=False&use_ssl=True&sslcert=/bin/bash&"
-            "sslkey=/bin/bash&sslrootcert=/bin/bash"
+            + "project_id=example-project&location=europe-west1&instance=testdb&"
+            + "use_proxy=False&use_ssl=True&sslcert=/bin/bash&"
+            + "sslkey=/bin/bash&sslrootcert=/bin/bash"
         )
         connection = self.verify_mysql_connection(get_connection, uri)
         self.assertEqual('/bin/bash', json.loads(connection.extra_dejson['ssl'])['cert'])
@@ -1188,8 +1188,8 @@ class TestCloudSqlDatabaseQueryHook(unittest.TestCase):
     def test_hook_with_correct_parameters_mysql_proxy_socket(self, get_connection):
         uri = (
             "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=mysql&"
-            "project_id=example-project&location=europe-west1&instance=testdb&"
-            "use_proxy=True&sql_proxy_use_tcp=False"
+            + "project_id=example-project&location=europe-west1&instance=testdb&"
+            + "use_proxy=True&sql_proxy_use_tcp=False"
         )
         get_connection.side_effect = [Connection(uri=uri)]
         hook = CloudSQLDatabaseHook()
@@ -1205,8 +1205,8 @@ class TestCloudSqlDatabaseQueryHook(unittest.TestCase):
     def test_hook_with_correct_parameters_mysql_tcp(self, get_connection):
         uri = (
             "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=mysql&"
-            "project_id=example-project&location=europe-west1&instance=testdb&"
-            "use_proxy=True&sql_proxy_use_tcp=True"
+            + "project_id=example-project&location=europe-west1&instance=testdb&"
+            + "use_proxy=True&sql_proxy_use_tcp=True"
         )
         get_connection.side_effect = [Connection(uri=uri)]
         hook = CloudSQLDatabaseHook()

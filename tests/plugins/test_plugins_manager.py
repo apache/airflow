@@ -134,13 +134,13 @@ class TestPluginsManager:
                 "airflow.plugins_manager",
                 logging.WARNING,
                 "Plugin 'test_admin_views_plugin' may not be compatible with the current Airflow version. "
-                "Please contact the author of the plugin.",
+                + "Please contact the author of the plugin.",
             ),
             (
                 "airflow.plugins_manager",
                 logging.WARNING,
                 "Plugin 'test_menu_links_plugin' may not be compatible with the current Airflow version. "
-                "Please contact the author of the plugin.",
+                + "Please contact the author of the plugin.",
             ),
         ]
 

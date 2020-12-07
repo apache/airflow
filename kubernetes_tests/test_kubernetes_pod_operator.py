@@ -374,7 +374,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
 
             args = [
                 "echo \"retrieved from mount\" > /tmp/test_volume/test.txt "
-                "&& cat /tmp/test_volume/test.txt"
+                + "&& cat /tmp/test_volume/test.txt"
             ]
             k = KubernetesPodOperator(
                 namespace='default',

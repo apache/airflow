@@ -349,23 +349,23 @@ class TestCliExportConnections(unittest.TestCase):
 
         expected_connections = (
             "airflow_db:\n"
-            "  conn_type: mysql\n"
-            "  description: mysql conn description\n"
-            "  extra: null\n"
-            "  host: mysql\n"
-            "  login: root\n"
-            "  password: plainpassword\n"
-            "  port: null\n"
-            "  schema: airflow\n"
-            "druid_broker_default:\n"
-            "  conn_type: druid\n"
-            "  description: druid-broker conn description\n"
-            "  extra: \'{\"endpoint\": \"druid/v2/sql\"}\'\n"
-            "  host: druid-broker\n"
-            "  login: null\n"
-            "  password: null\n"
-            "  port: 8082\n"
-            "  schema: null\n"
+            + "  conn_type: mysql\n"
+            + "  description: mysql conn description\n"
+            + "  extra: null\n"
+            + "  host: mysql\n"
+            + "  login: root\n"
+            + "  password: plainpassword\n"
+            + "  port: null\n"
+            + "  schema: airflow\n"
+            + "druid_broker_default:\n"
+            + "  conn_type: druid\n"
+            + "  description: druid-broker conn description\n"
+            + "  extra: \'{\"endpoint\": \"druid/v2/sql\"}\'\n"
+            + "  host: druid-broker\n"
+            + "  login: null\n"
+            + "  password: null\n"
+            + "  port: 8082\n"
+            + "  schema: null\n"
         )
         mock_splittext.assert_called_once()
         mock_file_open.assert_called_once_with(output_filepath, 'w', -1, 'UTF-8', None)
@@ -388,9 +388,9 @@ class TestCliExportConnections(unittest.TestCase):
 
         expected_connections = [
             "airflow_db=mysql://root:plainpassword@mysql/airflow\n"
-            "druid_broker_default=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql\n",
+            + "druid_broker_default=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql\n",
             "druid_broker_default=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql\n"
-            "airflow_db=mysql://root:plainpassword@mysql/airflow\n",
+            + "airflow_db=mysql://root:plainpassword@mysql/airflow\n",
         ]
 
         mock_splittext.assert_called_once()
@@ -417,9 +417,9 @@ class TestCliExportConnections(unittest.TestCase):
 
         expected_connections = [
             "airflow_db=mysql://root:plainpassword@mysql/airflow\n"
-            "druid_broker_default=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql\n",
+            + "druid_broker_default=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql\n",
             "druid_broker_default=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql\n"
-            "airflow_db=mysql://root:plainpassword@mysql/airflow\n",
+            + "airflow_db=mysql://root:plainpassword@mysql/airflow\n",
         ]
 
         mock_splittext.assert_called_once()

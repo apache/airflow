@@ -318,7 +318,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 True,
                 (
                     "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/"
-                    "taskInstances?duration_gte=100&duration_lte=200"
+                    + "taskInstances?duration_gte=100&duration_lte=200"
                 ),
                 3,
             ),
@@ -343,7 +343,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 False,
                 (
                     "/api/v1/dags/example_python_operator/dagRuns/"
-                    "TEST_DAG_RUN_ID/taskInstances?state=running,queued"
+                    + "TEST_DAG_RUN_ID/taskInstances?state=running,queued"
                 ),
                 2,
             ),
@@ -357,7 +357,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 True,
                 (
                     "/api/v1/dags/example_python_operator/dagRuns/"
-                    "TEST_DAG_RUN_ID/taskInstances?pool=test_pool_1,test_pool_2"
+                    + "TEST_DAG_RUN_ID/taskInstances?pool=test_pool_1,test_pool_2"
                 ),
                 2,
             ),
@@ -382,7 +382,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 True,
                 (
                     "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID"
-                    "/taskInstances?queue=test_queue_1,test_queue_2"
+                    + "/taskInstances?queue=test_queue_1,test_queue_2"
                 ),
                 2,
             ),

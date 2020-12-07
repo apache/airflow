@@ -86,7 +86,7 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
                     att1="{{ task.task_id }}", att2="{{ task.task_id }}", template_fields=["att1"]
                 ),
                 "ClassWithCustomAttributes({'att1': 'test', 'att2': '{{ task.task_id }}', "
-                "'template_fields': ['att1']})",
+                + "'template_fields': ['att1']})",
             ),
             (
                 ClassWithCustomAttributes(
@@ -99,10 +99,11 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
                     template_fields=["nested1"],
                 ),
                 "ClassWithCustomAttributes({'nested1': ClassWithCustomAttributes("
-                "{'att1': 'test', 'att2': '{{ task.task_id }}', 'template_fields': ['att1']}), "
-                "'nested2': ClassWithCustomAttributes("
-                "{'att3': '{{ task.task_id }}', 'att4': '{{ task.task_id }}', 'template_fields': ['att3']}), "
-                "'template_fields': ['nested1']})",
+                + "{'att1': 'test', 'att2': '{{ task.task_id }}', 'template_fields': ['att1']}), "
+                + "'nested2': ClassWithCustomAttributes("
+                + "{'att3': '{{ task.task_id }}', 'att4': "
+                + "'{{ task.task_id }}', 'template_fields': ['att3']}),"
+                + " 'template_fields': ['nested1']})",
             ),
         ]
     )

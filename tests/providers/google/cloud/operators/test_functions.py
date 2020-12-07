@@ -319,7 +319,7 @@ class TestGcfFunctionDeploy(unittest.TestCase):
             (
                 {'sourceArchiveUrl': '', 'sourceUploadUrl': ''},
                 "Parameter 'sourceUploadUrl' is empty in the body and argument "
-                "'zip_path' is missing or empty.",
+                + "'zip_path' is missing or empty.",
             ),
             (
                 {'sourceArchiveUrl': 'gs://adasda', 'sourceRepository': ''},
@@ -328,17 +328,17 @@ class TestGcfFunctionDeploy(unittest.TestCase):
             (
                 {'sourceUploadUrl': '', 'sourceRepository': ''},
                 "Parameter 'sourceUploadUrl' is empty in the body and argument 'zip_path' "
-                "is missing or empty.",
+                + "is missing or empty.",
             ),
             (
                 {'sourceArchiveUrl': '', 'sourceUploadUrl': '', 'sourceRepository': ''},
                 "Parameter 'sourceUploadUrl' is empty in the body and argument 'zip_path' "
-                "is missing or empty.",
+                + "is missing or empty.",
             ),
             (
                 {'sourceArchiveUrl': 'gs://url', 'sourceUploadUrl': 'https://url'},
                 "The mutually exclusive fields 'sourceUploadUrl' and 'sourceArchiveUrl' "
-                "belonging to the union 'source_code' are both present. Please remove one",
+                + "belonging to the union 'source_code' are both present. Please remove one",
             ),
             (
                 {'sourceUploadUrl': 'https://url', 'zip_path': '/path/to/file'},
@@ -347,7 +347,7 @@ class TestGcfFunctionDeploy(unittest.TestCase):
             (
                 {'sourceUploadUrl': ''},
                 "Parameter 'sourceUploadUrl' is empty in the body "
-                "and argument 'zip_path' is missing or empty.",
+                + "and argument 'zip_path' is missing or empty.",
             ),
             (
                 {'sourceRepository': ''},

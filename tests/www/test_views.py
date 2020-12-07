@@ -583,12 +583,12 @@ class TestAirflowBaseViews(TestBase):
             self.check_content_in_response('DAGs', resp)
             val_state_color_mapping = (
                 'const STATE_COLOR = {"failed": "red", '
-                '"null": "lightblue", "queued": "gray", '
-                '"removed": "lightgrey", "running": "lime", '
-                '"scheduled": "tan", "sensing": "lightseagreen", '
-                '"shutdown": "blue", "skipped": "pink", '
-                '"success": "green", "up_for_reschedule": "turquoise", '
-                '"up_for_retry": "gold", "upstream_failed": "orange"};'
+                + '"null": "lightblue", "queued": "gray", '
+                + '"removed": "lightgrey", "running": "lime", '
+                + '"scheduled": "tan", "sensing": "lightseagreen", '
+                + '"shutdown": "blue", "skipped": "pink", '
+                + '"success": "green", "up_for_reschedule": "turquoise", '
+                + '"up_for_retry": "gold", "upstream_failed": "orange"};'
             )
             self.check_content_in_response(val_state_color_mapping, resp)
 
@@ -1148,7 +1148,7 @@ class TestConfigurationView(TestBase):
             [
                 'Airflow Configuration',
                 '# Your Airflow administrator chose not to expose the configuration, '
-                'most likely for security reasons.',
+                + 'most likely for security reasons.',
             ],
             resp,
         )
@@ -1285,8 +1285,8 @@ class TestLogView(TestBase):
     def test_get_logs_with_metadata_as_download_file(self):
         url_template = (
             "get_logs_with_metadata?dag_id={}&"
-            "task_id={}&execution_date={}&"
-            "try_number={}&metadata={}&format=file"
+            + "task_id={}&execution_date={}&"
+            + "try_number={}&metadata={}&format=file"
         )
         try_number = 1
         url = url_template.format(
@@ -1312,8 +1312,8 @@ class TestLogView(TestBase):
             read_mock.side_effect = [first_return, second_return, third_return, fourth_return]
             url_template = (
                 "get_logs_with_metadata?dag_id={}&"
-                "task_id={}&execution_date={}&"
-                "try_number={}&metadata={}&format=file"
+                + "task_id={}&execution_date={}&"
+                + "try_number={}&metadata={}&format=file"
             )
             try_number = 1
             url = url_template.format(
@@ -1381,8 +1381,8 @@ class TestLogView(TestBase):
     def test_get_logs_response_with_ti_equal_to_none(self):
         url_template = (
             "get_logs_with_metadata?dag_id={}&"
-            "task_id={}&execution_date={}&"
-            "try_number={}&metadata={}&format=file"
+            + "task_id={}&execution_date={}&"
+            + "try_number={}&metadata={}&format=file"
         )
         try_number = 1
         url = url_template.format(
@@ -1400,8 +1400,8 @@ class TestLogView(TestBase):
     def test_get_logs_with_json_response_format(self):
         url_template = (
             "get_logs_with_metadata?dag_id={}&"
-            "task_id={}&execution_date={}&"
-            "try_number={}&metadata={}&format=json"
+            + "task_id={}&execution_date={}&"
+            + "try_number={}&metadata={}&format=json"
         )
         try_number = 1
         url = url_template.format(
@@ -1419,8 +1419,8 @@ class TestLogView(TestBase):
 
         url_template = (
             "get_logs_with_metadata?dag_id={}&"
-            "task_id={}&execution_date={}&"
-            "try_number={}&metadata={}&format=json"
+            + "task_id={}&execution_date={}&"
+            + "try_number={}&metadata={}&format=json"
         )
         try_number = 1
         url = url_template.format(
@@ -3283,7 +3283,7 @@ class TestHelperFunctions(TestBase):
             (
                 "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%test_dag';alert(33)//",
                 "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3F"
-                "dag_id%25test_dag%27&alert%2833%29%2F%2F=",
+                + "dag_id%25test_dag%27&alert%2833%29%2F%2F=",
             ),
             (
                 "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%test_dag",

@@ -631,9 +631,9 @@ class TestSparkSubmitHook(unittest.TestCase):
             'WARN NativeCodeLoader: Unable to load native-hadoop library for your '
             + 'platform... using builtin-java classes where applicable',
             'WARN DomainSocketFactory: The short-circuit local reads feature cannot '
-            'be used because libhadoop cannot be loaded.',
+            + 'be used because libhadoop cannot be loaded.',
             'INFO Client: Requesting a new application from cluster with 10 NodeManagers',
-            'INFO Client: Submitting application application_1486558679801_1820 ' + 'to ResourceManager',
+            'INFO Client: Submitting application application_1486558679801_1820 to ResourceManager',
         ]
         # When
         hook._process_spark_submit_log(log_lines)
@@ -692,7 +692,7 @@ class TestSparkSubmitHook(unittest.TestCase):
         log_lines = [
             'Running Spark using the REST application submission protocol.',
             '17/11/28 11:14:15 INFO RestSubmissionClient: Submitting a request '
-            'to launch an application in spark://spark-standalone-master:6066',
+            + 'to launch an application in spark://spark-standalone-master:6066',
             '17/11/28 11:14:15 INFO RestSubmissionClient: Submission successfully '
             + 'created as driver-20171128111415-0001. Polling submission state...',
         ]
