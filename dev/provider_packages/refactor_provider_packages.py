@@ -140,6 +140,7 @@ class RefactorBackportPackages:
         """
         changes = [
             ("airflow.operators.bash", "airflow.operators.bash_operator"),
+            ("airflow.operators.branch", "airflow.operators.branch_operator"),
             ("airflow.operators.python", "airflow.operators.python_operator"),
             ("airflow.utils.session", "airflow.utils.db"),
         ]

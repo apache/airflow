@@ -969,7 +969,7 @@ For example:
   start_op >> branch_op >> [continue_op, stop_op]
 
 If you wish to implement your own operators with branching functionality, you
-can inherit from :class:`~airflow.operators.branch_operator.BaseBranchOperator`,
+can inherit from :class:`~airflow.operators.branch.BaseBranchOperator`,
 which behaves similarly to ``BranchPythonOperator`` but expects you to provide
 an implementation of the method ``choose_branch``. As with the callable for
 ``BranchPythonOperator``, this method should return the ID of a downstream task,

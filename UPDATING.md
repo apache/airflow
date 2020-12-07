@@ -254,7 +254,17 @@ All changes made are backward compatible, but if you use the old import paths yo
 see a deprecation warning. The old import paths can be abandoned in the future.
 
 
+According to [AIP-21](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths)
+`_operator` suffix has been removed from operators. A deprecation warning has also been raised for paths
+importing with the suffix.
 
+
+The following table shows changes in import paths.
+
+
+| Old path                            | New path                   |
+|-------------------------------------|----------------------------|
+| airflow.operators.branch_operator.BaseBranchOperator | airflow.operators.branch.BaseBranchOperator |
 
 
 ### Database schema changes
