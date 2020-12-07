@@ -109,11 +109,6 @@ This is to align the name with the actual code where the Scheduler launches the 
 `[scheduler] parsing_processes` to Parse DAG files, calculates next DagRun date for each DAG,
 serialize them and store them in the DB.
 
-### `dagrun.*.first_task_scheduling_delay` metric is now in milliseconds
-
-This metric was added in 1.10.14 emitting a value as seconds, but for consistency with Statsd generally this
-metric has been changed to emit a value in milliseconds
-
 ## Airflow 2.0.0b1
 
 ### Rename policy to task_policy
