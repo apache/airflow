@@ -2185,3 +2185,11 @@
       type: string
       example: ~
       default: "/home/airflow/airflow/logs"
+    - name: docker_sock
+      description: |
+        Docker Sock path to mount into the airflow container. Thats important if we
+        want to use the DockerOperator
+      version_added: ~
+      type: string
+      example: ~
+      default: "/var/run/docker.sock"

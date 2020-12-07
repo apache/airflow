@@ -170,6 +170,9 @@ class AirflowMesosScheduler(MesosClient):
                         'image': self.mesos_slave_docker_image,
                         'force_pull_image': 'true',
                         'privileged': 'true',
+                        'parameters': [
+                            {'key': 'volume', 'value': self.mesos_docker_sock + ':/var/run/docker.sock'}
+                        ],
                     },
                 },
             }
