@@ -592,3 +592,6 @@ min-public-methods=0
 # Exceptions that will emit a warning when being caught. Defaults to
 # "Exception".
 overgeneral-exceptions=Exception
+
+[STRING_CONSTANT]
+check-str-concat-over-line-jumps=yes
