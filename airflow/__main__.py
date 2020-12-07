@@ -18,22 +18,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from airflow.bin.cli import cli_main
 
-# THIS FILE IS A REPLICATION OF ./airflow/bin/airflow
-import os
-
-import argcomplete
-
-from airflow.configuration import conf
-from airflow.bin.cli import CLIFactory
-
-if __name__ == '__main__':
-
-    if conf.get("core", "security") == 'kerberos':
-        os.environ['KRB5CCNAME'] = conf.get('kerberos', 'ccache')
-        os.environ['KRB5_KTNAME'] = conf.get('kerberos', 'keytab')
-
-    parser = CLIFactory.get_parser()
-    argcomplete.autocomplete(parser)
-    args = parser.parse_args()
-    args.func(args)
+if __name__ == "__main__":
+    cli_main()

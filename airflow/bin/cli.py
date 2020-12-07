@@ -26,6 +26,7 @@ import itertools
 import locale
 import logging
 
+import argcomplete
 import os
 import platform
 import subprocess
@@ -4307,3 +4308,13 @@ def py2_deprecation_waring():
         msg = "".join([colorama.Fore.YELLOW, msg, colorama.Style.RESET_ALL])
     stream.write(msg)
     stream.flush()
+
+def cli_main():
+    if conf.get("core", "security") == 'kerberos':
+        os.environ['KRB5CCNAME'] = conf.get('kerberos', 'ccache')
+        os.environ['KRB5_KTNAME'] = conf.get('kerberos', 'keytab')
+
+    parser = CLIFactory.get_parser()
+    argcomplete.autocomplete(parser)
+    args = parser.parse_args()
+    args.func(args)
