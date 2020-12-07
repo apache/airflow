@@ -1585,7 +1585,7 @@
       type: string
       example: ~
       default: "5"
-    - name: clean_tis_without_dagrun
+    - name: clean_tis_without_dagrun_interval
       description: |
         How often (in seconds) to check and tidy up 'running' TaskInstancess
         that no longer have a matching DagRun

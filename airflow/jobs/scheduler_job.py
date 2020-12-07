@@ -1359,7 +1359,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         )
 
         call_regular_interval(
-            conf.getfloat('scheduler', 'clean_tis_without_dagrun', fallback=15.0),
+            conf.getfloat('scheduler', 'clean_tis_without_dagrun_interval', fallback=15.0),
             self._clean_tis_without_dagrun,
         )
 
