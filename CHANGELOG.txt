@@ -14,6 +14,7 @@ Bug Fixes
 - Add missing comma in setup.py (#12790)
 - Bugfix: Unable to import Airflow plugins on Python 3.8 (#12859)
 - Fix setup.py missing comma in ``setup_requires`` (#12880)
+- Don't emit first_task_scheduling_delay metric for only-once dags (#12835)
 
 Improvements
 """"""""""""
