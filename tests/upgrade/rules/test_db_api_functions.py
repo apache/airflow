@@ -22,9 +22,6 @@ from airflow.upgrade.rules.db_api_functions import DbApiRule
 
 
 class MyHook(BaseHook):
-    def get_records(self, sql):
-        pass
-
     def run(self, sql):
         pass
 
@@ -32,6 +29,15 @@ class MyHook(BaseHook):
         pass
 
     def get_conn(self):
+        pass
+
+
+class GrandChildHook(MyHook):
+    def __init__(self, foo, bar):
+        self.foo = foo
+        self.bar = bar
+
+    def get_records(self, sql):
         pass
 
 
@@ -56,7 +62,10 @@ class ProperDbApiHook(DbApiHook):
 class TestSqlHookCheck(TestCase):
     def test_fails_on_incorrect_hook(self):
         db_api_rule_failures = DbApiRule().check()
-        self.assertEqual(len(db_api_rule_failures), 3)
+        myhook_errors = [d for d in db_api_rule_failures if "MyHook" in d]
+        grandchild_errors = [d for d in db_api_rule_failures if "GrandChild" in d]
+        self.assertEqual(len(myhook_errors), 2)
+        self.assertEqual(len(grandchild_errors), 3)
         proper_db_api_hook_failures = \
             [failure for failure in db_api_rule_failures if "ProperDbApiHook" in failure]
         self.assertEqual(len(proper_db_api_hook_failures), 0)

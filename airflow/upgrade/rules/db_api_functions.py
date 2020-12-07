@@ -22,7 +22,7 @@ from airflow.exceptions import AirflowException
 
 def check_get_pandas_df(cls):
     try:
-        cls.get_pandas_df(None, "fake SQL")
+        cls.__new__(cls).get_pandas_df("fake SQL")
         return return_error_string(cls, "get_pandas_df")
     except NotImplementedError:
         pass
@@ -34,7 +34,7 @@ def check_get_pandas_df(cls):
 
 def check_run(cls):
     try:
-        cls.run(None, "fake SQL")
+        cls.__new__(cls).run("fake SQL")
         return return_error_string(cls, "run")
     except NotImplementedError:
         pass
@@ -46,7 +46,7 @@ def check_run(cls):
 
 def check_get_records(cls):
     try:
-        cls.get_records(None, "fake SQL")
+        cls.__new__(cls).get_records("fake SQL")
         return return_error_string(cls, "get_records")
     except NotImplementedError:
         pass
@@ -65,6 +65,20 @@ def return_error_string(cls, method):
     )
 
 
+def get_all_non_dbapi_children():
+    basehook_children = [child for child in BaseHook.__subclasses__() if child.__name__ != "DbApiHook"]
+    res = basehook_children[:]
+    while basehook_children:
+        next_generation = []
+        for child in basehook_children:
+            subclasses = child.__subclasses__()
+            if subclasses:
+                next_generation.extend(subclasses)
+        res.extend(next_generation)
+        basehook_children = next_generation
+    return res
+
+
 class DbApiRule(BaseRule):
     title = "Hooks that run DB functions must inherit from DBApiHook"
 
@@ -73,23 +87,16 @@ class DbApiRule(BaseRule):
     )
 
     def check(self):
-        subclasses = BaseHook.__subclasses__()
+        basehook_subclasses = get_all_non_dbapi_children()
         incorrect_implementations = []
-        for s in subclasses:
-            if (
-                "airflow.hooks" in s.__module__
-                or "airflow.contrib.hooks.grpc_hook" in s.__module__
-                or ".PluginHook" in str(s)
-            ):
-                pass
-            else:
-                pandas_df = check_get_pandas_df(s)
-                if pandas_df:
-                    incorrect_implementations.append(pandas_df)
-                run = check_run(s)
-                if run:
-                    incorrect_implementations.append(run)
-                get_records = check_get_records(s)
-                if get_records:
-                    incorrect_implementations.append(get_records)
+        for child in basehook_subclasses:
+            pandas_df = check_get_pandas_df(child)
+            if pandas_df:
+                incorrect_implementations.append(pandas_df)
+            run = check_run(child)
+            if run:
+                incorrect_implementations.append(run)
+            get_records = check_get_records(child)
+            if get_records:
+                incorrect_implementations.append(get_records)
         return incorrect_implementations
