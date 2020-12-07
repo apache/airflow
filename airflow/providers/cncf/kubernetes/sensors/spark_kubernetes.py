@@ -64,14 +64,21 @@ class SparkKubernetesSensor(BaseSensorOperator):
         self.kubernetes_conn_id = kubernetes_conn_id
         self.hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
 
-    def _log_driver(self, application_state: str) -> None:
+    def _log_driver(self, application_state: str, response: dict) -> None:
         if not self.attach_log:
             return
-        driver_pod_name = f"{self.application_name}-driver"
+        status_info = response["status"]
+        if "driverInfo" not in status_info:
+            return
+        driver_info = status_info["driverInfo"]
+        if "podName" not in driver_info:
+            return
+        driver_pod_name = driver_info["podName"]
+        namespace = response["metadata"]["namespace"]
         log_method = self.log.error if application_state in self.FAILURE_STATES else self.log.info
         try:
             log = ""
-            for line in self.hook.get_pod_logs(driver_pod_name):
+            for line in self.hook.get_pod_logs(driver_pod_name, namespace=namespace):
                 log += line.decode()
             log_method(log)
         except client.rest.ApiException as e:
@@ -97,7 +104,7 @@ class SparkKubernetesSensor(BaseSensorOperator):
         except KeyError:
             return False
         if self.attach_log and application_state in self.FAILURE_STATES + self.SUCCESS_STATES:
-            self._log_driver(application_state)
+            self._log_driver(application_state, response)
         if application_state in self.FAILURE_STATES:
             raise AirflowException("Spark application failed with state: %s" % application_state)
         elif application_state in self.SUCCESS_STATES:

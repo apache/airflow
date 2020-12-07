@@ -97,6 +97,19 @@ function build_images::forget_last_answer() {
     fi
 }
 
+function build_images::confirm_via_terminal() {
+    echo >"${DETECTED_TERMINAL}"
+    echo >"${DETECTED_TERMINAL}"
+    echo "Make sure that you rebased to latest master before rebuilding!" >"${DETECTED_TERMINAL}"
+    echo >"${DETECTED_TERMINAL}"
+    # Make sure to use output of tty rather than stdin/stdout when available - this way confirm
+    # will works also in case of pre-commits (git does not pass stdin/stdout to pre-commit hooks)
+    # shellcheck disable=SC2094
+    "${AIRFLOW_SOURCES}/confirm" "${ACTION} image ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}" \
+        <"${DETECTED_TERMINAL}" >"${DETECTED_TERMINAL}"
+    RES=$?
+}
+
 # Confirms if hte image should be rebuild and interactively checks it with the user.
 # In case iit needs to be rebuild. It only ask the user if it determines that the rebuild
 # is needed and that the rebuild is not already forced. It asks the user using available terminals
@@ -144,29 +157,11 @@ function build_images::confirm_image_rebuild() {
         "${AIRFLOW_SOURCES}/confirm" "${ACTION} image ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}"
         RES=$?
     elif [[ ${DETECTED_TERMINAL:=$(tty)} != "not a tty" ]]; then
-        echo > "${DETECTED_TERMINAL}"
-        echo > "${DETECTED_TERMINAL}"
-        echo "Make sure that you rebased to latest master before rebuilding!" > "${DETECTED_TERMINAL}"
-        echo > "${DETECTED_TERMINAL}"
-        # Make sure to use output of tty rather than stdin/stdout when available - this way confirm
-        # will works also in case of pre-commits (git does not pass stdin/stdout to pre-commit hooks)
-        # shellcheck disable=SC2094
-        "${AIRFLOW_SOURCES}/confirm" "${ACTION} image ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}" \
-            <"${DETECTED_TERMINAL}" >"${DETECTED_TERMINAL}"
-        RES=$?
         export DETECTED_TERMINAL
+        build_images::confirm_via_terminal
     elif [[ -c /dev/tty ]]; then
         export DETECTED_TERMINAL=/dev/tty
-        # Make sure to use /dev/tty first rather than stdin/stdout when available - this way confirm
-        # will works also in case of pre-commits (git does not pass stdin/stdout to pre-commit hooks)
-        echo > "${DETECTED_TERMINAL}"
-        echo > "${DETECTED_TERMINAL}"
-        echo "Make sure that you rebased to latest master before rebuilding!" > "${DETECTED_TERMINAL}"
-        echo > "${DETECTED_TERMINAL}"
-        # shellcheck disable=SC2094
-        "${AIRFLOW_SOURCES}/confirm" "${ACTION} image ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}" \
-            <"${DETECTED_TERMINAL}" >"${DETECTED_TERMINAL}"
-        RES=$?
+        build_images::confirm_via_terminal
     else
         verbosity::print_info
         verbosity::print_info "No terminal, no stdin - quitting"
@@ -185,18 +180,46 @@ function build_images::confirm_image_rebuild() {
         export FORCE_ANSWER_TO_QUESTIONS="no"
         echo 'export FORCE_ANSWER_TO_QUESTIONS="no"' >"${LAST_FORCE_ANSWER_FILE}"
     elif [[ ${RES} == "2" ]]; then
-        echo >&2
-        echo >&2 "ERROR: The ${THE_IMAGE_TYPE} needs to be rebuilt - it is outdated. "
-        echo >&2 "   Make sure you build the images bu running"
-        echo >&2
-        echo >&2 "      ./breeze --python ${PYTHON_MAJOR_MINOR_VERSION}" build-image
-        echo >&2
-        echo >&2 "   If you run it via pre-commit as individual hook, you can run 'pre-commit run build'."
-        echo >&2
+        echo
+        echo  "${COLOR_RED_ERROR} The ${THE_IMAGE_TYPE} needs to be rebuilt - it is outdated.   ${COLOR_RESET}"
+        echo """
+
+   Make sure you build the images bu running
+
+      ./breeze --python ${PYTHON_MAJOR_MINOR_VERSION} build-image
+
+   If you run it via pre-commit as individual hook, you can run 'pre-commit run build'.
+
+"""
         exit 1
     else
         # Force "yes" also to subsequent questions
         export FORCE_ANSWER_TO_QUESTIONS="yes"
+    fi
+}
+
+function build_images::confirm_non-empty-docker-context-files() {
+    local num_docker_context_files
+    num_docker_context_files=$(find "${AIRFLOW_SOURCES}/docker-context-files/" -type f |\
+        grep -c v "README.md" )
+    if [[ ${num_docker_context_files} == "0" ]]; then
+        if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "false" ]]; then
+            >&2 echo
+            >&2 echo "ERROR! You want to install packages from docker-context-files"
+            >&2 echo "       but there are no packages to install in this folder."
+            >&2 echo
+            exit 1
+        fi
+    else
+        if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "false" ]]; then
+            >&2 echo
+            >&2 echo "ERROR! There are some extra files in docker-context-files except README.md"
+            >&2 echo "       And you did not choose --install-from-docker-context-files flag"
+            >&2 echo "       This might result in unnecessary cache invalidation and long build times"
+            >&2 echo "       Exiting now - please remove those files (except README.md) and retry"
+            >&2 echo
+            exit 2
+        fi
     fi
 }
 
@@ -234,8 +257,8 @@ function build_images::get_local_build_cache_hash() {
         return
     fi
     docker cp "local-airflow-ci-container:/build-cache-hash" \
-        "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}" 2> /dev/null \
-        || touch "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}"
+        "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}" 2>/dev/null ||
+        touch "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}"
     set -e
     verbosity::print_info
     verbosity::print_info "Local build cache hash: '$(cat "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}")'"
@@ -288,8 +311,8 @@ function build_images::compare_local_and_remote_build_cache_hash() {
     local local_hash
     local_hash=$(cat "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}")
 
-    if [[ ${remote_hash} != "${local_hash}" ||
-        ${local_hash} == "" ]]; then
+    if [[ ${remote_hash} != "${local_hash}" || ${local_hash} == "" ]] \
+        ; then
         echo
         echo
         echo "Your image and the dockerhub have different or missing build cache hashes."
@@ -351,13 +374,19 @@ function build_images::get_docker_image_names() {
 
     # File that is touched when the CI image is built for the first time locally
     export BUILT_CI_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_MAJOR_MINOR_VERSION}"
+
+    # GitHub Registry names must be lowercase :(
+    github_repository_lowercase="$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+    export GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/${AIRFLOW_PROD_BASE_TAG}"
+    export GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/${AIRFLOW_PROD_BASE_TAG}-build"
+    export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
+
+    export GITHUB_REGISTRY_AIRFLOW_CI_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/${AIRFLOW_CI_BASE_TAG}"
+    export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
 }
 
-# Prepares all variables needed by the CI build. Depending on the configuration used (python version
-# DockerHub user etc. the variables are set so that other functions can use those variables.
-function build_images::prepare_ci_build() {
-    export AIRFLOW_CI_LOCAL_MANIFEST_IMAGE="local/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
-    export AIRFLOW_CI_REMOTE_MANIFEST_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
+# If GitHub Registry is used, login to the registry using GITHUB_USERNAME and GITHUB_TOKEN
+function build_image::login_to_github_registry_if_needed() {
     if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
         if [[ -n ${GITHUB_TOKEN=} ]]; then
             echo "${GITHUB_TOKEN}" | docker login \
@@ -365,11 +394,15 @@ function build_images::prepare_ci_build() {
                 --password-stdin \
                 "${GITHUB_REGISTRY}"
         fi
-        # GitHub Registry names must be lowercase :(
-        github_repository_lowercase="$(echo "${GITHUB_REPOSITORY}" |tr '[:upper:]' '[:lower:]')"
-        export GITHUB_REGISTRY_AIRFLOW_CI_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/${AIRFLOW_CI_BASE_TAG}"
-        export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
     fi
+
+}
+
+# Prepares all variables needed by the CI build. Depending on the configuration used (python version
+# DockerHub user etc. the variables are set so that other functions can use those variables.
+function build_images::prepare_ci_build() {
+    export AIRFLOW_CI_LOCAL_MANIFEST_IMAGE="local/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
+    export AIRFLOW_CI_REMOTE_MANIFEST_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
     export THE_IMAGE_TYPE="CI"
     export IMAGE_DESCRIPTION="Airflow CI"
 
@@ -380,6 +413,7 @@ function build_images::prepare_ci_build() {
     export AIRFLOW_IMAGE="${AIRFLOW_CI_IMAGE}"
     readonly AIRFLOW_IMAGE
 
+    build_image::login_to_github_registry_if_needed
     sanity_checks::go_to_airflow_sources
     permissions::fix_group_permissions
 }
@@ -426,9 +460,8 @@ function build_images::rebuild_ci_image_if_needed() {
             echo "Checking if the remote image needs to be pulled"
             echo
             build_images::get_remote_image_build_cache_hash
-            if [[ ${REMOTE_DOCKER_REGISTRY_UNREACHABLE:=} != "true" && \
-                  ${LOCAL_MANIFEST_IMAGE_UNAVAILABLE:=} != "true" ]]; then
-                    build_images::compare_local_and_remote_build_cache_hash
+            if [[ ${REMOTE_DOCKER_REGISTRY_UNREACHABLE:=} != "true" && ${LOCAL_MANIFEST_IMAGE_UNAVAILABLE:=} != "true" ]]; then
+                build_images::compare_local_and_remote_build_cache_hash
             else
                 FORCE_PULL_IMAGES="true"
             fi
@@ -529,9 +562,9 @@ function build_images::build_ci_image() {
             "--cache-from" "${AIRFLOW_CI_IMAGE}"
         )
     else
-        echo >&2
-        echo >&2 "Error - the ${DOCKER_CACHE} cache is unknown!"
-        echo >&2
+        echo
+        echo  "${COLOR_RED_ERROR} The ${DOCKER_CACHE} cache is unknown!  ${COLOR_RESET}"
+        echo
         exit 1
     fi
     EXTRA_DOCKER_CI_BUILD_FLAGS=(
@@ -597,8 +630,8 @@ Docker building ${AIRFLOW_CI_IMAGE}.
         --build-arg ADDITIONAL_RUNTIME_APT_COMMAND="${ADDITIONAL_RUNTIME_APT_COMMAND}" \
         --build-arg ADDITIONAL_RUNTIME_APT_DEPS="${ADDITIONAL_RUNTIME_APT_DEPS}" \
         --build-arg ADDITIONAL_RUNTIME_APT_ENV="${ADDITIONAL_RUNTIME_APT_ENV}" \
-        --build-arg INSTALL_AIRFLOW_VIA_PIP="${INSTALL_AIRFLOW_VIA_PIP}" \
-        --build-arg AIRFLOW_LOCAL_PIP_WHEELS="${AIRFLOW_LOCAL_PIP_WHEELS}" \
+        --build-arg INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI}" \
+        --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES}" \
         --build-arg UPGRADE_TO_LATEST_CONSTRAINTS="${UPGRADE_TO_LATEST_CONSTRAINTS}" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
@@ -639,6 +672,7 @@ function build_images::prepare_prod_build() {
         EXTRA_DOCKER_PROD_BUILD_FLAGS=(
             "--build-arg" "AIRFLOW_INSTALL_SOURCES=apache-airflow"
             "--build-arg" "AIRFLOW_INSTALL_VERSION===${INSTALL_AIRFLOW_VERSION}"
+            "--build-arg" "AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION}"
         )
         export AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
         if [[ ${AIRFLOW_VERSION} == "1.10.2" || ${AIRFLOW_VERSION} == "1.10.1" ]]; then
@@ -668,19 +702,7 @@ function build_images::prepare_prod_build() {
     export AIRFLOW_IMAGE="${AIRFLOW_PROD_IMAGE}"
     readonly AIRFLOW_IMAGE
 
-    if [[ ${USE_GITHUB_REGISTRY="false"} == "true" ]]; then
-        if [[ -n ${GITHUB_TOKEN=} ]]; then
-            echo "${GITHUB_TOKEN}" | docker login \
-                --username "${GITHUB_USERNAME}" \
-                --password-stdin \
-                "${GITHUB_REGISTRY}"
-        fi
-        # GitHub Registry names must be lowercase :(
-        github_repository_lowercase="$(echo "${GITHUB_REPOSITORY}" |tr '[:upper:]' '[:lower:]')"
-        export GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/${AIRFLOW_PROD_BASE_TAG}"
-        export GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/${AIRFLOW_PROD_BASE_TAG}-build"
-        export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
-    fi
+    build_image::login_to_github_registry_if_needed
 
     AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="${BRANCH_NAME}"
     sanity_checks::go_to_airflow_sources
@@ -718,9 +740,10 @@ function build_images::build_prod_images() {
             "--cache-from" "${AIRFLOW_PROD_BUILD_IMAGE}"
         )
     else
-        echo >&2
-        echo >&2 "Error - thee ${DOCKER_CACHE} cache is unknown!"
-        echo >&2
+        echo
+        echo  "${COLOR_RED_ERROR} The ${DOCKER_CACHE} cache is unknown  ${COLOR_RESET}"
+        echo
+        echo
         exit 1
     fi
     set +u
@@ -747,8 +770,8 @@ function build_images::build_prod_images() {
         --build-arg ADDITIONAL_DEV_APT_DEPS="${ADDITIONAL_DEV_APT_DEPS}" \
         --build-arg ADDITIONAL_DEV_APT_ENV="${ADDITIONAL_DEV_APT_ENV}" \
         --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES}" \
-        --build-arg INSTALL_AIRFLOW_VIA_PIP="${INSTALL_AIRFLOW_VIA_PIP}" \
-        --build-arg AIRFLOW_LOCAL_PIP_WHEELS="${AIRFLOW_LOCAL_PIP_WHEELS}" \
+        --build-arg INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI}" \
+        --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES}" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
         "${DOCKER_CACHE_PROD_BUILD_DIRECTIVE[@]}" \
@@ -777,8 +800,8 @@ function build_images::build_prod_images() {
         --build-arg ADDITIONAL_RUNTIME_APT_DEPS="${ADDITIONAL_RUNTIME_APT_DEPS}" \
         --build-arg ADDITIONAL_RUNTIME_APT_ENV="${ADDITIONAL_RUNTIME_APT_ENV}" \
         --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES}" \
-        --build-arg INSTALL_AIRFLOW_VIA_PIP="${INSTALL_AIRFLOW_VIA_PIP}" \
-        --build-arg AIRFLOW_LOCAL_PIP_WHEELS="${AIRFLOW_LOCAL_PIP_WHEELS}" \
+        --build-arg INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI}" \
+        --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${AIRFLOW_BRANCH_FOR_PYPI_PRELOADING}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
@@ -857,4 +880,69 @@ function build_images::determine_docker_cache_strategy() {
     verbosity::print_info
     verbosity::print_info "Using ${DOCKER_CACHE} cache strategy for the build."
     verbosity::print_info
+}
+
+
+# Useful information for people who stumble upon a pip check failure
+function build_images::inform_about_pip_check() {
+        echo """
+${COLOR_BLUE}***** Beginning of the instructions ****${COLOR_RESET}
+
+The image did not pass 'pip check' verification. This means that there are some conflicting dependencies
+in the image.
+
+It can mean one of those:
+
+1) The master is currently broken (other PRs will fail with the same error)
+2) You changed some dependencies in setup.py or setup.cfg and they are conflicting.
+
+
+In case 1) - apologies for the trouble.Please let committers know and they will fix it. You might
+be asked to rebase to the latest master after the problem is fixed.
+
+In case 2) - Follow the steps below:
+
+* consult the committers if you are unsure what to do. Just comment in the PR that you need help, if you do,
+  but try to follow those instructions first!
+
+* ask the committer to set 'upgrade to newer dependencies'. All dependencies in your PR will be updated
+  to latest 'good' versions and you will be able to check if they are not conflicting.
+
+* run locally the image that is failing with Breeze:
+
+    ./breeze ${1}--github-image-id ${GITHUB_REGISTRY_PULL_IMAGE_TAG} --backend ${BACKEND} --python ${PYTHON_MAJOR_MINOR_VERSION}
+
+* your setup.py and setup.cfg will be mounted to the container. You will be able to iterate with
+  different setup.py versions.
+
+* in container your can run 'pipdeptree' to figure out where the dependency conflict comes from.
+
+* Some useful commands that can help yoy to find out dependencies you have:
+
+     * 'pipdeptree | less' (you can then search through the dependencies with vim-like shortcuts)
+
+     * 'pipdeptree > /files/pipdeptree.txt' - this will produce a pipdeptree.txt file in your source
+       'files' directory and you can open it in editor of your choice,
+
+     * 'pipdeptree | grep YOUR_DEPENDENCY' - to see all the requirements your dependency has as specified
+       by other packages
+
+* figure out which dependency limits should be upgraded. Upgrade them in corresponding setup.py extras
+  and run pip to upgrade your dependencies accordingly:
+
+     pip install '.[all]' --upgrade --upgrade-strategy eager
+
+* run pip check to figure out if the dependencies have been fixed. It should let you know which dependencies
+  are conflicting or (hurray!) if there are no conflicts:
+
+     pip check
+
+* in some, rare, cases, pip will not limit the requirement in case you specify it in extras, you might
+  need to add such requirement in 'install_requires' section of setup.cfg instead of extras in setup.py.
+
+* iterate until all such dependency conflicts are fixed.
+
+${COLOR_BLUE}***** End of the instructions ****${COLOR_RESET}
+
+"""
 }

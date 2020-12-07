@@ -38,3 +38,6 @@ hooks:
   - integration-name: Exasol
     python-modules:
       - airflow.providers.exasol.hooks.exasol
+
+hook-class-names:
+  - airflow.providers.exasol.hooks.exasol.ExasolHook

@@ -78,9 +78,13 @@ class HiveCliHook(BaseHook):
     :type  mapred_job_name: str
     """
 
+    conn_name_attr = 'hive_cli_conn_id'
+    default_conn_name = 'hive_cli_default'
+    conn_type = 'hive_cli'
+
     def __init__(
         self,
-        hive_cli_conn_id: str = "hive_cli_default",
+        hive_cli_conn_id: str = default_conn_name,
         run_as: Optional[str] = None,
         mapred_queue: Optional[str] = None,
         mapred_queue_priority: Optional[str] = None,
@@ -809,6 +813,7 @@ class HiveServer2Hook(DbApiHook):
 
     conn_name_attr = 'hiveserver2_conn_id'
     default_conn_name = 'hiveserver2_default'
+    conn_type = 'hiveserver2'
     supports_autocommit = False
 
     def get_conn(self, schema: Optional[str] = None) -> Any:

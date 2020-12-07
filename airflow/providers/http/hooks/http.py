@@ -109,7 +109,7 @@ class HttpHook(BaseHook):
             i.e. {'check_response': False} to avoid checking raising exceptions on non
             2XX or 3XX status codes
         :type extra_options: dict
-        :param  \**request_kwargs: Additional kwargs to pass when creating a request.
+        :param request_kwargs: Additional kwargs to pass when creating a request.
             For example, ``run(json=obj)`` is passed as ``requests.Request(json=obj)``
         """
         extra_options = extra_options or {}

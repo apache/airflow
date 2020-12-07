@@ -66,3 +66,7 @@ transfers:
   - source-integration-name: Microsoft SQL Server (MSSQL)
     target-integration-name: Apache Hive
     python-module: airflow.providers.apache.hive.transfers.mssql_to_hive
+
+hook-class-names:
+  - airflow.providers.apache.hive.hooks.hive.HiveCliHook
+  - airflow.providers.apache.hive.hooks.hive.HiveServer2Hook

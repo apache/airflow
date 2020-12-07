@@ -102,10 +102,10 @@ function initialization::initialize_base_variables() {
     export CURRENT_MYSQL_VERSIONS
 
     # Default Postgres versions
-    export POSTGRES_VERSION=${CURRENT_POSTGRES_VERSIONS[0]}
+    export POSTGRES_VERSION=${POSTGRES_VERSION:=${CURRENT_POSTGRES_VERSIONS[0]}}
 
     # Default MySQL versions
-    export MYSQL_VERSION=${CURRENT_MYSQL_VERSIONS[0]}
+    export MYSQL_VERSION=${MYSQL_VERSION:=${CURRENT_MYSQL_VERSIONS[0]}}
 
     # If set to true, the database will be reset at entry. Works for Postgres and MySQL
     export DB_RESET=${DB_RESET:="false"}
@@ -126,16 +126,16 @@ function initialization::initialize_base_variables() {
     # If set to true, RBAC UI will not be used for 1.10 version
     export DISABLE_RBAC=${DISABLE_RBAC:="false"}
 
-    # if set to true, the ci image will look for wheel packages in dist folder and will install them
+    # if set to true, the ci image will look for packages in dist folder and will install them
     # during entering the container
-    export INSTALL_WHEELS=${INSTALL_WHEELS:="false"}
+    export INSTALL_PACKAGES_FROM_DIST=${INSTALL_PACKAGES_FROM_DIST:="false"}
 
     # If set the specified file will be used to initialize Airflow after the environment is created,
     # otherwise it will use files/airflow-breeze-config/init.sh
     export INIT_SCRIPT_FILE=${INIT_SCRIPT_FILE:=""}
 
-    # Read airflow version from the version.py
-    AIRFLOW_VERSION=$(grep version "${AIRFLOW_SOURCES}/airflow/version.py" | awk '{print $3}' | sed "s/['+]//g")
+    # Read airflow version from the setup.py.
+    AIRFLOW_VERSION=$(awk '/^version =/ {print $3}' "${AIRFLOW_SOURCES}/setup.py"  | sed "s/['+]//g")
     export AIRFLOW_VERSION
 
     # Whether credentials should be forwarded to inside the docker container
@@ -147,6 +147,12 @@ function initialization::initialize_base_variables() {
 
     INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES:="true"}
     export INSTALL_PROVIDERS_FROM_SOURCES
+
+    PIP_VERSION="20.2.4"
+    export PIP_VERSION
+
+    WHEEL_VERSION="0.35.1"
+    export WHEEL_VERSION
 }
 
 # Determine current branch
@@ -188,7 +194,6 @@ function initialization::initialize_files_for_rebuild_check() {
         "setup.cfg"
         "Dockerfile.ci"
         ".dockerignore"
-        "airflow/version.py"
         "airflow/www/package.json"
         "airflow/www/yarn.lock"
         "airflow/www/webpack.config.js"
@@ -215,9 +220,6 @@ function initialization::initialize_mount_variables() {
     # Whether necessary for airflow run local sources are mounted to docker
     export MOUNT_LOCAL_SOURCES=${MOUNT_LOCAL_SOURCES:="true"}
 
-    # Whether files folder from local sources are mounted to docker
-    export MOUNT_FILES=${MOUNT_FILES:="true"}
-
     if [[ ${MOUNT_LOCAL_SOURCES} == "true" ]]; then
         verbosity::print_info
         verbosity::print_info "Mounting necessary host volumes to Docker"
@@ -229,14 +231,9 @@ function initialization::initialize_mount_variables() {
         verbosity::print_info
     fi
 
-    if [[ ${MOUNT_FILES} == "true" ]]; then
-        verbosity::print_info
-        verbosity::print_info "Mounting files folder to Docker"
-        verbosity::print_info
-        EXTRA_DOCKER_FLAGS+=("-v" "${AIRFLOW_SOURCES}/files:/files")
-    fi
-
     EXTRA_DOCKER_FLAGS+=(
+        "-v" "${AIRFLOW_SOURCES}/files:/files"
+        "-v" "${AIRFLOW_SOURCES}/dist:/dist"
         "--rm"
         "--env-file" "${AIRFLOW_SOURCES}/scripts/ci/libraries/_docker.env"
     )
@@ -363,10 +360,10 @@ function initialization::initialize_image_build_variables() {
 
     # whether installation of Airflow should be done via PIP. You can set it to false if you have
     # all the binary packages (including airflow) in the docker-context-files folder and use
-    # AIRFLOW_LOCAL_PIP_WHEELS="true" to install it from there.
-    export INSTALL_AIRFLOW_VIA_PIP="${INSTALL_AIRFLOW_VIA_PIP:="true"}"
+    # INSTALL_FROM_DOCKER_CONTEXT_FILES="true" to install it from there.
+    export INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI:="true"}"
     # whether installation should be performed from the local wheel packages in "docker-context-files" folder
-    export AIRFLOW_LOCAL_PIP_WHEELS="${AIRFLOW_LOCAL_PIP_WHEELS:="false"}"
+    export INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES:="false"}"
     # reference to CONSTRAINTS. they can be overwritten manually or replaced with AIRFLOW_CONSTRAINTS_LOCATION
     export AIRFLOW_CONSTRAINTS_REFERENCE="${AIRFLOW_CONSTRAINTS_REFERENCE:=""}"
     # direct constraints Location - can be URL or path to local file. If empty, it will be calculated
@@ -458,14 +455,39 @@ function initialization::initialize_test_variables() {
     export TEST_TYPE=${TEST_TYPE:=""}
 }
 
+function initialization::initialize_package_variables() {
+    export PACKAGE_FORMAT=${PACKAGE_FORMAT:="wheel"}
+}
+
+
 function initialization::initialize_build_image_variables() {
     REMOTE_IMAGE_CONTAINER_ID_FILE="${AIRFLOW_SOURCES}/manifests/remote-airflow-manifest-image"
     LOCAL_IMAGE_BUILD_CACHE_HASH_FILE="${AIRFLOW_SOURCES}/manifests/local-build-cache-hash"
     REMOTE_IMAGE_BUILD_CACHE_HASH_FILE="${AIRFLOW_SOURCES}/manifests/remote-build-cache-hash"
 }
 
+function initialization::set_output_color_variables() {
+    COLOR_BLUE=$'\e[37m'
+    COLOR_GREEN=$'\e[32m'
+    COLOR_GREEN_OK=$'\e[32mOK.'
+    COLOR_RED=$'\e[31m'
+    COLOR_RED_ERROR=$'\e[31mERROR:'
+    COLOR_RESET=$'\e[0m'
+    COLOR_YELLOW=$'\e[33m'
+    COLOR_YELLOW_WARNING=$'\e[33mWARNING:'
+    export COLOR_BLUE
+    export COLOR_GREEN
+    export COLOR_GREEN_OK
+    export COLOR_RED
+    export COLOR_RED_ERROR
+    export COLOR_RESET
+    export COLOR_YELLOW
+    export COLOR_YELLOW_WARNING
+}
+
 # Common environment that is initialized by both Breeze and CI scripts
 function initialization::initialize_common_environment() {
+    initialization::set_output_color_variables
     initialization::create_directories
     initialization::initialize_base_variables
     initialization::initialize_branch_variables
@@ -481,6 +503,7 @@ function initialization::initialize_common_environment() {
     initialization::initialize_git_variables
     initialization::initialize_github_variables
     initialization::initialize_test_variables
+    initialization::initialize_package_variables
     initialization::initialize_build_image_variables
 }
 
@@ -512,7 +535,6 @@ DockerHub variables:
 Mount variables:
 
     MOUNT_LOCAL_SOURCES: ${MOUNT_LOCAL_SOURCES}
-    MOUNT_FILES: ${MOUNT_FILES}
 
 Force variables:
 
@@ -580,7 +602,7 @@ Initialization variables:
     INIT_SCRIPT_FILE: ${INIT_SCRIPT_FILE=}
     LOAD_DEFAULT_CONNECTIONS: ${LOAD_DEFAULT_CONNECTIONS}
     LOAD_EXAMPLES: ${LOAD_EXAMPLES}
-    INSTALL_WHEELS: ${INSTALL_WHEELS=}
+    INSTALL_PACKAGES_FROM_DIST: ${INSTALL_PACKAGES_FROM_DIST=}
     DISABLE_RBAC: ${DISABLE_RBAC}
 
 Test variables:
@@ -674,8 +696,8 @@ function initialization::make_constants_read_only() {
     readonly IMAGE_TAG
 
     readonly AIRFLOW_PRE_CACHED_PIP_PACKAGES
-    readonly INSTALL_AIRFLOW_VIA_PIP
-    readonly AIRFLOW_LOCAL_PIP_WHEELS
+    readonly INSTALL_FROM_PYPI
+    readonly INSTALL_FROM_DOCKER_CONTEXT_FILES
     readonly AIRFLOW_CONSTRAINTS_REFERENCE
     readonly AIRFLOW_CONSTRAINTS_LOCATION
 

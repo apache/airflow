@@ -64,7 +64,7 @@ class AWSDataSyncHook(AwsBaseHook):
         r"""Creates a new location.
 
         :param str location_uri: Location URI used to determine the location type (S3, SMB, NFS, EFS).
-        :param \**create_location_kwargs: Passed to ``boto.create_location_xyz()``.
+        :param create_location_kwargs: Passed to ``boto.create_location_xyz()``.
             See AWS boto3 datasync documentation.
         :return str: LocationArn of the created Location.
         :raises AirflowException: If location type (prefix from ``location_uri``) is invalid.
@@ -138,7 +138,7 @@ class AWSDataSyncHook(AwsBaseHook):
 
         :param str source_location_arn: Source LocationArn. Must exist already.
         :param str destination_location_arn: Destination LocationArn. Must exist already.
-        :param \**create_task_kwargs: Passed to ``boto.create_task()``. See AWS boto3 datasync documentation.
+        :param create_task_kwargs: Passed to ``boto.create_task()``. See AWS boto3 datasync documentation.
         :return: TaskArn of the created Task
         :rtype: str
         """
@@ -154,7 +154,7 @@ class AWSDataSyncHook(AwsBaseHook):
         r"""Update a Task.
 
         :param str task_arn: The TaskArn to update.
-        :param \**update_task_kwargs: Passed to ``boto.update_task()``, See AWS boto3 datasync documentation.
+        :param update_task_kwargs: Passed to ``boto.update_task()``, See AWS boto3 datasync documentation.
         """
         self.get_conn().update_task(TaskArn=task_arn, **update_task_kwargs)
 
@@ -217,7 +217,7 @@ class AWSDataSyncHook(AwsBaseHook):
 
         :param str task_arn: TaskArn
         :return: TaskExecutionArn
-        :param \**kwargs: kwargs sent to ``boto3.start_task_execution()``
+        :param kwargs: kwargs sent to ``boto3.start_task_execution()``
         :rtype: str
         :raises ClientError: If a TaskExecution is already busy running for this ``task_arn``.
         :raises AirflowBadRequest: If ``task_arn`` is empty.

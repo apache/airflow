@@ -28,7 +28,7 @@ import sys
 import threading
 import time
 from collections import defaultdict
-from contextlib import ExitStack, redirect_stderr, redirect_stdout, suppress
+from contextlib import redirect_stderr, redirect_stdout, suppress
 from datetime import timedelta
 from multiprocessing.connection import Connection as MultiprocessingConnection
 from typing import Any, Callable, DefaultDict, Dict, Iterable, List, Optional, Set, Tuple
@@ -103,7 +103,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
 
         # The process that was launched to process the given .
         self._process: Optional[multiprocessing.process.BaseProcess] = None
-        # The result of Scheduler.process_file(file_path).
+        # The result of DagFileProcessor.process_file(file_path).
         self._result: Optional[Tuple[int, int]] = None
         # Whether the process is done running.
         self._done = False
@@ -136,7 +136,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
         :param result_channel: the connection to use for passing back the result
         :type result_channel: multiprocessing.Connection
         :param parent_channel: the parent end of the channel to close in the child
-        :type result_channel: multiprocessing.Connection
+        :type parent_channel: multiprocessing.Connection
         :param file_path: the file to process
         :type file_path: str
         :param pickle_dags: whether to pickle the DAGs found in the file and
@@ -167,9 +167,9 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
 
         try:
             # redirect stdout/stderr to log
-            with ExitStack() as exit_stack:
-                exit_stack.enter_context(redirect_stdout(StreamLogWriter(log, logging.INFO)))  # type: ignore
-                exit_stack.enter_context(redirect_stderr(StreamLogWriter(log, logging.WARN)))  # type: ignore
+            with redirect_stdout(StreamLogWriter(log, logging.INFO)), redirect_stderr(
+                StreamLogWriter(log, logging.WARN)
+            ), Stats.timer() as timer:
                 # Re-configure the ORM engine as there are issues with multiple processes
                 settings.configure_orm()
 
@@ -177,7 +177,6 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
                 # really a separate process, but changing the name of the
                 # process doesn't work, so changing the thread name instead.
                 threading.current_thread().name = thread_name
-                start_time = time.time()
 
                 log.info("Started process (PID=%s) to work on %s", os.getpid(), file_path)
                 dag_file_processor = DagFileProcessor(dag_ids=dag_ids, log=log)
@@ -187,8 +186,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
                     callback_requests=callback_requests,
                 )
                 result_channel.send(result)
-                end_time = time.time()
-                log.info("Processing %s took %.3f seconds", file_path, end_time - start_time)
+            log.info("Processing %s took %.3f seconds", file_path, timer.duration)
         except Exception:  # pylint: disable=broad-except
             # Log exceptions through the logging framework.
             log.exception("Got an exception! Propagating...")
@@ -336,7 +334,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
     @property
     def result(self) -> Optional[Tuple[int, int]]:
         """
-        :return: result of running SchedulerJob.process_file()
+        :return: result of running DagFileProcessor.process_file()
         :rtype: tuple[int, int] or None
         """
         if not self.done:
@@ -615,11 +613,6 @@ class DagFileProcessor(LoggingMixin):
         3. For each DAG, see what tasks should run and create appropriate task
         instances in the DB.
         4. Record any errors importing the file into ORM
-        5. Kill (in ORM) any task instances belonging to the DAGs that haven't
-        issued a heartbeat in a while.
-
-        Returns a list of serialized_dag dicts that represent the DAGs found in
-        the file
 
         :param file_path: the path to the Python file that should be executed
         :type file_path: str
@@ -652,7 +645,6 @@ class DagFileProcessor(LoggingMixin):
         self.execute_callbacks(dagbag, callback_requests)
 
         # Save individual DAGs in the ORM
-        dagbag.read_dags_from_db = True
         dagbag.sync_to_db()
 
         if pickle_dags:
@@ -1328,7 +1320,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         Following is a graphic representation of these steps.
 
-        .. image:: ../docs/img/scheduler_loop.jpg
+        .. image:: ../docs/apache-airflow/img/scheduler_loop.jpg
 
         :rtype: None
         """
@@ -1372,34 +1364,32 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         )
 
         for loop_count in itertools.count(start=1):
-            loop_start_time = time.time()
+            with Stats.timer() as timer:
 
-            if self.using_sqlite:
-                self.processor_agent.run_single_parsing_loop()
-                # For the sqlite case w/ 1 thread, wait until the processor
-                # is finished to avoid concurrent access to the DB.
-                self.log.debug("Waiting for processors to finish since we're using sqlite")
-                self.processor_agent.wait_until_finished()
+                if self.using_sqlite:
+                    self.processor_agent.run_single_parsing_loop()
+                    # For the sqlite case w/ 1 thread, wait until the processor
+                    # is finished to avoid concurrent access to the DB.
+                    self.log.debug("Waiting for processors to finish since we're using sqlite")
+                    self.processor_agent.wait_until_finished()
 
-            with create_session() as session:
-                num_queued_tis = self._do_scheduling(session)
+                with create_session() as session:
+                    num_queued_tis = self._do_scheduling(session)
 
-                self.executor.heartbeat()
-                session.expunge_all()
-                num_finished_events = self._process_executor_events(session=session)
+                    self.executor.heartbeat()
+                    session.expunge_all()
+                    num_finished_events = self._process_executor_events(session=session)
 
-            self.processor_agent.heartbeat()
+                self.processor_agent.heartbeat()
 
-            # Heartbeat the scheduler periodically
-            self.heartbeat(only_if_necessary=True)
+                # Heartbeat the scheduler periodically
+                self.heartbeat(only_if_necessary=True)
 
-            # Run any pending timed events
-            next_event = timers.run(blocking=False)
-            self.log.debug("Next timed event is in %f", next_event)
+                # Run any pending timed events
+                next_event = timers.run(blocking=False)
+                self.log.debug("Next timed event is in %f", next_event)
 
-            loop_end_time = time.time()
-            loop_duration = loop_end_time - loop_start_time
-            self.log.debug("Ran scheduling loop in %.2f seconds", loop_duration)
+            self.log.debug("Ran scheduling loop in %.2f seconds", timer.duration)
 
             if not is_unit_test and not num_queued_tis and not num_finished_events:
                 # If the scheduler is doing things, don't sleep. This means when there is work to do, the
@@ -1416,7 +1406,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 break
             if self.processor_agent.done:
                 self.log.info(
-                    "Exiting scheduler loop as requested DAG parse count (%d) has been reached after %d "
+                    "Exiting scheduler loop as requested DAG parse count (%d) has been reached after %d"
                     " scheduler loops",
                     self.num_times_parse_dags,
                     loop_count,

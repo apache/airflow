@@ -24,7 +24,17 @@ Airflow connection of type `wasb` exists. Authorization can be done by supplying
 login (=Storage account name) and password (=KEY), or login and SAS token in the extra
 field (see connection `wasb_default` for an example).
 """
-from azure.storage.blob import BlockBlobService
+try:
+    from azure.storage.blob import BlockBlobService
+except ImportError:
+    # The `azure` provider uses legacy `azure-storage` library, where `snowflake` uses the
+    # newer and more stable versions of those libraries. Most of `azure` operators and hooks work
+    # fine together with `snowflake` because the deprecated library does not overlap with the
+    # new libraries except the `blob` classes. So while `azure` works fine for most cases
+    # blob is the only exception
+    # Solution to that is being worked on in https://github.com/apache/airflow/pull/12188
+    # Once this is merged, this should remove the ImportError handling
+    BlockBlobService = None
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -44,7 +54,11 @@ class WasbHook(BaseHook):
     :type wasb_conn_id: str
     """
 
-    def __init__(self, wasb_conn_id: str = 'wasb_default') -> None:
+    conn_name_attr = 'wasb_conn_id'
+    default_conn_name = 'wasb_default'
+    conn_type = 'wasb'
+
+    def __init__(self, wasb_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn_id = wasb_conn_id
         self.connection = self.get_conn()

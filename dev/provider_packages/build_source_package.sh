@@ -122,9 +122,9 @@ if (( $# > 0 )); then
     if [[ "$1" == "--backports" ]]; then
         BACKPORTS="true"
     else
-        >&2 echo
-        >&2 echo "You can run the script with '--backports' flag only"
-        >&2 echo
+        echo
+        echo  "${COLOR_RED_ERROR} You can run the script with '--backports' flag only  ${COLOR_RESET}"
+        echo
         exit 1
     fi
 fi

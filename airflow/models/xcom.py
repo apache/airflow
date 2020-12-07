@@ -247,7 +247,10 @@ class BaseXCom(Base, LoggingMixin):
         """Deserialize XCom value from str or pickle object"""
         enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
         if enable_pickling:
-            return pickle.loads(result.value)
+            try:
+                return pickle.loads(result.value)
+            except pickle.UnpicklingError:
+                return json.loads(result.value.decode('UTF-8'))
         try:
             return json.loads(result.value.decode('UTF-8'))
         except JSONDecodeError:

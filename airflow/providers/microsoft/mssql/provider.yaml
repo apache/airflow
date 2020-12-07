@@ -37,3 +37,6 @@ hooks:
   - integration-name: Microsoft SQL Server (MSSQL)
     python-modules:
       - airflow.providers.microsoft.mssql.hooks.mssql
+
+hook-class-names:
+  - airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook

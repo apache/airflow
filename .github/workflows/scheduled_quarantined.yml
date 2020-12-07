@@ -24,7 +24,6 @@ on:  # yamllint disable-line rule:truthy
 
 env:
   MOUNT_LOCAL_SOURCES: "false"
-  MOUNT_FILES: "true"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
   FORCE_PULL_IMAGES: "true"
   CHECK_IMAGE_FOR_REBUILD: "true"
@@ -107,9 +106,11 @@ jobs:
         with:
           name: 'quarantined_tests'
           path: 'files/test_result.xml'
+          retention-days: 7
       - uses: actions/upload-artifact@v2
         name: Upload airflow logs
         if: always()
         with:
           name: airflow-logs-quarantined-${{matrix.python-version}}-${{ matrix.postgres-version }}
           path: './files/airflow_logs*'
+          retention-days: 7

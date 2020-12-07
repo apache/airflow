@@ -23,7 +23,7 @@ import textwrap
 from collections import Counter
 from glob import glob
 from itertools import chain, product
-from typing import Any, Dict, Iterable
+from typing import Any, Dict, Iterable, List
 
 import jsonschema
 import yaml
@@ -38,6 +38,8 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os
 DOCS_DIR = os.path.join(ROOT_DIR, 'docs')
 PROVIDER_DATA_SCHEMA_PATH = os.path.join(ROOT_DIR, "airflow", "provider.yaml.schema.json")
 CORE_INTEGRATIONS = ["SQL", "Local"]
+
+errors = []
 
 
 def _filepath_to_module(filepath: str):
@@ -124,21 +126,39 @@ def assert_sets_equal(set1, set2):
     raise AssertionError(standard_msg)
 
 
+def check_if_objects_belongs_to_package(
+    object_names: List[str], provider_package: str, yaml_file_path: str, resource_type: str
+):
+    for object_name in object_names:
+        if not object_name.startswith(provider_package):
+            errors.append(
+                f"The `{object_name}` object in {resource_type} list in {yaml_file_path} does not start"
+                f" with the expected {provider_package}."
+            )
+
+
+def parse_module_data(provider_data, resource_type, yaml_file_path):
+    package_dir = ROOT_DIR + "/" + os.path.dirname(yaml_file_path)
+    provider_package = os.path.dirname(yaml_file_path).replace(os.sep, ".")
+    py_files = chain(
+        glob(f"{package_dir}/**/{resource_type}/*.py"), glob(f"{package_dir}/{resource_type}/*.py")
+    )
+    expected_modules = {_filepath_to_module(f) for f in py_files if not f.endswith("/__init__.py")}
+    resource_data = provider_data.get(resource_type, [])
+    return expected_modules, provider_package, resource_data
+
+
 def check_completeness_of_list_of_hooks_sensors_hooks(yaml_files: Dict[str, Dict]):
     print("Checking completeness of list of {sensors, hooks, operators}")
-    errors = []
     for (yaml_file_path, provider_data), resource_type in product(
         yaml_files.items(), ["sensors", "operators", "hooks"]
     ):
-        package_dir = ROOT_DIR + "/" + os.path.dirname(yaml_file_path)
-        py_files = chain(
-            glob(f"{package_dir}/**/{resource_type}/*.py"), glob(f"{package_dir}/{resource_type}/*.py")
+        expected_modules, provider_package, resource_data = parse_module_data(
+            provider_data, resource_type, yaml_file_path
         )
-        expected_modules = {_filepath_to_module(f) for f in py_files if not f.endswith("/__init__.py")}
 
-        resource_data = provider_data.get(resource_type, [])
-
-        current_modules = {i for r in resource_data for i in r.get('python-modules', [])}
+        current_modules = {str(i) for r in resource_data for i in r.get('python-modules', [])}
+        check_if_objects_belongs_to_package(current_modules, provider_package, yaml_file_path, resource_type)
         try:
             assert_sets_equal(set(expected_modules), set(current_modules))
         except AssertionError as ex:
@@ -147,28 +167,34 @@ def check_completeness_of_list_of_hooks_sensors_hooks(yaml_files: Dict[str, Dict
                 f"Incorrect content of key '{resource_type}/python-modules' "
                 f"in file: {yaml_file_path}\n{nested_error}"
             )
-    if errors:
-        print(f"Found {len(errors)} errors")
-        for error in errors:
-            print(error)
-            print()
-        sys.exit(1)
+
+
+def check_duplicates_in_integrations_names_of_hooks_sensors_operators(yaml_files: Dict[str, Dict]):
+    print("Checking for duplicates in list of {sensors, hooks, operators}")
+    for (yaml_file_path, provider_data), resource_type in product(
+        yaml_files.items(), ["sensors", "operators", "hooks"]
+    ):
+        resource_data = provider_data.get(resource_type, [])
+        current_integrations = [r.get("integration-name", "") for r in resource_data]
+        if len(current_integrations) != len(set(current_integrations)):
+            for integration in current_integrations:
+                if current_integrations.count(integration) > 1:
+                    errors.append(
+                        f"Duplicated content of '{resource_type}/integration-name/{integration}' "
+                        f"in file: {yaml_file_path}"
+                    )
 
 
 def check_completeness_of_list_of_transfers(yaml_files: Dict[str, Dict]):
     print("Checking completeness of list of transfers")
-    errors = []
     resource_type = 'transfers'
     for yaml_file_path, provider_data in yaml_files.items():
-        package_dir = ROOT_DIR + "/" + os.path.dirname(yaml_file_path)
-        py_files = chain(
-            glob(f"{package_dir}/**/{resource_type}/*.py"), glob(f"{package_dir}/{resource_type}/*.py")
+        expected_modules, provider_package, resource_data = parse_module_data(
+            provider_data, resource_type, yaml_file_path
         )
-        expected_modules = {_filepath_to_module(f) for f in py_files if not f.endswith("/__init__.py")}
-
-        resource_data = provider_data.get(resource_type, [])
 
         current_modules = {r.get('python-module') for r in resource_data}
+        check_if_objects_belongs_to_package(current_modules, provider_package, yaml_file_path, resource_type)
         try:
             assert_sets_equal(set(expected_modules), set(current_modules))
         except AssertionError as ex:
@@ -177,17 +203,44 @@ def check_completeness_of_list_of_transfers(yaml_files: Dict[str, Dict]):
                 f"Incorrect content of key '{resource_type}/python-module' "
                 f"in file: {yaml_file_path}\n{nested_error}"
             )
-    if errors:
-        print(f"Found {len(errors)} errors")
-        for error in errors:
-            print(error)
-            print()
-        sys.exit(1)
+
+
+def check_hook_classes(yaml_files: Dict[str, Dict]):
+    print("Checking connection classes belong to package")
+    resource_type = 'hook-class-names'
+    for yaml_file_path, provider_data in yaml_files.items():
+        provider_package = os.path.dirname(yaml_file_path).replace(os.sep, ".")
+        hook_class_names = provider_data.get(resource_type)
+        if hook_class_names:
+            check_if_objects_belongs_to_package(
+                hook_class_names, provider_package, yaml_file_path, resource_type
+            )
+
+
+def check_duplicates_in_list_of_transfers(yaml_files: Dict[str, Dict]):
+    print("Checking for duplicates in list of transfers")
+    errors = []
+    resource_type = "transfers"
+    for yaml_file_path, provider_data in yaml_files.items():
+        resource_data = provider_data.get(resource_type, [])
+
+        source_target_integrations = [
+            (r.get("source-integration-name", ""), r.get("target-integration-name", ""))
+            for r in resource_data
+        ]
+        if len(source_target_integrations) != len(set(source_target_integrations)):
+            for integration_couple in source_target_integrations:
+                if source_target_integrations.count(integration_couple) > 1:
+                    errors.append(
+                        f"Duplicated content of \n"
+                        f" '{resource_type}/source-integration-name/{integration_couple[0]}' "
+                        f" '{resource_type}/target-integration-name/{integration_couple[1]}' "
+                        f"in file: {yaml_file_path}"
+                    )
 
 
 def check_invalid_integration(yaml_files: Dict[str, Dict]):
     print("Detect unregistered integrations")
-    errors = []
     all_integration_names = set(get_all_integration_names(yaml_files))
 
     for (yaml_file_path, provider_data), resource_type in product(
@@ -214,21 +267,6 @@ def check_invalid_integration(yaml_files: Dict[str, Dict]):
                 f"Invalid values: {invalid_names}"
             )
 
-    if errors:
-        print(f"Found {len(errors)} errors")
-        for error in errors:
-            print(error)
-            print()
-        sys.exit(1)
-
-
-# TODO: Delete after splitting the documentation for each provider.
-DOC_FILES_EXCLUDE_LIST = {
-    '/docs/howto/operator/bash.rst',
-    '/docs/howto/operator/external_task_sensor.rst',
-    '/docs/howto/operator/python.rst',
-}
-
 
 def check_doc_files(yaml_files: Dict[str, Dict]):
     print("Checking doc files")
@@ -248,16 +286,14 @@ def check_doc_files(yaml_files: Dict[str, Dict]):
 
     expected_doc_urls = {
         "/docs/" + os.path.relpath(f, start=DOCS_DIR)
-        for f in glob(f"{DOCS_DIR}/howto/operator/**/*.rst", recursive=True)
+        for f in glob(f"{DOCS_DIR}/apache-airflow-providers-*/operators/**/*.rst", recursive=True)
         if not f.endswith("/index.rst") and '/_partials' not in f
     }
     expected_doc_urls |= {
         "/docs/" + os.path.relpath(f, start=DOCS_DIR)
-        for f in glob(f"{DOCS_DIR}//apache-airflow-providers-*/operators/**/*.rst", recursive=True)
-        if not f.endswith("/index.rst") and '/_partials' not in f
+        for f in glob(f"{DOCS_DIR}/apache-airflow-providers-*/operators.rst", recursive=True)
     }
 
-    expected_doc_urls -= DOC_FILES_EXCLUDE_LIST
     try:
         assert_sets_equal(set(expected_doc_urls), set(current_doc_urls))
     except AssertionError as ex:
@@ -278,9 +314,20 @@ if __name__ == '__main__':
     check_integration_duplicates(all_parsed_yaml_files)
 
     check_completeness_of_list_of_hooks_sensors_hooks(all_parsed_yaml_files)
+    check_duplicates_in_integrations_names_of_hooks_sensors_operators(all_parsed_yaml_files)
+
     check_completeness_of_list_of_transfers(all_parsed_yaml_files)
+    check_duplicates_in_list_of_transfers(all_parsed_yaml_files)
+    check_hook_classes(all_parsed_yaml_files)
 
     if all_files_loaded:
         # Only check those if all provider files are loaded
         check_doc_files(all_parsed_yaml_files)
         check_invalid_integration(all_parsed_yaml_files)
+
+    if errors:
+        print(f"Found {len(errors)} errors")
+        for error in errors:
+            print(error)
+            print()
+        sys.exit(1)

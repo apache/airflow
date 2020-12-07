@@ -397,7 +397,11 @@
           return 'translate(' + x + ',' + y + ')';
         });
 
-      g.append('circle')
+      g.append('svg:a')
+        .attr('href', function(d) {
+          return '{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id=' + dag_id + '&_flt_3_state=' + d.state;
+        })
+      .append('circle')
         .attr('id', function(d) {return 'run-' + dag_id.replace(/\./g, '_') + d.state || 'none'})
         .attr('class', 'has-svg-tooltip')
         .attr('stroke-width', function(d) {
@@ -417,14 +421,6 @@
         .attr('fill', '#fff')
         .attr('r', diameter/2)
         .attr('title', function(d) {return d.state})
-        .attr('style', function(d) {
-          if (d.count > 0)
-              return"cursor:pointer;"
-        })
-        .on('click', function(d, i) {
-          if (d.count > 0)
-            window.location = '{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id=' + dag_id + '&_flt_3_state=' + d.state;
-        })
         .on('mouseover', function(d, i) {
           if (d.count > 0) {
             d3.select(this).transition().duration(400)
@@ -475,7 +471,11 @@
           return 'translate(' + x + ',' + y + ')';
         });
 
-      g.append('circle')
+      g.append('svg:a')
+        .attr('href', function(d) {
+          return '{{ url_for('TaskInstanceModelView.list') }}?_flt_3_dag_id=' + dag_id + '&_flt_3_state=' + d.state;
+        })
+      .append('circle')
         .attr('id', function(d) {return 'task-' + dag_id.replace(/\./g, '_') + d.state || 'none'})
         .attr('class', 'has-svg-tooltip')
         .attr('stroke-width', function(d) {
@@ -495,14 +495,6 @@
         .attr('fill', '#fff')
         .attr('r', diameter/2)
         .attr('title', function(d) {return d.state || 'none'})
-        .attr('style', function(d) {
-          if (d.count > 0)
-              return"cursor:pointer;"
-        })
-        .on('click', function(d, i) {
-          if (d.count > 0)
-            window.location = '{{ url_for('TaskInstanceModelView.list') }}?_flt_3_dag_id=' + dag_id + '&_flt_3_state=' + d.state;
-        })
         .on('mouseover', function(d, i) {
           if (d.count > 0) {
             d3.select(this).transition().duration(400)

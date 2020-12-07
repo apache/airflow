@@ -217,11 +217,11 @@ class CommitProhibitorGuard:
         raise RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!")
 
     def __enter__(self):
-        event.listen(self.session.bind, 'commit', self._validate_commit)
+        event.listen(self.session, 'before_commit', self._validate_commit)
         return self
 
     def __exit__(self, *exc_info):
-        event.remove(self.session.bind, 'commit', self._validate_commit)
+        event.remove(self.session, 'before_commit', self._validate_commit)
 
     def commit(self):
         """

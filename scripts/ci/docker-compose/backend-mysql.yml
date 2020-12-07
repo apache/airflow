@@ -38,5 +38,7 @@ services:
       - mysql-db-volume:/var/lib/mysql
     ports:
       - "${MYSQL_HOST_PORT}:3306"
+    command: ['mysqld', '--character-set-server=utf8mb4',
+              '--collation-server=utf8mb4_unicode_ci']
 volumes:
   mysql-db-volume:

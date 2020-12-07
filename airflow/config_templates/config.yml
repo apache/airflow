@@ -67,6 +67,7 @@
         their website
       version_added: ~
       type: string
+      sensitive: true
       example: ~
       default: "sqlite:///{AIRFLOW_HOME}/airflow.db"
     - name: sql_engine_encoding
@@ -225,6 +226,7 @@
         Secret key to save connection passwords in the db
       version_added: ~
       type: string
+      sensitive: true
       example: ~
       default: "{FERNET_KEY}"
     - name: donot_pickle
@@ -321,13 +323,6 @@
       type: string
       example: ~
       default: "True"
-    - name: worker_precheck
-      description: |
-        Worker initialisation check to validate Metadata Database connection
-      version_added: 1.10.1
-      type: string
-      example: ~
-      default: "False"
     - name: dag_discovery_safe_mode
       description: |
         When discovering DAGs, ignore any files that don't contain the strings ``DAG`` and ``airflow``.
@@ -342,15 +337,6 @@
       type: string
       example: ~
       default: "0"
-    - name: store_serialized_dags
-      description: |
-        Whether to serialise DAGs and persist them in DB.
-        If set to True, Webserver reads from DB instead of parsing DAG files
-        More details: https://airflow.apache.org/docs/stable/dag-serialization.html
-      version_added: 1.10.7
-      type: string
-      example: ~
-      default: "True"
     - name: min_serialized_dag_update_interval
       description: |
         Updating serialized DAG can not be faster than a minimum interval to reduce database write rate.
@@ -786,6 +772,7 @@
       description: ~
       version_added: ~
       type: string
+      sensitive: true
       example: ~
       default: ""
 - name: operators
@@ -945,6 +932,7 @@
         It should be as random as possible
       version_added: ~
       type: string
+      sensitive: true
       example: ~
       default: "{SECRET_KEY}"
     - name: workers
@@ -976,6 +964,15 @@
       type: string
       example: ~
       default: "-"
+    - name: access_logformat
+      description: |
+        Access log format for gunicorn webserver.
+        default format is %%(h)s %%(l)s %%(u)s %%(t)s "%%(r)s" %%(s)s %%(b)s "%%(f)s" "%%(a)s"
+        documentation - https://docs.gunicorn.org/en/stable/settings.html#access-log-format
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
     - name: expose_config
       description: |
         Expose the configuration file in the web server
@@ -1182,8 +1179,8 @@
     - name: session_lifetime_minutes
       description: |
         The UI cookie lifetime in minutes. User will be logged out from UI after
-        `session_lifetime_minutes` of non-activity
-      version_added: 2.0.0
+        ``session_lifetime_minutes`` of non-activity
+      version_added: 1.10.13
       type: int
       example: ~
       default: "43200"
@@ -1248,6 +1245,7 @@
       description: ~
       version_added: ~
       type: string
+      sensitive: true
       example: "airflow"
       default: ~
     - name: smtp_port
@@ -1262,6 +1260,18 @@
       type: string
       example: ~
       default: "airflow@example.com"
+    - name: smtp_timeout
+      description: ~
+      version_added: ~
+      type: int
+      example: ~
+      default: "30"
+    - name: smtp_retry_limit
+      description: ~
+      version_added: ~
+      type: int
+      example: ~
+      default: "5"
 - name: sentry
   description: |
     Sentry (https://docs.sentry.io) integration. Here you can supply
@@ -1369,6 +1379,7 @@
         a sqlalchemy database. Refer to the Celery documentation for more information.
       version_added: ~
       type: string
+      sensitive: true
       example: ~
       default: "redis://redis:6379/0"
     - name: result_backend
@@ -1381,6 +1392,7 @@
         http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-result-backend-settings
       version_added: ~
       type: string
+      sensitive: true
       example: ~
       default: "db+postgresql://postgres:airflow@postgres/airflow"
     - name: flower_host
@@ -1411,6 +1423,7 @@
         Accepts user:password pairs separated by a comma
       version_added: 1.10.2
       type: string
+      sensitive: true
       example: "user1:password1,user2:password2"
       default: ""
     - name: default_queue
@@ -1503,6 +1516,13 @@
       type: int
       example: ~
       default: "3"
+    - name: worker_precheck
+      description: |
+        Worker initialisation check to validate Metadata Database connection
+      version_added: 1.10.1
+      type: string
+      example: ~
+      default: "False"
 - name: celery_broker_transport_options
   description: |
     This section is for specifying options which can be passed to the
@@ -1723,10 +1743,10 @@
       version_added: 2.0.0
       type: boolean
       default: ~
-    - name: max_threads
+    - name: parsing_processes
       description: |
-        The scheduler can run multiple threads in parallel to schedule dags.
-        This defines how many threads will run.
+        The scheduler can run multiple processes in parallel to parse dags.
+        This defines how many processes will run.
       version_added: ~
       type: string
       example: ~

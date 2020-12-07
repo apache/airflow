@@ -20,9 +20,9 @@ set -euo pipefail
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
 if [[ -f "${AIRFLOW_SOURCES}/airflow/providers/__init__.py" ]]; then
-    >&2 echo
-    >&2 echo "The ${AIRFLOW_SOURCES}/airflow/providers/__init__.py file should not exist. Deleting it"
-    >&2 echo
+    echo
+    echo "\e[31mThe ${AIRFLOW_SOURCES}/airflow/providers/__init__.py file should not exist. Deleting it  ${COLOR_RESET}"
+    echo
     rm "${AIRFLOW_SOURCES}/airflow/providers/__init__.py"
     exit 1
 fi

@@ -24,8 +24,8 @@ Airflow has two images (build from Dockerfiles):
 
   * Production image (Dockerfile) - that can be used to build your own production-ready Airflow installation
     You can read more about building and using the production image in the
-    `Production Deployments <docs/production-deployment.rst>`_ document. The image is built using
-    `Dockerfile <Dockerfile>`_
+    `Production Deployments <https://airflow.apache.org/docs/apache-airflow/stable/production-deployment.html>`_ document.
+    The image is built using `Dockerfile <Dockerfile>`_
 
   * CI image (Dockerfile.ci) - used for running tests and local development. The image is built using
     `Dockerfile.ci <Dockerfile.ci>`_
@@ -39,7 +39,7 @@ The images are named as follows:
 
 where:
 
-* ``BRANCH_OR_TAG`` - branch or tag used when creating the image. Examples: ``master``, ``v1-10-test``, ``1.10.12``
+* ``BRANCH_OR_TAG`` - branch or tag used when creating the image. Examples: ``master``, ``v1-10-test``, ``1.10.13``
   The ``master`` and ``v1-10-test`` labels are built from branches so they change over time. The ``1.10.*`` and in
   the future ``2.*`` labels are build from git tags and they are "fixed" once built.
 * ``PYTHON_MAJOR_MINOR_VERSION`` - version of python used to build the image. Examples: ``3.5``, ``3.7``
@@ -115,15 +115,25 @@ parameter to Breeze:
 .. code-block:: bash
 
   ./breeze build-image --python 3.7 --additional-extras=presto \
-      --production-image --install-airflow-version=1.10.12
+      --production-image --install-airflow-version=1.10.13
+
+
+.. note::
+
+   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+   ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``--use-deprecated legacy-resolver`` to your pip install command.
+
 
 This will build the image using command similar to:
 
 .. code-block:: bash
 
     pip install \
-      apache-airflow[async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,ssh,statsd,virtualenv,presto]==1.10.12 \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.6.txt"
+      apache-airflow[async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,ssh,statsd,virtualenv,presto]==1.10.13 \
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.13/constraints-3.6.txt"
 
 You can also build production images from specific Git version via providing ``--install-airflow-reference``
 parameter to Breeze (this time constraints are taken from the ``constraints-master`` branch which is the
@@ -133,6 +143,15 @@ HEAD of development for constraints):
 
     pip install "https://github.com/apache/airflow/archive/<tag>.tar.gz#egg=apache-airflow" \
       --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+
+You can also skip installing airflow by providing ``--install-airflow-version none`` parameter to Breeze:
+
+.. code-block:: bash
+
+  ./breeze build-image --python 3.7 --additional-extras=presto \
+      --production-image --install-airflow-version=none --install-from-local-files-when-building
+
+In this case you usually install airflow and all packages in ``docker-context-files`` folder.
 
 Using cache during builds
 =========================
@@ -210,8 +229,8 @@ For example:
   apache/airflow:master-python3.6                - production "latest" image from current master
   apache/airflow:master-python3.6-ci             - CI "latest" image from current master
   apache/airflow:v1-10-test-python2.7-ci         - CI "latest" image from current v1-10-test branch
-  apache/airflow:1.10.12-python3.6               - production image for 1.10.12 release
-  apache/airflow:1.10.12-1-python3.6             - production image for 1.10.12 with some patches applied
+  apache/airflow:1.10.13-python3.6               - production image for 1.10.13 release
+  apache/airflow:1.10.13-1-python3.6             - production image for 1.10.13 with some patches applied
 
 
 You can see DockerHub images at `<https://hub.docker.com/repository/docker/apache/airflow>`_
@@ -292,7 +311,8 @@ additional apt dev and runtime dependencies.
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.12" \
+    --build-arg AIRFLOW_VERSION="1.10.13" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.13" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
@@ -308,7 +328,7 @@ the same image can be built using ``breeze`` (it supports auto-completion of the
 .. code-block:: bash
 
   ./breeze build-image -f Dockerfile.ci \
-      --production-image  --python 3.7 --install-airflow-version=1.10.12 \
+      --production-image  --python 3.7 --install-airflow-version=1.10.13 \
       --additional-extras=jdbc --additional-python-deps="pandas" \
       --additional-dev-apt-deps="gcc g++" --additional-runtime-apt-deps="default-jre-headless"
 You can build the default production image with standard ``docker build`` command but they will only build
@@ -326,7 +346,8 @@ based on example in `this comment <https://github.com/apache/airflow/issues/8605
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.12" \
+    --build-arg AIRFLOW_VERSION="1.10.13" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.13" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
@@ -399,7 +420,14 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | file has to be in docker context so      |
 |                                          |                                          | it's best to place such file in          |
 |                                          |                                          | one of the folders included in           |
-|                                          |                                          | .dockerignore                            |
+|                                          |                                          | .dockerignore. for example in the        |
+|                                          |                                          | 'docker-context-files'. Note that the    |
+|                                          |                                          | location does not work for the first     |
+|                                          |                                          | stage of installation when the           |
+|                                          |                                          | stage of installation when the           |
+|                                          |                                          | ``AIRFLOW_PRE_CACHED_PIP_PACKAGES`` is   |
+|                                          |                                          | set to true. Default location from       |
+|                                          |                                          | GitHub is used in this case.             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_CONSTRAINTS_REFERENCE``        | ``constraints-master``                   | reference (branch or tag) from GitHub    |
 |                                          |                                          | repository from which constraints are    |
@@ -417,21 +445,23 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | package. It has no effect when           |
 |                                          |                                          | installing from PyPI or GitHub repo.     |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_LOCAL_PIP_WHEELS``             | ``false``                                | If set to true, Airflow and it's         |
+| ``INSTALL_FROM_DOCKER_CONTEXT_FILES``    | ``false``                                | If set to true, Airflow and it's         |
 |                                          |                                          | dependencies are installed from locally  |
 |                                          |                                          | downloaded .whl files placed in the      |
 |                                          |                                          | ``docker-context-files``.                |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_EXTRAS``                       | ``all``                                  | extras to install                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``INSTALL_AIRFLOW_VIA_PIP``              | ``false``                                | If set to true, Airflow is installed via |
-|                                          |                                          | pip install. if you want to install      |
+| ``INSTALL_FROM_PYPI``                    | ``true``                                 | If set to true, Airflow is installed     |
+|                                          |                                          | from pypi. If you want to install        |
 |                                          |                                          | Airflow from externally provided binary  |
 |                                          |                                          | package you can set it to false, place   |
 |                                          |                                          | the package in ``docker-context-files``  |
-|                                          |                                          | and set ``AIRFLOW_LOCAL_PIP_WHEELS`` to  |
-|                                          |                                          | true. You have to also set to true the   |
+|                                          |                                          | and set                                  |
+|                                          |                                          | ``INSTALL_FROM_DOCKER_CONTEXT_FILES`` to |
+|                                          |                                          | true. For this you have to also set the  |
 |                                          |                                          | ``AIRFLOW_PRE_CACHED_PIP_PACKAGES`` flag |
+|                                          |                                          | to false                                 |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_PRE_CACHED_PIP_PACKAGES``      | ``true``                                 | Allows to pre-cache airflow PIP packages |
 |                                          |                                          | from the GitHub of Apache Airflow        |
@@ -529,7 +559,7 @@ Production images
 -----------------
 
 You can find details about using, building, extending and customising the production images in the
-`Latest documentation <https://airflow.readthedocs.io/en/latest/production-deployment.html>`_
+`Latest documentation <https://airflow.apache.org/docs/apache-airflow/stable/production-deployment.html>`_
 
 
 Image manifests
@@ -614,10 +644,8 @@ The entrypoint performs those operations:
 Using, customising, and extending the production image
 ======================================================
 
-You can read more about using, customising, and extending the production image in the documentation:
-
-* [Stable docs](https://airflow.apache.org/docs/stable/production-deployment.html)
-* [Latest docs from master branch](https://airflow.readthedocs.io/en/latest/production-deployment.html
+You can read more about using, customising, and extending the production image in the
+`documentation <https://airflow.apache.org/docs/apache-airflow/stable/production-deployment.html>`_.
 
 Alpha versions of 1.10.10 production-ready images
 =================================================

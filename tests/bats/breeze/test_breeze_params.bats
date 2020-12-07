@@ -31,10 +31,7 @@ teardown() {
 @test "Test missing value for a parameter" {
   export _breeze_allowed_test_params="a b c"
   run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
-  assert_output "
-ERROR:  Allowed Test Param: [ a b c ]. Passed: ''.
-
-Switch to supported value with --message flag."
+  assert_output --regexp "Allowed Test Param: \[ a b c \]\. Passed: ''"
   assert_failure
 }
 
@@ -43,10 +40,7 @@ Switch to supported value with --message flag."
   export TEST_PARAM=x
   echo "a" > "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
   run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
-  assert_output "
-ERROR:  Allowed Test Param: [ a b c ]. Passed: 'x'.
-
-Switch to supported value with --message flag."
+  assert_output --regexp "Allowed Test Param: \[ a b c \]\. Passed: 'x"
   assert_exist "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
   assert_file_contains "${AIRFLOW_SOURCES}/.build/.TEST_PARAM" "^a$"
   assert_failure 1
@@ -57,12 +51,7 @@ Switch to supported value with --message flag."
   export TEST_PARAM=x
   echo "x" > "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
   run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
-  assert_output "
-ERROR:  Allowed Test Param: [ a b c ]. Passed: 'x'.
-
-Switch to supported value with --message flag.
-
-Removing ${AIRFLOW_SOURCES}/.build/.TEST_PARAM. Next time you run it, it should be OK."
+  assert_output --regexp "Allowed Test Param: \[ a b c \]\. Passed: 'x'"
   assert_not_exist "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
   assert_failure 1
 }

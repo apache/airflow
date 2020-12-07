@@ -559,3 +559,20 @@ def test_duplicate_group_id():
             _ = DummyOperator(task_id="task1")
             with TaskGroup("group1"):
                 _ = DummyOperator(task_id="upstream_join_id")
+
+
+def test_task_without_dag():
+    """
+    Test that if a task doesn't have a DAG when it's being set as the relative of another task which
+    has a DAG, the task should be added to the root TaskGroup of the other task's DAG.
+    """
+    dag = DAG(dag_id='test_task_without_dag', start_date=pendulum.parse("20200101"))
+    op1 = DummyOperator(task_id='op1', dag=dag)
+    op2 = DummyOperator(task_id='op2')
+    op3 = DummyOperator(task_id="op3")
+    op1 >> op2
+    op3 >> op2
+
+    assert op1.dag == op2.dag == op3.dag
+    assert dag.task_group.children.keys() == {"op1", "op2", "op3"}
+    assert dag.task_group.children.keys() == dag.task_dict.keys()

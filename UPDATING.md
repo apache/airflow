@@ -52,28 +52,62 @@ assists users migrating to a new version.
 
 ## Master
 
-### Unify user session lifetime configuration
+### Changes to output argument in commands
 
-In previous version of Airflow user session lifetime could be configured by
-`session_lifetime_days` and `force_log_out_after` options. In practise only `session_lifetime_days`
-had impact on session lifetime, but it was limited to values in day.
-We have removed mentioned options and introduced new `session_lifetime_minutes`
-option which simplify session lifetime configuration.
+From Airflow 2.0, We are replacing [tabulate](https://pypi.org/project/tabulate/) with [rich](https://github.com/willmcgugan/rich) to render commands output. Due to this change, the `--output` argument
+will no longer accept formats of tabulate tables. Instead, it now accepts:
 
-Before
+- `table` - will render the output in predefined table
+- `json` - will render the output as a json
+- `yaml` - will render the output as yaml
 
- ```ini
-[webserver]
-force_log_out_after = 0
-session_lifetime_days = 30
- ```
+By doing this we increased consistency and gave users possibility to manipulate the
+output programmatically (when using json or yaml).
 
-After
+Affected commands:
 
- ```ini
-[webserver]
-session_lifetime_minutes = 43200
- ```
+- `airflow dags list`
+- `airflow dags report`
+- `airflow dags list-runs`
+- `airflow dags list-jobs`
+- `airflow connections list`
+- `airflow connections get`
+- `airflow pools list`
+- `airflow pools get`
+- `airflow pools set`
+- `airflow pools delete`
+- `airflow pools import`
+- `airflow pools export`
+- `airflow role list`
+- `airflow providers list`
+- `airflow providers get`
+- `airflow providers hooks`
+- `airflow tasks states-for-dag-run`
+- `airflow users list`
+- `airflow variables list`
+
+### Azure Wasb Hook does not work together with Snowflake hook
+
+The WasbHook in Apache Airflow use a legacy version of Azure library. While the conflict is not
+significant for most of the Azure hooks, it is a problem for Wasb Hook because the `blob` folders
+for both libraries overlap. Installing both Snowflake and Azure extra will result in non-importable
+WasbHook.
+
+### Rename `all` to `devel_all` extra
+
+The `all` extras were reduced to include only user-facing dependencies. This means
+that this extra does not contain development dependencies. If you were relying on
+`all` extra then you should use now `devel_all` or figure out if you need development
+extras at all.
+
+
+### `[scheduler] max_threads` config has been renamed to `[scheduler] parsing_processes`
+
+From Airflow 2.0, `max_threads` config under `[scheduler]` section has been renamed to `parsing_processes`.
+
+This is to align the name with the actual code where the Scheduler launches the number of processes defined by
+`[scheduler] parsing_processes` to Parse DAG files, calculates next DagRun date for each DAG,
+serialize them and store them in the DB.
 
 ## Airflow 2.0.0b1
 
@@ -696,13 +730,6 @@ No change is needed if only the default trigger rule `all_success` is being used
 If the DAG relies on tasks with other trigger rules (i.e. `all_done`) being skipped by the `LatestOnlyOperator`, adjustments to the DAG need to be made to commodate the change in behaviour, i.e. with additional edges from the `LatestOnlyOperator`.
 
 The goal of this change is to achieve a more consistent and configurale cascading behaviour based on the `BaseBranchOperator` (see [AIRFLOW-2923](https://jira.apache.org/jira/browse/AIRFLOW-2923) and [AIRFLOW-1784](https://jira.apache.org/jira/browse/AIRFLOW-1784)).
-
-#### `airflow.sensors.time_sensor.TimeSensor`
-
-Previously `TimeSensor` always compared the `target_time` with the current time in UTC.
-
-Now it will compare `target_time` with the current time in the timezone of the DAG,
-defaulting to the `default_timezone` in the global config.
 
 ### Changes to the core Python API
 
@@ -1641,6 +1668,16 @@ For example:
 If you want to install integration for Microsoft Azure, then instead of `pip install apache-airflow[atlas]`
 you should use `pip install apache-airflow[apache.atlas]`.
 
+
+NOTE!
+
+On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+`pip upgrade --pip==20.2.4` or, in case you use Pip 20.3, you need to add option
+`--use-deprecated legacy-resolver` to your pip install command.
+
+
 If you want to install integration for Microsoft Azure, then instead of
 
 ```
@@ -1704,6 +1741,13 @@ Now the `dag_id` will not appear repeated in the payload, and the response forma
 
 ## Airflow 1.10.13
 
+### TimeSensor is now timezone aware
+
+Previously `TimeSensor` always compared the `target_time` with the current time in UTC.
+
+Now it will compare `target_time` with the current time in the timezone of the DAG,
+defaulting to the `default_timezone` in the global config.
+
 ### Removed Kerberos support for HDFS hook
 
 The HDFS hook's Kerberos support has been removed due to removed python-krbV dependency from PyPI
@@ -1711,6 +1755,37 @@ and generally lack of support for SSL in Python3 (Snakebite-py3 we use as depend
 support for SSL connection to HDFS).
 
 SSL support still works for WebHDFS hook.
+
+### Unify user session lifetime configuration
+
+In previous version of Airflow user session lifetime could be configured by
+`session_lifetime_days` and `force_log_out_after` options. In practise only `session_lifetime_days`
+had impact on session lifetime, but it was limited to values in day.
+We have removed mentioned options and introduced new `session_lifetime_minutes`
+option which simplify session lifetime configuration.
+
+Before
+
+ ```ini
+[webserver]
+force_log_out_after = 0
+session_lifetime_days = 30
+ ```
+
+After
+
+ ```ini
+[webserver]
+session_lifetime_minutes = 43200
+ ```
+
+### Adding Operators, Hooks and Sensors via Airflow Plugins is deprecated
+
+The ability to import Operators, Hooks and Senors via the plugin mechanism has been deprecated and will raise warnings
+in Airflow 1.10.13 and will be removed completely in Airflow 2.0.
+
+Check http://airflow.apache.org/docs/1.10.13/howto/custom-operator.html to see how you can create and import
+Custom Hooks, Operators and Sensors.
 
 ## Airflow 1.10.12
 

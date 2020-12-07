@@ -77,7 +77,7 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|              | Master version (2.0.0dev) | Stable version (1.10.12) |
+|              | Master version (2.0.0dev) | Stable version (1.10.13) |
 | ------------ | ------------------------- | ------------------------ |
 | Python       | 3.6, 3.7, 3.8             | 2.7, 3.5, 3.6, 3.7, 3.8  |
 | PostgreSQL   | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      |
@@ -88,7 +88,7 @@ Apache Airflow is tested with:
 **Note:** MariaDB and MySQL 5.x are unable to or have limitations with
 running multiple schedulers -- please see the "Scheduler" docs.
 
-**Note:** SQLite is used primarily for development purpose.
+**Note:** SQLite is used in Airflow tests. Do not use it in production.
 
 ### Additional notes on Python version requirements
 
@@ -98,7 +98,7 @@ running multiple schedulers -- please see the "Scheduler" docs.
 
 Visit the official Airflow website documentation (latest **stable** release) for help with [installing Airflow](https://airflow.apache.org/installation.html), [getting started](https://airflow.apache.org/start.html), or walking through a more complete [tutorial](https://airflow.apache.org/tutorial.html).
 
-> Note: If you're looking for documentation for master branch (latest development branch): you can find it on [ReadTheDocs](https://airflow.readthedocs.io/en/latest/).
+> Note: If you're looking for documentation for master branch (latest development branch): you can find it on [s.apache.org/airflow-docs](https://s.apache.org/airflow-docs/).
 
 For more information on Airflow's Roadmap or Airflow Improvement Proposals (AIPs), visit the [Airflow Wiki](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home).
 
@@ -122,16 +122,25 @@ correct Airflow tag/version/branch and python versions in the URL.
 
 1. Installing just Airflow:
 
+NOTE!!!
+
+On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+`pip upgrade --pip==20.2.4` or, in case you use Pip 20.3, you need to add option
+`--use-deprecated legacy-resolver` to your pip install command.
+
+
 ```bash
-pip install apache-airflow==1.10.12 \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.7.txt"
+pip install apache-airflow==1.10.13 \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.13/constraints-3.7.txt"
 ```
 
 2. Installing with extras (for example postgres,google)
 
 ```bash
-pip install apache-airflow[postgres,google]==1.10.12 \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.7.txt"
+pip install apache-airflow[postgres,google]==1.10.13 \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.13/constraints-3.7.txt"
 ```
 
 For information on installing backport providers check [/docs/backport-providers.rst][/docs/backport-providers.rst].
@@ -162,7 +171,7 @@ Those are - in the order of most common ways people install Airflow:
 - [Docker Images](https://hub.docker.com/repository/docker/apache/airflow) to install airflow via
   `docker` tool, use them in Kubernetes, Helm Charts, `docker-compose`, `docker swarm` etc. You can
   read more about using, customising, and extending the images in the
-  [Latest docs](https://airflow.readthedocs.io/en/latest/production-deployment.html), and
+  [Latest docs](https://airflow.apache.org/docs/apache-airflow/stable/production-deployment.html), and
   learn details on the internals in the [IMAGES.rst](IMAGES.rst) document.
 - [Tags in GitHub](https://github.com/apache/airflow/tags) to retrieve the git project sources that
   were used to generate official source packages via git
@@ -175,27 +184,27 @@ following the ASF Policy.
 
 - **DAGs**: Overview of all DAGs in your environment.
 
-  ![DAGs](/docs/img/dags.png)
+  ![DAGs](/docs/apache-airflow/img/dags.png)
 
 - **Tree View**: Tree representation of a DAG that spans across time.
 
-  ![Tree View](/docs/img/tree.png)
+  ![Tree View](/docs/apache-airflow/img/tree.png)
 
 - **Graph View**: Visualization of a DAG's dependencies and their current status for a specific run.
 
-  ![Graph View](/docs/img/graph.png)
+  ![Graph View](/docs/apache-airflow/img/graph.png)
 
 - **Task Duration**: Total time spent on different tasks over time.
 
-  ![Task Duration](/docs/img/duration.png)
+  ![Task Duration](/docs/apache-airflow/img/duration.png)
 
 - **Gantt View**: Duration and overlap of a DAG.
 
-  ![Gantt View](/docs/img/gantt.png)
+  ![Gantt View](/docs/apache-airflow/img/gantt.png)
 
 - **Code View**:  Quick way to view source code of a DAG.
 
-  ![Code View](/docs/img/code.png)
+  ![Code View](/docs/apache-airflow/img/code.png)
 
 
 ## Contributing
@@ -216,7 +225,7 @@ If you would like to become a maintainer, please review the Apache Airflow
 
 ## Can I use the Apache Airflow logo in my presentation?
 
-Yes! Be sure to abide by the Apache Foundation [trademark policies](https://www.apache.org/foundation/marks/#books) and the Apache Airflow [Brandbook](https://cwiki.apache.org/confluence/display/AIRFLOW/Brandbook). The most up to date logos are found in [this repo](/docs/img/logos) and on the Apache Software Foundation [website](https://www.apache.org/logos/about.html).
+Yes! Be sure to abide by the Apache Foundation [trademark policies](https://www.apache.org/foundation/marks/#books) and the Apache Airflow [Brandbook](https://cwiki.apache.org/confluence/display/AIRFLOW/Brandbook). The most up to date logos are found in [this repo](/docs/apache-airflow/img/logos) and on the Apache Software Foundation [website](https://www.apache.org/logos/about.html).
 
 ## Airflow merchandise
 

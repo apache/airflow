@@ -22,12 +22,6 @@ This directory contains documentation for the Apache Airflow project and other p
 
 For Helm Chart, see: `/chart/README.md <../chart/READMe.md>`__
 
-File structure
-==============
-
-Currently in the ``/docs/`` directory there is documentation for the ``apache-airflow`` package. The ``apache-airflow-providers-*'` directories contains independent documentation for each provider package.
-We are taking steps to move the documentation for ``apache-airflow`` package to the ``apache-airflow`` subdirectory to make the directory structure clearer.
-
 Development documentation preview
 ==================================
 

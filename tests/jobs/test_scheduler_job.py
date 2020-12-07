@@ -2386,6 +2386,7 @@ class TestSchedulerJob(unittest.TestCase):
             session.commit()
             self.assertListEqual([], self.null_exec.sorted_tasks)
 
+    @pytest.mark.quarantined
     def test_scheduler_task_start_date(self):
         """
         Test that the scheduler respects task start dates that are different from DAG start dates

@@ -18,6 +18,7 @@
 from contextlib import closing
 from datetime import datetime
 from typing import Any, Optional
+from urllib.parse import quote_plus
 
 from sqlalchemy import create_engine
 
@@ -78,7 +79,7 @@ class DbApiHook(BaseHook):
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         login = ''
         if conn.login:
-            login = '{conn.login}:{conn.password}@'.format(conn=conn)
+            login = f'{quote_plus(conn.login)}:{quote_plus(conn.password)}@'
         host = conn.host
         if conn.port is not None:
             host += f':{conn.port}'

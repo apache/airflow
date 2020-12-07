@@ -91,10 +91,12 @@ from airflow.www import auth, utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped
 from airflow.www.forms import (
     ConnectionForm,
+    DagRunEditForm,
     DagRunForm,
     DateTimeForm,
     DateTimeWithNumRunsForm,
     DateTimeWithNumRunsWithDagRunsForm,
+    TaskInstanceEditForm,
 )
 from airflow.www.widgets import AirflowModelListWidget
 
@@ -491,7 +493,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             if arg_search_query:
                 dags_query = dags_query.filter(
                     DagModel.dag_id.ilike('%' + arg_search_query + '%')
-                    | DagModel.owners.ilike('%' + arg_search_query + '%')  # noqa  # noqa
+                    | DagModel.owners.ilike('%' + arg_search_query + '%')  # noqa
                 )
 
             if arg_tags_filter:
@@ -536,7 +538,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 for name, in dagtags
             ]
 
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.query(errors.ImportError).order_by(errors.ImportError.id).all()
 
         for import_error in import_errors:
             flash("Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=import_error), "dag_import_error")
@@ -659,10 +661,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         # pylint: enable=comparison-with-callable
 
         # pylint: disable=no-member
-        if selected_dag_ids:
-            running_dag_run_query_result = running_dag_run_query_result.filter(
-                DagRun.dag_id.in_(filter_dag_ids)
-            )
+        running_dag_run_query_result = running_dag_run_query_result.filter(DagRun.dag_id.in_(filter_dag_ids))
         # pylint: enable=no-member
 
         running_dag_run_query_result = running_dag_run_query_result.subquery('running_dag_run')
@@ -678,10 +677,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 running_dag_run_query_result.c.execution_date == TaskInstance.execution_date,
             ),
         )
-        if selected_dag_ids:
-            running_task_instance_query_result = running_task_instance_query_result.filter(
-                TaskInstance.dag_id.in_(filter_dag_ids)
-            )
         # pylint: enable=no-member
 
         if conf.getboolean('webserver', 'SHOW_RECENT_STATS_FOR_COMPLETED_RUNS', fallback=True):
@@ -694,8 +689,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             )
             # pylint: enable=comparison-with-callable
             # pylint: disable=no-member
-            if selected_dag_ids:
-                last_dag_run = last_dag_run.filter(DagRun.dag_id.in_(filter_dag_ids))
+            last_dag_run = last_dag_run.filter(DagRun.dag_id.in_(filter_dag_ids))
             last_dag_run = last_dag_run.subquery('last_dag_run')
             # pylint: enable=no-member
 
@@ -710,12 +704,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                     last_dag_run.c.execution_date == TaskInstance.execution_date,
                 ),
             )
-            # pylint: disable=no-member
-            if selected_dag_ids:
-                last_task_instance_query_result = last_task_instance_query_result.filter(
-                    TaskInstance.dag_id.in_(filter_dag_ids)
-                )
-            # pylint: enable=no-member
 
             final_task_instance_query_result = union_all(
                 last_task_instance_query_result, running_task_instance_query_result
@@ -3241,19 +3229,42 @@ class DagRunModelView(AirflowModelView):
     ]
 
     add_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'external_trigger', 'conf']
-    list_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'run_type', 'external_trigger', 'conf']
-    search_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'run_type', 'external_trigger', 'conf']
+    list_columns = [
+        'state',
+        'dag_id',
+        'execution_date',
+        'run_id',
+        'run_type',
+        'start_date',
+        'end_date',
+        'external_trigger',
+        'conf',
+    ]
+    search_columns = [
+        'state',
+        'dag_id',
+        'execution_date',
+        'run_id',
+        'run_type',
+        'start_date',
+        'end_date',
+        'external_trigger',
+        'conf',
+    ]
+    edit_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'conf']
 
     base_order = ('execution_date', 'desc')
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
 
-    add_form = edit_form = DagRunForm
+    add_form = DagRunForm
+    edit_form = DagRunEditForm
 
     formatters_columns = {
         'execution_date': wwwutils.datetime_f('execution_date'),
         'state': wwwutils.state_f,
         'start_date': wwwutils.datetime_f('start_date'),
+        'end_date': wwwutils.datetime_f('end_date'),
         'dag_id': wwwutils.dag_link,
         'run_id': wwwutils.dag_run_link,
         'conf': wwwutils.json_f('conf'),
@@ -3265,9 +3276,6 @@ class DagRunModelView(AirflowModelView):
         """Multiple delete."""
         self.datamodel.delete_all(items)
         self.update_redirect()
-        dirty_ids = []
-        for item in items:
-            dirty_ids.append(item.dag_id)
         return redirect(self.get_redirect())
 
     @action('set_running', "Set state to 'running'", '', single=False)
@@ -3276,11 +3284,9 @@ class DagRunModelView(AirflowModelView):
         """Set state to running."""
         try:
             count = 0
-            dirty_ids = []
             for dr in (
                 session.query(DagRun).filter(DagRun.id.in_([dagrun.id for dagrun in drs])).all()
             ):  # noqa pylint: disable=no-member
-                dirty_ids.append(dr.dag_id)
                 count += 1
                 dr.start_date = timezone.utcnow()
                 dr.state = State.RUNNING
@@ -3302,12 +3308,10 @@ class DagRunModelView(AirflowModelView):
         """Set state to failed."""
         try:
             count = 0
-            dirty_ids = []
             altered_tis = []
             for dr in (
                 session.query(DagRun).filter(DagRun.id.in_([dagrun.id for dagrun in drs])).all()
             ):  # noqa pylint: disable=no-member
-                dirty_ids.append(dr.dag_id)
                 count += 1
                 altered_tis += set_dag_run_state_to_failed(
                     current_app.dag_bag.get_dag(dr.dag_id), dr.execution_date, commit=True, session=session
@@ -3332,12 +3336,10 @@ class DagRunModelView(AirflowModelView):
         """Set state to success."""
         try:
             count = 0
-            dirty_ids = []
             altered_tis = []
             for dr in (
                 session.query(DagRun).filter(DagRun.id.in_([dagrun.id for dagrun in drs])).all()
             ):  # noqa pylint: disable=no-member
-                dirty_ids.append(dr.dag_id)
                 count += 1
                 altered_tis += set_dag_run_state_to_success(
                     current_app.dag_bag.get_dag(dr.dag_id), dr.execution_date, commit=True, session=session
@@ -3414,6 +3416,7 @@ class TaskRescheduleModelView(AirflowModelView):
     route_base = '/taskreschedule'
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.TaskReschedule)  # noqa # type: ignore
+    related_views = [DagRunModelView]
 
     class_permission_name = permissions.RESOURCE_TASK_RESCHEDULE
     method_permission_name = {
@@ -3522,6 +3525,17 @@ class TaskInstanceModelView(AirflowModelView):
         'start_date',
         'end_date',
     ]
+
+    edit_columns = [
+        'state',
+        'dag_id',
+        'task_id',
+        'execution_date',
+        'start_date',
+        'end_date',
+    ]
+
+    edit_form = TaskInstanceEditForm
 
     base_order = ('job_id', 'asc')
 

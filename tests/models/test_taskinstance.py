@@ -1977,6 +1977,20 @@ class TestTaskInstance(unittest.TestCase):
                 task_instance_b.run()
                 self.validate_ti_states(dag_run, second_run_state, error_message)
 
+    def test_set_state_up_for_retry(self):
+        dag = DAG('dag', start_date=DEFAULT_DATE)
+        op1 = DummyOperator(task_id='op_1', owner='test', dag=dag)
+
+        ti = TI(task=op1, execution_date=timezone.utcnow(), state=State.RUNNING)
+        start_date = timezone.utcnow()
+        ti.start_date = start_date
+
+        ti.set_state(State.UP_FOR_RETRY)
+        assert ti.state == State.UP_FOR_RETRY
+        assert ti.start_date == start_date, "Start date should have been left alone"
+        assert ti.start_date < ti.end_date
+        assert ti.duration > 0
+
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
 def test_refresh_from_task(pool_override):

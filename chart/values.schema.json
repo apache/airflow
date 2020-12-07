@@ -688,6 +688,10 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
+                "allowPodLogReading": {
+                  "description": "Allow webserver to read k8s pod logs. Useful when you don't have an external log store.",
+                  "type": "boolean"
+                },
                 "livenessProbe": {
                     "description": "Liveness probe configuration.",
                     "type": "object",

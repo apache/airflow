@@ -34,7 +34,7 @@
 #                        much smaller.
 #
 ARG AIRFLOW_VERSION="2.0.0.dev0"
-ARG AIRFLOW_EXTRAS="async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,ssh,statsd,virtualenv"
+ARG AIRFLOW_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ARG ADDITIONAL_PYTHON_DEPS=""
 
@@ -47,6 +47,8 @@ ARG CASS_DRIVER_BUILD_CONCURRENCY="8"
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 ARG PYTHON_MAJOR_MINOR_VERSION="3.6"
 
+ARG PIP_VERSION=20.2.4
+
 ##############################################################################################
 # This is the build image where we build all dependencies
 ##############################################################################################
@@ -58,6 +60,9 @@ ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE}
 
 ARG PYTHON_MAJOR_MINOR_VERSION
 ENV PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION}
+
+ARG PIP_VERSION
+ENV PIP_VERSION=${PIP_VERSION}
 
 # Make sure noninteractive debian install is used and language variables set
 ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
@@ -168,6 +173,8 @@ RUN if [[ -f /docker-context-files/.pypirc ]]; then \
         cp /docker-context-files/.pypirc /root/.pypirc; \
     fi
 
+RUN pip install --upgrade "pip==${PIP_VERSION}"
+
 # In case of Production build image segment we want to pre-install master version of airflow
 # dependencies from GitHub so that we do not have to always reinstall it from the scratch.
 RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
@@ -176,7 +183,8 @@ RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
        fi; \
        pip install --user \
           "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
-          --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" && pip uninstall --yes apache-airflow; \
+          --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" \
+          && pip uninstall --yes apache-airflow; \
     fi
 
 ARG AIRFLOW_SOURCES_FROM="."
@@ -202,11 +210,11 @@ ENV AIRFLOW_INSTALL_SOURCES=${AIRFLOW_INSTALL_SOURCES}
 ARG AIRFLOW_INSTALL_VERSION=""
 ENV AIRFLOW_INSTALL_VERSION=${AIRFLOW_INSTALL_VERSION}
 
-ARG AIRFLOW_LOCAL_PIP_WHEELS=""
-ENV AIRFLOW_LOCAL_PIP_WHEELS=${AIRFLOW_LOCAL_PIP_WHEELS}
+ARG INSTALL_FROM_DOCKER_CONTEXT_FILES=""
+ENV INSTALL_FROM_DOCKER_CONTEXT_FILES=${INSTALL_FROM_DOCKER_CONTEXT_FILES}
 
-ARG INSTALL_AIRFLOW_VIA_PIP="true"
-ENV INSTALL_AIRFLOW_VIA_PIP=${INSTALL_AIRFLOW_VIA_PIP}
+ARG INSTALL_FROM_PYPI="true"
+ENV INSTALL_FROM_PYPI=${INSTALL_FROM_PYPI}
 
 ARG SLUGIFY_USES_TEXT_UNIDECODE=""
 ENV SLUGIFY_USES_TEXT_UNIDECODE=${SLUGIFY_USES_TEXT_UNIDECODE}
@@ -220,16 +228,16 @@ WORKDIR /opt/airflow
 RUN if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then \
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}; \
     fi; \
-    if [[ ${INSTALL_AIRFLOW_VIA_PIP} == "true" ]]; then \
+    if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
         pip install --user "${AIRFLOW_INSTALL_SOURCES}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
             --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
     fi; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
         pip install --user ${ADDITIONAL_PYTHON_DEPS} --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
     fi; \
-    if [[ ${AIRFLOW_LOCAL_PIP_WHEELS} == "true" ]]; then \
+    if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
         if ls /docker-context-files/*.whl 1> /dev/null 2>&1; then \
-            pip install --user --no-deps /docker-context-files/*.whl; \
+            pip install --user --no-deps /docker-context-files/*.{whl,tar.gz}; \
         fi ; \
     fi; \
     find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r || true ; \
@@ -293,6 +301,9 @@ ENV AIRFLOW_VERSION=${AIRFLOW_VERSION}
 # Make sure noninteractive debian install is used and language variables set
 ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
+
+ARG PIP_VERSION
+ENV PIP_VERSION=${PIP_VERSION}
 
 # Install curl and gnupg2 - needed for many other installation steps
 RUN apt-get update \
@@ -393,6 +404,8 @@ COPY --chown=airflow:root --from=airflow-build-image /root/.local "${AIRFLOW_USE
 COPY --chown=airflow:root scripts/in_container/prod/entrypoint_prod.sh /entrypoint
 COPY --chown=airflow:root scripts/in_container/prod/clean-logs.sh /clean-logs
 RUN chmod a+x /entrypoint /clean-logs
+
+RUN pip install --upgrade "pip==${PIP_VERSION}"
 
 # Make /etc/passwd root-group-writeable so that user can be dynamically added by OpenShift
 # See https://github.com/apache/airflow/issues/9248

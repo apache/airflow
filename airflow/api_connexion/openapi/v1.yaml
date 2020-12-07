@@ -1937,7 +1937,7 @@ components:
       type: object
       description: |
         For details see:
-        (airflow.models.BaseOperator)[https://airflow.readthedocs.io/en/stable/_api/airflow/models/index.html#airflow.models.BaseOperator]
+        (airflow.models.BaseOperator)[https://airflow.apache.org/docs/stable/_api/airflow/models/index.html#airflow.models.BaseOperator]
       properties:
         class_ref:
           $ref: '#/components/schemas/ClassReference'

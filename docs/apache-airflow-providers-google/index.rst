@@ -37,3 +37,9 @@ Content
 
     Python API <_api/airflow/providers/google/index>
     Configuration <configurations-ref>
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Resources
+
+    Example DAGs <example-dags>

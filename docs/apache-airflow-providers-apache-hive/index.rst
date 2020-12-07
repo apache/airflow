@@ -27,3 +27,9 @@ Content
     :caption: References
 
     Python API <_api/airflow/providers/apache/hive/index>
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Resources
+
+    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/apache/hive/example_dags>

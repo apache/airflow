@@ -28,7 +28,7 @@ integrations:
   - integration-name: Hypertext Transfer Protocol (HTTP)
     external-doc-url: https://www.w3.org/Protocols/
     how-to-guide:
-      - /docs/howto/operator/http.rst
+      - /docs/apache-airflow-providers-http/operators.rst
     tags: [protocol]
 
 operators:

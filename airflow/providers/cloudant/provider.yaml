@@ -32,3 +32,6 @@ hooks:
   - integration-name: IBM Cloudant
     python-modules:
       - airflow.providers.cloudant.hooks.cloudant
+
+hook-class-names:
+  - airflow.providers.cloudant.hooks.cloudant.CloudantHook

@@ -20,12 +20,7 @@
 
 setup_provider_packages
 
-LIST_OF_DIRS_FILE=$(mktemp)
 
-cd "${AIRFLOW_SOURCES}/airflow/providers" || exit 1
-
-find . -type d | sed 's/.\///; s/\//\./g' | grep -E 'hooks|operators|sensors|secrets|utils' \
-    > "${LIST_OF_DIRS_FILE}"
 
 cd "${AIRFLOW_SOURCES}/provider_packages" || exit 1
 
@@ -34,12 +29,25 @@ REFACTOR_PROVIDER_PACKAGES_PY="${AIRFLOW_SOURCES}/dev/provider_packages/refactor
 
 verify_suffix_versions_for_package_preparation
 
-if [[ -z "$*" ]]; then
-    PROVIDERS_PACKAGES=$(python3 "${PREPARE_PROVIDER_PACKAGES_PY}" list-providers-packages)
+if [[ ${BACKPORT_PACKAGES} == "true" ]]; then
+  list_subcmd="list-backportable-packages"
+else
+  list_subcmd="list-providers-packages"
+fi
 
+function check_missing_providers() {
     PACKAGE_ERROR="false"
+
+    pushd "${AIRFLOW_SOURCES}/airflow/providers" >/dev/null || exit 1
+
+    LIST_OF_DIRS_FILE=$(mktemp)
+    find . -type d | sed 's!./!!; s!/!.!g' | grep -E 'hooks|operators|sensors|secrets|utils' \
+        > "${LIST_OF_DIRS_FILE}"
+
+    popd >/dev/null
+
     # Check if all providers are included
-    for PACKAGE in ${PROVIDERS_PACKAGES}
+    for PACKAGE in "${PROVIDER_PACKAGES[@]}"
     do
         if ! grep -E "^${PACKAGE}" <"${LIST_OF_DIRS_FILE}" >/dev/null; then
             echo "The package ${PACKAGE} is not available in providers dir"
@@ -54,16 +62,30 @@ if [[ -z "$*" ]]; then
         exit 1
     fi
 
-    NUM_LINES=$(wc -l "${LIST_OF_DIRS_FILE}" | awk '{ print $1 }')
-    if [[ ${NUM_LINES} != "0" ]]; then
+    if [[ $(wc -l < "${LIST_OF_DIRS_FILE}") != "0" ]]; then
         echo "ERROR! Some folders from providers package are not defined"
         echo "       Please add them to dev/provider_packages/prepare_provider_packages.py:"
         echo
         cat "${LIST_OF_DIRS_FILE}"
         echo
+
+        rm "$LIST_OF_DIRS_FILE"
         exit 1
     fi
-    PROVIDER_PACKAGES=$(python3 "${PREPARE_PROVIDER_PACKAGES_PY}" list-backportable-packages)
+    rm "$LIST_OF_DIRS_FILE"
+}
+
+if [[ -z "$*" ]]; then
+    PROVIDER_PACKAGES=()
+    while IFS='' read -r line; do PROVIDER_PACKAGES+=("$line"); done < <(
+      python3 "${PREPARE_PROVIDER_PACKAGES_PY}" "$list_subcmd"
+    )
+
+    if [[ "$BACKPORT_PACKAGES" != "true" ]]; then
+        # Don't check for missing packages when we are building backports -- we have filtered someout, and the
+        # non-backport build will check for any missing.
+        check_missing_providers
+    fi
 else
     if [[ "$1" == "--help" ]]; then
         echo
@@ -76,7 +98,7 @@ else
         echo
         exit
     fi
-    PROVIDER_PACKAGES="$*"
+    PROVIDER_PACKAGES=("$@")
 fi
 
 if [[ ${BACKPORT_PACKAGES} == "true" ]]; then
@@ -93,14 +115,13 @@ python3 "${REFACTOR_PROVIDER_PACKAGES_PY}"
 
 rm -rf dist/*
 
-for PROVIDER_PACKAGE in ${PROVIDER_PACKAGES}
+for PROVIDER_PACKAGE in "${PROVIDER_PACKAGES[@]}"
 do
-    rm -rf -- *.egg-info
-    rm -rf build/
+    rm -rf -- *.egg-info build/
     LOG_FILE=$(mktemp)
     python3 "${PREPARE_PROVIDER_PACKAGES_PY}" generate-setup-files "${PROVIDER_PACKAGE}"
     echo "==================================================================================="
-    echo " Preparing ${PACKAGE_TYPE} package ${PROVIDER_PACKAGE} "
+    echo " Preparing ${PACKAGE_TYPE} package ${PROVIDER_PACKAGE} format: ${PACKAGE_FORMAT}"
     if [[ "${VERSION_SUFFIX_FOR_PYPI}" == '' && "${VERSION_SUFFIX_FOR_SVN}" == ''
             && ${FILE_VERSION_SUFFIX} == '' ]]; then
         echo
@@ -139,7 +160,7 @@ do
         cat "${LOG_FILE}"
         exit "${RES}"
     fi
-    echo " Prepared ${PACKAGE_TYPE} package ${PROVIDER_PACKAGE}"
+    echo " Prepared ${PACKAGE_TYPE} package ${PROVIDER_PACKAGE} format ${PACKAGE_FORMAT}"
     echo "==================================================================================="
 done
 
@@ -160,10 +181,6 @@ if [[ ${FILE_VERSION_SUFFIX} != "" ]]; then
 fi
 
 popd
-
-AIRFLOW_PACKAGES_TGZ_FILE="/files/airflow-packages-$(date +"%Y%m%d-%H%M%S")-${TARGET_VERSION_SUFFIX}.tar.gz"
-
-tar -cvzf "${AIRFLOW_PACKAGES_TGZ_FILE}" dist/*.whl dist/*.tar.gz
 echo
-echo "Airflow packages are in dist folder and tar-gzipped in ${AIRFLOW_PACKAGES_TGZ_FILE}"
+echo "Airflow packages are in dist folder "
 echo

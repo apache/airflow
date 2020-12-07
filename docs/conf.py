@@ -34,19 +34,12 @@
 import glob
 import os
 import sys
-from typing import List
+from typing import List, Optional
 
 import yaml
 
 import airflow
 from airflow.configuration import default_config_yaml
-
-try:
-    import sphinx_airflow_theme  # pylint: disable=unused-import
-
-    airflow_theme_is_available = True
-except ImportError:
-    airflow_theme_is_available = False
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'exts'))
 
@@ -54,15 +47,12 @@ CONF_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 ROOT_DIR = os.path.abspath(os.path.join(CONF_DIR, os.pardir))
 
 # By default (e.g. on RTD), build docs for `airflow` package
-PACKAGE_NAME = os.environ.get('AIRFLOW_PACKAGE_NAME', 'airflow')
+PACKAGE_NAME = os.environ.get('AIRFLOW_PACKAGE_NAME', 'apache-airflow')
+PACKAGE_DIR: Optional[str]
 if PACKAGE_NAME == 'apache-airflow':
-    os.environ['AIRFLOW_PACKAGE_NAME'] = 'airflow'
-    os.environ['AIRFLOW_PACKAGE_DIR'] = os.path.abspath(os.getcwd())
-    os.environ['AIRFLOW_PACKAGE_VERSION'] = airflow.__version__
     PACKAGE_DIR = os.path.join(ROOT_DIR, 'airflow')
     PACKAGE_VERSION = airflow.__version__
-else:
-    PACKAGE_NAME = os.environ['AIRFLOW_PACKAGE_NAME']
+elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
     from provider_yaml_utils import load_package_data  # pylint: disable=no-name-in-module
 
     ALL_PROVIDER_YAMLS = load_package_data()
@@ -76,6 +66,14 @@ else:
         raise Exception(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
     PACKAGE_DIR = CURRENT_PROVIDER['package-dir']
     PACKAGE_VERSION = 'master'
+else:
+    PACKAGE_DIR = None
+    PACKAGE_VERSION = 'master'
+# Adds to environment variables for easy access from other plugins like airflow_internsphinx.
+os.environ['AIRFLOW_PACKAGE_NAME'] = PACKAGE_NAME
+if PACKAGE_DIR:
+    os.environ['AIRFLOW_PACKAGE_DIR'] = PACKAGE_DIR
+os.environ['AIRFLOW_PACKAGE_VERSION'] = PACKAGE_VERSION
 
 
 # Hack to allow changing for piece of the code to behave differently while
@@ -107,13 +105,14 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinxarg.ext',
     'sphinx.ext.intersphinx',
-    'autoapi.extension',
     'exampleinclude',
     'docroles',
     'removemarktransform',
     'sphinx_copybutton',
     'airflow_intersphinx',
     "sphinxcontrib.spelling",
+    'sphinx_airflow_theme',
+    'redirects',
 ]
 if PACKAGE_NAME == 'apache-airflow':
     extensions.extend(
@@ -122,15 +121,21 @@ if PACKAGE_NAME == 'apache-airflow':
             'sphinx.ext.graphviz',
             'sphinxcontrib.httpdomain',
             'sphinxcontrib.httpdomain',
-            'providers_packages_ref',
-            'operators_and_hooks_ref',
             # First, generate redoc
             'sphinxcontrib.redoc',
             # Second, update redoc script
             "sphinx_script_update",
         ]
     )
-
+if PACKAGE_NAME == "apache-airflow-providers":
+    extensions.extend(
+        [
+            'operators_and_hooks_ref',
+            'providers_packages_ref',
+        ]
+    )
+else:
+    extensions.append('autoapi.extension')
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 exclude_patterns: List[str]
@@ -138,23 +143,14 @@ if PACKAGE_NAME == 'apache-airflow':
     exclude_patterns = [
         # We only link to selected subpackages.
         '_api/airflow/index.rst',
-        # We have custom page - operators-and-hooks-ref.rst
-        '_api/airflow/providers/index.rst',
-        # Packages with subpackages
-        "_api/airflow/providers/microsoft/index.rst",
-        "_api/airflow/providers/apache/index.rst",
-        "_api/airflow/providers/cncf/index.rst",
-        # Templates or partials
-        'autoapi_templates',
-        'howto/operator/google/_partials',
-        'howto/operator/microsoft/_partials',
-        'apache-airflow-providers-*/',
         'README.rst',
-    ] + glob.glob('apache-airflow-providers-*')
-else:
-    exclude_patterns = [
-        '/_partials/',
     ]
+elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
+    exclude_patterns = [
+        'operators/_partials',
+    ]
+else:
+    exclude_patterns = []
 
 
 def _get_rst_filepath_from_path(filepath: str):
@@ -198,10 +194,7 @@ keep_warnings = True
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'sphinx_rtd_theme'
-
-if airflow_theme_is_available:
-    html_theme = 'sphinx_airflow_theme'
+html_theme = 'sphinx_airflow_theme'
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
@@ -222,7 +215,7 @@ html_favicon = "../airflow/www/static/pin_32.png"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 if PACKAGE_NAME == 'apache-airflow':
-    html_static_path = ['static']
+    html_static_path = ['apache-airflow/static']
 else:
     html_static_path = []
 # A list of JavaScript filename. The entry must be a filename string or a
@@ -234,15 +227,16 @@ if PACKAGE_NAME == 'apache-airflow':
 else:
     html_js_files = []
 
+# -- Theme configuration -------------------------------------------------------
 # Custom sidebar templates, maps document names to template names.
-if airflow_theme_is_available:
-    html_sidebars = {
-        '**': [
-            'version-selector.html',
-            'searchbox.html',
-            'globaltoc.html',
-        ]
-    }
+html_sidebars = {
+    '**': [
+        # TODO(mik-laj): TODO: Add again on production version of documentation
+        # 'version-selector.html',
+        'searchbox.html',
+        'globaltoc.html',
+    ]
+}
 
 # If false, no index is generated.
 html_use_index = True
@@ -250,36 +244,36 @@ html_use_index = True
 # If true, "(C) Copyright ..." is shown in the HTML footer. Default is True.
 html_show_copyright = False
 
+# Theme configuration
+sphinx_airflow_theme_navbar_links = [{'href': '/index.html', 'text': 'Documentation'}]
+sphinx_airflow_theme_hide_website_buttons = True
 # A dictionary of values to pass into the template engine’s context for all pages.
 html_context = {
     # Google Analytics ID.
     # For more information look at:
     # https://github.com/readthedocs/sphinx_rtd_theme/blob/master/sphinx_rtd_theme/layout.html#L222-L232
     'theme_analytics_id': 'UA-140539454-1',
+    # Variables used to build a button for editing the source code
+    #
+    # The path is created according to the following template:
+    #
+    # https://{{ github_host|default("github.com") }}/{{ github_user }}/{{ github_repo }}/
+    # {{ theme_vcs_pageview_mode|default("blob") }}/{{ github_version }}{{ conf_py_path }}
+    # {{ pagename }}{{ suffix }}
+    #
+    # More information:
+    # https://github.com/readthedocs/readthedocs.org/blob/master/readthedocs/doc_builder/templates/doc_builder/conf.py.tmpl#L100-L103
+    # https://github.com/readthedocs/sphinx_rtd_theme/blob/master/sphinx_rtd_theme/breadcrumbs.html#L45
+    # https://github.com/apache/airflow-site/blob/91f760c/sphinx_airflow_theme/sphinx_airflow_theme/suggest_change_button.html#L36-L40
+    #
+    'theme_vcs_pageview_mode': 'edit',
+    'conf_py_path': f'/docs/{PACKAGE_NAME}/',
+    'github_user': 'apache',
+    'github_repo': 'airflow',
+    'github_version': 'master',
+    'display_github': 'master',
+    'suffix': '.rst',
 }
-if airflow_theme_is_available:
-    html_context = {
-        # Variables used to build a button for editing the source code
-        #
-        # The path is created according to the following template:
-        #
-        # https://{{ github_host|default("github.com") }}/{{ github_user }}/{{ github_repo }}/
-        # {{ theme_vcs_pageview_mode|default("blob") }}/{{ github_version }}{{ conf_py_path }}
-        # {{ pagename }}{{ suffix }}
-        #
-        # More information:
-        # https://github.com/readthedocs/readthedocs.org/blob/master/readthedocs/doc_builder/templates/doc_builder/conf.py.tmpl#L100-L103
-        # https://github.com/readthedocs/sphinx_rtd_theme/blob/master/sphinx_rtd_theme/breadcrumbs.html#L45
-        # https://github.com/apache/airflow-site/blob/91f760c/sphinx_airflow_theme/sphinx_airflow_theme/suggest_change_button.html#L36-L40
-        #
-        'theme_vcs_pageview_mode': 'edit',
-        'conf_py_path': '/docs/',
-        'github_user': 'apache',
-        'github_repo': 'airflow',
-        'github_version': 'master',
-        'display_github': 'master',
-        'suffix': '.rst',
-    }
 
 # == Extensions configuration ==================================================
 
@@ -289,7 +283,7 @@ if airflow_theme_is_available:
 # Jinja context
 if PACKAGE_NAME == 'apache-airflow':
     jinja_contexts = {'config_ctx': {"configs": default_config_yaml()}}
-else:
+elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
 
     def _load_config():
         templates_dir = os.path.join(PACKAGE_DIR, 'config_templates')
@@ -359,6 +353,7 @@ autodoc_mock_imports = [
     'smbclient',
     'snowflake',
     'sshtunnel',
+    'telegram',
     'tenacity',
     'vertica_python',
     'winrm',
@@ -457,15 +452,12 @@ autoapi_keep_files = True
 
 # Relative path to output the AutoAPI files into. This can also be used to place the generated documentation
 # anywhere in your documentation hierarchy.
-if PACKAGE_NAME == 'apache-airflow':
-    autoapi_root = '_api'
-else:
-    autoapi_root = f'{PACKAGE_NAME}/_api'
+autoapi_root = f'{PACKAGE_NAME}/_api'
 
 # Whether to insert the generated documentation into the TOC tree. If this is False, the default AutoAPI
 # index page is not generated and you will need to include the generated documentation in a
 # TOC tree entry yourself.
-autoapi_add_toctree_entry = bool(PACKAGE_NAME == 'apache-airflow')
+autoapi_add_toctree_entry = False
 
 # -- Options for ext.exampleinclude --------------------------------------------
 exampleinclude_sourceroot = os.path.abspath('..')

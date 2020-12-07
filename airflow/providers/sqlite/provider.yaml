@@ -38,3 +38,6 @@ hooks:
   - integration-name: SQLite
     python-modules:
       - airflow.providers.sqlite.hooks.sqlite
+
+hook-class-names:
+  - airflow.providers.sqlite.hooks.sqlite.SqliteHook

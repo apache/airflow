@@ -43,3 +43,6 @@ hooks:
   - integration-name: Docker
     python-modules:
       - airflow.providers.docker.hooks.docker
+
+hook-class-names:
+  - airflow.providers.docker.hooks.docker.DockerHook

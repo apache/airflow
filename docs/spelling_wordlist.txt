@@ -102,6 +102,7 @@ Decrypt
 Decrypts
 DeidentifyContentResponse
 DeidentifyTemplate
+Deprecations
 Deserialize
 Deserialized
 Dingding
@@ -469,6 +470,7 @@ aws
 awsbatch
 backend
 backends
+backcompat
 backfill
 backfilled
 backfilling
@@ -545,6 +547,7 @@ cmd
 cmdline
 cmds
 cname
+cncf
 cnf
 cnt
 codebase
@@ -659,6 +662,8 @@ dlp
 dns
 dnsPolicy
 dnspolicy
+dockerfiles
+docsite
 docstring
 docstrings
 doesn
@@ -686,6 +691,7 @@ encryptor
 enqueue
 enqueued
 entrypoint
+entrypoints
 enum
 env
 envFrom
@@ -772,6 +778,7 @@ gpus
 greenlet
 groupId
 grpc
+gz
 hadoop
 hadoopcmd
 hashicorp
@@ -916,6 +923,7 @@ localhost
 localstack
 lodash
 logfile
+logformat
 loglevel
 logstash
 lshift
@@ -937,6 +945,7 @@ metarouter
 metastore
 mget
 microservice
+microsoft
 middleware
 mik
 milton
@@ -997,6 +1006,7 @@ onboarded
 onkill
 openfaas
 oper
+opsgenie
 optimise
 ora
 orm
@@ -1103,6 +1113,7 @@ readthedocs
 realtime
 rebase
 recurses
+redbubble
 redis
 redoc
 redownloading

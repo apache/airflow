@@ -38,3 +38,6 @@ hooks:
   - integration-name: Vertica
     python-modules:
       - airflow.providers.vertica.hooks.vertica
+
+hook-class-names:
+  - airflow.providers.vertica.hooks.vertica.VerticaHook

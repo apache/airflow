@@ -37,7 +37,11 @@ class AzureBatchHook(BaseHook):
     The account url should be in extra parameter as account_url
     """
 
-    def __init__(self, azure_batch_conn_id: str = 'azure_batch_default') -> None:
+    conn_name_attr = 'azure_batch_conn_id'
+    default_conn_name = 'azure_batch_default'
+    conn_type = 'azure_batch'
+
+    def __init__(self, azure_batch_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn_id = azure_batch_conn_id
         self.connection = self.get_conn()
