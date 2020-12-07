@@ -41,7 +41,7 @@ assists users migrating to a new version.
 - [Step 6: Upgrade KubernetesExecutor settings](#step-6-upgrade-kubernetesexecutor-settings)
   - [The KubernetesExecutor Will No Longer Read from the airflow.cfg for Base Pod Configurations](#the-kubernetesexecutor-will-no-longer-read-from-the-airflowcfg-for-base-pod-configurations)
   - [The `executor_config` Will Now Expect a `kubernetes.client.models.V1Pod` Class When Launching Tasks](#the-executor_config-will-now-expect-a-kubernetesclientmodelsv1pod-class-when-launching-tasks)
-  - [The "airflow run" Command Will Row run Through the ``args`` Argument Instead of the ``command`` Argument](#the-airflow-run-command-will-row-run-through-the-args-argument-instead-of-the-command-argument)
+  - [The "airflow run" Command Will Row run through the `args` argument Instead of the `command` argument](#the-airflow-run-command-will-row-run-through-the-args-argument-instead-of-the-command-argument)
 - [Appendix](#appendix)
   - [Changed Parameters for the KubernetesPodOperator](#changed-parameters-for-the-kubernetespodoperator)
   - [Migration Guide from Experimental API to Stable API v1](#migration-guide-from-experimental-api-to-stable-api-v1)
@@ -497,9 +497,9 @@ but will be removed in a future version.
 ### The "airflow run" Command Will Row run through the `args` argument Instead of the `command` argument
 
 To ensure that the KubernetesExecutor can work with entrypoint scripts (which are critical to running on OpenShift),
-KubernetesExecutor pods will run the ``airflow run`` command via the ``arg`` argument instead of the ``command``
-argument. This information is really only relevent if you modify the ``command`` or ``args`` arguments in your
-``pod_mutation_hook``. For example, if you previously had a ``pod_mutation_hook`` that looked like
+KubernetesExecutor pods will run the `airflow run` command via the `arg` argument instead of the `command`
+argument. This information is really only relevent if you modify the `command` or `args` arguments in your
+`pod_mutation_hook`. For example, if you previously had a `pod_mutation_hook` that looked like
 
 ```python
 def pod_mutation_hook(pod):
