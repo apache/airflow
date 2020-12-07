@@ -23,7 +23,7 @@ Revises: 947454bf1dff
 Create Date: 2017-08-18 17:07:16.686130
 
 """
-from alembic import context, op
+from alembic import op
 from sqlalchemy.dialects import mysql
 
 # revision identifiers, used by Alembic.
@@ -34,10 +34,12 @@ depends_on = None
 
 
 def upgrade():  # noqa: D103
-    if context.config.get_main_option('sqlalchemy.url').startswith('mysql'):
+    conn = op.get_bind()
+    if conn.dialect.name == "mysql":
         op.alter_column(table_name='variable', column_name='val', type_=mysql.MEDIUMTEXT)
 
 
 def downgrade():  # noqa: D103
-    if context.config.get_main_option('sqlalchemy.url').startswith('mysql'):
+    conn = op.get_bind()
+    if conn.dialect.name == "mysql":
         op.alter_column(table_name='variable', column_name='val', type_=mysql.TEXT)
