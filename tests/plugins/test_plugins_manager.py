@@ -25,7 +25,7 @@ from airflow.plugins_manager import AirflowPlugin
 from airflow.www import app as application
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
-py39 = sys.version_info[0:2] >= (3, 9)
+py39 = sys.version_info >= (3, 9)
 importlib_metadata = 'importlib.metadata' if py39 else 'importlib_metadata'
 
 
