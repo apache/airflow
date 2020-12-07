@@ -23,7 +23,7 @@ import sys
 # Check whether Airflow is available in the environment.
 # If it is, we'll want to ensure that we integrate any macros that are being provided
 # by plugins prior to unpickling the task context.
-if int(sys.version[0]) >= 3:
+if sys.version_info.major >= 3 and sys.version_info.minor >= 6:
     try:
         from airflow.plugins_manager import integrate_macros_plugins
         integrate_macros_plugins()
