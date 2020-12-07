@@ -117,8 +117,6 @@ unset AIRFLOW__CORE__UNIT_TEST_MODE
 mkdir -pv "${AIRFLOW_HOME}/logs/"
 cp -f "${IN_CONTAINER_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
 
-disable_rbac_if_requested
-
 set +e
 "${IN_CONTAINER_DIR}/check_environment.sh"
 ENVIRONMENT_EXIT_CODE=$?
