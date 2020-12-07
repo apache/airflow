@@ -222,9 +222,9 @@ class TestPrestoHookIntegration(unittest.TestCase):
     def test_should_record_records_with_kerberos_auth(self):
         conn_url = (
             'presto://airflow@presto:7778/?'
-            'auth=kerberos&kerberos__service_name=HTTP&'
-            'verify=False&'
-            'protocol=https'
+            + 'auth=kerberos&kerberos__service_name=HTTP&'
+            + 'verify=False&'
+            + 'protocol=https'
         )
         with mock.patch.dict('os.environ', AIRFLOW_CONN_PRESTO_DEFAULT=conn_url):
             hook = PrestoHook()

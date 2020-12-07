@@ -143,9 +143,9 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         self.assertEqual(("CREDENTIALS", "PROJECT_ID"), result)
         self.assertEqual(
             [
-                'INFO:airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider:Getting '
-                'connection using `google.auth.default()` since no key file is defined for '
-                'hook.'
+                'INFO:airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider:Getting'
+                + ' connection using `google.auth.default()` since no key file is defined for '
+                + 'hook.'
             ],
             cm.output,
         )
@@ -249,8 +249,9 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         self.assertEqual((mock_from_service_account_file.return_value, self.test_project_id), result)
         self.assertEqual(
             [
-                'DEBUG:airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider:Getting '
-                'connection using JSON key file KEY_PATH.json'
+                'DEBUG:airflow.providers.google.cloud.utils.'
+                + 'credentials_provider._CredentialProvider:Getting '
+                + 'connection using JSON key file KEY_PATH.json'
             ],
             cm.output,
         )
@@ -272,8 +273,9 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         self.assertEqual((mock_from_service_account_info.return_value, self.test_project_id), result)
         self.assertEqual(
             [
-                'DEBUG:airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider:Getting '
-                'connection using JSON Dict'
+                'DEBUG:airflow.providers.google.cloud.utils.'
+                + 'credentials_provider._CredentialProvider:Getting '
+                + 'connection using JSON Dict'
             ],
             cm.output,
         )

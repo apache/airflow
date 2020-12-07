@@ -48,11 +48,11 @@ class TestOdbcHook:
         hook = self.get_hook(conn_params=conn_params)
         expected = (
             'DRIVER={Fake Driver};'
-            'SERVER=host;'
-            'DATABASE=schema;'
-            'UID=login;'
-            'PWD=password;'
-            'Fake_Param=Fake Param;'
+            + 'SERVER=host;'
+            + 'DATABASE=schema;'
+            + 'UID=login;'
+            + 'PWD=password;'
+            + 'Fake_Param=Fake Param;'
         )
         assert hook.odbc_connection_string == expected
 
@@ -62,11 +62,11 @@ class TestOdbcHook:
         hook = self.get_hook(hook_params=hook_params, conn_params=conn_params)
         expected = (
             'DRIVER={ParamDriver};'
-            'SERVER=host;'
-            'DATABASE=schema;'
-            'UID=login;'
-            'PWD=password;'
-            'Fake_Param=Fake Param;'
+            + 'SERVER=host;'
+            + 'DATABASE=schema;'
+            + 'UID=login;'
+            + 'PWD=password;'
+            + 'Fake_Param=Fake Param;'
         )
         assert hook.odbc_connection_string == expected
 
@@ -82,12 +82,12 @@ class TestOdbcHook:
         hook = self.get_hook(hook_params=hook_params, conn_params=conn_params)
         expected = (
             'DRIVER={ParamDriver};'
-            'DSN=ParamDSN;'
-            'SERVER=host;'
-            'DATABASE=schema;'
-            'UID=login;'
-            'PWD=password;'
-            'Fake_Param=Fake Param;'
+            + 'DSN=ParamDSN;'
+            + 'SERVER=host;'
+            + 'DATABASE=schema;'
+            + 'UID=login;'
+            + 'PWD=password;'
+            + 'Fake_Param=Fake Param;'
         )
         assert hook.odbc_connection_string == expected
 

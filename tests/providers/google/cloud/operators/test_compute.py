@@ -339,25 +339,25 @@ class TestGceInstanceSetMachineType(unittest.TestCase):
 
     MOCK_OP_RESPONSE = (
         "{'kind': 'compute#operation', 'id': '8529919847974922736', "
-        "'name': "
-        "'operation-1538578207537-577542784f769-7999ab71-94f9ec1d', "
-        "'zone': 'https://www.googleapis.com/compute/v1/projects/example"
-        "-project/zones/europe-west3-b', 'operationType': "
-        "'setMachineType', 'targetLink': "
-        "'https://www.googleapis.com/compute/v1/projects/example-project"
-        "/zones/europe-west3-b/instances/pa-1', 'targetId': "
-        "'2480086944131075860', 'status': 'DONE', 'user': "
-        "'service-account@example-project.iam.gserviceaccount.com', "
-        "'progress': 100, 'insertTime': '2018-10-03T07:50:07.951-07:00', "
-        "'startTime': '2018-10-03T07:50:08.324-07:00', 'endTime': "
-        "'2018-10-03T07:50:08.484-07:00', 'error': {'errors': [{'code': "
-        "'UNSUPPORTED_OPERATION', 'message': \"Machine type with name "
-        "'machine-type-1' does not exist in zone 'europe-west3-b'.\"}]}, "
-        "'httpErrorStatusCode': 400, 'httpErrorMessage': 'BAD REQUEST', "
-        "'selfLink': "
-        "'https://www.googleapis.com/compute/v1/projects/example-project"
-        "/zones/europe-west3-b/operations/operation-1538578207537"
-        "-577542784f769-7999ab71-94f9ec1d'} "
+        + "'name': "
+        + "'operation-1538578207537-577542784f769-7999ab71-94f9ec1d', "
+        + "'zone': 'https://www.googleapis.com/compute/v1/projects/example"
+        + "-project/zones/europe-west3-b', 'operationType': "
+        + "'setMachineType', 'targetLink': "
+        + "'https://www.googleapis.com/compute/v1/projects/example-project"
+        + "/zones/europe-west3-b/instances/pa-1', 'targetId': "
+        + "'2480086944131075860', 'status': 'DONE', 'user': "
+        + "'service-account@example-project.iam.gserviceaccount.com', "
+        + "'progress': 100, 'insertTime': '2018-10-03T07:50:07.951-07:00', "
+        + "'startTime': '2018-10-03T07:50:08.324-07:00', 'endTime': "
+        + "'2018-10-03T07:50:08.484-07:00', 'error': {'errors': [{'code': "
+        + "'UNSUPPORTED_OPERATION', 'message': \"Machine type with name "
+        + "'machine-type-1' does not exist in zone 'europe-west3-b'.\"}]}, "
+        + "'httpErrorStatusCode': 400, 'httpErrorMessage': 'BAD REQUEST', "
+        + "'selfLink': "
+        + "'https://www.googleapis.com/compute/v1/projects/example-project"
+        + "/zones/europe-west3-b/operations/operation-1538578207537"
+        + "-577542784f769-7999ab71-94f9ec1d'} "
     )
 
     @mock.patch(
@@ -793,22 +793,22 @@ class TestGceInstanceTemplateCopy(unittest.TestCase):
 GCE_INSTANCE_GROUP_MANAGER_NAME = "instance-group-test"
 GCE_INSTANCE_TEMPLATE_SOURCE_URL = (
     "https://www.googleapis.com/compute/beta/projects/project"
-    "/global/instanceTemplates/instance-template-test"
+    + "/global/instanceTemplates/instance-template-test"
 )
 
 GCE_INSTANCE_TEMPLATE_OTHER_URL = (
     "https://www.googleapis.com/compute/beta/projects/project"
-    "/global/instanceTemplates/instance-template-other"
+    + "/global/instanceTemplates/instance-template-other"
 )
 
 GCE_INSTANCE_TEMPLATE_NON_EXISTING_URL = (
     "https://www.googleapis.com/compute/beta/projects/project"
-    "/global/instanceTemplates/instance-template-non-existing"
+    + "/global/instanceTemplates/instance-template-non-existing"
 )
 
 GCE_INSTANCE_TEMPLATE_DESTINATION_URL = (
     "https://www.googleapis.com/compute/beta/projects/project"
-    "/global/instanceTemplates/instance-template-new"
+    + "/global/instanceTemplates/instance-template-new"
 )
 
 GCE_INSTANCE_GROUP_MANAGER_GET = {

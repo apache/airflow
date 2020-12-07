@@ -3077,11 +3077,11 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertEqual(import_error.filename, unparseable_filename)
         expected_stacktrace = (
             "Traceback (most recent call last):\n"
-            '  File "{}", line 3, in <module>\n'
-            "    something()\n"
-            '  File "{}", line 2, in something\n'
-            "    return airflow_DAG\n"
-            "NameError: name 'airflow_DAG' is not defined\n"
+            + '  File "{}", line 3, in <module>\n'
+            + "    something()\n"
+            + '  File "{}", line 2, in something\n'
+            + "    return airflow_DAG\n"
+            + "NameError: name 'airflow_DAG' is not defined\n"
         )
         self.assertEqual(
             import_error.stacktrace, expected_stacktrace.format(unparseable_filename, unparseable_filename)
@@ -3106,9 +3106,9 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertEqual(import_error.filename, unparseable_filename)
         expected_stacktrace = (
             "Traceback (most recent call last):\n"
-            '  File "{}", line 2, in something\n'
-            "    return airflow_DAG\n"
-            "NameError: name 'airflow_DAG' is not defined\n"
+            + '  File "{}", line 2, in something\n'
+            + "    return airflow_DAG\n"
+            + "NameError: name 'airflow_DAG' is not defined\n"
         )
         self.assertEqual(import_error.stacktrace, expected_stacktrace.format(unparseable_filename))
 
@@ -3131,11 +3131,11 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertEqual(import_error.filename, invalid_zip_filename)
         expected_stacktrace = (
             "Traceback (most recent call last):\n"
-            '  File "{}", line 3, in <module>\n'
-            "    something()\n"
-            '  File "{}", line 2, in something\n'
-            "    return airflow_DAG\n"
-            "NameError: name 'airflow_DAG' is not defined\n"
+            + '  File "{}", line 3, in <module>\n'
+            + "    something()\n"
+            + '  File "{}", line 2, in something\n'
+            + "    return airflow_DAG\n"
+            + "NameError: name 'airflow_DAG' is not defined\n"
         )
         self.assertEqual(
             import_error.stacktrace, expected_stacktrace.format(invalid_dag_filename, invalid_dag_filename)
@@ -3161,9 +3161,9 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertEqual(import_error.filename, invalid_zip_filename)
         expected_stacktrace = (
             "Traceback (most recent call last):\n"
-            '  File "{}", line 2, in something\n'
-            "    return airflow_DAG\n"
-            "NameError: name 'airflow_DAG' is not defined\n"
+            + '  File "{}", line 2, in something\n'
+            + "    return airflow_DAG\n"
+            + "NameError: name 'airflow_DAG' is not defined\n"
         )
         self.assertEqual(import_error.stacktrace, expected_stacktrace.format(invalid_dag_filename))
 

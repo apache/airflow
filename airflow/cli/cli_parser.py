@@ -67,7 +67,7 @@ class DefaultHelpParser(argparse.ArgumentParser):
             except ImportError:
                 message = (
                     'The kubernetes subcommand requires that you pip install the kubernetes python client.'
-                    "To do it, run: pip install 'apache-airflow[cncf.kubernetes]'"
+                    + "To do it, run: pip install 'apache-airflow[cncf.kubernetes]'"
                 )
                 raise ArgumentError(action, message)
 

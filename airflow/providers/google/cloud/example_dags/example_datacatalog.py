@@ -292,7 +292,7 @@ with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_inte
     # [START howto_operator_gcp_datacatalog_lookup_entry_linked_resource]
     current_entry_template = (
         "//datacatalog.googleapis.com/projects/{project_id}/locations/{location}/"
-        "entryGroups/{entry_group}/entries/{entry}"
+        + "entryGroups/{entry_group}/entries/{entry}"
     )
     lookup_entry_linked_resource = CloudDataCatalogLookupEntryOperator(
         task_id="lookup_entry",

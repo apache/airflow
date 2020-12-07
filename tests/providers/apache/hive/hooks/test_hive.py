@@ -119,8 +119,8 @@ class TestHiveCliHook(unittest.TestCase):
     def test_run_cli_with_hive_conf(self, mock_popen):
         hql = (
             "set key;\n"
-            "set airflow.ctx.dag_id;\nset airflow.ctx.dag_run_id;\n"
-            "set airflow.ctx.task_id;\nset airflow.ctx.execution_date;\n"
+            + "set airflow.ctx.dag_id;\nset airflow.ctx.dag_run_id;\n"
+            + "set airflow.ctx.task_id;\nset airflow.ctx.execution_date;\n"
         )
 
         dag_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_ID']['env_var_format']

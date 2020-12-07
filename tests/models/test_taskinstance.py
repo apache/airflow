@@ -1240,9 +1240,9 @@ class TestTaskInstance(unittest.TestCase):
 
         expected_url = (
             'http://localhost:8080/log?'
-            'execution_date=2018-01-01T00%3A00%3A00%2B00%3A00'
-            '&task_id=op'
-            '&dag_id=dag'
+            + 'execution_date=2018-01-01T00%3A00%3A00%2B00%3A00'
+            + '&task_id=op'
+            + '&dag_id=dag'
         )
         self.assertEqual(ti.log_url, expected_url)
 

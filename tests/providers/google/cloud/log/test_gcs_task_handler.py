@@ -162,9 +162,9 @@ class TestGCSTaskHandler(unittest.TestCase):
             cm.output,
             [
                 'INFO:airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler:Previous '
-                'log discarded: sequence item 0: expected str instance, bytes found',
+                + 'log discarded: sequence item 0: expected str instance, bytes found',
                 'ERROR:airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler:Could '
-                'not write logs to gs://bucket/remote/log/location/1.log: Failed to connect',
+                + 'not write logs to gs://bucket/remote/log/location/1.log: Failed to connect',
             ],
         )
         mock_blob.assert_has_calls(

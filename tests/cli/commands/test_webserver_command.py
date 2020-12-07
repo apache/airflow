@@ -387,9 +387,9 @@ class TestCliWebServer(unittest.TestCase):
         # json access log format
         access_logformat = (
             "{\"ts\":\"%(t)s\",\"remote_ip\":\"%(h)s\",\"request_id\":\"%({"
-            "X-Request-Id}i)s\",\"code\":\"%(s)s\",\"request_method\":\"%(m)s\","
-            "\"request_path\":\"%(U)s\",\"agent\":\"%(a)s\",\"response_time\":\"%(D)s\","
-            "\"response_length\":\"%(B)s\"} "
+            + "X-Request-Id}i)s\",\"code\":\"%(s)s\",\"request_method\":\"%(m)s\","
+            + "\"request_path\":\"%(U)s\",\"agent\":\"%(a)s\",\"response_time\":\"%(D)s\","
+            + "\"response_length\":\"%(B)s\"} "
         )
         with tempfile.TemporaryDirectory() as tmpdir, mock.patch.dict(
             "os.environ",

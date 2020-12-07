@@ -28,7 +28,7 @@ from airflow.providers.amazon.aws.sensors.step_function_execution import StepFun
 TASK_ID = 'step_function_execution_sensor'
 EXECUTION_ARN = (
     'arn:aws:states:us-east-1:123456789012:execution:'
-    'pseudo-state-machine:020f5b16-b1a1-4149-946f-92dd32d97934'
+    + 'pseudo-state-machine:020f5b16-b1a1-4149-946f-92dd32d97934'
 )
 AWS_CONN_ID = 'aws_non_default'
 REGION_NAME = 'us-west-2'

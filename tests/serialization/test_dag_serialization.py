@@ -658,7 +658,7 @@ class TestStringifiedDAGs(unittest.TestCase):
             received_logs = log_output.output[0]
             expected_err_msg = (
                 "Operator Link class 'tests.serialization.test_dag_serialization.TaskStateLink' "
-                "not registered"
+                + "not registered"
             )
             assert expected_err_msg in received_logs
 
@@ -761,7 +761,8 @@ class TestStringifiedDAGs(unittest.TestCase):
                     att1="{{ task.task_id }}", att2="{{ task.task_id }}", template_fields=["att1"]
                 ),
                 "ClassWithCustomAttributes("
-                "{'att1': '{{ task.task_id }}', 'att2': '{{ task.task_id }}', 'template_fields': ['att1']})",
+                + "{'att1': '{{ task.task_id }}', 'att2': "
+                + "'{{ task.task_id }}', 'template_fields': ['att1']})",
             ),
             (
                 ClassWithCustomAttributes(
@@ -774,10 +775,10 @@ class TestStringifiedDAGs(unittest.TestCase):
                     template_fields=["nested1"],
                 ),
                 "ClassWithCustomAttributes("
-                "{'nested1': ClassWithCustomAttributes({'att1': '{{ task.task_id }}', "
-                "'att2': '{{ task.task_id }}', 'template_fields': ['att1']}), "
-                "'nested2': ClassWithCustomAttributes({'att3': '{{ task.task_id }}', 'att4': "
-                "'{{ task.task_id }}', 'template_fields': ['att3']}), 'template_fields': ['nested1']})",
+                + "{'nested1': ClassWithCustomAttributes({'att1': '{{ task.task_id }}', "
+                + "'att2': '{{ task.task_id }}', 'template_fields': ['att1']}), "
+                + "'nested2': ClassWithCustomAttributes({'att3': '{{ task.task_id }}', 'att4': "
+                + "'{{ task.task_id }}', 'template_fields': ['att3']}), 'template_fields': ['nested1']})",
             ),
         ]
     )

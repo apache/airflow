@@ -210,7 +210,7 @@ class TestSFTPOperator(unittest.TestCase):
     def test_pickle_file_transfer_get(self):
         test_remote_file_content = (
             "This is remote file content \n which is also multiline "
-            "another line here \n this is last line. EOF"
+            + "another line here \n this is last line. EOF"
         )
 
         # create a test file remotely
@@ -248,7 +248,7 @@ class TestSFTPOperator(unittest.TestCase):
     def test_json_file_transfer_get(self):
         test_remote_file_content = (
             "This is remote file content \n which is also multiline "
-            "another line here \n this is last line. EOF"
+            + "another line here \n this is last line. EOF"
         )
 
         # create a test file remotely
@@ -286,7 +286,7 @@ class TestSFTPOperator(unittest.TestCase):
     def test_file_transfer_no_intermediate_dir_error_get(self):
         test_remote_file_content = (
             "This is remote file content \n which is also multiline "
-            "another line here \n this is last line. EOF"
+            + "another line here \n this is last line. EOF"
         )
 
         # create a test file remotely
@@ -322,7 +322,7 @@ class TestSFTPOperator(unittest.TestCase):
     def test_file_transfer_with_intermediate_dir_error_get(self):
         test_remote_file_content = (
             "This is remote file content \n which is also multiline "
-            "another line here \n this is last line. EOF"
+            + "another line here \n this is last line. EOF"
         )
 
         # create a test file remotely

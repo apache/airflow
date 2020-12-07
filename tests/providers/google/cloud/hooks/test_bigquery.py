@@ -87,7 +87,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         bigquery_conn_id = "bigquery conn id"
         warning_message = (
             "The bigquery_conn_id parameter has been deprecated. "
-            "You should pass the gcp_conn_id parameter."
+            + "You should pass the gcp_conn_id parameter."
         )
         with self.assertWarns(DeprecationWarning) as warn:
             BigQueryHook(bigquery_conn_id=bigquery_conn_id)
@@ -296,21 +296,21 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
                 ['INCORRECT_OPTION'],
                 None,
                 r"\['INCORRECT_OPTION'\] contains invalid schema update options\. "
-                r"Please only use one or more of the following options: "
-                r"\['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'\]",
+                + r"Please only use one or more of the following options: "
+                + r"\['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'\]",
             ),
             (
                 ['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION', 'INCORRECT_OPTION'],
                 None,
-                r"\['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION', 'INCORRECT_OPTION'\] contains invalid "
-                r"schema update options\. Please only use one or more of the following options: "
-                r"\['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'\]",
+                r"\['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION', 'INCORRECT_OPTION'\] contains invalid"
+                + r" schema update options\. Please only use one or more of the following options: "
+                + r"\['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'\]",
             ),
             (
                 ['ALLOW_FIELD_ADDITION'],
                 None,
                 r"schema_update_options is only allowed if write_disposition is "
-                r"'WRITE_APPEND' or 'WRITE_TRUNCATE'",
+                + r"'WRITE_APPEND' or 'WRITE_TRUNCATE'",
             ),
         ]
     )
@@ -795,7 +795,7 @@ class TestBigQueryTableSplitter(unittest.TestCase):
                 "alt1.alt.dataset.table",
                 "var_x",
                 r"Format exception for var_x: Expect format of "
-                r"\(<project\.\|<project:\)<dataset>.<table>, got {}",
+                + r"\(<project\.\|<project:\)<dataset>.<table>, got {}",
             ),
         ]
     )

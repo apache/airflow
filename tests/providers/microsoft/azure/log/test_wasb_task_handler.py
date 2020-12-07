@@ -123,7 +123,7 @@ class TestWasbTaskHandler(unittest.TestCase):
                         (
                             '',
                             '*** Reading remote log from wasb://container/remote/log/location/1.log.\n'
-                            'Log line\n',
+                            + 'Log line\n',
                         )
                     ]
                 ],

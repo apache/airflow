@@ -2645,7 +2645,7 @@ class ConfigurationView(AirflowBaseView):
         else:
             config = (
                 "# Your Airflow administrator chose not to expose the "
-                "configuration, most likely for security reasons."
+                + "configuration, most likely for security reasons."
             )
             table = None
 

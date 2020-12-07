@@ -837,8 +837,8 @@ class TestGCSHookUpload(unittest.TestCase):
         test_object = 'test_object'
         both_params_excep = (
             "'filename' and 'data' parameter provided. Please "
-            "specify a single parameter, either 'filename' for "
-            "local file uploads or 'data' for file content uploads."
+            + "specify a single parameter, either 'filename' for "
+            + "local file uploads or 'data' for file content uploads."
         )
         no_params_excep = "'filename' and 'data' parameter missing. One is required to upload to gcs."
 
