@@ -494,7 +494,7 @@ second_task = PythonOperator(
 For Airflow 2.0, the traditional `executor_config` will continue operation with a deprecation warning,
 but will be removed in a future version.
 
-### The "airflow run" Command Will Row run Through the ``args`` Argument Instead of the ``command`` Argument
+### The "airflow run" Command Will Row run through the `args` argument Instead of the `command` argument
 
 To ensure that the KubernetesExecutor can work with entrypoint scripts (which are critical to running on OpenShift),
 KubernetesExecutor pods will run the ``airflow run`` command via the ``arg`` argument instead of the ``command``
