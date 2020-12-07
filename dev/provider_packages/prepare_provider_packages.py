@@ -1588,7 +1588,6 @@ ERROR! Wrong first param: {sys.argv[1]}
         print("Generate setup files")
         print()
         provider = sys.argv[2]
-        make_sure_remote_apache_exists_and_fetch()
         update_generated_files_for_package(
             provider, "", suffix, [], BACKPORT_PACKAGES, update_release_notes=False, update_setup=True
         )
@@ -1596,9 +1595,14 @@ ERROR! Wrong first param: {sys.argv[1]}
     _provider_package = sys.argv[1]
     verify_provider_package(_provider_package)
     del sys.argv[1]
-    print(f"Building backport package: {_provider_package}")
+    package_format = os.environ.get("PACKAGE_FORMAT", "wheel")
+    print(f"Building backport package: {_provider_package} in format ${package_format}")
     copy_readme_and_changelog(_provider_package, BACKPORT_PACKAGES)
-    command = ["python3", "setup.py", "--version-suffix-for-pypi", suffix, "sdist", "bdist_wheel"]
+    command = ["python3", "setup.py", "--version-suffix-for-pypi", suffix]
+    if package_format in ['sdist', 'both']:
+        command.append("sdist")
+    if package_format in ['wheel', 'both']:
+        command.append("bdist_wheel")
     print(f"Executing command: '{command}'")
     subprocess.check_call(
         command,

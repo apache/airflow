@@ -35,6 +35,17 @@ function runs::run_generate_constraints() {
 }
 
 # Docker command to prepare provider packages
+function runs::run_prepare_airflow_packages() {
+    docker run "${EXTRA_DOCKER_FLAGS[@]}" \
+        --entrypoint "/usr/local/bin/dumb-init"  \
+        -t \
+        -v "${AIRFLOW_SOURCES}:/opt/airflow" \
+        "${AIRFLOW_CI_IMAGE}" \
+        "--" "/opt/airflow/scripts/in_container/run_prepare_airflow_packages.sh" "${@}"
+}
+
+
+# Docker command to prepare provider packages
 function runs::run_prepare_provider_packages() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \

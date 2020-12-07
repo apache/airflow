@@ -57,7 +57,6 @@ export EXTRA_STATIC_CHECK_OPTIONS
 #    MAX_SCREEN_WIDTH
 #    SCREEN_WIDTH
 #    MOUNT_LOCAL_SOURCES
-#    MOUNT_FILES
 #    FORCE_PULL_IMAGES
 #    ENABLE_KIND_CLUSTER
 #    FORWARD_CREDENTIALS
@@ -97,9 +96,6 @@ function breeze::setup_default_breeze_constants() {
 
     # By default we mount local Airflow sources
     export MOUNT_LOCAL_SOURCES="true"
-
-    # By default we mount files folder
-    export MOUNT_FILES="true"
 
     # By default we only pull images if we do not have them locally.
     # This can be overridden by '--force-pull-images' flag
@@ -143,7 +139,7 @@ function breeze::setup_default_breeze_constants() {
 
     # if set to true, the ci image will look for wheel packages in dist folder and will install them
     # during entering the container
-    export INSTALL_WHEELS="false"
+    export INSTALL_PACKAGES_FROM_DIST="false"
 
     # Determines whether to force build without checking if it is needed
     # Can be overridden by '--force-build-images' flag.
@@ -640,17 +636,12 @@ function breeze::prepare_command_files() {
     local remove_sources_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/remove-sources.yml
     local forward_credentials_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/forward-credentials.yml
 
-    local compose_ci_file=${main_ci_docker_compose_file}:${backend_docker_compose_file}
-    local compose_prod_file=${main_prod_docker_compose_file}:${backend_docker_compose_file}
+    local compose_ci_file=${main_ci_docker_compose_file}:${backend_docker_compose_file}:${files_docker_compose_file}
+    local compose_prod_file=${main_prod_docker_compose_file}:${backend_docker_compose_file}:${files_docker_compose_file}
 
     if [[ "${MOUNT_LOCAL_SOURCES}" != "false" ]]; then
         compose_ci_file=${compose_ci_file}:${local_docker_compose_file}
         compose_prod_file=${compose_prod_file}:${local_prod_docker_compose_file}
-    fi
-
-    if [[ "${MOUNT_FILES}" != "false" ]]; then
-        compose_ci_file=${compose_ci_file}:${files_docker_compose_file}
-        compose_prod_file=${compose_prod_file}:${files_docker_compose_file}
     fi
 
     if [[ ${FORWARD_CREDENTIALS} == "true" ]]; then
@@ -945,10 +936,10 @@ function breeze::parse_arguments() {
             echo
             shift
             ;;
-        --skip-installing-airflow-via-pip)
-            export INSTALL_AIRFLOW_VIA_PIP="false"
+        --disable-pypi-when-building)
+            export INSTALL_FROM_PYPI="false"
             export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
-            echo "Skip installing airflow via PIP"
+            echo "Disable installing airflow from PYPI"
             shift
             ;;
         -E | --extras)
@@ -956,7 +947,7 @@ function breeze::parse_arguments() {
             echo "Extras : ${AIRFLOW_EXTRAS}"
             shift 2
             ;;
-        --skip-installing-airflow-providers)
+        --skip-installing-airflow-providers-from-sources)
             export INSTALL_PROVIDERS_FROM_SOURCES="false"
             echo "Install all Airflow Providers: false"
             shift
@@ -1037,8 +1028,8 @@ function breeze::parse_arguments() {
             export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
             shift
             ;;
-        --add-local-pip-wheels)
-            export AIRFLOW_LOCAL_PIP_WHEELS="true"
+        --install-from-local-files-when-building)
+            export INSTALL_FROM_DOCKER_CONTEXT_FILES="true"
             echo "Install wheels from local docker-context-files when building image"
             shift
             ;;
@@ -1088,7 +1079,8 @@ function breeze::parse_arguments() {
             echo
             echo "Force pulling the image, using GitHub registry and skip mounting local sources."
             echo "This is in order to get the exact same version as used in CI environment for SHA/RUN_ID!."
-            echo "You can specify --skip-mounting-local-sources to not mount local sources. "
+            echo "You can specify --skip-mounting-local-sources to not mount local sources to get exact. "
+            echo "behaviour as in the CI environment."
             echo
             export FORCE_PULL_IMAGES="true"
             export USE_GITHUB_REGISTRY="true"
@@ -1148,11 +1140,17 @@ function breeze::parse_arguments() {
             echo
             shift
             ;;
-        --install-wheels)
-            export INSTALL_WHEELS="true"
-            echo "Install wheels found in dist folder during entering breeze."
+        --install-packages-from-dist)
+            export INSTALL_PACKAGES_FROM_DIST="true"
+            echo "Install packages found in dist folder when entering breeze."
             echo
             shift
+            ;;
+        --package-format)
+            export PACKAGE_FORMAT="${2}"
+            echo "Selected package type: ${PACKAGE_FORMAT}"
+            echo
+            shift 2
             ;;
         --test-type)
             export TEST_TYPE="${2}"
@@ -1227,6 +1225,12 @@ function breeze::parse_arguments() {
             export FORCE_ANSWER_TO_QUESTIONS="yes"
             export FORCE_BUILD_IMAGES="true"
             export UPGRADE_TO_LATEST_CONSTRAINTS="true"
+            shift
+            ;;
+        prepare-airflow-packages)
+            last_subcommand="${1}"
+            command_to_run="perform_prepare_airflow_packages"
+            export INSTALL_PROVIDERS_FROM_SOURCES="false"
             shift
             ;;
         prepare-provider-packages)
@@ -1470,8 +1474,12 @@ function breeze::prepare_formatted_versions() {
     readonly FORMATTED_DEFAULT_PROD_EXTRAS
 
     FORMATTED_TEST_TYPES=$(echo "${_breeze_allowed_test_types=""}" |
-        tr ',' ' ' | fold -w "${indented_screen_width}" -s | sed "s/ /,/g; s/^/${list_prefix}/")
+        fold -w "${indented_screen_width}" -s | sed "s/ /,/g; s/^/${list_prefix}/")
     readonly FORMATTED_TEST_TYPES
+
+    FORMATTED_PACKAGE_FORMATS=$(echo "${_breeze_allowed_package_formats=""}" |
+        fold -w "${indented_screen_width}" -s | sed "s/ /,/g; s/^/${list_prefix}/")
+    readonly FORMATTED_PACKAGE_FORMATS
 
 }
 
@@ -1510,6 +1518,8 @@ function breeze::prepare_usage() {
     readonly USAGE_INITIALIZE_LOCAL_VIRTUALENV
     export USAGE_PREPARE_PROVIDER_README="Prepares provider packages readme files"
     readonly USAGE_PREPARE_PROVIDER_README
+    export USAGE_PREPARE_AIRFLOW_PACKAGES="Prepares airflow packages"
+    readonly USAGE_PREPARE_AIRFLOW_PACKAGES
     export USAGE_PREPARE_PROVIDER_PACKAGES="Prepares provider packages"
     readonly USAGE_PREPARE_PROVIDER_PACKAGES
     export USAGE_PUSH_IMAGE="Pushes images to registry"
@@ -1656,7 +1666,7 @@ $(breeze::flag_verbosity)
 "
     readonly DETAILED_USAGE_FLAGS
     export DETAILED_USAGE_PREPARE_PROVIDER_README="
-${CMDNAME} prepare-provider-packages [FLAGS] [YYYY.MM.DD] [PACKAGE_ID ...]
+${CMDNAME} prepare-provider-readme [FLAGS] [YYYY.MM.DD] [PACKAGE_ID ...]
 
       Prepares README.md files for backport packages. You can provide (after --) optional version
       in the form of YYYY.MM.DD, optionally followed by the list of packages to generate readme for.
@@ -1715,6 +1725,23 @@ Flags:
 $(breeze::flag_airflow_variants)
 "
     readonly DETAILED_USAGE_INITIALIZE_LOCAL_VIRTUALENV
+    export DETAILED_USAGE_PREPARE_AIRFLOW_PACKAGES="
+${CMDNAME} prepare-airflow-packages [FLAGS]
+
+      Prepares airflow packages (sdist and wheel) in dist folder. Note that
+      prepare-provider-packages command cleans up the dist folder, so if you want also
+      to generate provider packages, make sure you run prepare-provider-packages first,
+      and prepare-airflow-packages second.
+
+      General form:
+
+      '${CMDNAME} prepare-airflow-packages
+
+Flags:
+$(breeze::flag_packages)
+$(breeze::flag_verbosity)
+"
+    readonly DETAILED_USAGE_PREPARE_AIRFLOW_PACKAGES
     export DETAILED_USAGE_PREPARE_PROVIDER_PACKAGES="
 ${CMDNAME} prepare-provider-packages [FLAGS] [PACKAGE_ID ...]
 
@@ -1722,12 +1749,17 @@ ${CMDNAME} prepare-provider-packages [FLAGS] [PACKAGE_ID ...]
       If no packages are specified, readme for all packages are generated. You can specify optional
       --version-suffix-for-svn flag to generate rc candidate packages to upload to SVN or
       --version-suffix-for-pypi flag to generate rc candidates for PyPI packages. You can also
-      provide both suffixes in case you prepare alpha/beta versions.
+      provide both suffixes in case you prepare alpha/beta versions. The packages are prepared in
+      dist folder. Note that this command also cleans up dist folder before generating the packages
+      so that you do not have accidental files there. This will delete airflow package if it is
+      prepared there so make sure you run prepare-provider-packages first,
+      and prepare-airflow-packages second.
 
       Examples:
 
       '${CMDNAME} prepare-provider-packages' or
       '${CMDNAME} prepare-provider-packages google' or
+      '${CMDNAME} prepare-provider-packages --package-format both google' or
       '${CMDNAME} prepare-provider-packages --version-suffix-for-svn rc1 http google amazon' or
       '${CMDNAME} prepare-provider-packages --version-suffix-for-pypi rc1 http google amazon'
       '${CMDNAME} prepare-provider-packages --version-suffix-for-pypi a1
@@ -1735,7 +1767,7 @@ ${CMDNAME} prepare-provider-packages [FLAGS] [PACKAGE_ID ...]
 
       General form:
 
-      '${CMDNAME} prepare-provider-packages \\
+      '${CMDNAME} prepare-provider-packages [--package-format PACKAGE_FORMAT] \\
             [--version-suffix-for-svn|--version-suffix-for-pypi] <PACKAGE_ID> ...'
 
       * <PACKAGE_ID> is usually directory in the airflow/providers folder (for example
@@ -1743,6 +1775,7 @@ ${CMDNAME} prepare-provider-packages [FLAGS] [PACKAGE_ID ...]
         for example 'apache.hive'
 
 Flags:
+$(breeze::flag_packages)
 $(breeze::flag_version_suffix)
 $(breeze::flag_verbosity)
 "
@@ -2211,6 +2244,7 @@ function breeze::flag_local_file_mounting() {
 -l, --skip-mounting-local-sources
         Skips mounting local volume with sources - you get exactly what is in the
         docker image rather than your current local sources of Airflow.
+
 "
 }
 
@@ -2233,7 +2267,10 @@ function breeze::flag_choose_different_airflow_version() {
 
 ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
 
-        When 'wheel' is used, Airflow is installed from /dist/apache_airflow-*.whl file.
+        When 'none' is used, you can install airflow from local packages. When building image,
+        airflow package should be added to 'docker-context-files' and
+        --install-from-docker-context-files flag should be used. When running an image, airflow
+        package should be added to dist folder and --install-packages-from-dist flag should be used.
 
 -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
         If specified, installs Airflow directly from reference in GitHub. This happens at
@@ -2243,10 +2280,10 @@ ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
 --no-rbac-ui
         Disables RBAC UI when Airflow 1.10.* is installed.
 
---install-wheels
-        If specified it will look for wheel packages placed in dist folder and it will install the
-        wheels from there after installing Airflow. This is useful for testing backport
-        packages as well as in the future for testing provider packages for 2.0.
+--install-packages-from-dist
+        If specified it will look for packages placed in dist folder and it will install the
+        packages after installing Airflow. This is useful for testing provider
+        packages.
 "
 }
 
@@ -2284,6 +2321,29 @@ function breeze::flag_credentials() {
         your credentials available to everything you install in Docker.
 "
 }
+
+#######################################################################################################
+#
+# Prints flags that control package preparation
+#
+# Outputs:
+#    Flag information.
+#######################################################################################################
+function breeze::flag_packages() {
+    echo "
+--package-format PACKAGE_FORMAT
+
+        Chooses format of packages to prepare.
+
+        One of:
+
+${FORMATTED_PACKAGE_FORMATS}
+
+        Default: ${_breeze_default_package_formats:=}
+
+"
+}
+
 
 #######################################################################################################
 #
@@ -2355,15 +2415,17 @@ ${FORMATTED_DEFAULT_PROD_EXTRAS}
 --image-tag TAG
         Additional tag in the image.
 
---skip-installing-airflow-providers
+--skip-installing-airflow-providers-from-sources
         By default 'pip install' in Airflow 2.0 installs only the provider packages that
-        are needed by the extras but in Breeze (which is development environment) providers are
-        installed by default. You can disable it by adding this flag.
+        are needed by the extras. When you build image during the development (which is
+        default in Breeze) all providers are installed by default from sources.
+        You can disable it by adding this flag but then you have to install providers from
+        wheel packages via --install-packages-from-dist flag.
 
---skip-installing-airflow-via-pip
-        Skips installing Airflow via PIP. If you use this flag and want to install
-        Airflow, you have to install Airflow from packages placed in
-        'docker-context-files' and use --add-local-pip-files flag.
+--disable-pypi-when-building
+        Disable installing Airflow from pypi when building. If you use this flag and want
+        to install Airflow, you have to install it from packages placed in
+        'docker-context-files' and use --install-from-local-files-when-building flag.
 
 --additional-extras ADDITIONAL_EXTRAS
         Additional extras to pass to build images The default is no additional extras.
@@ -2418,11 +2480,11 @@ Build options:
 --disable-pip-cache
         Disables GitHub PIP cache during the build. Useful if GitHub is not reachable during build.
 
---add-local-pip-wheels
+--install-from-local-files-when-building
         This flag is used during image building. If it is used additionally to installing
-        Airflow from PyPI, the packages are installed from the .whl packages placed
+        Airflow from PyPI, the packages are installed from the .whl and .tar.gz packages placed
         in the 'docker-context-files' folder. The same flag can be used during entering the image in
-        the CI image - in this case also the .whl files
+        the CI image - in this case also the .whl and .tar.gz files will be installed automatically
 
 -C, --force-clean-images
         Force build images with cache disabled. This will remove the pulled or build images
@@ -2820,6 +2882,7 @@ function breeze::check_and_save_all_params() {
     parameters::check_and_save_allowed_param "MYSQL_VERSION" "Mysql version" "--mysql-version"
 
     parameters::check_allowed_param TEST_TYPE "Type of tests" "--test-type"
+    parameters::check_allowed_param PACKAGE_FORMAT "Format of packages to build" "--package-format"
 
 
     # Can't verify those - they can be anything, so let's just save them
@@ -3029,7 +3092,9 @@ function breeze::run_build_command() {
             build_images::rebuild_ci_image_if_needed
         fi
         ;;
-    build_docs | perform_static_checks | perform_generate_constraints | perform_prepare_provider_readme | perform_prepare_provider_packages)
+    build_docs | perform_static_checks | perform_generate_constraints | \
+        perform_prepare_provider_readme | perform_prepare_provider_packages | \
+        perform_prepare_airflow_packages)
         build_images::prepare_ci_build
         build_images::rebuild_ci_image_if_needed
         ;;
@@ -3058,8 +3123,9 @@ function breeze::run_build_command() {
             build_images::prepare_ci_build
         fi
         ;;
-    perform_initialize_local_virtualenv | perform_setup_autocomplete | toggle_suppress_cheatsheet | toggle_suppress_asciiart ) ;;
-
+    perform_initialize_local_virtualenv | perform_setup_autocomplete | \
+        toggle_suppress_cheatsheet | toggle_suppress_asciiart )
+        ;;
     manage_kind_cluster)
         if [[ ${KIND_CLUSTER_OPERATION} == "start" ]]; then
             echo "Starts KinD cluster"
@@ -3191,6 +3257,9 @@ function breeze::run_breeze_command() {
         ;;
     perform_generate_constraints)
         runs::run_generate_constraints
+        ;;
+    perform_prepare_airflow_packages)
+        build_airflow_packages::build_airflow_packages
         ;;
     perform_prepare_provider_packages)
         runs::run_prepare_provider_packages "${@}"

@@ -72,6 +72,9 @@ else
 fi
 
 if [[ -z ${INSTALL_AIRFLOW_VERSION=} ]]; then
+    echo
+    echo "Using already installed airflow version"
+    echo
     if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/node_modules" ]]; then
         echo
         echo "Installing node modules as they are not yet installed (Sources mounted from Host)"
@@ -98,13 +101,57 @@ if [[ -z ${INSTALL_AIRFLOW_VERSION=} ]]; then
     mkdir -p "${AIRFLOW_SOURCES}"/logs/
     mkdir -p "${AIRFLOW_SOURCES}"/tmp/
     export PYTHONPATH=${AIRFLOW_SOURCES}
+elif [[ ${INSTALL_AIRFLOW_VERSION} == "none"  ]]; then
+    echo
+    echo "Skip installing airflow - only install wheel packages that are present locally"
+    echo
+    uninstall_airflow_and_providers
+elif [[ ${INSTALL_AIRFLOW_VERSION} == "wheel"  ]]; then
+    echo
+    echo "Install airflow from wheel package with [all] extras but uninstalling providers."
+    echo
+    uninstall_airflow_and_providers
+    install_airflow_from_wheel "[all]"
+    uninstall_providers
 else
-    # Installs released airflow version without adding more extras
-    install_released_airflow_version  "" "${INSTALL_AIRFLOW_VERSION}"
+    echo
+    echo "Install airflow from PyPI including [all] extras"
+    echo
+    install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}" "[all]"
 fi
-
-if [[ ${INSTALL_WHEELS=} == "true" ]]; then
-  pip install /dist/*.whl || true
+if [[ ${INSTALL_PACKAGES_FROM_DIST=} == "true" ]]; then
+    echo
+    echo "Install all packages from dist folder"
+    if [[ ${INSTALL_AIRFLOW_VERSION} == "wheel" ]]; then
+        echo "(except apache-airflow)"
+    fi
+    if [[ ${PACKAGE_FORMAT} == "both" ]]; then
+        echo
+        echo "${COLOR_RED_ERROR}You can only specify 'wheel' or 'sdist' as PACKAGE_FORMAT not 'both'${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+    echo
+    installable_files=()
+    for file in /dist/*.{whl,tar.gz}
+    do
+        if [[ ${INSTALL_AIRFLOW_VERSION} == "wheel" && ${file} == "apache?airflow-[0-9]"* ]]; then
+            # Skip Apache Airflow package - it's just been installed above with extras
+            echo "Skipping ${file}"
+            continue
+        fi
+        if [[ ${PACKAGE_FORMAT} == "wheel" && ${file} == *".whl" ]]; then
+            echo "Adding ${file} to install"
+            installable_files+=( "${file}" )
+        fi
+        if [[ ${PACKAGE_FORMAT} == "sdist" && ${file} == *".tar.gz" ]]; then
+            echo "Adding ${file} to install"
+            installable_files+=( "${file}" )
+        fi
+    done
+    if (( ${#installable_files[@]} )); then
+        pip install "${installable_files[@]}" --no-deps
+    fi
 fi
 
 export RUN_AIRFLOW_1_10=${RUN_AIRFLOW_1_10:="false"}

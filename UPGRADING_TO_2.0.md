@@ -95,6 +95,20 @@ based on your `airflow.cfg` settings. To generate this file simply run the follo
 
     Once you have performed this step, simply write out the file path to this file in the `pod_template_file` section of the `kubernetes`
 section of your `airflow.cfg`
+3. The new CLI commands with the updated command syntax have also been backported to Airflow 1.10.14. This gives users the time to modify their scripts which invoke these commands to be compatible with Airflow 2.0, so that the upgrade to 2.0 does not have disruption with invoking services.
+For example, in Airflow 1.10.x, the CLI command syntax for listing DAGs has been the following command:
+
+```shell script
+    airflow list_dags
+```
+
+However, in Airflow 2.0, the CLI command is now:
+
+```shell script
+    airflow dags list
+```
+
+Both forms of the CLI command are available in 1.10.14 to assist in the changes to scripts which invoke Airflow CLI commands.
 
 ## Step 3: Install and run the Upgrade check scripts
 

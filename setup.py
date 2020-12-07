@@ -802,7 +802,6 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'virtualenv': [],
     'webhdfs': ["apache.hdfs"],  # TODO: remove this in Airflow 2.1
     'winrm': ["microsoft.winrm"],  # TODO: remove this in Airflow 2.1
-    'yandexcloud': ["yandex"],  # TODO: remove this in Airflow 2.1
     'yandex': ["yandex"],
     'zendesk': ["zendesk"],
 }

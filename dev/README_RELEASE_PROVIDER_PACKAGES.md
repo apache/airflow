@@ -132,13 +132,13 @@ It will generate `apache-airflow-backport-providers-${VERSION}-source.tar.gz`
   you intended to build.
 
 ```shell script
-./breeze --backports prepare-provider-packages --version-suffix-for-svn rc1
+./breeze --backports prepare-provider-packages --package-format both --version-suffix-for-svn rc1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze --backports prepare-provider-packages --version-suffix-for-svn rc1 PACKAGE PACKAGE ....
+./breeze --backports prepare-provider-packages --package-format both --version-suffix-for-svn rc1 PACKAGE PACKAGE ....
 ```
 
 * Move the source tarball to dist folder
@@ -201,13 +201,13 @@ though they should be generated from the same sources.
 this will clean up dist folder before generating the packages, so you will only have the right packages there.
 
 ```shell script
-./breeze --backports prepare-provider-packages --version-suffix-for-pypi rc1
+./breeze --backports prepare-provider-packages --package-format both --version-suffix-for-pypi rc1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze --backports prepare-provider-packages --version-suffix-for-pypi rc1 PACKAGE PACKAGE ....
+./breeze --backports prepare-provider-packages --package-format both --version-suffix-for-pypi rc1 PACKAGE PACKAGE ....
 ```
 
 * Verify the artifacts that would be uploaded:
@@ -466,19 +466,19 @@ First copy all the provider packages .whl files to the `dist` folder.
 
 ```shell script
 ./breeze start-airflow --install-airflow-version <VERSION>rc<X> \
-    --python 3.7 --backend postgres --install-wheels
+    --python 3.7 --backend postgres --install-packages-from-dist
 ```
 
 For 1.10 releases you can also use `--no-rbac-ui` flag disable RBAC UI of Airflow:
 
 ```shell script
 ./breeze start-airflow --install-airflow-version <VERSION>rc<X> \
-    --python 3.7 --backend postgres --install-wheels --no-rbac-ui
+    --python 3.7 --backend postgres --install-packages-from-dist --no-rbac-ui
 ```
 
 ### Building your own docker image
 
-If you prefer to build your own image, you can also use the official image and PyPI packages to test
+If you prefer to build your own image, you can also use the official image andipi PyPI packages to test
 backport packages. This is especially helpful when you want to test integrations, but you need to install
 additional tools. Below is an example Dockerfile, which installs backport providers for Google and
 an additional third-party tools:
@@ -646,13 +646,13 @@ In order to publish to PyPI you just need to build and release packages.
 * Generate the packages.
 
 ```shell script
-./breeze --backports prepare-provider-packages
+./breeze --backports prepare-provider-packages --package-format both
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze --backports prepare-provider-packages <PACKAGE> ...
+./breeze --backports prepare-provider-packages --package-format both  <PACKAGE> ...
 ```
 
 In case you decided to remove some of the packages. remove them from dist folder now:
@@ -775,13 +775,13 @@ packages, so it will only contain the packages you intended to build.
 ```shell script
 export VERSION=0.0.1alpha1
 
-./breeze prepare-provider-packages --version-suffix-for-svn a1 --version-suffix-for-pypi a1
+./breeze prepare-provider-packages --package-format both --version-suffix-for-svn a1 --version-suffix-for-pypi a1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-svn a1 --version-suffix-for-pypi a1 \
+./breeze prepare-provider-packages --package-format both --version-suffix-for-svn a1 --version-suffix-for-pypi a1 \
     PACKAGE PACKAGE ....
 ```
 
@@ -790,13 +790,13 @@ if you ony build few packages, run:
 ```shell script
 export VERSION=0.0.1alpha1
 
-./breeze prepare-provider-packages --version-suffix-for-svn rc1
+./breeze prepare-provider-packages --package-format both --version-suffix-for-svn rc1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-svn rc1 PACKAGE PACKAGE ....
+./breeze prepare-provider-packages --package-format both --version-suffix-for-svn rc1 PACKAGE PACKAGE ....
 ```
 
 * Sign all your packages
@@ -851,13 +851,13 @@ though they should be generated from the same sources.
 this will clean up dist folder before generating the packages, so you will only have the right packages there.
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-pypi a1 --version-suffix-for-SVN a1
+./breeze prepare-provider-packages --package-format both --version-suffix-for-pypi a1 --version-suffix-for-SVN a1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-pypi a1 \
+./breeze prepare-provider-packages --package-format both --version-suffix-for-pypi a1 \
     PACKAGE PACKAGE ....
 ```
 

@@ -171,7 +171,7 @@ Those are - in the order of most common ways people install Airflow:
 - [Docker Images](https://hub.docker.com/repository/docker/apache/airflow) to install airflow via
   `docker` tool, use them in Kubernetes, Helm Charts, `docker-compose`, `docker swarm` etc. You can
   read more about using, customising, and extending the images in the
-  [Latest docs](/docs//production-deployment.html), and
+  [Latest docs](https://airflow.apache.org/docs/apache-airflow/stable/production-deployment.html), and
   learn details on the internals in the [IMAGES.rst](IMAGES.rst) document.
 - [Tags in GitHub](https://github.com/apache/airflow/tags) to retrieve the git project sources that
   were used to generate official source packages via git

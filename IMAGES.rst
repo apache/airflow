@@ -24,8 +24,8 @@ Airflow has two images (build from Dockerfiles):
 
   * Production image (Dockerfile) - that can be used to build your own production-ready Airflow installation
     You can read more about building and using the production image in the
-    `Production Deployments <docs/production-deployment.rst>`_ document. The image is built using
-    `Dockerfile <Dockerfile>`_
+    `Production Deployments <https://airflow.apache.org/docs/apache-airflow/stable/production-deployment.html>`_ document.
+    The image is built using `Dockerfile <Dockerfile>`_
 
   * CI image (Dockerfile.ci) - used for running tests and local development. The image is built using
     `Dockerfile.ci <Dockerfile.ci>`_
@@ -143,6 +143,15 @@ HEAD of development for constraints):
 
     pip install "https://github.com/apache/airflow/archive/<tag>.tar.gz#egg=apache-airflow" \
       --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+
+You can also skip installing airflow by providing ``--install-airflow-version none`` parameter to Breeze:
+
+.. code-block:: bash
+
+  ./breeze build-image --python 3.7 --additional-extras=presto \
+      --production-image --install-airflow-version=none --install-from-local-files-when-building
+
+In this case you usually install airflow and all packages in ``docker-context-files`` folder.
 
 Using cache during builds
 =========================
@@ -434,21 +443,23 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | package. It has no effect when           |
 |                                          |                                          | installing from PyPI or GitHub repo.     |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_LOCAL_PIP_WHEELS``             | ``false``                                | If set to true, Airflow and it's         |
+| ``INSTALL_FROM_DOCKER_CONTEXT_FILES``    | ``false``                                | If set to true, Airflow and it's         |
 |                                          |                                          | dependencies are installed from locally  |
 |                                          |                                          | downloaded .whl files placed in the      |
 |                                          |                                          | ``docker-context-files``.                |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_EXTRAS``                       | ``all``                                  | extras to install                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``INSTALL_AIRFLOW_VIA_PIP``              | ``false``                                | If set to true, Airflow is installed via |
-|                                          |                                          | pip install. if you want to install      |
+| ``INSTALL_FROM_PYPI``                    | ``true``                                 | If set to true, Airflow is installed     |
+|                                          |                                          | from pypi. If you want to install        |
 |                                          |                                          | Airflow from externally provided binary  |
 |                                          |                                          | package you can set it to false, place   |
 |                                          |                                          | the package in ``docker-context-files``  |
-|                                          |                                          | and set ``AIRFLOW_LOCAL_PIP_WHEELS`` to  |
-|                                          |                                          | true. You have to also set to true the   |
+|                                          |                                          | and set                                  |
+|                                          |                                          | ``INSTALL_FROM_DOCKER_CONTEXT_FILES`` to |
+|                                          |                                          | true. For this you have to also set the  |
 |                                          |                                          | ``AIRFLOW_PRE_CACHED_PIP_PACKAGES`` flag |
+|                                          |                                          | to false                                 |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_PRE_CACHED_PIP_PACKAGES``      | ``true``                                 | Allows to pre-cache airflow PIP packages |
 |                                          |                                          | from the GitHub of Apache Airflow        |
@@ -546,7 +557,7 @@ Production images
 -----------------
 
 You can find details about using, building, extending and customising the production images in the
-`Latest documentation <docs/production-deployment.rst>`_
+`Latest documentation <https://airflow.apache.org/docs/apache-airflow/stable/production-deployment.html>`_
 
 
 Image manifests
@@ -631,10 +642,8 @@ The entrypoint performs those operations:
 Using, customising, and extending the production image
 ======================================================
 
-You can read more about using, customising, and extending the production image in the documentation:
-
-* [Stable docs](https://airflow.apache.org/docs/stable/production-deployment.html)
-* [Latest docs from master branch](https://airflow.readthedocs.io/en/latest/production-deployment.html
+You can read more about using, customising, and extending the production image in the
+`documentation <https://airflow.apache.org/docs/apache-airflow/stable/production-deployment.html>`_.
 
 Alpha versions of 1.10.10 production-ready images
 =================================================

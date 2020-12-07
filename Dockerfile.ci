@@ -263,11 +263,11 @@ ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES}
 ARG INSTALL_PROVIDERS_FROM_SOURCES="true"
 ENV INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES}
 
-ARG AIRFLOW_LOCAL_PIP_WHEELS=""
-ENV AIRFLOW_LOCAL_PIP_WHEELS=${AIRFLOW_LOCAL_PIP_WHEELS}
+ARG INSTALL_FROM_DOCKER_CONTEXT_FILES=""
+ENV INSTALL_FROM_DOCKER_CONTEXT_FILES=${INSTALL_FROM_DOCKER_CONTEXT_FILES}
 
-ARG INSTALL_AIRFLOW_VIA_PIP="true"
-ENV INSTALL_AIRFLOW_VIA_PIP=${INSTALL_AIRFLOW_VIA_PIP}
+ARG INSTALL_FROM_PYPI="true"
+ENV INSTALL_FROM_PYPI=${INSTALL_FROM_PYPI}
 
 RUN pip install --upgrade "pip==${PIP_VERSION}"
 
@@ -317,7 +317,7 @@ ENV UPGRADE_TO_LATEST_CONSTRAINTS=${UPGRADE_TO_LATEST_CONSTRAINTS}
 # Usually we will install versions based on the dependencies in setup.py and upgraded only if needed.
 # But in cron job we will install latest versions matching setup.py to see if there is no breaking change
 # and push the constraints if everything is successful
-RUN if [[ ${INSTALL_AIRFLOW_VIA_PIP} == "true" ]]; then \
+RUN if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
         if [[ "${UPGRADE_TO_LATEST_CONSTRAINTS}" != "false" ]]; then \
             pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy eager; \
         else \
@@ -329,9 +329,9 @@ RUN if [[ ${INSTALL_AIRFLOW_VIA_PIP} == "true" ]]; then \
 # they are also installed additionally to whatever is installed from Airflow.
 COPY docker-context-files/ /docker-context-files/
 
-RUN if [[ ${AIRFLOW_LOCAL_PIP_WHEELS} != "true" ]]; then \
-        if ls /docker-context-files/*.whl 1> /dev/null 2>&1; then \
-            pip install --no-deps /docker-context-files/*.whl; \
+RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} != "true" ]]; then \
+        if ls /docker-context-files/*.{whl,tar.gz} 1> /dev/null 2>&1; then \
+            pip install --no-deps /docker-context-files/*.{whl,tar.gz}; \
         fi ; \
     fi
 

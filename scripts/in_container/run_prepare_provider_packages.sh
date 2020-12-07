@@ -121,7 +121,7 @@ do
     LOG_FILE=$(mktemp)
     python3 "${PREPARE_PROVIDER_PACKAGES_PY}" generate-setup-files "${PROVIDER_PACKAGE}"
     echo "==================================================================================="
-    echo " Preparing ${PACKAGE_TYPE} package ${PROVIDER_PACKAGE} "
+    echo " Preparing ${PACKAGE_TYPE} package ${PROVIDER_PACKAGE} format: ${PACKAGE_FORMAT}"
     if [[ "${VERSION_SUFFIX_FOR_PYPI}" == '' && "${VERSION_SUFFIX_FOR_SVN}" == ''
             && ${FILE_VERSION_SUFFIX} == '' ]]; then
         echo
@@ -160,7 +160,7 @@ do
         cat "${LOG_FILE}"
         exit "${RES}"
     fi
-    echo " Prepared ${PACKAGE_TYPE} package ${PROVIDER_PACKAGE}"
+    echo " Prepared ${PACKAGE_TYPE} package ${PROVIDER_PACKAGE} format ${PACKAGE_FORMAT}"
     echo "==================================================================================="
 done
 
@@ -181,10 +181,6 @@ if [[ ${FILE_VERSION_SUFFIX} != "" ]]; then
 fi
 
 popd
-
-AIRFLOW_PACKAGES_TGZ_FILE="/files/airflow-packages-$(date +"%Y%m%d-%H%M%S")-${TARGET_VERSION_SUFFIX}.tar.gz"
-
-tar -cvzf "${AIRFLOW_PACKAGES_TGZ_FILE}" dist/*.whl dist/*.tar.gz
 echo
-echo "Airflow packages are in dist folder and tar-gzipped in ${AIRFLOW_PACKAGES_TGZ_FILE}"
+echo "Airflow packages are in dist folder "
 echo

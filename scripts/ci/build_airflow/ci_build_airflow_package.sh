@@ -18,19 +18,11 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-rm -rf -- *egg-info*
-
-pip install --upgrade "pip==${PIP_VERSION}" "wheel==${WHEEL_VERSION}"
-
-# Prepare airflow's wheel
-python setup.py compile_assets sdist bdist_wheel
-
-# clean-up
-rm -rf -- *egg-info*
-
-dump_file="/tmp/airflow_$(date +"%Y%m%d-%H%M%S").tar.gz"
+build_airflow_packages::build_airflow_packages
 
 cd "${AIRFLOW_SOURCES}/dist" || exit 1
+
+dump_file="/tmp/airflow_$(date +"%Y%m%d-%H%M%S").tar.gz"
 tar -cvzf "${dump_file}" .
 
 echo "Airflow is in dist and also tar-gzipped in ${dump_file}"

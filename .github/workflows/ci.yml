@@ -28,7 +28,6 @@ on:  # yamllint disable-line rule:truthy
 env:
 
   MOUNT_LOCAL_SOURCES: "false"
-  MOUNT_FILES: "true"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
   FORCE_PULL_IMAGES: "true"
   CHECK_IMAGE_FOR_REBUILD: "true"
@@ -385,10 +384,16 @@ jobs:
         run: ./scripts/ci/provider_packages/ci_prepare_provider_readmes.sh
       - name: "Prepare provider packages"
         run: ./scripts/ci/provider_packages/ci_prepare_provider_packages.sh
-      - name: "Install and test provider packages via .whl files"
-        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh whl
-      - name: "Install and test provider packages via .tar.gz files"
-        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh tar.gz
+        env:
+          PACKAGE_FORMAT: "both"
+      - name: "Install and test provider packages via wheel files"
+        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
+        env:
+          PACKAGE_FORMAT: "wheel"
+      - name: "Install and test provider packages via sdist files"
+        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
+        env:
+          PACKAGE_FORMAT: "sdist"
       - name: "Upload provider package artifacts"
         uses: actions/upload-artifact@v2
         if: always()
@@ -414,6 +419,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       VERSION_SUFFIX_FOR_PYPI: "a2"
       VERSION_SUFFIX_FOR_SVN: "a2"
+      PACKAGE_FORMAT: "both"
     if: needs.build-info.outputs.image-build == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -430,12 +436,18 @@ jobs:
         run: ./scripts/ci/provider_packages/ci_prepare_provider_readmes.sh
       - name: "Prepare provider packages"
         run: ./scripts/ci/provider_packages/ci_prepare_provider_packages.sh
-      - name: "Prepare airflow packages so that they can be installed"
+        env:
+          PACKAGE_FORMAT: "both"
+      - name: "Prepare airflow package so that it can be installed"
         run: ./scripts/ci/build_airflow/ci_build_airflow_package.sh
-      - name: "Install and test provider packages via .whl files"
-        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh whl
-      - name: "Install and test provider packages via .tar.gz files"
-        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh tar.gz
+      - name: "Install and test provider packages via wheel files"
+        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
+        env:
+          PACKAGE_FORMAT: "wheel"
+      - name: "Install and test provider packages via sdist files"
+        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
+        env:
+          PACKAGE_FORMAT: "sdist"
       - name: "Upload provider package artifacts"
         uses: actions/upload-artifact@v2
         if: always()

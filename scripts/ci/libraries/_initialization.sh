@@ -126,9 +126,9 @@ function initialization::initialize_base_variables() {
     # If set to true, RBAC UI will not be used for 1.10 version
     export DISABLE_RBAC=${DISABLE_RBAC:="false"}
 
-    # if set to true, the ci image will look for wheel packages in dist folder and will install them
+    # if set to true, the ci image will look for packages in dist folder and will install them
     # during entering the container
-    export INSTALL_WHEELS=${INSTALL_WHEELS:="false"}
+    export INSTALL_PACKAGES_FROM_DIST=${INSTALL_PACKAGES_FROM_DIST:="false"}
 
     # If set the specified file will be used to initialize Airflow after the environment is created,
     # otherwise it will use files/airflow-breeze-config/init.sh
@@ -220,9 +220,6 @@ function initialization::initialize_mount_variables() {
     # Whether necessary for airflow run local sources are mounted to docker
     export MOUNT_LOCAL_SOURCES=${MOUNT_LOCAL_SOURCES:="true"}
 
-    # Whether files folder from local sources are mounted to docker
-    export MOUNT_FILES=${MOUNT_FILES:="true"}
-
     if [[ ${MOUNT_LOCAL_SOURCES} == "true" ]]; then
         verbosity::print_info
         verbosity::print_info "Mounting necessary host volumes to Docker"
@@ -234,14 +231,9 @@ function initialization::initialize_mount_variables() {
         verbosity::print_info
     fi
 
-    if [[ ${MOUNT_FILES} == "true" ]]; then
-        verbosity::print_info
-        verbosity::print_info "Mounting files folder to Docker"
-        verbosity::print_info
-        EXTRA_DOCKER_FLAGS+=("-v" "${AIRFLOW_SOURCES}/files:/files")
-    fi
-
     EXTRA_DOCKER_FLAGS+=(
+        "-v" "${AIRFLOW_SOURCES}/files:/files"
+        "-v" "${AIRFLOW_SOURCES}/dist:/dist"
         "--rm"
         "--env-file" "${AIRFLOW_SOURCES}/scripts/ci/libraries/_docker.env"
     )
@@ -368,10 +360,10 @@ function initialization::initialize_image_build_variables() {
 
     # whether installation of Airflow should be done via PIP. You can set it to false if you have
     # all the binary packages (including airflow) in the docker-context-files folder and use
-    # AIRFLOW_LOCAL_PIP_WHEELS="true" to install it from there.
-    export INSTALL_AIRFLOW_VIA_PIP="${INSTALL_AIRFLOW_VIA_PIP:="true"}"
+    # INSTALL_FROM_DOCKER_CONTEXT_FILES="true" to install it from there.
+    export INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI:="true"}"
     # whether installation should be performed from the local wheel packages in "docker-context-files" folder
-    export AIRFLOW_LOCAL_PIP_WHEELS="${AIRFLOW_LOCAL_PIP_WHEELS:="false"}"
+    export INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES:="false"}"
     # reference to CONSTRAINTS. they can be overwritten manually or replaced with AIRFLOW_CONSTRAINTS_LOCATION
     export AIRFLOW_CONSTRAINTS_REFERENCE="${AIRFLOW_CONSTRAINTS_REFERENCE:=""}"
     # direct constraints Location - can be URL or path to local file. If empty, it will be calculated
@@ -463,6 +455,11 @@ function initialization::initialize_test_variables() {
     export TEST_TYPE=${TEST_TYPE:=""}
 }
 
+function initialization::initialize_package_variables() {
+    export PACKAGE_FORMAT=${PACKAGE_FORMAT:="wheel"}
+}
+
+
 function initialization::initialize_build_image_variables() {
     REMOTE_IMAGE_CONTAINER_ID_FILE="${AIRFLOW_SOURCES}/manifests/remote-airflow-manifest-image"
     LOCAL_IMAGE_BUILD_CACHE_HASH_FILE="${AIRFLOW_SOURCES}/manifests/local-build-cache-hash"
@@ -506,6 +503,7 @@ function initialization::initialize_common_environment() {
     initialization::initialize_git_variables
     initialization::initialize_github_variables
     initialization::initialize_test_variables
+    initialization::initialize_package_variables
     initialization::initialize_build_image_variables
 }
 
@@ -537,7 +535,6 @@ DockerHub variables:
 Mount variables:
 
     MOUNT_LOCAL_SOURCES: ${MOUNT_LOCAL_SOURCES}
-    MOUNT_FILES: ${MOUNT_FILES}
 
 Force variables:
 
@@ -605,7 +602,7 @@ Initialization variables:
     INIT_SCRIPT_FILE: ${INIT_SCRIPT_FILE=}
     LOAD_DEFAULT_CONNECTIONS: ${LOAD_DEFAULT_CONNECTIONS}
     LOAD_EXAMPLES: ${LOAD_EXAMPLES}
-    INSTALL_WHEELS: ${INSTALL_WHEELS=}
+    INSTALL_PACKAGES_FROM_DIST: ${INSTALL_PACKAGES_FROM_DIST=}
     DISABLE_RBAC: ${DISABLE_RBAC}
 
 Test variables:
@@ -699,8 +696,8 @@ function initialization::make_constants_read_only() {
     readonly IMAGE_TAG
 
     readonly AIRFLOW_PRE_CACHED_PIP_PACKAGES
-    readonly INSTALL_AIRFLOW_VIA_PIP
-    readonly AIRFLOW_LOCAL_PIP_WHEELS
+    readonly INSTALL_FROM_PYPI
+    readonly INSTALL_FROM_DOCKER_CONTEXT_FILES
     readonly AIRFLOW_CONSTRAINTS_REFERENCE
     readonly AIRFLOW_CONSTRAINTS_LOCATION
 
