@@ -134,6 +134,7 @@ additional apt dev and runtime dependencies.
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
+    --build-arg AIRFLOW_VERSION="1.10.14" \
     --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
@@ -166,6 +167,7 @@ based on example in `this comment <https://github.com/apache/airflow/issues/8605
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
+    --build-arg AIRFLOW_VERSION="1.10.14" \
     --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
@@ -245,6 +247,7 @@ or
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
+    --build-arg AIRFLOW_VERSION="1.10.14" \
     --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
@@ -516,7 +519,9 @@ production image. There are three types of build:
 | ``AIRFLOW_INSTALL_VERSION``       | Optional - might be used for      |
 |                                   | package installation case to      |
 |                                   | set Airflow version for example   |
-|                                   | "==1.10.14"                       |
+|                                   | "==1.10.14". Remember to also     |
+|                                   | Set ``AIRFLOW_VERSION``           |
+|                                   | when you use it.                  |
 +-----------------------------------+-----------------------------------+
 | ``AIRFLOW_CONSTRAINTS_REFERENCE`` | reference (branch or tag) from    |
 |                                   | GitHub where constraints file     |
@@ -583,6 +588,7 @@ of v1-10-test branch.
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
+    --build-arg AIRFLOW_VERSION="1.10.14" \
     --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
     --build-arg AIRFLOW_BRANCH="v1-10-test" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1.10.14" \
@@ -598,6 +604,7 @@ additional python dependencies and pre-installed pip dependencies from 1.10.14 t
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
+    --build-arg AIRFLOW_VERSION="1.10.14" \
     --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
     --build-arg AIRFLOW_BRANCH="v1-10-test" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1.10.14" \
@@ -615,6 +622,7 @@ additional apt dev and runtime dependencies.
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
+    --build-arg AIRFLOW_VERSION="1.10.14" \
     --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
