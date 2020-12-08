@@ -36,10 +36,12 @@ depends_on = None
 def upgrade():  # noqa: D103
     conn = op.get_bind()  # pylint: disable=no-member
     if conn.dialect.name == "mysql":
-        op.alter_column(table_name='dag_code', column_name='source_code', type_=mysql.MEDIUMTEXT)
+        op.alter_column(
+            table_name='dag_code', column_name='source_code', type_=mysql.MEDIUMTEXT, nullable=False
+        )
 
 
 def downgrade():  # noqa: D103
     conn = op.get_bind()  # pylint: disable=no-member
     if conn.dialect.name == "mysql":
-        op.alter_column(table_name='dag_code', column_name='source_code', type_=mysql.TEXT)
+        op.alter_column(table_name='dag_code', column_name='source_code', type_=mysql.TEXT, nullable=False)
