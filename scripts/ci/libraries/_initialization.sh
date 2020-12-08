@@ -144,6 +144,15 @@ function initialization::initialize_base_variables() {
     # If no Airflow Home defined - fallback to ${HOME}/airflow
     AIRFLOW_HOME_DIR=${AIRFLOW_HOME:=${HOME}/airflow}
     export AIRFLOW_HOME_DIR
+
+    export INSTALLED_EXTRAS="async,amazon,celery,kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,google,azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
+    readonly INSTALLED_EXTRAS
+
+    PIP_VERSION="20.2.4"
+    export PIP_VERSION
+
+    WHEEL_VERSION="0.35.1"
+    export WHEEL_VERSION
 }
 
 # Determine current branch
