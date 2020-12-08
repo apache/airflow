@@ -25,4 +25,3 @@ from airflow.sensors.date_time import DateTimeSensor  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.sensors.date_time`.", DeprecationWarning, stacklevel=2
 )
-

@@ -267,7 +267,12 @@ The following table shows changes in import paths.
 
 | Old path                            | New path                   |
 |-------------------------------------|----------------------------|
+| airflow.hooks.base_hook.BaseHook | airflow.hooks.base.BaseHook |
+| airflow.hooks.dbapi_hook.DbApiHook | airflow.hooks.dbapi.DbApiHook |
 | airflow.operators.branch_operator.BaseBranchOperator | airflow.operators.branch.BaseBranchOperator |
+| airflow.sensors.base_sensor_operator.BaseSensorOperator | airflow.sensors.base.BaseSensorOperator |
+| airflow.sensors.date_time_sensor.DateTimeSensor | airflow.sensors.date_time.DateTimeSensor |
+| airflow.sensors.time_delta_sensor.TimeDeltaSensor | airflow.sensors.time_delta.TimeDeltaSensor |
 
 
 ### Database schema changes
@@ -1794,7 +1799,7 @@ session_lifetime_minutes = 43200
 
 ### Adding Operators, Hooks and Sensors via Airflow Plugins is deprecated
 
-The ability to import Operators, Hooks and Senors via the plugin mechanism has been deprecated and will raise warnings
+The ability to import Operators, Hooks and Sensors via the plugin mechanism has been deprecated and will raise warnings
 in Airflow 1.10.13 and will be removed completely in Airflow 2.0.
 
 Check http://airflow.apache.org/docs/1.10.13/howto/custom-operator.html to see how you can create and import

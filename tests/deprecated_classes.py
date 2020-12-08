@@ -1359,15 +1359,15 @@ SECRETS = [
 
 SENSORS = [
     (
-        "airflow.senors.base.BaseSensorOperator",
+        "airflow.sensors.base.BaseSensorOperator",
         "airflow.sensors.base_sensor_operator.BaseSensorOperator",
     ),
     (
-        "airflow.senors.date_time.DateTimeSensor",
+        "airflow.sensors.date_time.DateTimeSensor",
         "airflow.sensors.date_time_sensor.DateTimeSensor",
     ),
     (
-        "airflow.senors.time_delta.TimeDeltaSensor",
+        "airflow.sensors.time_delta.TimeDeltaSensor",
         "airflow.sensors.time_delta_sensor.TimeDeltaSensor",
     ),
     (
