@@ -148,6 +148,32 @@ function initialization::initialize_base_variables() {
     INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES:="true"}
     export INSTALL_PROVIDERS_FROM_SOURCES
 
+    export INSTALLED_PROVIDERS=(
+        "amazon"
+        "celery"
+        "cncf.kubernetes"
+        "docker"
+        "elasticsearch"
+        "ftp"
+        "grpc"
+        "hashicorp"
+        "http"
+        "imap"
+        "google"
+        "microsoft.azure"
+        "mysql"
+        "postgres"
+        "redis"
+        "sendgrid"
+        "sftp"
+        "slack"
+        "ssh"
+    )
+    readonly INSTALLED_PROVIDERS
+
+    export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
+    readonly INSTALLED_EXTRAS
+
     PIP_VERSION="20.2.4"
     export PIP_VERSION
 

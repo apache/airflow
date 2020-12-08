@@ -883,6 +883,44 @@ function build_images::determine_docker_cache_strategy() {
 }
 
 
+function build_images::build_prod_images_from_packages() {
+    # Cleanup dist and docker-context-files folders
+    mkdir -pv "${AIRFLOW_SOURCES}/dist"
+    mkdir -pv "${AIRFLOW_SOURCES}/docker-context-files"
+    rm -f "${AIRFLOW_SOURCES}/dist/"*.{whl,tar.gz}
+    rm -f "${AIRFLOW_SOURCES}/docker-context-files/"*.{whl,tar.gz}
+
+    pip_download_command="pip download -d /dist '.[${INSTALLED_EXTRAS}]' --constraint 'https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt'"
+
+    # Download all dependencies needed
+    docker run --rm --entrypoint /bin/bash \
+        "${EXTRA_DOCKER_FLAGS[@]}" \
+        "${AIRFLOW_CI_IMAGE}" -c "${pip_download_command}"
+
+    # Remove all downloaded apache airflow packages
+    rm -f "${AIRFLOW_SOURCES}/dist/"apache_airflow*.whl
+    rm -f "${AIRFLOW_SOURCES}/dist/"apache-airflow*.tar.gz
+
+    # Remove all downloaded apache airflow packages
+    mv -f "${AIRFLOW_SOURCES}/dist/"* "${AIRFLOW_SOURCES}/docker-context-files/"
+
+    # Build necessary provider packages
+    runs::run_prepare_provider_packages "${INSTALLED_PROVIDERS[@]}"
+
+    mv "${AIRFLOW_SOURCES}/dist/"*.whl "${AIRFLOW_SOURCES}/docker-context-files/"
+
+    # Build apache airflow packages
+    build_airflow_packages::build_airflow_packages
+
+    # Remove generated tar.gz packages
+    rm -f "${AIRFLOW_SOURCES}/dist/"apache-airflow*.tar.gz
+
+    # move the packages to docker-context-files folder
+    mkdir -pv "${AIRFLOW_SOURCES}/docker-context-files"
+    mv "${AIRFLOW_SOURCES}/dist/"* "${AIRFLOW_SOURCES}/docker-context-files/"
+    build_images::build_prod_images
+}
+
 # Useful information for people who stumble upon a pip check failure
 function build_images::inform_about_pip_check() {
         echo """

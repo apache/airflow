@@ -16,11 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# shellcheck disable=SC2030,SC2031
+
 # This is hook build used by DockerHub. We are also using it
 # on CI to potentially rebuild (and refresh layers that
 # are not cached) Docker images that are used to run CI jobs
 export FORCE_ANSWER_TO_QUESTIONS="yes"
 export VERBOSE_COMMANDS="true"
+export VERBOSE="true"
 
 : "${DOCKER_REPO:?"ERROR: Please specify DOCKER_REPO variable following the pattern HOST/DOCKERHUB_USER/DOCKERHUB_REPO"}"
 
@@ -35,48 +38,57 @@ echo "DOCKERHUB_USER=${DOCKERHUB_USER}"
 echo "DOCKERHUB_REPO=${DOCKERHUB_REPO}"
 echo
 
-: "${DOCKER_TAG:?"ERROR: Please specify DOCKER_TAG variable following the pattern BRANCH-pythonX.Y[-ci]"}"
+: "${DOCKER_TAG:?"ERROR: Please specify DOCKER_TAG variable following the pattern BRANCH-pythonX.Y"}"
 
 echo "DOCKER_TAG=${DOCKER_TAG}"
 
-[[ ${DOCKER_TAG:=} =~ .*-python([0-9.]*)(.*) ]] && export PYTHON_MAJOR_MINOR_VERSION=${BASH_REMATCH[1]}
+[[ ${DOCKER_TAG:=} =~ .*-python([0-9.]*) ]] && export PYTHON_MAJOR_MINOR_VERSION=${BASH_REMATCH[1]}
 
-: "${PYTHON_MAJOR_MINOR_VERSION:?"The tag '${DOCKER_TAG}' should follow the pattern .*-pythonX.Y[-ci]"}"
+: "${PYTHON_MAJOR_MINOR_VERSION:?"The tag '${DOCKER_TAG}' should follow the pattern .*-pythonX.Y"}"
 
 echo "Detected PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION}"
 echo
 
-FORCE_AIRFLOW_PROD_BASE_TAG="${DOCKER_TAG}"
-export FORCE_AIRFLOW_PROD_BASE_TAG
+(
+    export INSTALL_FROM_PYPI="true"
+    export INSTALL_FROM_DOCKER_CONTEXT_FILES="false"
+    export INSTALL_PROVIDERS_FROM_SOURCES="true"
+    export AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
+    export DOCKER_CACHE="pulled"
+    # shellcheck source=scripts/ci/libraries/_script_init.sh
+    . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-readonly FORCE_AIRFLOW_PROD_BASE_TAG
-
-if [[ "${FORCE_AIRFLOW_PROD_BASE_TAG}" =~ [0-9].* ]]; then
-    # Disable cache if we are building a tagged version
-    export DOCKER_CACHE="disabled"
-fi
-
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
-
-if [[ ${DOCKER_TAG} == *python*-ci ]]; then
     echo
-    echo "Building CI image"
+    echo "Building and pushing CI image for ${PYTHON_MAJOR_MINOR_VERSION} in a sub-process"
     echo
     rm -rf "${BUILD_CACHE_DIR}"
     build_images::prepare_ci_build
     build_images::rebuild_ci_image_if_needed
-    push_pull_remove_images::push_ci_images
-elif [[ ${DOCKER_TAG} == *python* ]]; then
+    if [[ ! "${DOCKER_TAG}" =~ ^[0-9].* ]]; then
+        # Do not push if we are building a tagged version
+        push_pull_remove_images::push_ci_images
+    fi
+)
+
+(
+    export INSTALL_FROM_PYPI="false"
+    export INSTALL_FROM_DOCKER_CONTEXT_FILES="true"
+    export INSTALL_PROVIDERS_FROM_SOURCES="false"
+    export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
+    export DOCKER_CACHE="pulled"
+
+    if [[ "${DOCKER_TAG}" =~ ^[0-9].* ]]; then
+        # Disable cache and set name of the tag as image name if we are building a tagged version
+        export DOCKER_CACHE="disabled"
+        export FORCE_AIRFLOW_PROD_BASE_TAG="${DOCKER_TAG}"
+    fi
+    # shellcheck source=scripts/ci/libraries/_script_init.sh
+    . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
     echo
-    echo "Building prod image"
+    echo "Building and pushing PROD image for ${PYTHON_MAJOR_MINOR_VERSION} in a sub-process"
     echo
     rm -rf "${BUILD_CACHE_DIR}"
     build_images::prepare_prod_build
-    build_images::build_prod_images
+    build_images::build_prod_images_from_packages
     push_pull_remove_images::push_prod_images
-else
-    echo
-    echo "Skipping the build in Dockerhub. The tag is not good: ${DOCKER_TAG}"
-    echo
-fi
+)
