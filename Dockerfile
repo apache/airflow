@@ -267,7 +267,8 @@ ARG COMMIT_SHA
 ENV COMMIT_SHA=${COMMIT_SHA}
 
 
-LABEL org.apache.airflow.distro.version="buster" \
+LABEL org.apache.airflow.distro="debian" \
+  org.apache.airflow.distro.version="buster" \
   org.apache.airflow.module="airflow" \
   org.apache.airflow.component="airflow" \
   org.apache.airflow.image="airflow-build-image" \
