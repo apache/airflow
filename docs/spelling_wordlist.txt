@@ -1094,8 +1094,6 @@ pypa
 pypi
 pytest
 pythonpath
-python_operator
-PythonOperator
 pywinrm
 qds
 qubole

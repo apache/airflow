@@ -104,7 +104,7 @@ A sample output as a result of a successful run of the upgrade check is shown be
 
     Problems:
 
-    1.  Using airflow.operators.python_operator.PythonOperator will be replaced by airflow.operators.python.PythonOperator. Affected file:
+    1.  Using ``airflow.operators.python_operator.PythonOperator`` will be replaced by ``airflow.operators.python.PythonOperator``. Affected file:
 
 
 The following sections describe what is being done and how to apply the recommendations shown above.
@@ -132,7 +132,7 @@ problematic airflow.cfg and searching for the fernet_key entries would show the 
     fernet_key =
 
 The second problem was identified in one of the DAGs. In this case, this import
-statement for the PythonOperator needs to be changed, since the location is different
+statement for the ``PythonOperator`` needs to be changed, since the location is different
 in Airflow 2.0. Examining the DAG file would probably show the following:
 
 .. code-block:: python
