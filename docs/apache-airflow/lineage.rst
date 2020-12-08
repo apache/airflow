@@ -31,7 +31,7 @@ works.
 .. code-block:: python
 
     from airflow.operators.bash import BashOperator
-    from airflow.operators.dummy_operator import DummyOperator
+    from airflow.operators.dummy import DummyOperator
     from airflow.lineage import AUTO
     from airflow.lineage.entities import File
     from airflow.models import DAG

@@ -25,7 +25,7 @@ Addresses issue #1225.
 from datetime import datetime
 
 from airflow.models import DAG
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 
 dag = DAG(dag_id='test_backfill_pooled_task_dag')
 task = DummyOperator(

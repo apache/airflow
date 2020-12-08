@@ -256,7 +256,6 @@ with third party services to the ``airflow.providers`` package.
 All changes made are backward compatible, but if you use the old import paths you will
 see a deprecation warning. The old import paths can be abandoned in the future.
 
-
 According to [AIP-21](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths)
 `_operator` suffix has been removed from operators. A deprecation warning has also been raised for paths
 importing with the suffix.
@@ -269,6 +268,7 @@ The following table shows changes in import paths.
 |-------------------------------------|----------------------------|
 | airflow.hooks.base_hook.BaseHook | airflow.hooks.base.BaseHook |
 | airflow.hooks.dbapi_hook.DbApiHook | airflow.hooks.dbapi.DbApiHook |
+| airflow.operators.dummy_operator.DummyOperator | airflow.operators.dummy.DummyOperator |
 | airflow.operators.branch_operator.BaseBranchOperator | airflow.operators.branch.BaseBranchOperator |
 | airflow.operators.subdag_operator.SubDagOperator | airflow.operators.subdag.SubDagOperator |
 | airflow.sensors.base_sensor_operator.BaseSensorOperator | airflow.sensors.base.BaseSensorOperator |
@@ -2705,7 +2705,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>>
 >>> from datetime import datetime
 >>> from airflow.models.dag import DAG
->>> from airflow.operators.dummy_operator import DummyOperator
+>>> from airflow.operators.dummy import DummyOperator
 >>>
 >>> dag = DAG('simple_dag', start_date=datetime(2017, 9, 1))
 >>>

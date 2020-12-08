@@ -30,7 +30,7 @@ from airflow.operators.check_operator import (
     ThresholdCheckOperator,
     ValueCheckOperator,
 )
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.operators.sql import BranchSQLOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session

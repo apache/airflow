@@ -31,7 +31,7 @@ This is an example dag for using the WinRMOperator.
 from datetime import timedelta
 
 from airflow import DAG
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
 from airflow.utils.dates import days_ago

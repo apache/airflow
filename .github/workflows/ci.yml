@@ -623,7 +623,7 @@ jobs:
           retention-days: 7
 
   tests-sqlite:
-    timeout-minutes: 60
+    timeout-minutes: 80
     name: >
       Sqlite Py${{matrix.python-version}}: ${{needs.build-info.outputs.testTypes}}
     runs-on: ubuntu-20.04

@@ -21,7 +21,7 @@
 # [START example_subdag_operator]
 from airflow import DAG
 from airflow.example_dags.subdags.subdag import subdag
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.operators.subdag import SubDagOperator
 from airflow.utils.dates import days_ago
 
