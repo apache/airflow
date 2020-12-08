@@ -79,6 +79,7 @@ Content
     license
     start
     installation
+    upgrading-to-2
     tutorial
     tutorial_taskflow_api
     howto/index
