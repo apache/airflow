@@ -94,7 +94,7 @@ Airflow has many more integrations available for separate installation as a prov
    * - :mod:`airflow.sensors.date_time`
      -
 
-   * - :mod:`airflow.sensors.external_task_sensor`
+   * - :mod:`airflow.sensors.external_task`
      - :doc:`How to use <howto/operator/external_task_sensor>`
 
    * - :mod:`airflow.sensors.filesystem`
@@ -103,7 +103,7 @@ Airflow has many more integrations available for separate installation as a prov
    * - :mod:`airflow.sensors.python`
      -
 
-   * - :mod:`airflow.sensors.sql_sensor`
+   * - :mod:`airflow.sensors.sql`
      -
 
    * - :mod:`airflow.sensors.time_delta`
