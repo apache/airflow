@@ -362,7 +362,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def _has_perm(self, permission_name, view_menu_name):
         """Whether the user has this perm"""
-        if hasattr(self, 'perms'):
+        if hasattr(self, 'perms') and self.perms is not None:
             if (permission_name, view_menu_name) in self.perms:
                 return True
         # rebuild the permissions set

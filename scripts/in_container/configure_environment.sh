@@ -16,9 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 # Script to check licences for all code. Can be started from any working directory
-# shellcheck source=scripts/in_container/_in_container_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
-
 export FILES_DIR="/files"
 export AIRFLOW_BREEZE_CONFIG_DIR="${FILES_DIR}/airflow-breeze-config"
 VARIABLES_ENV_FILE="variables.env"

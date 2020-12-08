@@ -364,7 +364,8 @@ class PythonVirtualenvOperator(PythonOperator):
     string_args). In addition, one can pass stuff through op_args and op_kwargs, and one
     can use a return value.
     Note that if your virtualenv runs in a different Python major version than Airflow,
-    you cannot use return values, op_args, or op_kwargs. You can use string_args though.
+    you cannot use return values, op_args, op_kwargs, or use any macros that are being provided to
+    Airflow through plugins. You can use string_args though.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

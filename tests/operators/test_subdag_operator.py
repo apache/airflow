@@ -26,7 +26,7 @@ import airflow
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.subdag_operator import SkippedStatePropagationOptions, SubDagOperator
+from airflow.operators.subdag import SkippedStatePropagationOptions, SubDagOperator
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
@@ -270,8 +270,8 @@ class TestSubDagOperator(unittest.TestCase):
             (None, [State.SKIPPED, State.SKIPPED], False),
         ]
     )
-    @mock.patch('airflow.operators.subdag_operator.SubDagOperator.skip')
-    @mock.patch('airflow.operators.subdag_operator.get_task_instance')
+    @mock.patch('airflow.operators.subdag.SubDagOperator.skip')
+    @mock.patch('airflow.operators.subdag.get_task_instance')
     def test_subdag_with_propagate_skipped_state(
         self, propagate_option, states, skip_parent, mock_get_task_instance, mock_skip
     ):

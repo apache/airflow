@@ -16,6 +16,7 @@
 # under the License.
 
 import json
+import warnings
 from typing import Any, Dict, Optional, Union
 
 import yandexcloud
@@ -32,14 +33,77 @@ class YandexCloudBaseHook(BaseHook):
     :type connection_id: str
     """
 
+    conn_name_attr = 'yandex_conn_id'
+    default_conn_name = 'yandexcloud_default'
+    conn_type = 'yandexcloud'
+    hook_name = 'Yandex Cloud'
+
+    @staticmethod
+    def get_connection_form_widgets() -> Dict[str, Any]:
+        """Returns connection widgets to add to connection form"""
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import PasswordField, StringField
+
+        return {
+            "extra__yandexcloud__service_account_json": PasswordField(
+                lazy_gettext('Service account auth JSON'),
+                widget=BS3PasswordFieldWidget(),
+                description='Service account auth JSON. Looks like '
+                '{"id", "...", "service_account_id": "...", "private_key": "..."}. '
+                'Will be used instead of OAuth token and SA JSON file path field if specified.',
+            ),
+            "extra__yandexcloud__service_account_json_path": StringField(
+                lazy_gettext('Service account auth JSON file path'),
+                widget=BS3TextFieldWidget(),
+                description='Service account auth JSON file path. File content looks like '
+                '{"id", "...", "service_account_id": "...", "private_key": "..."}. '
+                'Will be used instead of OAuth token if specified.',
+            ),
+            "extra__yandexcloud__oauth": PasswordField(
+                lazy_gettext('OAuth Token'),
+                widget=BS3PasswordFieldWidget(),
+                description='User account OAuth token. '
+                'Either this or service account JSON must be specified.',
+            ),
+            "extra__yandexcloud__folder_id": StringField(
+                lazy_gettext('Default folder ID'),
+                widget=BS3TextFieldWidget(),
+                description='Optional. This folder will be used '
+                'to create all new clusters and nodes by default',
+            ),
+            "extra__yandexcloud__public_ssh_key": StringField(
+                lazy_gettext('Public SSH key'),
+                widget=BS3TextFieldWidget(),
+                description='Optional. This key will be placed to all created Compute nodes'
+                'to let you have a root shell there',
+            ),
+        }
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
+            "relabeling": {},
+        }
+
     def __init__(
         self,
+        # Connection id is deprecated. Use yandex_conn_id instead
         connection_id: Optional[str] = None,
+        yandex_conn_id: Optional[str] = None,
         default_folder_id: Union[dict, bool, None] = None,
         default_public_ssh_key: Optional[str] = None,
     ) -> None:
         super().__init__()
-        self.connection_id = connection_id or 'yandexcloud_default'
+        if connection_id:
+            warnings.warn(
+                "Using `connection_id` is deprecated. Please use `yandex_conn_id` parameter.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        self.connection_id = yandex_conn_id or connection_id or self.default_conn_name
         self.connection = self.get_connection(self.connection_id)
         self.extras = self.connection.extra_dejson
         credentials = self._get_credentials()

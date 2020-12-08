@@ -280,6 +280,7 @@ def dag_list_dags(args):
             "dag_id": x.dag_id,
             "filepath": x.filepath,
             "owner": x.owner,
+            "paused": x.get_is_paused(),
         },
     )
 

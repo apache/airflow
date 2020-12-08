@@ -20,7 +20,7 @@ import datetime
 import unittest
 
 from airflow.models import DAG, DagRun, TaskInstance as TI
-from airflow.operators.branch_operator import BaseBranchOperator
+from airflow.operators.branch import BaseBranchOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session

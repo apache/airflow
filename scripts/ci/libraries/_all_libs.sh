@@ -32,6 +32,8 @@ readonly SCRIPTS_CI_DIR
 . "${LIBRARIES_DIR}"/_repeats.sh
 # shellcheck source=scripts/ci/libraries/_sanity_checks.sh
 . "${LIBRARIES_DIR}"/_sanity_checks.sh
+# shellcheck source=scripts/ci/libraries/_build_airflow_packages.sh
+. "${LIBRARIES_DIR}"/_build_airflow_packages.sh
 # shellcheck source=scripts/ci/libraries/_build_images.sh
 . "${LIBRARIES_DIR}"/_build_images.sh
 # shellcheck source=scripts/ci/libraries/_kind.sh

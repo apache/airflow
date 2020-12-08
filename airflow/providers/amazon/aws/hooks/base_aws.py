@@ -328,9 +328,14 @@ class AwsBaseHook(BaseHook):
     :type config: Optional[botocore.client.Config]
     """
 
+    conn_name_attr = 'aws_conn_id'
+    default_conn_name = 'aws_default'
+    conn_type = 'aws'
+    hook_name = 'Amazon Web Services'
+
     def __init__(
         self,
-        aws_conn_id: Optional[str] = "aws_default",
+        aws_conn_id: Optional[str] = default_conn_name,
         verify: Union[bool, str, None] = None,
         region_name: Optional[str] = None,
         client_type: Optional[str] = None,

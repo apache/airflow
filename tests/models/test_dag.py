@@ -46,7 +46,7 @@ from airflow.models.dagparam import DagParam
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import task as task_decorator
-from airflow.operators.subdag_operator import SubDagOperator
+from airflow.operators.subdag import SubDagOperator
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths

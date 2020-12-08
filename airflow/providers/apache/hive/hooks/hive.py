@@ -81,6 +81,7 @@ class HiveCliHook(BaseHook):
     conn_name_attr = 'hive_cli_conn_id'
     default_conn_name = 'hive_cli_default'
     conn_type = 'hive_cli'
+    hook_name = 'Hive Client Wrapper'
 
     def __init__(
         self,
@@ -474,7 +475,12 @@ class HiveMetastoreHook(BaseHook):
     # java short max val
     MAX_PART_COUNT = 32767
 
-    def __init__(self, metastore_conn_id: str = 'metastore_default') -> None:
+    conn_name_attr = 'metastore_conn_id'
+    default_conn_name = 'metastore_default'
+    conn_type = 'hive_metastore'
+    hook_name = 'Hive Metastore Thrift'
+
+    def __init__(self, metastore_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn_id = metastore_conn_id
         self.metastore = self.get_metastore_client()
@@ -814,6 +820,7 @@ class HiveServer2Hook(DbApiHook):
     conn_name_attr = 'hiveserver2_conn_id'
     default_conn_name = 'hiveserver2_default'
     conn_type = 'hiveserver2'
+    hook_name = 'Hive Server 2 Thrift'
     supports_autocommit = False
 
     def get_conn(self, schema: Optional[str] = None) -> Any:

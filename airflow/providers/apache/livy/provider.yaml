@@ -42,3 +42,6 @@ hooks:
   - integration-name: Apache Livy
     python-modules:
       - airflow.providers.apache.livy.hooks.livy
+
+hook-class-names:
+  - airflow.providers.apache.livy.hooks.livy.LivyHook

@@ -109,9 +109,26 @@ COMMAND_ARGS, HYPHEN_ARGS = build_command_args()
 class QuboleHook(BaseHook):
     """Hook for Qubole communication"""
 
+    conn_name_attr = 'qubole_conn_id'
+    default_conn_name = 'qubole_default'
+    conn_type = 'qubole'
+    hook_name = 'Qubole'
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['login', 'schema', 'port', 'extra'],
+            "relabeling": {
+                'host': 'API Endpoint',
+                'password': 'Auth Token',
+            },
+            "placeholders": {'host': 'https://<env>.qubole.com/api'},
+        }
+
     def __init__(self, *args, **kwargs) -> None:  # pylint: disable=unused-argument
         super().__init__()
-        conn = self.get_connection(kwargs['qubole_conn_id'])
+        conn = self.get_connection(kwargs.get('qubole_conn_id', self.default_conn_name))
         Qubole.configure(api_token=conn.password, api_url=conn.host)
         self.task_id = kwargs['task_id']
         self.dag_id = kwargs['dag'].dag_id

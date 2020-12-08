@@ -279,7 +279,6 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         """Define mode rescheduled sensors."""
         return self.mode == 'reschedule'
 
-    # pylint: disable=no-member
     @property
     def deps(self):
         """
@@ -287,8 +286,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         checks if a sensor task instance can be rescheduled.
         """
         if self.reschedule:
-            return BaseOperator.deps.fget(self) | {ReadyToRescheduleDep()}
-        return BaseOperator.deps.fget(self)
+            return super().deps | {ReadyToRescheduleDep()}
+        return super().deps
 
 
 def poke_mode_only(cls):

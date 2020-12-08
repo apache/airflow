@@ -121,8 +121,8 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
     ```shell script
     git checkout constraints-1-10
-    git tag "constraints-${VERSION}"
-    git push origin "constraints-${VERSION}"
+    git tag -s "constraints-${VERSION%rc?}"
+    git push origin "constraints-${VERSION%rc?}"
     ```
 
 - Push the artifacts to ASF dev dist repo
@@ -335,7 +335,7 @@ Once you have the keys, the signatures can be verified by running this:
 ```shell script
 for i in *.asc
 do
-   echo "Checking $i"; gpg --verify `basename $i .sha512 `
+   echo "Checking $i"; gpg --verify `basename $i .asc`
 done
 ```
 
@@ -380,7 +380,7 @@ Run this:
 ```shell script
 for i in *.sha512
 do
-    echo "Checking $i"; gpg --print-md SHA512 `basename $i .sha512 ` | diff - $i
+    echo "Checking $i"; shasum -a 512 `basename $i .sha512 ` | diff - $i
 done
 ```
 

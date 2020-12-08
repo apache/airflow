@@ -51,7 +51,16 @@ function assert_in_container() {
 }
 
 function in_container_script_start() {
-    OUT_FILE_PRINTED_ON_ERROR=$(mktemp)
+    OUTPUT_PRINTED_ONLY_ON_ERROR=$(mktemp)
+    export OUTPUT_PRINTED_ONLY_ON_ERROR
+    readonly OUTPUT_PRINTED_ONLY_ON_ERROR
+
+    if [[ ${VERBOSE=} == "true" ]]; then
+        echo
+        echo "Output is redirected to ${OUTPUT_PRINTED_ONLY_ON_ERROR} and will be printed on error only"
+        echo
+    fi
+
     if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
         set -x
     fi
@@ -61,14 +70,14 @@ function in_container_script_end() {
     #shellcheck disable=2181
     EXIT_CODE=$?
     if [[ ${EXIT_CODE} != 0 ]]; then
-        if [[ "${PRINT_INFO_FROM_SCRIPTS=="true"}" == "true" ]]; then
-            if [[ -f "${OUT_FILE_PRINTED_ON_ERROR}" ]]; then
+        if [[ "${PRINT_INFO_FROM_SCRIPTS="true"}" == "true" ]]; then
+            if [[ -f "${OUTPUT_PRINTED_ONLY_ON_ERROR}" ]]; then
                 echo "###########################################################################################"
                 echo
                 echo "${COLOR_BLUE} EXIT CODE: ${EXIT_CODE} in container (See above for error message). Below is the output of the last action! ${COLOR_RESET}"
                 echo
                 echo "${COLOR_BLUE}***  BEGINNING OF THE LAST COMMAND OUTPUT *** ${COLOR_RESET}"
-                cat "${OUT_FILE_PRINTED_ON_ERROR}"
+                cat "${OUTPUT_PRINTED_ONLY_ON_ERROR}"
                 echo "${COLOR_BLUE}***  END OF THE LAST COMMAND OUTPUT ***  ${COLOR_RESET}"
                 echo
                 echo "${COLOR_BLUE} EXIT CODE: ${EXIT_CODE} in container. The actual error might be above the output!  ${COLOR_RESET}"
@@ -260,24 +269,27 @@ function dump_airflow_logs() {
 }
 
 function install_airflow_from_wheel() {
+    local extras
+    extras="${1}"
+    local airflow_package
+    airflow_package=$(find /dist/ -maxdepth 1 -type f -name 'apache_airflow-*.whl')
     echo
-    echo "Install airflow wheel package from dist"
+    echo "Found package: ${airflow_package}. Installing."
     echo
-    pip install /dist/apache_airflow-*.whl >"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
+    if [[ -z "${airflow_package}" ]]; then
+        >&2 echo
+        >&2 echo "ERROR! Could not find airflow wheel package to install in dist"
+        >&2 echo
+        exit 4
+    fi
+    pip install "${airflow_package}${1}" >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
 }
 
 function install_remaining_dependencies() {
-    echo
-    echo "Installs all remaining dependencies that are not installed by 'all' "
-    echo
-    pip install apache-beam[gcp] >"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
+    pip install apache-beam[gcp] >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
 }
 
 function uninstall_airflow() {
-    echo
-    echo "Uninstalling all provider packages"
-    echo
-    pip freeze | grep apache-airflow-providers | xargs pip uninstall -y || true
     echo
     echo "Uninstalling airflow"
     echo
@@ -288,11 +300,27 @@ function uninstall_airflow() {
     find /root/airflow/ -type f -print0 | xargs -0 rm -f --
 }
 
+function uninstall_providers() {
+    echo
+    echo "Uninstalling all provider packages"
+    echo
+    local provider_packages_to_uninstall
+    provider_packages_to_uninstall=$(pip freeze | grep apache-airflow-providers || true)
+    if [[ -n ${provider_packages_to_uninstall} ]]; then
+        echo "${provider_packages_to_uninstall}" | xargs pip uninstall -y || true 2>/dev/null
+    fi
+}
+
+function uninstall_airflow_and_providers() {
+    uninstall_providers
+    uninstall_airflow
+}
+
 function install_all_airflow_dependencies() {
     echo
     echo "Installing dependencies from 'all' extras"
     echo
-    pip install ".[all]" >"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
+    pip install ".[all]" >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
 }
 
 function install_released_airflow_version() {
@@ -306,25 +334,21 @@ function install_released_airflow_version() {
         export SLUGIFY_USES_TEXT_UNIDECODE=yes
     fi
     rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
-    if [[ ${INSTALL_AIRFLOW_VERSION} == "wheel" ]]; then
-        pip install /dist/apache_airflow-*.whl >"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
-    else
-        pip install --upgrade "apache-airflow${extras}==${1}" >"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
-    fi
+    pip install --upgrade "apache-airflow${extras}==${1}" >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
 }
 
 function install_all_provider_packages_from_wheels() {
     echo
     echo "Installing all provider packages from wheels"
     echo
-    pip install /dist/apache_airflow*providers_*.whl >"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
+    pip install /dist/apache_airflow*providers_*.whl >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
 }
 
 function install_all_provider_packages_from_tar_gz_files() {
     echo
     echo "Installing all provider packages from .tar.gz"
     echo
-    pip install /dist/apache-airflow-*providers-*.tar.gz >"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
+    pip install /dist/apache-airflow-*providers-*.tar.gz >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
 }
 
 function setup_provider_packages() {

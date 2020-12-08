@@ -32,3 +32,6 @@ hooks:
   - integration-name: Facebook Ads
     python-modules:
       - airflow.providers.facebook.ads.hooks.ads
+
+hook-class-names:
+  - airflow.providers.facebook.ads.hooks.ads.FacebookAdsReportingHook

@@ -39,6 +39,7 @@ class ExasolHook(DbApiHook):
     conn_name_attr = 'exasol_conn_id'
     default_conn_name = 'exasol_default'
     conn_type = 'exasol'
+    hook_name = 'Exasol'
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs) -> None:

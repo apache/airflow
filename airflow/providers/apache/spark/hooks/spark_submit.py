@@ -104,6 +104,19 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :type spark_binary: str
     """
 
+    conn_name_attr = 'conn_id'
+    default_conn_name = 'spark_default'
+    conn_type = 'spark'
+    hook_name = 'Spark'
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['schema', 'login', 'password'],
+            "relabeling": {},
+        }
+
     # pylint: disable=too-many-arguments,too-many-locals,too-many-branches
     def __init__(
         self,

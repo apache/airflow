@@ -156,6 +156,48 @@ class GoogleBaseHook(BaseHook):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
+    conn_name_attr = 'gcp_conn_id'
+    default_conn_name = 'google_cloud_default'
+    conn_type = 'google_cloud_platform'
+    hook_name = 'Google Cloud'
+
+    @staticmethod
+    def get_connection_form_widgets() -> Dict[str, Any]:
+        """Returns connection widgets to add to connection form"""
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import IntegerField, PasswordField, StringField
+        from wtforms.validators import NumberRange
+
+        return {
+            "extra__google_cloud_platform__project": StringField(
+                lazy_gettext('Project Id'), widget=BS3TextFieldWidget()
+            ),
+            "extra__google_cloud_platform__key_path": StringField(
+                lazy_gettext('Keyfile Path'), widget=BS3TextFieldWidget()
+            ),
+            "extra__google_cloud_platform__keyfile_dict": PasswordField(
+                lazy_gettext('Keyfile JSON'), widget=BS3PasswordFieldWidget()
+            ),
+            "extra__google_cloud_platform__scope": StringField(
+                lazy_gettext('Scopes (comma separated)'), widget=BS3TextFieldWidget()
+            ),
+            "extra__google_cloud_platform__num_retries": IntegerField(
+                lazy_gettext('Number of Retries'),
+                validators=[NumberRange(min=0)],
+                widget=BS3TextFieldWidget(),
+                default=5,
+            ),
+        }
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
+            "relabeling": {},
+        }
+
     def __init__(
         self,
         gcp_conn_id: str = 'google_cloud_default',

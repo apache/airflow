@@ -1693,7 +1693,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             try_number=self.try_number,
             kube_image=kube_config.kube_image,
             date=self.execution_date,
-            command=self.command_as_list(),
+            args=self.command_as_list(),
             pod_override_object=PodGenerator.from_obj(self.executor_config),
             scheduler_job_id="worker-config",
             namespace=kube_config.executor_namespace,
@@ -1883,16 +1883,21 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             task_ids=task_ids,
             include_prior_dates=include_prior_dates,
             session=session,
-        ).with_entities(XCom.value)
+        )
 
         # Since we're only fetching the values field, and not the
         # whole class, the @recreate annotation does not kick in.
         # Therefore we need to deserialize the fields by ourselves.
-
         if is_container(task_ids):
-            return [XCom.deserialize_value(xcom) for xcom in query]
+            vals_kv = {
+                result.task_id: XCom.deserialize_value(result)
+                for result in query.with_entities(XCom.task_id, XCom.value)
+            }
+
+            values_ordered_by_id = [vals_kv.get(task_id) for task_id in task_ids]
+            return values_ordered_by_id
         else:
-            xcom = query.first()
+            xcom = query.with_entities(XCom.value).first()
             if xcom:
                 return XCom.deserialize_value(xcom)
 

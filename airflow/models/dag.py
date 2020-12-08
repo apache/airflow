@@ -794,7 +794,7 @@ class DAG(LoggingMixin):
         return self.get_concurrency_reached()
 
     @provide_session
-    def get_is_paused(self, session=None):
+    def get_is_paused(self, session=None) -> Optional[None]:
         """Returns a boolean indicating whether this DAG is paused"""
         qry = session.query(DagModel).filter(DagModel.dag_id == self.dag_id)
         return qry.value(DagModel.is_paused)
@@ -952,7 +952,7 @@ class DAG(LoggingMixin):
     def subdags(self):
         """Returns a list of the subdag objects associated to this DAG"""
         # Check SubDag for class but don't check class directly
-        from airflow.operators.subdag_operator import SubDagOperator
+        from airflow.operators.subdag import SubDagOperator
 
         subdag_lst = []
         for task in self.tasks:
@@ -1061,7 +1061,7 @@ class DAG(LoggingMixin):
         :param include_subdag_tasks: whether to include tasks in subdags, default to False
         :return: list of tasks in topological order
         """
-        from airflow.operators.subdag_operator import SubDagOperator  # Avoid circular import
+        from airflow.operators.subdag import SubDagOperator  # Avoid circular import
 
         # convert into an OrderedDict to speedup lookup while keeping order the same
         graph_unsorted = OrderedDict((task.task_id, task) for task in self.tasks)

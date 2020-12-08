@@ -944,6 +944,32 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         check_task_group(serialized_dag.task_group)
 
+    @parameterized.expand(
+        [
+            ("poke", False),
+            ("reschedule", True),
+        ]
+    )
+    def test_serialize_sensor(self, mode, expect_custom_deps):
+        from airflow.sensors.base_sensor_operator import BaseSensorOperator
+
+        class DummySensor(BaseSensorOperator):
+            def poke(self, context):
+                return False
+
+        op = DummySensor(task_id='dummy', mode=mode, poke_interval=23)
+
+        blob = SerializedBaseOperator.serialize_operator(op)
+
+        if expect_custom_deps:
+            assert "deps" in blob
+        else:
+            assert "deps" not in blob
+
+        serialized_op = SerializedBaseOperator.deserialize_operator(blob)
+
+        assert op.deps == serialized_op.deps
+
 
 def test_kubernetes_optional():
     """Serialisation / deserialisation continues to work without kubernetes installed"""

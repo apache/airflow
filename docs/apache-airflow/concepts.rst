@@ -82,7 +82,7 @@ scope.
     my_function()
 
 Sometimes this can be put to good use. For example, a common pattern with
-:class:`~airflow.operators.subdag_operator.SubDagOperator` is to define the subdag inside a function so that Airflow
+:class:`~airflow.operators.subdag.SubDagOperator` is to define the subdag inside a function so that Airflow
 doesn't try to load it as a standalone DAG.
 
 .. _default-args:
@@ -436,7 +436,6 @@ Airflow provides operators for many common tasks, including:
   :class:`~airflow.providers.microsoft.mssql.operators.mssql.MsSqlOperator`,
   :class:`~airflow.providers.oracle.operators.oracle.OracleOperator`,
   :class:`~airflow.providers.jdbc.operators.jdbc.JdbcOperator`, etc. - executes a SQL command
-- ``Sensor`` - an Operator that waits (polls) for a certain time, file, database row, S3 key, etc...
 
 In addition to these basic building blocks, there are many more specific
 operators: :class:`~airflow.providers.docker.operators.docker.DockerOperator`,
@@ -448,7 +447,81 @@ Operators are only loaded by Airflow if they are assigned to a DAG.
 
 .. seealso::
     - :ref:`List Airflow operators <pythonapi:operators>`
-    - :doc:`How-to guides for some Airflow operators<howto/operator/index>`.
+    - :doc:`How-to guides for some Airflow operators<howto/operator/index>`
+
+.. _concepts:sensors:
+
+Sensors
+-------
+
+``Sensor`` is an Operator that waits (polls) for a certain time, file, database row, S3 key, , another DAG/task, etc...
+
+There are currently 3 different modes for how a sensor operates:
+
++--------------------+-----------------------+-----------------------+
+| Schedule Mode      | Description           | Use case              |
++====================+=======================+=======================+
+| ``poke`` (default) | The sensor is taking  | Use this mode if the  |
+|                    | up a worker slot for  | expected runtime of   |
+|                    | its whole execution   | the sensor is short   |
+|                    | time and sleeps       | or if a short poke    |
+|                    | between pokes.        | interval is required. |
+|                    |                       | Note that the sensor  |
+|                    |                       | will hold onto a      |
+|                    |                       | worker slot and a     |
+|                    |                       | pool slot for the     |
+|                    |                       | duration of the       |
+|                    |                       | sensor's runtime in   |
+|                    |                       | this mode.            |
++--------------------+-----------------------+-----------------------+
+| ``reschedule``     | The sensor task frees | Use this mode if the  |
+|                    | the worker slot when  | time before the       |
+|                    | the criteria is not   | criteria is met is    |
+|                    | yet met and it's      | expected to be quite  |
+|                    | rescheduled at a      | long. The poke        |
+|                    | later time.           | interval should be    |
+|                    |                       | more than one minute  |
+|                    |                       | to prevent too much   |
+|                    |                       | load on the           |
+|                    |                       | scheduler.            |
++--------------------+-----------------------+-----------------------+
+| ``smart sensor``   | smart sensor is a     | Use this mode if you  |
+|                    | service (run by a     | have a large amount   |
+|                    | builtin DAG) which    | of sensor tasks       |
+|                    | consolidate the       | running in your       |
+|                    | execution of sensors  | airflow cluster. This |
+|                    | in batches. Instead   | can largely reduce    |
+|                    | of holding a long     | airflow’s             |
+|                    | running process for   | infrastructure cost   |
+|                    | each sensor and       | and improve cluster   |
+|                    | poking periodically,  | stability - reduce    |
+|                    | a sensor will only    | meta database load.   |
+|                    | store poke context at |                       |
+|                    | ``sensor_instance``   |                       |
+|                    | table and then exits  |                       |
+|                    | with a 'sensing'      |                       |
+|                    | state.                |                       |
++--------------------+-----------------------+-----------------------+
+
+How to use:
+
+For ``poke|schedule`` mode, you can configure them at the task level by supplying the ``mode`` parameter,
+i.e. ``S3KeySensor(task_id='check-bucket', mode='reschedule', ...)``.
+
+For ``smart sensor``, you need to configure it in ``airflow.cfg``, for example:
+
+.. code-block::
+
+    [smart_sensor]
+    use_smart_sensor = true
+    shard_code_upper_limit = 10000
+
+    # Users can change the following config based on their requirements
+    shards = 5
+    sensors_enabled = NamedHivePartitionSensor, MetastorePartitionSensor
+
+For more information on how to configure ``smart-sensor`` and its architecture, see:
+:doc:`Smart Sensor Architecture and Configuration<smart-sensor>`
 
 DAG Assignment
 --------------
@@ -896,7 +969,7 @@ For example:
   start_op >> branch_op >> [continue_op, stop_op]
 
 If you wish to implement your own operators with branching functionality, you
-can inherit from :class:`~airflow.operators.branch_operator.BaseBranchOperator`,
+can inherit from :class:`~airflow.operators.branch.BaseBranchOperator`,
 which behaves similarly to ``BranchPythonOperator`` but expects you to provide
 an implementation of the method ``choose_branch``. As with the callable for
 ``BranchPythonOperator``, this method should return the ID of a downstream task,
@@ -951,7 +1024,7 @@ This SubDAG can then be referenced in your main DAG file:
     :start-after: [START example_subdag_operator]
     :end-before: [END example_subdag_operator]
 
-You can zoom into a :class:`~airflow.operators.subdag_operator.SubDagOperator` from the graph view of the main DAG to show
+You can zoom into a :class:`~airflow.operators.subdag.SubDagOperator` from the graph view of the main DAG to show
 the tasks contained within the SubDAG:
 
 .. image:: img/subdag_zoom.png
@@ -965,8 +1038,8 @@ Some other tips when using SubDAGs:
 -  SubDAGs must have a schedule and be enabled. If the SubDAG's schedule is
    set to ``None`` or ``@once``, the SubDAG will succeed without having done
    anything
--  clearing a :class:`~airflow.operators.subdag_operator.SubDagOperator` also clears the state of the tasks within
--  marking success on a :class:`~airflow.operators.subdag_operator.SubDagOperator` does not affect the state of the tasks
+-  clearing a :class:`~airflow.operators.subdag.SubDagOperator` also clears the state of the tasks within
+-  marking success on a :class:`~airflow.operators.subdag.SubDagOperator` does not affect the state of the tasks
    within
 -  refrain from using ``depends_on_past=True`` in tasks within the SubDAG as
    this can be confusing
@@ -978,7 +1051,7 @@ Some other tips when using SubDAGs:
 
 See ``airflow/example_dags`` for a demonstration.
 
-Note that airflow pool is not honored by :class:`~airflow.operators.subdag_operator.SubDagOperator`. Hence
+Note that airflow pool is not honored by :class:`~airflow.operators.subdag.SubDagOperator`. Hence
 resources could be consumed by SubdagOperators.
 
 
@@ -986,7 +1059,7 @@ TaskGroup
 =========
 TaskGroup can be used to organize tasks into hierarchical groups in Graph View. It is
 useful for creating repeating patterns and cutting down visual clutter. Unlike
-:class:`~airflow.operators.subdag_operator.SubDagOperator`, TaskGroup is a UI grouping concept.
+:class:`~airflow.operators.subdag.SubDagOperator`, TaskGroup is a UI grouping concept.
 Tasks in TaskGroups live on the same original DAG. They honor all the pool configurations.
 
 Dependency relationships can be applied across all tasks in a TaskGroup with the ``>>`` and ``<<``

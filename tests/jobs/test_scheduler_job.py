@@ -1933,7 +1933,7 @@ class TestSchedulerJob(unittest.TestCase):
         scheduler.processor_agent = processor
 
         with mock.patch.object(settings, "USE_JOB_SCHEDULE", False), conf_vars(
-            {('scheduler', 'clean_tis_without_dagrun'): '0.001'}
+            {('scheduler', 'clean_tis_without_dagrun_interval'): '0.001'}
         ):
             scheduler._run_scheduler_loop()
 
@@ -2386,6 +2386,7 @@ class TestSchedulerJob(unittest.TestCase):
             session.commit()
             self.assertListEqual([], self.null_exec.sorted_tasks)
 
+    @pytest.mark.quarantined
     def test_scheduler_task_start_date(self):
         """
         Test that the scheduler respects task start dates that are different from DAG start dates

@@ -52,6 +52,12 @@ assists users migrating to a new version.
 
 ## Master
 
+### SparkJDBCHook default connection
+
+For SparkJDBCHook default connection was `spark-default`, and for SparkSubmitHook it was
+`spark_default`. Both hooks now use the `spark_default` which is a common pattern for the connection
+names used across all providers.
+
 ### Changes to output argument in commands
 
 From Airflow 2.0, We are replacing [tabulate](https://pypi.org/project/tabulate/) with [rich](https://github.com/willmcgugan/rich) to render commands output. Due to this change, the `--output` argument
@@ -99,7 +105,6 @@ The `all` extras were reduced to include only user-facing dependencies. This mea
 that this extra does not contain development dependencies. If you were relying on
 `all` extra then you should use now `devel_all` or figure out if you need development
 extras at all.
-
 
 ### `[scheduler] max_threads` config has been renamed to `[scheduler] parsing_processes`
 
@@ -184,8 +189,6 @@ previously used full path as ignored, you should change it to relative one. For 
 folder was '/var/dags/' and your airflowignore contained '/var/dag/excluded/', you should change it
 to 'excluded/'.
 
-### The default value for `[webserver] cookie_samesite` has been changed to `Lax`
-
 ### `ExternalTaskSensor` provides all task context variables to `execution_date_fn` as keyword arguments
 
 The old syntax of passing `context` as a dictionary will continue to work with the caveat that the argument must be named `context`. The following will break. To fix it, change `ctx` to `context`.
@@ -206,7 +209,7 @@ def execution_date_fn(execution_date, ds_nodash):
 def execution_date_fn(execution_date, ds_nodash, dag):
 ```
 
-### The default `[webserver] cookie_samesite` has been changed to `Lax`
+### The default value for `[webserver] cookie_samesite` has been changed to `Lax`
 
 As [recommended](https://flask.palletsprojects.com/en/1.1.x/config/#SESSION_COOKIE_SAMESITE) by Flask, the
 `[webserver] cookie_samesite` has bee changed to `Lax` from `None`.
@@ -254,7 +257,17 @@ All changes made are backward compatible, but if you use the old import paths yo
 see a deprecation warning. The old import paths can be abandoned in the future.
 
 
+According to [AIP-21](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths)
+`_operator` suffix has been removed from operators. A deprecation warning has also been raised for paths
+importing with the suffix.
 
+
+The following table shows changes in import paths.
+
+
+| Old path                            | New path                   |
+|-------------------------------------|----------------------------|
+| airflow.operators.branch_operator.BaseBranchOperator | airflow.operators.branch.BaseBranchOperator |
 
 
 ### Database schema changes
@@ -1668,6 +1681,16 @@ For example:
 If you want to install integration for Microsoft Azure, then instead of `pip install apache-airflow[atlas]`
 you should use `pip install apache-airflow[apache.atlas]`.
 
+
+NOTE!
+
+On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+`pip upgrade --pip==20.2.4` or, in case you use Pip 20.3, you need to add option
+`--use-deprecated legacy-resolver` to your pip install command.
+
+
 If you want to install integration for Microsoft Azure, then instead of
 
 ```
@@ -1679,7 +1702,7 @@ you should execute `pip install 'apache-airflow[azure]'`
 If you want to install integration for Amazon Web Services, then instead of
 `pip install 'apache-airflow[s3,emr]'`, you should execute `pip install 'apache-airflow[aws]'`
 
-The deprecated extras will be removed in 2.1:
+The deprecated extras will be removed in 3.0.
 
 #### Simplify the response payload of endpoints /dag_stats and /task_stats
 

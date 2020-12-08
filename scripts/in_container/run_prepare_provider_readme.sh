@@ -53,5 +53,5 @@ find airflow/providers \( \
         -print0 | \
     tar --null --no-recursion -cvzf "${AIRFLOW_PROVIDER_README_TGZ_FILE}" -T -
 echo
-echo "Airflow readme for ${PACKAGE_TYPE} provider packages are tar-gzipped in ${AIRFLOW_PROVIDER_README_TGZ_FILE}"
+echo "Airflow readme for ${PACKAGE_TYPE} provider packages format ${PACKAGE_FORMAT} are tar-gzipped in ${AIRFLOW_PROVIDER_README_TGZ_FILE}"
 echo

@@ -45,6 +45,20 @@ class SFTPHook(SSHHook):
     Errors that may occur throughout but should be handled downstream.
     """
 
+    conn_name_attr = 'ftp_conn_id'
+    default_conn_name = 'sftp_default'
+    conn_type = 'sftp'
+    hook_name = 'SFTP'
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        return {
+            "hidden_fields": ['schema'],
+            "relabeling": {
+                'login': 'Username',
+            },
+        }
+
     def __init__(self, ftp_conn_id: str = 'sftp_default', *args, **kwargs) -> None:
         kwargs['ssh_conn_id'] = ftp_conn_id
         super().__init__(*args, **kwargs)

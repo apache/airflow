@@ -43,6 +43,7 @@ class MongoHook(BaseHook):
     conn_name_attr = 'conn_id'
     default_conn_name = 'mongo_default'
     conn_type = 'mongo'
+    hook_name = 'MongoDB'
 
     def __init__(self, conn_id: str = default_conn_name, *args, **kwargs) -> None:
 

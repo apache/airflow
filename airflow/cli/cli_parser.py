@@ -173,7 +173,10 @@ ARG_YES = Arg(
     ("-y", "--yes"), help="Do not prompt to confirm reset. Use with care!", action="store_true", default=False
 )
 ARG_OUTPUT = Arg(
-    ("--output",),
+    (
+        "-o",
+        "--output",
+    ),
     help=("Output format. Allowed values: json, yaml, table (default: table)"),
     metavar="(table, json, yaml)",
     choices=("table", "json", "yaml"),
@@ -1149,12 +1152,6 @@ CONNECTIONS_COMMANDS = (
 )
 PROVIDERS_COMMANDS = (
     ActionCommand(
-        name='hooks',
-        help='List registered provider hooks',
-        func=lazy_load_command('airflow.cli.commands.provider_command.hooks_list'),
-        args=(ARG_OUTPUT,),
-    ),
-    ActionCommand(
         name='list',
         help='List installed providers',
         func=lazy_load_command('airflow.cli.commands.provider_command.providers_list'),
@@ -1165,6 +1162,30 @@ PROVIDERS_COMMANDS = (
         help='Get detailed information about a provider',
         func=lazy_load_command('airflow.cli.commands.provider_command.provider_get'),
         args=(ARG_OUTPUT, ARG_FULL, ARG_COLOR, ARG_PROVIDER_NAME),
+    ),
+    ActionCommand(
+        name='links',
+        help='List extra links registered by the providers',
+        func=lazy_load_command('airflow.cli.commands.provider_command.extra_links_list'),
+        args=(ARG_OUTPUT,),
+    ),
+    ActionCommand(
+        name='widgets',
+        help='Get information about registered connection form widgets',
+        func=lazy_load_command('airflow.cli.commands.provider_command.connection_form_widget_list'),
+        args=(ARG_OUTPUT,),
+    ),
+    ActionCommand(
+        name='hooks',
+        help='List registered provider hooks',
+        func=lazy_load_command('airflow.cli.commands.provider_command.hooks_list'),
+        args=(ARG_OUTPUT,),
+    ),
+    ActionCommand(
+        name='behaviours',
+        help='Get information about registered connection types with custom behaviours',
+        func=lazy_load_command('airflow.cli.commands.provider_command.connection_field_behaviours'),
+        args=(ARG_OUTPUT,),
     ),
 )
 

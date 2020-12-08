@@ -53,6 +53,11 @@ class SegmentHook(BaseHook):
         `{"write_key":"YOUR_SECURITY_TOKEN"}`
     """
 
+    conn_name_attr = 'segment_conn_id'
+    default_conn_name = 'segment_default'
+    conn_type = 'segment'
+    hook_name = 'Segment'
+
     def __init__(
         self, segment_conn_id: str = 'segment_default', segment_debug_mode: bool = False, *args, **kwargs
     ) -> None:

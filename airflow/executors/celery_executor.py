@@ -184,7 +184,7 @@ def on_celery_import_modules(*args, **kwargs):
     import airflow.macros
     import airflow.operators.bash
     import airflow.operators.python
-    import airflow.operators.subdag_operator  # noqa: F401
+    import airflow.operators.subdag  # noqa: F401
 
     try:
         import kubernetes.client  # noqa: F401

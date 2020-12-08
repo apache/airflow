@@ -27,6 +27,8 @@ Content
 
     Connection types <connections/aws>
     Operators <operators/index>
+    Secrets backends <secrets-backends/index>
+    Logging for Tasks <logging/index>
 
 .. toctree::
     :maxdepth: 1

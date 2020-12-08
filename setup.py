@@ -26,7 +26,7 @@ from os.path import dirname
 from textwrap import wrap
 from typing import Dict, Iterable, List
 
-from setuptools import Command, find_namespace_packages, setup
+from setuptools import Command, Distribution, find_namespace_packages, setup
 
 logger = logging.getLogger(__name__)
 
@@ -415,6 +415,9 @@ statsd = [
 tableau = [
     'tableauserverclient~=0.12',
 ]
+telegram = [
+    'python-telegram-bot==13.0',
+]
 vertica = [
     'vertica-python>=0.5.1',
 ]
@@ -427,7 +430,7 @@ webhdfs = [
 winrm = [
     'pywinrm~=0.4',
 ]
-yandexcloud = [
+yandex = [
     'yandexcloud>=0.22.0',
 ]
 zendesk = [
@@ -521,7 +524,7 @@ devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
 # This should be done with appropriate comment explaining why the requirement was added.
 ############################################################################################################
 
-
+# Those are requirements that each provider package has
 PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "amazon": amazon,
     "apache.cassandra": cassandra,
@@ -581,11 +584,15 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "snowflake": snowflake,
     "sqlite": [],
     "ssh": ssh,
+    "telegram": telegram,
     "vertica": vertica,
-    "yandex": yandexcloud,
+    "yandex": yandex,
     "zendesk": zendesk,
 }
 
+# Those are requirements that each extra has. For extras that match the providers
+# the requirements are identical as in the list above, but we have still a few aliases
+# that have different set of requirements.
 EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'all_dbs': all_dbs,
     'amazon': amazon,
@@ -603,47 +610,48 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     "apache.sqoop": [],
     "apache.webhdfs": webhdfs,
     'async': async_packages,
-    'atlas': atlas,  # TODO: remove this in Airflow 2.1
-    'aws': amazon,  # TODO: remove this in Airflow 2.1
-    'azure': azure,  # TODO: remove this in Airflow 2.1
-    'cassandra': cassandra,  # TODO: remove this in Airflow 2.1
+    'atlas': atlas,  # TODO: remove this in Airflow 3.0
+    'aws': amazon,  # TODO: remove this in Airflow 3.0
+    'azure': azure,  # TODO: remove this in Airflow 3.0
+    'cassandra': cassandra,  # TODO: remove this in Airflow 3.0
     'celery': celery,
     'cgroups': cgroups,
     'cloudant': cloudant,
     'cncf.kubernetes': kubernetes,
+    'crypto': [],  # TODO: remove this in Airflow 3.0
     'dask': dask,
     'databricks': databricks,
     'datadog': datadog,
     'dingding': [],
     'discord': [],
     'docker': docker,
-    'druid': druid,  # TODO: remove this in Airflow 2.1
+    'druid': druid,  # TODO: remove this in Airflow 3.0
     'elasticsearch': elasticsearch,
     'exasol': exasol,
     'facebook': facebook,
     'ftp': [],
-    'gcp': google,  # TODO: remove this in Airflow 2.1
-    'gcp_api': google,  # TODO: remove this in Airflow 2.1
+    'gcp': google,  # TODO: remove this in Airflow 3.0
+    'gcp_api': google,  # TODO: remove this in Airflow 3.0
     'github_enterprise': flask_oauth,
     'google': google,
     'google_auth': flask_oauth,
     'grpc': grpc,
     'hashicorp': hashicorp,
-    'hdfs': hdfs,  # TODO: remove this in Airflow 2.1
-    'hive': hive,  # TODO: remove this in Airflow 2.1
+    'hdfs': hdfs,  # TODO: remove this in Airflow 3.0
+    'hive': hive,  # TODO: remove this in Airflow 3.0
     'http': [],
     'imap': [],
     'jdbc': jdbc,
     'jenkins': [],
     'jira': jira,
     'kerberos': kerberos,
-    'kubernetes': kubernetes,  # TODO: remove this in Airflow 2.1
+    'kubernetes': kubernetes,  # TODO: remove this in Airflow 3.0
     'ldap': ldap,
     "microsoft.azure": azure,
     "microsoft.mssql": mssql,
     "microsoft.winrm": winrm,
     'mongo': mongo,
-    'mssql': mssql,  # TODO: remove this in Airflow 2.1
+    'mssql': mssql,  # TODO: remove this in Airflow 3.0
     'mysql': mysql,
     'odbc': odbc,
     'openfaas': [],
@@ -652,14 +660,15 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'pagerduty': pagerduty,
     'papermill': papermill,
     'password': password,
-    'pinot': pinot,  # TODO: remove this in Airflow 2.1
+    'pinot': pinot,  # TODO: remove this in Airflow 3.0
     'plexus': plexus,
     'postgres': postgres,
     'presto': presto,
-    'qds': qubole,  # TODO: remove this in Airflow 2.1
+    'qds': qubole,  # TODO: remove this in Airflow 3.0
     'qubole': qubole,
     'rabbitmq': rabbitmq,
     'redis': redis,
+    's3': amazon,  # TODO: remove this in Airflow 3.0
     'salesforce': salesforce,
     'samba': samba,
     'segment': segment,
@@ -674,15 +683,17 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'ssh': ssh,
     'statsd': statsd,
     'tableau': tableau,
+    'telegram': telegram,
     'vertica': vertica,
     'virtualenv': virtualenv,
-    'webhdfs': webhdfs,  # TODO: remove this in Airflow 2.1
-    'winrm': winrm,  # TODO: remove this in Airflow 2.1
-    'yandex': yandexcloud,  # TODO: remove this in Airflow 2.1
-    'yandexcloud': yandexcloud,
+    'webhdfs': webhdfs,  # TODO: remove this in Airflow 3.0
+    'winrm': winrm,  # TODO: remove this in Airflow 3.0
+    'yandex': yandex,
     'zendesk': [],
 }
 
+# Those are airflow providers added for the extras in many cases extra = provider
+# But for aliases and some special aliases (like all_dbs) the list might be longer.
 EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'all': list(PROVIDERS_REQUIREMENTS.keys()),
     # this is not 100% accurate with devel_ci and devel_all definition, but we really want
@@ -719,14 +730,15 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     "apache.sqoop": ["apache.sqoop"],
     "apache.webhdfs": ["apache.hdfs"],
     'async': [],
-    'atlas': [],  # TODO: remove this in Airflow 2.1
-    'aws': ["amazon"],  # TODO: remove this in Airflow 2.1
-    'azure': ["microsoft.azure"],  # TODO: remove this in Airflow 2.1
-    'cassandra': ["apache.cassandra"],  # TODO: remove this in Airflow 2.1
+    'atlas': [],  # TODO: remove this in Airflow 3.0
+    'aws': ["amazon"],  # TODO: remove this in Airflow 3.0
+    'azure': ["microsoft.azure"],  # TODO: remove this in Airflow 3.0
+    'cassandra': ["apache.cassandra"],  # TODO: remove this in Airflow 3.0
     'celery': ["celery"],
     'cgroups': [],
     'cloudant': ["cloudant"],
     'cncf.kubernetes': ["cncf.kubernetes"],
+    'crypto': [],  # TODO: remove this in Airflow 3.0
     'dask': [],
     'databricks': ["databricks"],
     'datadog': ["datadog"],
@@ -736,33 +748,33 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'discord': ["discord"],
     'doc': [],
     'docker': ["docker"],
-    'druid': ["apache.druid"],  # TODO: remove this in Airflow 2.1
+    'druid': ["apache.druid"],  # TODO: remove this in Airflow 3.0
     'elasticsearch': ["elasticsearch"],
     'exasol': ["exasol"],
     'facebook': ["facebook"],
     'ftp': ["ftp"],
-    'gcp': ["google"],  # TODO: remove this in Airflow 2.1
-    'gcp_api': ["google"],  # TODO: remove this in Airflow 2.1
+    'gcp': ["google"],  # TODO: remove this in Airflow 3.0
+    'gcp_api': ["google"],  # TODO: remove this in Airflow 3.0
     'github_enterprise': [],
     'google': ["google"],
     'google_auth': [],
     'grpc': ["grpc"],
     'hashicorp': ["hashicorp"],
-    'hdfs': ["apache.hdfs"],  # TODO: remove this in Airflow 2.1
-    'hive': ["apache.hive"],  # TODO: remove this in Airflow 2.1
+    'hdfs': ["apache.hdfs"],  # TODO: remove this in Airflow 3.0
+    'hive': ["apache.hive"],  # TODO: remove this in Airflow 3.0
     'http': ["http"],
     'imap': ["imap"],
     'jdbc': ["jdbc"],
     'jenkins': ["jenkins"],
     'jira': ["jira"],
     'kerberos': [],
-    'kubernetes': ["cncf.kubernetes"],  # TODO: remove this in Airflow 2.1
+    'kubernetes': ["cncf.kubernetes"],  # TODO: remove this in Airflow 3.0
     'ldap': [],
     "microsoft.azure": ["microsoft.azure"],
     "microsoft.mssql": ["microsoft.mssql"],
     "microsoft.winrm": ["microsoft.winrm"],
     'mongo': ["mongo"],
-    'mssql': ["microsoft.mssql"],  # TODO: remove this in Airflow 2.1
+    'mssql': ["microsoft.mssql"],  # TODO: remove this in Airflow 3.0
     'mysql': ["mysql"],
     'odbc': ["odbc"],
     'openfaas': ["openfaas"],
@@ -771,14 +783,15 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'pagerduty': ["pagerduty"],
     'papermill': ["papermill"],
     'password': [],
-    'pinot': ["apache.pinot"],  # TODO: remove this in Airflow 2.1
+    'pinot': ["apache.pinot"],  # TODO: remove this in Airflow 3.0
     'plexus': ["plexus"],
     'postgres': ["postgres"],
     'presto': ["presto"],
-    'qds': ["qubole"],  # TODO: remove this in Airflow 2.1
+    'qds': ["qubole"],  # TODO: remove this in Airflow 3.0
     'qubole': ["qubole"],
     'rabbitmq': [],
     'redis': ["redis"],
+    's3': ["amazon"],  # TODO: remove this in Airflow 3.0
     'salesforce': ["salesforce"],
     'samba': ["samba"],
     'segment': ["segment"],
@@ -793,22 +806,25 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'ssh': ["ssh"],
     'statsd': [],
     'tableau': [],
+    'telegram': ["telegram"],
     'vertica': ["vertica"],
     'virtualenv': [],
-    'webhdfs': ["apache.hdfs"],  # TODO: remove this in Airflow 2.1
-    'winrm': ["microsoft.winrm"],  # TODO: remove this in Airflow 2.1
-    'yandexcloud': ["yandex"],  # TODO: remove this in Airflow 2.1
+    'webhdfs': ["apache.hdfs"],  # TODO: remove this in Airflow 3.0
+    'winrm': ["microsoft.winrm"],  # TODO: remove this in Airflow 3.0
     'yandex': ["yandex"],
     'zendesk': ["zendesk"],
 }
 
-# All "users" extras (no devel extras)
+
+# Those are all "users" extras (no devel extras)
 all_ = list(
     set(
         [req for req_list in EXTRAS_REQUIREMENTS.values() for req in req_list]
         + [req for req_list in PROVIDERS_REQUIREMENTS.values() for req in req_list]
     )
 )
+
+# Those are special extras
 EXTRAS_REQUIREMENTS.update(
     {
         'all': all_,
@@ -821,6 +837,7 @@ EXTRAS_REQUIREMENTS.update(
 # but we keep it for explicit sake
 devel_all = list(set(all_ + doc + devel_minreq + devel_hadoop))
 
+# Those are packages excluded for "all" dependencies
 PACKAGES_EXCLUDED_FOR_ALL = []
 
 if PY3:
@@ -862,12 +879,29 @@ devel_ci = [
     )
 ]
 
+# Those are development requirements that install all useful devel tools
 EXTRAS_REQUIREMENTS.update(
     {
         'devel_all': devel_all,
         'devel_ci': devel_ci,
     }
 )
+
+
+class AirflowDistribtuion(Distribution):
+    """setuptools.Distribution subclass with Airflow specific behaviour"""
+
+    # https://github.com/PyCQA/pylint/issues/3737
+    def parse_config_files(self, *args, **kwargs):  # pylint: disable=signature-differs
+        """
+        Ensure that when we have been asked to install providers from sources
+        that we don't *also* try to install those providers from PyPI
+        """
+        super().parse_config_files(*args, **kwargs)
+        if os.getenv('INSTALL_PROVIDERS_FROM_SOURCES') == 'true':
+            self.install_requires = [  # pylint: disable=attribute-defined-outside-init
+                req for req in self.install_requires if not req.startswith('apache-airflow-providers-')
+            ]
 
 
 def get_provider_package_from_package_id(package_id: str):
@@ -897,6 +931,7 @@ def do_setup():
 
     write_version()
     setup(
+        distclass=AirflowDistribtuion,
         # Most values come from setup.cfg -- see
         # https://setuptools.readthedocs.io/en/latest/userguide/declarative_config.html
         version=version,

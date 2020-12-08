@@ -139,41 +139,46 @@ providers by running:
 The examples below show how you can build selected packages, but you can also build all packages by
 omitting the package ids altogether.
 
+By default, you build only wheel packages, but you can use `--package-format both` to generate
+both wheel and sdist packages, or `--package-format sdist` to only generate sdist packages.
+
 * To build the release candidate packages for SVN Apache upload run the following command:
 
 ```bash
-./breeze prepare-provider-packages --version-suffix-for-svn=rc1 [PACKAGE_ID] ...
+./breeze prepare-provider-packages --package-format both --version-suffix-for-svn=rc1 [PACKAGE_ID] ...
 ```
 
 for example:
 
 ```bash
-./breeze prepare-provider-packages --version-suffix-for-svn=rc1 http ...
+./breeze prepare-provider-packages --package-format both  --version-suffix-for-svn=rc1 http ...
 ```
 
 * To build the release candidate packages for PyPI upload run the following command:
 
 ```bash
-./breeze prepare-provider-packages --version-suffix-for-pypi=rc1 [PACKAGE_ID] ...
+./breeze prepare-provider-packages --package-format both --version-suffix-for-pypi=rc1 [PACKAGE_ID] ...
 ```
 
 for example:
 
 ```bash
-./breeze prepare-provider-packages --version-suffix-for-pypi=rc1 http ...
+./breeze prepare-provider-packages --package-format both --version-suffix-for-pypi=rc1 http ...
 ```
 
 
 * To build the final release packages run the following command:
 
 ```bash
-./breeze prepare-provider-packages [PACKAGE_ID] ...
+./breeze prepare-provider-packages [--package-format PACKAGE_FORMAT] [PACKAGE_ID] ...
 ```
+
+Where PACKAGE_FORMAT might be one of : `wheel`, `sdist`, `both` (`wheel` is the default format)
 
 for example:
 
 ```bash
-./breeze prepare-provider-packages http ...
+./breeze prepare-provider-packages --package-format both http ...
 ```
 
 * For each package, this creates a wheel package and source distribution package in your `dist` folder with
@@ -202,7 +207,7 @@ importability of all the packages. It is rather simple but requires some semi-au
 
 
 ```shell script
-./breeze --backports prepare-provider-packages
+./breeze --backports prepare-provider-packages --package-format both
 ```
 
 This prepares all backport packages in the "dist" folder
@@ -256,7 +261,7 @@ python3 /opt/airflow/dev/import_all_classes.py --path <PATH_REPORTED_IN_THE_PREV
 1. Prepare regular packages
 
 ```shell script
-./breeze prepare-provider-packages
+./breeze prepare-provider-packages --package-format both
 ```
 
 This prepares all backport packages in the "dist" folder

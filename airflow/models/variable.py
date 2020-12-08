@@ -114,7 +114,7 @@ class Variable(Base, LoggingMixin):
         deserialize_json: bool = False,
     ) -> Any:
         """
-        Sets a value for an Airflow Key
+        Gets a value for an Airflow Variable Key
 
         :param key: Variable Key
         :param default_var: Default value of the Variable if the Variable doesn't exists

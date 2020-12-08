@@ -63,7 +63,16 @@ can set in ``airflow.cfg`` file or using environment variables.
 
     :Type: {{ option["type"] }}
     :Default: ``{{ "''" if option["default"] == "" else option["default"] }}``
+    {% if option.get("sensitive") %}
+    :Environment Variables:
+        ``AIRFLOW__{{ section["name"] | upper }}__{{ option["name"] | upper }}``
+
+        ``AIRFLOW__{{ section["name"] | upper }}__{{ option["name"] | upper }}_CMD``
+
+        ``AIRFLOW__{{ section["name"] | upper }}__{{ option["name"] | upper }}_SECRET``
+    {% else %}
     :Environment Variable: ``AIRFLOW__{{ section["name"] | upper }}__{{ option["name"] | upper }}``
+    {% endif %}
     {% if option["example"] %}
     :Example:
         ``{{ option["example"] }}``

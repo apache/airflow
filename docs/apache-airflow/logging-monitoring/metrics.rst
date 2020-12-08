@@ -145,5 +145,5 @@ Name                                                Description
                                                     start date and the actual DagRun start date
 ``scheduler.critical_section_duration``             Milliseconds spent in the critical section of scheduler loop --
                                                     only a single scheduler can enter this loop at a time
-``dagrun.<dag_id>.first_task_scheduling_delay``     Seconds elapsed between first task start_date and dagrun expected start
+``dagrun.<dag_id>.first_task_scheduling_delay``     Milliseconds elapsed between first task start_date and dagrun expected start
 =================================================== ========================================================================

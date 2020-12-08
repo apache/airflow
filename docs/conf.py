@@ -353,6 +353,7 @@ autodoc_mock_imports = [
     'smbclient',
     'snowflake',
     'sshtunnel',
+    'telegram',
     'tenacity',
     'vertica_python',
     'winrm',

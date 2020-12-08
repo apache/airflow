@@ -144,6 +144,8 @@ class TriggerDagRunOperator(BaseOperator):
                 dag = dag_bag.get_dag(self.trigger_dag_id)
 
                 dag.clear(start_date=self.execution_date, end_date=self.execution_date)
+
+                dag_run = DagRun.find(dag_id=dag.dag_id, run_id=run_id)[0]
             else:
                 raise e
 

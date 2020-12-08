@@ -547,6 +547,7 @@ cmd
 cmdline
 cmds
 cname
+cncf
 cnf
 cnt
 codebase
@@ -590,6 +591,7 @@ ctor
 cubeName
 customDataImportUids
 customizable
+customizations
 cx
 dabf
 dagBag
@@ -778,6 +780,7 @@ greenlet
 groupId
 Grafana
 grpc
+gz
 hadoop
 hadoopcmd
 hashicorp
@@ -944,6 +947,7 @@ metarouter
 metastore
 mget
 microservice
+microsoft
 middleware
 mik
 milton
@@ -1375,6 +1379,7 @@ workgroup
 workgroups
 wsman
 wtf
+wtforms
 www
 xcom
 xcomarg

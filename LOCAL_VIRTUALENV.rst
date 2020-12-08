@@ -61,6 +61,16 @@ of required packages.
 Extra Packages
 --------------
 
+.. note::
+
+   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+   ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``--use-deprecated legacy-resolver`` to your pip install command.
+
+
+
 You can also install extra packages (like ``[ssh]``, etc) via
 ``pip install -e [EXTRA1,EXTRA2 ...]``. However, some of them may
 have additional install and setup requirements for your local system.
@@ -114,6 +124,15 @@ To create and initialize the local virtualenv:
 
 2. Install Python PIP requirements:
 
+.. note::
+
+   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+   ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``--use-deprecated legacy-resolver`` to your pip install command.
+
+
    .. code-block:: bash
 
     pip install -U -e ".[devel,<OTHER EXTRAS>]" # for example: pip install -U -e ".[devel,google,postgres]"
@@ -162,6 +181,31 @@ Activate your virtualenv, e.g. by using ``workon``, and once you are in it, run:
 
     cd airflow/www
     yarn build
+
+Developing Providers
+--------------------
+
+In Airflow 2.0 we introduced split of Apache Airflow into separate packages - there is one main
+apache-airflow package with core of Airflow and 70+ packages for all providers (external services
+and software Airflow can communicate with).
+
+Developing providers is part of Airflow development, but when you install airflow as editable in your local
+development environment, the corresponding provider packages will be also installed from PyPI. However, the
+providers will also be present in your "airflow/providers" folder. This might lead to confusion,
+which sources of providers are imported during development. It will depend on your
+environment's PYTHONPATH setting in general.
+
+In order to avoid the confusion, you can set ``INSTALL_PROVIDERS_FROM_SOURCES`` environment to ``true``
+before running ``pip install`` command:
+
+.. code-block:: bash
+
+  INSTALL_PROVIDERS_FROM_SOURCES="true" pip install -U -e ".[devel,<OTHER EXTRAS>]" \
+     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+
+This way no providers packages will be installed and they will always be imported from the "airflow/providers"
+folder.
+
 
 Running Tests
 -------------
