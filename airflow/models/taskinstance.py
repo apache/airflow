@@ -1883,16 +1883,24 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             task_ids=task_ids,
             include_prior_dates=include_prior_dates,
             session=session,
-        ).with_entities(XCom.value)
+        )
 
         # Since we're only fetching the values field, and not the
         # whole class, the @recreate annotation does not kick in.
         # Therefore we need to deserialize the fields by ourselves.
-
         if is_container(task_ids):
-            return [XCom.deserialize_value(xcom) for xcom in query]
+            vals_kv = {
+                result.task_id: XCom.deserialize_value(result)
+                for result in query.with_entities(XCom.task_id, XCom.value)
+            }
+
+            vals = []
+            for task_id in task_ids:
+                vals.append(vals_kv.get(task_id))
+
+            return vals
         else:
-            xcom = query.first()
+            xcom = query.with_entities(XCom.value).first()
             if xcom:
                 return XCom.deserialize_value(xcom)
 
