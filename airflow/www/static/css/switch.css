@@ -24,6 +24,10 @@
   font-weight: normal;
 }
 
+.switch-label.disabled {
+  cursor: not-allowed;
+}
+
 .switch-input {
   /* Visually hidden input but still accessible */
   position: absolute;
@@ -49,10 +53,6 @@
   cursor: pointer;
 }
 
-.disabled {
-  cursor: auto;
-}
-
 .switch::before {
   border-radius: 50%;
   width: 1.5rem;
@@ -62,6 +62,11 @@
   transition-timing-function: ease-in-out;
   transition-duration: 0.25s;
   transition-property: transform, background-color;
+}
+
+.switch-input:disabled + .switch {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .switch-input:checked + .switch {
