@@ -80,7 +80,7 @@ Once this is installed, please run the upgrade check script.
 
      airflow upgrade_check
 
-More details about this process are here  :ref:`Upgrade Check Scripts<upgrade-check:upgrade_check>`
+More details about this process are here :ref:`Upgrade Check Scripts<upgrade-check>`.
 
 
 Step 4: Set Operators to Backport Providers
