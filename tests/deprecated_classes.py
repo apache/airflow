@@ -1456,7 +1456,7 @@ SENSORS = [
         'airflow.sensors.hdfs_sensor.HdfsSensor',
     ),
     (
-        'airflow.sensors.weekday_sensor.DayOfWeekSensor',
+        'airflow.sensors.weekday.DayOfWeekSensor',
         'airflow.contrib.sensors.weekday_sensor.DayOfWeekSensor',
     ),
     (
