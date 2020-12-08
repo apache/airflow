@@ -68,7 +68,7 @@ section of your ``airflow.cfg``
 Step 3: Install and run the Upgrade check scripts
 '''''''''''''''''''''''''''''''''''''''''''''''''
 
-After upgrading to Airflow 1.10.14, we recommend that you install the "upgrade check" scripts. These scripts will read through your ``airflow.cfg`` and all of your Dags and will give a detailed report of all changes required before upgrading. We are testing this script diligently, and our goal is that any Airflow setup that can pass these tests will be able to upgrade to 2.0 without any issues.
+After upgrading to Airflow 1.10.14, we recommend that you install the "upgrade check" scripts. These scripts will read through your ``airflow.cfg`` and all of your DAGs and will give a detailed report of all changes required before upgrading. We are testing this script diligently, and our goal is that any Airflow setup that can pass these tests will be able to upgrade to 2.0 without any issues.
 
 .. code-block:: bash
 
