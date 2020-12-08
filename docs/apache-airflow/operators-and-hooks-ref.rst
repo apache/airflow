@@ -91,7 +91,7 @@ Airflow has many more integrations available for separate installation as a prov
    * - :mod:`airflow.sensors.bash`
      -
 
-   * - :mod:`airflow.sensors.date_time_sensor`
+   * - :mod:`airflow.sensors.date_time`
      -
 
    * - :mod:`airflow.sensors.external_task_sensor`

@@ -1363,6 +1363,10 @@ SENSORS = [
         "airflow.sensors.base_sensor_operator.BaseSensorOperator",
     ),
     (
+        "airflow.senors.date_time.DateTimeSensor",
+        "airflow.sensors.date_time_sensor.DateTimeSensor",
+    ),
+    (
         "airflow.providers.apache.cassandra.sensors.record.CassandraRecordSensor",
         "airflow.contrib.sensors.cassandra_record_sensor.CassandraRecordSensor",
     ),
