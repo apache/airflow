@@ -47,7 +47,7 @@ upgrade to Airflow 1.10.14 is straight forward.
 Features in 1.10.14 include:
 
 1. Most breaking DAG and architecture changes of Airflow 2.0 have been backported to Airflow 1.10.14. This backward-compatibility does not mean
-that 1.10.14 will process these DAGs the same way as Airflow 2.0. What this does mean is that most Airflow 2.0
+that 1.10.14 will process these DAGs the same way as Airflow 2.0. Instead, this means that most Airflow 2.0
 compatible DAGs will work in Airflow 1.10.14. This backport will give users time to modify their DAGs over time
 without any service disruption.
 
@@ -62,7 +62,7 @@ simply run the following command:
 
      airflow generate_pod_template -o <output file path>
 
-Once you have performed this step, simply write out the file path to this file in the ``pod_template_file`` section of the ``kubernetes``
+Once you have performed this step, simply write out the file path to this file in the ``pod_template_file`` config of the ``kubernetes``
 section of your ``airflow.cfg``
 
 Step 3: Install and run the Upgrade check scripts
@@ -121,7 +121,7 @@ For example:
 
 automatically installs the ``apache-airflow-providers-docker`` package.
 But you can manage/upgrade/remove provider packages separately from the Airflow core.
-
+You can read more about providers at :doc:`apache-airflow-providers:index`.
 
 Step 5: Upgrade Airflow DAGs
 ''''''''''''''''''''''''''''
@@ -340,7 +340,7 @@ respect to the Kubernetes Executor. This is called out below for users of the Ku
 *The KubernetesExecutor Will No Longer Read from the airflow.cfg for Base Pod Configurations.*
 
 In Airflow 2.0, the KubernetesExecutor will require a base pod template written in yaml. This file can exist
-anywhere on the host machine and will be linked using the ``pod_template_file`` configuration in the airflow.cfg.
+anywhere on the host machine and will be linked using the ``pod_template_file`` configuration in the airflow.cfg. You can create a ``pod_template_file`` by running the following command:  ``airflow generate_pod_template`` ```
 
 The ``airflow.cfg`` will still accept values for the ``worker_container_repository``, the ``worker_container_tag``, and
 the default namespace.
@@ -827,7 +827,9 @@ Migration Guide from Experimental API to Stable API v1
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 In Airflow 2.0, we added the new REST API. Experimental API still works, but support may be dropped in the future.
-If your application is still using the experimental API, you should consider migrating to the stable API.
+
+The experimental API however does not require authentication, so it is disabled by default. You need to explicitly enable the experimental API if you want to use it.
+If your application is still using the experimental API, you should **seriously** consider migrating to the stable API.
 
 The stable API exposes many endpoints available through the webserver. Here are the
 differences between the two endpoints that will help you migrate from the
@@ -858,7 +860,7 @@ DAG Lineage(GET)                  /api/experimental/lineage/<DAG_ID>/<string:exe
 
 ::
     This endpoint ``/api/v1/dags/{dag_id}/dagRuns`` also allows you to filter dag_runs with parameters such as ``start_date``, ``end_date``, ``execution_date`` etc in the query string.
-    Therefore the operation previously performed by this endpoint
+    Therefore the operation previously performed by this endpoint:
 
 .. code-block:: bash
 
