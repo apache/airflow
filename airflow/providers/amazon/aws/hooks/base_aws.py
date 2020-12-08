@@ -38,7 +38,7 @@ from cached_property import cached_property
 from dateutil.tz import tzlocal
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models.connection import Connection
 from airflow.utils.log.logging_mixin import LoggingMixin
 

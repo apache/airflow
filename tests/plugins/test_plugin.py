@@ -22,7 +22,7 @@ from flask_appbuilder import BaseView as AppBuilderBaseView, expose
 from airflow.executors.base_executor import BaseExecutor
 
 # Importing base classes that we need to derive
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models.baseoperator import BaseOperator
 
 # This is the class you derive to create a plugin

@@ -16,6 +16,10 @@
 # under the License.
 HOOKS = [
     (
+        "airflow.hooks.base.BaseHook",
+        "airflow.hooks.base_hook.BaseHook",
+    ),
+    (
         "airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook",
         "airflow.contrib.hooks.cassandra_hook.CassandraHook",
     ),

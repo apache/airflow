@@ -27,7 +27,7 @@ NOTE:   this hook also relies on the Segment analytics package:
 import analytics
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class SegmentHook(BaseHook):

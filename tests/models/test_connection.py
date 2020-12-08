@@ -26,7 +26,7 @@ from cryptography.fernet import Fernet
 from parameterized import parameterized
 
 from airflow import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models import Connection, crypto
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
 from tests.test_utils.config import conf_vars

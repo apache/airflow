@@ -19,7 +19,7 @@
 """RedisHook module"""
 from redis import Redis
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class RedisHook(BaseHook):

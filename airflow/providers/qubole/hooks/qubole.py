@@ -42,7 +42,7 @@ from qds_sdk.qubole import Qubole
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.utils.state import State
 
 log = logging.getLogger(__name__)

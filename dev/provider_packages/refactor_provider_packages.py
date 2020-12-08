@@ -139,6 +139,7 @@ class RefactorBackportPackages:
 
         """
         changes = [
+            ("airflow.hooks.base", "airflow.hooks.base_hook"),
             ("airflow.operators.bash", "airflow.operators.bash_operator"),
             ("airflow.operators.branch", "airflow.operators.branch_operator"),
             ("airflow.operators.python", "airflow.operators.python_operator"),

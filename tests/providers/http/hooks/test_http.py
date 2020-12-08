@@ -52,9 +52,7 @@ class TestHttpHook(unittest.TestCase):
     def test_raise_for_status_with_200(self, m):
 
         m.get('http://test:8080/v1/test', status_code=200, text='{"status":{"status": 200}}', reason='OK')
-        with mock.patch(
-            'airflow.hooks.base_hook.BaseHook.get_connection', side_effect=get_airflow_connection
-        ):
+        with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
             resp = self.get_hook.run('v1/test')
             self.assertEqual(resp.text, '{"status":{"status": 200}}')
 
@@ -65,7 +63,7 @@ class TestHttpHook(unittest.TestCase):
         from requests.exceptions import MissingSchema
 
         with mock.patch(
-            'airflow.hooks.base_hook.BaseHook.get_connection', side_effect=get_airflow_connection_with_port
+            'airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection_with_port
         ):
             expected_url = 'http://test.com:1234/some/endpoint'
             for endpoint in ['some/endpoint', '/some/endpoint']:
@@ -91,17 +89,13 @@ class TestHttpHook(unittest.TestCase):
             reason='Bad request',
         )
 
-        with mock.patch(
-            'airflow.hooks.base_hook.BaseHook.get_connection', side_effect=get_airflow_connection
-        ):
+        with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
             resp = self.get_hook.run('v1/test', extra_options={'check_response': False})
             self.assertEqual(resp.text, '{"status":{"status": 404}}')
 
     @requests_mock.mock()
     def test_hook_contains_header_from_extra_field(self, mock_requests):
-        with mock.patch(
-            'airflow.hooks.base_hook.BaseHook.get_connection', side_effect=get_airflow_connection
-        ):
+        with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
             expected_conn = get_airflow_connection()
             conn = self.get_hook.get_conn()
             self.assertDictContainsSubset(json.loads(expected_conn.extra), conn.headers)
@@ -113,7 +107,7 @@ class TestHttpHook(unittest.TestCase):
         from requests.exceptions import InvalidURL, MissingSchema
 
         with mock.patch(
-            'airflow.hooks.base_hook.BaseHook.get_connection', side_effect=get_airflow_connection_with_port
+            'airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection_with_port
         ):
             data = "test params"
             try:
@@ -134,9 +128,7 @@ class TestHttpHook(unittest.TestCase):
 
     @requests_mock.mock()
     def test_hooks_header_from_extra_is_overridden(self, mock_requests):
-        with mock.patch(
-            'airflow.hooks.base_hook.BaseHook.get_connection', side_effect=get_airflow_connection
-        ):
+        with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
             conn = self.get_hook.get_conn(headers={"bareer": "newT0k3n"})
             self.assertEqual(conn.headers.get('bareer'), 'newT0k3n')
 
@@ -146,9 +138,7 @@ class TestHttpHook(unittest.TestCase):
             'http://test:8080/v1/test', status_code=200, text='{"status":{"status": 200}}', reason='OK'
         )
 
-        with mock.patch(
-            'airflow.hooks.base_hook.BaseHook.get_connection', side_effect=get_airflow_connection
-        ):
+        with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
             resp = self.post_hook.run('v1/test')
             self.assertEqual(resp.status_code, 200)
 
@@ -161,9 +151,7 @@ class TestHttpHook(unittest.TestCase):
             reason='I\'m a teapot',
         )
 
-        with mock.patch(
-            'airflow.hooks.base_hook.BaseHook.get_connection', side_effect=get_airflow_connection
-        ):
+        with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
             with self.assertRaises(AirflowException):
                 self.post_hook.run('v1/test')
 
@@ -176,9 +164,7 @@ class TestHttpHook(unittest.TestCase):
             reason='I\'m a teapot',
         )
 
-        with mock.patch(
-            'airflow.hooks.base_hook.BaseHook.get_connection', side_effect=get_airflow_connection
-        ):
+        with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
             resp = self.post_hook.run('v1/test', extra_options={'check_response': False})
             self.assertEqual(resp.status_code, 418)
 
@@ -211,9 +197,7 @@ class TestHttpHook(unittest.TestCase):
             retry=tenacity.retry_if_exception_type(Exception),
             reraise=True,
         )
-        with mock.patch(
-            'airflow.hooks.base_hook.BaseHook.get_connection', side_effect=get_airflow_connection
-        ):
+        with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
             response = self.get_hook.run_with_advanced_retry(endpoint='v1/test', _retry_args=retry_args)
             self.assertIsInstance(response, requests.Response)
 
@@ -225,9 +209,7 @@ class TestHttpHook(unittest.TestCase):
         with mock.patch(
             'airflow.providers.http.hooks.http.HttpHook.run_and_check', side_effect=run_and_return
         ):
-            with mock.patch(
-                'airflow.hooks.base_hook.BaseHook.get_connection', side_effect=get_airflow_connection
-            ):
+            with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
                 prepared_request = self.get_hook.run('v1/test', headers={'some_other_header': 'test'})
                 actual = dict(prepared_request.headers)
                 self.assertEqual(actual.get('bareer'), 'test')
@@ -292,9 +274,7 @@ class TestHttpHook(unittest.TestCase):
 
         mock_requests.request(method=method, url='//test:8080/v1/test', additional_matcher=match_obj1)
 
-        with mock.patch(
-            'airflow.hooks.base_hook.BaseHook.get_connection', side_effect=get_airflow_connection
-        ):
+        with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
             # will raise NoMockAddress exception if obj1 != request.json()
             HttpHook(method=method).run('v1/test', json=obj1)
 

@@ -24,7 +24,7 @@ from typing import Any, Dict, Iterator, List, Optional, Union
 
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.security.kerberos import renew_from_kt
 from airflow.utils.log.logging_mixin import LoggingMixin
 

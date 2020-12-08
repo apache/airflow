@@ -23,7 +23,7 @@ from urllib.parse import quote_plus
 from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.typing_compat import Protocol
 
 

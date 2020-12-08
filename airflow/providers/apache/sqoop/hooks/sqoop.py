@@ -23,7 +23,7 @@ from copy import deepcopy
 from typing import Any, Dict, List, Optional
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class SqoopHook(BaseHook):

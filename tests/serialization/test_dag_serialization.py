@@ -32,7 +32,7 @@ from dateutil.relativedelta import FR, relativedelta
 from kubernetes.client import models as k8s
 from parameterized import parameterized
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import DAG, Connection, DagBag, TaskInstance
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink

@@ -23,7 +23,7 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 from pinotdb import connect
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.models import Connection
 

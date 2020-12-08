@@ -23,7 +23,7 @@ from typing import List, Optional, Type
 import pymongo
 from pymongo import MongoClient, ReplaceOne
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class MongoHook(BaseHook):
