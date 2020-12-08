@@ -21,7 +21,7 @@ from datetime import datetime
 from airflow import DAG
 from airflow.models import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.security import permissions
 from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
@@ -82,7 +82,7 @@ class TestGetTask(TestTaskEndpoint):
         expected = {
             "class_ref": {
                 "class_name": "DummyOperator",
-                "module_path": "airflow.operators.dummy_operator",
+                "module_path": "airflow.operators.dummy",
             },
             "depends_on_past": False,
             "downstream_task_ids": [],
@@ -125,7 +125,7 @@ class TestGetTask(TestTaskEndpoint):
         expected = {
             "class_ref": {
                 "class_name": "DummyOperator",
-                "module_path": "airflow.operators.dummy_operator",
+                "module_path": "airflow.operators.dummy",
             },
             "depends_on_past": False,
             "downstream_task_ids": [],
@@ -181,7 +181,7 @@ class TestGetTasks(TestTaskEndpoint):
                 {
                     "class_ref": {
                         "class_name": "DummyOperator",
-                        "module_path": "airflow.operators.dummy_operator",
+                        "module_path": "airflow.operators.dummy",
                     },
                     "depends_on_past": False,
                     "downstream_task_ids": [],

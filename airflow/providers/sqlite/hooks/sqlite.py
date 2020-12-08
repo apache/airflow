@@ -18,7 +18,7 @@
 
 import sqlite3
 
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 
 
 class SqliteHook(DbApiHook):

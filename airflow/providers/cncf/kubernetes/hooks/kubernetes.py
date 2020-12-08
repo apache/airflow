@@ -22,7 +22,7 @@ from cached_property import cached_property
 from kubernetes import client, config, watch
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 def _load_body_to_dict(body):

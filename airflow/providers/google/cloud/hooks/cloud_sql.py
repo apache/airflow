@@ -45,7 +45,7 @@ from airflow.exceptions import AirflowException
 
 # Number of retries - used by googleapiclient method calls to perform retries
 # For requests that are "retriable"
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.providers.mysql.hooks.mysql import MySqlHook

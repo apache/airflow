@@ -21,7 +21,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Union
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator

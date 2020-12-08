@@ -21,7 +21,7 @@ from azure.common.client_factory import get_client_from_auth_file, get_client_fr
 from azure.common.credentials import ServicePrincipalCredentials
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class AzureBaseHook(BaseHook):

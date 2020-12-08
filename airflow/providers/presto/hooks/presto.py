@@ -24,7 +24,7 @@ from prestodb.transaction import IsolationLevel
 
 from airflow import AirflowException
 from airflow.configuration import conf
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 from airflow.models import Connection
 
 

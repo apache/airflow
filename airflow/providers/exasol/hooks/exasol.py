@@ -22,7 +22,7 @@ from typing import Any, List, Optional, Tuple, Union
 import pyexasol
 from pyexasol import ExaConnection
 
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 
 
 class ExasolHook(DbApiHook):

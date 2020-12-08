@@ -23,8 +23,8 @@ import requests
 from pydruid.db import connect
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.base import BaseHook
+from airflow.hooks.dbapi import DbApiHook
 
 
 class DruidHook(BaseHook):

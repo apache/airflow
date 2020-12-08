@@ -46,6 +46,7 @@ class TestApiKerberos(unittest.TestCase):
         {
             ("api", "auth_backend"): "airflow.api.auth.backend.kerberos_auth",
             ("kerberos", "keytab"): KRB5_KTNAME,
+            ('api', 'enable_experimental_api'): 'true',
         }
     )
     def setUp(self):

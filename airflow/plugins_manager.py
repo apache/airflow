@@ -36,7 +36,7 @@ from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.file import find_path_from_directory
 
 if TYPE_CHECKING:
-    from airflow.hooks.base_hook import BaseHook
+    from airflow.hooks.base import BaseHook
 
 log = logging.getLogger(__name__)
 

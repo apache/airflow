@@ -28,14 +28,14 @@ from numpy.testing import assert_array_almost_equal
 
 from airflow import settings
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models import DagBag, DagRun, TaskFail, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
 from airflow.settings import Session
 from airflow.utils.dates import infer_time_unit, round_time, scale_time_units

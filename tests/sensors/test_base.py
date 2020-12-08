@@ -26,8 +26,8 @@ from freezegun import freeze_time
 from airflow.exceptions import AirflowException, AirflowRescheduleException, AirflowSensorTimeout
 from airflow.models import DagBag, TaskInstance, TaskReschedule
 from airflow.models.dag import DAG
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.sensors.base_sensor_operator import BaseSensorOperator, poke_mode_only
+from airflow.operators.dummy import DummyOperator
+from airflow.sensors.base import BaseSensorOperator, poke_mode_only
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
 from airflow.utils.state import State

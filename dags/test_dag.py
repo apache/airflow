@@ -19,7 +19,7 @@
 from datetime import datetime, timedelta
 
 from airflow.models.dag import DAG
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils.dates import days_ago
 
 now = datetime.now()

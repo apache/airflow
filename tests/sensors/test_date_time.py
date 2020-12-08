@@ -21,7 +21,7 @@ import pytest
 from parameterized import parameterized
 
 from airflow.models.dag import DAG
-from airflow.sensors.date_time_sensor import DateTimeSensor
+from airflow.sensors.date_time import DateTimeSensor
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
@@ -71,7 +71,7 @@ class TestDateTimeSensor:
         ]
     )
     @patch(
-        "airflow.sensors.date_time_sensor.timezone.utcnow",
+        "airflow.sensors.date_time.timezone.utcnow",
         return_value=timezone.datetime(2020, 1, 1, 23, 0, tzinfo=timezone.utc),
     )
     def test_poke(self, task_id, target_time, expected, mock_utcnow):

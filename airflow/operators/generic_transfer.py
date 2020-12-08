@@ -17,7 +17,7 @@
 # under the License.
 from typing import List, Optional, Union
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 

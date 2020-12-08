@@ -27,7 +27,7 @@ from sqlalchemy.orm import exc
 
 from airflow.cli.simple_table import AirflowConsole
 from airflow.exceptions import AirflowNotFoundException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning

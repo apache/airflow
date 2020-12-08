@@ -20,7 +20,7 @@ from typing import Any, Optional
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 try:
     from snakebite.client import AutoConfigClient, Client, HAClient, Namenode  # pylint: disable=syntax-error

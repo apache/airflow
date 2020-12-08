@@ -52,6 +52,14 @@ assists users migrating to a new version.
 
 ## Master
 
+### The experimental REST API is disabled by default
+
+The experimental REST API is disabled by default. To restore these APIs while migrating to
+the stable REST API, set `enable_experimental_api` option in `[api]` section to `True`.
+
+Please note that the experimental REST API do not have access control.
+The authenticated user has full access.
+
 ### SparkJDBCHook default connection
 
 For SparkJDBCHook default connection was `spark-default`, and for SparkSubmitHook it was
@@ -256,7 +264,6 @@ with third party services to the ``airflow.providers`` package.
 All changes made are backward compatible, but if you use the old import paths you will
 see a deprecation warning. The old import paths can be abandoned in the future.
 
-
 According to [AIP-21](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths)
 `_operator` suffix has been removed from operators. A deprecation warning has also been raised for paths
 importing with the suffix.
@@ -267,7 +274,14 @@ The following table shows changes in import paths.
 
 | Old path                            | New path                   |
 |-------------------------------------|----------------------------|
+| airflow.hooks.base_hook.BaseHook | airflow.hooks.base.BaseHook |
+| airflow.hooks.dbapi_hook.DbApiHook | airflow.hooks.dbapi.DbApiHook |
+| airflow.operators.dummy_operator.DummyOperator | airflow.operators.dummy.DummyOperator |
 | airflow.operators.branch_operator.BaseBranchOperator | airflow.operators.branch.BaseBranchOperator |
+| airflow.operators.subdag_operator.SubDagOperator | airflow.operators.subdag.SubDagOperator |
+| airflow.sensors.base_sensor_operator.BaseSensorOperator | airflow.sensors.base.BaseSensorOperator |
+| airflow.sensors.date_time_sensor.DateTimeSensor | airflow.sensors.date_time.DateTimeSensor |
+| airflow.sensors.time_delta_sensor.TimeDeltaSensor | airflow.sensors.time_delta.TimeDeltaSensor |
 
 
 ### Database schema changes
@@ -553,10 +567,10 @@ User can preserve/achieve the original behaviour by setting the trigger_rule of 
 `BaseOperator` class uses a `BaseOperatorMeta` as a metaclass. This meta class is based on
 `abc.ABCMeta`. If your custom operator uses different metaclass then you will have to adjust it.
 
-#### Remove SQL support in base_hook
+#### Remove SQL support in BaseHook
 
-Remove ``get_records`` and ``get_pandas_df`` and ``run`` from base_hook, which only apply for sql like hook,
-If want to use them, or your custom hook inherit them, please use ``airflow.hooks.dbapi_hook.DbApiHook``
+Remove ``get_records`` and ``get_pandas_df`` and ``run`` from BaseHook, which only apply for sql like hook,
+If want to use them, or your custom hook inherit them, please use ``airflow.hooks.dbapi.DbApiHook``
 
 #### Assigning task to a DAG using bitwise shift (bit-shift) operators are no longer supported
 
@@ -588,7 +602,7 @@ becomes `from airflow.operators.bash_operator import BashOperator`
 Sensors are now accessible via `airflow.sensors` and no longer via `airflow.operators.sensors`.
 
 For example: `from airflow.operators.sensors import BaseSensorOperator`
-becomes `from airflow.sensors.base_sensor_operator import BaseSensorOperator`
+becomes `from airflow.sensors.base import BaseSensorOperator`
 
 #### Skipped tasks can satisfy wait_for_downstream
 
@@ -1794,7 +1808,7 @@ session_lifetime_minutes = 43200
 
 ### Adding Operators, Hooks and Sensors via Airflow Plugins is deprecated
 
-The ability to import Operators, Hooks and Senors via the plugin mechanism has been deprecated and will raise warnings
+The ability to import Operators, Hooks and Sensors via the plugin mechanism has been deprecated and will raise warnings
 in Airflow 1.10.13 and will be removed completely in Airflow 2.0.
 
 Check http://airflow.apache.org/docs/1.10.13/howto/custom-operator.html to see how you can create and import
@@ -2699,7 +2713,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>>
 >>> from datetime import datetime
 >>> from airflow.models.dag import DAG
->>> from airflow.operators.dummy_operator import DummyOperator
+>>> from airflow.operators.dummy import DummyOperator
 >>>
 >>> dag = DAG('simple_dag', start_date=datetime(2017, 9, 1))
 >>>

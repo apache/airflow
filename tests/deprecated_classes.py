@@ -16,6 +16,14 @@
 # under the License.
 HOOKS = [
     (
+        "airflow.hooks.base.BaseHook",
+        "airflow.hooks.base_hook.BaseHook",
+    ),
+    (
+        "airflow.hooks.dbapi.DbApiHook",
+        "airflow.hooks.dbapi_hook.DbApiHook",
+    ),
+    (
         "airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook",
         "airflow.contrib.hooks.cassandra_hook.CassandraHook",
     ),
@@ -1328,6 +1336,10 @@ OPERATORS = [
         "airflow.operators.subdag.SubDagOperator",
         "airflow.operators.subdag_operator.SubDagOperator",
     ),
+    (
+        "airflow.operators.dummy.DummyOperator",
+        "airflow.operators.dummy_operator.DummyOperator",
+    ),
 ]
 
 SECRETS = [
@@ -1350,6 +1362,18 @@ SECRETS = [
 ]
 
 SENSORS = [
+    (
+        "airflow.sensors.base.BaseSensorOperator",
+        "airflow.sensors.base_sensor_operator.BaseSensorOperator",
+    ),
+    (
+        "airflow.sensors.date_time.DateTimeSensor",
+        "airflow.sensors.date_time_sensor.DateTimeSensor",
+    ),
+    (
+        "airflow.sensors.time_delta.TimeDeltaSensor",
+        "airflow.sensors.time_delta_sensor.TimeDeltaSensor",
+    ),
     (
         "airflow.providers.apache.cassandra.sensors.record.CassandraRecordSensor",
         "airflow.contrib.sensors.cassandra_record_sensor.CassandraRecordSensor",

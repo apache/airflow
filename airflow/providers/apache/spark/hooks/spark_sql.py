@@ -20,7 +20,7 @@ import subprocess
 from typing import Any, List, Optional, Union
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class SparkSqlHook(BaseHook):

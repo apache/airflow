@@ -20,7 +20,7 @@
 
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.task_group import TaskGroup
 

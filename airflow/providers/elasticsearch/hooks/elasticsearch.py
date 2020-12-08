@@ -20,7 +20,7 @@ from typing import Optional
 
 from es.elastic.api import Connection as ESConnection, connect
 
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 from airflow.models.connection import Connection as AirflowConnection
 
 

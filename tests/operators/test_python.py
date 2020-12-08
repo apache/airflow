@@ -32,7 +32,7 @@ from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import clear_task_instances, set_current_context
 from airflow.models.xcom_arg import XComArg
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import (
     BranchPythonOperator,
     PythonOperator,

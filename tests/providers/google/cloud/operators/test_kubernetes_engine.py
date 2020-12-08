@@ -151,7 +151,7 @@ class TestGKEPodOperator(unittest.TestCase):
     # pylint: disable=unused-argument
     @mock.patch.dict(os.environ, {})
     @mock.patch(
-        "airflow.hooks.base_hook.BaseHook.get_connections",
+        "airflow.hooks.base.BaseHook.get_connections",
         return_value=[
             Connection(
                 extra=json.dumps(
@@ -192,7 +192,7 @@ class TestGKEPodOperator(unittest.TestCase):
     # pylint: disable=unused-argument
     @mock.patch.dict(os.environ, {})
     @mock.patch(
-        "airflow.hooks.base_hook.BaseHook.get_connections",
+        "airflow.hooks.base.BaseHook.get_connections",
         return_value=[
             Connection(
                 extra=json.dumps(

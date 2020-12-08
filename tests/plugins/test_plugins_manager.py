@@ -21,7 +21,7 @@ import sys
 import unittest
 from unittest import mock
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.plugins_manager import AirflowPlugin
 from airflow.www import app as application
 from tests.test_utils.mock_plugins import mock_plugin_manager

@@ -27,7 +27,7 @@ from airflow.models import DagRun
 from airflow.models.dag import DAG, DagContext
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State

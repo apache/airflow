@@ -20,7 +20,7 @@ from typing import Any, Callable, Dict, Optional
 from jira.resources import Issue, Resource
 
 from airflow.providers.jira.operators.jira import JIRAError, JiraOperator
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 

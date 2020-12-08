@@ -22,7 +22,7 @@ from airflow import settings
 from airflow.models import DAG
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 from tests.test_utils.db import clear_db_pools, clear_db_runs, set_default_pool_slots

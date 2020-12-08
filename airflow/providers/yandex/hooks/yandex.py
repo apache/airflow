@@ -22,7 +22,7 @@ from typing import Any, Dict, Optional, Union
 import yandexcloud
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class YandexCloudBaseHook(BaseHook):

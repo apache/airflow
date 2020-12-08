@@ -23,7 +23,7 @@ from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 
 
 class TestJenkinsHook(unittest.TestCase):
-    @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
+    @mock.patch('airflow.hooks.base.BaseHook.get_connection')
     def test_client_created_default_http(self, get_connection_mock):
         """tests `init` method to validate http client creation when all parameters are passed """
         default_connection_id = 'jenkins_default'
@@ -44,7 +44,7 @@ class TestJenkinsHook(unittest.TestCase):
         self.assertIsNotNone(hook.jenkins_server)
         self.assertEqual(hook.jenkins_server.server, complete_url)
 
-    @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
+    @mock.patch('airflow.hooks.base.BaseHook.get_connection')
     def test_client_created_default_https(self, get_connection_mock):
         """tests `init` method to validate https client creation when all
         parameters are passed"""

@@ -27,7 +27,7 @@ from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class SSHHook(BaseHook):

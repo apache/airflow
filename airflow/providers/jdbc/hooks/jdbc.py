@@ -20,7 +20,7 @@ from typing import Any, Dict, Optional
 
 import jaydebeapi
 
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 from airflow.models.connection import Connection
 
 

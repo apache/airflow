@@ -437,7 +437,7 @@ label[for="timezone-other"],
 
 /* Override FAB table views where table width extends beyond parent containers */
 .panel-body .panel-group + div {
-  overflow-x: scroll;
+  overflow-x: auto;
 }
 
 .task-instance-modal-column {

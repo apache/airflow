@@ -22,7 +22,7 @@ from typing import List, Optional
 import cx_Oracle
 import numpy
 
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 
 
 class OracleHook(DbApiHook):

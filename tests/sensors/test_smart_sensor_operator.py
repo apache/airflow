@@ -28,8 +28,8 @@ from freezegun import freeze_time
 from airflow import DAG, settings
 from airflow.configuration import conf
 from airflow.models import DagRun, SensorInstance, TaskInstance
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.operators.dummy import DummyOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.sensors.smart_sensor_operator import SmartSensorOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
