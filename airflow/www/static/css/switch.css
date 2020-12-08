@@ -25,7 +25,7 @@
 }
 
 .switch-input {
-  /* Visusally hidden input but still accessible */
+  /* Visually hidden input but still accessible */
   position: absolute;
   overflow: hidden;
   clip: rect(1px, 1px, 1px, 1px);
@@ -47,6 +47,10 @@
   padding: 2px;
   background-color: #c4c2c1;
   cursor: pointer;
+}
+
+.disabled {
+  cursor: auto;
 }
 
 .switch::before {

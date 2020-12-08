@@ -103,9 +103,17 @@
               <tr>
                 {# Column 1: Turn dag on/off #}
                 <td style="padding-right:0;">
-                  <label class="switch-label js-tooltip" title="Pause/Unpause DAG">
-                    <input class="switch-input" id="toggle-{{ dag.dag_id }}" data-dag-id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }}>
-                    <span class="switch" aria-hidden="true"></span>
+                  {% if dag.can_edit %}
+                    <label class="switch-label js-tooltip" title="Pause/Unpause DAG">
+                      <input class="switch-input" id="toggle-{{ dag.dag_id }}" data-dag-id="{{ dag.dag_id }}"
+                           type="checkbox" {{ "checked" if not dag.is_paused else "" }} >
+                    <span class="switch {{ '' if dag.can_edit else 'disabled' }}" aria-hidden="true"></span>
+                  {% else %}
+                    <label class="switch-label js-tooltip disabled" title="DAG is {{ 'Paused' if dag.is_paused else 'Active' }}">
+                      <input class="switch-input" id="toggle-{{ dag.dag_id }}" data-dag-id="{{ dag.dag_id }}"
+                           type="checkbox" {{ "checked" if not dag.is_paused else "" }} disabled>
+                    <span class="switch disabled" aria-hidden="true"></span>
+                  {% endif %}
                   </label>
                 </td>
                 {# Column 2: Name #}
