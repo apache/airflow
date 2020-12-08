@@ -272,7 +272,7 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
             'spec': {
                 'containers': [
                     {
-                        'command': [
+                        'args': [
                             'airflow',
                             'tasks',
                             'run',

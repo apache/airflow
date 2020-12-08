@@ -494,6 +494,11 @@ USE_JOB_SCHEDULE = conf.getboolean('scheduler', 'use_job_schedule', fallback=Tru
 # if you want to load plugins whenever 'airflow' is invoked via cli or loaded from module.
 LAZY_LOAD_PLUGINS = conf.getboolean('core', 'lazy_load_plugins', fallback=True)
 
+# By default Airflow providers are lazily-discovered (discovery and imports happen only when required).
+# Set it to False, if you want to discover providers whenever 'airflow' is invoked via cli or
+# loaded from module.
+LAZY_LOAD_PROVIDERS = conf.getboolean('core', 'lazy_discover_providers', fallback=True)
+
 # Determines if the executor utilizes Kubernetes
 IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get('core', 'EXECUTOR') in {
     executor_constants.KUBERNETES_EXECUTOR,

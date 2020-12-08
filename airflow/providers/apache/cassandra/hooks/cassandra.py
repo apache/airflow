@@ -86,6 +86,7 @@ class CassandraHook(BaseHook, LoggingMixin):
     conn_name_attr = 'cassandra_conn_id'
     default_conn_name = 'cassandra_default'
     conn_type = 'cassandra'
+    hook_name = 'Cassandra'
 
     def __init__(self, cassandra_conn_id: str = default_conn_name):
         super().__init__()

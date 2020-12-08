@@ -90,6 +90,7 @@ info:
     The response usually returns a `204 No Content` response code upon success.
 
     ## Conventions
+
     - Resource names are plural and expressed in camelCase.
     - Names are consistent between URL parameter name and field name.
 
@@ -104,7 +105,9 @@ info:
         "open_slots": 0
     }
     ```
+
     ### Update Mask
+
     Update mask is available as a query parameter in patch endpoints. It is used to notify the
     API which fields you want to update. Using `update_mask` makes it easier to update objects
     by helping the server know which fields to update in an object instead of updating all fields.
@@ -131,11 +134,12 @@ info:
     | v2.0 | Initial releaase |
 
     # Trying the API
+
     You can use a third party client, such as [curl](https://curl.haxx.se/), [HTTPie](https://httpie.org/),
-    [Postman](https://www.postman.com/) or the [Insomnia rest client](https://insomnia.rest/) to test
+    [Postman](https://www.postman.com/) or [the Insomnia rest client](https://insomnia.rest/) to test
     the Apache Airflow API.
 
-    Note that you will need to passcredentials data.
+    Note that you will need to pass credentials data.
 
     For e.g., here is how to pause a DAG with [curl](https://curl.haxx.se/), when basic authorization is used:
     ```bash
@@ -149,6 +153,7 @@ info:
 
     Using a graphical tool such as [Postman](https://www.postman.com/) or [Insomnia](https://insomnia.rest/),
     it is possible to import the API specifications directly:
+
     1. Download the API specification by clicking the **Download** button at top of this document
     2. Import the JSON specification in the graphical tool of your choice.
       - In *Postman*, you can click the **import** button at the top
@@ -162,7 +167,7 @@ info:
     To be able to meet the requirements of many organizations, Airflow supports many authentication methods,
     and it is even possible to add your own method.
 
-    If you want to check which executor is currently set, you can use
+    If you want to check which auth backend is currently set, you can use
     `airflow config get-value api auth_backend` command as in the example below.
     ```bash
     $ airflow config get-value api auth_backend
@@ -178,30 +183,46 @@ info:
     We follow the error response format proposed in [RFC 7807](https://tools.ietf.org/html/rfc7807)
     also known as Problem Details for HTTP APIs.  As with our normal API responses,
     your client must be prepared to gracefully handle additional members of the response.
+
     ## Unauthenticated
+
     This indicates that the request has not been applied because it lacks valid authentication
     credentials for the target resource. Please check that you have valid credentials.
+
     ## PermissionDenied
+
     This response means that the server understood the request but refuses to authorize
     it because it lacks sufficient rights to the resource. It happens when you do not have the
     necessary permission to execute the action you performed. You need to get the appropriate
     permissions in other to resolve this error.
+
     ## BadRequest
+
     This response means that the server cannot or will not process the request due to something
     that is perceived to be a client error (e.g., malformed request syntax, invalid request message
     framing, or deceptive request routing). To resolve this, please ensure that your syntax is correct.
+
     ## NotFound
+
     This client error response indicates that the server cannot find the requested resource.
+
     ## MethodNotAllowed
+
     Indicates that the request method is known by the server but is not supported by the target resource.
+
     ## NotAcceptable
+
     The target resource does not have a current representation that would be acceptable to the user
     agent, according to the proactive negotiation header fields received in the request, and the
     server is unwilling to supply a default representation.
+
     ## AlreadyExists
+
     The request could not be completed due to a conflict with the current state of the target
     resource, meaning that the resource already exists
+
     ## Unknown
+
     This means that the server encountered an unexpected condition that prevented it from
     fulfilling the request.
 
@@ -2449,7 +2470,7 @@ components:
       properties:
         total_entries:
           type: integer
-          description: Total count for all collection items.
+          description: Count of objects in the current result set.
 
     # Enums
     TaskState:

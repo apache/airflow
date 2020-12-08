@@ -34,6 +34,7 @@ class RedisHook(BaseHook):
     conn_name_attr = 'redis_conn_id'
     default_conn_name = 'redis_default'
     conn_type = 'redis'
+    hook_name = 'Redis'
 
     def __init__(self, redis_conn_id: str = default_conn_name) -> None:
         """

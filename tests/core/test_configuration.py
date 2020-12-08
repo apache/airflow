@@ -395,10 +395,10 @@ key3 = value3
             os.chmod(cmd_file.name, 0o0555)
             cmd_file.close()
 
-            with mock.patch.dict("os.environ", {"AIRFLOW__KUBERNETES__GIT_PASSWORD_CMD": cmd_file.name}):
-                content = conf.getsection("kubernetes")
+            with mock.patch.dict("os.environ", {"AIRFLOW__WEBSERVER__SECRET_KEY_CMD": cmd_file.name}):
+                content = conf.getsection("webserver")
             os.unlink(cmd_file.name)
-        self.assertEqual(content["git_password"], "difficult_unpredictable_cat_password")
+        self.assertEqual(content["secret_key"], "difficult_unpredictable_cat_password")
 
     def test_kubernetes_environment_variables_section(self):
         test_config = '''

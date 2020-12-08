@@ -41,10 +41,13 @@
 
   {% if regular_alerts %}
     {% for category, m in regular_alerts %}
-      <div class="alert alert-{{ category if category else 'info' }}">
-        <button type="button" class="close" data-dismiss="alert">&times;</button>
-        {{ m }}
-      </div>
+      {% if not (request.path == appbuilder.get_url_for_login and 'access is denied' in m.lower()) %}
+      {# Don't show 'Access is Denied' alert if user is logged out and on the login page. #}
+        <div class="alert alert-{{ category if category else 'info' }}">
+          <button type="button" class="close" data-dismiss="alert">&times;</button>
+          {{ m }}
+        </div>
+      {% endif %}
     {% endfor %}
   {% endif %}
 

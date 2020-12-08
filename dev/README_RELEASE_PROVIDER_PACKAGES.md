@@ -380,7 +380,7 @@ Once you have the keys, the signatures can be verified by running this:
 ```shell script
 for i in *.asc
 do
-   echo "Checking $i"; gpg --verify `basename $i .sha512 `
+   echo "Checking $i"; gpg --verify `basename $i .asc `
 done
 ```
 
@@ -425,7 +425,7 @@ Run this:
 ```shell script
 for i in *.sha512
 do
-    echo "Checking $i"; gpg --print-md SHA512 `basename $i .sha512 ` | diff - $i
+    echo "Checking $i"; shasum -a 512 `basename $i .sha512 ` | diff - $i
 done
 ```
 

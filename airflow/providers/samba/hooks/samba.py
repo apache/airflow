@@ -26,7 +26,12 @@ from airflow.hooks.base_hook import BaseHook
 class SambaHook(BaseHook):
     """Allows for interaction with an samba server."""
 
-    def __init__(self, samba_conn_id: str) -> None:
+    conn_name_attr = 'samba_conn_id'
+    default_conn_name = 'samba_default'
+    conn_type = 'samba'
+    hook_name = 'Samba'
+
+    def __init__(self, samba_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn = self.get_connection(samba_conn_id)
 

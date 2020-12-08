@@ -36,6 +36,7 @@ class OdbcHook(DbApiHook):
     conn_name_attr = 'odbc_conn_id'
     default_conn_name = 'odbc_default'
     conn_type = 'odbc'
+    hook_name = 'ODBC'
     supports_autocommit = True
 
     def __init__(

@@ -24,6 +24,7 @@ from flask import Flask, request
 
 from airflow.api_connexion.exceptions import common_error_handler
 from airflow.security import permissions
+from airflow.www.views import lazy_add_provider_discovered_options_to_connection_form
 
 log = logging.getLogger(__name__)
 
@@ -123,6 +124,11 @@ def init_plugins(app):
     for blue_print in plugins_manager.flask_blueprints:
         log.debug("Adding blueprint %s:%s", blue_print["name"], blue_print["blueprint"].import_name)
         app.register_blueprint(blue_print["blueprint"])
+
+
+def init_connection_form():
+    """Initializes connection form"""
+    lazy_add_provider_discovered_options_to_connection_form()
 
 
 def init_error_handlers(app: Flask):

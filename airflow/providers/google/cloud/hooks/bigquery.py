@@ -70,10 +70,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     conn_name_attr = 'gcp_conn_id'
     default_conn_name = 'google_cloud_default'
     conn_type = 'google_cloud_platform'
+    hook_name = 'Google Cloud'
 
     def __init__(
         self,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = default_conn_name,
         delegate_to: Optional[str] = None,
         use_legacy_sql: bool = True,
         location: Optional[str] = None,

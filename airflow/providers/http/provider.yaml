@@ -44,3 +44,6 @@ hooks:
   - integration-name: Hypertext Transfer Protocol (HTTP)
     python-modules:
       - airflow.providers.http.hooks.http
+
+hook-class-names:
+  - airflow.providers.http.hooks.http.HttpHook

@@ -28,6 +28,7 @@ class VerticaHook(DbApiHook):
     conn_name_attr = 'vertica_conn_id'
     default_conn_name = 'vertica_default'
     conn_type = 'vertica'
+    hook_name = 'Vertica'
     supports_autocommit = True
 
     def get_conn(self) -> connect:

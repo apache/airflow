@@ -165,6 +165,19 @@ class TestDbApiHook(unittest.TestCase):
         )
         self.assertEqual("conn_type://login:password@host:1/", self.db_hook.get_uri())
 
+    def test_get_uri_special_characters(self):
+        self.db_hook.get_connection = mock.MagicMock(
+            return_value=Connection(
+                conn_type="conn_type",
+                host="host",
+                login="logi#! n",
+                password="pass*! word",
+                schema="schema",
+                port=1,
+            )
+        )
+        self.assertEqual("conn_type://logi%23%21+n:pass%2A%21+word@host:1/schema", self.db_hook.get_uri())
+
     def test_run_log(self):
         statement = 'SQL'
         self.db_hook.run(statement)

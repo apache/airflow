@@ -46,6 +46,11 @@ class HDFSHook(BaseHook):
     :type autoconfig: bool
     """
 
+    conn_name_attr = 'hdfs_conn_id'
+    default_conn_name = 'hdfs_default'
+    conn_type = 'hdfs'
+    hook_name = 'HDFS'
+
     def __init__(
         self, hdfs_conn_id: str = 'hdfs_default', proxy_user: Optional[str] = None, autoconfig: bool = False
     ):

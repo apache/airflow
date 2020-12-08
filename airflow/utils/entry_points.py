@@ -15,7 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import importlib_metadata
+try:
+    import importlib_metadata
+except ImportError:
+    from importlib import metadata as importlib_metadata
 
 
 def entry_points_with_dist(group: str):
@@ -25,7 +28,7 @@ def entry_points_with_dist(group: str):
     This is like the ``entry_points()`` function from importlib.metadata,
     except it also returns the distribution the entry_point was loaded from.
 
-    :param group: FIlter results to only this entrypoint group
+    :param group: Filter results to only this entrypoint group
     :return: Generator of (EntryPoint, Distribution) objects for the specified groups
     """
     for dist in importlib_metadata.distributions():

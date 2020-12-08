@@ -40,6 +40,7 @@ class AzureBatchHook(BaseHook):
     conn_name_attr = 'azure_batch_conn_id'
     default_conn_name = 'azure_batch_default'
     conn_type = 'azure_batch'
+    hook_name = 'Azure Batch Service'
 
     def __init__(self, azure_batch_conn_id: str = default_conn_name) -> None:
         super().__init__()

@@ -42,13 +42,13 @@ log = logging.getLogger(__name__)
 class Anonymizer(Protocol):
     """Anonymizer protocol."""
 
-    def process_path(self, value):
+    def process_path(self, value) -> str:
         """Remove pii from paths"""
 
-    def process_username(self, value):
+    def process_username(self, value) -> str:
         """Remove pii from username"""
 
-    def process_url(self, value):
+    def process_url(self, value) -> str:
         """Remove pii from URL"""
 
 

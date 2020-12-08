@@ -1101,6 +1101,10 @@ OPERATORS = [
         'airflow.contrib.operators.redis_publish_operator.RedisPublishOperator',
     ),
     (
+        'airflow.operators.branch.BaseBranchOperator',
+        'airflow.operators.branch_operator.BaseBranchOperator',
+    ),
+    (
         'airflow.operators.bash.BashOperator',
         'airflow.operators.bash_operator.BashOperator',
     ),

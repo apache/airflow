@@ -20,7 +20,7 @@ import struct
 from datetime import datetime
 from typing import Iterable, List, Optional
 
-from sqlalchemy import BigInteger, Column, String, UnicodeText, exists
+from sqlalchemy import BigInteger, Column, String, Text, exists
 
 from airflow.exceptions import AirflowException, DagCodeNotFound
 from airflow.models.base import Base
@@ -50,7 +50,7 @@ class DagCode(Base):
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
     last_updated = Column(UtcDateTime, nullable=False)
-    source_code = Column(UnicodeText, nullable=False)
+    source_code = Column(Text, nullable=False)
 
     def __init__(self, full_filepath: str, source_code: Optional[str] = None):
         self.fileloc = full_filepath

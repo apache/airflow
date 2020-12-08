@@ -33,6 +33,11 @@ class AzureBaseHook(BaseHook):
     :param conn_id: The azure connection id which refers to the information to connect to the service.
     """
 
+    conn_name_attr = 'conn_id'
+    default_conn_name = 'azure_default'
+    conn_type = 'azure'
+    hook_name = 'Azure'
+
     def __init__(self, sdk_client: Any, conn_id: str = 'azure_default'):
         self.sdk_client = sdk_client
         self.conn_id = conn_id

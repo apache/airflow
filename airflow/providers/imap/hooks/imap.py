@@ -45,6 +45,7 @@ class ImapHook(BaseHook):
     conn_name_attr = 'imap_conn_id'
     default_conn_name = 'imap_default'
     conn_type = 'imap'
+    hook_name = 'IMAP'
 
     def __init__(self, imap_conn_id: str = default_conn_name) -> None:
         super().__init__()

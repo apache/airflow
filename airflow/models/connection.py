@@ -266,11 +266,19 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
 
     def get_hook(self):
         """Return hook based on conn_type."""
-        hook_class_name, conn_id_param = ProvidersManager().hooks.get(self.conn_type, (None, None))
+        hook_class_name, conn_id_param, package_name, hook_name = ProvidersManager().hooks.get(
+            self.conn_type, (None, None, None, None)
+        )
 
         if not hook_class_name:
             raise AirflowException(f'Unknown hook type "{self.conn_type}"')
-        hook_class = import_string(hook_class_name)
+        try:
+            hook_class = import_string(hook_class_name)
+        except ImportError:
+            warnings.warn(
+                "Could not import %s when discovering %s %s", hook_class_name, hook_name, package_name
+            )
+            raise
         return hook_class(**{conn_id_param: self.conn_id})
 
     def __repr__(self):

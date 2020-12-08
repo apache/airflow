@@ -58,6 +58,7 @@ class PostgresHook(DbApiHook):
     conn_name_attr = 'postgres_conn_id'
     default_conn_name = 'postgres_default'
     conn_type = 'postgres'
+    hook_name = 'Postgres'
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs) -> None:

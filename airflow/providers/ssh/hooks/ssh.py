@@ -20,7 +20,7 @@ import getpass
 import os
 import warnings
 from io import StringIO
-from typing import Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 import paramiko
 from paramiko.config import SSH_PORT
@@ -56,6 +56,21 @@ class SSHHook(BaseHook):
         keepalive_interval seconds
     :type keepalive_interval: int
     """
+
+    conn_name_attr = 'ssh_conn_id'
+    default_conn_name = 'ssh_default'
+    conn_type = 'ssh'
+    hook_name = 'SSH'
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['schema'],
+            "relabeling": {
+                'login': 'Username',
+            },
+        }
 
     def __init__(
         self,

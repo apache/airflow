@@ -20,6 +20,18 @@
 import {{ pickling_library }}
 import sys
 
+# Check whether Airflow is available in the environment.
+# If it is, we'll want to ensure that we integrate any macros that are being provided
+# by plugins prior to unpickling the task context.
+if sys.version_info.major >= 3 and sys.version_info.minor >= 6:
+    try:
+        from airflow.plugins_manager import integrate_macros_plugins
+        integrate_macros_plugins()
+    except ImportError:
+        # Airflow is not available in this environment, therefore we won't
+        # be able to integrate any plugin macros.
+        pass
+
 # Read args
 {% if op_args or op_kwargs %}
 with open(sys.argv[1], "rb") as file:

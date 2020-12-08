@@ -221,6 +221,7 @@ additional apt dev and runtime dependencies.
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
+    --build-arg AIRFLOW_VERSION="1.10.13" \
     --build-arg AIRFLOW_INSTALL_VERSION="==1.10.13" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
@@ -253,6 +254,7 @@ based on example in `this comment <https://github.com/apache/airflow/issues/8605
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
+    --build-arg AIRFLOW_VERSION="1.10.13" \
     --build-arg AIRFLOW_INSTALL_VERSION="==1.10.13" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
@@ -332,6 +334,7 @@ or
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
+    --build-arg AIRFLOW_VERSION="1.10.13" \
     --build-arg AIRFLOW_INSTALL_VERSION="==1.10.13" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
@@ -410,19 +413,19 @@ The PROD image entrypoint works as follows:
   This is in order to accommodate the
   `OpenShift Guidelines <https://docs.openshift.com/enterprise/3.0/creating_images/guidelines.html>`_
 
-* If ``AIRFLOW__CORE__SQL_ALCHEMY_CONN`` variable is passed to the container and it is either mysql or postgres
-  SQL alchemy connection, then the connection is checked and the script waits until the database is reachable.
-
-* If no ``AIRFLOW__CORE__SQL_ALCHEMY_CONN`` variable is set or if it is set to sqlite SQL alchemy connection
-  then db reset is executed.
-
-* If ``AIRFLOW__CELERY__BROKER_URL`` variable is passed and scheduler, worker of flower command is used then
-  the connection is checked and the script waits until the Celery broker database is reachable.
-
 * The ``AIRFLOW_HOME`` is set by default to ``/opt/airflow/`` - this means that DAGs
   are in default in the ``/opt/airflow/dags`` folder and logs are in the ``/opt/airflow/logs``
 
 * The working directory is ``/opt/airflow`` by default.
+
+* If ``AIRFLOW__CORE__SQL_ALCHEMY_CONN`` variable is passed to the container and it is either mysql or postgres
+  SQL alchemy connection, then the connection is checked and the script waits until the database is reachable.
+  If ``AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD`` variable is passed to the container, it is evaluated as a
+  command to execute and result of this evaluation is used as ``AIRFLOW__CORE__SQL_ALCHEMY_CONN``. The
+  ``_CMD`` variable takes precedence over the ``AIRFLOW__CORE__SQL_ALCHEMY_CONN`` variable.
+
+* If no ``AIRFLOW__CORE__SQL_ALCHEMY_CONN`` variable is set then SQLite database is created in
+  ${AIRFLOW_HOME}/airflow.db and db reset is executed.
 
 * If first argument equals to "bash" - you are dropped to a bash shell or you can executes bash command
   if you specify extra arguments. For example:
@@ -436,7 +439,6 @@ The PROD image entrypoint works as follows:
   drwxr-xr-x 2 airflow root 4096 Jun  5 18:12 dags
   drwxr-xr-x 2 airflow root 4096 Jun  5 18:12 logs
 
-
 * If first argument is equal to "python" - you are dropped in python shell or python commands are executed if
   you pass extra parameters. For example:
 
@@ -445,12 +447,26 @@ The PROD image entrypoint works as follows:
   > docker run -it apache/airflow:master-python3.6 python -c "print('test')"
   test
 
-* If there are any other arguments - they are passed to "airflow" command
+* If first argument equals to "airflow" - the rest of the arguments is treated as an airflow command
+  to execute. Example:
 
 .. code-block:: bash
 
-  > docker run -it apache/airflow:master-python3.6
+   docker run -it apache/airflow:master-python3.6 airflow webserver
+
+* If there are any other arguments - they are simply passed to the "airflow" command
+
+.. code-block:: bash
+
+  > docker run -it apache/airflow:master-python3.6 version
   2.0.0.dev0
+
+* If ``AIRFLOW__CELERY__BROKER_URL`` variable is passed and airflow command with
+  scheduler, worker of flower command is used, then the script checks the broker connection
+  and waits until the Celery broker database is reachable.
+  If ``AIRFLOW__CELERY__BROKER_URL_CMD`` variable is passed to the container, it is evaluated as a
+  command to execute and result of this evaluation is used as ``AIRFLOW__CELERY__BROKER_URL``. The
+  ``_CMD`` variable takes precedence over the ``AIRFLOW__CELERY__BROKER_URL`` variable.
 
 Production image build arguments
 --------------------------------
@@ -608,7 +624,9 @@ production image. There are three types of build:
 | ``AIRFLOW_INSTALL_VERSION``       | Optional - might be used for      |
 |                                   | package installation case to      |
 |                                   | set Airflow version for example   |
-|                                   | "==1.10.13"                       |
+|                                   | "==1.10.13". Remember to also     |
+|                                   | Set ``AIRFLOW_VERSION``           |
+|                                   | when you use it.                  |
 +-----------------------------------+-----------------------------------+
 | ``AIRFLOW_CONSTRAINTS_REFERENCE`` | reference (branch or tag) from    |
 |                                   | GitHub where constraints file     |
@@ -675,6 +693,7 @@ of v1-10-test branch.
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
+    --build-arg AIRFLOW_VERSION="1.10.13" \
     --build-arg AIRFLOW_INSTALL_VERSION="==1.10.13" \
     --build-arg AIRFLOW_BRANCH="v1-10-test" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1.10.13" \
@@ -690,6 +709,7 @@ additional python dependencies and pre-installed pip dependencies from 1.10.13 t
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
+    --build-arg AIRFLOW_VERSION="1.10.13" \
     --build-arg AIRFLOW_INSTALL_VERSION="==1.10.13" \
     --build-arg AIRFLOW_BRANCH="v1-10-test" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1.10.13" \
@@ -707,6 +727,7 @@ additional apt dev and runtime dependencies.
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
+    --build-arg AIRFLOW_VERSION="1.10.13" \
     --build-arg AIRFLOW_INSTALL_VERSION="==1.10.13" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \

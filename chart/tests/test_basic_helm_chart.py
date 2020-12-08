@@ -115,5 +115,3 @@ class TestBaseChartTest(unittest.TestCase):
             if image.startswith(image_repo):
                 # Make sure that a command is not specified
                 self.assertNotIn("command", obj)
-                # Make sure that the first arg is never airflow
-                self.assertNotEqual(obj["args"][0], "airflow")  # pylint: disable=invalid-sequence-index

@@ -18,7 +18,7 @@
 """drop_user_and_chart
 
 Revision ID: cf5dc11e79ad
-Revises: a66efa278eea
+Revises: 03afc6b6f902
 Create Date: 2019-01-24 15:30:35.834740
 
 """
@@ -29,7 +29,7 @@ from sqlalchemy.engine.reflection import Inspector
 
 # revision identifiers, used by Alembic.
 revision = 'cf5dc11e79ad'
-down_revision = 'a66efa278eea'
+down_revision = '03afc6b6f902'
 branch_labels = None
 depends_on = None
 
