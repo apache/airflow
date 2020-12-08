@@ -20,7 +20,7 @@ from datetime import timedelta
 
 from airflow.models import DagBag
 from airflow.models.dag import DAG
-from airflow.sensors.time_delta_sensor import TimeDeltaSensor
+from airflow.sensors.time_delta import TimeDeltaSensor
 from airflow.utils.timezone import datetime
 
 DEFAULT_DATE = datetime(2015, 1, 1)

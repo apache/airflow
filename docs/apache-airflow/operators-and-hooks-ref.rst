@@ -106,7 +106,7 @@ Airflow has many more integrations available for separate installation as a prov
    * - :mod:`airflow.sensors.sql_sensor`
      -
 
-   * - :mod:`airflow.sensors.time_delta_sensor`
+   * - :mod:`airflow.sensors.time_delta`
      -
 
    * - :mod:`airflow.sensors.time_sensor`

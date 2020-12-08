@@ -146,6 +146,7 @@ class RefactorBackportPackages:
             ("airflow.operators.python", "airflow.operators.python_operator"),
             ("airflow.sensors.base", "airflow.sensors.base_sensor_operator"),
             ("airflow.sensors.date_time", "airflow.sensors.date_time_sensor"),
+            ("airflow.sensors.time_delta", "airflow.sensors.time_delta_sensor"),
             ("airflow.utils.session", "airflow.utils.db"),
         ]
         for new, old in changes:

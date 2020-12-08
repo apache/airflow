@@ -1367,6 +1367,10 @@ SENSORS = [
         "airflow.sensors.date_time_sensor.DateTimeSensor",
     ),
     (
+        "airflow.senors.time_delta.TimeDeltaSensor",
+        "airflow.sensors.time_delta_sensor.TimeDeltaSensor",
+    ),
+    (
         "airflow.providers.apache.cassandra.sensors.record.CassandraRecordSensor",
         "airflow.contrib.sensors.cassandra_record_sensor.CassandraRecordSensor",
     ),
