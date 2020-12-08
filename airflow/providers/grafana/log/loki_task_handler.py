@@ -83,7 +83,9 @@ class LokiTaskHandler(FileTaskHandler, LoggingMixin):
     def is_loki_alive(self):
         """Checks whether Loki is ready for pushing/pulling logs"""
         try:
-            status = self.session.get(f"{self.get_conn.host}/ready",)
+            status = self.session.get(
+                f"{self.get_conn.host}/ready",
+            )
             return status.status_code
         except ConnectionError as error_msg:
             self.log.exception(error_msg)
@@ -136,7 +138,7 @@ class LokiTaskHandler(FileTaskHandler, LoggingMixin):
     def set_context(self, task_instance: TaskInstance) -> None:
         """
         Provide task_instance context to airflow task handler.
-        If Loki is not available then will use Filehandler context 
+        If Loki is not available then will use Filehandler context
         to avoid losing log data.
         :param ti: task instance object
         :type: task_instance: TaskInstance
@@ -153,7 +155,10 @@ class LokiTaskHandler(FileTaskHandler, LoggingMixin):
         """Convert timestamp to epoch"""
         return int(time.mktime(time.strptime(timestamp[:19], self.timestamp_pattern)))
 
-    def query_time_range(self, task_instance: TaskInstance,) -> Tuple[int, int]:
+    def query_time_range(
+        self,
+        task_instance: TaskInstance,
+    ) -> Tuple[int, int]:
         """
         Return task start and end time in epoch format for query.
         If Task's try_number > 1 then it will use task execution time as start time.
@@ -223,7 +228,8 @@ class LokiTaskHandler(FileTaskHandler, LoggingMixin):
             )
             try:
                 response = self.session.get(
-                    f"{self.get_conn.host}/loki/api/v1/query_range", params=query_parameters,
+                    f"{self.get_conn.host}/loki/api/v1/query_range",
+                    params=query_parameters,
                 ).json()
                 results = response["data"]["result"]
                 logs_list = [value for result in results for value in result["values"]]

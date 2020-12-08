@@ -73,9 +73,11 @@ class TestLokiTaskHandler(unittest.TestCase):
 
     def test_read_parameters(self):
         self.ti.end_date = datetime(2020, 1, 1, 1, 2, 30)
-        query = '{key="value", airflow_dag_id="dag_for_testing_loki_task_handler", '\
-                'airflow_task_id="task_for_testing_loki_task_handler", '\
-                'airflow_try_number="1"} != "WARNING" '
+        query = (
+            '{key="value", airflow_dag_id="dag_for_testing_loki_task_handler", '
+            'airflow_task_id="task_for_testing_loki_task_handler", '
+            'airflow_try_number="1"} != "WARNING" '
+        )
         params = {
             "direction": "forward",
             "start": 1577840340,

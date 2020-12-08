@@ -242,14 +242,14 @@ if REMOTE_LOGGING:
         # loki:///airflow-prod-std --> airflow-prod-std
         log_name = urlparse(REMOTE_BASE_LOG_FOLDER).path[1:]
         LOKI_REMOTE_HANDLERS = {
-            "task":{
+            "task": {
                 'class': "airflow.providers.grafana.log.loki_task_handler.LokiTaskHandler",
                 'formatter': "airflow",
                 'base_log_folder': str(os.path.expanduser(BASE_LOG_FOLDER)),
                 'filename_template': FILENAME_TEMPLATE,
                 'loki_conn_id': loki_connection,
                 'name': log_name,
-                'labels' : {"airflow_name": urlparse(REMOTE_BASE_LOG_FOLDER).path[1:]},
+                'labels': {"airflow_name": urlparse(REMOTE_BASE_LOG_FOLDER).path[1:]},
             },
         }
         DEFAULT_LOGGING_CONFIG['handlers'].update(LOKI_REMOTE_HANDLERS)

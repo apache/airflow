@@ -550,7 +550,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "facebook": facebook,
     "ftp": [],
     "google": google,
-    "grafana":grafana,
+    "grafana": grafana,
     "grpc": grpc,
     "hashicorp": hashicorp,
     "http": [],
