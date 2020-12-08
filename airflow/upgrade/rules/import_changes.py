@@ -59,7 +59,7 @@ class ImportChange(
 
         # [2:] strips off the airflow.providers. part
         parts = module.split(".")[2:]
-        if parts[0] in ('apache', 'cncf'):
+        if parts[0] in ('apache', 'cncf', 'microsoft'):
             return '-'.join(parts[:2])
         return parts[0]
 
