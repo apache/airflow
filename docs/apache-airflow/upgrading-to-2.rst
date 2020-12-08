@@ -29,7 +29,7 @@ Step 1: Upgrade to Python 3
 
 Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0 will require Python 3.6+.
 
-If you have a specific task that still requires Python 2 then you can use the PythonVirtualenvOperator for this.
+If you have a specific task that still requires Python 2 then you can use the :class:`~airflow.operators.python.PythonVirtualenvOperator` for this.
 
 For a list of breaking changes between Python 2 and Python 3, please refer to this
 [handy blog](https://blog.couchbase.com/tips-and-tricks-for-upgrading-from-python-2-to-python-3/)
@@ -86,7 +86,7 @@ More details about this process are here  :ref:`Upgrade Check Scripts<upgrade-ch
 Step 4: Set Operators to Backport Providers
 '''''''''''''''''''''''''''''''''''''''''''
 
-Now that you are set up in airflow 1.10.14 with python a 3.6+ environment, you are ready to start porting your DAGs to Airfow 2.0 compliance!
+Now that you are set up in Airflow 1.10.14 with Python a 3.6+ environment, you are ready to start porting your DAGs to Airflow 2.0 compliance!
 
 The most important step in this transition is also the easiest step to do in pieces. All Airflow 2.0 operators are backwards compatible with Airflow 1.10
 using the [backport providers](./backport-providers.rst) service. In your own time, you can transition to using these backport-providers
@@ -98,7 +98,7 @@ For example: While historically you might have imported the DockerOperator in th
 
     from airflow.operators.docker_operator import DockerOperator
 
-You would now run this command to import the provider:
+You would now run this command to install the provider:
 
 .. code-block:: bash
 
