@@ -239,9 +239,9 @@ repos:
         files: Dockerfile.*$
         pass_filenames: true
       - id: setup-order
-        name: Check order of dependencies in setup.py
+        name: Check order of dependencies in setup.py and setup.cfg
         language: python
-        files: ^setup.py$
+        files: ^setup.py$|^setup.cfg$
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_order_setup.py
       - id: setup-extra-packages

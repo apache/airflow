@@ -1699,7 +1699,7 @@ you should execute `pip install 'apache-airflow[azure]'`
 If you want to install integration for Amazon Web Services, then instead of
 `pip install 'apache-airflow[s3,emr]'`, you should execute `pip install 'apache-airflow[aws]'`
 
-The deprecated extras will be removed in 2.1:
+The deprecated extras will be removed in 3.0.
 
 #### Simplify the response payload of endpoints /dag_stats and /task_stats
 
