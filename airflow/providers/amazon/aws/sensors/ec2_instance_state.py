@@ -20,7 +20,7 @@
 from typing import Optional
 
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 

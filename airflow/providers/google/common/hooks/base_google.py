@@ -41,7 +41,7 @@ from googleapiclient.http import MediaIoBaseDownload, build_http, set_user_agent
 
 from airflow import version
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_scopes,
     _get_target_principal_and_delegates,

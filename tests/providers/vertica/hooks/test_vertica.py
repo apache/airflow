@@ -68,7 +68,7 @@ class TestVerticaHook(unittest.TestCase):
 
         self.db_hook = UnitTestVerticaHook()
 
-    @patch('airflow.hooks.dbapi_hook.DbApiHook.insert_rows')
+    @patch('airflow.hooks.dbapi.DbApiHook.insert_rows')
     def test_insert_rows(self, mock_insert_rows):
         table = "table"
         rows = [("hello",), ("world",)]

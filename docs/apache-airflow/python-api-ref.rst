@@ -36,8 +36,8 @@ There are 3 main types of operators:
 - **Sensors** are a certain type of operator that will keep running until a
   certain criterion is met. Examples include a specific file landing in HDFS or
   S3, a partition appearing in Hive, or a specific time of the day. Sensors
-  are derived from :class:`~airflow.sensors.base_sensor_operator.BaseSensorOperator` and run a poke
-  method at a specified :attr:`~airflow.sensors.base_sensor_operator.BaseSensorOperator.poke_interval` until it returns ``True``.
+  are derived from :class:`~airflow.sensors.base.BaseSensorOperator` and run a poke
+  method at a specified :attr:`~airflow.sensors.base.BaseSensorOperator.poke_interval` until it returns ``True``.
 
 BaseOperator
 ''''''''''''
@@ -49,8 +49,8 @@ DAGs.
 
 BaseSensorOperator
 ''''''''''''''''''
-All sensors are derived from :class:`~airflow.sensors.base_sensor_operator.BaseSensorOperator`. All sensors inherit
-the :attr:`~airflow.sensors.base_sensor_operator.BaseSensorOperator.timeout` and :attr:`~airflow.sensors.base_sensor_operator.BaseSensorOperator.poke_interval` on top of the :class:`~airflow.models.BaseOperator`
+All sensors are derived from :class:`~airflow.sensors.base.BaseSensorOperator`. All sensors inherit
+the :attr:`~airflow.sensors.base.BaseSensorOperator.timeout` and :attr:`~airflow.sensors.base.BaseSensorOperator.poke_interval` on top of the :class:`~airflow.models.BaseOperator`
 attributes.
 
 Operators packages
@@ -73,7 +73,7 @@ Hooks
 -----
 Hooks are interfaces to external platforms and databases, implementing a common
 interface when possible and acting as building blocks for operators. All hooks
-are derived from :class:`~airflow.hooks.base_hook.BaseHook`.
+are derived from :class:`~airflow.hooks.base.BaseHook`.
 
 Hooks packages
 ''''''''''''''

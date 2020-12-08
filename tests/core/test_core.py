@@ -28,7 +28,7 @@ from numpy.testing import assert_array_almost_equal
 
 from airflow import settings
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models import DagBag, DagRun, TaskFail, TaskInstance
 from airflow.models.baseoperator import BaseOperator

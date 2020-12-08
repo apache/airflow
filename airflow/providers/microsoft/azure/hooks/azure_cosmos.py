@@ -30,7 +30,7 @@ from azure.cosmos.cosmos_client import CosmosClient
 from azure.cosmos.errors import HTTPFailure
 
 from airflow.exceptions import AirflowBadRequest
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class AzureCosmosDBHook(BaseHook):

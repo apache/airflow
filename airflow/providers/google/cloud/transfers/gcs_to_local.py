@@ -23,7 +23,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.sensors.base_sensor_operator import apply_defaults
+from airflow.sensors.base import apply_defaults
 
 
 class GCSToLocalFilesystemOperator(BaseOperator):

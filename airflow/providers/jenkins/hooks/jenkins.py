@@ -21,7 +21,7 @@ from distutils.util import strtobool
 
 import jenkins
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class JenkinsHook(BaseHook):

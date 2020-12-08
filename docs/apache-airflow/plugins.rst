@@ -164,7 +164,7 @@ definitions in Airflow.
     from flask_appbuilder import expose, BaseView as AppBuilderBaseView
 
     # Importing base classes that we need to derive
-    from airflow.hooks.base_hook import BaseHook
+    from airflow.hooks.base import BaseHook
     from airflow.models.baseoperator import BaseOperatorLink
     from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
 

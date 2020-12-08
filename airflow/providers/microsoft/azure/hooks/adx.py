@@ -25,7 +25,7 @@ from azure.kusto.data.request import ClientRequestProperties, KustoClient, Kusto
 from azure.kusto.data.response import KustoResponseDataSetV2
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class AzureDataExplorerHook(BaseHook):

@@ -21,7 +21,7 @@ from typing import Any, Dict
 import requests
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 OK_STATUS_CODE = 202
 

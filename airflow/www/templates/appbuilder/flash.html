@@ -56,13 +56,13 @@
       <div class="panel panel-default">
         <div class="panel-heading" id="errorHeading">
           <h4 class="panel-title">
-            <a id="alerts-accordion-toggle" data-toggle="collapse" data-parent="#accordion" href="#alerts" aria-expanded="false">
-              DAG Import Errors ({{ dag_import_errors|length }})
+            <a id="alerts-accordion-toggle" data-toggle="collapse" data-parent="#accordion" href="#alerts" aria-expanded="false" class="collapsed">
+              <span class="text-danger"><span class="material-icons" aria-hidden="true">error</span> DAG Import Errors ({{ dag_import_errors|length }})</span>
             </a>
           </h4>
         </div>
 
-        <div id="alerts" class="panel-collapse collapse in">
+        <div id="alerts" class="panel-collapse collapse">
           <div class="panel-body">
             {% for category, m in dag_import_errors %}
               <div class="alert alert-error dag-import-error">{{ m }}</div>

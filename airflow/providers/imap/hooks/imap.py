@@ -27,7 +27,7 @@ import re
 from typing import Any, Iterable, List, Optional, Tuple
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 

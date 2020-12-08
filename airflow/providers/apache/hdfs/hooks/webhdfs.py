@@ -24,7 +24,7 @@ from hdfs import HdfsError, InsecureClient
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models.connection import Connection
 
 log = logging.getLogger(__name__)

@@ -122,7 +122,7 @@ Let's extend our previous example to fetch name from MySQL:
 
 When the operator invokes the query on the hook object, a new connection gets created if it doesn't exist.
 The hook retrieves the auth parameters such as username and password from Airflow
-backend and passes the params to the :py:func:`airflow.hooks.base_hook.BaseHook.get_connection`.
+backend and passes the params to the :py:func:`airflow.hooks.base.BaseHook.get_connection`.
 You should create hook only in the ``execute`` method or any method which is called from ``execute``.
 The constructor gets called whenever Airflow parses a DAG which happens frequently. And instantiating a hook
 there will result in many unnecessary database connections.
@@ -243,7 +243,7 @@ Airflow provides a primitive for a special kind of operator, whose purpose is to
 poll some state (e.g. presence of a file) on a regular interval until a
 success criteria is met.
 
-You can create any sensor your want by extending the :class:`airflow.sensors.base_sensor_operator.BaseSensorOperator`
+You can create any sensor your want by extending the :class:`airflow.sensors.base.BaseSensorOperator`
 defining a ``poke`` method to poll your external state and evaluate the success criteria.
 
 Sensors have a powerful feature called ``'reschedule'`` mode which allows the sensor to
@@ -253,7 +253,7 @@ polling for a long time.
 
 Reschedule mode comes with a caveat that your sensor cannot maintain internal state
 between rescheduled executions. In this case you should decorate your sensor with
-:meth:`airflow.sensors.base_sensor_operator.poke_mode_only`. This will let users know
+:meth:`airflow.sensors.base.poke_mode_only`. This will let users know
 that your sensor is not suitable for use with reschedule mode.
 
 An example of a sensor that keeps internal state and cannot be used with reschedule mode

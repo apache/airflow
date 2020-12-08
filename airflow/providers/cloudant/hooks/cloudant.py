@@ -21,7 +21,7 @@ from typing import Dict
 from cloudant import cloudant
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class CloudantHook(BaseHook):

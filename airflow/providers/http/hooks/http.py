@@ -22,7 +22,7 @@ import tenacity
 from requests.auth import HTTPBasicAuth
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class HttpHook(BaseHook):

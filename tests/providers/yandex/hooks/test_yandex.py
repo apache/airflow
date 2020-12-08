@@ -24,7 +24,7 @@ from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
 
 
 class TestYandexHook(unittest.TestCase):
-    @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
+    @mock.patch('airflow.hooks.base.BaseHook.get_connection')
     @mock.patch('airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials')
     def test_client_created_without_exceptions(self, get_credentials_mock, get_connection_mock):
         """tests `init` method to validate client creation when all parameters are passed """
@@ -44,7 +44,7 @@ class TestYandexHook(unittest.TestCase):
         hook = YandexCloudBaseHook(None, default_folder_id, default_public_ssh_key)
         self.assertIsNotNone(hook.client)
 
-    @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
+    @mock.patch('airflow.hooks.base.BaseHook.get_connection')
     def test_get_credentials_raise_exception(self, get_connection_mock):
 
         """tests 'get_credentials' method raising exception if none of the required fields are passed."""
@@ -64,7 +64,7 @@ class TestYandexHook(unittest.TestCase):
             AirflowException, YandexCloudBaseHook, None, default_folder_id, default_public_ssh_key
         )
 
-    @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
+    @mock.patch('airflow.hooks.base.BaseHook.get_connection')
     @mock.patch('airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials')
     def test_get_field(self, get_credentials_mock, get_connection_mock):
         # Inputs to constructor

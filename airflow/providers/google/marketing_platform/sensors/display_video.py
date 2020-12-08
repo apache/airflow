@@ -20,7 +20,7 @@ from typing import Optional, Sequence, Union
 
 from airflow import AirflowException
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 
 
 class GoogleDisplayVideo360ReportSensor(BaseSensorOperator):

@@ -21,7 +21,7 @@ from contextlib import redirect_stdout
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import plugins_command
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.plugins_manager import AirflowPlugin
 from tests.test_utils.mock_plugins import mock_plugin_manager
 

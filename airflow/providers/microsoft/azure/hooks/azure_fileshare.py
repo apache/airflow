@@ -20,7 +20,7 @@ from typing import List, Optional
 
 from azure.storage.file import File, FileService
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class AzureFileShareHook(BaseHook):
