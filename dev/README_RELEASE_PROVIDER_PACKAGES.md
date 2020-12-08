@@ -915,7 +915,7 @@ Documentation for providers can be found in the `/docs/apache-airflow-providers`
 
     ```shell script
     ./docs/start_doc_server.sh
-    ``
+    ```
 
 - Copy the documentation to the ``airflow-site`` repository
 
@@ -926,7 +926,7 @@ Documentation for providers can be found in the `/docs/apache-airflow-providers`
         --package apache-airflow-providers-telegram \
 
     cd "${AIRFLOW_SITE_DIRECTORY}"
-    ````
+    ```
 
 - If you publish a new package, you must add it to [the docs index](https://github.com/apache/airflow-site/blob/master/landing-pages/site/content/en/docs/_index.md):
 

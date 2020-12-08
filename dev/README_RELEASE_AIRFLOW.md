@@ -555,7 +555,7 @@ At this point we release an official package:
 ## Publish documentation
 
 Documentation is an essential part of the product and should be made available to users.
-In our cases, documentation  for the released versions is published in a separate repository - [`apache/airflow-site`](https://github.com/apache/airflow-site), but the documentation source code and build tools are available in the `apache/airflow` repository, so you have to coordinate between the two repositories to be able to build the documentation.
+In our cases, documentation for the released versions is published in a separate repository - [`apache/airflow-site`](https://github.com/apache/airflow-site), but the documentation source code and build tools are available in the `apache/airflow` repository, so you have to coordinate between the two repositories to be able to build the documentation.
 
 Documentation for providers can be found in the ``/docs/apache-airflow`` directory.
 
@@ -578,7 +578,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 
     ```shell script
     ./docs/start_doc_server.sh
-    ``
+    ```
 
 - Copy the documentation to the ``airflow-site`` repository, create commit and push changes.
 
@@ -587,7 +587,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
     cd "${AIRFLOW_SITE_DIRECTORY}"
     git commit -m "Add documentation for Apache Airflow ${VERSION}"
     git push
-    ````
+    ```
 
 ## Notify developers of release
 
