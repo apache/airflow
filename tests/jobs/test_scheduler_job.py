@@ -1933,7 +1933,7 @@ class TestSchedulerJob(unittest.TestCase):
         scheduler.processor_agent = processor
 
         with mock.patch.object(settings, "USE_JOB_SCHEDULE", False), conf_vars(
-            {('scheduler', 'clean_tis_without_dagrun'): '0.001'}
+            {('scheduler', 'clean_tis_without_dagrun_interval'): '0.001'}
         ):
             scheduler._run_scheduler_loop()
 
