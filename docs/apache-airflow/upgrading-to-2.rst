@@ -89,7 +89,7 @@ Step 4: Set Operators to Backport Providers
 Now that you are set up in Airflow 1.10.14 with Python a 3.6+ environment, you are ready to start porting your DAGs to Airflow 2.0 compliance!
 
 The most important step in this transition is also the easiest step to do in pieces. All Airflow 2.0 operators are backwards compatible with Airflow 1.10
-using the [backport providers](./backport-providers.rst) service. In your own time, you can transition to using these backport-providers
+using the [backport providers](./backport-providers.rst) packages. In your own time, you can transition to using these backport-providers
 by pip installing the provider via ``pypi`` and changing the import path.
 
 For example: While historically you might have imported the DockerOperator in this fashion:
@@ -112,15 +112,15 @@ and then import the operator with this path:
     from airflow.providers.docker.operators.docker import DockerOperator
 
 Pleaes note that the backport provider packages are just backports of the provider packages compatible with Airflow 2.0.
-Those provider packages are installed automatically when you install airflow with extras.
+Those provider packages are installed automatically when you install Airflow with extras.
 For example:
 
 .. code-block:: bash
 
-    pip install airflow[docker]
+    pip install 'apache-airflow[docker]'
 
 automatically installs the ``apache-airflow-providers-docker`` package.
-But you can manage/upgrade remove provider packages separately from the airflow core.
+But you can manage/upgrade/remove provider packages separately from the Airflow core.
 
 
 Step 5: Upgrade Airflow DAGs
