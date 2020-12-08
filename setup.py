@@ -26,7 +26,7 @@ from os.path import dirname
 from textwrap import wrap
 from typing import Dict, Iterable, List
 
-from setuptools import Command, find_namespace_packages, setup
+from setuptools import Command, Distribution, find_namespace_packages, setup
 
 logger = logging.getLogger(__name__)
 
@@ -874,6 +874,22 @@ EXTRAS_REQUIREMENTS.update(
 )
 
 
+class AirflowDistribtuion(Distribution):
+    """setuptools.Distribution subclass with Airflow specific behaviour"""
+
+    # https://github.com/PyCQA/pylint/issues/3737
+    def parse_config_files(self, *args, **kwargs):  # pylint: disable=signature-differs
+        """
+        Ensure that when we have been asked to install providers from sources
+        that we don't *also* try ot install those providers from PyPI
+        """
+        super().parse_config_files(*args, **kwargs)
+        if os.getenv('INSTALL_PROVIDERS_FROM_SOURCES') == 'true':
+            self.install_requires = [  # pylint: disable=attribute-defined-outside-init
+                req for req in self.install_requires if not req.startswith('apache-airflow-providers-')
+            ]
+
+
 def get_provider_package_from_package_id(package_id: str):
     """
     Builds the name of provider package out of the package id provided/
@@ -901,6 +917,7 @@ def do_setup():
 
     write_version()
     setup(
+        distclass=AirflowDistribtuion,
         # Most values come from setup.cfg -- see
         # https://setuptools.readthedocs.io/en/latest/userguide/declarative_config.html
         version=version,
