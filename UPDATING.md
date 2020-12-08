@@ -270,6 +270,7 @@ The following table shows changes in import paths.
 | airflow.hooks.base_hook.BaseHook | airflow.hooks.base.BaseHook |
 | airflow.hooks.dbapi_hook.DbApiHook | airflow.hooks.dbapi.DbApiHook |
 | airflow.operators.branch_operator.BaseBranchOperator | airflow.operators.branch.BaseBranchOperator |
+| airflow.operators.subdag_operator.SubDagOperator | airflow.operators.subdag.SubDagOperator |
 | airflow.sensors.base_sensor_operator.BaseSensorOperator | airflow.sensors.base.BaseSensorOperator |
 | airflow.sensors.date_time_sensor.DateTimeSensor | airflow.sensors.date_time.DateTimeSensor |
 | airflow.sensors.time_delta_sensor.TimeDeltaSensor | airflow.sensors.time_delta.TimeDeltaSensor |
