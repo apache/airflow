@@ -1894,11 +1894,8 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                 for result in query.with_entities(XCom.task_id, XCom.value)
             }
 
-            vals = []
-            for task_id in task_ids:
-                vals.append(vals_kv.get(task_id))
-
-            return vals
+            values_ordered_by_id = [vals_kv.get(task_id) for task_id in task_ids]
+            return values_ordered_by_id
         else:
             xcom = query.with_entities(XCom.value).first()
             if xcom:
