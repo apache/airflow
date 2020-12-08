@@ -273,7 +273,11 @@ The following table shows changes in import paths.
 | airflow.operators.subdag_operator.SubDagOperator | airflow.operators.subdag.SubDagOperator |
 | airflow.sensors.base_sensor_operator.BaseSensorOperator | airflow.sensors.base.BaseSensorOperator |
 | airflow.sensors.date_time_sensor.DateTimeSensor | airflow.sensors.date_time.DateTimeSensor |
+| airflow.sensors.external_task_sensor.ExternalTaskMarker | airflow.sensors.external_task.ExternalTaskMarker |
+| airflow.sensors.external_task_sensor.ExternalTaskSensor | airflow.sensors.external_task.ExternalTaskSensor |
+| airflow.sensors.sql_sensor.SqlSensor | airflow.sensors.sql.SqlSensor |
 | airflow.sensors.time_delta_sensor.TimeDeltaSensor | airflow.sensors.time_delta.TimeDeltaSensor |
+| airflow.contrib.sensors.weekday_sensor.DayOfWeekSensor | airflow.sensors.weekday.DayOfWeekSensor |
 
 
 ### Database schema changes

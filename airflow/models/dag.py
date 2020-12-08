@@ -1224,7 +1224,7 @@ class DAG(LoggingMixin):
             tis = tis.filter(TI.state == State.RUNNING)
 
         if include_subdags:
-            from airflow.sensors.external_task_sensor import ExternalTaskMarker
+            from airflow.sensors.external_task import ExternalTaskMarker
 
             # Recursively find external tasks indicated by ExternalTaskMarker
             instances = tis.all()
