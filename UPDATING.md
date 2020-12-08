@@ -277,6 +277,7 @@ The following table shows changes in import paths.
 | airflow.hooks.base_hook.BaseHook | airflow.hooks.base.BaseHook |
 | airflow.hooks.dbapi_hook.DbApiHook | airflow.hooks.dbapi.DbApiHook |
 | airflow.operators.dummy_operator.DummyOperator | airflow.operators.dummy.DummyOperator |
+| airflow.operators.dagrun_operator.TriggerDagRunOperator | airflow.operators.trigger_dagrun.TriggerDagRunOperator |
 | airflow.operators.branch_operator.BaseBranchOperator | airflow.operators.branch.BaseBranchOperator |
 | airflow.operators.subdag_operator.SubDagOperator | airflow.operators.subdag.SubDagOperator |
 | airflow.sensors.base_sensor_operator.BaseSensorOperator | airflow.sensors.base.BaseSensorOperator |
@@ -663,7 +664,7 @@ changes the previous response receiving `NULL` or `'0'`. Earlier `'0'` has been 
 criteria. `NULL` has been treated depending on value of `allow_null`parameter.  But all the previous
 behaviour is still achievable setting param `success` to `lambda x: x is None or str(x) not in ('0', '')`.
 
-#### `airflow.operators.dagrun_operator.TriggerDagRunOperator`
+#### `airflow.operators.trigger_dagrun.TriggerDagRunOperator`
 
 The TriggerDagRunOperator now takes a `conf` argument to which a dict can be provided as conf for the DagRun.
 As a result, the `python_callable` argument was removed. PR: https://github.com/apache/airflow/pull/6317.
