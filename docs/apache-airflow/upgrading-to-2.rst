@@ -111,7 +111,7 @@ and then import the operator with this path:
 
     from airflow.providers.docker.operators.docker import DockerOperator
 
-Pleaes note that the backport provider packages are just backports of the provider packages compatible with Airflow 2.0.
+Pleaese note that the backport provider packages are just backports of the provider packages compatible with Airflow 2.0.
 Those provider packages are installed automatically when you install Airflow with extras.
 For example:
 
@@ -310,18 +310,18 @@ the only supported UI.
 
 **Breaking Change in OAuth**
 
-The flask-ouathlib has been replaced with authlib because flask-outhlib has
-been deprecated in favour of authlib.
+The ``flask-ouathlib`` has been replaced with ``authlib`` because ``flask-outhlib`` has
+been deprecated in favour of ``authlib``.
 The Old and New provider configuration keys that have changed are as follows
 
-==================== ==================
-Old Keys             New keys
-==================== ==================
-consumer_key         client_id
-consumer_secret      client_secret
-base_url             api_base_url
-request_token_params client_kwargs
-==================== ==================
+======================== ==================
+Old Keys                 New keys
+======================== ==================
+``consumer_key``         ``client_id``
+``consumer_secret``      ``client_secret``
+``base_url``             ``api_base_url``
+``request_token_params`` ``client_kwargs``
+======================== ==================
 
 For more information, visit https://flask-appbuilder.readthedocs.io/en/latest/security.html#authentication-oauth
 
@@ -841,22 +841,22 @@ The base endpoint for the stable API v1 is ``/api/v1/``. You must change the
 experimental base endpoint from ``/api/experimental/`` to ``/api/v1/``.
 The table below shows the differences:
 
-================================= ================================================================================ ==============================================================================
-Purpose                           Experimental REST API Endpoint                                                   Stable REST API Endpoint
-================================= ================================================================================ ==============================================================================
-Create a DAGRuns(POST)            /api/experimental/dags/<DAG_ID>/dag_runs                                         /api/v1/dags/{dag_id}/dagRuns
-List DAGRuns(GET)                 /api/experimental/dags/<DAG_ID>/dag_runs                                         /api/v1/dags/{dag_id}/dagRuns
-Check Health status(GET)          /api/experimental/test                                                           /api/v1/health
-Task information(GET)             /api/experimental/dags/<DAG_ID>/tasks/<TASK_ID>                                  /api/v1//dags/{dag_id}/tasks/{task_id}
-TaskInstance public variable(GET) /api/experimental/dags/<DAG_ID>/dag_runs/<string:execution_date>/tasks/<TASK_ID> /api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}
-Pause DAG(PATCH)                  /api/experimental/dags/<DAG_ID>/paused/<string:paused>                           /api/v1/dags/{dag_id}
-Information of paused DAG(GET)    /api/experimental/dags/<DAG_ID>/paused                                           /api/v1/dags/{dag_id}
-Latest DAG Runs(GET)              /api/experimental/latest_runs                                                    /api/v1/dags/{dag_id}/dagRuns
-Get all pools(GET)                /api/experimental/pools                                                          /api/v1/pools
-Create a pool(POST)               /api/experimental/pools                                                          /api/v1/pools
-Delete a pool(DELETE)             /api/experimental/pools/<string:name>                                            /api/v1/pools/{pool_name}
-DAG Lineage(GET)                  /api/experimental/lineage/<DAG_ID>/<string:execution_date>/                      /api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries
-================================= ================================================================================ ==============================================================================
+================================= ==================================================================================== ==================================================================================
+Purpose                           Experimental REST API Endpoint                                                       Stable REST API Endpoint
+================================= ==================================================================================== ==================================================================================
+Create a DAGRuns(POST)            ``/api/experimental/dags/<DAG_ID>/dag_runs``                                         ``/api/v1/dags/{dag_id}/dagRuns``
+List DAGRuns(GET)                 ``/api/experimental/dags/<DAG_ID>/dag_runs``                                         ``/api/v1/dags/{dag_id}/dagRuns``
+Check Health status(GET)          ``/api/experimental/test``                                                           ``/api/v1/health``
+Task information(GET)             ``/api/experimental/dags/<DAG_ID>/tasks/<TASK_ID>``                                  ``/api/v1//dags/{dag_id}/tasks/{task_id}``
+TaskInstance public variable(GET) ``/api/experimental/dags/<DAG_ID>/dag_runs/<string:execution_date>/tasks/<TASK_ID>`` ``/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}``
+Pause DAG(PATCH)                  ``/api/experimental/dags/<DAG_ID>/paused/<string:paused>``                           ``/api/v1/dags/{dag_id}``
+Information of paused DAG(GET)    ``/api/experimental/dags/<DAG_ID>/paused``                                           ``/api/v1/dags/{dag_id}``
+Latest DAG Runs(GET)              ``/api/experimental/latest_runs``                                                    ``/api/v1/dags/{dag_id}/dagRuns``
+Get all pools(GET)                ``/api/experimental/pools``                                                          ``/api/v1/pools``
+Create a pool(POST)               ``/api/experimental/pools``                                                          ``/api/v1/pools``
+Delete a pool(DELETE)             ``/api/experimental/pools/<string:name>``                                            ``/api/v1/pools/{pool_name}``
+DAG Lineage(GET)                  ``/api/experimental/lineage/<DAG_ID>/<string:execution_date>/``                      ``/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries``
+================================= ==================================================================================== ==================================================================================
 
 ::
     This endpoint ``/api/v1/dags/{dag_id}/dagRuns`` also allows you to filter dag_runs with parameters such as ``start_date``, ``end_date``, ``execution_date`` etc in the query string.
