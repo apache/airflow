@@ -39,7 +39,7 @@ Airflow has many more integrations available for separate installation as a prov
    * - :mod:`airflow.models.baseoperator`
      -
 
-   * - :mod:`airflow.sensors.base_sensor_operator`
+   * - :mod:`airflow.sensors.base`
      -
 
 **Operators:**

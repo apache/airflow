@@ -588,7 +588,7 @@ becomes `from airflow.operators.bash_operator import BashOperator`
 Sensors are now accessible via `airflow.sensors` and no longer via `airflow.operators.sensors`.
 
 For example: `from airflow.operators.sensors import BaseSensorOperator`
-becomes `from airflow.sensors.base_sensor_operator import BaseSensorOperator`
+becomes `from airflow.sensors.base import BaseSensorOperator`
 
 #### Skipped tasks can satisfy wait_for_downstream
 

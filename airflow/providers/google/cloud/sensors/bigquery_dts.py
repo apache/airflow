@@ -22,7 +22,7 @@ from google.api_core.retry import Retry
 from google.protobuf.json_format import MessageToDict
 
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 

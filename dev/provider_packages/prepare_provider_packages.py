@@ -622,7 +622,7 @@ def get_package_class_summary(
     from airflow.hooks.base import BaseHook
     from airflow.models.baseoperator import BaseOperator
     from airflow.secrets import BaseSecretsBackend
-    from airflow.sensors.base_sensor_operator import BaseSensorOperator
+    from airflow.sensors.base import BaseSensorOperator
 
     all_verified_entities: Dict[EntityType, VerifiedEntities] = {
         EntityType.Operators: find_all_entities(

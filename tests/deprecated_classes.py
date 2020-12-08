@@ -1359,6 +1359,10 @@ SECRETS = [
 
 SENSORS = [
     (
+        "airflow.senors.base.BaseSensorOperator",
+        "airflow.sensors.base_sensor_operator.BaseSensorOperator",
+    ),
+    (
         "airflow.providers.apache.cassandra.sensors.record.CassandraRecordSensor",
         "airflow.contrib.sensors.cassandra_record_sensor.CassandraRecordSensor",
     ),

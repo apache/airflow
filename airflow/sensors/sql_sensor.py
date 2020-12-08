@@ -20,7 +20,7 @@ from typing import Iterable
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 

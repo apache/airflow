@@ -951,7 +951,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         ]
     )
     def test_serialize_sensor(self, mode, expect_custom_deps):
-        from airflow.sensors.base_sensor_operator import BaseSensorOperator
+        from airflow.sensors.base import BaseSensorOperator
 
         class DummySensor(BaseSensorOperator):
             def poke(self, context):
