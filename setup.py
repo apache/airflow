@@ -881,7 +881,7 @@ class AirflowDistribtuion(Distribution):
     def parse_config_files(self, *args, **kwargs):  # pylint: disable=signature-differs
         """
         Ensure that when we have been asked to install providers from sources
-        that we don't *also* try ot install those providers from PyPI
+        that we don't *also* try to install those providers from PyPI
         """
         super().parse_config_files(*args, **kwargs)
         if os.getenv('INSTALL_PROVIDERS_FROM_SOURCES') == 'true':
