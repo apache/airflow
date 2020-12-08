@@ -287,7 +287,7 @@ including ``authenticate``, ``filter_by_owner``, ``owner_mode``, and ``rbac``.
 Before upgrading to this release, we recommend activating the new FAB RBAC UI. For that, you should set
 the ``rbac`` options  in ``[webserver]`` in the ``airflow.cfg`` file to ``true``
 
-.. code-block:: bash
+.. code-block:: ini
 
     [webserver]
     rbac = true
@@ -345,9 +345,7 @@ anywhere on the host machine and will be linked using the ``pod_template_file`` 
 The ``airflow.cfg`` will still accept values for the ``worker_container_repository``, the ``worker_container_tag``, and
 the default namespace.
 
-The following ``airflow.cfg`` values will be deprecated:
-
-.. code-block:: bash
+The following ``airflow.cfg`` values will be deprecated::
 
     worker_container_image_pull_policy
     airflow_configmap
