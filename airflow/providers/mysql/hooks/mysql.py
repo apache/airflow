@@ -20,7 +20,7 @@
 import json
 from typing import Dict, Optional, Tuple
 
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 from airflow.models import Connection
 
 

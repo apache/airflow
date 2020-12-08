@@ -553,10 +553,10 @@ User can preserve/achieve the original behaviour by setting the trigger_rule of 
 `BaseOperator` class uses a `BaseOperatorMeta` as a metaclass. This meta class is based on
 `abc.ABCMeta`. If your custom operator uses different metaclass then you will have to adjust it.
 
-#### Remove SQL support in base_hook
+#### Remove SQL support in BaseHook
 
-Remove ``get_records`` and ``get_pandas_df`` and ``run`` from base_hook, which only apply for sql like hook,
-If want to use them, or your custom hook inherit them, please use ``airflow.hooks.dbapi_hook.DbApiHook``
+Remove ``get_records`` and ``get_pandas_df`` and ``run`` from BaseHook, which only apply for sql like hook,
+If want to use them, or your custom hook inherit them, please use ``airflow.hooks.dbapi.DbApiHook``
 
 #### Assigning task to a DAG using bitwise shift (bit-shift) operators are no longer supported
 

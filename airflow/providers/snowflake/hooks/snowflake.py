@@ -24,7 +24,7 @@ from cryptography.hazmat.primitives import serialization
 from snowflake import connector
 from snowflake.connector import SnowflakeConnection
 
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 
 
 class SnowflakeHook(DbApiHook):
