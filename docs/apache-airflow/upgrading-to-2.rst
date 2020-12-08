@@ -29,7 +29,8 @@ Step 1: Upgrade to Python 3
 
 Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0 will require Python 3.6+.
 
-If you have a specific task that still requires Python 2 then you can use the :class:`~airflow.operators.python.PythonVirtualenvOperator` for this.
+If you have a specific task that still requires Python 2 then you can use
+the :class:`~airflow.operators.python.PythonVirtualenvOperator` or the ``KubernetesPodOperator``for this.
 
 For a list of breaking changes between Python 2 and Python 3, please refer to this
 [handy blog](https://blog.couchbase.com/tips-and-tricks-for-upgrading-from-python-2-to-python-3/)
@@ -39,10 +40,16 @@ from the CouchBaseDB team.
 Step 2: Upgrade to Airflow 1.10.14 (a.k.a our "bridge" release)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-To minimize friction for users upgrading from Airflow 1.10 to Airflow 2.0 and beyond, a "bridge"
-release and final 1.10 version will be made available. Airflow 1.10.14 includes support for various critical features
-that make it easy for users to test DAGs and make sure they are as compatible with Airflow 2.0, so that the . We strongly recommend that all users upgrading to Airflow 2.0 first
-upgrade to Airflow 1.10.14 is straight forward.
+To minimize friction for users upgrading from Airflow 1.10 to Airflow 2.0 and beyond, Airflow 1.10.14 "a bridge release" has
+been created. This is intended to be the final 1.10 feature release. Airflow 1.10.14 includes support for various features
+that have been backported from Airflow 2.0 to make it easy for users to test their Airflow
+environment before upgrading to Airflow 2.0.
+
+We strongly recommend that all users upgrading to Airflow 2.0, first
+upgrade to Airflow 1.10.14 and test their Airflow deployment and only then upgrade to Airflow 2.0. After the
+Airflow 2.0 GA (General Availability) release, it is expected that all future Airflow development would be
+based on Airflow 2.0. The Airflow 1.10.x release tree will be supported for a limited time after the GA
+release of Airflow 2.0.
 
 Features in 1.10.14 include:
 
@@ -83,13 +90,13 @@ Once this is installed, please run the upgrade check script.
 More details about this process are here :ref:`Upgrade Check Scripts<upgrade-check>`.
 
 
-Step 4: Set Operators to Backport Providers
-'''''''''''''''''''''''''''''''''''''''''''
+Step 4: Import Operators from Backport Providers
+''''''''''''''''''''''''''''''''''''''''''''''''
 
 Now that you are set up in Airflow 1.10.14 with Python a 3.6+ environment, you are ready to start porting your DAGs to Airflow 2.0 compliance!
 
 The most important step in this transition is also the easiest step to do in pieces. All Airflow 2.0 operators are backwards compatible with Airflow 1.10
-using the [backport providers](./backport-providers.rst) packages. In your own time, you can transition to using these backport-providers
+using the backport provider packages. In your own time, you can transition to using these backport-providers
 by pip installing the provider via ``pypi`` and changing the import path.
 
 For example: While historically you might have imported the DockerOperator in this fashion:
@@ -111,8 +118,9 @@ and then import the operator with this path:
 
     from airflow.providers.docker.operators.docker import DockerOperator
 
-Pleaese note that the backport provider packages are just backports of the provider packages compatible with Airflow 2.0.
-Those provider packages are installed automatically when you install Airflow with extras.
+Please note that the backport provider packages are just backports of the provider packages compatible with Airflow 2.0.
+In Apache Airflow 2.0+, those provider packages are installed automatically when you install Airflow with extras.
+Several of the providers (http, ftp, sqlite, imap) are installed automatically when you install Airflow even without extras.
 For example:
 
 .. code-block:: bash
@@ -286,16 +294,8 @@ the ``rbac`` options  in ``[webserver]`` in the ``airflow.cfg`` file to ``true``
 
 In order to login to the interface, you need to create an administrator account.
 
-.. code-block:: bash
-
-    airflow create_user \
-        --role Admin \
-        --username admin \
-        --firstname FIRST_NAME \
-        --lastname LAST_NAME \
-        --email EMAIL@example.org
-
-If you have already installed Airflow 2.0, you can create a user with the command ``airflow users create``.
+Assuming you have already installed Airflow 1.10.14, you can create a user with
+Airflow 2.0 CLI command syntax ``airflow users create``.
 You don't need to make changes to the configuration file as the FAB RBAC UI is
 the only supported UI.
 
@@ -1154,9 +1154,13 @@ After the Airflow 2.0 GA (General Availability) release, it expected that all
 future Airflow development would be based on Airflow 2.0, including a series of
 patch releases such as 2.0.1, 2.0.2 and then feature releases such as 2.1.
 
-The Airflow 1.10.x release tree will be supported for a limited time after the
-GA release of Airflow 2.0.
+We plan to take a strict Semantic Versioning approach to our versioning and release process. This
+means that we do not plan to make any backwards-incompatible changes in the 2.* releases. Any
+breaking changes, including the removal of features deprecated in Airflow 2.0 will happen as part
+of the Airflow 3.0 release.
 
+The Airflow 1.10.x release tree will be supported for a limited time after the
+GA release of Airflow 2.0 to give users time to upgrade from one of the Airflow 1.10.x releases.
 Specifically, only "critical fixes" defined as fixes
 to bugs that take down Production systems, will be backported to 1.10.x core for
 six months after Airflow 2.0.0 is released.
