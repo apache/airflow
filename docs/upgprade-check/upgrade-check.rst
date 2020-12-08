@@ -128,13 +128,15 @@ Airflow 2.0, the fernet_key cannot be left empty, but needs to have a defined va
 problematic airflow.cfg and searching for the fernet_key entries would show the following:
 
 .. code-block:: bash
+
     fernet_key =
 
 The second problem was identified in one of the DAGs. In this case, this import
 statement for the PythonOperator needs to be changed, since the location is different
 in Airflow 2.0. Examining the DAG file would probably show the following:
 
-.. code-block:: bash
+.. code-block:: python
+
     from airflow.operators.python_operator import PythonOperator
 
 We will discuss how to fix these and make them compatible with Airflow 2.0 in the next
@@ -151,11 +153,11 @@ For the first problem identified above with respect to the fernet_key, the solut
 to enter a valid value in the Airflow Configuration file airflow.cfg for the fernet_key.
 
 For the second problem, looking at the source of the DAG file and changing the import
-statement for the Python Operator to be as follows will make this DAG work in Airflow 1.10.14
-as well as make it compatible for Airflow 2.0.
+statement for the Python Operator to be as follows will make this DAG work in Airflow 2.0.
 
 .. code-block:: python
-    from airflow.operators import PythonOperator
 
-At the moment of writing, the exact text of the recommendation from the upgrade check
-is incorrect for this error.
+    from airflow.operators.python import PythonOperator
+
+However, at the time of writing, this is incompatible in Airflow 1.10.14. So, this change
+can only be made while moving to Airflow 2.0.
