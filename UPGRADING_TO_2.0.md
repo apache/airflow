@@ -303,7 +303,7 @@ in a case insensitive mode. This is being changed to better support the new `@da
 
 The DAG-level permission actions, `can_dag_read` and `can_dag_edit` are going away. They are being replaced with `can_read` and `can_edit`. When a role is given DAG-level access, the resource name (or "view menu", in Flask App-Builder parlance) will now be prefixed with `DAG:`. So the action `can_dag_read` on `example_dag_id`, is now represented as `can_read` on `DAG:example_dag_id`.
 
-*As part of running `db upgrade`, existing permissions will be migrated for you.*
+*As part of running `airflow db upgrade`, existing permissions will be migrated for you.*
 
 When DAGs are initialized with the `access_control` variable set, any usage of the old permission names will automatically be updated in the database, so this won't be a breaking change. A DeprecationWarning will be raised.
 
