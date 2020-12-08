@@ -17,7 +17,6 @@
 
 from airflow.hooks.base_hook import BaseHook
 from airflow.upgrade.rules.base_rule import BaseRule
-from airflow.exceptions import AirflowException
 
 
 def check_get_pandas_df(cls):
@@ -26,10 +25,8 @@ def check_get_pandas_df(cls):
         return return_error_string(cls, "get_pandas_df")
     except NotImplementedError:
         pass
-    except Exception as e:
-        raise AirflowException(
-            "the following hook incorrectly implements %s. error: %s", cls, e
-        )
+    except Exception:
+        return return_error_string(cls, "get_pandas_df")
 
 
 def check_run(cls):
@@ -38,10 +35,8 @@ def check_run(cls):
         return return_error_string(cls, "run")
     except NotImplementedError:
         pass
-    except Exception as e:
-        raise AirflowException(
-            "the following hook incorrectly implements run %s. error: %s", cls, e
-        )
+    except Exception:
+        return return_error_string(cls, "run")
 
 
 def check_get_records(cls):
@@ -50,10 +45,8 @@ def check_get_records(cls):
         return return_error_string(cls, "get_records")
     except NotImplementedError:
         pass
-    except Exception as e:
-        raise AirflowException(
-            "the following hook incorrectly implements run %s. error: %s", cls, e
-        )
+    except Exception:
+        return return_error_string(cls, "get_records")
 
 
 def return_error_string(cls, method):
