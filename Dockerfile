@@ -260,19 +260,20 @@ RUN AIRFLOW_SITE_PACKAGE="/root/.local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/s
 RUN find /root/.local -executable -print0 | xargs --null chmod g+x && \
     find /root/.local -print0 | xargs --null chmod g+rw
 
-LABEL org.apache.airflow.distro="debian"
-LABEL org.apache.airflow.distro.version="buster"
-LABEL org.apache.airflow.module="airflow"
-LABEL org.apache.airflow.component="airflow"
-LABEL org.apache.airflow.image="airflow-build-image"
 
 ARG BUILD_ID
 ENV BUILD_ID=${BUILD_ID}
 ARG COMMIT_SHA
 ENV COMMIT_SHA=${COMMIT_SHA}
 
-LABEL org.apache.airflow.buildImage.buildId=${BUILD_ID}
-LABEL org.apache.airflow.buildImage.commitSha=${COMMIT_SHA}
+
+LABEL org.apache.airflow.distro="debian" \
+  org.apache.airflow.distro.version="buster" \
+  org.apache.airflow.module="airflow" \
+  org.apache.airflow.component="airflow" \
+  org.apache.airflow.image="airflow-build-image" \
+  org.apache.airflow.buildImage.buildId=${BUILD_ID} \
+  org.apache.airflow.buildImage.commitSha=${COMMIT_SHA}
 
 ##############################################################################################
 # This is the actual Airflow image - much smaller than the build one. We copy
@@ -284,13 +285,13 @@ SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 ARG AIRFLOW_UID
 ARG AIRFLOW_GID
 
-LABEL org.apache.airflow.distro="debian"
-LABEL org.apache.airflow.distro.version="buster"
-LABEL org.apache.airflow.module="airflow"
-LABEL org.apache.airflow.component="airflow"
-LABEL org.apache.airflow.image="airflow"
-LABEL org.apache.airflow.uid="${AIRFLOW_UID}"
-LABEL org.apache.airflow.gid="${AIRFLOW_GID}"
+LABEL org.apache.airflow.distro="debian" \
+  org.apache.airflow.distro.version="buster" \
+  org.apache.airflow.module="airflow" \
+  org.apache.airflow.component="airflow" \
+  org.apache.airflow.image="airflow" \
+  org.apache.airflow.uid="${AIRFLOW_UID}" \
+  org.apache.airflow.gid="${AIRFLOW_GID}"
 
 ARG PYTHON_BASE_IMAGE
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE}
@@ -425,15 +426,15 @@ ENV BUILD_ID=${BUILD_ID}
 ARG COMMIT_SHA
 ENV COMMIT_SHA=${COMMIT_SHA}
 
-LABEL org.apache.airflow.distro="debian"
-LABEL org.apache.airflow.distro.version="buster"
-LABEL org.apache.airflow.module="airflow"
-LABEL org.apache.airflow.component="airflow"
-LABEL org.apache.airflow.image="airflow"
-LABEL org.apache.airflow.uid="${AIRFLOW_UID}"
-LABEL org.apache.airflow.gid="${AIRFLOW_GID}"
-LABEL org.apache.airflow.mainImage.buildId=${BUILD_ID}
-LABEL org.apache.airflow.mainImage.commitSha=${COMMIT_SHA}
+LABEL org.apache.airflow.distro="debian" \
+  org.apache.airflow.distro.version="buster" \
+  org.apache.airflow.module="airflow" \
+  org.apache.airflow.component="airflow" \
+  org.apache.airflow.image="airflow" \
+  org.apache.airflow.uid="${AIRFLOW_UID}" \
+  org.apache.airflow.gid="${AIRFLOW_GID}" \
+  org.apache.airflow.mainImage.buildId=${BUILD_ID} \
+  org.apache.airflow.mainImage.commitSha=${COMMIT_SHA}
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
 CMD ["--help"]
