@@ -862,7 +862,6 @@ iterable
 iteratively
 itertools
 izip
-javascript
 jaydebeapi
 jdbc
 jdk

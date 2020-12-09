@@ -103,7 +103,7 @@ class ProvidersManager:
         self._hooks_dict: Dict[str, HookInfo] = {}
         # Keeps methods that should be used to add custom widgets tuple of keyed by name of the extra field
         self._connection_form_widgets: Dict[str, ConnectionFormWidgetInfo] = {}
-        # Customizations for javascript fields are kept here
+        # Customizations for JavaScript fields are kept here
         self._field_behaviours: Dict[str, Dict] = {}
         self._extra_link_class_name_set: Set[str] = set()
         self._provider_schema_validator = _create_provider_schema_validator()
