@@ -20,7 +20,7 @@ howto/use-alternative-secrets-backend.rst security/secrets/secrets-backend/index
 security.rst security/index.rst
 
 # Operators guides
-howto/operator/external.html howto/operator/external_task_sensor.rst
+howto/operator/external.rst howto/operator/external_task_sensor.rst
 howto/secure-connections.rst howto/connection.rst
 howto/connection/index.rst howto/connection.rst
 
