@@ -83,7 +83,7 @@ from airflow.www_rbac.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                     DagRunForm, ConnectionForm, ErrorTagForm, TighteningControllerForm)
 from airflow.www_rbac.widgets import AirflowModelListWidget, AirflowControllerListWidget
 from flask_wtf.csrf import CSRFProtect
-from airflow.utils.curve import get_curve_entity_ids, get_curve, get_result, get_analysis_tasks
+from airflow.utils.curve import get_curve, get_result, generate_bolt_number
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.www_rbac.api.experimental.endpoints import do_remove_curve_from_curve_template
 

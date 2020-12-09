@@ -327,8 +327,12 @@
 
   function renderBaseInfo() {
     const info = [
-      { label: '螺栓编号', value: '{{result.nut_no}}' },
-      { label: '拧紧时间', value: '{{result.update_time}}' },
+      { label: '曲线编号', value: '{{task_instance.entity_id}}' },
+      {
+        label: '螺栓编号',
+        value: '<a target="_blank" href="' + "{{url_for('VariableModelView.list',_flt_0_key=task_instance.bolt_number,_flt_0_is_curve_template='y')}}" + '">{{task_instance.bolt_number}}</a>'
+      },
+      { label: '拧紧时间', value: new Date('{{task_instance.execution_date}}').toLocaleString() },
       { label: '工段', value: '{{controller.line_code}}' },
       { label: '工位名称', value: '{{controller.work_center_name}}' },
       { label: '工位编号', value: '{{controller.work_center_code}}' },
