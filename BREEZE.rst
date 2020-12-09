@@ -1188,7 +1188,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
           image building time in production image and at container entering time for CI image. One of:
 
                  1.10.13 1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3
-                 1.10.2 wheel
+                 1.10.2 wheel none
+
+          When 'none' is used, you can install airflow from local packages. When building image,
+          airflow package should be added to 'docker-context-files' and
+          --install-from-docker-context-files flag should be used. When running an image, airflow
+          package should be added to dist folder and --install-packages-from-dist flag should be used.
 
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           If specified, installs Airflow directly from reference in GitHub. This happens at
@@ -1198,10 +1203,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --no-rbac-ui
           Disables RBAC UI when Airflow 1.10.* is installed.
 
-  --install-wheels
-          If specified it will look for wheel packages placed in dist folder and it will install the
-          wheels from there after installing Airflow. This is useful for testing backport
-          packages as well as in the future for testing provider packages for 2.0.
+  --install-packages-from-dist
+          If specified it will look for packages placed in dist folder and it will install the
+          packages after installing Airflow. This is useful for testing provider
+          packages.
 
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
@@ -1231,10 +1236,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --image-tag TAG
           Additional tag in the image.
 
-  --skip-installing-airflow-via-pip
-          Skips installing Airflow via PIP. If you use this flag and want to install
-          Airflow, you have to install Airflow from packages placed in
-          'docker-context-files' and use --add-local-pip-files flag.
+  --disable-pypi-when-building
+          Disable installing Airflow from pypi when building. If you use this flag and want
+          to install Airflow, you have to install it from packages placed in
+          'docker-context-files' and use --install-from-local-files-when-building flag.
 
   --additional-extras ADDITIONAL_EXTRAS
           Additional extras to pass to build images The default is no additional extras.
@@ -1287,13 +1292,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
           in the form of '/docker-context-files/<NAME_OF_THE_FILE>'
 
   --disable-pip-cache
-          Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
+          Disables GitHub PIP cache during the build. Useful if GitHub is not reachable during build.
 
-  --add-local-pip-wheels
+  --install-from-local-files-when-building
           This flag is used during image building. If it is used additionally to installing
-          Airflow from PyPI, the packages are installed from the .whl packages placed
+          Airflow from PyPI, the packages are installed from the .whl and .tar.gz packages placed
           in the 'docker-context-files' folder. The same flag can be used during entering the image in
-          the CI image - in this case also the .whl files
+          the CI image - in this case also the .whl and .tar.gz files will be installed automatically
 
   -C, --force-clean-images
           Force build images with cache disabled. This will remove the pulled or build images
@@ -1758,10 +1763,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --image-tag TAG
           Additional tag in the image.
 
-  --skip-installing-airflow-via-pip
-          Skips installing Airflow via PIP. If you use this flag and want to install
-          Airflow, you have to install Airflow from packages placed in
-          'docker-context-files' and use --add-local-pip-files flag.
+  --disable-pypi-when-building
+          Disable installing Airflow from pypi when building. If you use this flag and want
+          to install Airflow, you have to install it from packages placed in
+          'docker-context-files' and use --install-from-local-files-when-building flag.
 
   --additional-extras ADDITIONAL_EXTRAS
           Additional extras to pass to build images The default is no additional extras.
@@ -1814,13 +1819,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
           in the form of '/docker-context-files/<NAME_OF_THE_FILE>'
 
   --disable-pip-cache
-          Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
+          Disables GitHub PIP cache during the build. Useful if GitHub is not reachable during build.
 
-  --add-local-pip-wheels
+  --install-from-local-files-when-building
           This flag is used during image building. If it is used additionally to installing
-          Airflow from PyPI, the packages are installed from the .whl packages placed
+          Airflow from PyPI, the packages are installed from the .whl and .tar.gz packages placed
           in the 'docker-context-files' folder. The same flag can be used during entering the image in
-          the CI image - in this case also the .whl files
+          the CI image - in this case also the .whl and .tar.gz files will be installed automatically
 
   -C, --force-clean-images
           Force build images with cache disabled. This will remove the pulled or build images
@@ -2101,7 +2106,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
           image building time in production image and at container entering time for CI image. One of:
 
                  1.10.13 1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3
-                 1.10.2 wheel
+                 1.10.2 wheel none
+
+          When 'none' is used, you can install airflow from local packages. When building image,
+          airflow package should be added to 'docker-context-files' and
+          --install-from-docker-context-files flag should be used. When running an image, airflow
+          package should be added to dist folder and --install-packages-from-dist flag should be used.
 
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           If specified, installs Airflow directly from reference in GitHub. This happens at
@@ -2111,10 +2121,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --no-rbac-ui
           Disables RBAC UI when Airflow 1.10.* is installed.
 
-  --install-wheels
-          If specified it will look for wheel packages placed in dist folder and it will install the
-          wheels from there after installing Airflow. This is useful for testing backport
-          packages as well as in the future for testing provider packages for 2.0.
+  --install-packages-from-dist
+          If specified it will look for packages placed in dist folder and it will install the
+          packages after installing Airflow. This is useful for testing provider
+          packages.
 
   ****************************************************************************************************
    Credentials
@@ -2151,10 +2161,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --image-tag TAG
           Additional tag in the image.
 
-  --skip-installing-airflow-via-pip
-          Skips installing Airflow via PIP. If you use this flag and want to install
-          Airflow, you have to install Airflow from packages placed in
-          'docker-context-files' and use --add-local-pip-files flag.
+  --disable-pypi-when-building
+          Disable installing Airflow from pypi when building. If you use this flag and want
+          to install Airflow, you have to install it from packages placed in
+          'docker-context-files' and use --install-from-local-files-when-building flag.
 
   --additional-extras ADDITIONAL_EXTRAS
           Additional extras to pass to build images The default is no additional extras.
@@ -2207,13 +2217,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
           in the form of '/docker-context-files/<NAME_OF_THE_FILE>'
 
   --disable-pip-cache
-          Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
+          Disables GitHub PIP cache during the build. Useful if GitHub is not reachable during build.
 
-  --add-local-pip-wheels
+  --install-from-local-files-when-building
           This flag is used during image building. If it is used additionally to installing
-          Airflow from PyPI, the packages are installed from the .whl packages placed
+          Airflow from PyPI, the packages are installed from the .whl and .tar.gz packages placed
           in the 'docker-context-files' folder. The same flag can be used during entering the image in
-          the CI image - in this case also the .whl files
+          the CI image - in this case also the .whl and .tar.gz files will be installed automatically
 
   -C, --force-clean-images
           Force build images with cache disabled. This will remove the pulled or build images
@@ -2290,6 +2300,17 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  All,Core,Integration,Heisentests,Postgres,MySQL,Helm
 
           Default: All
+
+  ****************************************************************************************************
+   Flags for generation of the packages
+
+  -S, --version-suffix-for-pypi SUFFIX
+          Adds optional suffix to the version in the generated backport package. It can be used
+          to generate rc1/rc2 ... versions of the packages to be uploaded to PyPI.
+
+  -N, --version-suffix-for-svn SUFFIX
+          Adds optional suffix to the generated names of package. It can be used to generate
+          rc1/rc2 ... versions of the packages to be uploaded to SVN.
 
   ****************************************************************************************************
    Increase verbosity of the scripts

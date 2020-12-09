@@ -62,6 +62,7 @@ _breeze_allowed_install_airflow_versions=$(cat <<-EOF
 1.10.3
 1.10.2
 wheel
+none
 EOF
 )
 
