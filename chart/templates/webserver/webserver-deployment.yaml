@@ -69,7 +69,6 @@ spec:
       tolerations:
 {{ toYaml .Values.tolerations | indent 8 }}
       restartPolicy: Always
-      serviceAccountName: {{ .Release.Name }}-webserver
       securityContext:
         runAsUser: {{ .Values.uid }}
         fsGroup: {{ .Values.gid }}
