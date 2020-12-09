@@ -28,7 +28,7 @@ description: |
       - `Google Workspace <https://workspace.google.pl/>`__ (formerly Google Suite)
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 
 integrations:
   - integration-name: Google Analytics360

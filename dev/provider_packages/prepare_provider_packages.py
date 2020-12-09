@@ -948,7 +948,7 @@ def check_if_release_version_ok(
             if backport_packages:
                 current_release_version = (datetime.today() + timedelta(days=5)).strftime('%Y.%m.%d')
             else:
-                current_release_version = "0.0.1"  # TODO: replace with maintained version
+                current_release_version = "1.0.0"  # TODO: replace with maintained version
     if previous_release_version:
         if Version(current_release_version) < Version(previous_release_version):
             print(

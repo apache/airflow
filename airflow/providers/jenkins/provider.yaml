@@ -22,7 +22,7 @@ description: |
     `Jenkins <https://jenkins.io/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 integrations:
   - integration-name: Jenkins
     external-doc-url: https://jenkins.io/
