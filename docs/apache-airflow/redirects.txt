@@ -22,6 +22,7 @@ security.rst security/index.rst
 # Operators guides
 howto/operator/external.html howto/operator/external_task_sensor.rst
 howto/secure-connections.rst howto/connection.rst
+howto/connection/index.rst howto/connection.rst
 
 # Web UI
 howto/add-new-role.rst security/access-control.rst
