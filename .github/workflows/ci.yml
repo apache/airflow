@@ -354,7 +354,7 @@ jobs:
         if: >
           github.ref == 'refs/heads/master' && github.repository == 'apache/airflow' &&
           github.event_name == 'push'
-        run: aws s3 sync ./files/documentation s3://apache-airflow-docs
+        run: aws s3 sync --delete ./files/documentation s3://apache-airflow-docs
 
   prepare-backport-provider-packages:
     timeout-minutes: 30
