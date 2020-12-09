@@ -634,6 +634,7 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'gcp_api': google,  # TODO: remove this in Airflow 3.0
     'github_enterprise': flask_oauth,
     'google': google,
+    "grafana": grafana,
     'google_auth': flask_oauth,
     'grpc': grpc,
     'hashicorp': hashicorp,
@@ -757,6 +758,7 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'gcp_api': ["google"],  # TODO: remove this in Airflow 3.0
     'github_enterprise': [],
     'google': ["google"],
+    'grafana': ["grafana"],
     'google_auth': [],
     'grpc': ["grpc"],
     'hashicorp': ["hashicorp"],
