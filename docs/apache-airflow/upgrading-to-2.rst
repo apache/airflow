@@ -485,6 +485,7 @@ this stage the problems detected should be either be zero or minimal which you p
 upgrading the Airflow version.
 
 At this point, just follow the standard Airflow version upgrade process:
+
 * Make sure your Airflow meta database is backed up
 * Pause all the DAGs and make sure there is nothing actively running
 * Install / upgrade the Airflow version to the 2.0 version of choice
