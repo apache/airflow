@@ -146,12 +146,6 @@ repos:
         args:
           - "--maxlevel"
           - "2"
-      - id: doctoc
-        name: Add TOC for upgrade documentation
-        files: ^UPGRADING_TO_2.0.md
-        args:
-          - "--maxlevel"
-          - "3"
   - repo: meta
     hooks:
       - id: check-hooks-apply
