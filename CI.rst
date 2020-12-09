@@ -697,7 +697,7 @@ Publishing documentation
 
 Documentation from the ``master`` branch is automatically published on Amazon S3.
 
-To make this possible, Github Action has secrets set up with credentials
+To make this possible, GitHub Action has secrets set up with credentials
 for an Amazon Web Service account - ``DOCS_AWS_ACCESS_KEY_ID`` and ``DOCS_AWS_SECRET_ACCESS_KEY``.
 
 This account has permission to write/list/put objects to bucket ``apache-airflow-docs``. This bucket has public access configured, which means it is accessible through the website endpoint. For more information, see: `Hosting a static website on Amazon S3
