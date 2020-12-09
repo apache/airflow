@@ -21,8 +21,11 @@ import argparse
 import fnmatch
 import os
 
+# pylint: disable=no-name-in-module
 from docs.exts.docs_build.docs_builder import AirflowDocsBuilder
 from docs.exts.provider_yaml_utils import load_package_data
+
+# pylint: enable=no-name-in-module
 
 AIRFLOW_SITE_DIR = os.environ.get('AIRFLOW_SITE_DIRECTORY')
 
