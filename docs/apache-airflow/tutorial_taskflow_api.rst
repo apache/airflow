@@ -54,6 +54,8 @@ Instantiate a DAG
 We are creating a DAG which is the collection of our tasks with dependencies between
 the tasks. This is a very simple definition, since we just want the DAG to be run
 when we set this up with Airflow, without any retries or complex scheduling.
+In this example, please notice that we are creating this DAG using the ``@dag`` decorator
+as shown below, with the python function name acting as the DAG identifier.
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl.py
     :language: python
@@ -62,7 +64,7 @@ when we set this up with Airflow, without any retries or complex scheduling.
 
 Tasks
 -----
-In this data pipeline, tasks are created based on Python functions using the decorator
+In this data pipeline, tasks are created based on Python functions using the ``@task`` decorator
 as shown below. The function name acts as a unique identifier for the task.
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl.py
@@ -89,6 +91,15 @@ We have invoked the Extract task, obtained the order data from there and sent it
 the Transform task for summarization, and then invoked the Load task with the summarized data.
 The dependencies between the tasks and the passing of data between these tasks which could be
 running on different workers on different nodes on the network is all handled by Airflow.
+
+Now to actually enable this to be run as a DAG, we invoke the python function
+``tutorial_taskflow_api_etl`` set up using the ``@dag`` decorator earlier, as shown below.
+
+.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl.py
+    :language: python
+    :start-after: [START dag_invocation]
+    :end-before: [END dag_invocation]
+
 
 But how?
 --------
