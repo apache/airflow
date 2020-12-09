@@ -41,6 +41,7 @@
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages-1)
   - [Commit the source packages to Apache SVN repo](#commit-the-source-packages-to-apache-svn-repo-1)
   - [Publish the Regular convenience package to PyPI](#publish-the-regular-convenience-package-to-pypi)
+  - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -883,6 +884,58 @@ twine upload -r pypi dist/*
 ```
 
 * Again, confirm that the packages are available under the links printed.
+
+## Publish documentation
+
+Documentation is an essential part of the product and should be made available to users.
+In our cases, documentation  for the released versions is published in a separate repository - [`apache/airflow-site`](https://github.com/apache/airflow-site), but the documentation source code and build tools are available in the `apache/airflow` repository, so you have to coordinate between the two repositories to be able to build the documentation.
+
+Documentation for providers can be found in the `/docs/apache-airflow-providers` directory and the `/docs/apache-airflow-providers-*/` directory. The first directory contains the package contents lists and should be updated every time a new version of provider packages is released.
+
+- First, copy the airflow-site repository and set the environment variable ``AIRFLOW_SITE_DIRECTORY``.
+
+    ```shell script
+    git clone https://github.com/apache/airflow-site.git airflow-site
+    cd airflow-site
+    export AIRFLOW_SITE_DIRECTORY="$(pwd)"
+    ```
+
+- Then you can go to the directory and build the necessary documentation packages
+
+    ```shell script
+    cd "${AIRFLOW_REPO_ROOT}"
+    ./breeze build-docs -- \
+      --package apache-airflow-providers \
+      --package apache-airflow-providers-apache-airflow \
+      --package apache-airflow-providers-telegram \
+      --for-production
+    ```
+
+- Now you can preview the documentation.
+
+    ```shell script
+    ./docs/start_doc_server.sh
+    ```
+
+- Copy the documentation to the ``airflow-site`` repository
+
+    ```shell script
+    ./docs/publish_docs.py \
+        --package apache-airflow-providers \
+        --package apache-airflow-providers-apache-airflow \
+        --package apache-airflow-providers-telegram \
+
+    cd "${AIRFLOW_SITE_DIRECTORY}"
+    ```
+
+- If you publish a new package, you must add it to [the docs index](https://github.com/apache/airflow-site/blob/master/landing-pages/site/content/en/docs/_index.md):
+
+- Create commit and push changes.
+
+    ```shell script
+    git commit -m "Add documentation for backport packages - $(date "+%Y-%m-%d%n")"
+    git push
+    ```
 
 ## Notify developers of release
 

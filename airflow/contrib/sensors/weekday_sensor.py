@@ -20,7 +20,7 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.sensors.weekday_sensor import DayOfWeekSensor  # noqa
+from airflow.sensors.weekday import DayOfWeekSensor  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.sensors.weekday_sensor`.",

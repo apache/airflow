@@ -35,6 +35,7 @@
   - [Publish release to SVN](#publish-release-to-svn)
   - [Prepare PyPI "release" packages](#prepare-pypi-release-packages)
   - [Update CHANGELOG.md](#update-changelogmd)
+  - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
   - [Update Announcements page](#update-announcements-page)
 
@@ -551,6 +552,43 @@ At this point we release an official package:
 
 - Update CHANGELOG.md with the details, and commit it.
 
+## Publish documentation
+
+Documentation is an essential part of the product and should be made available to users.
+In our cases, documentation for the released versions is published in a separate repository - [`apache/airflow-site`](https://github.com/apache/airflow-site), but the documentation source code and build tools are available in the `apache/airflow` repository, so you have to coordinate between the two repositories to be able to build the documentation.
+
+Documentation for providers can be found in the ``/docs/apache-airflow`` directory.
+
+- First, copy the airflow-site repository and set the environment variable ``AIRFLOW_SITE_DIRECTORY``.
+
+    ```shell script
+    git clone https://github.com/apache/airflow-site.git airflow-site
+    cd airflow-site
+    export AIRFLOW_SITE_DIRECTORY="$(pwd)"
+    ```
+
+- Then you can go to the directory and build the necessary documentation packages
+
+    ```shell script
+    cd "${AIRFLOW_REPO_ROOT}"
+    ./breeze build-docs -- --package apache-airflow --for-production
+    ```
+
+- Now you can preview the documentation.
+
+    ```shell script
+    ./docs/start_doc_server.sh
+    ```
+
+- Copy the documentation to the ``airflow-site`` repository, create commit and push changes.
+
+    ```shell script
+    ./docs/publish_docs.py --package apache-airflow
+    cd "${AIRFLOW_SITE_DIRECTORY}"
+    git commit -m "Add documentation for Apache Airflow ${VERSION}"
+    git push
+    ```
+
 ## Notify developers of release
 
 - Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org and announce@apache.org) that
@@ -583,7 +621,7 @@ https://pypi.python.org/pypi/apache-airflow
 
 The documentation is available on:
 https://airflow.apache.org/
-https://airflow.apache.org/docs/${VERSION}/
+https://airflow.apache.org/docs/apache-airflow/${VERSION}/
 
 Find the CHANGELOG here for more details:
 

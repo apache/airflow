@@ -23,6 +23,7 @@ from airflow.models import DagBag, DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import Session
 from airflow.www import app as application
+from tests.test_utils.config import conf_vars
 
 
 class TestDagRunsEndpoint(unittest.TestCase):
@@ -40,7 +41,12 @@ class TestDagRunsEndpoint(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
-        app = application.create_app(testing=True)
+        with conf_vars(
+            {
+                ('api', 'enable_experimental_api'): 'true',
+            }
+        ):
+            app = application.create_app(testing=True)
         self.app = app.test_client()
 
     def tearDown(self):

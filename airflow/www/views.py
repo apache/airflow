@@ -537,6 +537,16 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 .all()
             )
 
+            user_permissions = current_app.appbuilder.sm.get_all_permissions_views()
+            all_dags_editable = (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG) in user_permissions
+
+            for dag in dags:
+                if all_dags_editable:
+                    dag.can_edit = True
+                else:
+                    dag_resource_name = permissions.RESOURCE_DAG_PREFIX + dag.dag_id
+                    dag.can_edit = (permissions.ACTION_CAN_EDIT, dag_resource_name) in user_permissions
+
             dagtags = session.query(DagTag.name).distinct(DagTag.name).all()
             tags = [
                 {"name": name, "selected": bool(arg_tags_filter and name in arg_tags_filter)}
