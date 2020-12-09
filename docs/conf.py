@@ -34,7 +34,7 @@
 import glob
 import os
 import sys
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import yaml
 
@@ -245,9 +245,19 @@ html_use_index = True
 html_show_copyright = False
 
 # Theme configuration
-html_theme_options = {
+html_theme_options: Dict[str, Any] = {
     'hide_website_buttons': True,
 }
+if os.environ.get('AIRFLOW_FOR_PRODUCTION', 'false') == 'true':
+    html_theme_options['navbar_links'] = [
+        {'href': '/community/', 'text': 'Community'},
+        {'href': '/meetups/', 'text': 'Meetups'},
+        {'href': '/docs/', 'text': 'Documentation'},
+        {'href': '/use-cases/', 'text': 'Use-cases'},
+        {'href': '/announcements/', 'text': 'Announcements'},
+        {'href': '/blog/', 'text': 'Blog'},
+        {'href': '/ecosystem/', 'text': 'Ecosystem'},
+    ]
 
 # A dictionary of values to pass into the template engine’s context for all pages.
 html_context = {
