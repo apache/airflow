@@ -759,7 +759,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         """
         self.log.debug("previous_execution_date was called")
         prev_ti = self.get_previous_ti(state=state, session=session)
-        return prev_ti and prev_ti.execution_date
+        return prev_ti and pendulum.instance(prev_ti.execution_date)
 
     @provide_session
     def get_previous_start_date(
@@ -773,7 +773,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         """
         self.log.debug("previous_start_date was called")
         prev_ti = self.get_previous_ti(state=state, session=session)
-        return prev_ti and prev_ti.start_date
+        return prev_ti and pendulum.instance(prev_ti.start_date)
 
     @property
     def previous_start_date_success(self) -> Optional[pendulum.DateTime]:

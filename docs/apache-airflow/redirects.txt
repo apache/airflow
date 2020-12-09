@@ -15,68 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# New URL for Google Guide index
-howto/operator/gcp/index.rst howto/operator/google/index.rst
-# New URLs for Google Guides
-howto/operator/gcp/ads.rst howto/operator/google/ads.rst
-howto/operator/gcp/analytics.rst howto/operator/google/marketing_platform/analytics.rst
-howto/operator/gcp/automl.rst howto/operator/google/cloud/automl.rst
-howto/operator/gcp/bigquery.rst howto/operator/google/cloud/bigquery.rst
-howto/operator/gcp/bigquery_dts.rst howto/operator/google/cloud/bigquery_dts.rst
-howto/operator/gcp/bigtable.rst howto/operator/google/cloud/bigtable.rst
-howto/operator/gcp/campaign_manager.rst howto/operator/google/marketing_platform/campaign_manager.rst
-howto/operator/gcp/cloud_build.rst howto/operator/google/cloud/cloud_build.rst
-howto/operator/gcp/cloud_memorystore.rst howto/operator/google/cloud/cloud_memorystore.rst
-howto/operator/gcp/cloud_sql.rst howto/operator/google/cloud/cloud_sql.rst
-howto/operator/gcp/cloud_storage_transfer_service.rst howto/operator/google/cloud/cloud_storage_transfer_service.rst
-howto/operator/gcp/compute.rst howto/operator/google/cloud/compute.rst
-howto/operator/gcp/datacatalog.rst howto/operator/google/cloud/datacatalog.rst
-howto/operator/gcp/datafusion.rst howto/operator/google/cloud/datafusion.rst
-howto/operator/gcp/dataproc.rst howto/operator/google/cloud/dataproc.rst
-howto/operator/gcp/display_video.rst howto/operator/google/marketing_platform/display_video.rst
-howto/operator/gcp/facebook_ads_to_gcs.rst howto/operator/google/transfer/facebook_ads_to_gcs.rst
-howto/operator/gcp/firestore.rst howto/operator/google/firebase/firestore.rst
-howto/operator/gcp/functions.rst howto/operator/google/cloud/functions.rst
-howto/operator/gcp/gcs.rst howto/operator/google/cloud/gcs.rst
-howto/operator/gcp/gcs_to_gcs.rst howto/operator/google/transfer/gcs_to_gcs.rst
-howto/operator/gcp/gcs_to_gdrive.rst howto/operator/google/transfer/gcs_to_gdrive.rst
-howto/operator/gcp/gcs_to_local.rst howto/operator/google/transfer/gcs_to_local.rst
-howto/operator/gcp/gcs_to_sftp.rst howto/operator/google/transfer/gcs_to_sftp.rst
-howto/operator/gcp/gcs_to_sheets.rst howto/operator/google/transfer/gcs_to_sheets.rst
-howto/operator/gcp/index.rst howto/operator/google/cloud/index.rst
-howto/operator/gcp/kubernetes_engine.rst howto/operator/google/cloud/kubernetes_engine.rst
-howto/operator/gcp/life_sciences.rst howto/operator/google/cloud/life_sciences.rst
-howto/operator/gcp/local_to_gcs.rst howto/operator/google/transfer/local_to_gcs.rst
-howto/operator/gcp/natural_language.rst howto/operator/google/cloud/natural_language.rst
-howto/operator/gcp/presto_to_gcs.rst howto/operator/google/transfer/presto_to_gcs.rst
-howto/operator/gcp/pubsub.rst howto/operator/google/cloud/pubsub.rst
-howto/operator/gcp/search_ads.rst howto/operator/google/marketing_platform/search_ads.rst
-howto/operator/gcp/sftp_to_gcs.rst howto/operator/google/transfer/sftp_to_gcs.rst
-howto/operator/gcp/sheets.rst howto/operator/google/suite/sheets.rst
-howto/operator/gcp/sheets_to_gcs.rst howto/operator/google/transfer/sheets_to_gcs.rst
-howto/operator/gcp/spanner.rst howto/operator/google/cloud/spanner.rst
-howto/operator/gcp/speech_to_text.rst howto/operator/google/cloud/speech_to_text.rst
-howto/operator/gcp/stackdriver.rst howto/operator/google/cloud/stackdriver.rst
-howto/operator/gcp/text_to_speech.rst howto/operator/google/cloud/text_to_speech.rst
-howto/operator/gcp/translate.rst howto/operator/google/cloud/translate.rst
-howto/operator/gcp/translate_speech.rst howto/operator/google/cloud/translate_speech.rst
-howto/operator/gcp/video_intelligence.rst howto/operator/google/cloud/video_intelligence.rst
-howto/operator/gcp/vision.rst howto/operator/google/cloud/vision.rst
-
-# New URLs for CLI references
-cli-ref.rst cli-and-env-variables-ref.rst
-
-# Departments without a separate index yet
-howto/operator/google/suite/index.rst howto/operator/google/index.rst
-howto/operator/google/firebase/index.rst howto/operator/google/index.rst
-
-# Other operators guide redirects
-howto/operator/http/http.rst howto/operator/http.rst
-howto/operator/http/index.rst howto/operator/http.rst
-
 # Security
 howto/use-alternative-secrets-backend.rst security/secrets/secrets-backend/index.rst
 security.rst security/index.rst
+
+# Operators guides
+howto/operator/external.rst howto/operator/external_task_sensor.rst
+howto/secure-connections.rst howto/connection.rst
+howto/connection/index.rst howto/connection.rst
+
+# Web UI
 howto/add-new-role.rst security/access-control.rst
 
 # Logging & Monitoring
@@ -85,4 +33,7 @@ errors.rst logging-monitoring/errors.rst
 howto/write-logs.rst logging-monitoring/logging-tasks.rst
 metrics.rst logging-monitoring/metrics.rst
 howto/tracking-user-activity.rst logging-monitoring/tracking-user-activity.rst
+
+# References
+cli-ref.rst cli-and-env-variables-ref.rst
 _api/index.rst python-api-ref.rst

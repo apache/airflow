@@ -22,7 +22,7 @@ from contextlib import contextmanager
 @contextmanager
 def with_group(title):
     """
-    If used in Github Action, creates an expandable group in the Github Action log.
+    If used in GitHub Action, creates an expandable group in the GitHub Action log.
     Otherwise, dispaly simple text groups.
 
     For more information, see:

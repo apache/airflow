@@ -69,10 +69,9 @@ similar from a run to the next, this allows for clarity around
 unit of work and continuity.
 
 
-Content
--------
 .. toctree::
-    :maxdepth: 1
+    :hidden:
+    :caption: Content
 
     Home <self>
     project
@@ -108,7 +107,7 @@ Content
     privacy_notice
 
 .. toctree::
-    :maxdepth: 1
+    :hidden:
     :caption: References
 
     Operators and hooks <operators-and-hooks-ref>
