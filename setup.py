@@ -170,7 +170,11 @@ amazon = [
     'watchtower~=0.7.3',
 ]
 apache_beam = [
-    'apache-beam[gcp]',
+    'apache-beam[gcp]<=2.23.0',
+    'fastavro<0.24,>=0.21.4',
+    'mock<3.0.0',
+    'pyarrow<0.18.0',
+    'httplib2<0.18.0',
 ]
 async_packages = [
     'eventlet>= 0.9.7',
@@ -181,7 +185,7 @@ atlas = [
     'atlasclient>=0.1.2',
 ]
 azure = [
-    'azure-batch>=8.0.0',
+    'azure-batch>=8.0.0,<10.0.0',
     'azure-cosmos>=3.0.1,<4',
     'azure-datalake-store>=0.0.45',
     'azure-identity>=1.3.1',
@@ -248,12 +252,12 @@ flask_oauth = [
     'requests-oauthlib<1.2.0',
 ]
 google = [
-    'PyOpenSSL',
     'google-ads>=4.0.0,<8.0.0',
     'google-api-python-client>=1.6.0,<2.0.0',
     'google-auth>=1.0.0,<2.0.0',
     'google-auth-httplib2>=0.0.1',
     'google-cloud-automl>=0.4.0,<2.0.0',
+    'google-cloud-bigquery<1.25.0',
     'google-cloud-bigquery-datatransfer>=0.4.0,<2.0.0',
     'google-cloud-bigtable>=1.0.0,<2.0.0',
     'google-cloud-container>=0.1.1,<2.0.0',
@@ -271,14 +275,16 @@ google = [
     'google-cloud-secret-manager>=0.2.0,<2.0.0',
     'google-cloud-spanner>=1.10.0,<2.0.0',
     'google-cloud-speech>=0.36.3,<2.0.0',
-    'google-cloud-storage>=1.16,<2.0.0',
+    'google-cloud-storage>=1.16,<1.30.0',
     'google-cloud-tasks>=1.2.1,<2.0.0',
     'google-cloud-texttospeech>=0.4.0,<2.0.0',
     'google-cloud-translate>=1.5.0,<2.0.0',
     'google-cloud-videointelligence>=1.7.0,<2.0.0',
     'google-cloud-vision>=0.35.2,<2.0.0',
+    'google-resumable-media<0.6dev',
     'grpcio-gcp>=0.2.2',
     'pandas-gbq',
+    'pyOpenSSL<20.0.0,>=16.2.0',  # keep in sync with Snowflake!
 ]
 grpc = [
     'google-auth>=1.0.0, <2.0.0dev',
@@ -394,6 +400,7 @@ snowflake = [
     # once it is merged, we can move those two back to `azure` extra.
     'azure-storage-blob',
     'azure-storage-common',
+    'pyOpenSSL<20.0.0,>=16.2.0',  # keep in sync with Google!
     # snowflake is not compatible with latest version.
     # This library monkey patches the requests library, so SSL is broken globally.
     # See: https://github.com/snowflakedb/snowflake-connector-python/issues/324
@@ -846,11 +853,8 @@ if PY3:
         ]
     )
 
-# Those packages are excluded because they break tests (downgrading mock) and they are
-# not needed to run our test suite.
-PACKAGES_EXCLUDED_FOR_CI = [
-    'apache-beam',
-]
+# Those packages are excluded because they cause conflicting dependencies.
+PACKAGES_EXCLUDED_FOR_CI = []
 
 
 def is_package_excluded(package: str, exclusion_list: List[str]):
