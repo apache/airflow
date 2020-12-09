@@ -245,8 +245,10 @@ html_use_index = True
 html_show_copyright = False
 
 # Theme configuration
-sphinx_airflow_theme_navbar_links = [{'href': '/index.html', 'text': 'Documentation'}]
-sphinx_airflow_theme_hide_website_buttons = True
+html_theme_options = {
+    'hide_website_buttons': True,
+}
+
 # A dictionary of values to pass into the template engine’s context for all pages.
 html_context = {
     # Google Analytics ID.
