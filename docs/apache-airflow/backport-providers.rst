@@ -16,16 +16,11 @@
     under the License.
 
 
-
 Backport Providers
 ------------------
 
 Context: Airflow 2.0 operators, hooks, and secrets
 ''''''''''''''''''''''''''''''''''''''''''''''''''
-
-Currently, stable Apache Airflow versions are from the ``1.10.*`` series. We are working on the future, major version of
-Airflow - 2.0.* series. It is going to be released in 2020. However, the exact time of release depends on
-many factors and is not yet confirmed.
 
 We already have a lot of changes in the operators, transfers, hooks, sensors, secrets for many external systems, but
 they are not used nor tested widely because they are part of the master/2.0 release.

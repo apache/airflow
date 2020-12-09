@@ -38,7 +38,7 @@ DAGs.
 ExternalTaskSensor
 ^^^^^^^^^^^^^^^^^^
 
-Use the :class:`~airflow.sensors.external_task_sensor.ExternalTaskSensor` to make tasks on a DAG
+Use the :class:`~airflow.sensors.external_task.ExternalTaskSensor` to make tasks on a DAG
 wait for another task on a different DAG for a specific ``execution_date``.
 
 ExternalTaskSensor also provide options to set if the Task on a remote DAG succeeded or failed

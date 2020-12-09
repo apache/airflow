@@ -1388,6 +1388,7 @@ xml
 xpath
 xyz
 yaml
+yandex
 yandexcloud
 yarnpkg
 yml

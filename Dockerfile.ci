@@ -389,15 +389,15 @@ ENV BUILD_ID=${BUILD_ID}
 ARG COMMIT_SHA
 ENV COMMIT_SHA=${COMMIT_SHA}
 
-LABEL org.apache.airflow.distro="debian"
-LABEL org.apache.airflow.distro.version="buster"
-LABEL org.apache.airflow.module="airflow"
-LABEL org.apache.airflow.component="airflow"
-LABEL org.apache.airflow.image="airflow-ci"
-LABEL org.apache.airflow.uid="0"
-LABEL org.apache.airflow.gid="0"
-LABEL org.apache.airflow.buildId=${BUILD_ID}
-LABEL org.apache.airflow.commitSha=${COMMIT_SHA}
+LABEL org.apache.airflow.distro="debian" \
+  org.apache.airflow.distro.version="buster" \
+  org.apache.airflow.module="airflow" \
+  org.apache.airflow.component="airflow" \
+  org.apache.airflow.image="airflow-ci" \
+  org.apache.airflow.uid="0" \
+  org.apache.airflow.gid="0" \
+  org.apache.airflow.buildId=${BUILD_ID} \
+  org.apache.airflow.commitSha=${COMMIT_SHA}
 
 EXPOSE 8080
 

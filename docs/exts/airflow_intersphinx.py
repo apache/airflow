@@ -28,11 +28,6 @@ DOCS_DIR = os.path.join(ROOT_DIR, 'docs')
 DOCS_PROVIDER_DIR = os.path.join(ROOT_DIR, 'docs')
 S3_DOC_URL = "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com"
 
-# Customize build for readthedocs.io
-# See:
-# https://docs.readthedocs.io/en/stable/faq.html#how-do-i-change-behavior-when-building-with-read-the-docs
-IS_RTD = os.environ.get('READTHEDOCS') == 'True'
-
 
 def _create_init_py(app, config):
     del app
@@ -47,17 +42,15 @@ def _create_init_py(app, config):
 
 def _generate_provider_intersphinx_mapping():
     airflow_mapping = {}
+    for_production = os.environ.get('AIRFLOW_FOR_PRODUCTION', 'false') == 'true'
+    current_version = 'stable' if for_production else 'latest'
+
     for provider in load_package_data():
         package_name = provider['package-name']
         if os.environ.get('AIRFLOW_PACKAGE_NAME') == package_name:
             continue
 
-        # For local build and S3, use relative URLS.
-        # For RTD, use absolute URLs
-        if IS_RTD:
-            provider_base_url = f"{S3_DOC_URL}/docs/{package_name}/latest/"
-        else:
-            provider_base_url = f'/docs/{package_name}/latest/'
+        provider_base_url = f'/docs/{package_name}/{current_version}/'
 
         airflow_mapping[package_name] = (
             # base URI
@@ -70,14 +63,14 @@ def _generate_provider_intersphinx_mapping():
             # In this case, the local index will be read. If unsuccessful, the remote index
             # will be fetched.
             (
-                f'{DOCS_DIR}/_build/docs/{package_name}/latest/objects.inv',
+                f'{DOCS_DIR}/_build/docs/{package_name}/{current_version}/objects.inv',
                 f'{S3_DOC_URL}/docs/{package_name}/latest/objects.inv',
             ),
         )
     if os.environ.get('AIRFLOW_PACKAGE_NAME') != 'apache-airflow':
         airflow_mapping['apache-airflow'] = (
             # base URI
-            '/docs/apache-airflow/latest/',
+            f'/docs/apache-airflow/{current_version}/',
             # Index locations list
             # If passed None, this will try to fetch the index from `[base_url]/objects.inv`
             # If we pass a path containing `://` then we will try to index from the given address.
@@ -86,7 +79,7 @@ def _generate_provider_intersphinx_mapping():
             # In this case, the local index will be read. If unsuccessful, the remote index
             # will be fetched.
             (
-                f'{DOCS_DIR}/_build/docs/apache-airflow/latest/objects.inv',
+                f'{DOCS_DIR}/_build/docs/apache-airflow/{current_version}/objects.inv',
                 f'{S3_DOC_URL}/docs/apache-airflow/latest/objects.inv',
             ),
         )

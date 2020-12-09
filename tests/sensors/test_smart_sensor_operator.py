@@ -30,7 +30,7 @@ from airflow.configuration import conf
 from airflow.models import DagRun, SensorInstance, TaskInstance
 from airflow.operators.dummy import DummyOperator
 from airflow.sensors.base import BaseSensorOperator
-from airflow.sensors.smart_sensor_operator import SmartSensorOperator
+from airflow.sensors.smart_sensor import SmartSensorOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 

@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,17 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.sensors.external_task`."""
 
-import warnings
+import os
+from contextlib import contextmanager
 
-# pylint: disable=unused-import
-from airflow.sensors.external_task import (  # noqa
-    ExternalTaskMarker,
-    ExternalTaskSensor,
-    ExternalTaskSensorLink,
-)
 
-warnings.warn(
-    "This module is deprecated. Please use `airflow.sensors.external_task`.", DeprecationWarning, stacklevel=2
-)
+@contextmanager
+def with_group(title):
+    """
+    If used in Github Action, creates an expandable group in the Github Action log.
+    Otherwise, dispaly simple text groups.
+
+    For more information, see:
+    https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-commands-for-github-actions#grouping-log-lines
+    """
+    if os.environ.get('GITHUB_ACTIONS', 'false') != "true":
+        print("#" * 20, title, "#" * 20)
+        yield
+        return
+    print(f"::group::{title}")
+    yield
+    print("\033[0m")
+    print("::endgroup::")

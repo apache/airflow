@@ -1333,6 +1333,10 @@ OPERATORS = [
         "airflow.operators.latest_only_operator.LatestOnlyOperator",
     ),
     (
+        "airflow.operators.trigger_dagrun.TriggerDagRunOperator",
+        "airflow.operators.dagrun_operator.TriggerDagRunOperator",
+    ),
+    (
         "airflow.operators.subdag.SubDagOperator",
         "airflow.operators.subdag_operator.SubDagOperator",
     ),
@@ -1456,7 +1460,7 @@ SENSORS = [
         'airflow.sensors.hdfs_sensor.HdfsSensor',
     ),
     (
-        'airflow.sensors.weekday_sensor.DayOfWeekSensor',
+        'airflow.sensors.weekday.DayOfWeekSensor',
         'airflow.contrib.sensors.weekday_sensor.DayOfWeekSensor',
     ),
     (

@@ -21,6 +21,8 @@ Upgrade Check Script
 
 .. contents:: :local:
 
+.. _upgrade-check:
+
 Getting the Airflow Upgrade Check Package
 '''''''''''''''''''''''''''''''''''''''''
 
