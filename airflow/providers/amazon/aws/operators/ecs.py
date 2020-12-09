@@ -124,6 +124,10 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     :param reattach: If set to True, will check if a task from the same family is already running.
         If so, the operator will attach to it instead of starting a new task.
     :type reattach: bool
+    :param capacity_provider_strategy: The capacity provider strategy to use for the task.
+        When starting a new task if capacity_provider_strategy is specified,
+        then the launch_type parameter must be omitted.
+    :type capacity_provider_strategy: list
     """
 
     ui_color = '#f0ede4'
@@ -150,6 +154,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         awslogs_stream_prefix: Optional[str] = None,
         propagate_tags: Optional[str] = None,
         reattach: bool = False,
+        capacity_provider_strategy: Optional[list] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -172,6 +177,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.awslogs_region = awslogs_region
         self.propagate_tags = propagate_tags
         self.reattach = reattach
+        self.capacity_provider_strategy = capacity_provider_strategy
 
         if self.awslogs_region is None:
             self.awslogs_region = region_name
@@ -207,7 +213,9 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
             'startedBy': self.owner,
         }
 
-        if self.launch_type:
+        if self.capacity_provider_strategy is not None:
+            run_opts['capacityProviderStrategy'] = self.capacity_provider_strategy
+        elif self.launch_type:
             run_opts['launchType'] = self.launch_type
             if self.launch_type == 'FARGATE':
                 run_opts['platformVersion'] = self.platform_version

@@ -94,17 +94,37 @@ class TestECSOperator(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ['EC2', None],
-            ['FARGATE', None],
-            ['EC2', {'testTagKey': 'testTagValue'}],
-            ['', {'testTagKey': 'testTagValue'}],
+            ['EC2', None, None],
+            ['FARGATE', None, None],
+            ['EC2', {'testTagKey': 'testTagValue'}, None],
+            ['', {'testTagKey': 'testTagValue'}, None],
+            [None, None, [{'capacityProvider': 'FARGATE_SPOT', 'weight': 123, 'base': 123}]],
+            [
+                None,
+                {'testTagKey': 'testTagValue'},
+                [{'capacityProvider': 'FARGATE_SPOT', 'weight': 123, 'base': 123}],
+            ],
+            [
+                'FARGATE',
+                {'testTagKey': 'testTagValue'},
+                [{'capacityProvider': 'FARGATE_SPOT', 'weight': 123, 'base': 123}],
+            ],
+            [
+                'EC2',
+                {'testTagKey': 'testTagValue'},
+                [{'capacityProvider': 'FARGATE_SPOT', 'weight': 123, 'base': 123}],
+            ],
         ]
     )
     @mock.patch.object(ECSOperator, '_wait_for_task_ended')
     @mock.patch.object(ECSOperator, '_check_success_task')
-    def test_execute_without_failures(self, launch_type, tags, check_mock, wait_mock):
+    def test_execute_without_failures(
+        self, launch_type, tags, capacity_provider_strategy, check_mock, wait_mock
+    ):
 
-        self.set_up_operator(launch_type=launch_type, tags=tags)  # pylint: disable=no-value-for-parameter
+        self.set_up_operator(  # pylint: disable=no-value-for-parameter
+            launch_type=launch_type, tags=tags, capacity_provider_strategy=capacity_provider_strategy
+        )
         client_mock = self.aws_hook_mock.return_value.get_conn.return_value
         client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
 
@@ -112,10 +132,12 @@ class TestECSOperator(unittest.TestCase):
 
         self.aws_hook_mock.return_value.get_conn.assert_called_once()
         extend_args = {}
-        if launch_type:
+        if capacity_provider_strategy is not None:
+            extend_args['capacityProviderStrategy'] = capacity_provider_strategy
+        elif launch_type:
             extend_args['launchType'] = launch_type
-        if launch_type == 'FARGATE':
-            extend_args['platformVersion'] = 'LATEST'
+            if launch_type == 'FARGATE':
+                extend_args['platformVersion'] = 'LATEST'
         if tags:
             extend_args['tags'] = [{'key': k, 'value': v} for (k, v) in tags.items()]
 
