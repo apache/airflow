@@ -162,7 +162,7 @@ Community involvement
 * Growing the community:
 
   * Mentors new members/contributors
-  * Answers users/contributors via Github issues, dev list or slack
+  * Answers users/contributors via GitHub issues, dev list or slack
 
 Code contribution
 ^^^^^^^^^^^^^^^^^^

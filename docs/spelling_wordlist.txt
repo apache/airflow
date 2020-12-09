@@ -154,7 +154,6 @@ Gcp
 Gentner
 GetPartitions
 GiB
-Github
 Gitter
 Glassdoor
 Gmail
