@@ -118,8 +118,6 @@ and then import the operator with this path:
     from airflow.providers.docker.operators.docker import DockerOperator
 
 Please note that the backport provider packages are just backports of the provider packages compatible with Airflow 2.0.
-In Apache Airflow 2.0+, those provider packages are installed automatically when you install Airflow with extras.
-Several of the providers (http, ftp, sqlite, imap) are installed automatically when you install Airflow even without extras.
 For example:
 
 .. code-block:: bash
@@ -128,6 +126,9 @@ For example:
 
 automatically installs the ``apache-airflow-providers-docker`` package.
 But you can manage/upgrade/remove provider packages separately from the Airflow core.
+
+After you upgrade to Apache Airflow 2.0, those provider packages are installed automatically when you install Airflow with extras.
+Several of the providers (http, ftp, sqlite, imap) will also be installed automatically when you install Airflow even without extras.
 You can read more about providers at :doc:`apache-airflow-providers:index`.
 
 Step 5: Upgrade Airflow DAGs
@@ -147,6 +148,14 @@ The behavior can be reverted when instantiating a DAG.
     import jinja2
 
     dag = DAG('simple_dag', template_undefined=jinja2.Undefined)
+
+Alternatively, it is also possible to override each Jinja Template variable on an individual basis
+by using the ``| default`` Jinja filter as shown below.
+
+.. code-block:: python
+
+    {{ a | default(1) }}
+
 
 
 **Changes to the KubernetesPodOperator**
@@ -478,7 +487,8 @@ upgrading the Airflow version.
 At this point, just follow the standard Airflow version upgrade process:
 * Make sure your Airflow meta database is backed up
 * Pause all the DAGs and make sure there is nothing actively running
-* Upgrade the Airflow version to the 2.0 version of choice
+* Install / upgrade the Airflow version to the 2.0 version of choice
+* Make sure to install the right providers, either using extras option as part of the Airflow installation, or individually installing the providers. Please note that you may have to uninstall the backport providers before installing the new providers, if you are installing using pip. This would not apply if you are installing using an Airflow Docker image with a set of specified requirements, where the change automatically gets a fresh set of modules. You can read more about providers at :doc:`apache-airflow-providers:index`.
 * Upgrade the Airflow meta database using ``airflow db upgrade``. This command is now shown in the Airflow 2.0 CLI syntax.
 * Restart Airflow Scheduler, Webserver, and Workers
 
