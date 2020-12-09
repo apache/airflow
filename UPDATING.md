@@ -122,6 +122,8 @@ This is to align the name with the actual code where the Scheduler launches the 
 `[scheduler] parsing_processes` to Parse DAG files, calculates next DagRun date for each DAG,
 serialize them and store them in the DB.
 
+### Context variables `prev_execution_date_success` and `prev_execution_date_success` are now `pendulum.DateTime`
+
 ## Airflow 2.0.0b1
 
 ### Rename policy to task_policy
