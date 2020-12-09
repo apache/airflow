@@ -30,7 +30,7 @@ from setuptools import Command, Distribution, find_namespace_packages, setup
 
 logger = logging.getLogger(__name__)
 
-version = '2.0.0b3'
+version = '2.0.0'
 
 PY3 = sys.version_info[0] == 3
 
