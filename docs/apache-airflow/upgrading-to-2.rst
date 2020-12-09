@@ -29,8 +29,7 @@ Step 1: Upgrade to Python 3
 
 Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0 will require Python 3.6+.
 
-If you have a specific task that still requires Python 2 then you can use
-the :class:`~airflow.operators.python.PythonVirtualenvOperator` or the ``KubernetesPodOperator``for this.
+If you have a specific task that still requires Python 2 then you can use the :class:`~airflow.operators.python.PythonVirtualenvOperator` or the ``KubernetesPodOperator``for this.
 
 For a list of breaking changes between Python 2 and Python 3, please refer to this
 [handy blog](https://blog.couchbase.com/tips-and-tricks-for-upgrading-from-python-2-to-python-3/)
@@ -263,9 +262,14 @@ in a case insensitive mode. This is being changed to better support the new ``@d
 
 **Change to Permissions**
 
-The DAG-level permission actions, ``can_dag_read`` and ``can_dag_edit`` are going away. They are being replaced with ``can_read`` and ``can_edit``. When a role is given DAG-level access, the resource name (or "view menu", in Flask App-Builder parlance) will now be prefixed with ``DAG:``. So the action ``can_dag_read`` on ``example_dag_id``, is now represented as ``can_read`` on ``DAG:example_dag_id``.
+The DAG-level permission actions, ``can_dag_read`` and ``can_dag_edit`` are deprecated as part of Airflow 2.0. They are
+being replaced with ``can_read`` and ``can_edit``. When a role is given DAG-level access, the resource name (or "view menu",
+in Flask App-Builder parlance) will now be prefixed with ``DAG:``. So the action ``can_dag_read`` on ``example_dag_id``, is
+now represented as ``can_read`` on ``DAG:example_dag_id``.
+There is a special view called ``DAGs`` (it was called ``all_dags`` in versions 1.10.x) which allows the role to access
+all the DAGs. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access the ``DAGs`` view.
 
-*As part of running ``db upgrade``, existing permissions will be migrated for you.*
+*As part of running ``airflow db upgrade``, existing permissions will be migrated for you.*
 
 When DAGs are initialized with the ``access_control`` variable set, any usage of the old permission names will automatically be updated in the database, so this won't be a breaking change. A DeprecationWarning will be raised.
 
@@ -340,7 +344,8 @@ respect to the Kubernetes Executor. This is called out below for users of the Ku
 *The KubernetesExecutor Will No Longer Read from the airflow.cfg for Base Pod Configurations.*
 
 In Airflow 2.0, the KubernetesExecutor will require a base pod template written in yaml. This file can exist
-anywhere on the host machine and will be linked using the ``pod_template_file`` configuration in the airflow.cfg. You can create a ``pod_template_file`` by running the following command:  ``airflow generate_pod_template`` ```
+anywhere on the host machine and will be linked using the ``pod_template_file`` configuration in the ``airflow.cfg`` file.
+You can create a ``pod_template_file`` by running the following command:  ``airflow generate_pod_template``
 
 The ``airflow.cfg`` will still accept values for the ``worker_container_repository``, the ``worker_container_tag``, and
 the default namespace.
@@ -490,7 +495,7 @@ Appendix
 ''''''''
 
 Changed Parameters for the KubernetesPodOperator
-''''''''''''''''''''''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **Port has migrated from a List[Port] to a List[V1ContainerPort]**
 
@@ -822,7 +827,7 @@ After:
 
 
 Migration Guide from Experimental API to Stable API v1
-''''''''''''''''''''''''''''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 In Airflow 2.0, we added the new REST API. Experimental API still works, but support may be dropped in the future.
 
@@ -869,14 +874,18 @@ Getting information about latest runs can be accomplished with the help of
 filters in the query string of this endpoint(``/api/v1/dags/{dag_id}/dagRuns``). Please check the Stable API
 reference documentation for more information
 
-**Changes to Exception handling for from DAG callbacks**
+
+Changes to Exception handling for from DAG callbacks
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Exception from DAG callbacks used to crash the Airflow Scheduler. As part
 of our efforts to make the Scheduler more performant and reliable, we have changed this behavior to log the exception
 instead. On top of that, a new dag.callback_exceptions counter metric has
 been added to help better monitor callback exceptions.
 
-**Airflow CLI changes in 2.0**
+
+Airflow CLI changes in 2.0
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The Airflow CLI has been organized so that related commands are grouped together as subcommands,
 which means that if you use these commands in your scripts, you have to make changes to them.
@@ -1066,7 +1075,7 @@ We should default it as ``true`` to avoid confusion
 
 
 Changes to Airflow Plugins
-''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If you are using Airflow Plugins and were passing ``admin_views`` & ``menu_links`` which were used in the
 non-RBAC UI (``flask-admin`` based UI), upto it to use ``flask_appbuilder_views`` and ``flask_appbuilder_menu_links``.
@@ -1135,7 +1144,7 @@ non-RBAC UI (``flask-admin`` based UI), upto it to use ``flask_appbuilder_views`
 
 
 Changes to extras names
-'''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^
 
 The ``all`` extra were reduced to include only user-facing dependencies. This means
 that this extra does not contain development dependencies. If you were using it and
@@ -1143,7 +1152,7 @@ depending on the development packages then you should use ``devel_all``.
 
 
 Support for Airflow 1.10.x releases
-'''''''''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 As mentioned earlier in Step 2, the 1.10.14 release is intended to be a "bridge release"
 which would be a step in the migration to Airflow 2.0.
