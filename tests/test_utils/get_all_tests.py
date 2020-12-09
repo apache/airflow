@@ -44,7 +44,7 @@ def print_all_cases(xunit_test_file_path):
     :param xunit_test_file_path: path of the xunit file
     :return: None
     """
-    with open(xunit_test_file_path, "r") as file:
+    with open(xunit_test_file_path) as file:
         text = file.read()
 
     root = ElementTree.fromstring(text)

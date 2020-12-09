@@ -163,12 +163,12 @@ with DAG(
             'title': 'Airflow dingding multi actionCard message',
             'text': 'Airflow dingding multi actionCard message\n'
             '![logo](http://airflow.apache.org/_images/pin_large.png)\n'
-            'Airflow documentation and github',
+            'Airflow documentation and GitHub',
             'hideAvatar': '0',
             'btnOrientation': '0',
             'btns': [
                 {'title': 'Airflow Documentation', 'actionURL': 'http://airflow.apache.org'},
-                {'title': 'Airflow Github', 'actionURL': 'https://github.com/apache/airflow'},
+                {'title': 'Airflow GitHub', 'actionURL': 'https://github.com/apache/airflow'},
             ],
         },
     )
@@ -181,17 +181,17 @@ with DAG(
             "links": [
                 {
                     "title": "Airflow DAG feed card",
-                    "messageURL": "https://airflow.readthedocs.io/en/latest/ui.html",
+                    "messageURL": "https://airflow.apache.org/docs/stable/ui.html",
                     "picURL": "http://airflow.apache.org/_images/dags.png",
                 },
                 {
                     "title": "Airflow tree feed card",
-                    "messageURL": "https://airflow.readthedocs.io/en/latest/ui.html",
+                    "messageURL": "https://airflow.apache.org/docs/stable/ui.html",
                     "picURL": "http://airflow.apache.org/_images/tree.png",
                 },
                 {
                     "title": "Airflow graph feed card",
-                    "messageURL": "https://airflow.readthedocs.io/en/latest/ui.html",
+                    "messageURL": "https://airflow.apache.org/docs/stable/ui.html",
                     "picURL": "http://airflow.apache.org/_images/graph.png",
                 },
             ]

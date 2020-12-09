@@ -21,16 +21,16 @@ import logging
 import os
 import time
 import unittest
+from unittest.mock import Mock
 
 from freezegun import freeze_time
-from mock import Mock
 
 from airflow import DAG, settings
 from airflow.configuration import conf
 from airflow.models import DagRun, SensorInstance, TaskInstance
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.sensors.smart_sensor_operator import SmartSensorOperator
+from airflow.operators.dummy import DummyOperator
+from airflow.sensors.base import BaseSensorOperator
+from airflow.sensors.smart_sensor import SmartSensorOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 
@@ -43,13 +43,10 @@ SENSOR_OP = 'sensor_op'
 
 
 class DummySmartSensor(SmartSensorOperator):
-    def __init__(self,
-                 shard_max=conf.getint('smart_sensor', 'shard_code_upper_limit'),
-                 shard_min=0,
-                 **kwargs):
-        super(DummySmartSensor, self).__init__(shard_min=shard_min,
-                                               shard_max=shard_max,
-                                               **kwargs)
+    def __init__(
+        self, shard_max=conf.getint('smart_sensor', 'shard_code_upper_limit'), shard_min=0, **kwargs
+    ):
+        super().__init__(shard_min=shard_min, shard_max=shard_max, **kwargs)
 
 
 class DummySensor(BaseSensorOperator):
@@ -57,7 +54,7 @@ class DummySensor(BaseSensorOperator):
     exec_fields = ('soft_fail', 'execution_timeout', 'timeout')
 
     def __init__(self, input_field='test', return_value=False, **kwargs):
-        super(DummySensor, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.input_field = input_field
         self.return_value = return_value
 
@@ -73,10 +70,7 @@ class SmartSensorTest(unittest.TestCase):
         os.environ['AIRFLOW__SMART_SENSER__USE_SMART_SENSOR'] = 'true'
         os.environ['AIRFLOW__SMART_SENSER__SENSORS_ENABLED'] = 'DummySmartSensor'
 
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG(TEST_DAG_ID, default_args=args)
         self.sensor_dag = DAG(TEST_SENSOR_DAG_ID, default_args=args)
         self.log = logging.getLogger('BaseSmartTest')
@@ -102,7 +96,7 @@ class SmartSensorTest(unittest.TestCase):
             run_id='manual__' + TEST_DAG_ID,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
-            state=State.RUNNING
+            state=State.RUNNING,
         )
 
     def _make_sensor_dag_run(self):
@@ -110,7 +104,7 @@ class SmartSensorTest(unittest.TestCase):
             run_id='manual__' + TEST_SENSOR_DAG_ID,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
-            state=State.RUNNING
+            state=State.RUNNING,
         )
 
     def _make_sensor(self, return_value, **kwargs):
@@ -121,12 +115,7 @@ class SmartSensorTest(unittest.TestCase):
         if timeout not in kwargs:
             kwargs[timeout] = 0
 
-        sensor = DummySensor(
-            task_id=SENSOR_OP,
-            return_value=return_value,
-            dag=self.sensor_dag,
-            **kwargs
-        )
+        sensor = DummySensor(task_id=SENSOR_OP, return_value=return_value, dag=self.sensor_dag, **kwargs)
 
         return sensor
 
@@ -139,12 +128,7 @@ class SmartSensorTest(unittest.TestCase):
             kwargs[timeout] = 0
 
         task_id = SENSOR_OP + str(index)
-        sensor = DummySensor(
-            task_id=task_id,
-            return_value=return_value,
-            dag=self.sensor_dag,
-            **kwargs
-        )
+        sensor = DummySensor(task_id=task_id, return_value=return_value, dag=self.sensor_dag, **kwargs)
 
         ti = TaskInstance(task=sensor, execution_date=DEFAULT_DATE)
 
@@ -158,16 +142,9 @@ class SmartSensorTest(unittest.TestCase):
         if smart_sensor_timeout not in kwargs:
             kwargs[smart_sensor_timeout] = 0
 
-        smart_task = DummySmartSensor(
-            task_id=SMART_OP + "_" + str(index),
-            dag=self.dag,
-            **kwargs
-        )
+        smart_task = DummySmartSensor(task_id=SMART_OP + "_" + str(index), dag=self.dag, **kwargs)
 
-        dummy_op = DummyOperator(
-            task_id=DUMMY_OP,
-            dag=self.dag
-        )
+        dummy_op = DummyOperator(task_id=DUMMY_OP, dag=self.dag)
         dummy_op.set_upstream(smart_task)
         return smart_task
 
@@ -315,11 +292,13 @@ class SmartSensorTest(unittest.TestCase):
         session = settings.Session()
 
         SI = SensorInstance
-        sensor_instance = session.query(SI).filter(
-            SI.dag_id == si1.dag_id,
-            SI.task_id == si1.task_id,
-            SI.execution_date == si1.execution_date) \
+        sensor_instance = (
+            session.query(SI)
+            .filter(
+                SI.dag_id == si1.dag_id, SI.task_id == si1.task_id, SI.execution_date == si1.execution_date
+            )
             .first()
+        )
 
         self.assertIsNotNone(sensor_instance)
         self.assertEqual(sensor_instance.state, State.SENSING)

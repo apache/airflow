@@ -22,7 +22,7 @@ It assumes there is a single task returned and does not do error checking (eg if
 
 This DAG relies on the following environment variables:
 
-* SOURCE_LOCATION_URI - Source location URI, usually on premisis SMB or NFS
+* SOURCE_LOCATION_URI - Source location URI, usually on premises SMB or NFS
 * DESTINATION_LOCATION_URI - Destination location URI, usually S3
 """
 

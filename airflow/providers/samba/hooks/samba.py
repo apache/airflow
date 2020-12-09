@@ -20,19 +20,22 @@ import os
 
 from smbclient import SambaClient
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class SambaHook(BaseHook):
-    """
-    Allows for interaction with an samba server.
-    """
+    """Allows for interaction with an samba server."""
 
-    def __init__(self, samba_conn_id):
+    conn_name_attr = 'samba_conn_id'
+    default_conn_name = 'samba_default'
+    conn_type = 'samba'
+    hook_name = 'Samba'
+
+    def __init__(self, samba_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn = self.get_connection(samba_conn_id)
 
-    def get_conn(self):
+    def get_conn(self) -> SambaClient:
         samba = SambaClient(
             server=self.conn.host,
             share=self.conn.schema,
@@ -42,10 +45,8 @@ class SambaHook(BaseHook):
         )
         return samba
 
-    def push_from_local(self, destination_filepath, local_filepath):
-        """
-        Push local file to samba server
-        """
+    def push_from_local(self, destination_filepath: str, local_filepath: str) -> None:
+        """Push local file to samba server"""
         samba = self.get_conn()
         if samba.exists(destination_filepath):
             if samba.isfile(destination_filepath):

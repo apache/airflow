@@ -16,12 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains Google Cloud Stackdriver operators.
-"""
+"""This module contains Google Cloud Stackdriver operators."""
 
 import json
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Optional, Sequence, Union
 
 from google.api_core.exceptions import InvalidArgument
 from google.api_core.gapic_v1.method import DEFAULT
@@ -34,9 +32,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 class StackdriverHook(GoogleBaseHook):
-    """
-    Stackdriver Hook for connecting with Google Cloud Stackdriver
-    """
+    """Stackdriver Hook for connecting with Google Cloud Stackdriver"""
 
     def __init__(
         self,
@@ -114,7 +110,7 @@ class StackdriverHook(GoogleBaseHook):
         """
         client = self._get_policy_client()
         policies_ = client.list_alert_policies(
-            name='projects/{project_id}'.format(project_id=project_id),
+            name=f'projects/{project_id}',
             filter_=filter_,
             order_by=order_by,
             page_size=page_size,
@@ -292,7 +288,7 @@ class StackdriverHook(GoogleBaseHook):
                 old_name = channel.name
                 channel.ClearField('name')
                 new_channel = channel_client.create_notification_channel(
-                    name='projects/{project_id}'.format(project_id=project_id),
+                    name=f'projects/{project_id}',
                     notification_channel=channel,
                     retry=retry,
                     timeout=timeout,
@@ -321,7 +317,7 @@ class StackdriverHook(GoogleBaseHook):
                 for condition in policy.conditions:
                     condition.ClearField('name')
                 policy_client.create_alert_policy(
-                    name='projects/{project_id}'.format(project_id=project_id),
+                    name=f'projects/{project_id}',
                     alert_policy=policy,
                     retry=retry,
                     timeout=timeout,
@@ -351,12 +347,11 @@ class StackdriverHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: str
         """
-
         policy_client = self._get_policy_client()
         try:
             policy_client.delete_alert_policy(name=name, retry=retry, timeout=timeout, metadata=metadata)
         except HttpError as err:
-            raise AirflowException('Delete alerting policy failed. Error was {}'.format(err.content))
+            raise AirflowException(f'Delete alerting policy failed. Error was {err.content}')
 
     @GoogleBaseHook.fallback_to_default_project_id
     def list_notification_channels(
@@ -408,10 +403,9 @@ class StackdriverHook(GoogleBaseHook):
         :param project_id: The project to fetch notification channels from.
         :type project_id: str
         """
-
         client = self._get_channel_client()
         channels = client.list_notification_channels(
-            name='projects/{project_id}'.format(project_id=project_id),
+            name=f'projects/{project_id}',
             filter_=filter_,
             order_by=order_by,
             page_size=page_size,
@@ -437,9 +431,7 @@ class StackdriverHook(GoogleBaseHook):
         metadata: Optional[str] = None,
     ) -> None:
         client = self._get_channel_client()
-        channels = client.list_notification_channels(
-            name='projects/{project_id}'.format(project_id=project_id), filter_=filter_
-        )
+        channels = client.list_notification_channels(name=f'projects/{project_id}', filter_=filter_)
         for channel in channels:
             if channel.enabled.value != bool(new_state):
                 channel.enabled.value = bool(new_state)
@@ -482,7 +474,6 @@ class StackdriverHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: str
         """
-
         self._toggle_channel_status(
             project_id=project_id,
             filter_=filter_,
@@ -521,7 +512,6 @@ class StackdriverHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: str
         """
-
         self._toggle_channel_status(
             filter_=filter_,
             project_id=project_id,
@@ -539,7 +529,7 @@ class StackdriverHook(GoogleBaseHook):
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
         metadata: Optional[str] = None,
-    ) -> Dict:
+    ) -> dict:
         """
         Creates a new notification or updates an existing notification channel
         identified the name field in the alerts parameter.
@@ -561,7 +551,6 @@ class StackdriverHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: str
         """
-
         channel_client = self._get_channel_client()
 
         record = json.loads(channels)
@@ -591,7 +580,7 @@ class StackdriverHook(GoogleBaseHook):
                 old_name = channel.name
                 channel.ClearField('name')
                 new_channel = channel_client.create_notification_channel(
-                    name='projects/{project_id}'.format(project_id=project_id),
+                    name=f'projects/{project_id}',
                     notification_channel=channel,
                     retry=retry,
                     timeout=timeout,
@@ -624,11 +613,10 @@ class StackdriverHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: str
         """
-
         channel_client = self._get_channel_client()
         try:
             channel_client.delete_notification_channel(
                 name=name, retry=retry, timeout=timeout, metadata=metadata
             )
         except HttpError as err:
-            raise AirflowException('Delete notification channel failed. Error was {}'.format(err.content))
+            raise AirflowException(f'Delete notification channel failed. Error was {err.content}')

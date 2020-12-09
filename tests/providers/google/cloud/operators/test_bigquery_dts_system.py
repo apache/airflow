@@ -40,7 +40,7 @@ class GcpBigqueryDtsSystemTest(GoogleSystemTest):
         self.execute_with_ctx(["bq", "mk", "--table", table_name, ""], key=GCP_BIGQUERY_KEY)
 
     def upload_data(self, dataset: str, table: str, gcs_file: str):
-        table_name = "{}.{}".format(dataset, table)
+        table_name = f"{dataset}.{table}"
         self.execute_with_ctx(
             [
                 "bq",

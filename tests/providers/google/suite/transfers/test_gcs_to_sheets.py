@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import mock
+from unittest import mock
 
 from airflow.providers.google.suite.transfers.gcs_to_sheets import GCSToGoogleSheetsOperator
 

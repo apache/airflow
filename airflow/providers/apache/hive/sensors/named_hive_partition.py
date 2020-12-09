@@ -17,7 +17,7 @@
 # under the License.
 from typing import Any, Dict, List, Tuple
 
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -63,7 +63,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
         self.hook = hook
         if self.hook and metastore_conn_id != 'metastore_default':
             self.log.warning(
-                'A hook was passed but a non defaul metastore_conn_id=%s was used', metastore_conn_id
+                'A hook was passed but a non default metastore_conn_id=%s was used', metastore_conn_id
             )
 
     @staticmethod

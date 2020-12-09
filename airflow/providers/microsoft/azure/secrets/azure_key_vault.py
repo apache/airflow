@@ -43,10 +43,13 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
     if you provide ``{"variables_prefix": "airflow-variables"}`` and request variable key ``hello``.
 
     :param connections_prefix: Specifies the prefix of the secret to read to get Connections
+        If set to None (null), requests for connections will not be sent to Azure Key Vault
     :type connections_prefix: str
     :param variables_prefix: Specifies the prefix of the secret to read to get Variables
+        If set to None (null), requests for variables will not be sent to Azure Key Vault
     :type variables_prefix: str
     :param config_prefix: Specifies the prefix of the secret to read to get Variables.
+        If set to None (null), requests for configurations will not be sent to Azure Key Vault
     :type config_prefix: str
     :param vault_url: The URL of an Azure Key Vault to use
     :type vault_url: str
@@ -62,20 +65,27 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         vault_url: str = '',
         sep: str = '-',
         **kwargs,
-    ):
+    ) -> None:
         super().__init__()
         self.vault_url = vault_url
-        self.connections_prefix = connections_prefix.rstrip(sep)
-        self.variables_prefix = variables_prefix.rstrip(sep)
-        self.config_prefix = config_prefix.rstrip(sep)
+        if connections_prefix is not None:
+            self.connections_prefix = connections_prefix.rstrip(sep)
+        else:
+            self.connections_prefix = connections_prefix
+        if variables_prefix is not None:
+            self.variables_prefix = variables_prefix.rstrip(sep)
+        else:
+            self.variables_prefix = variables_prefix
+        if config_prefix is not None:
+            self.config_prefix = config_prefix.rstrip(sep)
+        else:
+            self.config_prefix = config_prefix
         self.sep = sep
         self.kwargs = kwargs
 
     @cached_property
-    def client(self):
-        """
-        Create a Azure Key Vault client.
-        """
+    def client(self) -> SecretClient:
+        """Create a Azure Key Vault client."""
         credential = DefaultAzureCredential()
         client = SecretClient(vault_url=self.vault_url, credential=credential, **self.kwargs)
         return client
@@ -87,6 +97,9 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: The Airflow connection id to retrieve
         :type conn_id: str
         """
+        if self.connections_prefix is None:
+            return None
+
         return self._get_secret(self.connections_prefix, conn_id)
 
     def get_variable(self, key: str) -> Optional[str]:
@@ -97,6 +110,9 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         :type key: str
         :return: Variable Value
         """
+        if self.variables_prefix is None:
+            return None
+
         return self._get_secret(self.variables_prefix, key)
 
     def get_config(self, key: str) -> Optional[str]:
@@ -106,6 +122,9 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         :param key: Configuration Option Key
         :return: Configuration Option Value
         """
+        if self.config_prefix is None:
+            return None
+
         return self._get_secret(self.config_prefix, key)
 
     @staticmethod

@@ -29,7 +29,6 @@ def get_hostname():
 
 
 class TestGetHostname(unittest.TestCase):
-
     @mock.patch('socket.getfqdn', return_value='first')
     @conf_vars({('core', 'hostname_callable'): None})
     def test_get_hostname_unset(self, mock_getfqdn):
@@ -51,6 +50,6 @@ class TestGetHostname(unittest.TestCase):
             re.escape(
                 'The object could not be loaded. Please check "hostname_callable" key in "core" section. '
                 'Current value: "tests.utils.test_net.missing_func"'
-            )
+            ),
         ):
             net.get_hostname()

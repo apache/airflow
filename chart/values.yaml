@@ -112,7 +112,7 @@ rbacEnabled: true
 # Options: SequentialExecutor, LocalExecutor, CeleryExecutor, KubernetesExecutor
 executor: "KubernetesExecutor"
 
-# If this is true and using LocalExecutor/SequentialExecutor/KubernetesExecutor, the scheudler's
+# If this is true and using LocalExecutor/SequentialExecutor/KubernetesExecutor, the scheduler's
 # service account will have access to communicate with the api-server and launch pods.
 # If this is true and using the CeleryExecutor, the workers will be able to launch pods.
 allowPodLaunching: true
@@ -120,6 +120,10 @@ allowPodLaunching: true
 # Images
 images:
   airflow:
+    repository: ~
+    tag: ~
+    pullPolicy: IfNotPresent
+  pod_template:
     repository: ~
     tag: ~
     pullPolicy: IfNotPresent
@@ -141,7 +145,11 @@ images:
     pullPolicy: IfNotPresent
   pgbouncerExporter:
     repository: apache/airflow
-    tag: airflow-pgbouncer-exporter-2020.09.05-0.5.0
+    tag: airflow-pgbouncer-exporter-2020.09.25-0.5.0
+    pullPolicy: IfNotPresent
+  gitSync:
+    repository: k8s.gcr.io/git-sync
+    tag: v3.1.6
     pullPolicy: IfNotPresent
 
 # Environment variables for all airflow containers
@@ -154,6 +162,57 @@ secret: []
 # - envName: ""
 #   secretName: ""
 #   secretKey: ""
+
+# Extra secrets that will be managed by the chart
+# (You can use them with extraEnv or extraEnvFrom or some of the extraVolumes values).
+# The format is "key/value" where
+#    * key (can be templated) is the the name the secret that will be created
+#    * value: an object with the standard 'data' or 'stringData' key (or both).
+#          The value associated with those keys must be a string (can be templated)
+extraSecrets: {}
+# eg:
+# extraSecrets:
+#   {{ .Release.Name }}-airflow-connections:
+#     data: |
+#       AIRFLOW_CONN_GCP: 'base64_encoded_gcp_conn_string'
+#       AIRFLOW_CONN_AWS: 'base64_encoded_aws_conn_string'
+#     stringData: |
+#       AIRFLOW_CONN_OTHER: 'other_conn'
+#   {{ .Release.Name }}-other-secret-name-suffix: |
+#     data: |
+#        ...
+
+# Extra ConfigMaps that will be managed by the chart
+# (You can use them with extraEnv or extraEnvFrom or some of the extraVolumes values).
+# The format is "key/value" where
+#    * key (can be templated) is the the name the configmap that will be created
+#    * value: an object with the standard 'data' key.
+#          The value associated with this keys must be a string (can be templated)
+extraConfigMaps: {}
+# eg:
+# extraConfigMaps:
+#   {{ .Release.Name }}-airflow-variables:
+#     data: |
+#       AIRFLOW_VAR_HELLO_MESSAGE: "Hi!"
+#       AIRFLOW_VAR_KUBERNETES_NAMESPACE: "{{ .Release.Namespace }}"
+
+# Extra env 'items' that will be added to the definition of airflow containers
+# a string is expected (can be templated).
+extraEnv: ~
+# eg:
+# extraEnv: |
+#   - name: PLATFORM
+#     value: FR
+
+# Extra envFrom 'items' that will be added to the definition of airflow containers
+# A string is expected (can be templated).
+extraEnvFrom: ~
+# eg:
+# extraEnvFrom: |
+#   - secretRef:
+#       name: '{{ .Release.Name }}-airflow-connections'
+#   - configMapRef:
+#       name: '{{ .Release.Name }}-airflow-variables'
 
 # Airflow database config
 data:
@@ -181,13 +240,62 @@ data:
 fernetKey: ~
 fernetKeySecretName: ~
 
+
+# In order to use kerberos you need to create secret containing the keytab file
+# The secret name should follow naming convention of the application where resources are
+# name {{ .Release-name }}-<POSTFIX>. In case of the keytab file, the postfix is "kerberos-keytab"
+# So if your release is named "my-release" the name of the secret should be "my-release-kerberos-keytab"
+#
+# The Keytab content should be available in the "kerberos.keytab" key of the secret.
+#
+#  apiVersion: v1
+#  kind: Secret
+#  data:
+#    kerberos.keytab: <base64_encoded keytab file content>
+#  type: Opaque
+#
+#
+#  If you have such keytab file you can do it with similar
+#
+#  kubectl create secret generic {{ .Release.name }}-kerberos-keytab --from-file=kerberos.keytab
+#
+kerberos:
+  enabled: false
+  ccacheMountPath: '/var/kerberos-ccache'
+  ccacheFileName: 'cache'
+  configPath: '/etc/krb5.conf'
+  keytabPath: '/etc/airflow.keytab'
+  principal: 'airflow@FOO.COM'
+  reinitFrequency: 3600
+  config: |
+    # This is an example config showing how you can use templating and how "example" config
+    # might look like. It works with the test kerberos server that we are using during integration
+    # testing at Apache Airflow (see `scripts/ci/docker-compose/integration-kerberos.yml` but in
+    # order to make it production-ready you must replace it with your own configuration that
+    # Matches your kerberos deployment. Administrators of your Kerberos instance should
+    # provide the right configuration.
+
+    [logging]
+    default = "FILE:{{ template "airflow_logs_no_quote" . }}/kerberos_libs.log"
+    kdc = "FILE:{{ template "airflow_logs_no_quote" . }}/kerberos_kdc.log"
+    admin_server = "FILE:{{ template "airflow_logs_no_quote" . }}/kadmind.log"
+
+    [libdefaults]
+    default_realm = FOO.COM
+    ticket_lifetime = 10h
+    renew_lifetime = 7d
+    forwardable = true
+
+    [realms]
+    FOO.COM = {
+      kdc = kdc-server.foo.com
+      admin_server = admin_server.foo.com
+    }
+
 # Airflow Worker Config
 workers:
   # Number of airflow celery workers in StatefulSet
   replicas: 1
-
-  serviceAccount:
-    annotations: {}
 
   # Allow KEDA autoscaling.
   # Persistence.enabled must be set to false to use KEDA.
@@ -217,7 +325,9 @@ workers:
     # of local-path provisioner.
     fixPermissions: false
 
-  extraVolumes: []
+  kerberosSidecar:
+    # Enable kerberos sidecar
+    enabled: false
 
   resources: {}
   #  limits:
@@ -233,9 +343,17 @@ workers:
   # This setting tells kubernetes that its ok to evict
   # when it wants to scale a node down.
   safeToEvict: true
+  # Annotations to add to worker kubernetes service account.
+  serviceAccountAnnotations: {}
+  # Mount additional volumes into worker.
+  extraVolumes: []
+  extraVolumeMounts: []
 
 # Airflow scheduler settings
 scheduler:
+  # Airflow 2.0 allows users to run multiple schedulers,
+  # However this feature is only recommended for MySQL 8+ and Postgres
+  replicas: 1
   # Scheduler pod disruption budget
   podDisruptionBudget:
     enabled: false
@@ -243,9 +361,6 @@ scheduler:
     # PDB configuration
     config:
       maxUnavailable: 1
-
-  serviceAccount:
-    annotations: {}
 
   resources: {}
   #  limits:
@@ -255,8 +370,6 @@ scheduler:
   #   cpu: 100m
   #   memory: 128Mi
 
-  extraVolumes: []
-
   # This setting can overwrite
   # podMutation settings.
   airflowLocalSettings: ~
@@ -265,8 +378,16 @@ scheduler:
   # when it wants to scale a node down.
   safeToEvict: true
 
+  # Annotations to add to scheduler kubernetes service account.
+  serviceAccountAnnotations: {}
+
+  # Mount additional volumes into scheduler.
+  extraVolumes: []
+  extraVolumeMounts: []
+
 # Airflow webserver settings
 webserver:
+  allowPodLogReading: true
   livenessProbe:
     initialDelaySeconds: 15
     timeoutSeconds: 30
@@ -284,9 +405,6 @@ webserver:
 
   # Additional network policies as needed
   extraNetworkPolicies: []
-
-  serviceAccount:
-    annotations: {}
 
   resources: {}
   #   limits:
@@ -328,6 +446,9 @@ webserver:
     ## service annotations
     annotations: {}
 
+  # Annotations to add to webserver kubernetes service account.
+  serviceAccountAnnotations: {}
+
 # Flower settings
 flower:
   # Additional network policies as needed
@@ -339,6 +460,13 @@ flower:
   #   requests:
   #     cpu: 100m
   #     memory: 128Mi
+
+  # A secret containing the connection
+  secretName: ~
+
+  # Else, if username and password are set, create secret from username and password
+  username: ~
+  password: ~
 
   service:
     type: ClusterIP
@@ -381,13 +509,21 @@ pgbouncer:
     config:
       maxUnavailable: 1
 
+  # Limit the resources to pgbouncerExported.
+  # When you specify the resource request the scheduler uses this information to decide which node to place
+  # the Pod on. When you specify a resource limit for a Container, the kubelet enforces those limits so
+  # that the running container is not allowed to use more of that resource than the limit you set.
+  # See: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+  # Example:
+  #
+  # resource:
+  #   limits:
+  #     cpu: 100m
+  #     memory: 128Mi
+  #   requests:
+  #     cpu: 100m
+  #     memory: 128Mi
   resources: {}
-    # limits:
-    #   cpu: 100m
-    #   memory: 128Mi
-    # requests:
-    #   cpu: 100m
-    #   memory: 128Mi
 
   service:
     extraAnnotations: {}
@@ -396,6 +532,14 @@ pgbouncer:
   verbose: 0
   logDisconnections: 0
   logConnections: 0
+
+  sslmode: "prefer"
+  ciphers: "normal"
+
+  ssl:
+    ca: ~
+    cert: ~
+    key: ~
 
 redis:
   terminationGracePeriodSeconds: 600
@@ -433,11 +577,13 @@ redis:
 registry:
   secretName: ~
 
+  # Example:
+  # connection:
+  #   user: ~
+  #   pass: ~
+  #   host: ~
+  #   email: ~
   connection: {}
-    # user: ~
-    # pass: ~
-    # host: ~
-    # email: ~
 
 # Elasticsearch logging configuration
 elasticsearch:
@@ -446,11 +592,14 @@ elasticsearch:
   # A secret containing the connection
   secretName: ~
   # Or an object representing the connection
+  # Example:
+  # connection:
+  #   user: ~
+  #   pass: ~
+  #   host: ~
+  #   port: ~
   connection: {}
-    # user: ~
-    # pass: ~
-    # host: ~
-    # port: ~
+
 
 # All ports used by chart
 ports:
@@ -469,27 +618,6 @@ quotas: {}
 # Define default/max/min values for pods and containers in namespace
 limits: []
 
-# Config Settings for pod_mutation_hook
-podMutation:
-  # Tolerations provided here would be applied using pod_mutation_hook
-  # So any pods spun up using KubernetesExecutor or KubernetesPodOperator will contain these tolerations.
-  tolerations: []
-  #  - key: "dynamic-pods"
-  #    operator: "Equal"
-  #    value: "true"
-  #    effect: "NoSchedule"
-
-  # Pods spun up would land in the node that matches the affinity
-  affinity: {}
-  #   nodeAffinity:
-  #     requiredDuringSchedulingIgnoredDuringExecution:
-  #       nodeSelectorTerms:
-  #       - matchExpressions:
-  #         - key: "company.io/dynamic-pods"
-  #           operator: In
-  #           values:
-  #           - "true"
-
 # This runs as a CronJob to cleanup old pods.
 cleanup:
   enabled: false
@@ -507,7 +635,7 @@ postgresql:
 #
 # Please note that these values are passed through the `tpl` function, so are
 # all subject to being rendered as go templates. If you need to include a
-# litera `{{` in a value, it must be expessed like this:
+# literal `{{` in a value, it must be expressed like this:
 #
 #    a: '{{ "{{ not a template }}" }}'
 #
@@ -524,6 +652,11 @@ config:
     auth_backend: airflow.api.auth.backend.deny_all
   logging:
     logging_level: DEBUG
+  metrics:
+    statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
+    statsd_port: 9125
+    statsd_prefix: airflow
+    statsd_host: '{{ printf "%s-statsd" .Release.Name }}'
   webserver:
     enable_proxy_fix: 'True'
     expose_config: 'True'
@@ -534,6 +667,7 @@ config:
 
   scheduler:
     scheduler_heartbeat_sec: 5
+    # For Airflow 1.10, backward compatibility
     statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
     statsd_port: 9125
     statsd_prefix: airflow
@@ -550,6 +684,12 @@ config:
     timeout: 30
     retry_timeout: 'True'
 
+  kerberos:
+    keytab: '{{ .Values.kerberos.keytabPath }}'
+    reinit_frequency: '{{ .Values.kerberos.reinitFrequency }}'
+    principal: '{{ .Values.kerberos.principal }}'
+    ccache: '{{ .Values.kerberos.ccacheMountPath }}/{{ .Values.kerberos.ccacheFileName }}'
+
   kubernetes:
     namespace: '{{ .Release.Namespace }}'
     airflow_configmap: '{{ include "airflow_config" . }}'
@@ -558,7 +698,10 @@ config:
     worker_container_repository: '{{ .Values.images.airflow.repository | default .Values.defaultAirflowRepository }}'
     worker_container_tag: '{{ .Values.images.airflow.tag | default .Values.defaultAirflowTag }}'
     delete_worker_pods: 'True'
+    multi_namespace_mode: '{{ if .Values.multiNamespaceMode }}True{{ else }}False{{ end }}'
 # yamllint enable rule:line-length
+
+multiNamespaceMode: false
 
 podTemplate: ~
 
@@ -603,7 +746,8 @@ dags:
     #     GIT_SYNC_USERNAME: <base64_encoded_git_username>
     #     GIT_SYNC_PASSWORD: <base64_encoded_git_password>
     # and specify the name of the secret below
-    #credentialsSecret: git-credentials
+    #
+    # credentialsSecret: git-credentials
     #
     #
     # If you are using an ssh clone url, you can load
@@ -617,15 +761,15 @@ dags:
     #     # key needs to be gitSshKey
     #     gitSshKey: <base64_encoded_data>
     # and specify the name of the secret below
-    #sshKeySecret: airflow-ssh-secret
+    # sshKeySecret: airflow-ssh-secret
+    #
     # If you are using an ssh private key, you can additionally
     # specify the content of your known_hosts file, example:
-    #knownHosts: |
+    #
+    # knownHosts: |
     #    <host1>,<ip1> <key1>
     #    <host2>,<ip2> <key2>
     # interval between git sync attempts in seconds
     wait: 60
-    # git sync image details
-    containerRepository: k8s.gcr.io/git-sync
-    containerTag: v3.1.6
     containerName: git-sync
+    uid: 65533

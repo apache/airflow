@@ -16,7 +16,7 @@
 # under the License.
 
 """GRPC Hook"""
-from typing import Callable, Generator, List, Optional
+from typing import Any, Callable, Dict, Generator, List, Optional
 
 import grpc
 from google import auth as google_auth
@@ -27,7 +27,7 @@ from google.auth.transport import (
 )
 
 from airflow.exceptions import AirflowConfigException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class GrpcHook(BaseHook):
@@ -47,9 +47,33 @@ class GrpcHook(BaseHook):
         its only arg. Could be partial or lambda.
     """
 
+    conn_name_attr = 'grpc_conn_id'
+    default_conn_name = 'grpc_default'
+    conn_type = 'grpc'
+    hook_name = 'GRPC Connection'
+
+    @staticmethod
+    def get_connection_form_widgets() -> Dict[str, Any]:
+        """Returns connection widgets to add to connection form"""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import StringField
+
+        return {
+            "extra__grpc__auth_type": StringField(
+                lazy_gettext('Grpc Auth Type'), widget=BS3TextFieldWidget()
+            ),
+            "extra__grpc__credential_pem_file": StringField(
+                lazy_gettext('Credential Keyfile Path'), widget=BS3TextFieldWidget()
+            ),
+            "extra__grpc__scopes": StringField(
+                lazy_gettext('Scopes (comma separated)'), widget=BS3TextFieldWidget()
+            ),
+        }
+
     def __init__(
         self,
-        grpc_conn_id: str,
+        grpc_conn_id: str = default_conn_name,
         interceptors: Optional[List[Callable]] = None,
         custom_connection_func: Optional[Callable] = None,
     ) -> None:
@@ -72,7 +96,8 @@ class GrpcHook(BaseHook):
             channel = grpc.insecure_channel(base_url)
         elif auth_type in {"SSL", "TLS"}:
             credential_file_name = self._get_field("credential_pem_file")
-            creds = grpc.ssl_channel_credentials(open(credential_file_name).read())
+            with open(credential_file_name, "rb") as credential_file:
+                creds = grpc.ssl_channel_credentials(credential_file.read())
             channel = grpc.secure_channel(base_url, creds)
         elif auth_type == "JWT_GOOGLE":
             credentials, _ = google_auth.default()
@@ -105,9 +130,7 @@ class GrpcHook(BaseHook):
     def run(
         self, stub_class: Callable, call_func: str, streaming: bool = False, data: Optional[dict] = None
     ) -> Generator:
-        """
-        Call gRPC function and yield response to caller
-        """
+        """Call gRPC function and yield response to caller"""
         if data is None:
             data = {}
         with self.get_conn() as channel:
@@ -137,5 +160,5 @@ class GrpcHook(BaseHook):
         to the hook page, which allow admins to specify scopes, credential pem files, etc.
         They get formatted as shown below.
         """
-        full_field_name = 'extra__grpc__{}'.format(field_name)
+        full_field_name = f'extra__grpc__{field_name}'
         return self.extras[full_field_name]

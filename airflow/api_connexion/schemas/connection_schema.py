@@ -24,9 +24,7 @@ from airflow.models.connection import Connection
 
 
 class ConnectionCollectionItemSchema(SQLAlchemySchema):
-    """
-    Schema for a connection item
-    """
+    """Schema for a connection item"""
 
     class Meta:
         """Meta"""
@@ -42,9 +40,7 @@ class ConnectionCollectionItemSchema(SQLAlchemySchema):
 
 
 class ConnectionSchema(ConnectionCollectionItemSchema):  # pylint: disable=too-many-ancestors
-    """
-    Connection schema
-    """
+    """Connection schema"""
 
     password = auto_field(load_only=True)
     extra = auto_field()

@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google BigQuery to Google Cloud Storage operator.
-"""
+"""This module contains Google BigQuery to Google Cloud Storage operator."""
 import warnings
 from typing import Any, Dict, List, Optional, Sequence, Union
 

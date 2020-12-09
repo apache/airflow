@@ -17,8 +17,8 @@
 # under the License.
 #
 import unittest
+from unittest import mock
 
-import mock
 from google.cloud.dataproc_v1beta2.types import JobStatus  # pylint: disable=no-name-in-module
 
 from airflow.exceptions import AirflowException
@@ -65,7 +65,7 @@ class TestDataprocHook(unittest.TestCase):
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=mock_client_info.return_value,
-            client_options={"api_endpoint": "{}-dataproc.googleapis.com:443".format(GCP_LOCATION)},
+            client_options={"api_endpoint": f"{GCP_LOCATION}-dataproc.googleapis.com:443"},
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook._get_credentials"))
@@ -85,7 +85,7 @@ class TestDataprocHook(unittest.TestCase):
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=mock_client_info.return_value,
-            client_options={"api_endpoint": "{}-dataproc.googleapis.com:443".format(GCP_LOCATION)},
+            client_options={"api_endpoint": f"{GCP_LOCATION}-dataproc.googleapis.com:443"},
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_cluster_client"))

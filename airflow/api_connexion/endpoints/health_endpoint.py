@@ -22,9 +22,7 @@ UNHEALTHY = "unhealthy"
 
 
 def get_health():
-    """
-    Return the health of the airflow scheduler and metadatabase
-    """
+    """Return the health of the airflow scheduler and metadatabase"""
     metadatabase_status = HEALTHY
     latest_scheduler_heartbeat = None
     scheduler_status = UNHEALTHY

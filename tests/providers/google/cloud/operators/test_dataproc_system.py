@@ -17,7 +17,7 @@
 # under the License.
 import pytest
 
-from airflow.providers.google.cloud.example_dags.example_dataproc import PYSPARK_MAIN, BUCKET, SPARKR_MAIN
+from airflow.providers.google.cloud.example_dags.example_dataproc import BUCKET, PYSPARK_MAIN, SPARKR_MAIN
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_DATAPROC_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 

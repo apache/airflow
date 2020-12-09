@@ -35,11 +35,11 @@ class MySQLToS3Operator(BaseOperator):
     Saves data from an specific MySQL query into a file in S3.
 
     :param query: the sql query to be executed. If you want to execute a file, place the absolute path of it,
-        ending with .sql extension.
+        ending with .sql extension. (templated)
     :type query: str
-    :param s3_bucket: bucket where the data will be stored
+    :param s3_bucket: bucket where the data will be stored. (templated)
     :type s3_bucket: str
-    :param s3_key: desired key for the file. It includes the name of the file
+    :param s3_key: desired key for the file. It includes the name of the file. (templated)
     :type s3_key: str
     :param mysql_conn_id: reference to a specific mysql database
     :type mysql_conn_id: str
@@ -64,6 +64,7 @@ class MySQLToS3Operator(BaseOperator):
     """
 
     template_fields = (
+        's3_bucket',
         's3_key',
         'query',
     )
@@ -80,8 +81,8 @@ class MySQLToS3Operator(BaseOperator):
         aws_conn_id: str = 'aws_default',
         verify: Optional[Union[bool, str]] = None,
         pd_csv_kwargs: Optional[dict] = None,
-        index: Optional[bool] = False,
-        header: Optional[bool] = False,
+        index: bool = False,
+        header: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -100,19 +101,18 @@ class MySQLToS3Operator(BaseOperator):
         if "header" not in self.pd_csv_kwargs:
             self.pd_csv_kwargs["header"] = header
 
-    def _fix_int_dtypes(self, df):
-        """
-        Mutate DataFrame to set dtypes for int columns containing NaN values."
-        """
+    def _fix_int_dtypes(self, df: pd.DataFrame) -> None:
+        """Mutate DataFrame to set dtypes for int columns containing NaN values."""
         for col in df:
             if "float" in df[col].dtype.name and df[col].hasnans:
                 # inspect values to determine if dtype of non-null values is int or float
                 notna_series = df[col].dropna().values
                 if np.isclose(notna_series, notna_series.astype(int)).all():
                     # set to dtype that retains integers and supports NaNs
-                    df[col] = np.where(df[col].isnull(), None, df[col]).astype(pd.Int64Dtype)
+                    df[col] = np.where(df[col].isnull(), None, df[col])
+                    df[col] = df[col].astype(pd.Int64Dtype())
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         mysql_hook = MySqlHook(mysql_conn_id=self.mysql_conn_id)
         s3_conn = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         data_df = mysql_hook.get_pandas_df(self.query)

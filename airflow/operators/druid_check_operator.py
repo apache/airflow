@@ -24,5 +24,6 @@ from airflow.providers.apache.druid.operators.druid_check import DruidCheckOpera
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.druid.operators.druid_check`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

@@ -26,9 +26,7 @@ from airflow.configuration import conf
 SQL_ALCHEMY_SCHEMA = conf.get("core", "SQL_ALCHEMY_SCHEMA")
 
 metadata = (
-    None
-    if not SQL_ALCHEMY_SCHEMA or SQL_ALCHEMY_SCHEMA.isspace()
-    else MetaData(schema=SQL_ALCHEMY_SCHEMA)
+    None if not SQL_ALCHEMY_SCHEMA or SQL_ALCHEMY_SCHEMA.isspace() else MetaData(schema=SQL_ALCHEMY_SCHEMA)
 )
 Base = declarative_base(metadata=metadata)  # type: Any
 

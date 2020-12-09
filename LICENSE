@@ -240,6 +240,7 @@ The text of each license is also included at licenses/LICENSE-[project].txt.
     (MIT License) moment-strftime v0.5.0 (https://github.com/benjaminoakes/moment-strftime)
     (MIT License) python-slugify v4.0.0 (https://github.com/un33k/python-slugify)
     (MIT License) python-nvd3 v0.15.0 (https://github.com/areski/python-nvd3)
+    (MIT License) rich v9.2.0 (https://github.com/willmcgugan/rich)
     (MIT License) eonasdan-bootstrap-datetimepicker v4.17.37 (https://github.com/eonasdan/bootstrap-datetimepicker/)
 
 ========================================================================

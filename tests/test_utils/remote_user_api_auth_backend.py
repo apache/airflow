@@ -38,9 +38,8 @@ T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 def _lookup_user(user_email_or_username: str):
     security_manager = current_app.appbuilder.sm
-    user = (
-        security_manager.find_user(email=user_email_or_username)
-        or security_manager.find_user(username=user_email_or_username)
+    user = security_manager.find_user(email=user_email_or_username) or security_manager.find_user(
+        username=user_email_or_username
     )
     if not user:
         return None
@@ -53,6 +52,7 @@ def _lookup_user(user_email_or_username: str):
 
 def requires_authentication(function: T):
     """Decorator for functions that require authentication"""
+
     @wraps(function)
     def decorated(*args, **kwargs):
         user_id = request.remote_user

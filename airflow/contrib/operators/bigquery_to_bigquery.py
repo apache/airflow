@@ -24,5 +24,6 @@ from airflow.providers.google.cloud.transfers.bigquery_to_bigquery import BigQue
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.transfers.bigquery_to_bigquery`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

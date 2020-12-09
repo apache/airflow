@@ -15,11 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Cloud Storage to S3 operator.
-"""
+"""This module contains Google Cloud Storage to S3 operator."""
 import warnings
-from typing import Iterable, Optional, Sequence, Union
+from typing import Dict, Iterable, List, Optional, Sequence, Union, cast
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -82,6 +80,9 @@ class GCSToS3Operator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type google_impersonation_chain: Union[str, Sequence[str]]
+    :param s3_acl_policy: Optional The string to specify the canned ACL policy for the
+        object to be uploaded in S3
+    :type s3_acl_policy: str
     """
 
     template_fields: Iterable[str] = (
@@ -97,19 +98,21 @@ class GCSToS3Operator(BaseOperator):
     def __init__(
         self,
         *,  # pylint: disable=too-many-arguments
-        bucket,
-        prefix=None,
-        delimiter=None,
-        gcp_conn_id='google_cloud_default',
-        google_cloud_storage_conn_id=None,
-        delegate_to=None,
-        dest_aws_conn_id=None,
-        dest_s3_key=None,
-        dest_verify=None,
-        replace=False,
+        bucket: str,
+        prefix: Optional[str] = None,
+        delimiter: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        google_cloud_storage_conn_id: Optional[str] = None,
+        delegate_to: Optional[str] = None,
+        dest_aws_conn_id: str = 'aws_default',
+        dest_s3_key: str,
+        dest_verify: Optional[Union[str, bool]] = None,
+        replace: bool = False,
         google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        dest_s3_extra_args: Optional[Dict] = None,
+        s3_acl_policy: Optional[str] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
 
         if google_cloud_storage_conn_id:
@@ -131,8 +134,10 @@ class GCSToS3Operator(BaseOperator):
         self.dest_verify = dest_verify
         self.replace = replace
         self.google_impersonation_chain = google_impersonation_chain
+        self.dest_s3_extra_args = dest_s3_extra_args or {}
+        self.s3_acl_policy = s3_acl_policy
 
-    def execute(self, context):
+    def execute(self, context) -> List[str]:
         # list all files in an Google Cloud Storage bucket
         hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
@@ -149,7 +154,9 @@ class GCSToS3Operator(BaseOperator):
 
         files = hook.list(bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter)
 
-        s3_hook = S3Hook(aws_conn_id=self.dest_aws_conn_id, verify=self.dest_verify)
+        s3_hook = S3Hook(
+            aws_conn_id=self.dest_aws_conn_id, verify=self.dest_verify, extra_args=self.dest_s3_extra_args
+        )
 
         if not self.replace:
             # if we are not replacing -> list all files in the S3 bucket
@@ -173,7 +180,9 @@ class GCSToS3Operator(BaseOperator):
                 dest_key = self.dest_s3_key + file
                 self.log.info("Saving file to %s", dest_key)
 
-                s3_hook.load_bytes(file_bytes, key=dest_key, replace=self.replace)
+                s3_hook.load_bytes(
+                    cast(bytes, file_bytes), key=dest_key, replace=self.replace, acl_policy=self.s3_acl_policy
+                )
 
             self.log.info("All done, uploaded %d files to S3", len(files))
         else:

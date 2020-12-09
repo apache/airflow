@@ -24,5 +24,6 @@ from airflow.providers.amazon.aws.sensors.sagemaker_tuning import SageMakerTunin
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.sagemaker_tuning`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

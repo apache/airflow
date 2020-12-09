@@ -32,9 +32,9 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():   # noqa: D103
+def upgrade():  # noqa: D103
     op.create_index('ti_job_id', 'task_instance', ['job_id'], unique=False)
 
 
-def downgrade():   # noqa: D103
+def downgrade():  # noqa: D103
     op.drop_index('ti_job_id', table_name='task_instance')

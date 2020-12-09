@@ -23,6 +23,5 @@ import warnings
 from airflow.sensors.bash import STDOUT, BashSensor, Popen, TemporaryDirectory, gettempdir  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.sensors.bash`.",
-    DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.sensors.bash`.", DeprecationWarning, stacklevel=2
 )

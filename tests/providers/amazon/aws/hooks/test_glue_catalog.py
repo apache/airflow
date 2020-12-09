@@ -17,9 +17,9 @@
 # under the License.
 
 import unittest
+from unittest import mock
 
 import boto3
-import mock
 
 from airflow.providers.amazon.aws.hooks.glue_catalog import AwsGlueCatalogHook
 
@@ -34,7 +34,7 @@ TABLE_INPUT = {
     "Name": TABLE_NAME,
     "StorageDescriptor": {
         "Columns": [{"Name": "string", "Type": "string", "Comment": "string"}],
-        "Location": "s3://mybucket/{}/{}".format(DB_NAME, TABLE_NAME),
+        "Location": f"s3://mybucket/{DB_NAME}/{TABLE_NAME}",
     },
 }
 

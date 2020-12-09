@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module is deprecated. Please use `airflow.providers.google.cloud.log.gcs_task_handler`.
-"""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.log.gcs_task_handler`."""
 import warnings
 
 # pylint: disable=unused-import
@@ -25,5 +23,6 @@ from airflow.providers.google.cloud.log.gcs_task_handler import GCSTaskHandler  
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.log.gcs_task_handler`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

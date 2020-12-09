@@ -18,8 +18,6 @@
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-add_trap "in_container_fix_ownership" EXIT HUP INT TERM
-
 CONSTRAINTS_DIR="/files/constraints-${PYTHON_MAJOR_MINOR_VERSION}"
 
 LATEST_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/original-constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
@@ -27,7 +25,10 @@ CURRENT_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/constraints-${PYTHON_MAJOR_MINOR_VER
 
 mkdir -pv "${CONSTRAINTS_DIR}"
 
-curl "${AIRFLOW_CONSTRAINTS_URL}" --output "${LATEST_CONSTRAINT_FILE}"
+CONSTRAINTS_LOCATION="https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+readonly CONSTRAINTS_LOCATION
+
+curl "${CONSTRAINTS_LOCATION}" --output "${LATEST_CONSTRAINT_FILE}"
 
 echo
 echo "Freezing constraints to ${CURRENT_CONSTRAINT_FILE}"
@@ -35,6 +36,7 @@ echo
 
 pip freeze | sort | \
     grep -v "apache_airflow" | \
+    grep -v "@" | \
     grep -v "/opt/airflow" >"${CURRENT_CONSTRAINT_FILE}"
 
 echo

@@ -77,16 +77,12 @@ class AwsGlueJobHook(AwsBaseHook):
         super().__init__(*args, **kwargs)
 
     def list_jobs(self) -> List:
-        """
-        :return: Lists of Jobs
-        """
+        """:return: Lists of Jobs"""
         conn = self.get_conn()
         return conn.get_jobs()
 
     def get_iam_execution_role(self) -> Dict:
-        """
-        :return: iam role for job execution
-        """
+        """:return: iam role for job execution"""
         iam_client = self.get_client_type('iam', self.region_name)
 
         try:
@@ -97,14 +93,14 @@ class AwsGlueJobHook(AwsBaseHook):
             self.log.error("Failed to create aws glue job, error: %s", general_error)
             raise
 
-    def initialize_job(self, script_arguments: Optional[List] = None) -> Dict[str, str]:
+    def initialize_job(self, script_arguments: Optional[dict] = None) -> Dict[str, str]:
         """
         Initializes connection with AWS Glue
         to run job
         :return:
         """
         glue_client = self.get_conn()
-        script_arguments = script_arguments or []
+        script_arguments = script_arguments or {}
 
         try:
             job_name = self.get_or_create_glue_job()
@@ -172,9 +168,7 @@ class AwsGlueJobHook(AwsBaseHook):
         except glue_client.exceptions.EntityNotFoundException:
             self.log.info("Job doesnt exist. Now creating and running AWS Glue Job")
             if self.s3_bucket is None:
-                raise AirflowException(
-                    'Could not initialize glue job, ' 'error: Specify Parameter `s3_bucket`'
-                )
+                raise AirflowException('Could not initialize glue job, error: Specify Parameter `s3_bucket`')
             s3_log_path = f's3://{self.s3_bucket}/{self.s3_glue_logs}{self.job_name}'
             execution_role = self.get_iam_execution_role()
             try:

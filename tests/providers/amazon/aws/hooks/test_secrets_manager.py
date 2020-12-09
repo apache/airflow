@@ -17,9 +17,9 @@
 # under the License.
 #
 
-import unittest
 import base64
 import json
+import unittest
 
 from airflow.providers.amazon.aws.hooks.secrets_manager import SecretsManagerHook
 

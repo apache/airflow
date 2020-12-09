@@ -33,7 +33,7 @@ dag = DAG(
     default_args=args,
     schedule_interval=None,
     start_date=days_ago(2),
-    tags=['example']
+    tags=['example'],
 )
 
 
@@ -83,6 +83,7 @@ def callable_virtualenv():
     from time import sleep
 
     from colorama import Back, Fore, Style
+
     print(Fore.RED + 'some red text')
     print(Back.GREEN + 'and with a green background')
     print(Style.DIM + 'and in dim text')
@@ -96,9 +97,7 @@ def callable_virtualenv():
 virtualenv_task = PythonVirtualenvOperator(
     task_id="virtualenv_python",
     python_callable=callable_virtualenv,
-    requirements=[
-        "colorama==0.4.0"
-    ],
+    requirements=["colorama==0.4.0"],
     system_site_packages=False,
     dag=dag,
 )

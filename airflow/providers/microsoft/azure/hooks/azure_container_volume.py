@@ -18,7 +18,7 @@
 
 from azure.mgmt.containerinstance.models import AzureFileVolume, Volume
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class AzureContainerVolumeHook(BaseHook):
@@ -30,14 +30,12 @@ class AzureContainerVolumeHook(BaseHook):
     :type wasb_conn_id: str
     """
 
-    def __init__(self, wasb_conn_id='wasb_default'):
+    def __init__(self, wasb_conn_id: str = 'wasb_default') -> None:
         super().__init__()
         self.conn_id = wasb_conn_id
 
-    def get_storagekey(self):
-        """
-        Get Azure File Volume storage key
-        """
+    def get_storagekey(self) -> str:
+        """Get Azure File Volume storage key"""
         conn = self.get_connection(self.conn_id)
         service_options = conn.extra_dejson
 
@@ -48,10 +46,10 @@ class AzureContainerVolumeHook(BaseHook):
                     return value
         return conn.password
 
-    def get_file_volume(self, mount_name, share_name, storage_account_name, read_only=False):
-        """
-        Get Azure File Volume
-        """
+    def get_file_volume(
+        self, mount_name: str, share_name: str, storage_account_name: str, read_only: bool = False
+    ) -> Volume:
+        """Get Azure File Volume"""
         return Volume(
             name=mount_name,
             azure_file=AzureFileVolume(

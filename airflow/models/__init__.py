@@ -35,8 +35,3 @@ from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
-
-try:
-    from airflow.models.kubernetes import KubeResourceVersion, KubeWorkerIdentifier
-except ImportError:
-    pass

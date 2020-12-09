@@ -19,13 +19,13 @@ This is an example dag for using `AWSDataSyncOperator` in a more complex manner.
 
 - Try to get a TaskArn. If one exists, update it.
 - If no tasks exist, try to create a new DataSync Task.
-    - If source and destination locations dont exist for the new task, create them first
+    - If source and destination locations don't exist for the new task, create them first
 - If many tasks exist, raise an Exception
 - After getting or creating a DataSync Task, run it
 
 This DAG relies on the following environment variables:
 
-* SOURCE_LOCATION_URI - Source location URI, usually on premisis SMB or NFS
+* SOURCE_LOCATION_URI - Source location URI, usually on premises SMB or NFS
 * DESTINATION_LOCATION_URI - Destination location URI, usually S3
 * CREATE_TASK_KWARGS - Passed to boto3.create_task(**kwargs)
 * CREATE_SOURCE_LOCATION_KWARGS - Passed to boto3.create_location(**kwargs)

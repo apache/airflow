@@ -22,7 +22,6 @@ from airflow.utils.trigger_rule import TriggerRule
 
 
 class TestTriggerRule(unittest.TestCase):
-
     def test_valid_trigger_rules(self):
         self.assertTrue(TriggerRule.is_valid(TriggerRule.ALL_SUCCESS))
         self.assertTrue(TriggerRule.is_valid(TriggerRule.ALL_FAILED))

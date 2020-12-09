@@ -15,13 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
+from typing import Optional, Union
 from urllib.parse import urlparse
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -62,45 +61,48 @@ class S3KeySensor(BaseSensorOperator):
     def __init__(
         self,
         *,
-        bucket_key,
-        bucket_name=None,
-        wildcard_match=False,
-        aws_conn_id='aws_default',
-        verify=None,
+        bucket_key: str,
+        bucket_name: Optional[str] = None,
+        wildcard_match: bool = False,
+        aws_conn_id: str = 'aws_default',
+        verify: Optional[Union[str, bool]] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
-        # Parse
-        if bucket_name is None:
-            parsed_url = urlparse(bucket_key)
+
+        self.bucket_name = bucket_name
+        self.bucket_key = bucket_key
+        self.wildcard_match = wildcard_match
+        self.aws_conn_id = aws_conn_id
+        self.verify = verify
+        self.hook: Optional[S3Hook] = None
+
+    def poke(self, context):
+
+        if self.bucket_name is None:
+            parsed_url = urlparse(self.bucket_key)
             if parsed_url.netloc == '':
-                raise AirflowException('Please provide a bucket_name')
-            else:
-                bucket_name = parsed_url.netloc
-                bucket_key = parsed_url.path.lstrip('/')
+                raise AirflowException('If key is a relative path from root, please provide a bucket_name')
+            self.bucket_name = parsed_url.netloc
+            self.bucket_key = parsed_url.path.lstrip('/')
         else:
-            parsed_url = urlparse(bucket_key)
+            parsed_url = urlparse(self.bucket_key)
             if parsed_url.scheme != '' or parsed_url.netloc != '':
                 raise AirflowException(
                     'If bucket_name is provided, bucket_key'
                     + ' should be relative path from root'
                     + ' level, rather than a full s3:// url'
                 )
-        self.bucket_name = bucket_name
-        self.bucket_key = bucket_key
-        self.wildcard_match = wildcard_match
-        self.aws_conn_id = aws_conn_id
-        self.verify = verify
-        self.hook = None
 
-    def poke(self, context):
         self.log.info('Poking for key : s3://%s/%s', self.bucket_name, self.bucket_key)
         if self.wildcard_match:
             return self.get_hook().check_for_wildcard_key(self.bucket_key, self.bucket_name)
         return self.get_hook().check_for_key(self.bucket_key, self.bucket_name)
 
-    def get_hook(self):
+    def get_hook(self) -> S3Hook:
         """Create and return an S3Hook"""
-        if not self.hook:
-            self.hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+        if self.hook:
+            return self.hook
+
+        self.hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         return self.hook

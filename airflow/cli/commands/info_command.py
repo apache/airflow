@@ -22,15 +22,18 @@ import os
 import platform
 import subprocess
 import sys
-import textwrap
 from typing import Optional
 from urllib.parse import urlsplit, urlunsplit
 
 import requests
 import tenacity
-from typing_extensions import Protocol
+from rich.console import Console
 
 from airflow import configuration
+from airflow.cli.simple_table import SimpleTable
+from airflow.providers_manager import ProvidersManager
+from airflow.typing_compat import Protocol
+from airflow.utils.cli import suppress_logs_and_warning
 from airflow.version import version as airflow_version
 
 log = logging.getLogger(__name__)
@@ -39,13 +42,13 @@ log = logging.getLogger(__name__)
 class Anonymizer(Protocol):
     """Anonymizer protocol."""
 
-    def process_path(self, value):
+    def process_path(self, value) -> str:
         """Remove pii from paths"""
 
-    def process_username(self, value):
+    def process_username(self, value) -> str:
         """Remove pii from username"""
 
-    def process_url(self, value):
+    def process_url(self, value) -> str:
         """Remove pii from URL"""
 
 
@@ -177,7 +180,28 @@ _MACHINE_TO_ARCHITECTURE = {
 }
 
 
-class AirflowInfo:
+class _BaseInfo:
+    def info(self, console: Console) -> None:
+        """
+        Print required information to provided console.
+        You should implement this function in custom classes.
+        """
+        raise NotImplementedError()
+
+    def show(self) -> None:
+        """Shows info"""
+        console = Console()
+        self.info(console)
+
+    def render_text(self) -> str:
+        """Exports the info to string"""
+        console = Console(record=True)
+        with console.capture():
+            self.info(console)
+        return console.export_text()
+
+
+class AirflowInfo(_BaseInfo):
     """All information related to Airflow, system and other."""
 
     def __init__(self, anonymizer: Anonymizer):
@@ -186,34 +210,20 @@ class AirflowInfo:
         self.tools = ToolsInfo(anonymizer)
         self.paths = PathsInfo(anonymizer)
         self.config = ConfigInfo(anonymizer)
+        self.provider = ProvidersInfo()
 
-    def __str__(self):
-        return (
-            textwrap.dedent(
-                """\
-                Apache Airflow [{version}]
-
-                {system}
-
-                {tools}
-
-                {paths}
-
-                {config}
-                """
-            )
-            .strip()
-            .format(
-                version=self.airflow_version,
-                system=self.system,
-                tools=self.tools,
-                paths=self.paths,
-                config=self.config,
-            )
+    def info(self, console: Console):
+        console.print(
+            f"[bold][green]Apache Airflow[/bold][/green]: {self.airflow_version}\n", highlight=False
         )
+        self.system.info(console)
+        self.tools.info(console)
+        self.paths.info(console)
+        self.config.info(console)
+        self.provider.info(console)
 
 
-class SystemInfo:
+class SystemInfo(_BaseInfo):
     """Basic system and python information"""
 
     def __init__(self, anonymizer: Anonymizer):
@@ -224,29 +234,20 @@ class SystemInfo:
         self.python_location = anonymizer.process_path(sys.executable)
         self.python_version = sys.version.replace("\n", " ")
 
-    def __str__(self):
-        return (
-            textwrap.dedent(
-                """\
-                Platform: [{os}, {arch}] {uname}
-                Locale: {locale}
-                Python Version: [{python_version}]
-                Python Location: [{python_location}]
-                """
-            )
-            .strip()
-            .format(
-                os=self.operating_system or "NOT AVAILABLE",
-                arch=self.arch or "NOT AVAILABLE",
-                uname=self.uname,
-                locale=self.locale,
-                python_version=self.python_version,
-                python_location=self.python_location,
-            )
-        )
+    def info(self, console: Console):
+        table = SimpleTable(title="System info")
+        table.add_column()
+        table.add_column(width=100)
+        table.add_row("OS", self.operating_system or "NOT AVAILABLE")
+        table.add_row("architecture", self.arch or "NOT AVAILABLE")
+        table.add_row("uname", str(self.uname))
+        table.add_row("locale", str(self.locale))
+        table.add_row("python_version", self.python_version)
+        table.add_row("python_location", self.python_location)
+        console.print(table)
 
 
-class PathsInfo:
+class PathsInfo(_BaseInfo):
     """Path information"""
 
     def __init__(self, anonymizer: Anonymizer):
@@ -259,27 +260,30 @@ class PathsInfo:
             os.path.exists(os.path.join(path_elem, "airflow")) for path_elem in system_path
         )
 
-    def __str__(self):
-        return (
-            textwrap.dedent(
-                """\
-                Airflow Home: [{airflow_home}]
-                System PATH: [{system_path}]
-                Python PATH: [{python_path}]
-                airflow on PATH: [{airflow_on_path}]
-                """
-            )
-            .strip()
-            .format(
-                airflow_home=self.airflow_home,
-                system_path=os.pathsep.join(self.system_path),
-                python_path=os.pathsep.join(self.python_path),
-                airflow_on_path=self.airflow_on_path,
-            )
-        )
+    def info(self, console: Console):
+        table = SimpleTable(title="Paths info")
+        table.add_column()
+        table.add_column(width=150)
+        table.add_row("airflow_home", self.airflow_home)
+        table.add_row("system_path", os.pathsep.join(self.system_path))
+        table.add_row("python_path", os.pathsep.join(self.python_path))
+        table.add_row("airflow_on_path", str(self.airflow_on_path))
+        console.print(table)
 
 
-class ConfigInfo:
+class ProvidersInfo(_BaseInfo):
+    """providers information"""
+
+    def info(self, console: Console):
+        table = SimpleTable(title="Providers info")
+        table.add_column()
+        table.add_column(width=150)
+        for _, provider in ProvidersManager().providers.values():
+            table.add_row(provider['package-name'], provider['versions'][0])
+        console.print(table)
+
+
+class ConfigInfo(_BaseInfo):
     """Most critical config properties"""
 
     def __init__(self, anonymizer: Anonymizer):
@@ -303,47 +307,34 @@ class ConfigInfo:
     @property
     def task_logging_handler(self):
         """Returns task logging handler."""
+
         def get_fullname(o):
             module = o.__class__.__module__
             if module is None or module == str.__class__.__module__:
                 return o.__class__.__name__  # Avoid reporting __builtin__
             else:
                 return module + '.' + o.__class__.__name__
+
         try:
-            handler_names = [
-                get_fullname(handler) for handler in logging.getLogger('airflow.task').handlers
-            ]
-            return ", ".join(
-                handler_names
-            )
+            handler_names = [get_fullname(handler) for handler in logging.getLogger('airflow.task').handlers]
+            return ", ".join(handler_names)
         except Exception:  # noqa pylint: disable=broad-except
             return "NOT AVAILABLE"
 
-    def __str__(self):
-        return (
-            textwrap.dedent(
-                """\
-                Executor: [{executor}]
-                Task Logging Handlers: [{task_logging_handler}]
-                SQL Alchemy Conn: [{sql_alchemy_conn}]
-                DAGS Folder: [{dags_folder}]
-                Plugins Folder: [{plugins_folder}]
-                Base Log Folder: [{base_log_folder}]
-                """
-            )
-            .strip()
-            .format(
-                executor=self.executor,
-                task_logging_handler=self.task_logging_handler,
-                sql_alchemy_conn=self.sql_alchemy_conn,
-                dags_folder=self.dags_folder,
-                plugins_folder=self.plugins_folder,
-                base_log_folder=self.base_log_folder,
-            )
-        )
+    def info(self, console: Console):
+        table = SimpleTable(title="Config info")
+        table.add_column()
+        table.add_column(width=150)
+        table.add_row("executor", self.executor)
+        table.add_row("task_logging_handler", self.task_logging_handler)
+        table.add_row("sql_alchemy_conn", self.sql_alchemy_conn)
+        table.add_row("dags_folder", self.dags_folder)
+        table.add_row("plugins_folder", self.plugins_folder)
+        table.add_row("base_log_folder", self.base_log_folder)
+        console.print(table)
 
 
-class ToolsInfo:
+class ToolsInfo(_BaseInfo):
     """The versions of the tools that Airflow uses"""
 
     def __init__(self, anonymize: Anonymizer):
@@ -372,32 +363,19 @@ class ToolsInfo:
         else:
             return data[0].decode()
 
-    def __str__(self):
-        return (
-            textwrap.dedent(
-                """\
-                git: [{git}]
-                ssh: [{ssh}]
-                kubectl: [{kubectl}]
-                gcloud: [{gcloud}]
-                cloud_sql_proxy: [{cloud_sql_proxy}]
-                mysql: [{mysql}]
-                sqlite3: [{sqlite3}]
-                psql: [{psql}]
-                """
-            )
-            .strip()
-            .format(
-                git=self.git_version,
-                ssh=self.ssh_version,
-                kubectl=self.kubectl_version,
-                gcloud=self.gcloud_version,
-                cloud_sql_proxy=self.cloud_sql_proxy_version,
-                mysql=self.mysql_version,
-                sqlite3=self.sqlite3_version,
-                psql=self.psql_version,
-            )
-        )
+    def info(self, console: Console):
+        table = SimpleTable(title="Tools info")
+        table.add_column()
+        table.add_column(width=150)
+        table.add_row("git", self.git_version)
+        table.add_row("ssh", self.ssh_version)
+        table.add_row("kubectl", self.kubectl_version)
+        table.add_row("gcloud", self.gcloud_version)
+        table.add_row("cloud_sql_proxy", self.cloud_sql_proxy_version)
+        table.add_row("mysql", self.mysql_version)
+        table.add_row("sqlite3", self.sqlite3_version)
+        table.add_row("psql", self.psql_version)
+        console.print(table)
 
 
 class FileIoException(Exception):
@@ -413,8 +391,9 @@ class FileIoException(Exception):
 )
 def _upload_text_to_fileio(content):
     """Upload text file to File.io service and return lnk"""
-    resp = requests.post("https://file.io", files={"file": ("airflow-report.txt", content)})
+    resp = requests.post("https://file.io", data={"text": content})
     if not resp.ok:
+        print(resp.json())
         raise FileIoException("Failed to send report to file.io service.")
     try:
         return resp.json()["link"]
@@ -428,21 +407,19 @@ def _send_report_to_fileio(info):
     try:
         link = _upload_text_to_fileio(str(info))
         print("Report uploaded.")
-        print()
-        print("Link:\t", link)
+        print(link)
         print()
     except FileIoException as ex:
         print(str(ex))
 
 
+@suppress_logs_and_warning()
 def show_info(args):
-    """
-    Show information related to Airflow, system and other.
-    """
+    """Show information related to Airflow, system and other."""
     # Enforce anonymization, when file_io upload is tuned on.
     anonymizer = PiiAnonymizer() if args.anonymize or args.file_io else NullAnonymizer()
     info = AirflowInfo(anonymizer)
     if args.file_io:
-        _send_report_to_fileio(info)
+        _send_report_to_fileio(info.render_text())
     else:
-        print(info)
+        info.show()

@@ -17,12 +17,11 @@
 # under the License.
 
 """Smart sensor DAGs managing all smart sensor tasks."""
-from builtins import range
 from datetime import timedelta
 
 from airflow.configuration import conf
 from airflow.models import DAG
-from airflow.sensors.smart_sensor_operator import SmartSensorOperator
+from airflow.sensors.smart_sensor import SmartSensorOperator
 from airflow.utils.dates import days_ago
 
 args = {
@@ -36,7 +35,7 @@ for i in range(num_smart_sensor_shard):
     shard_min = (i * shard_code_upper_limit) / num_smart_sensor_shard
     shard_max = ((i + 1) * shard_code_upper_limit) / num_smart_sensor_shard
 
-    dag_id = 'smart_sensor_group_shard_{}'.format(i)
+    dag_id = f'smart_sensor_group_shard_{i}'
     dag = DAG(
         dag_id=dag_id,
         default_args=args,

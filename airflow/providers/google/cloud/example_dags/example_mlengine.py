@@ -113,7 +113,7 @@ with models.DAG(
         version={
             "name": "v1",
             "description": "First-version",
-            "deployment_uri": '{}/keras_export/'.format(JOB_DIR),
+            "deployment_uri": f'{JOB_DIR}/keras_export/',
             "runtime_version": "1.15",
             "machineType": "mls1-c1-m2",
             "framework": "TENSORFLOW",
@@ -220,11 +220,11 @@ with models.DAG(
         Validate summary result
         """
         if summary['val'] > 1:
-            raise ValueError('Too high val>1; summary={}'.format(summary))
+            raise ValueError(f'Too high val>1; summary={summary}')
         if summary['val'] < 0:
-            raise ValueError('Too low val<0; summary={}'.format(summary))
+            raise ValueError(f'Too low val<0; summary={summary}')
         if summary['count'] != 20:
-            raise ValueError('Invalid value val != 20; summary={}'.format(summary))
+            raise ValueError(f'Invalid value val != 20; summary={summary}')
         return summary
 
     # [END howto_operator_gcp_mlengine_validate_error]

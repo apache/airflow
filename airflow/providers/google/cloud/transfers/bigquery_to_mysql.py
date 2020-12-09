@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google BigQuery to MySQL operator.
-"""
+"""This module contains Google BigQuery to MySQL operator."""
 from typing import Optional, Sequence, Union
 
 from airflow.models import BaseOperator
@@ -124,7 +122,7 @@ class BigQueryToMySqlOperator(BaseOperator):
         try:
             self.dataset_id, self.table_id = dataset_table.split('.')
         except ValueError:
-            raise ValueError('Could not parse {} as <dataset>.<table>'.format(dataset_table))
+            raise ValueError(f'Could not parse {dataset_table} as <dataset>.<table>')
 
     def _bq_get_data(self):
         self.log.info('Fetching Data from:')

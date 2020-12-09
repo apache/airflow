@@ -20,34 +20,32 @@ from qds_sdk.qubole import Qubole
 from qds_sdk.sensors import FileSensor, PartitionSensor
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.hooks.base import BaseHook
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
 class QuboleSensor(BaseSensorOperator):
-    """
-    Base class for all Qubole Sensors
-    """
+    """Base class for all Qubole Sensors"""
 
     template_fields = ('data', 'qubole_conn_id')
 
     template_ext = ('.txt',)
 
     @apply_defaults
-    def __init__(self, *, data, qubole_conn_id="qubole_default", **kwargs):
+    def __init__(self, *, data, qubole_conn_id: str = "qubole_default", **kwargs) -> None:
         self.data = data
         self.qubole_conn_id = qubole_conn_id
 
         if 'poke_interval' in kwargs and kwargs['poke_interval'] < 5:
             raise AirflowException(
                 "Sorry, poke_interval can't be less than 5 sec for "
-                "task '{0}' in dag '{1}'.".format(kwargs['task_id'], kwargs['dag'].dag_id)
+                "task '{}' in dag '{}'.".format(kwargs['task_id'], kwargs['dag'].dag_id)
             )
 
         super().__init__(**kwargs)
 
-    def poke(self, context):
+    def poke(self, context: dict) -> bool:
 
         conn = BaseHook.get_connection(self.qubole_conn_id)
         Qubole.configure(api_token=conn.password, api_url=conn.host)
@@ -56,7 +54,9 @@ class QuboleSensor(BaseSensorOperator):
 
         status = False
         try:
-            status = self.sensor_class.check(self.data)  # pylint: disable=no-member
+            status = self.sensor_class.check(  # type: ignore[attr-defined]  # pylint: disable=no-member
+                self.data
+            )
         except Exception as e:  # pylint: disable=broad-except
             self.log.exception(e)
             status = False
@@ -84,7 +84,7 @@ class QuboleFileSensor(QuboleSensor):
     """
 
     @apply_defaults
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         self.sensor_class = FileSensor
         super().__init__(**kwargs)
 
@@ -107,6 +107,6 @@ class QubolePartitionSensor(QuboleSensor):
     """
 
     @apply_defaults
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         self.sensor_class = PartitionSensor
         super().__init__(**kwargs)

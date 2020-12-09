@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google PubSub sensor.
-"""
+"""This module contains a Google PubSub sensor."""
 import warnings
 from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
@@ -25,7 +23,7 @@ from google.cloud.pubsub_v1.types import ReceivedMessage
 from google.protobuf.json_format import MessageToDict
 
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -125,7 +123,7 @@ class PubSubPullSensor(BaseSensorOperator):
         # TODO: remove one day
         if project:
             warnings.warn(
-                "The project parameter has been deprecated. You should pass " "the project_id parameter.",
+                "The project parameter has been deprecated. You should pass the project_id parameter.",
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -156,12 +154,12 @@ class PubSubPullSensor(BaseSensorOperator):
 
         self._return_value = None
 
-    def execute(self, context):
+    def execute(self, context: dict):
         """Overridden to allow messages to be passed"""
         super().execute(context)
         return self._return_value
 
-    def poke(self, context):
+    def poke(self, context: dict) -> bool:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -202,7 +200,6 @@ class PubSubPullSensor(BaseSensorOperator):
         :param context: same as in `execute`
         :return: value to be saved to XCom.
         """
-
         messages_json = [MessageToDict(m) for m in pulled_messages]
 
         return messages_json

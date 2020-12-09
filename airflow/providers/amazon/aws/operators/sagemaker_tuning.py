@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -56,7 +57,13 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *, config, wait_for_completion=True, check_interval=30, max_ingestion_time=None, **kwargs
+        self,
+        *,
+        config: dict,
+        wait_for_completion: bool = True,
+        check_interval: int = 30,
+        max_ingestion_time: Optional[int] = None,
+        **kwargs,
     ):
         super().__init__(config=config, **kwargs)
         self.config = config
@@ -64,14 +71,14 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
         self.check_interval = check_interval
         self.max_ingestion_time = max_ingestion_time
 
-    def expand_role(self):
+    def expand_role(self) -> None:
         if 'TrainingJobDefinition' in self.config:
             config = self.config['TrainingJobDefinition']
             if 'RoleArn' in config:
                 hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
                 config['RoleArn'] = hook.expand_role(config['RoleArn'])
 
-    def execute(self, context):
+    def execute(self, context) -> dict:
         self.preprocess_config()
 
         self.log.info(

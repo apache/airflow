@@ -17,8 +17,7 @@
 # under the License.
 
 import unittest
-
-import mock
+from unittest import mock
 
 from airflow.models.dag import DAG
 from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator

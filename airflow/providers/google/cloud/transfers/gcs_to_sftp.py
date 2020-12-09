@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Cloud Storage to SFTP operator.
-"""
+"""This module contains Google Cloud Storage to SFTP operator."""
 import os
 from tempfile import NamedTemporaryFile
 from typing import Optional, Sequence, Union
@@ -148,9 +146,7 @@ class GCSToSFTPOperator(BaseOperator):
         source_object: str,
         destination_path: str,
     ) -> None:
-        """
-        Helper function to copy single object.
-        """
+        """Helper function to copy single object."""
         self.log.info(
             "Executing copy of gs://%s/%s to %s",
             self.source_bucket,

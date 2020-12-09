@@ -32,6 +32,69 @@ However part of the philosophy we have is that we are not tightly coupled with a
 environments we use. Most of our CI jobs are written as bash scripts which are executed as steps in
 the CI jobs. And we have  a number of variables determine build behaviour.
 
+
+
+
+GitHub Actions runs
+-------------------
+
+Our builds on CI are highly optimized. They utilise some of the latest features provided by GitHub Actions
+environment that make it possible to reuse parts of the build process across different Jobs.
+
+Big part of our CI runs use Container Images. Airflow has a lot of dependencies and in order to make
+sure that we are running tests in a well configured and repeatable environment, most of the tests,
+documentation building, and some more sophisticated static checks are run inside a docker container
+environment. This environment consist of two types of images: CI images and PROD images. CI Images
+are used for most of the tests and checks where PROD images are used in the Kubernetes tests.
+
+In order to run the tests, we need to make sure tha the images are built using latest sources and that it
+is done quickly (full rebuild of such image from scratch might take ~15 minutes). Therefore optimisation
+techniques have been implemented that use efficiently cache from the GitHub Docker registry - in most cases
+this brings down the time needed to rebuild the image to ~4 minutes. In some cases (when dependencies change)
+it can be ~6-7 minutes and in case base image of Python releases new patch-level, it can be ~12 minutes.
+
+Currently in master version of Airflow we run tests in 3 different versions of Python (3.6, 3.7, 3.8)
+which means that we have to build 6 images (3 CI ones and 3 PROD ones). Yet we run around 12 jobs
+with each of the CI images. That is a lot of time to just build the environment to run. Therefore
+we are utilising ``workflow_run`` feature of GitHub Actions. This feature allows to run a separate,
+independent workflow, when the main workflow is run - this separate workflow is different than the main
+one, because by default it runs using ``master`` version of the sources but also - and most of all - that
+it has WRITE access to the repository. This is especially important in our case where Pull Requests to
+Airflow might come from any repository, and it would be a huge security issue if anyone from outside could
+utilise the WRITE access to Apache Airflow repository via an external Pull Request.
+
+Thanks to the WRITE access and fact that the 'workflow_run' by default uses the 'master' version of the
+sources, we can safely run some logic there will checkout the incoming Pull Request, build the container
+image from the sources from the incoming PR and push such image to an GitHub Docker Registry - so that
+this image can be built only once and used by all the jobs running tests. The image is tagged with unique
+``RUN_ID`` of the incoming Pull Request and the tests run in the Pull Request can simply pull such image
+rather than build it from the scratch. Pulling such image takes ~ 1 minute, thanks to that we are saving
+a lot of precious time for jobs.
+
+
+Local runs
+----------
+
+The main goal of the CI philosophy we have that no matter how complex the test and integration
+infrastructure, as a developer you should be able to reproduce and re-run any of the failed checks
+locally. One part of it are pre-commit checks, that allow you to run the same static checks in CI
+and locally, but another part is the CI environment which is replicated locally with Breeze.
+
+You can read more about Breeze in `BREEZE.rst <BREEZE.rst>`_ but in essence it is a script that allows
+you to re-create CI environment in your local development instance and interact with it. In its basic
+form, when you do development you can run all the same tests that will be run in CI - but locally,
+before you submit them as PR. Another use case where Breeze is useful is when tests fail on CI. You can
+take the ``RUN_ID`` of failed build pass it as ``--github-image-id`` parameter of Breeze and it will
+download the very same version of image that was used in CI and run it locally. This way, you can very
+easily reproduce any failed test that happens in CI - even if you do not check out the sources
+connected with the run.
+
+You can read more about it in `BREEZE.rst <BREEZE.rst>`_ and `TESTING.rst <TESTING.rst>`_
+
+
+Difference between local runs and GitHub Action workflows
+---------------------------------------------------------
+
 Depending whether the scripts are run locally (most often via `Breeze <BREEZE.rst>`_) or whether they
 are run in "CI Build" or "Build Image" workflows they can take different values.
 
@@ -68,16 +131,9 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | the container. We mount only selected,          |
 |                                         |             |             |            | important folders. We do not mount the whole    |
 |                                         |             |             |            | project folder in order to avoid accidental     |
-|                                         |             |             |            | use of artifacts (such ass ``.egginfo``         |
+|                                         |             |             |            | use of artifacts (such as ``egg-info``          |
 |                                         |             |             |            | directories) generated locally on the           |
 |                                         |             |             |            | host during development.                        |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``MOUNT_FILES``                         |     true    |     true    |    true    | Determines whether "files" folder from          |
-|                                         |             |             |            | sources is mounted as "/files" folder           |
-|                                         |             |             |            | inside the container. This is used to           |
-|                                         |             |             |            | share results of local actions to the           |
-|                                         |             |             |            | host, as well as to pass host files to          |
-|                                         |             |             |            | inside container for local development.         |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 |                                                           Force variables                                                          |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
@@ -140,7 +196,9 @@ You can use those variables when you try to reproduce the build locally.
 |                                                           Image variables                                                          |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``INSTALL_AIRFLOW_VERSION``             |             |             |            | Installs Airflow version from PyPI when         |
-|                                         |             |             |            | building image.                                 |
+|                                         |             |             |            | building image. Can be "none" to skip airflow   |
+|                                         |             |             |            | installation so that it can be installed from   |
+|                                         |             |             |            | locally prepared packages.                      |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``INSTALL_AIRFLOW_REFERENCE``           |             |             |            | Installs Airflow version from GitHub            |
 |                                         |             |             |            | branch or tag.                                  |
@@ -190,7 +248,7 @@ You can use those variables when you try to reproduce the build locally.
 |                                                        Image build variables                                                       |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``UPGRADE_TO_LATEST_CONSTRAINTS``       |    false    |    false    |    false   | Determines whether the build should             |
-|                                         |             |             |     (x)    | attempt to eagerly upgrade all                  |
+|                                         |             |             |     (x)    | attempt to upgrade all                          |
 |                                         |             |             |            | PIP dependencies to latest ones matching        |
 |                                         |             |             |            | ``setup.py`` limits. This tries to replicate    |
 |                                         |             |             |            | the situation of "fresh" user who just installs |
@@ -200,7 +258,8 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | stored in separated "orphan" branches           |
 |                                         |             |             |            | of the airflow repository                       |
 |                                         |             |             |            | ("constraints-master, "constraints-1-10")       |
-|                                         |             |             |            | but when this flag is set, they are not         |
+|                                         |             |             |            | but when this flag is set to anything but false |
+|                                         |             |             |            | (for example commit SHA), they are not used     |
 |                                         |             |             |            | used and "eager" upgrade strategy is used       |
 |                                         |             |             |            | when installing dependencies. We set it         |
 |                                         |             |             |            | to true in case of direct pushes (merges)       |
@@ -209,6 +268,10 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | in case we determine that the tests pass        |
 |                                         |             |             |            | we automatically push latest set of             |
 |                                         |             |             |            | "tested" constraints to the repository.         |
+|                                         |             |             |            |                                                 |
+|                                         |             |             |            | Setting the value to commit SHA is best way     |
+|                                         |             |             |            | to assure that constraints are upgraded even if |
+|                                         |             |             |            | there is no change to setup.py                  |
 |                                         |             |             |            |                                                 |
 |                                         |             |             |            | This way our constraints are automatically      |
 |                                         |             |             |            | tested and updated whenever new versions        |
@@ -256,7 +319,7 @@ Running CI Builds locally
 The following variables are automatically determined based on CI environment variables.
 You can locally by setting ``CI="true"`` and run the ci scripts from the ``scripts/ci`` folder:
 
-* ``backport_packages`` - scripts to build and test backport packages
+* ``provider_packages`` - scripts to build and test provider packages
 * ``constraints`` - scripts to build and publish latest set of valid constraints
 * ``docs`` - scripts to build documentation
 * ``images`` - scripts to build and push CI and PROD images
@@ -294,18 +357,12 @@ Note that you need to set "CI" variable to true in order to get the same results
 |                              |                      | [``pull_request``, ``pull_request_target``,         |
 |                              |                      |  ``schedule``, ``push``]                            |
 +------------------------------+----------------------+-----------------------------------------------------+
-| CI_SOURCE_REPO               | ``apache/airflow``   | Source repository. This might be different than the |
-|                              |                      | ``CI_TARGET_REPO`` for pull requests                |
-+------------------------------+----------------------+-----------------------------------------------------+
-| CI_SOURCE_BRANCH             | ``master``           | Branch in the source repository that is used to     |
-|                              |                      | make the pull request.                              |
-+------------------------------+----------------------+-----------------------------------------------------+
 | CI_REF                       | ``refs/head/master`` | Branch in the source repository that is used to     |
 |                              |                      | make the pull request.                              |
 +------------------------------+----------------------+-----------------------------------------------------+
 
 
-Github Registry Variables
+GitHub Registry Variables
 =========================
 
 Our CI uses GitHub Registry to pull and push images to/from by default. You can however make it interact with
@@ -315,7 +372,7 @@ DockerHub registry or change the GitHub registry to interact with and use your o
 +--------------------------------+---------------------------+----------------------------------------------+
 | Variable                       | Default                   | Comment                                      |
 +================================+===========================+==============================================+
-| USE_GITHUB_REGISTRY            | true                      | If set to "true", we interact with Github    |
+| USE_GITHUB_REGISTRY            | true                      | If set to "true", we interact with GitHub    |
 |                                |                           | Registry registry not the DockerHub one.     |
 +--------------------------------+---------------------------+----------------------------------------------+
 | GITHUB_REGISTRY                | ``docker.pkg.github.com`` | DNS name of the GitHub registry to           |
@@ -358,14 +415,13 @@ that to your own repository by setting those environment variables:
 CI Architecture
 ===============
 
-.. image:: images/ci/CI.png
-    :align: center
-    :alt: CI architecture of Apache Airflow
-
  .. This image is an export from the 'draw.io' graph available in
     https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-23+Migrate+out+of+Travis+CI
     You can edit it there and re-export.
 
+.. image:: images/ci/CI.png
+    :align: center
+    :alt: CI architecture of Apache Airflow
 
 The following components are part of the CI infrastructure
 
@@ -403,7 +459,13 @@ The main purpose of those jobs is to check if PR builds cleanly, if the test run
 the PR is ready to review and merge. The runs are using cached images from the Private GitHub registry -
 CI, Production Images as well as base Python images that are also cached in the Private GitHub registry.
 Also for those builds we only execute Python tests if important files changed (so for example if it is
-doc-only change, no tests will be executed.
+"no-code" change, no tests will be executed.
+
+The workflow involved in Pull Requests review and approval is a bit more complex than simple workflows
+in most of other projects because we've implemented some optimizations related to efficient use
+of queue slots we share with other Apache Software Foundation projects. More details about it
+can be found in `PULL_REQUEST_WORKFLOW.rst <PULL_REQUEST_WORKFLOW.rst>`_.
+
 
 Direct Push/Merge Run
 ---------------------
@@ -417,7 +479,7 @@ whether it still builds, all tests are green.
 This is needed because some of the conflicting changes from multiple PRs might cause build and test failures
 after merge even if they do not fail in isolation. Also those runs are already reviewed and confirmed by the
 committers so they can be used to do some housekeeping:
-- pushing most recent image build in the PR to the Github Private Registry (for caching)
+- pushing most recent image build in the PR to the GitHub Private Registry (for caching)
 - upgrading to latest constraints and pushing those constraints if all tests succeed
 - refresh latest Python base images in case new patch-level is released
 
@@ -460,7 +522,7 @@ Build Images Workflow
 ---------------------
 
 This workflow has two purposes - it builds images for the CI Workflow but also it cancels duplicate or
-failed builds in order to save job time in Github Actions and allow for faster feedback for developers.
+failed builds in order to save job time in GitHub Actions and allow for faster feedback for developers.
 
 It's a special type of workflow: ``workflow_run`` which means that it is triggered by other workflows (in our
 case it is triggered by the ``CI Build`` workflow). This also means that the workflow has Write permission to
@@ -574,7 +636,7 @@ Comments:
 
  (1) CRON jobs builds images from scratch - to test if everything works properly for clean builds
  (2) The tests are run when the Trigger Tests job determine that important files change (this allows
-     for example doc-only changes to build much faster)
+     for example "no-code" changes to build much faster)
  (3) The jobs wait for CI images if ``GITHUB_REGISTRY_WAIT_FOR_IMAGE`` variable is set to "true".
      You can set it to "false" to disable using shared images - this is slower though as the images
      are rebuilt in every job that needs them. You can also set your own fork's secret
@@ -615,6 +677,34 @@ This is manually triggered workflow (via GitHub UI manual run) that should only 
 When triggered, it will force-push the "apache/airflow" master to the fork's master. It's the easiest
 way to sync your fork master to the Apache Airflow's one.
 
+Delete old artifacts
+--------------------
+
+This workflow is introduced, to delete old artifacts from the GitHub Actions build. We set it to
+delete old artifacts that are > 7 days old. It only runs for the 'apache/airflow' repository.
+
+We also have a script that can help to clean-up the old artifacts:
+`remove_artifacts.sh <dev/remove_artifacts.sh>`_
+
+CodeQL scan
+-----------
+
+The `CodeQL <https://securitylab.github.com/tools/codeql>`_ security scan uses GitHub security scan framework to scan our code for security violations.
+It is run for JavaScript and python code.
+
+Publishing documentation
+------------------------
+
+Documentation from the ``master`` branch is automatically published on Amazon S3.
+
+To make this possible, Github Action has secrets set up with credentials
+for an Amazon Web Service account - ``DOCS_AWS_ACCESS_KEY_ID`` and ``DOCS_AWS_SECRET_ACCESS_KEY``.
+
+This account has permission to write/list/put objects to bucket ``apache-airflow-docs``. This bucket has public access configured, which means it is accessible through the website endpoint. For more information, see: `Hosting a static website on Amazon S3
+ <https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html>`_
+
+Website endpoint: http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/
+
 Naming conventions for stored images
 ====================================
 
@@ -645,7 +735,7 @@ The image names follow the patterns:
 * <BRANCH> might be either "master" or "v1-10-test"
 * <X.Y> - Python version (Major + Minor). For "master" it should be in ["3.6", "3.7", "3.8"]. For
   v1-10-test it should be in ["2.7", "3.5", "3.6". "3.7", "3.8"].
-* <RUN_ID> - Github Actions RUN_ID. You can get it from CI action job outputs (run id is printed in
+* <RUN_ID> - GitHub Actions RUN_ID. You can get it from CI action job outputs (run id is printed in
   logs and displayed as part of the step name. All PRs belong to some RUN_ID and this way you can
   pull the very exact version of image used in that RUN_ID
 * <COMMIT_SHA> - for images that get merged to "master" of "v1-10-test" the images are also tagged
@@ -673,7 +763,7 @@ you need to reproduce a MySQL environment with kerberos integration enabled for 
 
 .. code-block:: bash
 
-  ./breeze --github-image-id:210056909 --python 3.8 --integration kerberos
+  ./breeze --github-image-id 210056909 --python 3.8 --integration kerberos
 
 You will be dropped into a shell with the exact version that was used during the CI run and you will
 be able to run pytest tests manually, easily reproducing the environment that was used in CI. Note that in

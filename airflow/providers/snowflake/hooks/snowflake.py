@@ -15,14 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Any, Dict, Optional, Tuple
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 
 # pylint: disable=no-name-in-module
 from snowflake import connector
+from snowflake.connector import SnowflakeConnection
 
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 
 
 class SnowflakeHook(DbApiHook):
@@ -33,9 +35,11 @@ class SnowflakeHook(DbApiHook):
 
     conn_name_attr = 'snowflake_conn_id'
     default_conn_name = 'snowflake_default'
+    conn_type = 'snowflake'
+    hook_name = 'Snowflake'
     supports_autocommit = True
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.account = kwargs.pop("account", None)
         self.warehouse = kwargs.pop("warehouse", None)
@@ -44,13 +48,16 @@ class SnowflakeHook(DbApiHook):
         self.role = kwargs.pop("role", None)
         self.schema = kwargs.pop("schema", None)
         self.authenticator = kwargs.pop("authenticator", None)
+        self.session_parameters = kwargs.pop("session_parameters", None)
 
-    def _get_conn_params(self):
+    def _get_conn_params(self) -> Dict[str, Optional[str]]:
         """
         One method to fetch connection params as a dict
         used in get_uri() and get_connection()
         """
-        conn = self.get_connection(self.snowflake_conn_id)  # pylint: disable=no-member
+        conn = self.get_connection(
+            self.snowflake_conn_id  # type: ignore[attr-defined] # pylint: disable=no-member
+        )
         account = conn.extra_dejson.get('account', '')
         warehouse = conn.extra_dejson.get('warehouse', '')
         database = conn.extra_dejson.get('database', '')
@@ -58,6 +65,7 @@ class SnowflakeHook(DbApiHook):
         role = conn.extra_dejson.get('role', '')
         schema = conn.schema or ''
         authenticator = conn.extra_dejson.get('authenticator', 'snowflake')
+        session_parameters = conn.extra_dejson.get('session_parameters')
 
         conn_config = {
             "user": conn.login,
@@ -69,6 +77,7 @@ class SnowflakeHook(DbApiHook):
             "region": self.region or region,
             "role": self.role or role,
             "authenticator": self.authenticator or authenticator,
+            "session_parameters": self.session_parameters or session_parameters,
         }
 
         # If private_key_file is specified in the extra json, load the contents of the file as a private
@@ -76,7 +85,7 @@ class SnowflakeHook(DbApiHook):
         # passphrase for the private key. If your private key file is not encrypted (not recommended), then
         # leave the password empty.
 
-        private_key_file = conn.extra_dejson.get('private_key_file', None)
+        private_key_file = conn.extra_dejson.get('private_key_file')
         if private_key_file:
             with open(private_key_file, "rb") as key:
                 passphrase = None
@@ -98,10 +107,8 @@ class SnowflakeHook(DbApiHook):
 
         return conn_config
 
-    def get_uri(self):
-        """
-        Override DbApiHook get_uri method for get_sqlalchemy_engine()
-        """
+    def get_uri(self) -> str:
+        """Override DbApiHook get_uri method for get_sqlalchemy_engine()"""
         conn_config = self._get_conn_params()
         uri = (
             'snowflake://{user}:{password}@{account}/{database}/{schema}'
@@ -109,27 +116,31 @@ class SnowflakeHook(DbApiHook):
         )
         return uri.format(**conn_config)
 
-    def get_conn(self):
-        """
-        Returns a snowflake.connection object
-        """
+    def get_conn(self) -> SnowflakeConnection:
+        """Returns a snowflake.connection object"""
         conn_config = self._get_conn_params()
         conn = connector.connect(**conn_config)
         return conn
 
-    def _get_aws_credentials(self):
+    def _get_aws_credentials(self) -> Tuple[Optional[Any], Optional[Any]]:
         """
         Returns aws_access_key_id, aws_secret_access_key
         from extra
 
         intended to be used by external import and export statements
         """
-        if self.snowflake_conn_id:  # pylint: disable=no-member
-            connection_object = self.get_connection(self.snowflake_conn_id)  # pylint: disable=no-member
+        if self.snowflake_conn_id:  # type: ignore[attr-defined]  # pylint: disable=no-member
+            connection_object = self.get_connection(
+                self.snowflake_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
+            )
             if 'aws_secret_access_key' in connection_object.extra_dejson:
                 aws_access_key_id = connection_object.extra_dejson.get('aws_access_key_id')
                 aws_secret_access_key = connection_object.extra_dejson.get('aws_secret_access_key')
         return aws_access_key_id, aws_secret_access_key
 
-    def set_autocommit(self, conn, autocommit):
+    def set_autocommit(self, conn, autocommit: Any) -> None:
         conn.autocommit(autocommit)
+        conn.autocommit_mode = autocommit
+
+    def get_autocommit(self, conn):
+        return getattr(conn, 'autocommit_mode', False)

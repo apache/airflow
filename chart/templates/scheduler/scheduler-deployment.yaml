@@ -19,10 +19,8 @@
 ## Airflow Scheduler Deployment/StatefulSet
 #################################
 
-# Are we using a local/sequenial executor?
+# Are we using a local/sequential executor?
 {{- $local := or (eq .Values.executor "LocalExecutor") (eq .Values.executor "SequentialExecutor") }}
-# Are we using the kubernetes executor?
-{{- $kube := eq .Values.executor "KubernetesExecutor" }}
 # Is persistence enabled on the _workers_?
 # This is important because in $local mode, the scheduler assumes the role of the worker
 {{- $persistence := .Values.workers.persistence.enabled }}
@@ -48,7 +46,7 @@ spec:
 {{- if $stateful }}
   serviceName: {{ .Release.Name }}-scheduler
 {{- end }}
-  replicas: 1
+  replicas: {{ .Values.scheduler.replicas }}
   selector:
     matchLabels:
       tier: airflow
@@ -67,7 +65,9 @@ spec:
         checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
         checksum/result-backend-secret: {{ include (print $.Template.BasePath "/secrets/result-backend-connection-secret.yaml") . | sha256sum }}
         checksum/pgbouncer-config-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}
-        checksum/airflow-config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
+        checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
+        checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
         {{- if .Values.scheduler.safeToEvict }}
         cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
         {{- end }}
@@ -92,11 +92,13 @@ spec:
         - name: {{ template "registry_secret" . }}
       {{- end }}
       initContainers:
-        - name: run-airflow-migrations
+        - name: wait-for-airflow-migrations
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          # Support running against 1.10.x and 2.0.0dev/master
-          args: ["bash", "-c", "airflow upgradedb || airflow db upgrade"]
+          args:
+          {{- include "wait-for-migrations-command" . | indent 10 }}
+          envFrom:
+          {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
@@ -105,7 +107,9 @@ spec:
         - name: scheduler
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          args: ["scheduler"]
+          args: ["airflow", "scheduler"]
+          envFrom:
+          {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
@@ -158,6 +162,9 @@ spec:
               mountPath: {{ template "airflow_dags_mount_path" . }}
         {{- include "git_sync_container" . | indent 8 }}
 {{- end }}
+{{- if .Values.scheduler.extraVolumeMounts }}
+{{ toYaml .Values.scheduler.extraVolumeMounts | indent 12 }}
+{{- end }}
         # Always start the garbage collector sidecar.
         - name: scheduler-gc
           image: {{ template "airflow_image" . }}
@@ -171,7 +178,8 @@ spec:
         # we don't have elasticsearch enabled.
         - name: scheduler-logs
           image: {{ template "airflow_image" . }}
-          args: ["airflow", "serve_logs"]
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          args: ["serve_logs"]
           ports:
             - name: worker-logs
               containerPort: {{ .Values.ports.workerLogs }}
@@ -182,6 +190,8 @@ spec:
               mountPath: {{ template "airflow_config_path" . }}
               subPath: airflow.cfg
               readOnly: true
+          envFrom:
+          {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}

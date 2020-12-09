@@ -18,7 +18,7 @@
 from datetime import datetime
 
 from airflow.api_connexion.schemas.task_schema import TaskCollection, task_collection_schema, task_schema
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 
 
 class TestTaskSchema:
@@ -31,7 +31,7 @@ class TestTaskSchema:
         result = task_schema.dump(op)
         expected = {
             "class_ref": {
-                "module_path": "airflow.operators.dummy_operator",
+                "module_path": "airflow.operators.dummy",
                 "class_name": "DummyOperator",
             },
             "depends_on_past": False,
@@ -69,7 +69,7 @@ class TestTaskCollectionSchema:
                 {
                     "class_ref": {
                         "class_name": "DummyOperator",
-                        "module_path": "airflow.operators.dummy_operator",
+                        "module_path": "airflow.operators.dummy",
                     },
                     "depends_on_past": False,
                     "downstream_task_ids": [],

@@ -19,7 +19,6 @@
 """
 Test for an order of dependencies in setup.py
 """
-
 import os
 import re
 import sys
@@ -27,6 +26,10 @@ from os.path import abspath, dirname
 from typing import List
 
 errors = []
+
+MY_DIR_PATH = os.path.dirname(__file__)
+SOURCE_DIR_PATH = os.path.abspath(os.path.join(MY_DIR_PATH, os.pardir, os.pardir, os.pardir))
+sys.path.insert(0, SOURCE_DIR_PATH)
 
 
 def _check_list_sorted(the_list: List[str], message: str) -> None:
@@ -38,8 +41,9 @@ def _check_list_sorted(the_list: List[str], message: str) -> None:
     while sorted_list[i] == the_list[i]:
         i += 1
     print(f"{message} NOK")
-    errors.append(f"ERROR in {message}. First wrongly sorted element"
-                  f" {the_list[i]}. Should be {sorted_list[i]}")
+    errors.append(
+        f"ERROR in {message}. First wrongly sorted element" f" {the_list[i]}. Should be {sorted_list[i]}"
+    )
 
 
 def setup() -> str:
@@ -55,7 +59,8 @@ def check_main_dependent_group(setup_context: str) -> None:
     '# Start dependencies group' and '# End dependencies group' in setup.py
     """
     pattern_main_dependent_group = re.compile(
-        '# Start dependencies group\n(.*)# End dependencies group', re.DOTALL)
+        '# Start dependencies group\n(.*)# End dependencies group', re.DOTALL
+    )
     main_dependent_group = pattern_main_dependent_group.findall(setup_context)[0]
 
     pattern_sub_dependent = re.compile(' = \\[.*?\\]\n', re.DOTALL)
@@ -76,8 +81,7 @@ def check_sub_dependent_group(setup_context: str) -> None:
     pattern_dependent_version = re.compile('[~|><=;].*')
 
     for group_name in dependent_group_names:
-        pattern_sub_dependent = re.compile(
-            '{group_name} = \\[(.*?)\\]'.format(group_name=group_name), re.DOTALL)
+        pattern_sub_dependent = re.compile(f'{group_name} = \\[(.*?)\\]', re.DOTALL)
         sub_dependent = pattern_sub_dependent.findall(setup_context)[0]
         pattern_dependent = re.compile('\'(.*?)\'')
         dependent = pattern_dependent.findall(sub_dependent)
@@ -99,22 +103,23 @@ def check_alias_dependent_group(setup_context: str) -> None:
         _check_list_sorted(src, f"Order of alias dependencies group: {dependent}")
 
 
-def check_install_and_setup_requires(setup_context: str) -> None:
+def check_install_and_setup_requires() -> None:
     """
     Test for an order of dependencies in function do_setup section
     install_requires and setup_requires in setup.py
     """
-    pattern_install_and_setup_requires = re.compile(
-        '(setup_requires) ?= ?\\[(.*?)\\]', re.DOTALL)
-    install_and_setup_requires = pattern_install_and_setup_requires.findall(setup_context)
 
-    for dependent_requires in install_and_setup_requires:
-        pattern_dependent = re.compile('\'(.*?)\'')
-        dependent = pattern_dependent.findall(dependent_requires[1])
-        pattern_dependent_version = re.compile('[~|><=;].*')
+    from setuptools.config import read_configuration
 
-        src = [pattern_dependent_version.sub('', p) for p in dependent]
-        _check_list_sorted(src, f"Order of dependencies in do_setup section: {dependent_requires[0]}")
+    path = abspath(os.path.join(dirname(__file__), os.pardir, os.pardir, os.pardir, 'setup.cfg'))
+    config = read_configuration(path)
+
+    pattern_dependent_version = re.compile('[~|><=;].*')
+
+    for key in ('install_requires', 'setup_requires'):
+        deps = config['options'][key]
+        dists = [pattern_dependent_version.sub('', p) for p in deps]
+        _check_list_sorted(dists, f"Order of dependencies in do_setup section: {key}")
 
 
 def check_extras_require(setup_context: str) -> None:
@@ -122,8 +127,7 @@ def check_extras_require(setup_context: str) -> None:
     Test for an order of dependencies in function do_setup section
     extras_require in setup.py
     """
-    pattern_extras_requires = re.compile(
-        r'EXTRAS_REQUIREMENTS: Dict\[str, Iterable\[str\]] = {(.*?)}', re.DOTALL)
+    pattern_extras_requires = re.compile(r'EXTRAS_REQUIREMENTS: Dict\[str, List\[str\]] = {(.*?)}', re.DOTALL)
     extras_requires = pattern_extras_requires.findall(setup_context)[0]
 
     pattern_dependent = re.compile('\'(.*?)\'')
@@ -136,13 +140,48 @@ def check_provider_requirements(setup_context: str) -> None:
     Test for an order of dependencies in function do_setup section
     providers_require in setup.py
     """
-    pattern_extras_requires = re.compile(
-        r'PROVIDERS_REQUIREMENTS: Dict\[str, Iterable\[str\]\] = {(.*?)}', re.DOTALL)
-    extras_requires = pattern_extras_requires.findall(setup_context)[0]
+    pattern_extras_providers_packages = re.compile(
+        r'PROVIDERS_REQUIREMENTS: Dict\[str, Iterable\[str\]\] = {(.*?)}', re.DOTALL
+    )
+    extras_requires = pattern_extras_providers_packages.findall(setup_context)[0]
 
     pattern_dependent = re.compile('"(.*?)"')
     src = pattern_dependent.findall(extras_requires)
     _check_list_sorted(src, "Order of dependencies in: providers_require")
+
+
+def check_extras_provider_packages(setup_context: str) -> None:
+    """
+    Test for an order of dependencies in function do_setup section
+    providers_require in setup.py
+    """
+    pattern_extras_requires = re.compile(
+        r'EXTRAS_PROVIDERS_PACKAGES: Dict\[str, Iterable\[str\]\] = {(.*?)}', re.DOTALL
+    )
+    extras_requires = pattern_extras_requires.findall(setup_context)[0]
+
+    pattern_dependent = re.compile('"(.*?)":')
+    src = pattern_dependent.findall(extras_requires)
+    _check_list_sorted(src, "Order of dependencies in: extras_provider_packages")
+
+
+def checks_extra_with_providers_exist() -> None:
+
+    from setup import EXTRAS_REQUIREMENTS, EXTRAS_PROVIDERS_PACKAGES  # noqa # isort:skip
+
+    message = 'Check if all extras have providers defined in: EXTRAS_PROVIDERS_PACKAGES'
+    local_error = False
+    for key in EXTRAS_REQUIREMENTS.keys():  # noqa
+        if key not in EXTRAS_PROVIDERS_PACKAGES.keys():  # noqa
+            if not local_error:
+                local_error = True
+                print(f"Extra {key} NOK")
+            errors.append(
+                f"ERROR in {message}. The {key} extras is missing there."
+                " If you do not want to install any providers with this extra set it to []"
+            )
+    if not local_error:
+        print(f"{message} is ok")
 
 
 if __name__ == '__main__':
@@ -150,9 +189,11 @@ if __name__ == '__main__':
     check_main_dependent_group(setup_context_main)
     check_alias_dependent_group(setup_context_main)
     check_sub_dependent_group(setup_context_main)
-    check_install_and_setup_requires(setup_context_main)
+    check_install_and_setup_requires()
     check_extras_require(setup_context_main)
     check_provider_requirements(setup_context_main)
+    check_extras_provider_packages(setup_context_main)
+    checks_extra_with_providers_exist()
 
     print()
     print()

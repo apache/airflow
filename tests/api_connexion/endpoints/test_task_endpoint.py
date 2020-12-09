@@ -21,7 +21,8 @@ from datetime import datetime
 from airflow import DAG
 from airflow.models import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
+from airflow.security import permissions
 from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
@@ -43,8 +44,17 @@ class TestTaskEndpoint(unittest.TestCase):
         super().setUpClass()
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
-        # TODO: Add new role for each view to test permission.
-        create_user(cls.app, username="test", role="Admin")  # type: ignore
+        create_user(
+            cls.app,  # type: ignore
+            username="test",
+            role_name="Test",
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+            ],
+        )
+        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
         with DAG(cls.dag_id, start_date=datetime(2020, 6, 15), doc_md="details") as dag:
             DummyOperator(task_id=cls.task_id)
@@ -57,6 +67,7 @@ class TestTaskEndpoint(unittest.TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
+        delete_user(cls.app, username="test_no_permissions")  # type: ignore
 
     def setUp(self) -> None:
         self.clean_db()
@@ -67,11 +78,11 @@ class TestTaskEndpoint(unittest.TestCase):
 
 
 class TestGetTask(TestTaskEndpoint):
-    def test_should_response_200(self):
+    def test_should_respond_200(self):
         expected = {
             "class_ref": {
                 "class_name": "DummyOperator",
-                "module_path": "airflow.operators.dummy_operator",
+                "module_path": "airflow.operators.dummy",
             },
             "depends_on_past": False,
             "downstream_task_ids": [],
@@ -101,10 +112,10 @@ class TestGetTask(TestTaskEndpoint):
         assert response.status_code == 200
         assert response.json == expected
 
-    @conf_vars({("core", "store_serialized_dags"): "True"})
-    def test_should_response_200_serialized(self):
+    def test_should_respond_200_serialized(self):
         # Create empty app with empty dagbag to check if DAG is read from db
-        app_serialized = app.create_app(testing=True)
+        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
+            app_serialized = app.create_app(testing=True)
         dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
         app_serialized.dag_bag = dag_bag
         client = app_serialized.test_client()
@@ -114,7 +125,7 @@ class TestGetTask(TestTaskEndpoint):
         expected = {
             "class_ref": {
                 "class_name": "DummyOperator",
-                "module_path": "airflow.operators.dummy_operator",
+                "module_path": "airflow.operators.dummy",
             },
             "depends_on_past": False,
             "downstream_task_ids": [],
@@ -144,7 +155,7 @@ class TestGetTask(TestTaskEndpoint):
         assert response.status_code == 200
         assert response.json == expected
 
-    def test_should_response_404(self):
+    def test_should_respond_404(self):
         task_id = "xxxx_not_existing"
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/tasks/{task_id}", environ_overrides={'REMOTE_USER': "test"}
@@ -156,15 +167,21 @@ class TestGetTask(TestTaskEndpoint):
 
         assert_401(response)
 
+    def test_should_raise_403_forbidden(self):
+        response = self.client.get(
+            f"/api/v1/dags/{self.dag_id}/tasks", environ_overrides={'REMOTE_USER': "test_no_permissions"}
+        )
+        assert response.status_code == 403
+
 
 class TestGetTasks(TestTaskEndpoint):
-    def test_should_response_200(self):
+    def test_should_respond_200(self):
         expected = {
             "tasks": [
                 {
                     "class_ref": {
                         "class_name": "DummyOperator",
-                        "module_path": "airflow.operators.dummy_operator",
+                        "module_path": "airflow.operators.dummy",
                     },
                     "depends_on_past": False,
                     "downstream_task_ids": [],
@@ -197,7 +214,7 @@ class TestGetTasks(TestTaskEndpoint):
         assert response.status_code == 200
         assert response.json == expected
 
-    def test_should_response_404(self):
+    def test_should_respond_404(self):
         dag_id = "xxxx_not_existing"
         response = self.client.get(f"/api/v1/dags/{dag_id}/tasks", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404

@@ -17,8 +17,7 @@
 # under the License.
 import json
 import unittest
-
-import mock
+from unittest import mock
 
 from airflow.providers.amazon.aws.hooks.glue import AwsGlueJobHook
 

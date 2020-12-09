@@ -21,12 +21,11 @@ import json
 import logging
 import os
 import textwrap
-from contextlib import redirect_stderr, redirect_stdout
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from typing import List
 
-from tabulate import tabulate
-
 from airflow import settings
+from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
@@ -36,7 +35,13 @@ from airflow.models.dag import DAG
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import get_dag, get_dag_by_file_location, get_dag_by_pickle, get_dags
+from airflow.utils.cli import (
+    get_dag,
+    get_dag_by_file_location,
+    get_dag_by_pickle,
+    get_dags,
+    suppress_logs_and_warning,
+)
 from airflow.utils.log.logging_mixin import StreamLogWriter
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
@@ -77,8 +82,7 @@ def _run_task_by_executor(args, dag, ti):
                 session.add(pickle)
                 pickle_id = pickle.id
                 # TODO: This should be written to a log
-                print('Pickled dag {dag} as pickle_id: {pickle_id}'.format(
-                    dag=dag, pickle_id=pickle_id))
+                print(f'Pickled dag {dag} as pickle_id: {pickle_id}')
         except Exception as e:
             print('Could not pickle the DAG')
             print(e)
@@ -94,15 +98,14 @@ def _run_task_by_executor(args, dag, ti):
         ignore_depends_on_past=args.ignore_depends_on_past,
         ignore_task_deps=args.ignore_dependencies,
         ignore_ti_state=args.force,
-        pool=args.pool)
+        pool=args.pool,
+    )
     executor.heartbeat()
     executor.end()
 
 
 def _run_task_by_local_task_job(args, ti):
-    """
-    Run LocalTaskJob, which monitors the raw task execution process
-    """
+    """Run LocalTaskJob, which monitors the raw task execution process"""
     run_job = LocalTaskJob(
         task_instance=ti,
         mark_success=args.mark_success,
@@ -111,12 +114,16 @@ def _run_task_by_local_task_job(args, ti):
         ignore_depends_on_past=args.ignore_depends_on_past,
         ignore_task_deps=args.ignore_dependencies,
         ignore_ti_state=args.force,
-        pool=args.pool)
+        pool=args.pool,
+    )
     run_job.run()
 
 
 RAW_TASK_UNSUPPORTED_OPTION = [
-    "ignore_all_dependencies", "ignore_depends_on_past", "ignore_dependencies", "force"
+    "ignore_all_dependencies",
+    "ignore_depends_on_past",
+    "ignore_dependencies",
+    "force",
 ]
 
 
@@ -140,13 +147,47 @@ def _run_raw_task(args, ti):
     )
 
 
+@contextmanager
+def _capture_task_logs(ti):
+    """Manage logging context for a task run
+
+    - Replace the root logger configuration with the airflow.task configuration
+      so we can capture logs from any custom loggers used in the task.
+
+    - Redirect stdout and stderr to the task instance log, as INFO and WARNING
+      level messages, respectively.
+
+    """
+    modify = not settings.DONOT_MODIFY_HANDLERS
+
+    if modify:
+        root_logger, task_logger = logging.getLogger(), logging.getLogger('airflow.task')
+
+        orig_level = root_logger.level
+        root_logger.setLevel(task_logger.level)
+        orig_handlers = root_logger.handlers.copy()
+        root_logger.handlers[:] = task_logger.handlers
+
+    try:
+        info_writer = StreamLogWriter(ti.log, logging.INFO)
+        warning_writer = StreamLogWriter(ti.log, logging.WARNING)
+
+        with redirect_stdout(info_writer), redirect_stderr(warning_writer):
+            yield
+
+    finally:
+        if modify:
+            # Restore the root logger to its original state.
+            root_logger.setLevel(orig_level)
+            root_logger.handlers[:] = orig_handlers
+
+
 @cli_utils.action_logging
 def task_run(args, dag=None):
     """Runs a single task instance"""
-
     # Load custom airflow config
     if args.cfg_path:
-        with open(args.cfg_path, 'r') as conf_file:
+        with open(args.cfg_path) as conf_file:
             conf_dict = json.load(conf_file)
 
         if os.path.exists(args.cfg_path):
@@ -174,6 +215,7 @@ def task_run(args, dag=None):
 
     task = dag.get_task(task_id=args.task_id)
     ti = TaskInstance(task, args.execution_date)
+    ti.refresh_from_db()
     ti.init_run_context(raw=args.raw)
 
     hostname = get_hostname()
@@ -183,39 +225,8 @@ def task_run(args, dag=None):
     if args.interactive:
         _run_task_by_selected_method(args, dag, ti)
     else:
-        if settings.DONOT_MODIFY_HANDLERS:
-            with redirect_stdout(StreamLogWriter(ti.log, logging.INFO)), \
-                    redirect_stderr(StreamLogWriter(ti.log, logging.WARN)):
-                _run_task_by_selected_method(args, dag, ti)
-        else:
-            # Get all the Handlers from 'airflow.task' logger
-            # Add these handlers to the root logger so that we can get logs from
-            # any custom loggers defined in the DAG
-            airflow_logger_handlers = logging.getLogger('airflow.task').handlers
-            root_logger = logging.getLogger()
-            root_logger_handlers = root_logger.handlers
-
-            # Remove all handlers from Root Logger to avoid duplicate logs
-            for handler in root_logger_handlers:
-                root_logger.removeHandler(handler)
-
-            for handler in airflow_logger_handlers:
-                root_logger.addHandler(handler)
-            root_logger.setLevel(logging.getLogger('airflow.task').level)
-
-            with redirect_stdout(StreamLogWriter(ti.log, logging.INFO)), \
-                    redirect_stderr(StreamLogWriter(ti.log, logging.WARN)):
-                _run_task_by_selected_method(args, dag, ti)
-
-            # We need to restore the handlers to the loggers as celery worker process
-            # can call this command multiple times,
-            # so if we don't reset this then logs from next task would go to the wrong place
-            for handler in airflow_logger_handlers:
-                root_logger.removeHandler(handler)
-            for handler in root_logger_handlers:
-                root_logger.addHandler(handler)
-
-    logging.shutdown()
+        with _capture_task_logs(ti):
+            _run_task_by_selected_method(args, dag, ti)
 
 
 @cli_utils.action_logging
@@ -240,7 +251,7 @@ def task_failed_deps(args):
     if failed_deps:
         print("Task instance dependencies not met:")
         for dep in failed_deps:
-            print("{}: {}".format(dep.dep_name, dep.reason))
+            print(f"{dep.dep_name}: {dep.reason}")
     else:
         print("Task instance dependencies are all met.")
 
@@ -289,7 +300,6 @@ def _guess_debugger():
     * `ipdb <https://github.com/gotcha/ipdb>`__
     * `pdb <https://docs.python.org/3/library/pdb.html>`__
     """
-
     for mod in SUPPORTED_DEBUGGER_MODULES:
         try:
             return importlib.import_module(mod)
@@ -299,40 +309,38 @@ def _guess_debugger():
 
 
 @cli_utils.action_logging
+@suppress_logs_and_warning()
 def task_states_for_dag_run(args):
     """Get the status of all task instances in a DagRun"""
-    session = settings.Session()
+    with create_session() as session:
+        tis = (
+            session.query(
+                TaskInstance.dag_id,
+                TaskInstance.execution_date,
+                TaskInstance.task_id,
+                TaskInstance.state,
+                TaskInstance.start_date,
+                TaskInstance.end_date,
+            )
+            .filter(TaskInstance.dag_id == args.dag_id, TaskInstance.execution_date == args.execution_date)
+            .all()
+        )
 
-    tis = session.query(
-        TaskInstance.dag_id,
-        TaskInstance.execution_date,
-        TaskInstance.task_id,
-        TaskInstance.state,
-        TaskInstance.start_date,
-        TaskInstance.end_date).filter(
-        TaskInstance.dag_id == args.dag_id,
-        TaskInstance.execution_date == args.execution_date).all()
+        if len(tis) == 0:
+            raise AirflowException("DagRun does not exist.")
 
-    if len(tis) == 0:
-        raise AirflowException("DagRun does not exist.")
-
-    formatted_rows = []
-
-    for ti in tis:
-        formatted_rows.append((ti.dag_id,
-                               ti.execution_date,
-                               ti.task_id,
-                               ti.state,
-                               ti.start_date,
-                               ti.end_date))
-
-    print(
-        "\n%s" %
-        tabulate(
-            formatted_rows, [
-                'dag', 'exec_date', 'task', 'state', 'start_date', 'end_date'], tablefmt=args.output))
-
-    session.close()
+        AirflowConsole().print_as(
+            data=tis,
+            output=args.output,
+            mapper=lambda ti: {
+                "dag_id": ti.dag_id,
+                "execution_date": ti.execution_date.isoformat(),
+                "task_id": ti.task_id,
+                "state": ti.state,
+                "start_date": ti.start_date.isoformat() if ti.start_date else "",
+                "end_date": ti.end_date.isoformat() if ti.end_date else "",
+            },
+        )
 
 
 @cli_utils.action_logging
@@ -390,20 +398,24 @@ def task_render(args):
     ti = TaskInstance(task, args.execution_date)
     ti.render_templates()
     for attr in task.__class__.template_fields:
-        print(textwrap.dedent("""\
+        print(
+            textwrap.dedent(
+                """\
         # ----------------------------------------------------------
         # property: {}
         # ----------------------------------------------------------
         {}
-        """.format(attr, getattr(task, attr))))
+        """.format(
+                    attr, getattr(task, attr)
+                )
+            )
+        )
 
 
 @cli_utils.action_logging
 def task_clear(args):
     """Clears all task instances or only those matched by regex for a DAG(s)"""
-    logging.basicConfig(
-        level=settings.LOGGING_LEVEL,
-        format=settings.SIMPLE_LOG_FORMAT)
+    logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
 
     if args.dag_id and not args.subdir and not args.dag_regex and not args.task_regex:
         dags = get_dag_by_file_location(args.dag_id)
@@ -413,10 +425,11 @@ def task_clear(args):
 
         if args.task_regex:
             for idx, dag in enumerate(dags):
-                dags[idx] = dag.sub_dag(
-                    task_regex=args.task_regex,
+                dags[idx] = dag.partial_subset(
+                    task_ids_or_regex=args.task_regex,
                     include_downstream=args.downstream,
-                    include_upstream=args.upstream)
+                    include_upstream=args.upstream,
+                )
 
     DAG.clear_dags(
         dags,

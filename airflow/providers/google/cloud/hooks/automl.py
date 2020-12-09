@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains a Google AutoML hook.
-"""
+"""This module contains a Google AutoML hook."""
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from cached_property import cached_property
@@ -65,9 +63,7 @@ class CloudAutoMLHook(GoogleBaseHook):
 
     @staticmethod
     def extract_object_id(obj: Dict) -> str:
-        """
-        Returns unique id of the object.
-        """
+        """Returns unique id of the object."""
         return obj["name"].rpartition("/")[-1]
 
     def get_conn(self) -> AutoMlClient:

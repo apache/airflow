@@ -22,7 +22,6 @@ from airflow.task.task_runner.cgroup_task_runner import CgroupTaskRunner
 
 
 class TestCgroupTaskRunner(unittest.TestCase):
-
     @mock.patch("airflow.task.task_runner.base_task_runner.BaseTaskRunner.__init__")
     @mock.patch("airflow.task.task_runner.base_task_runner.BaseTaskRunner.on_finish")
     def test_cgroup_task_runner_super_calls(self, mock_super_on_finish, mock_super_init):

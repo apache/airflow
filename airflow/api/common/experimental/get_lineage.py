@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Lineage apis
-"""
+"""Lineage apis"""
 import datetime
 from typing import Any, Dict, List
 
@@ -29,16 +27,16 @@ from airflow.utils.session import provide_session
 
 @provide_session
 def get_lineage(dag_id: str, execution_date: datetime.datetime, session=None) -> Dict[str, Dict[str, Any]]:
-    """
-    Gets the lineage information for dag specified
-    """
+    """Gets the lineage information for dag specified"""
     dag = check_and_get_dag(dag_id)
     check_and_get_dagrun(dag, execution_date)
 
-    inlets: List[XCom] = XCom.get_many(dag_ids=dag_id, execution_date=execution_date,
-                                       key=PIPELINE_INLETS, session=session).all()
-    outlets: List[XCom] = XCom.get_many(dag_ids=dag_id, execution_date=execution_date,
-                                        key=PIPELINE_OUTLETS, session=session).all()
+    inlets: List[XCom] = XCom.get_many(
+        dag_ids=dag_id, execution_date=execution_date, key=PIPELINE_INLETS, session=session
+    ).all()
+    outlets: List[XCom] = XCom.get_many(
+        dag_ids=dag_id, execution_date=execution_date, key=PIPELINE_OUTLETS, session=session
+    ).all()
 
     lineage: Dict[str, Dict[str, Any]] = {}
     for meta in inlets:

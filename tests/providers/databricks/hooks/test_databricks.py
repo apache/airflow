@@ -20,8 +20,8 @@
 import itertools
 import json
 import unittest
+from unittest import mock
 
-import mock
 from requests import exceptions as requests_exceptions
 
 from airflow import __version__
@@ -43,7 +43,7 @@ HOST_WITH_SCHEME = 'https://xx.cloud.databricks.com'
 LOGIN = 'login'
 PASSWORD = 'password'
 TOKEN = 'token'
-USER_AGENT_HEADER = {'user-agent': 'airflow-{v}'.format(v=__version__)}
+USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
 RUN_PAGE_URL = 'https://XX.cloud.databricks.com/#jobs/1/runs/1'
 LIFE_CYCLE_STATE = 'PENDING'
 STATE_MESSAGE = 'Waiting for cluster'
@@ -55,55 +55,73 @@ GET_RUN_RESPONSE = {
 NOTEBOOK_PARAMS = {"dry-run": "true", "oldest-time-to-consider": "1457570074236"}
 JAR_PARAMS = ["param1", "param2"]
 RESULT_STATE = None  # type: None
+LIBRARIES = [
+    {"jar": "dbfs:/mnt/libraries/library.jar"},
+    {"maven": {"coordinates": "org.jsoup:jsoup:1.7.2", "exclusions": ["slf4j:slf4j"]}},
+]
 
 
 def run_now_endpoint(host):
     """
     Utility function to generate the run now endpoint given the host.
     """
-    return 'https://{}/api/2.0/jobs/run-now'.format(host)
+    return f'https://{host}/api/2.0/jobs/run-now'
 
 
 def submit_run_endpoint(host):
     """
     Utility function to generate the submit run endpoint given the host.
     """
-    return 'https://{}/api/2.0/jobs/runs/submit'.format(host)
+    return f'https://{host}/api/2.0/jobs/runs/submit'
 
 
 def get_run_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return 'https://{}/api/2.0/jobs/runs/get'.format(host)
+    return f'https://{host}/api/2.0/jobs/runs/get'
 
 
 def cancel_run_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return 'https://{}/api/2.0/jobs/runs/cancel'.format(host)
+    return f'https://{host}/api/2.0/jobs/runs/cancel'
 
 
 def start_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return 'https://{}/api/2.0/clusters/start'.format(host)
+    return f'https://{host}/api/2.0/clusters/start'
 
 
 def restart_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return 'https://{}/api/2.0/clusters/restart'.format(host)
+    return f'https://{host}/api/2.0/clusters/restart'
 
 
 def terminate_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return 'https://{}/api/2.0/clusters/delete'.format(host)
+    return f'https://{host}/api/2.0/clusters/delete'
+
+
+def install_endpoint(host):
+    """
+    Utility function to generate the install endpoint given the host.
+    """
+    return f'https://{host}/api/2.0/libraries/install'
+
+
+def uninstall_endpoint(host):
+    """
+    Utility function to generate the uninstall endpoint given the host.
+    """
+    return f'https://{host}/api/2.0/libraries/uninstall'
 
 
 def create_valid_response_mock(content):
@@ -424,6 +442,44 @@ class TestDatabricksHook(unittest.TestCase):
             timeout=self.hook.timeout_seconds,
         )
 
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_install_libs_on_cluster(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.post.return_value.json.return_value = {}
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+
+        data = {'cluster_id': CLUSTER_ID, 'libraries': LIBRARIES}
+        self.hook.install(data)
+
+        mock_requests.post.assert_called_once_with(
+            install_endpoint(HOST),
+            json={'cluster_id': CLUSTER_ID, 'libraries': LIBRARIES},
+            params=None,
+            auth=(LOGIN, PASSWORD),
+            headers=USER_AGENT_HEADER,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_uninstall_libs_on_cluster(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.post.return_value.json.return_value = {}
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+
+        data = {'cluster_id': CLUSTER_ID, 'libraries': LIBRARIES}
+        self.hook.uninstall(data)
+
+        mock_requests.post.assert_called_once_with(
+            uninstall_endpoint(HOST),
+            json={'cluster_id': CLUSTER_ID, 'libraries': LIBRARIES},
+            params=None,
+            auth=(LOGIN, PASSWORD),
+            headers=USER_AGENT_HEADER,
+            timeout=self.hook.timeout_seconds,
+        )
+
 
 class TestDatabricksHookToken(unittest.TestCase):
     """
@@ -452,6 +508,17 @@ class TestDatabricksHookToken(unittest.TestCase):
         args = mock_requests.post.call_args
         kwargs = args[1]
         self.assertEqual(kwargs['auth'].token, TOKEN)
+
+
+class TestDatabricksHookTokenWhenNoHostIsProvidedInExtra(TestDatabricksHookToken):
+    @provide_session
+    def setUp(self, session=None):
+        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.extra = json.dumps({'token': TOKEN})
+
+        session.commit()
+
+        self.hook = DatabricksHook()
 
 
 class TestRunState(unittest.TestCase):

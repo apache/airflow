@@ -42,10 +42,13 @@ class TestApiKerberos(unittest.TestCase):
         for dag in dagbag.dags.values():
             dag.sync_to_db()
 
-    @conf_vars({
-        ("api", "auth_backend"): "airflow.api.auth.backend.kerberos_auth",
-        ("kerberos", "keytab"): KRB5_KTNAME,
-    })
+    @conf_vars(
+        {
+            ("api", "auth_backend"): "airflow.api.auth.backend.kerberos_auth",
+            ("kerberos", "keytab"): KRB5_KTNAME,
+            ('api', 'enable_experimental_api'): 'true',
+        }
+    )
     def setUp(self):
         self.app = application.create_app(testing=True)
 
@@ -59,11 +62,11 @@ class TestApiKerberos(unittest.TestCase):
             response = client.post(
                 url_template.format('example_bash_operator'),
                 data=json.dumps(dict(run_id='my_run' + datetime.now().isoformat())),
-                content_type="application/json"
+                content_type="application/json",
             )
             self.assertEqual(401, response.status_code)
 
-            response.url = 'http://{}'.format(socket.getfqdn())
+            response.url = f'http://{socket.getfqdn()}'
 
             class Request:
                 headers = {}
@@ -77,9 +80,6 @@ class TestApiKerberos(unittest.TestCase):
             # disable mutual authentication for testing
             CLIENT_AUTH.mutual_authentication = 3
 
-            # case can influence the results
-            CLIENT_AUTH.hostname_override = socket.getfqdn()
-
             CLIENT_AUTH.handle_response(response)
             self.assertIn('Authorization', response.request.headers)
 
@@ -87,7 +87,7 @@ class TestApiKerberos(unittest.TestCase):
                 url_template.format('example_bash_operator'),
                 data=json.dumps(dict(run_id='my_run' + datetime.now().isoformat())),
                 content_type="application/json",
-                headers=response.request.headers
+                headers=response.request.headers,
             )
             self.assertEqual(200, response2.status_code)
 
@@ -97,7 +97,7 @@ class TestApiKerberos(unittest.TestCase):
             response = client.post(
                 url_template.format('example_bash_operator'),
                 data=json.dumps(dict(run_id='my_run' + datetime.now().isoformat())),
-                content_type="application/json"
+                content_type="application/json",
             )
 
             self.assertEqual(401, response.status_code)

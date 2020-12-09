@@ -17,33 +17,16 @@
 # under the License.
 #
 import unittest
+from unittest import mock
 
 import boto3
-import mock
+from moto import mock_datasync
 
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.providers.amazon.aws.hooks.datasync import AWSDataSyncHook
 
 
-def no_datasync(x):
-    return x
-
-
-try:
-    from moto import mock_datasync
-    from moto.datasync.models import DataSyncBackend
-
-    # ToDo: Remove after the moto>1.3.14 is released and contains following commit:
-    # https://github.com/spulec/moto/commit/5cfbe2bb3d24886f2b33bb4480c60b26961226fc
-    if "create_task" not in dir(DataSyncBackend) or "delete_task" not in dir(DataSyncBackend):
-        mock_datasync = no_datasync
-except ImportError:
-    # flake8: noqa: F811
-    mock_datasync = no_datasync
-
-
 @mock_datasync
-@unittest.skipIf(mock_datasync == no_datasync, "moto datasync package missing")  # pylint: disable=W0143
 class TestAwsDataSyncHook(unittest.TestCase):
     def test_get_conn(self):
         hook = AWSDataSyncHook(aws_conn_id="aws_default")
@@ -65,7 +48,6 @@ class TestAwsDataSyncHook(unittest.TestCase):
 
 @mock_datasync
 @mock.patch.object(AWSDataSyncHook, "get_conn")
-@unittest.skipIf(mock_datasync == no_datasync, "moto datasync package missing")  # pylint: disable=W0143
 class TestAWSDataSyncHookMocked(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -93,7 +75,7 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
             AgentArns=["stuff"],
         )["LocationArn"]
         self.destination_location_arn = self.client.create_location_s3(
-            S3BucketArn="arn:aws:s3:::{0}".format(self.destination_bucket_name),
+            S3BucketArn=f"arn:aws:s3:::{self.destination_bucket_name}",
             Subdirectory=self.destination_bucket_dir,
             S3Config={"BucketAccessRoleArn": "role"},
         )["LocationArn"]
@@ -118,7 +100,6 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         mock_get_conn.return_value = self.client
         # ### Begin tests:
 
-        self.assertIsNone(self.hook.conn)
         self.assertFalse(self.hook.locations)
         self.assertFalse(self.hook.tasks)
         self.assertEqual(self.hook.wait_interval_seconds, 0)
@@ -138,7 +119,7 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         domain = "COMPANY.DOMAIN"
         mount_options = {"Version": "SMB2"}
 
-        location_uri = "smb://{0}/{1}".format(server_hostname, subdirectory)
+        location_uri = f"smb://{server_hostname}/{subdirectory}"
 
         create_location_kwargs = {
             "ServerHostname": server_hostname,
@@ -175,7 +156,7 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         subdirectory = "my_subdir"
         s3_config = {"BucketAccessRoleArn": "myrole"}
 
-        location_uri = "s3://{0}/{1}".format(s3_bucket_arn, subdirectory)
+        location_uri = f"s3://{s3_bucket_arn}/{subdirectory}"
 
         create_location_kwargs = {
             "S3BucketArn": s3_bucket_arn,
@@ -268,7 +249,7 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         # ### Begin tests:
 
         # Get true location_arn from boto/moto self.client
-        location_uri = "smb://{0}/{1}".format(self.source_server_hostname, self.source_subdirectory)
+        location_uri = f"smb://{self.source_server_hostname}/{self.source_subdirectory}"
         locations = self.client.list_locations()
         for location in locations["Locations"]:
             if location["LocationUri"] == location_uri:
@@ -286,7 +267,7 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         # ### Begin tests:
 
         # Get true location_arn from boto/moto self.client
-        location_uri = "smb://{0}/{1}".format(self.source_server_hostname.upper(), self.source_subdirectory)
+        location_uri = f"smb://{self.source_server_hostname.upper()}/{self.source_subdirectory}"
         locations = self.client.list_locations()
         for location in locations["Locations"]:
             if location["LocationUri"] == location_uri.lower():
@@ -305,7 +286,7 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         # ### Begin tests:
 
         # Get true location_arn from boto/moto self.client
-        location_uri = "smb://{0}/{1}/".format(self.source_server_hostname, self.source_subdirectory)
+        location_uri = f"smb://{self.source_server_hostname}/{self.source_subdirectory}/"
         locations = self.client.list_locations()
         for location in locations["Locations"]:
             if location["LocationUri"] == location_uri[:-1]:

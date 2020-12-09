@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Airflow module for emailer using sendgrid
-"""
+"""Airflow module for email backend using sendgrid"""
 
 import base64
 import logging
@@ -61,7 +59,6 @@ def send_email(
     .. note::
         For more information, see :ref:`email-configuration-sendgrid`
     """
-
     if files is None:
         files = []
 
@@ -90,7 +87,7 @@ def send_email(
             personalization.add_bcc(Email(bcc_address))
 
     # Add custom_args to personalization if present
-    pers_custom_args = kwargs.get('personalization_custom_args', None)
+    pers_custom_args = kwargs.get('personalization_custom_args')
     if isinstance(pers_custom_args, dict):
         for key in pers_custom_args.keys():
             personalization.add_custom_arg(CustomArg(key, pers_custom_args[key]))

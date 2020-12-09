@@ -17,9 +17,9 @@
 # under the License.
 
 import unittest
+from unittest import mock
 
 import google.api_core.exceptions
-import mock
 from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable.table import ClusterState
 from parameterized import parameterized
@@ -54,7 +54,7 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
         err = e.exception
-        self.assertEqual(str(err), 'Empty parameter: {}'.format(missing_attribute))
+        self.assertEqual(str(err), f'Empty parameter: {missing_attribute}')
         mock_hook.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.sensors.bigtable.BigtableHook')

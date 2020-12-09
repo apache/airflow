@@ -24,7 +24,7 @@ from hdfs import HdfsError, InsecureClient
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models.connection import Connection
 
 log = logging.getLogger(__name__)
@@ -92,7 +92,7 @@ class WebHDFSHook(BaseHook):
         return None
 
     def _get_client(self, connection: Connection) -> Any:
-        connection_str = 'http://{host}:{port}'.format(host=connection.host, port=connection.port)
+        connection_str = f'http://{connection.host}:{connection.port}'
 
         if _kerberos_security_mode:
             client = KerberosClient(connection_str)
@@ -135,7 +135,7 @@ class WebHDFSHook(BaseHook):
         :param parallelism: Number of threads to use for parallelization.
             A value of `0` (or negative) uses as many threads as there are files.
         :type parallelism: int
-        :param \**kwargs: Keyword arguments forwarded to :meth:`hdfs.client.Client.upload`.
+        :param kwargs: Keyword arguments forwarded to :meth:`hdfs.client.Client.upload`.
         """
         conn = self.get_conn()
 

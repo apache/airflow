@@ -17,9 +17,7 @@
 # under the License.
 #
 # pylint: disable=too-many-lines
-"""
-This module contains Google AutoML operators.
-"""
+"""This module contains Google AutoML operators."""
 import ast
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 

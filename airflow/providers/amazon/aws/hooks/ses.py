@@ -14,10 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-"""
-This module contains AWS SES Hook
-"""
+"""This module contains AWS SES Hook"""
 from typing import Any, Dict, Iterable, List, Optional, Union
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook

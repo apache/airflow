@@ -21,7 +21,7 @@ from typing import Optional
 from kylinpy import exceptions, kylinpy
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class KylinHook(BaseHook):
@@ -36,7 +36,7 @@ class KylinHook(BaseHook):
 
     def __init__(
         self,
-        kylin_conn_id: Optional[str] = 'kylin_default',
+        kylin_conn_id: str = 'kylin_default',
         project: Optional[str] = None,
         dsn: Optional[str] = None,
     ):
@@ -74,7 +74,7 @@ class KylinHook(BaseHook):
             response = cube_source.invoke_command(op, **op_args)
             return response
         except exceptions.KylinError as err:
-            raise AirflowException("Cube operation {} error , Message: {}".format(op, err))
+            raise AirflowException(f"Cube operation {op} error , Message: {err}")
 
     def get_job_status(self, job_id):
         """

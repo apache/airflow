@@ -21,7 +21,10 @@ from typing import List, NamedTuple
 from marshmallow import fields, pre_load
 from marshmallow.schema import Schema
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
+from pendulum.parsing import ParserError
 
+from airflow.api_connexion.exceptions import BadRequest
+from airflow.api_connexion.parameters import validate_istimezone
 from airflow.api_connexion.schemas.enum_schemas import DagStateField
 from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
@@ -43,9 +46,7 @@ class ConfObject(fields.Field):
 
 
 class DAGRunSchema(SQLAlchemySchema):
-    """
-    Schema for DAGRun
-    """
+    """Schema for DAGRun"""
 
     class Meta:
         """Meta"""
@@ -55,7 +56,7 @@ class DAGRunSchema(SQLAlchemySchema):
 
     run_id = auto_field(data_key='dag_run_id')
     dag_id = auto_field(dump_only=True)
-    execution_date = auto_field()
+    execution_date = auto_field(validate=validate_istimezone)
     start_date = auto_field(dump_only=True)
     end_date = auto_field(dump_only=True)
     state = DagStateField(dump_only=True)
@@ -64,15 +65,16 @@ class DAGRunSchema(SQLAlchemySchema):
 
     @pre_load
     def autogenerate(self, data, **kwargs):
-        """
-        Auto generate run_id and execution_date if they are not loaded
-        """
+        """Auto generate run_id and execution_date if they are not loaded"""
         if "execution_date" not in data.keys():
             data["execution_date"] = str(timezone.utcnow())
         if "dag_run_id" not in data.keys():
-            data["dag_run_id"] = DagRun.generate_run_id(
-                DagRunType.MANUAL, timezone.parse(data["execution_date"])
-            )
+            try:
+                data["dag_run_id"] = DagRun.generate_run_id(
+                    DagRunType.MANUAL, timezone.parse(data["execution_date"])
+                )
+            except (ParserError, TypeError) as err:
+                raise BadRequest("Incorrect datetime argument", detail=str(err))
         return data
 
 
@@ -102,12 +104,12 @@ class DagRunsBatchFormSchema(Schema):
     page_offset = fields.Int(missing=0, min=0)
     page_limit = fields.Int(missing=100, min=1)
     dag_ids = fields.List(fields.Str(), missing=None)
-    execution_date_gte = fields.DateTime(missing=None)
-    execution_date_lte = fields.DateTime(missing=None)
-    start_date_gte = fields.DateTime(missing=None)
-    start_date_lte = fields.DateTime(missing=None)
-    end_date_gte = fields.DateTime(missing=None)
-    end_date_lte = fields.DateTime(missing=None)
+    execution_date_gte = fields.DateTime(missing=None, validate=validate_istimezone)
+    execution_date_lte = fields.DateTime(missing=None, validate=validate_istimezone)
+    start_date_gte = fields.DateTime(missing=None, validate=validate_istimezone)
+    start_date_lte = fields.DateTime(missing=None, validate=validate_istimezone)
+    end_date_gte = fields.DateTime(missing=None, validate=validate_istimezone)
+    end_date_lte = fields.DateTime(missing=None, validate=validate_istimezone)
 
 
 dagrun_schema = DAGRunSchema()

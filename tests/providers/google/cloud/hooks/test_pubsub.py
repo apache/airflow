@@ -18,8 +18,9 @@
 
 import unittest
 from typing import List
+from unittest import mock
+from uuid import UUID
 
-import mock
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.cloud.exceptions import NotFound
 from google.cloud.pubsub_v1.types import ReceivedMessage
@@ -37,15 +38,15 @@ EMPTY_CONTENT = b''
 TEST_PROJECT = 'test-project'
 TEST_TOPIC = 'test-topic'
 TEST_SUBSCRIPTION = 'test-subscription'
-TEST_UUID = 'abc123-xzy789'
+TEST_UUID = UUID('cf4a56d2-8101-4217-b027-2af6216feb48')
 TEST_MESSAGES = [
     {'data': b'Hello, World!', 'attributes': {'type': 'greeting'}},
     {'data': b'Knock, knock'},
     {'attributes': {'foo': ''}},
 ]
 
-EXPANDED_TOPIC = 'projects/{}/topics/{}'.format(TEST_PROJECT, TEST_TOPIC)
-EXPANDED_SUBSCRIPTION = 'projects/{}/subscriptions/{}'.format(TEST_PROJECT, TEST_SUBSCRIPTION)
+EXPANDED_TOPIC = f'projects/{TEST_PROJECT}/topics/{TEST_TOPIC}'
+EXPANDED_SUBSCRIPTION = f'projects/{TEST_PROJECT}/subscriptions/{TEST_SUBSCRIPTION}'
 LABELS = {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')}
 
 
@@ -382,9 +383,7 @@ class TestPubSubHook(unittest.TestCase):
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_publish_api_call_error(self, mock_service):
         publish_method = mock_service.return_value.publish
-        publish_method.side_effect = GoogleAPICallError(
-            'Error publishing to topic {}'.format(EXPANDED_SUBSCRIPTION)
-        )
+        publish_method.side_effect = GoogleAPICallError(f'Error publishing to topic {EXPANDED_SUBSCRIPTION}')
 
         with self.assertRaises(PubSubException):
             self.pubsub_hook.publish(project_id=TEST_PROJECT, topic=TEST_TOPIC, messages=TEST_MESSAGES)

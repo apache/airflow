@@ -16,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from unittest.mock import patch
 
 import pytest
-from mock import patch
 
 from airflow.providers.google.cloud.transfers.presto_to_gcs import PrestoToGCSOperator
 

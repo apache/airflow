@@ -35,9 +35,10 @@ cluster using the [Helm](https://helm.sh) package manager.
 ## Installing the Chart
 
 To install this repository from source (using helm 3)
+
 ```bash
 kubectl create namespace airflow
-helm repo add stable https://kubernetes-charts.storage.googleapis.com
+helm repo add stable https://charts.helm.sh/stable/
 helm dep update
 helm install airflow . --namespace airflow
 ```
@@ -48,6 +49,7 @@ section lists the parameters that can be configured during installation.
 > **Tip**: List all releases using `helm list`
 
 ## Upgrading the Chart
+
 To upgrade the chart with the release name `airflow`:
 
 ```bash
@@ -90,6 +92,7 @@ helm upgrade airflow . \
 ```
 
 ## Mounting DAGS using Git-Sync side car without Persistence
+
 This option will use an always running Git-Sync side car on every scheduler,webserver and worker pods. The Git-Sync side car containers will sync DAGs from a git repository every configured number of seconds. If you are using the KubernetesExecutor, Git-sync will run as an initContainer on your worker pods.
 
 ```bash
@@ -102,6 +105,7 @@ helm upgrade airflow . \
 ```
 
 ## Mounting DAGS from an externally populated PVC
+
 In this approach, Airflow will read the DAGs from a PVC which has `ReadOnlyMany` or `ReadWriteMany` accessMode. You will have to ensure that the PVC is populated/updated with the required DAGs(this won't be handled by the chart). You can pass in the name of the  volume claim to the chart
 
 ```bash
@@ -131,7 +135,7 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `ingress.flower.*`                                    | Configs for the Ingress of the flower Service                                                                | Please refer to `values.yaml`                     |
 | `networkPolicies.enabled`                             | Enable Network Policies to restrict traffic                                                                  | `true`                                            |
 | `airflowHome`                                         | Location of airflow home directory                                                                           | `/opt/airflow`                                    |
-| `rbacEnabled`                                         | Deploy pods with Kubernets RBAC enabled                                                                      | `true`                                            |
+| `rbacEnabled`                                         | Deploy pods with Kubernetes RBAC enabled                                                                     | `true`                                            |
 | `executor`                                            | Airflow executor (eg SequentialExecutor, LocalExecutor, CeleryExecutor, KubernetesExecutor)                  | `KubernetesExecutor`                              |
 | `allowPodLaunching`                                   | Allow airflow pods to talk to Kubernetes API to launch more pods                                             | `true`                                            |
 | `defaultAirflowRepository`                            | Fallback docker repository to pull airflow image from                                                        | `apache/airflow`                                  |
@@ -142,31 +146,44 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `images.flower.repository`                            | Docker repository to pull image from. Update this to deploy a custom image                                   | `~`                                               |
 | `images.flower.tag`                                   | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `~`                                               |
 | `images.flower.pullPolicy`                            | PullPolicy for flower image                                                                                  | `IfNotPresent`                                    |
-| `images.statsd.repository`                            | Docker repository to pull image from. Update this to deploy a custom image                                   | `astronomerinc/ap-statsd-exporter`                |
-| `images.statsd.tag`                                   | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `~`                                               |
+| `images.statsd.repository`                            | Docker repository to pull image from. Update this to deploy a custom image                                   | `apache/airflow`                                  |
+| `images.statsd.tag`                                   | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `airflow-statsd-exporter-2020.09.05-v0.17.0`      |
 | `images.statsd.pullPolicy`                            | PullPolicy for statsd-exporter image                                                                         | `IfNotPresent`                                    |
 | `images.redis.repository`                             | Docker repository to pull image from. Update this to deploy a custom image                                   | `redis`                                           |
 | `images.redis.tag`                                    | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `6-buster`                                        |
 | `images.redis.pullPolicy`                             | PullPolicy for redis image                                                                                   | `IfNotPresent`                                    |
-| `images.pgbouncer.repository`                         | Docker repository to pull image from. Update this to deploy a custom image                                   | `astronomerinc/ap-pgbouncer`                      |
-| `images.pgbouncer.tag`                                | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `~`                                               |
+| `images.pgbouncer.repository`                         | Docker repository to pull image from. Update this to deploy a custom image                                   | `apache/airflow`                                  |
+| `images.pgbouncer.tag`                                | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `airflow-pgbouncer-2020.09.05-1.14.0`             |
 | `images.pgbouncer.pullPolicy`                         | PullPolicy for pgbouncer image                                                                               | `IfNotPresent`                                    |
-| `images.pgbouncerExporter.repository`                 | Docker repository to pull image from. Update this to deploy a custom image                                   | `astronomerinc/ap-pgbouncer-exporter`             |
-| `images.pgbouncerExporter.tag`                        | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `~`                                               |
+| `images.pgbouncerExporter.repository`                 | Docker repository to pull image from. Update this to deploy a custom image                                   | `apache/airflow`                                  |
+| `images.pgbouncerExporter.tag`                        | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `airflow-pgbouncer-exporter-2020.09.25-0.5.0`     |
 | `images.pgbouncerExporter.pullPolicy`                 | PullPolicy for pgbouncer-exporter image                                                                      | `IfNotPresent`                                    |
-| `env`                                                 | Environment variables key/values to mount into Airflow pods                                                  | `[]`                                              |
+| `env`                                                 | Environment variables key/values to mount into Airflow pods (deprecated, prefer using extraEnv)              | `[]`                                              |
 | `secret`                                              | Secret name/key pairs to mount into Airflow pods                                                             | `[]`                                              |
+| `extraEnv`                                            | Extra env 'items' that will be added to the definition of airflow containers                                 | `~`                                               |
+| `extraEnvFrom`                                        | Extra envFrom 'items' that will be added to the definition of airflow containers                             | `~`                                               |
+| `extraSecrets`                                        | Extra Secrets that will be managed by the chart                                                              | `{}`                                              |
+| `extraConfigMaps`                                     | Extra ConfigMaps that will be managed by the chart                                                           | `{}`                                              |
 | `data.metadataSecretName`                             | Secret name to mount Airflow connection string from                                                          | `~`                                               |
 | `data.resultBackendSecretName`                        | Secret name to mount Celery result backend connection string from                                            | `~`                                               |
 | `data.metadataConection`                              | Field separated connection data (alternative to secret name)                                                 | `{}`                                              |
 | `data.resultBackendConnection`                        | Field separated connection data (alternative to secret name)                                                 | `{}`                                              |
-| `fernetKey`                                           | String representing an Airflow fernet key                                                                    | `~`                                               |
-| `fernetKeySecretName`                                 | Secret name for Airlow fernet key                                                                            | `~`                                               |
+| `fernetKey`                                           | String representing an Airflow Fernet key                                                                    | `~`                                               |
+| `fernetKeySecretName`                                 | Secret name for Airflow Fernet key                                                                           | `~`                                               |
+| `kerberos.enabled`                                    | Enable kerberos support for workers                                                                          | `false`                                           |
+| `kerberos.ccacheMountPath`                            | Location of the ccache volume                                                                                | `/var/kerberos-ccache`                            |
+| `kerberos.ccacheFileName`                             | Name of the ccache file                                                                                      | `ccache`                                          |
+| `kerberos.configPath`                                 | Path for the Kerberos config file                                                                            | `/etc/krb5.conf`                                  |
+| `kerberos.keytabPath`                                 | Path for the Kerberos keytab file                                                                            | `/etc/airflow.keytab`                             |
+| `kerberos.principal`                                  | Name of the Kerberos principal                                                                               | `airflow`                                         |
+| `kerberos.reinitFrequency`                            | Frequency of reinitialization of the Kerberos token                                                          | `3600`                                            |
+| `kerberos.config`                                      | Content of the configuration file for kerberos (might be templated using Helm templates)                     | `<see values.yaml>`                               |
 | `workers.replicas`                                    | Replica count for Celery workers (if applicable)                                                             | `1`                                               |
 | `workers.keda.enabled`                                | Enable KEDA autoscaling features                                                                             | `false`                                           |
 | `workers.keda.pollingInverval`                        | How often KEDA should poll the backend database for metrics in seconds                                       | `5`                                               |
 | `workers.keda.cooldownPeriod`                         | How often KEDA should wait before scaling down in seconds                                                    | `30`                                              |
 | `workers.keda.maxReplicaCount`                        | Maximum number of Celery workers KEDA can scale to                                                           | `10`                                              |
+| `workers.kerberosSideCar.enabled`                     | Enable Kerberos sidecar for the worker                                                                       | `false`                                           |
 | `workers.persistence.enabled`                         | Enable log persistence in workers via StatefulSet                                                            | `false`                                           |
 | `workers.persistence.size`                            | Size of worker volumes if enabled                                                                            | `100Gi`                                           |
 | `workers.persistence.storageClassName`                | StorageClass worker volumes should use if enabled                                                            | `default`                                         |
@@ -176,14 +193,21 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `workers.resources.requests.memory`                   | Memory Request of workers                                                                                    | `~`                                               |
 | `workers.terminationGracePeriodSeconds`               | How long Kubernetes should wait for Celery workers to gracefully drain before force killing                  | `600`                                             |
 | `workers.safeToEvict`                                 | Allow Kubernetes to evict worker pods if needed (node downscaling)                                           | `true`                                            |
+| `workers.serviceAccountAnnotations`                   | Annotations to add to worker kubernetes service account                                                      | `{}`                                            |
+| `workers.extraVolumes`                                | Mount additional volumes into worker                                                                         | `[]`                                            |
+| `workers.extraVolumeMounts`                           | Mount additional volumes into worker                                                                         | `[]`                                            |
 | `scheduler.podDisruptionBudget.enabled`               | Enable PDB on Airflow scheduler                                                                              | `false`                                           |
 | `scheduler.podDisruptionBudget.config.maxUnavailable` | MaxUnavailable pods for scheduler                                                                            | `1`                                               |
+| `scheduler.replicas`                                  | # of parallel schedulers (Airflow 2.0 using Mysql 8+ or Postgres only)                                       | `1`                                               |
 | `scheduler.resources.limits.cpu`                      | CPU Limit of scheduler                                                                                       | `~`                                               |
 | `scheduler.resources.limits.memory`                   | Memory Limit of scheduler                                                                                    | `~`                                               |
 | `scheduler.resources.requests.cpu`                    | CPU Request of scheduler                                                                                     | `~`                                               |
 | `scheduler.resources.requests.memory`                 | Memory Request of scheduler                                                                                  | `~`                                               |
 | `scheduler.airflowLocalSettings`                      | Custom Airflow local settings python file                                                                    | `~`                                               |
 | `scheduler.safeToEvict`                               | Allow Kubernetes to evict scheduler pods if needed (node downscaling)                                        | `true`                                            |
+| `scheduler.serviceAccountAnnotations`                 | Annotations to add to scheduler kubernetes service account                                                   | `{}`                                            |
+| `scheduler.extraVolumes`                              | Mount additional volumes into scheduler                                                                      | `[]`                                            |
+| `scheduler.extraVolumeMounts`                         | Mount additional volumes into scheduler                                                                      | `[]`                                            |
 | `webserver.livenessProbe.initialDelaySeconds`         | Webserver LivenessProbe initial delay                                                                        | `15`                                              |
 | `webserver.livenessProbe.timeoutSeconds`              | Webserver LivenessProbe timeout seconds                                                                      | `30`                                              |
 | `webserver.livenessProbe.failureThreshold`            | Webserver LivenessProbe failure threshold                                                                    | `20`                                              |
@@ -199,8 +223,10 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `webserver.resources.requests.memory`                 | Memory Request of webserver                                                                                  | `~`                                               |
 | `webserver.service.annotations`                       | Annotations to be added to the webserver service                                                             | `{}`                                              |
 | `webserver.defaultUser`                               | Optional default airflow user information                                                                    | `{}`                                              |
-| `dags.persistence.*`                                  | Dag persistence configutation                                                                                | Please refer to `values.yaml`                     |
+| `dags.persistence.*`                                  | Dag persistence configuration                                                                                | Please refer to `values.yaml`                     |
 | `dags.gitSync.*`                                      | Git sync configuration                                                                                       | Please refer to `values.yaml`                     |
+| `multiNamespaceMode`                                  | Whether the KubernetesExecutor can launch pods in multiple namespaces                                        | `False`                                           |
+| `serviceAccountAnnottions.*`                          | Map of annotations for worker, webserver, scheduler kubernetes service accounts                              | {}                                                |
 
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example,
@@ -211,7 +237,7 @@ helm install --name my-release \
   --set enablePodLaunching=false .
 ```
 
-##  Autoscaling with KEDA
+## Autoscaling with KEDA
 
 KEDA stands for Kubernetes Event Driven Autoscaling. [KEDA](https://github.com/kedacore/keda) is a custom controller that allows users to create custom bindings
 to the Kubernetes [Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/).
@@ -282,29 +308,37 @@ helm list -n airflow
 ```
 
 Run `kubectl port-forward svc/airflow-webserver 8080:8080 -n airflow`
-to port-forward the Airflow UI to http://localhost:8080/ to cofirm Airflow is working.
+to port-forward the Airflow UI to http://localhost:8080/ to confirm Airflow is working.
 
 **Build a Docker image from your DAGs:**
 
 1. Start a project using [astro-cli](https://github.com/astronomer/astro-cli), which will generate a Dockerfile, and load your DAGs in. You can test locally before pushing to kind with `astro airflow start`.
 
-        mkdir my-airflow-project && cd my-airflow-project
-        astro dev init
+    ```shell script
+    mkdir my-airflow-project && cd my-airflow-project
+    astro dev init
+    ```
 
 2. Then build the image:
 
-        docker build -t my-dags:0.0.1 .
+    ```shell script
+    docker build -t my-dags:0.0.1 .
+    ```
 
 3. Load the image into kind:
 
-        kind load docker-image my-dags:0.0.1
+    ```shell script
+    kind load docker-image my-dags:0.0.1
+    ```
 
 4. Upgrade Helm deployment:
 
-        helm upgrade airflow -n airflow \
-            --set images.airflow.repository=my-dags \
-            --set images.airflow.tag=0.0.1 \
-            astronomer/airflow
+    ```shell script
+    helm upgrade airflow -n airflow \
+        --set images.airflow.repository=my-dags \
+        --set images.airflow.tag=0.0.1 \
+        astronomer/airflow
+    ```
 
 ## Contributing
 

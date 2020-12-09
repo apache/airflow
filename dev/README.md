@@ -20,226 +20,191 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
-- [Development Tools](#development-tools)
-  - [Airflow release signing tool](#airflow-release-signing-tool)
-- [Verifying the release candidate by PMCs (legal)](#verifying-the-release-candidate-by-pmcs-legal)
-  - [PMC voting](#pmc-voting)
-  - [SVN check](#svn-check)
-  - [Verifying the licences](#verifying-the-licences)
-  - [Verifying the signatures](#verifying-the-signatures)
-  - [Verifying the SHA512 sum](#verifying-the-sha512-sum)
-- [Verifying if the release candidate "works" by Contributors](#verifying-if-the-release-candidate-works-by-contributors)
+- [Apache Airflow source releases](#apache-airflow-source-releases)
+  - [Apache Airflow Package](#apache-airflow-package)
+  - [Provider packages](#provider-packages)
+- [Prerequisites for the release manager preparing the release](#prerequisites-for-the-release-manager-preparing-the-release)
+  - [Upload Public keys to id.apache.org](#upload-public-keys-to-idapacheorg)
+  - [Configure PyPI uploads](#configure-pypi-uploads)
+  - [Hardware used to prepare and verify the packages](#hardware-used-to-prepare-and-verify-the-packages)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-# Development Tools
+# Apache Airflow source releases
 
-## Airflow release signing tool
+The Apache Airflow releases are one of the two types:
 
-The release signing tool can be used to create the SHA512/MD5 and ASC files that required for Apache releases.
+* Releases of the Apache Airflow package
+* Releases of the Backport Providers Packages
 
-### Execution
+## Apache Airflow Package
 
-To create a release tarball execute following command from Airflow's root.
+This package contains sources that allow the user building fully-functional Apache Airflow 2.0 package.
+They contain sources for:
 
-```bash
-python setup.py compile_assets sdist --formats=gztar
-```
+ * "apache-airflow" python package that installs "airflow" Python package and includes
+   all the assets required to release the webserver UI coming with Apache Airflow
+ * Dockerfile and corresponding scripts that build and use an official DockerImage
+ * Breeze development environment that helps with building images and testing locally
+   apache airflow built from sources
 
-*Note: `compile_assets` command build the frontend assets (JS and CSS) files for the
-Web UI using webpack and yarn. Please make sure you have `yarn` installed on your local machine globally.
-Details on how to install `yarn` can be found in CONTRIBUTING.rst file.*
+In the future (Airflow 2.0) this package will be split into separate "core" and "providers" packages that
+will be distributed separately, following the mechanisms introduced in Backport Package Providers. We also
+plan to release the official Helm Chart sources that will allow the user to install Apache Airflow
+via helm 3.0 chart in a distributed fashion.
 
-After that navigate to relative directory i.e., `cd dist` and sign the release files.
+The Source releases are the only "official" Apache Software Foundation releases, and they are distributed
+via [Official Apache Download sources](https://downloads.apache.org/)
 
-```bash
-../dev/sign.sh <the_created_tar_ball.tar.gz
-```
+Following source releases Apache Airflow release manager also distributes convenience packages:
 
-Signing files will be created in the same directory.
+* PyPI packages released via https://pypi.org/project/apache-airflow/
+* Docker Images released via https://hub.docker.com/repository/docker/apache/airflow
 
+Those convenience packages are not "official releases" of Apache Airflow, but the users who
+cannot or do not want to build the packages themselves can use them as a convenient way of installing
+Apache Airflow, however they are not considered as "official source releases". You can read more
+details about it in the [ASF Release Policy](http://www.apache.org/legal/release-policy.html).
 
-# Verifying the release candidate by PMCs (legal)
+Detailed instruction of releasing Provider Packages can be found in the
+[README_RELEASE_AIRFLOW.md](README_RELEASE_AIRFLOW.md)
 
-## PMC voting
+## Provider packages
 
-The PMCs should verify the releases in order to make sure the release is following the
-[Apache Legal Release Policy](http://www.apache.org/legal/release-policy.html).
+The Provider packages are packages (per provider) that make it possible to easily install Hooks,
+Operators, Sensors, and Secrets for different providers (external services used by Airflow).
 
-At least 3 (+1) votes should be recorded in accordance to
-[Votes on Package Releases](https://www.apache.org/foundation/voting.html#ReleaseVotes)
+There are also Backport Provider Packages that allow to use the Operators, Hooks, Secrets from the 2.0
+version of Airflow in the 1.10.* series.
 
-The legal checks include:
-
-* checking if the packages are present in the right dist folder on svn
-* verifying if all the sources have correct licences
-* verifying if release manager signed the releases with the right key
-* verifying if all the checksums are valid for the release
-
-## SVN check
-
-The files should be present in the sub-folder of
-[Airflow dist](https://dist.apache.org/repos/dist/dev/airflow/)
-
-The following files should be present (9 files):
-
-* -bin-tar.gz + .asc + .sha512
-* -source.tar.gz + .asc + .sha512
-* -.whl + .asc + .sha512
-
-As a PMC you should be able to clone the SVN repository:
-
-```bash
-svn co https://dist.apache.org/repos/dist/dev/airflow
-```
-
-Or update it if you already checked it out:
-
-```bash
-svn update .
-```
-
-## Verifying the licences
-
-This can be done with the Apache RAT tool.
-
-* Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the sources,
-  the jar is inside)
-* Unpack the -source.tar.gz to a folder
-* Enter the folder and run the check (point to the place where you extracted the .jar)
-
-```bash
-java -jar ../../apache-rat-0.13/apache-rat-0.13.jar -E .rat-excludes -d .
-```
-
-## Verifying the signatures
-
-Make sure you have the key of person signed imported in your GPG. You can find the valid keys in
-[KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS).
-
-You can import the whole KEYS file:
-
-```bash
-gpg --import KEYS
-```
-
-You can also import the keys individually from a keyserver. The below one uses Kaxil's key and
-retrieves it from the default GPG keyserver
-[OpenPGP.org](https://keys.openpgp.org):
-
-```bash
-gpg --receive-keys 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
-```
-
-You should choose to import the key when asked.
-
-Note that by being default, the OpenPGP server tends to be overloaded often and might respond with
-errors or timeouts. Many of the release managers also uploaded their keys to the
-[GNUPG.net](https://keys.gnupg.net) keyserver, and you can retrieve it from there.
-
-```bash
-gpg --keyserver keys.gnupg.net --receive-keys 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
-```
-
-Once you have the keys, the signatures can be verified by running this:
-
-```bash
-for i in *.asc
-do
-   echo "Checking $i"; gpg --verify `basename $i .sha512 `
-done
-```
-
-This should produce results similar to the below. The "Good signature from ..." is indication
-that the signatures are correct. Do not worry about the "not certified with a trusted signature"
-warning. Most of certificates used by release managers are self signed, that's why you get this
-warning. By importing the server in the previous step and importing it via ID from
-[KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS) page, you know that
-this is a valid Key already.
+Once you release the packages, you can simply install them with:
 
 ```
-Checking apache-airflow-1.10.12rc4-bin.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-1.10.12rc4-bin.tar.gz'
-gpg: Signature made sob, 22 sie 2020, 20:28:28 CEST
-gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
-gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
-gpg: WARNING: This key is not certified with a trusted signature!
-gpg:          There is no indication that the signature belongs to the owner.
-Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
-Checking apache_airflow-1.10.12rc4-py2.py3-none-any.whl.asc
-gpg: assuming signed data in 'apache_airflow-1.10.12rc4-py2.py3-none-any.whl'
-gpg: Signature made sob, 22 sie 2020, 20:28:31 CEST
-gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
-gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
-gpg: WARNING: This key is not certified with a trusted signature!
-gpg:          There is no indication that the signature belongs to the owner.
-Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
-Checking apache-airflow-1.10.12rc4-source.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-1.10.12rc4-source.tar.gz'
-gpg: Signature made sob, 22 sie 2020, 20:28:25 CEST
-gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
-gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
-gpg: WARNING: This key is not certified with a trusted signature!
-gpg:          There is no indication that the signature belongs to the owner.
-Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
+pip install apache-airflow-providers-<PROVIDER>[<EXTRAS>]
 ```
 
-## Verifying the SHA512 sum
-
-Run this:
-
-```bash
-for i in *.sha512
-do
-    echo "Checking $i"; gpg --print-md SHA512 `basename $i .sha512 ` | diff - $i
-done
-```
-
-You should get output similar to:
+for regular providers and
 
 ```
-Checking apache-airflow-1.10.12rc4-bin.tar.gz.sha512
-Checking apache_airflow-1.10.12rc4-py2.py3-none-any.whl.sha512
-Checking apache-airflow-1.10.12rc4-source.tar.gz.sha512
+pip install apache-airflow-backport-providers-<PROVIDER>[<EXTRAS>]
 ```
 
-# Verifying if the release candidate "works" by Contributors
+for backport providers.
 
-This can be done (and we encourage to) by any of the Contributors. In fact, it's best if the
-actual users of Apache Airflow test it in their own staging/test installations. Each release candidate
-is available on PyPI apart from SVN packages, so everyone should be able to install
-the release candidate version of Airflow via simply (<VERSION> is 1.10.12 for example, and <X> is
-release candidate number 1,2,3,....).
+Where `<PROVIDER>` is the provider id and `<EXTRAS>` are optional extra packages to install.
+You can find the provider packages dependencies and extras in the README.md files in each provider
+package (in `airflow/providers/<PROVIDER>` folder) as well as in the PyPI installation page.
 
-```bash
-pip install apache-airflow==<VERSION>rc<X>
+Backport providers are a great way to migrate your DAGs to Airflow-2.0 compatible DAGs. You can
+switch to the new Airflow-2.0 packages in your DAGs, long before you attempt to migrate
+airflow to 2.0 line.
+
+The sources released in SVN allow to build all the provider packages by the user, following the
+instructions and scripts provided. Those are also "official_source releases" as described in the
+[ASF Release Policy](http://www.apache.org/legal/release-policy.html) and they are available
+via [Official Apache Download for providers](https://downloads.apache.org/airflow/providers/) and
+[Official Apache Download for backport-providers](https://downloads.apache.org/airflow/backport-providers/)
+
+The full provider's list can be found here:
+[Provider Packages Reference](https://s.apache.org/airflow-docs)
+
+There are also convenience packages released as "apache-airflow-providers" and
+"apache-airflow-backport-providers" separately in PyPI.
+You can find all backport providers via:
+[PyPI query for providers](https://pypi.org/search/?q=apache-airflow-providers) and
+[PyPI query for backport providers](https://pypi.org/search/?q=apache-airflow-backport-providers).
+
+Detailed instruction of releasing Provider Packages can be found in the
+[README_RELEASE_PROVIDER_PACKAGES.md](README_RELEASE_PROVIDER_PACKAGES.md)
+
+# Prerequisites for the release manager preparing the release
+
+The person acting as release manager has to fulfill certain pre-requisites. More details and FAQs are
+available in the [ASF Release Policy](http://www.apache.org/legal/release-policy.html) but here some important
+pre-requisites are listed below. Note that release manager does not have to be a PMC - it is enough
+to be committer to assume the release manager role, but there are final steps in the process (uploading
+final releases to SVN) that can only be done by PMC member. If needed, the release manager
+can ask PMC to perform that final step of release.
+
+## Upload Public keys to id.apache.org
+
+Make sure your public key is on id.apache.org and in KEYS. You will need to sign the release artifacts
+with your pgp key. After you have created a key, make sure you:
+
+- Add your GPG pub key to https://dist.apache.org/repos/dist/release/airflow/KEYS , follow the instructions at the top of that file. Upload your GPG public key to https://pgp.mit.edu
+- Add your key fingerprint to https://id.apache.org/ (login with your apache credentials, paste your fingerprint into the pgp fingerprint field and hit save).
+
+```shell script
+# Create PGP Key
+gpg --gen-key
+
+# Checkout ASF dist repo
+svn checkout https://dist.apache.org/repos/dist/release/airflow
+cd airflow
+
+
+# Add your GPG pub key to KEYS file. Replace "Kaxil Naik" with your name
+(gpg --list-sigs "Kaxil Naik" && gpg --armor --export "Kaxil Naik" ) >> KEYS
+
+
+# Commit the changes
+svn commit -m "Add PGP keys of Airflow developers"
 ```
-Optionally it can be followed with constraints
 
-```bash
-pip install apache-airflow==<VERSION>rc<X> \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>/constraints-3.6.txt"`
+See this for more detail on creating keys and what is required for signing releases.
+
+http://www.apache.org/dev/release-signing.html#basic-facts
+
+## Configure PyPI uploads
+
+In order to not reveal your password in plain text, it's best if you create and configure API Upload tokens.
+You can add and copy the tokens here:
+
+* [Test PyPI](https://test.pypi.org/manage/account/token/)
+* [Prod PyPI](https://pypi.org/manage/account/token/)
+
+
+Create a `~/.pypirc` file:
+
+```ini
+[distutils]
+index-servers =
+  pypi
+  pypitest
+
+[pypi]
+username=__token__
+password=<API Upload Token>
+
+[pypitest]
+repository=https://test.pypi.org/legacy/
+username=__token__
+password=<API Upload Token>
 ```
 
-Note that the constraints contain python version that you are installing it with.
+Set proper permissions for the pypirc file:
 
-You can use any of the installation methods you prefer (you can even install it via the binary wheel
-downloaded from the SVN).
+```shell script
+chmod 600 ~/.pypirc
+```
 
-There is also an easy way of installation with Breeze if you have the latest sources of Apache Airflow.
-Here is a typical scenario:
+- Install [twine](https://pypi.org/project/twine/) if you do not have it already (it can be done
+  in a separate virtual environment).
 
-1. `./breeze --install-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres`
-2. `tmux`
-3. Hit Ctrl-B followed by "
-4. `airflow resetdb -y`
-5. if you want RBAC:
-     * Change RBAC setting: `sed "s/rbac = False/rbac = True/" -i /root/airflow/airflow.cfg`
-     * airflow resetdb -y
-     * Run`airflow create_user  -r Admin -u airflow -e airflow@apache.org -f Airflow -l User -p airflow
-6. `airflow scheduler`
-7. Ctrl-B "up-arrow"
-8. `airflow webserver`
+```shell script
+pip install twine
+```
 
-Once you install and run Airflow, you should perform any verification you see as necessary to check
-that the Airflow works as you expected.
+(more details [here](https://peterdowns.com/posts/first-time-with-pypi.html).)
+
+- Set proper permissions for the pypirc file:
+`$ chmod 600 ~/.pypirc`
+
+
+## Hardware used to prepare and verify the packages
+
+The best way to prepare and verify the releases is to prepare them on a hardware owned and controlled
+by the committer acting as release manager. While strictly speaking, releases must only be verified
+on hardware owned and controlled by the committer, for practical reasons it's best if the packages are
+prepared using such hardware. More information can be found in this
+[FAQ](http://www.apache.org/legal/release-policy.html#owned-controlled-hardware)

@@ -27,9 +27,7 @@ from airflow.utils.decorators import apply_defaults
 
 @attr.s(auto_attribs=True)
 class NoteBook(File):
-    """
-    Jupyter notebook
-    """
+    """Jupyter notebook"""
 
     type_hint: Optional[str] = "jupyter_notebook"
     parameters: Optional[Dict] = {}

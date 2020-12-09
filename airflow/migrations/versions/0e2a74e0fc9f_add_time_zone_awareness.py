@@ -34,16 +34,14 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():   # noqa: D103
+def upgrade():  # noqa: D103
     conn = op.get_bind()
     if conn.dialect.name == "mysql":
         conn.execute("SET time_zone = '+00:00'")
         cur = conn.execute("SELECT @@explicit_defaults_for_timestamp")
         res = cur.fetchall()
         if res[0][0] == 0:
-            raise Exception(
-                "Global variable explicit_defaults_for_timestamp needs to be on (1) for mysql"
-            )
+            raise Exception("Global variable explicit_defaults_for_timestamp needs to be on (1) for mysql")
 
         op.alter_column(
             table_name="chart",
@@ -56,12 +54,8 @@ def upgrade():   # noqa: D103
             column_name="last_scheduler_run",
             type_=mysql.TIMESTAMP(fsp=6),
         )
-        op.alter_column(
-            table_name="dag", column_name="last_pickled", type_=mysql.TIMESTAMP(fsp=6)
-        )
-        op.alter_column(
-            table_name="dag", column_name="last_expired", type_=mysql.TIMESTAMP(fsp=6)
-        )
+        op.alter_column(table_name="dag", column_name="last_pickled", type_=mysql.TIMESTAMP(fsp=6))
+        op.alter_column(table_name="dag", column_name="last_expired", type_=mysql.TIMESTAMP(fsp=6))
 
         op.alter_column(
             table_name="dag_pickle",
@@ -74,12 +68,8 @@ def upgrade():   # noqa: D103
             column_name="execution_date",
             type_=mysql.TIMESTAMP(fsp=6),
         )
-        op.alter_column(
-            table_name="dag_run", column_name="start_date", type_=mysql.TIMESTAMP(fsp=6)
-        )
-        op.alter_column(
-            table_name="dag_run", column_name="end_date", type_=mysql.TIMESTAMP(fsp=6)
-        )
+        op.alter_column(table_name="dag_run", column_name="start_date", type_=mysql.TIMESTAMP(fsp=6))
+        op.alter_column(table_name="dag_run", column_name="end_date", type_=mysql.TIMESTAMP(fsp=6))
 
         op.alter_column(
             table_name="import_error",
@@ -87,24 +77,16 @@ def upgrade():   # noqa: D103
             type_=mysql.TIMESTAMP(fsp=6),
         )
 
-        op.alter_column(
-            table_name="job", column_name="start_date", type_=mysql.TIMESTAMP(fsp=6)
-        )
-        op.alter_column(
-            table_name="job", column_name="end_date", type_=mysql.TIMESTAMP(fsp=6)
-        )
+        op.alter_column(table_name="job", column_name="start_date", type_=mysql.TIMESTAMP(fsp=6))
+        op.alter_column(table_name="job", column_name="end_date", type_=mysql.TIMESTAMP(fsp=6))
         op.alter_column(
             table_name="job",
             column_name="latest_heartbeat",
             type_=mysql.TIMESTAMP(fsp=6),
         )
 
-        op.alter_column(
-            table_name="log", column_name="dttm", type_=mysql.TIMESTAMP(fsp=6)
-        )
-        op.alter_column(
-            table_name="log", column_name="execution_date", type_=mysql.TIMESTAMP(fsp=6)
-        )
+        op.alter_column(table_name="log", column_name="dttm", type_=mysql.TIMESTAMP(fsp=6))
+        op.alter_column(table_name="log", column_name="execution_date", type_=mysql.TIMESTAMP(fsp=6))
 
         op.alter_column(
             table_name="sla_miss",
@@ -112,9 +94,7 @@ def upgrade():   # noqa: D103
             type_=mysql.TIMESTAMP(fsp=6),
             nullable=False,
         )
-        op.alter_column(
-            table_name="sla_miss", column_name="timestamp", type_=mysql.TIMESTAMP(fsp=6)
-        )
+        op.alter_column(table_name="sla_miss", column_name="timestamp", type_=mysql.TIMESTAMP(fsp=6))
 
         op.alter_column(
             table_name="task_fail",
@@ -126,9 +106,7 @@ def upgrade():   # noqa: D103
             column_name="start_date",
             type_=mysql.TIMESTAMP(fsp=6),
         )
-        op.alter_column(
-            table_name="task_fail", column_name="end_date", type_=mysql.TIMESTAMP(fsp=6)
-        )
+        op.alter_column(table_name="task_fail", column_name="end_date", type_=mysql.TIMESTAMP(fsp=6))
 
         op.alter_column(
             table_name="task_instance",
@@ -152,9 +130,7 @@ def upgrade():   # noqa: D103
             type_=mysql.TIMESTAMP(fsp=6),
         )
 
-        op.alter_column(
-            table_name="xcom", column_name="timestamp", type_=mysql.TIMESTAMP(fsp=6)
-        )
+        op.alter_column(table_name="xcom", column_name="timestamp", type_=mysql.TIMESTAMP(fsp=6))
         op.alter_column(
             table_name="xcom",
             column_name="execution_date",
@@ -225,18 +201,14 @@ def upgrade():   # noqa: D103
             column_name="start_date",
             type_=sa.TIMESTAMP(timezone=True),
         )
-        op.alter_column(
-            table_name="job", column_name="end_date", type_=sa.TIMESTAMP(timezone=True)
-        )
+        op.alter_column(table_name="job", column_name="end_date", type_=sa.TIMESTAMP(timezone=True))
         op.alter_column(
             table_name="job",
             column_name="latest_heartbeat",
             type_=sa.TIMESTAMP(timezone=True),
         )
 
-        op.alter_column(
-            table_name="log", column_name="dttm", type_=sa.TIMESTAMP(timezone=True)
-        )
+        op.alter_column(table_name="log", column_name="dttm", type_=sa.TIMESTAMP(timezone=True))
         op.alter_column(
             table_name="log",
             column_name="execution_date",
@@ -305,25 +277,19 @@ def upgrade():   # noqa: D103
         )
 
 
-def downgrade():   # noqa: D103
+def downgrade():  # noqa: D103
     conn = op.get_bind()
     if conn.dialect.name == "mysql":
         conn.execute("SET time_zone = '+00:00'")
-        op.alter_column(
-            table_name="chart", column_name="last_modified", type_=mysql.DATETIME(fsp=6)
-        )
+        op.alter_column(table_name="chart", column_name="last_modified", type_=mysql.DATETIME(fsp=6))
 
         op.alter_column(
             table_name="dag",
             column_name="last_scheduler_run",
             type_=mysql.DATETIME(fsp=6),
         )
-        op.alter_column(
-            table_name="dag", column_name="last_pickled", type_=mysql.DATETIME(fsp=6)
-        )
-        op.alter_column(
-            table_name="dag", column_name="last_expired", type_=mysql.DATETIME(fsp=6)
-        )
+        op.alter_column(table_name="dag", column_name="last_pickled", type_=mysql.DATETIME(fsp=6))
+        op.alter_column(table_name="dag", column_name="last_expired", type_=mysql.DATETIME(fsp=6))
 
         op.alter_column(
             table_name="dag_pickle",
@@ -336,12 +302,8 @@ def downgrade():   # noqa: D103
             column_name="execution_date",
             type_=mysql.DATETIME(fsp=6),
         )
-        op.alter_column(
-            table_name="dag_run", column_name="start_date", type_=mysql.DATETIME(fsp=6)
-        )
-        op.alter_column(
-            table_name="dag_run", column_name="end_date", type_=mysql.DATETIME(fsp=6)
-        )
+        op.alter_column(table_name="dag_run", column_name="start_date", type_=mysql.DATETIME(fsp=6))
+        op.alter_column(table_name="dag_run", column_name="end_date", type_=mysql.DATETIME(fsp=6))
 
         op.alter_column(
             table_name="import_error",
@@ -349,24 +311,16 @@ def downgrade():   # noqa: D103
             type_=mysql.DATETIME(fsp=6),
         )
 
-        op.alter_column(
-            table_name="job", column_name="start_date", type_=mysql.DATETIME(fsp=6)
-        )
-        op.alter_column(
-            table_name="job", column_name="end_date", type_=mysql.DATETIME(fsp=6)
-        )
+        op.alter_column(table_name="job", column_name="start_date", type_=mysql.DATETIME(fsp=6))
+        op.alter_column(table_name="job", column_name="end_date", type_=mysql.DATETIME(fsp=6))
         op.alter_column(
             table_name="job",
             column_name="latest_heartbeat",
             type_=mysql.DATETIME(fsp=6),
         )
 
-        op.alter_column(
-            table_name="log", column_name="dttm", type_=mysql.DATETIME(fsp=6)
-        )
-        op.alter_column(
-            table_name="log", column_name="execution_date", type_=mysql.DATETIME(fsp=6)
-        )
+        op.alter_column(table_name="log", column_name="dttm", type_=mysql.DATETIME(fsp=6))
+        op.alter_column(table_name="log", column_name="execution_date", type_=mysql.DATETIME(fsp=6))
 
         op.alter_column(
             table_name="sla_miss",
@@ -374,9 +328,7 @@ def downgrade():   # noqa: D103
             type_=mysql.DATETIME(fsp=6),
             nullable=False,
         )
-        op.alter_column(
-            table_name="sla_miss", column_name="timestamp", type_=mysql.DATETIME(fsp=6)
-        )
+        op.alter_column(table_name="sla_miss", column_name="timestamp", type_=mysql.DATETIME(fsp=6))
 
         op.alter_column(
             table_name="task_fail",
@@ -388,9 +340,7 @@ def downgrade():   # noqa: D103
             column_name="start_date",
             type_=mysql.DATETIME(fsp=6),
         )
-        op.alter_column(
-            table_name="task_fail", column_name="end_date", type_=mysql.DATETIME(fsp=6)
-        )
+        op.alter_column(table_name="task_fail", column_name="end_date", type_=mysql.DATETIME(fsp=6))
 
         op.alter_column(
             table_name="task_instance",
@@ -414,12 +364,8 @@ def downgrade():   # noqa: D103
             type_=mysql.DATETIME(fsp=6),
         )
 
-        op.alter_column(
-            table_name="xcom", column_name="timestamp", type_=mysql.DATETIME(fsp=6)
-        )
-        op.alter_column(
-            table_name="xcom", column_name="execution_date", type_=mysql.DATETIME(fsp=6)
-        )
+        op.alter_column(table_name="xcom", column_name="timestamp", type_=mysql.DATETIME(fsp=6))
+        op.alter_column(table_name="xcom", column_name="execution_date", type_=mysql.DATETIME(fsp=6))
     else:
         if conn.dialect.name in ("sqlite", "mssql"):
             return
@@ -429,48 +375,26 @@ def downgrade():   # noqa: D103
         if conn.dialect.name == "postgresql":
             conn.execute("set timezone=UTC")
 
-        op.alter_column(
-            table_name="chart", column_name="last_modified", type_=sa.DateTime()
-        )
+        op.alter_column(table_name="chart", column_name="last_modified", type_=sa.DateTime())
 
-        op.alter_column(
-            table_name="dag", column_name="last_scheduler_run", type_=sa.DateTime()
-        )
-        op.alter_column(
-            table_name="dag", column_name="last_pickled", type_=sa.DateTime()
-        )
-        op.alter_column(
-            table_name="dag", column_name="last_expired", type_=sa.DateTime()
-        )
+        op.alter_column(table_name="dag", column_name="last_scheduler_run", type_=sa.DateTime())
+        op.alter_column(table_name="dag", column_name="last_pickled", type_=sa.DateTime())
+        op.alter_column(table_name="dag", column_name="last_expired", type_=sa.DateTime())
 
-        op.alter_column(
-            table_name="dag_pickle", column_name="created_dttm", type_=sa.DateTime()
-        )
+        op.alter_column(table_name="dag_pickle", column_name="created_dttm", type_=sa.DateTime())
 
-        op.alter_column(
-            table_name="dag_run", column_name="execution_date", type_=sa.DateTime()
-        )
-        op.alter_column(
-            table_name="dag_run", column_name="start_date", type_=sa.DateTime()
-        )
-        op.alter_column(
-            table_name="dag_run", column_name="end_date", type_=sa.DateTime()
-        )
+        op.alter_column(table_name="dag_run", column_name="execution_date", type_=sa.DateTime())
+        op.alter_column(table_name="dag_run", column_name="start_date", type_=sa.DateTime())
+        op.alter_column(table_name="dag_run", column_name="end_date", type_=sa.DateTime())
 
-        op.alter_column(
-            table_name="import_error", column_name="timestamp", type_=sa.DateTime()
-        )
+        op.alter_column(table_name="import_error", column_name="timestamp", type_=sa.DateTime())
 
         op.alter_column(table_name="job", column_name="start_date", type_=sa.DateTime())
         op.alter_column(table_name="job", column_name="end_date", type_=sa.DateTime())
-        op.alter_column(
-            table_name="job", column_name="latest_heartbeat", type_=sa.DateTime()
-        )
+        op.alter_column(table_name="job", column_name="latest_heartbeat", type_=sa.DateTime())
 
         op.alter_column(table_name="log", column_name="dttm", type_=sa.DateTime())
-        op.alter_column(
-            table_name="log", column_name="execution_date", type_=sa.DateTime()
-        )
+        op.alter_column(table_name="log", column_name="execution_date", type_=sa.DateTime())
 
         op.alter_column(
             table_name="sla_miss",
@@ -478,19 +402,11 @@ def downgrade():   # noqa: D103
             type_=sa.DateTime(),
             nullable=False,
         )
-        op.alter_column(
-            table_name="sla_miss", column_name="timestamp", type_=sa.DateTime()
-        )
+        op.alter_column(table_name="sla_miss", column_name="timestamp", type_=sa.DateTime())
 
-        op.alter_column(
-            table_name="task_fail", column_name="execution_date", type_=sa.DateTime()
-        )
-        op.alter_column(
-            table_name="task_fail", column_name="start_date", type_=sa.DateTime()
-        )
-        op.alter_column(
-            table_name="task_fail", column_name="end_date", type_=sa.DateTime()
-        )
+        op.alter_column(table_name="task_fail", column_name="execution_date", type_=sa.DateTime())
+        op.alter_column(table_name="task_fail", column_name="start_date", type_=sa.DateTime())
+        op.alter_column(table_name="task_fail", column_name="end_date", type_=sa.DateTime())
 
         op.alter_column(
             table_name="task_instance",
@@ -498,17 +414,9 @@ def downgrade():   # noqa: D103
             type_=sa.DateTime(),
             nullable=False,
         )
-        op.alter_column(
-            table_name="task_instance", column_name="start_date", type_=sa.DateTime()
-        )
-        op.alter_column(
-            table_name="task_instance", column_name="end_date", type_=sa.DateTime()
-        )
-        op.alter_column(
-            table_name="task_instance", column_name="queued_dttm", type_=sa.DateTime()
-        )
+        op.alter_column(table_name="task_instance", column_name="start_date", type_=sa.DateTime())
+        op.alter_column(table_name="task_instance", column_name="end_date", type_=sa.DateTime())
+        op.alter_column(table_name="task_instance", column_name="queued_dttm", type_=sa.DateTime())
 
         op.alter_column(table_name="xcom", column_name="timestamp", type_=sa.DateTime())
-        op.alter_column(
-            table_name="xcom", column_name="execution_date", type_=sa.DateTime()
-        )
+        op.alter_column(table_name="xcom", column_name="execution_date", type_=sa.DateTime())

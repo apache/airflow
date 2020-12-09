@@ -21,13 +21,13 @@ from datetime import datetime
 
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils import helpers
-from airflow.utils.helpers import merge_dicts
+from airflow.utils.helpers import build_airflow_url_with_query, merge_dicts
+from tests.test_utils.config import conf_vars
 
 
 class TestHelpers(unittest.TestCase):
-
     def test_render_log_filename(self):
         try_number = 1
         dag_id = 'test_render_log_filename_dag'
@@ -41,10 +41,9 @@ class TestHelpers(unittest.TestCase):
         filename_template = "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log"
 
         ts = ti.get_template_context()['ts']
-        expected_filename = "{dag_id}/{task_id}/{ts}/{try_number}.log".format(dag_id=dag_id,
-                                                                              task_id=task_id,
-                                                                              ts=ts,
-                                                                              try_number=try_number)
+        expected_filename = "{dag_id}/{task_id}/{ts}/{try_number}.log".format(
+            dag_id=dag_id, task_id=task_id, ts=ts, try_number=try_number
+        )
 
         rendered_filename = helpers.render_log_filename(ti, try_number, filename_template)
 
@@ -62,22 +61,15 @@ class TestHelpers(unittest.TestCase):
         self.assertEqual(list(helpers.chunks([1, 2, 3], 2)), [[1, 2], [3]])
 
     def test_reduce_in_chunks(self):
-        self.assertEqual(helpers.reduce_in_chunks(lambda x, y: x + [y],
-                                                  [1, 2, 3, 4, 5],
-                                                  []),
-                         [[1, 2, 3, 4, 5]])
+        self.assertEqual(
+            helpers.reduce_in_chunks(lambda x, y: x + [y], [1, 2, 3, 4, 5], []), [[1, 2, 3, 4, 5]]
+        )
 
-        self.assertEqual(helpers.reduce_in_chunks(lambda x, y: x + [y],
-                                                  [1, 2, 3, 4, 5],
-                                                  [],
-                                                  2),
-                         [[1, 2], [3, 4], [5]])
+        self.assertEqual(
+            helpers.reduce_in_chunks(lambda x, y: x + [y], [1, 2, 3, 4, 5], [], 2), [[1, 2], [3, 4], [5]]
+        )
 
-        self.assertEqual(helpers.reduce_in_chunks(lambda x, y: x + y[0] * y[1],
-                                                  [1, 2, 3, 4],
-                                                  0,
-                                                  2),
-                         14)
+        self.assertEqual(helpers.reduce_in_chunks(lambda x, y: x + y[0] * y[1], [1, 2, 3, 4], 0, 2), 14)
 
     def test_is_container(self):
         self.assertFalse(helpers.is_container("a string is not a container"))
@@ -89,14 +81,10 @@ class TestHelpers(unittest.TestCase):
         self.assertFalse(helpers.is_container(10))
 
     def test_as_tuple(self):
-        self.assertEqual(
-            helpers.as_tuple("a string is not a container"),
-            ("a string is not a container",)
-        )
+        self.assertEqual(helpers.as_tuple("a string is not a container"), ("a string is not a container",))
 
         self.assertEqual(
-            helpers.as_tuple(["a", "list", "is", "a", "container"]),
-            ("a", "list", "is", "a", "container")
+            helpers.as_tuple(["a", "list", "is", "a", "container"]), ("a", "list", "is", "a", "container")
         )
 
     def test_as_tuple_iter(self):
@@ -111,8 +99,7 @@ class TestHelpers(unittest.TestCase):
 
     def test_convert_camel_to_snake(self):
         self.assertEqual(helpers.convert_camel_to_snake('LocalTaskJob'), 'local_task_job')
-        self.assertEqual(helpers.convert_camel_to_snake('somethingVeryRandom'),
-                         'something_very_random')
+        self.assertEqual(helpers.convert_camel_to_snake('somethingVeryRandom'), 'something_very_random')
 
     def test_merge_dicts(self):
         """
@@ -150,3 +137,13 @@ class TestHelpers(unittest.TestCase):
         dict2 = {'a': 1, 'r': {'c': 3, 'b': 0}}
         merged = merge_dicts(dict1, dict2)
         self.assertDictEqual(merged, {'a': 1, 'r': {'b': 0, 'c': 3}})
+
+    @conf_vars(
+        {
+            ("webserver", "dag_default_view"): "custom",
+        }
+    )
+    def test_build_airflow_url_with_query(self):
+        query = {"dag_id": "test_dag", "param": "key/to.encode"}
+        url = build_airflow_url_with_query(query)
+        assert url == "/custom?dag_id=test_dag&param=key%2Fto.encode"

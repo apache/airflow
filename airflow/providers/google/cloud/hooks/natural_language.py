@@ -15,10 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Natural Language Hook.
-"""
-from typing import Dict, Optional, Sequence, Tuple, Union
+"""This module contains a Google Cloud Natural Language Hook."""
+from typing import Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.language_v1 import LanguageServiceClient, enums
@@ -86,7 +84,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
     @GoogleBaseHook.quota_retry()
     def analyze_entities(
         self,
-        document: Union[Dict, Document],
+        document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -120,7 +118,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
     @GoogleBaseHook.quota_retry()
     def analyze_entity_sentiment(
         self,
-        document: Union[Dict, Document],
+        document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -154,7 +152,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
     @GoogleBaseHook.quota_retry()
     def analyze_sentiment(
         self,
-        document: Union[Dict, Document],
+        document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -187,7 +185,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
     @GoogleBaseHook.quota_retry()
     def analyze_syntax(
         self,
-        document: Union[Dict, Document],
+        document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -221,8 +219,8 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
     @GoogleBaseHook.quota_retry()
     def annotate_text(
         self,
-        document: Union[Dict, Document],
-        features: Union[Dict, AnnotateTextRequest.Features],
+        document: Union[dict, Document],
+        features: Union[dict, AnnotateTextRequest.Features],
         encoding_type: enums.EncodingType = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -264,7 +262,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
     @GoogleBaseHook.quota_retry()
     def classify_text(
         self,
-        document: Union[Dict, Document],
+        document: Union[dict, Document],
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,

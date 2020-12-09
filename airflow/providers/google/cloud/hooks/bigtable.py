@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Bigtable Hook.
-"""
+"""This module contains a Google Cloud Bigtable Hook."""
 import enum
 import warnings
 from typing import Dict, List, Optional, Sequence, Union
@@ -320,7 +318,6 @@ class BigtableHook(GoogleBaseHook):
         :param table_id: The ID of the table in Cloud Bigtable to fetch Column Families
             from.
         """
-
         table = Table(table_id, instance)
         return table.list_column_families()
 
@@ -336,6 +333,5 @@ class BigtableHook(GoogleBaseHook):
         :param table_id: The ID of the table in Cloud Bigtable to fetch Cluster States
             from.
         """
-
         table = Table(table_id, instance)
         return table.get_cluster_states()

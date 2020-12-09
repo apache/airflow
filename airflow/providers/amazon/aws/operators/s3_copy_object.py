@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -70,13 +71,13 @@ class S3CopyObjectOperator(BaseOperator):
     def __init__(
         self,
         *,
-        source_bucket_key,
-        dest_bucket_key,
-        source_bucket_name=None,
-        dest_bucket_name=None,
-        source_version_id=None,
-        aws_conn_id='aws_default',
-        verify=None,
+        source_bucket_key: str,
+        dest_bucket_key: str,
+        source_bucket_name: Optional[str] = None,
+        dest_bucket_name: Optional[str] = None,
+        source_version_id: Optional[str] = None,
+        aws_conn_id: str = 'aws_default',
+        verify: Optional[Union[str, bool]] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)

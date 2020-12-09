@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+---
 codecov:
   require_ci_to_pass: true
   notify:
@@ -62,9 +62,9 @@ coverage:
 parsers:
   gcov:
     branch_detection:
-      conditional: yes
-      loop: yes
-      method: no
-      macro: no
+      conditional: true
+      loop: true
+      method: false
+      macro: false
 
 comment: false

@@ -20,6 +20,7 @@ from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import Variable
+from airflow.security import permissions
 from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
@@ -32,12 +33,24 @@ class TestVariableEndpoint(unittest.TestCase):
         super().setUpClass()
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
-        # TODO: Add new role for each view to test permission.
-        create_user(cls.app, username="test", role="Admin")  # type: ignore
+
+        create_user(
+            cls.app,  # type: ignore
+            username="test",
+            role_name="Test",
+            permissions=[
+                (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE),
+                (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE),
+            ],
+        )
+        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
+        delete_user(cls.app, username="test_no_permissions")  # type: ignore
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
@@ -63,7 +76,7 @@ class TestDeleteVariable(TestVariableEndpoint):
         response = self.client.get("/api/v1/variables/delete_var1", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
 
-    def test_should_response_404_if_key_does_not_exist(self):
+    def test_should_respond_404_if_key_does_not_exist(self):
         response = self.client.delete(
             "/api/v1/variables/NONEXIST_VARIABLE_KEY", environ_overrides={'REMOTE_USER': "test"}
         )
@@ -80,9 +93,17 @@ class TestDeleteVariable(TestVariableEndpoint):
         response = self.client.get("/api/v1/variables/delete_var1", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
 
+    def test_should_raise_403_forbidden(self):
+        expected_value = '{"foo": 1}'
+        Variable.set("TEST_VARIABLE_KEY", expected_value)
+        response = self.client.get(
+            "/api/v1/variables/TEST_VARIABLE_KEY", environ_overrides={'REMOTE_USER': "test_no_permissions"}
+        )
+        assert response.status_code == 403
+
 
 class TestGetVariable(TestVariableEndpoint):
-    def test_should_response_200(self):
+    def test_should_respond_200(self):
         expected_value = '{"foo": 1}'
         Variable.set("TEST_VARIABLE_KEY", expected_value)
         response = self.client.get(
@@ -91,7 +112,7 @@ class TestGetVariable(TestVariableEndpoint):
         assert response.status_code == 200
         assert response.json == {"key": "TEST_VARIABLE_KEY", "value": expected_value}
 
-    def test_should_response_404_if_not_found(self):
+    def test_should_respond_404_if_not_found(self):
         response = self.client.get(
             "/api/v1/variables/NONEXIST_VARIABLE_KEY", environ_overrides={'REMOTE_USER': "test"}
         )
@@ -182,8 +203,7 @@ class TestPatchVariable(TestVariableEndpoint):
             },
             environ_overrides={'REMOTE_USER': "test"},
         )
-        assert response.status_code == 204
-        response = self.client.get("/api/v1/variables/var1", environ_overrides={'REMOTE_USER': "test"})
+        assert response.status_code == 200
         assert response.json == {
             "key": "var1",
             "value": "updated",

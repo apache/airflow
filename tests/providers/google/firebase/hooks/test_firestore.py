@@ -21,8 +21,7 @@ Tests for Google Cloud Firestore
 import unittest
 from typing import Optional
 from unittest import mock
-
-from mock import PropertyMock
+from unittest.mock import PropertyMock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.firebase.hooks.firestore import CloudFirestoreHook
@@ -33,7 +32,7 @@ from tests.providers.google.cloud.utils.base_gcp_mock import (
 )
 
 EXPORT_DOCUMENT_BODY = {
-    "outputUriPrefix": "gs://test-bucket/test-naamespace/",
+    "outputUriPrefix": "gs://test-bucket/test-namespace/",
     "collectionIds": ["test-collection"],
 }
 
@@ -69,7 +68,7 @@ class TestCloudFirestoreHookWithPassedProjectId(unittest.TestCase):
         self.assertEqual(self.hook._conn, result)
 
     @mock.patch("airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.get_conn")
-    def test_mmediately_complete(self, get_conn_mock):
+    def test_immediately_complete(self, get_conn_mock):
         service_mock = get_conn_mock.return_value
 
         mock_export_documents = service_mock.projects.return_value.databases.return_value.exportDocuments

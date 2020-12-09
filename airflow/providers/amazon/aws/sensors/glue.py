@@ -18,7 +18,7 @@
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue import AwsGlueJobHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -36,7 +36,7 @@ class AwsGlueJobSensor(BaseSensorOperator):
     template_fields = ('job_name', 'run_id')
 
     @apply_defaults
-    def __init__(self, *, job_name, run_id, aws_conn_id='aws_default', **kwargs):
+    def __init__(self, *, job_name: str, run_id: str, aws_conn_id: str = 'aws_default', **kwargs):
         super().__init__(**kwargs)
         self.job_name = job_name
         self.run_id = run_id
@@ -46,7 +46,7 @@ class AwsGlueJobSensor(BaseSensorOperator):
 
     def poke(self, context):
         hook = AwsGlueJobHook(aws_conn_id=self.aws_conn_id)
-        self.log.info("Poking for job run status :" "for Glue Job %s and ID %s", self.job_name, self.run_id)
+        self.log.info("Poking for job run status :for Glue Job %s and ID %s", self.job_name, self.run_id)
         job_state = hook.get_job_state(job_name=self.job_name, run_id=self.run_id)
         if job_state in self.success_states:
             self.log.info("Exiting Job %s Run State: %s", self.run_id, job_state)

@@ -23,8 +23,11 @@ Please use `airflow.providers.google.cloud.operators.pubsub`.
 import warnings
 
 from airflow.providers.google.cloud.operators.pubsub import (
-    PubSubCreateSubscriptionOperator, PubSubCreateTopicOperator, PubSubDeleteSubscriptionOperator,
-    PubSubDeleteTopicOperator, PubSubPublishMessageOperator,
+    PubSubCreateSubscriptionOperator,
+    PubSubCreateTopicOperator,
+    PubSubDeleteSubscriptionOperator,
+    PubSubDeleteTopicOperator,
+    PubSubPublishMessageOperator,
 )
 
 warnings.warn(

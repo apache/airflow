@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# https://cwiki.apache.org/confluence/display/INFRA/.asf.yaml+features+for+git+repositories
+# https://cwiki.apache.org/confluence/display/INFRA/git+-+.asf.yaml+features
 ---
 github:
   description: "Apache Airflow - A platform to programmatically author, schedule, and monitor workflows"
@@ -39,3 +39,11 @@ github:
     squash: true
     merge: false
     rebase: false
+
+  protected_branches:
+    master:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+    v1-10-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1

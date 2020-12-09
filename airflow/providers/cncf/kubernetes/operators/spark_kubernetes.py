@@ -59,7 +59,7 @@ class SparkKubernetesOperator(BaseOperator):
     def execute(self, context):
         self.log.info("Creating sparkApplication")
         hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
-        response = hook.create_custom_resource_definition(
+        response = hook.create_custom_object(
             group="sparkoperator.k8s.io",
             version="v1beta2",
             plural="sparkapplications",

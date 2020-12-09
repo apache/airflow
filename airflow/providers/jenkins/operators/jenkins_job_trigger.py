@@ -54,15 +54,13 @@ def jenkins_request_with_headers(jenkins_server: Jenkins, req: Request) -> Optio
         response_headers = response.headers
         if response_body is None:
             raise jenkins.EmptyResponseException(
-                "Error communicating with server[%s]: " "empty response" % jenkins_server.server
+                "Error communicating with server[%s]: empty response" % jenkins_server.server
             )
         return {'body': response_body.decode('utf-8'), 'headers': response_headers}
     except HTTPError as e:
         # Jenkins's funky authentication means its nigh impossible to distinguish errors.
         if e.code in [401, 403, 500]:
-            raise JenkinsException(
-                'Error in request. Possibly authentication failed [%s]: %s' % (e.code, e.reason)
-            )
+            raise JenkinsException(f'Error in request. Possibly authentication failed [{e.code}]: {e.reason}')
         elif e.code == 404:
             raise jenkins.NotFoundException('Requested item could not be found')
         else:
@@ -114,9 +112,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         super().__init__(**kwargs)
         self.job_name = job_name
         self.parameters = parameters
-        if sleep_time < 1:
-            sleep_time = 1
-        self.sleep_time = sleep_time
+        self.sleep_time = max(sleep_time, 1)
         self.jenkins_connection_id = jenkins_connection_id
         self.max_try_before_job_appears = max_try_before_job_appears
 
@@ -181,9 +177,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         )
 
     def get_hook(self) -> JenkinsHook:
-        """
-        Instantiate jenkins hook
-        """
+        """Instantiate jenkins hook"""
         return JenkinsHook(self.jenkins_connection_id)
 
     def execute(self, context: Mapping[Any, Any]) -> Optional[str]:
@@ -194,12 +188,12 @@ class JenkinsJobTriggerOperator(BaseOperator):
                 ' being able to use this operator'
             )
             raise AirflowException(
-                'The jenkins_connection_id parameter is missing,' 'impossible to trigger the job'
+                'The jenkins_connection_id parameter is missing, impossible to trigger the job'
             )
 
         if not self.job_name:
             self.log.error("Please specify the job name to use in the job_name parameter")
-            raise AirflowException('The job_name parameter is missing,' 'impossible to trigger the job')
+            raise AirflowException('The job_name parameter is missing,impossible to trigger the job')
 
         self.log.info(
             'Triggering the job %s on the jenkins : %s with the parameters : %s',

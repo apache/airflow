@@ -25,7 +25,7 @@ from azure.kusto.data.request import ClientRequestProperties, KustoClient, Kusto
 from azure.kusto.data.response import KustoResponseDataSetV2
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class AzureDataExplorerHook(BaseHook):
@@ -78,7 +78,12 @@ class AzureDataExplorerHook(BaseHook):
     :type azure_data_explorer_conn_id: str
     """
 
-    def __init__(self, azure_data_explorer_conn_id: str = 'azure_data_explorer_default'):
+    conn_name_attr = 'azure_data_explorer_conn_id'
+    default_conn_name = 'azure_data_explorer_default'
+    conn_type = 'azure_data_explorer'
+    hook_name = 'Azure Data Explorer'
+
+    def __init__(self, azure_data_explorer_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn_id = azure_data_explorer_conn_id
         self.connection = self.get_conn()
@@ -90,13 +95,11 @@ class AzureDataExplorerHook(BaseHook):
         if not cluster:
             raise AirflowException('Host connection option is required')
 
-        def get_required_param(name):
+        def get_required_param(name: str) -> str:
             """Extract required parameter from extra JSON, raise exception if not found"""
             value = conn.extra_dejson.get(name)
             if not value:
-                raise AirflowException(
-                    'Extra connection option is missing required parameter: `{}`'.format(name)
-                )
+                raise AirflowException(f'Extra connection option is missing required parameter: `{name}`')
             return value
 
         auth_method = get_required_param('auth_method')
@@ -120,7 +123,7 @@ class AzureDataExplorerHook(BaseHook):
         elif auth_method == 'AAD_DEVICE':
             kcsb = KustoConnectionStringBuilder.with_aad_device_authentication(cluster)
         else:
-            raise AirflowException('Unknown authentication method: {}'.format(auth_method))
+            raise AirflowException(f'Unknown authentication method: {auth_method}')
 
         return KustoClient(kcsb)
 
@@ -146,4 +149,4 @@ class AzureDataExplorerHook(BaseHook):
         try:
             return self.connection.execute(database, query, properties=properties)
         except KustoServiceError as error:
-            raise AirflowException('Error running Kusto query: {}'.format(error))
+            raise AirflowException(f'Error running Kusto query: {error}')

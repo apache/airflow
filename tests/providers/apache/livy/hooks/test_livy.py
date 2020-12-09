@@ -289,9 +289,7 @@ class TestLivyHook(unittest.TestCase):
 
     @requests_mock.mock()
     def test_get_batch_success(self, mock):
-        mock.register_uri(
-            'GET', '//livy:8998/batches/{}'.format(BATCH_ID), json={'id': BATCH_ID}, status_code=200
-        )
+        mock.register_uri('GET', f'//livy:8998/batches/{BATCH_ID}', json={'id': BATCH_ID}, status_code=200)
 
         hook = LivyHook()
         resp = hook.get_batch(BATCH_ID)
@@ -303,7 +301,7 @@ class TestLivyHook(unittest.TestCase):
     def test_get_batch_fail(self, mock):
         mock.register_uri(
             'GET',
-            '//livy:8998/batches/{}'.format(BATCH_ID),
+            f'//livy:8998/batches/{BATCH_ID}',
             json={'msg': 'Unable to find batch'},
             status_code=404,
             reason='ERROR',
@@ -325,7 +323,7 @@ class TestLivyHook(unittest.TestCase):
 
         mock.register_uri(
             'GET',
-            '//livy:8998/batches/{}/state'.format(BATCH_ID),
+            f'//livy:8998/batches/{BATCH_ID}/state',
             json={'id': BATCH_ID, 'state': running.value},
             status_code=200,
         )
@@ -338,7 +336,7 @@ class TestLivyHook(unittest.TestCase):
     @requests_mock.mock()
     def test_get_batch_state_fail(self, mock):
         mock.register_uri(
-            'GET', '//livy:8998/batches/{}/state'.format(BATCH_ID), json={}, status_code=400, reason='ERROR'
+            'GET', f'//livy:8998/batches/{BATCH_ID}/state', json={}, status_code=400, reason='ERROR'
         )
 
         hook = LivyHook()
@@ -347,7 +345,7 @@ class TestLivyHook(unittest.TestCase):
 
     @requests_mock.mock()
     def test_get_batch_state_missing(self, mock):
-        mock.register_uri('GET', '//livy:8998/batches/{}/state'.format(BATCH_ID), json={}, status_code=200)
+        mock.register_uri('GET', f'//livy:8998/batches/{BATCH_ID}/state', json={}, status_code=200)
 
         hook = LivyHook()
         with self.assertRaises(AirflowException):
@@ -361,7 +359,7 @@ class TestLivyHook(unittest.TestCase):
     @requests_mock.mock()
     def test_delete_batch_success(self, mock):
         mock.register_uri(
-            'DELETE', '//livy:8998/batches/{}'.format(BATCH_ID), json={'msg': 'deleted'}, status_code=200
+            'DELETE', f'//livy:8998/batches/{BATCH_ID}', json={'msg': 'deleted'}, status_code=200
         )
 
         resp = LivyHook().delete_batch(BATCH_ID)
@@ -371,7 +369,7 @@ class TestLivyHook(unittest.TestCase):
     @requests_mock.mock()
     def test_delete_batch_fail(self, mock):
         mock.register_uri(
-            'DELETE', '//livy:8998/batches/{}'.format(BATCH_ID), json={}, status_code=400, reason='ERROR'
+            'DELETE', f'//livy:8998/batches/{BATCH_ID}', json={}, status_code=400, reason='ERROR'
         )
 
         hook = LivyHook()
@@ -388,9 +386,7 @@ class TestLivyHook(unittest.TestCase):
 
     @requests_mock.mock()
     def test_get_batch_validation(self, mock):
-        mock.register_uri(
-            'GET', '//livy:8998/batches/{}'.format(BATCH_ID), json=SAMPLE_GET_RESPONSE, status_code=200
-        )
+        mock.register_uri('GET', f'//livy:8998/batches/{BATCH_ID}', json=SAMPLE_GET_RESPONSE, status_code=200)
 
         hook = LivyHook()
         with self.subTest('get_batch'):
@@ -398,14 +394,14 @@ class TestLivyHook(unittest.TestCase):
 
         # make sure blocked by validation
         for val in [None, 'one', {'a': 'b'}]:
-            with self.subTest('get_batch {}'.format(val)):
+            with self.subTest(f'get_batch {val}'):
                 with self.assertRaises(TypeError):
                     hook.get_batch(val)
 
     @requests_mock.mock()
     def test_get_batch_state_validation(self, mock):
         mock.register_uri(
-            'GET', '//livy:8998/batches/{}/state'.format(BATCH_ID), json=SAMPLE_GET_RESPONSE, status_code=200
+            'GET', f'//livy:8998/batches/{BATCH_ID}/state', json=SAMPLE_GET_RESPONSE, status_code=200
         )
 
         hook = LivyHook()
@@ -413,22 +409,20 @@ class TestLivyHook(unittest.TestCase):
             hook.get_batch_state(BATCH_ID)
 
         for val in [None, 'one', {'a': 'b'}]:
-            with self.subTest('get_batch {}'.format(val)):
+            with self.subTest(f'get_batch {val}'):
                 with self.assertRaises(TypeError):
                     hook.get_batch_state(val)
 
     @requests_mock.mock()
     def test_delete_batch_validation(self, mock):
-        mock.register_uri(
-            'DELETE', '//livy:8998/batches/{}'.format(BATCH_ID), json={'id': BATCH_ID}, status_code=200
-        )
+        mock.register_uri('DELETE', f'//livy:8998/batches/{BATCH_ID}', json={'id': BATCH_ID}, status_code=200)
 
         hook = LivyHook()
         with self.subTest('get_batch'):
             hook.delete_batch(BATCH_ID)
 
         for val in [None, 'one', {'a': 'b'}]:
-            with self.subTest('get_batch {}'.format(val)):
+            with self.subTest(f'get_batch {val}'):
                 with self.assertRaises(TypeError):
                     hook.delete_batch(val)
 

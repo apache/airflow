@@ -28,10 +28,8 @@ GCP_CONN_ID = "google_cloud_default"
 
 
 class TestGoogleDisplayVideo360ReportSensor(TestCase):
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.sensors." "display_video.GoogleDisplayVideo360Hook"
-    )
-    @mock.patch("airflow.providers.google.marketing_platform.sensors." "display_video.BaseSensorOperator")
+    @mock.patch("airflow.providers.google.marketing_platform.sensors.display_video.GoogleDisplayVideo360Hook")
+    @mock.patch("airflow.providers.google.marketing_platform.sensors.display_video.BaseSensorOperator")
     def test_poke(self, mock_base_op, hook_mock):
         report_id = "REPORT_ID"
         op = GoogleDisplayVideo360ReportSensor(
@@ -48,10 +46,8 @@ class TestGoogleDisplayVideo360ReportSensor(TestCase):
 
 
 class TestGoogleDisplayVideo360Sensor(TestCase):
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.sensors." "display_video.GoogleDisplayVideo360Hook"
-    )
-    @mock.patch("airflow.providers.google.marketing_platform.sensors." "display_video.BaseSensorOperator")
+    @mock.patch("airflow.providers.google.marketing_platform.sensors.display_video.GoogleDisplayVideo360Hook")
+    @mock.patch("airflow.providers.google.marketing_platform.sensors.display_video.BaseSensorOperator")
     def test_poke(self, mock_base_op, hook_mock):
         operation_name = "operation_name"
         op = GoogleDisplayVideo360GetSDFDownloadOperationSensor(

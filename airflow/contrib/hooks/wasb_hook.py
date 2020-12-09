@@ -24,5 +24,6 @@ from airflow.providers.microsoft.azure.hooks.wasb import WasbHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.wasb`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

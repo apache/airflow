@@ -15,11 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module allows you to poke for attachments on a mail server.
-"""
+"""This module allows you to poke for attachments on a mail server."""
 from airflow.providers.imap.hooks.imap import ImapHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -54,7 +52,7 @@ class ImapAttachmentSensor(BaseSensorOperator):
         mail_filter='All',
         conn_id='imap_default',
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
 
         self.attachment_name = attachment_name
@@ -63,7 +61,7 @@ class ImapAttachmentSensor(BaseSensorOperator):
         self.mail_filter = mail_filter
         self.conn_id = conn_id
 
-    def poke(self, context):
+    def poke(self, context: dict) -> bool:
         """
         Pokes for a mail attachment on the mail server.
 

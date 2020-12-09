@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Speech Hook.
-"""
+"""This module contains a Google Cloud Speech Hook."""
 from typing import Dict, Optional, Sequence, Union
 
 from google.api_core.retry import Retry

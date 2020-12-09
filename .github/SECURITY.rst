@@ -18,7 +18,7 @@
 Reporting Vulnerabilities
 -------------------------
 
-**⚠️ Please do not file Github issues for security vulnerabilities as they are public! ⚠️**
+**⚠️ Please do not file GitHub issues for security vulnerabilities as they are public! ⚠️**
 
 The Apache Software Foundation takes security issues very seriously. Apache
 Airflow specifically offers security features and is responsive to issues

@@ -21,9 +21,9 @@
 import ast
 import unittest
 from copy import deepcopy
+from unittest import mock
 
 import httplib2
-import mock
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
@@ -43,9 +43,7 @@ GCP_PROJECT_ID = 'project-id'
 GCE_ZONE = 'zone'
 RESOURCE_ID = 'resource-id'
 GCE_SHORT_MACHINE_TYPE_NAME = 'n1-machine-type'
-SET_MACHINE_TYPE_BODY = {
-    'machineType': 'zones/{}/machineTypes/{}'.format(GCE_ZONE, GCE_SHORT_MACHINE_TYPE_NAME)
-}
+SET_MACHINE_TYPE_BODY = {'machineType': f'zones/{GCE_ZONE}/machineTypes/{GCE_SHORT_MACHINE_TYPE_NAME}'}
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
@@ -363,10 +361,10 @@ class TestGceInstanceSetMachineType(unittest.TestCase):
     )
 
     @mock.patch(
-        'airflow.providers.google.cloud.operators.compute.ComputeEngineHook' '._check_zone_operation_status'
+        'airflow.providers.google.cloud.operators.compute.ComputeEngineHook._check_zone_operation_status'
     )
     @mock.patch(
-        'airflow.providers.google.cloud.operators.compute.ComputeEngineHook' '._execute_set_machine_type'
+        'airflow.providers.google.cloud.operators.compute.ComputeEngineHook._execute_set_machine_type'
     )
     @mock.patch('airflow.providers.google.cloud.operators.compute.ComputeEngineHook.get_conn')
     def test_set_machine_type_should_handle_and_trim_gce_error(
@@ -788,7 +786,7 @@ class TestGceInstanceTemplateCopy(unittest.TestCase):
             )
             op.execute(None)
         err = cm.exception
-        self.assertIn("should contain at least name for the new operator " "in the 'name' field", str(err))
+        self.assertIn("should contain at least name for the new operator in the 'name' field", str(err))
         mock_hook.assert_not_called()
 
 

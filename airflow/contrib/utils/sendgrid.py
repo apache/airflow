@@ -30,6 +30,7 @@ def send_email(*args, **kwargs):
     """This function is deprecated. Please use `airflow.providers.sendgrid.utils.emailer.send_email`."""
     warnings.warn(
         "This function is deprecated. Please use `airflow.providers.sendgrid.utils.emailer.send_email`.",
-        DeprecationWarning, stacklevel=2
+        DeprecationWarning,
+        stacklevel=2,
     )
     return import_string('airflow.providers.sendgrid.utils.emailer.send_email')(*args, **kwargs)

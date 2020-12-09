@@ -23,7 +23,7 @@ from typing import List, Optional, Type
 import pymongo
 from pymongo import MongoClient, ReplaceOne
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class MongoHook(BaseHook):
@@ -40,9 +40,12 @@ class MongoHook(BaseHook):
         {"srv": true, "replicaSet": "test", "ssl": true, "connectTimeoutMS": 30000}
     """
 
+    conn_name_attr = 'conn_id'
+    default_conn_name = 'mongo_default'
     conn_type = 'mongo'
+    hook_name = 'MongoDB'
 
-    def __init__(self, conn_id: str = 'mongo_default', *args, **kwargs) -> None:
+    def __init__(self, conn_id: str = default_conn_name, *args, **kwargs) -> None:
 
         super().__init__()
         self.mongo_conn_id = conn_id
@@ -55,11 +58,9 @@ class MongoHook(BaseHook):
 
         self.uri = '{scheme}://{creds}{host}{port}/{database}'.format(
             scheme=scheme,
-            creds='{}:{}@'.format(self.connection.login, self.connection.password)
-            if self.connection.login
-            else '',
+            creds=f'{self.connection.login}:{self.connection.password}@' if self.connection.login else '',
             host=self.connection.host,
-            port='' if self.connection.port is None else ':{}'.format(self.connection.port),
+            port='' if self.connection.port is None else f':{self.connection.port}',
             database=self.connection.schema,
         )
 
@@ -76,9 +77,7 @@ class MongoHook(BaseHook):
             self.close_conn()
 
     def get_conn(self) -> MongoClient:
-        """
-        Fetches PyMongo Client
-        """
+        """Fetches PyMongo Client"""
         if self.client is not None:
             return self.client
 

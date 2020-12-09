@@ -18,24 +18,23 @@
  -->
 
 
-# Package apache-airflow-backport-providers-amazon
+# Package apache-airflow-providers-amazon
 
-Release: 2020.6.24
+Release: 1.0.0b2
 
 **Table of contents**
 
-- [Backport package](#backport-package)
+- [Provider package](#provider-package)
 - [Installation](#installation)
-- [Compatibility](#compatibility)
 - [PIP requirements](#pip-requirements)
 - [Cross provider package dependencies](#cross-provider-package-dependencies)
 - [Provider class summary](#provider-classes-summary)
     - [Operators](#operators)
         - [New operators](#new-operators)
         - [Moved operators](#moved-operators)
-    - [Transfer operators](#transfers)
-        - [New transfer operators](#new-transfers)
-        - [Moved transfer operators](#moved-transfers)
+    - [Transfer operators](#transfer-operators)
+        - [New transfer operators](#new-transfer-operators)
+        - [Moved transfer operators](#moved-transfer-operators)
     - [Sensors](#sensors)
         - [New sensors](#new-sensors)
         - [Moved sensors](#moved-sensors)
@@ -45,29 +44,22 @@ Release: 2020.6.24
     - [Secrets](#secrets)
         - [Moved secrets](#moved-secrets)
 - [Releases](#releases)
-    - [Release 2020.6.24](#release-2020624)
+    - [Release 1.0.0b2](#release-100b2)
+    - [Release 1.0.0b1](#release-100b1)
+    - [Release 0.0.2a1](#release-002a1)
+    - [Release 0.0.1](#release-001)
 
-## Backport package
+## Provider package
 
-This is a backport providers package for `amazon` provider. All classes for this provider package
+This is a provider package for `amazon` provider. All classes for this provider package
 are in `airflow.providers.amazon` python package.
-
-**Only Python 3.6+ is supported for this backport package.**
-
-While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
-want to use this backport package.
 
 
 
 ## Installation
 
-You can install this package on top of an existing airflow 1.10.* installation via
-`pip install apache-airflow-backport-providers-amazon`
-
-## Compatibility
-
-For full compatibility and test status of the backport packages check
-[Airflow Backport Package Compatibility](https://cwiki.apache.org/confluence/display/AIRFLOW/Backported+providers+packages+for+Airflow+1.10.*+series)
+You can install this package on top of an existing airflow 2.* installation via
+`pip install apache-airflow-providers-amazon`
 
 ## PIP requirements
 
@@ -84,18 +76,18 @@ You need to install the specified backport providers package in order to use the
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
 ```bash
-pip install apache-airflow-backport-providers-amazon[apache.hive]
+pip install apache-airflow-providers-amazon[apache.hive]
 ```
 
-| Dependent package                                                                                                            | Extra       |
-|:-----------------------------------------------------------------------------------------------------------------------------|:------------|
-| [apache-airflow-backport-providers-apache-hive](https://github.com/apache/airflow/tree/master/airflow/providers/apache/hive) | apache.hive |
-| [apache-airflow-backport-providers-google](https://github.com/apache/airflow/tree/master/airflow/providers/google)           | google      |
-| [apache-airflow-backport-providers-imap](https://github.com/apache/airflow/tree/master/airflow/providers/imap)               | imap        |
-| [apache-airflow-backport-providers-mongo](https://github.com/apache/airflow/tree/master/airflow/providers/mongo)             | mongo       |
-| [apache-airflow-backport-providers-mysql](https://github.com/apache/airflow/tree/master/airflow/providers/mysql)             | mysql       |
-| [apache-airflow-backport-providers-postgres](https://github.com/apache/airflow/tree/master/airflow/providers/postgres)       | postgres    |
-| [apache-airflow-backport-providers-ssh](https://github.com/apache/airflow/tree/master/airflow/providers/ssh)                 | ssh         |
+| Dependent package                                                                                     | Extra       |
+|:------------------------------------------------------------------------------------------------------|:------------|
+| [apache-airflow-providers-apache-hive](https://pypi.org/project/apache-airflow-providers-apache-hive) | apache.hive |
+| [apache-airflow-providers-google](https://pypi.org/project/apache-airflow-providers-google)           | google      |
+| [apache-airflow-providers-imap](https://pypi.org/project/apache-airflow-providers-imap)               | imap        |
+| [apache-airflow-providers-mongo](https://pypi.org/project/apache-airflow-providers-mongo)             | mongo       |
+| [apache-airflow-providers-mysql](https://pypi.org/project/apache-airflow-providers-mysql)             | mysql       |
+| [apache-airflow-providers-postgres](https://pypi.org/project/apache-airflow-providers-postgres)       | postgres    |
+| [apache-airflow-providers-ssh](https://pypi.org/project/apache-airflow-providers-ssh)                 | ssh         |
 
 # Provider classes summary
 
@@ -109,19 +101,22 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ### New operators
 
-| New Airflow 2.0 operators: `airflow.providers.amazon` package                                                                                                              |
-|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [aws.operators.cloud_formation.CloudFormationCreateStackOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/cloud_formation.py) |
-| [aws.operators.cloud_formation.CloudFormationDeleteStackOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/cloud_formation.py) |
-| [aws.operators.datasync.AWSDataSyncOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/datasync.py)                             |
-| [aws.operators.ec2_start_instance.EC2StartInstanceOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/ec2_start_instance.py)    |
-| [aws.operators.ec2_stop_instance.EC2StopInstanceOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/ec2_stop_instance.py)       |
-| [aws.operators.emr_modify_cluster.EmrModifyClusterOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/emr_modify_cluster.py)    |
-| [aws.operators.glue.AwsGlueJobOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/glue.py)                                      |
-| [aws.operators.s3_bucket.S3CreateBucketOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/s3_bucket.py)                        |
-| [aws.operators.s3_bucket.S3DeleteBucketOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/s3_bucket.py)                        |
-| [aws.operators.s3_file_transform.S3FileTransformOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/s3_file_transform.py)       |
-
+| New Airflow 2.0 operators: `airflow.providers.amazon` package                                                                                                                                                         |
+|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [aws.operators.cloud_formation.CloudFormationCreateStackOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/cloud_formation.py)                                            |
+| [aws.operators.cloud_formation.CloudFormationDeleteStackOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/cloud_formation.py)                                            |
+| [aws.operators.datasync.AWSDataSyncOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/datasync.py)                                                                        |
+| [aws.operators.ec2_start_instance.EC2StartInstanceOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/ec2_start_instance.py)                                               |
+| [aws.operators.ec2_stop_instance.EC2StopInstanceOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/ec2_stop_instance.py)                                                  |
+| [aws.operators.emr_modify_cluster.EmrModifyClusterOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/emr_modify_cluster.py)                                               |
+| [aws.operators.glacier.GlacierCreateJobOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/glacier.py)                                                                     |
+| [aws.operators.glue.AwsGlueJobOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/glue.py)                                                                                 |
+| [aws.operators.s3_bucket.S3CreateBucketOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/s3_bucket.py)                                                                   |
+| [aws.operators.s3_bucket.S3DeleteBucketOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/s3_bucket.py)                                                                   |
+| [aws.operators.s3_file_transform.S3FileTransformOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/s3_file_transform.py)                                                  |
+| [aws.operators.sagemaker_processing.SageMakerProcessingOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/sagemaker_processing.py)                                        |
+| [aws.operators.step_function_get_execution_output.StepFunctionGetExecutionOutputOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/step_function_get_execution_output.py) |
+| [aws.operators.step_function_start_execution.StepFunctionStartExecutionOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/step_function_start_execution.py)               |
 
 
 ### Moved operators
@@ -148,15 +143,15 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [aws.operators.sqs.SQSPublishOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/sqs.py)                                                          | [contrib.operators.aws_sqs_publish_operator.SQSPublishOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/aws_sqs_publish_operator.py)                                  |
 
 
-
+## Transfer operators
 
 
 ### New transfer operators
 
-| New Airflow 2.0 transfers: `airflow.providers.amazon` package                                                                                      |
-|:---------------------------------------------------------------------------------------------------------------------------------------------------|
-| [aws.transfers.mysql_to_s3.MySQLToS3Operator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/transfers/mysql_to_s3.py) |
-
+| New Airflow 2.0 transfers: `airflow.providers.amazon` package                                                                                               |
+|:------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [aws.transfers.glacier_to_gcs.GlacierToGCSOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/transfers/glacier_to_gcs.py) |
+| [aws.transfers.mysql_to_s3.MySQLToS3Operator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/transfers/mysql_to_s3.py)          |
 
 
 ### Moved transfer operators
@@ -175,21 +170,22 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [aws.transfers.sftp_to_s3.SFTPToS3Operator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/transfers/sftp_to_s3.py)                                 | [contrib.operators.sftp_to_s3_operator.SFTPToS3Operator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/sftp_to_s3_operator.py)                                 |
 
 
-
-
 ## Sensors
 
 
 ### New sensors
 
-| New Airflow 2.0 sensors: `airflow.providers.amazon` package                                                                                                          |
-|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [aws.sensors.cloud_formation.CloudFormationCreateStackSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/cloud_formation.py) |
-| [aws.sensors.cloud_formation.CloudFormationDeleteStackSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/cloud_formation.py) |
-| [aws.sensors.ec2_instance_state.EC2InstanceStateSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/ec2_instance_state.py)    |
-| [aws.sensors.glue.AwsGlueJobSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/glue.py)                                      |
-| [aws.sensors.redshift.AwsRedshiftClusterSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/redshift.py)                      |
-| [aws.sensors.sagemaker_training.SageMakerTrainingSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/sagemaker_training.py)   |
+| New Airflow 2.0 sensors: `airflow.providers.amazon` package                                                                                                                      |
+|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [aws.sensors.cloud_formation.CloudFormationCreateStackSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/cloud_formation.py)             |
+| [aws.sensors.cloud_formation.CloudFormationDeleteStackSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/cloud_formation.py)             |
+| [aws.sensors.ec2_instance_state.EC2InstanceStateSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/ec2_instance_state.py)                |
+| [aws.sensors.glacier.GlacierJobOperationSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/glacier.py)                                   |
+| [aws.sensors.glue.AwsGlueJobSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/glue.py)                                                  |
+| [aws.sensors.redshift.AwsRedshiftClusterSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/redshift.py)                                  |
+| [aws.sensors.s3_keys_unchanged.S3KeysUnchangedSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/s3_keys_unchanged.py)                   |
+| [aws.sensors.sagemaker_training.SageMakerTrainingSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/sagemaker_training.py)               |
+| [aws.sensors.step_function_execution.StepFunctionExecutionSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/step_function_execution.py) |
 
 
 ### Moved sensors
@@ -210,21 +206,25 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [aws.sensors.sqs.SQSSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/sqs.py)                                                           | [contrib.sensors.aws_sqs_sensor.SQSSensor](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/sensors/aws_sqs_sensor.py)                                                           |
 
 
-
 ## Hooks
 
 
 ### New hooks
 
-| New Airflow 2.0 hooks: `airflow.providers.amazon` package                                                                                              |
-|:-------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [aws.hooks.batch_client.AwsBatchClientHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/batch_client.py)          |
-| [aws.hooks.batch_waiters.AwsBatchWaitersHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/batch_waiters.py)       |
-| [aws.hooks.cloud_formation.AWSCloudFormationHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/cloud_formation.py) |
-| [aws.hooks.ec2.EC2Hook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/ec2.py)                                       |
-| [aws.hooks.glue.AwsGlueJobHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/glue.py)                              |
-| [aws.hooks.kinesis.AwsFirehoseHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/kinesis.py)                       |
-| [aws.hooks.redshift.RedshiftHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/redshift.py)                        |
+| New Airflow 2.0 hooks: `airflow.providers.amazon` package                                                                                                                                    |
+|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [aws.hooks.batch_client.AwsBatchClientHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/batch_client.py)                                                |
+| [aws.hooks.batch_waiters.AwsBatchWaitersHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/batch_waiters.py)                                             |
+| [aws.hooks.cloud_formation.AWSCloudFormationHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/cloud_formation.py)                                       |
+| [aws.hooks.ec2.EC2Hook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/ec2.py)                                                                             |
+| [aws.hooks.elasticache_replication_group.ElastiCacheReplicationGroupHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/elasticache_replication_group.py) |
+| [aws.hooks.glacier.GlacierHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/glacier.py)                                                                 |
+| [aws.hooks.glue.AwsGlueJobHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/glue.py)                                                                    |
+| [aws.hooks.kinesis.AwsFirehoseHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/kinesis.py)                                                             |
+| [aws.hooks.redshift.RedshiftHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/redshift.py)                                                              |
+| [aws.hooks.secrets_manager.SecretsManagerHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/secrets_manager.py)                                          |
+| [aws.hooks.ses.SESHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/ses.py)                                                                             |
+| [aws.hooks.step_function.StepFunctionHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/step_function.py)                                                |
 
 
 ### Moved hooks
@@ -232,9 +232,9 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | Airflow 2.0 hooks: `airflow.providers.amazon` package                                                                                          | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                 |
 |:-----------------------------------------------------------------------------------------------------------------------------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [aws.hooks.athena.AWSAthenaHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/athena.py)                   | [contrib.hooks.aws_athena_hook.AWSAthenaHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/aws_athena_hook.py)                  |
-| [aws.hooks.aws_dynamodb.AwsDynamoDBHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/aws_dynamodb.py)     | [contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/aws_dynamodb_hook.py)            |
 | [aws.hooks.base_aws.AwsBaseHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/base_aws.py)                 | [contrib.hooks.aws_hook.AwsHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/aws_hook.py)                                      |
 | [aws.hooks.datasync.AWSDataSyncHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/datasync.py)             | [contrib.hooks.aws_datasync_hook.AWSDataSyncHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/aws_datasync_hook.py)            |
+| [aws.hooks.dynamodb.AwsDynamoDBHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/dynamodb.py)             | [contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/aws_dynamodb_hook.py)            |
 | [aws.hooks.emr.EmrHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/emr.py)                               | [contrib.hooks.emr_hook.EmrHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/emr_hook.py)                                      |
 | [aws.hooks.glue_catalog.AwsGlueCatalogHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/glue_catalog.py)  | [contrib.hooks.aws_glue_catalog_hook.AwsGlueCatalogHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/aws_glue_catalog_hook.py) |
 | [aws.hooks.lambda_function.AwsLambdaHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/lambda_function.py) | [contrib.hooks.aws_lambda_hook.AwsLambdaHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/aws_lambda_hook.py)                  |
@@ -245,28 +245,142 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [aws.hooks.sqs.SQSHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/sqs.py)                               | [contrib.hooks.aws_sqs_hook.SQSHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/hooks/aws_sqs_hook.py)                              |
 
 
-
-
 ## Secrets
 
 
 
 ### Moved secrets
 
-| Airflow 2.0 protocols: `airflow.providers.amazon` package                                                                                                                | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                                  |
+| Airflow 2.0 secrets: `airflow.providers.amazon` package                                                                                                                  | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                                  |
 |:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [aws.secrets.secrets_manager.SecretsManagerBackend](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/secrets/secrets_manager.py)               | [contrib.secrets.aws_secrets_manager.SecretsManagerBackend](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/secrets/aws_secrets_manager.py)               |
 | [aws.secrets.systems_manager.SystemsManagerParameterStoreBackend](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/secrets/systems_manager.py) | [contrib.secrets.aws_systems_manager.SystemsManagerParameterStoreBackend](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/secrets/aws_systems_manager.py) |
 
 
 
-
 ## Releases
 
-### Release 2020.6.24
+### Release 1.0.0b2
+
+| Commit                                                                                         | Committed   | Subject                                                                        |
+|:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------|
+| [7ca0b6f12](https://github.com/apache/airflow/commit/7ca0b6f121c9cec6e25de130f86a56d7c7fbe38c) | 2020-11-18  | Enable Markdownlint rule MD003/heading-style/header-style (#12427) (#12438)    |
+| [ae7cb4a1e](https://github.com/apache/airflow/commit/ae7cb4a1e2a96351f1976cf5832615e24863e05d) | 2020-11-17  | Update wrong commit hash in backport provider changes (#12390)                 |
+| [6889a333c](https://github.com/apache/airflow/commit/6889a333cff001727eb0a66e375544a28c9a5f03) | 2020-11-15  | Improvements for operators and hooks ref docs (#12366)                         |
+| [c94b1241a](https://github.com/apache/airflow/commit/c94b1241a144294f5f1c5f461d5e3b92e4a8fc38) | 2020-11-13  | Add extra error handling to S3 remote logging (#9908)                          |
+| [7825e8f59](https://github.com/apache/airflow/commit/7825e8f59034645ab3247229be83a3aa90baece1) | 2020-11-13  | Docs installation improvements (#12304)                                        |
+| [250436d96](https://github.com/apache/airflow/commit/250436d962c8c950d38c1eb5e54a998891648cc9) | 2020-11-10  | Fix spelling in Python files (#12230)                                          |
+| [85a18e13d](https://github.com/apache/airflow/commit/85a18e13d9dec84275283ff69e34704b60d54a75) | 2020-11-09  | Point at pypi project pages for cross-dependency of provider packages (#12212) |
+
+
+### Release 1.0.0b1
+
+| Commit                                                                                         | Committed   | Subject                                                                     |
+|:-----------------------------------------------------------------------------------------------|:------------|:----------------------------------------------------------------------------|
+| [59eb5de78](https://github.com/apache/airflow/commit/59eb5de78c70ee9c7ae6e4cba5c7a2babb8103ca) | 2020-11-09  | Update provider READMEs for up-coming 1.0.0beta1 releases (#12206)          |
+| [b2a28d159](https://github.com/apache/airflow/commit/b2a28d1590410630d66966aa1f2b2a049a8c3b32) | 2020-11-09  | Moves provider packages scripts to dev (#12082)                             |
+| [fcb6b00ef](https://github.com/apache/airflow/commit/fcb6b00efef80c81272a30cfc618202a29e0c6a9) | 2020-11-08  | Add authentication to AWS with Google credentials (#12079)                  |
+| [fb6bddba0](https://github.com/apache/airflow/commit/fb6bddba0c9e3e7ef2610b4fb3f73622e48d7ea0) | 2020-11-07  | In AWS Secrets backend, a lookup is optional (#12143)                       |
+| [cf9437d79](https://github.com/apache/airflow/commit/cf9437d79f9658d1309e4bfe847fe63d52ec7b99) | 2020-11-06  | Simplify string expressions (#12123)                                        |
+| [41bf172c1](https://github.com/apache/airflow/commit/41bf172c1dc75099f4f9d8b3f3350b4b1f523ef9) | 2020-11-04  | Simplify string expressions (#12093)                                        |
+| [4e8f9cc8d](https://github.com/apache/airflow/commit/4e8f9cc8d02b29c325b8a5a76b4837671bdf5f68) | 2020-11-03  | Enable Black - Python Auto Formmatter (#9550)                               |
+| [8c42cf1b0](https://github.com/apache/airflow/commit/8c42cf1b00c90f0d7f11b8a3a455381de8e003c5) | 2020-11-03  | Use PyUpgrade to use Python 3.6 features (#11447)                           |
+| [5e77a6154](https://github.com/apache/airflow/commit/5e77a61543d26e5466d885d639247aa5189c011d) | 2020-11-02  | Docstring fix for S3DeleteBucketOperator (#12049)                           |
+| [822285134](https://github.com/apache/airflow/commit/8222851348aa81424c9bdcea994e25e0d6692709) | 2020-10-29  | Add Template Fields to RedshiftToS3Operator &amp; S3ToRedshiftOperator (#11844) |
+| [db121f726](https://github.com/apache/airflow/commit/db121f726b3c7a37aca1ea05eb4714f884456005) | 2020-10-28  | Add truncate table (before copy) option to S3ToRedshiftOperator (#9246)     |
+| [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855)                                  |
+
+
+### Release 0.0.2a1
+
+| Commit                                                                                         | Committed   | Subject                                                            |
+|:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------|
+| [8afdb6ac6](https://github.com/apache/airflow/commit/8afdb6ac6a7997cb14806bc2734c81c00ed8da97) | 2020-10-26  | Fix spellings (#11825)                                             |
+| [872b1566a](https://github.com/apache/airflow/commit/872b1566a11cb73297e657ff325161721b296574) | 2020-10-25  | Generated backport providers readmes/setup for 2020.10.29 (#11826) |
+| [6ce855af1](https://github.com/apache/airflow/commit/6ce855af118daeaa4c249669079ab9d9aad23945) | 2020-10-24  | Fix spelling (#11821)                                              |
+| [3934ef224](https://github.com/apache/airflow/commit/3934ef22494db6d9613c229aaa82ea6a366b7c2f) | 2020-10-24  | Remove redundant builtins imports (#11809)                         |
+| [4c8e033c0](https://github.com/apache/airflow/commit/4c8e033c0ee7d28963d504a9216205155f20f58f) | 2020-10-24  | Fix spelling and grammar (#11814)                                  |
+| [483068745](https://github.com/apache/airflow/commit/48306874538eea7cfd42358d5ebb59705204bfc4) | 2020-10-24  | Use Python 3 style super classes (#11806)                          |
+| [0df60b773](https://github.com/apache/airflow/commit/0df60b773671ecf8d4e5f582ac2be200cf2a2edd) | 2020-10-23  | Add reattach flag to ECSOperator (#10643)                          |
+| [b9d677cdd](https://github.com/apache/airflow/commit/b9d677cdd660e0be8278a64658e73359276a9682) | 2020-10-22  | Add type hints to  aws provider (#11531)                           |
+| [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                                 |
+| [674368f66](https://github.com/apache/airflow/commit/674368f66cf61b2a105f326f23868ac3aee08807) | 2020-10-19  | Fixes MySQLToS3 float to int conversion (#10437)                   |
+| [0823d46a7](https://github.com/apache/airflow/commit/0823d46a7f267f2e45195a175021825367938add) | 2020-10-16  | Add type annotations for AWS operators and hooks (#11434)          |
+| [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)       |
+
+
+### Release 0.0.1
 
 | Commit                                                                                         | Committed   | Subject                                                                                                                                                            |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [d38a0a781](https://github.com/apache/airflow/commit/d38a0a781e123c8c50313efdb23f767d6678afe0) | 2020-10-12  | added type hints for aws cloud formation (#11470)                                                                                                                  |
+| [d305876be](https://github.com/apache/airflow/commit/d305876bee328287ff391a29cc1cd632468cc731) | 2020-10-12  | Remove redundant None provided as default to dict.get() (#11448)                                                                                                   |
+| [c3e340584](https://github.com/apache/airflow/commit/c3e340584bf1892c4f73aa9e7495b5823dab0c40) | 2020-10-11  | Change prefix of AwsDynamoDB hook module (#11209)                                                                                                                  |
+| [42a23d16f](https://github.com/apache/airflow/commit/42a23d16fe9b2f165b0805fb767ecbb825c93657) | 2020-10-11  | Update MySQLToS3Operator&#39;s s3_bucket to template_fields (#10778)                                                                                                   |
+| [422b61a9d](https://github.com/apache/airflow/commit/422b61a9dd95ab9d00b239daa14d87d7cae5ae73) | 2020-10-09  | Adding ElastiCache Hook for creating, describing and deleting replication groups (#8701)                                                                           |
+| [dd98b2149](https://github.com/apache/airflow/commit/dd98b21494ff6036242b63268140abe1294b3657) | 2020-10-06  | Add acl_policy parameter to GCSToS3Operator (#10804) (#10829)                                                                                                      |
+| [32b3cfbcf](https://github.com/apache/airflow/commit/32b3cfbcf0209cb062dd641c1232ab25d02d4d6d) | 2020-10-06  | Strict type check for all hooks in amazon (#11250)                                                                                                                 |
+| [6d573e8ab](https://github.com/apache/airflow/commit/6d573e8abbf87e3c7281347e03d428a6e5baccd4) | 2020-10-03  | Add s3 key to template fields for s3/redshift transfer operators (#10890)                                                                                          |
+| [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)                                                                                                         |
+| [ca4238eb4](https://github.com/apache/airflow/commit/ca4238eb4d9a2aef70eb641343f59ee706d27d13) | 2020-10-02  | Fixed month in backport packages to October (#11242)                                                                                                               |
+| [5220e4c38](https://github.com/apache/airflow/commit/5220e4c3848a2d2c81c266ef939709df9ce581c5) | 2020-10-02  | Prepare Backport release 2020.09.07 (#11238)                                                                                                                       |
+| [00ffedb8c](https://github.com/apache/airflow/commit/00ffedb8c402eb5638782628eb706a5f28215eac) | 2020-09-30  | Add amazon glacier to GCS transfer operator (#10947)                                                                                                               |
+| [e3f96ce7a](https://github.com/apache/airflow/commit/e3f96ce7a8ac098aeef5e9930e6de6c428274d57) | 2020-09-24  | Fix incorrect Usage of Optional[bool] (#11138)                                                                                                                     |
+| [f3e87c503](https://github.com/apache/airflow/commit/f3e87c503081a3085dff6c7352640d7f08beb5bc) | 2020-09-22  | Add D202 pydocstyle check (#11032)                                                                                                                                 |
+| [b61225a88](https://github.com/apache/airflow/commit/b61225a8850b20be17842c2428b91d873584c4da) | 2020-09-21  | Add D204 pydocstyle check (#11031)                                                                                                                                 |
+| [2410f592a](https://github.com/apache/airflow/commit/2410f592a4ab160b377f1a9e5de3b7262b9851cc) | 2020-09-19  | Get Airflow configs with sensitive data from AWS Systems Manager (#11023)                                                                                          |
+| [2bf7b7cac](https://github.com/apache/airflow/commit/2bf7b7cac7858f5a6a495f1a9eb4780ec84f95b4) | 2020-09-19  | Add typing to amazon provider EMR (#10910)                                                                                                                         |
+| [9edfcb7ac](https://github.com/apache/airflow/commit/9edfcb7ac46917836ec956264da8876e58d92392) | 2020-09-19  | Support extra_args in S3Hook and GCSToS3Operator (#11001)                                                                                                          |
+| [4e1f3a69d](https://github.com/apache/airflow/commit/4e1f3a69db8614c302e4916332555034053b935c) | 2020-09-14  | [AIRFLOW-10645] Add AWS Secrets Manager Hook (#10655)                                                                                                              |
+| [e9add7916](https://github.com/apache/airflow/commit/e9add79160e3a16bb348e30f4e83386a371dbc1e) | 2020-09-14  | Fix Failing static tests on Master (#10927)                                                                                                                        |
+| [383a118d2](https://github.com/apache/airflow/commit/383a118d2df618e46d81c520cd2c4a31d81b33dd) | 2020-09-14  | Add more type annotations to AWS hooks (#10671)                                                                                                                    |
+| [9549274d1](https://github.com/apache/airflow/commit/9549274d110f689a0bd709db829a4d69e274eed9) | 2020-09-09  | Upgrade black to 20.8b1 (#10818)                                                                                                                                   |
+| [2934220dc](https://github.com/apache/airflow/commit/2934220dc98e295764f7791d33e121629ed2fbbb) | 2020-09-08  | Always return a list from S3Hook list methods (#10774)                                                                                                             |
+| [f40ac9b15](https://github.com/apache/airflow/commit/f40ac9b151124dbcd87197d6ae38c85191d41f38) | 2020-09-01  | Add placement_strategy option (#9444)                                                                                                                              |
+| [e4878e677](https://github.com/apache/airflow/commit/e4878e6775bbe5cb2a1d786e57e009271b78bba0) | 2020-08-31  | fix type hints for s3 hook read_key method (#10653)                                                                                                                |
+| [2ca615cff](https://github.com/apache/airflow/commit/2ca615cffefe97dfa38e1b7f60d9ed33c6628992) | 2020-08-29  | Update Google Cloud branding (#10642)                                                                                                                              |
+| [8969b7185](https://github.com/apache/airflow/commit/8969b7185ebc3c90168ce9a2fb97dfbc74d2bed9) | 2020-08-28  | Removed bad characters from AWS operator (#10590)                                                                                                                  |
+| [8349061f9](https://github.com/apache/airflow/commit/8349061f9cb01a92c87edd349cc844c4053851e8) | 2020-08-26  | Improve Docstring for AWS Athena Hook/Operator (#10580)                                                                                                            |
+| [fdd9b6f65](https://github.com/apache/airflow/commit/fdd9b6f65b608c516b8a062b058972d9a45ec9e3) | 2020-08-25  | Enable Black on Providers Packages (#10543)                                                                                                                        |
+| [3696c34c2](https://github.com/apache/airflow/commit/3696c34c28c6bc7b442deab999d9ecba24ed0e34) | 2020-08-24  | Fix typo in the word &#34;release&#34; (#10528)                                                                                                                            |
+| [3734876d9](https://github.com/apache/airflow/commit/3734876d9898067ee933b84af522d53df6160d7f) | 2020-08-24  | Implement impersonation in google operators (#10052)                                                                                                               |
+| [ee7ca128a](https://github.com/apache/airflow/commit/ee7ca128a17937313566f2badb6cc569c614db94) | 2020-08-22  | Fix broken Markdown refernces in Providers README (#10483)                                                                                                         |
+| [c6358045f](https://github.com/apache/airflow/commit/c6358045f9d61af63c96833cb6682d6f382a6408) | 2020-08-22  | Fixes S3ToRedshift COPY query (#10436)                                                                                                                             |
+| [7c206a82a](https://github.com/apache/airflow/commit/7c206a82a6f074abcc4898a005ecd2c84a920054) | 2020-08-22  | Replace assigment with Augmented assignment (#10468)                                                                                                               |
+| [27d08b76a](https://github.com/apache/airflow/commit/27d08b76a2d171d716a1599157a8a60a121dbec6) | 2020-08-21  | Amazon SES Hook (#10391)                                                                                                                                           |
+| [dea345b05](https://github.com/apache/airflow/commit/dea345b05c2cd226e70f97a3934d7456aa1cc754) | 2020-08-17  | Fix AwsGlueJobSensor to stop running after the Glue job finished (#9022)                                                                                           |
+| [f6734b3b8](https://github.com/apache/airflow/commit/f6734b3b850d33d3712763f93c114e80f5af9ffb) | 2020-08-12  | Enable Sphinx spellcheck for doc generation (#10280)                                                                                                               |
+| [82f744b87](https://github.com/apache/airflow/commit/82f744b871bb2c5e9a2d628e1c45ae16c1244240) | 2020-08-11  | Add type annotations to AwsGlueJobHook, RedshiftHook modules (#10286)                                                                                              |
+| [19bc97d0c](https://github.com/apache/airflow/commit/19bc97d0ce436a6ec9d8e9a5adcd48c0a769d01f) | 2020-08-10  | Revert &#34;Add Amazon SES hook (#10004)&#34; (#10276)                                                                                                                     |
+| [f06fe616e](https://github.com/apache/airflow/commit/f06fe616e66256bdc53710de505c2c6b1bd21528) | 2020-08-10  | Add Amazon SES hook (#10004)                                                                                                                                       |
+| [0c77ea8a3](https://github.com/apache/airflow/commit/0c77ea8a3c417805f66d10f0c757ca218bf8dee0) | 2020-08-06  | Add type annotations to S3 hook module (#10164)                                                                                                                    |
+| [24c8e4c2d](https://github.com/apache/airflow/commit/24c8e4c2d6e359ecc2c7d6275dccc68de4a82832) | 2020-08-06  | Changes to all the constructors to remove the args argument (#10163)                                                                                               |
+| [9667314b2](https://github.com/apache/airflow/commit/9667314b2fb879edc451793a8350123507e1cfd6) | 2020-08-05  | Add correct signatures for operators in amazon provider package (#10167)                                                                                           |
+| [000287753](https://github.com/apache/airflow/commit/000287753b478f29e6c25442ac253e3a6c8e8c87) | 2020-08-03  | Improve Typing coverage of amazon/aws/athena (#10025)                                                                                                              |
+| [53ada6e79](https://github.com/apache/airflow/commit/53ada6e7911f411e80ebb00be9f07a7cc0788d01) | 2020-08-03  | Add S3KeysUnchangedSensor (#9817)                                                                                                                                  |
+| [aeea71274](https://github.com/apache/airflow/commit/aeea71274d4527ff2351102e94aa38bda6099e7f) | 2020-08-02  | Remove `args` parameter from provider operator constructors (#10097)                                                                                               |
+| [2b8dea64e](https://github.com/apache/airflow/commit/2b8dea64e9e8716fba8c38a1b439f7835bbd2918) | 2020-08-01  | Fix typo in Athena sensor retries (#10079)                                                                                                                         |
+| [1508c43ec](https://github.com/apache/airflow/commit/1508c43ec9594e801b415dd82472fa017791b759) | 2020-07-29  | Adding new SageMaker operator for ProcessingJobs (#9594)                                                                                                           |
+| [7d24b088c](https://github.com/apache/airflow/commit/7d24b088cd736cfa18f9214e4c9d6ce2d5865f3d) | 2020-07-25  | Stop using start_date in default_args in example_dags (2) (#9985)                                                                                                  |
+| [8b10a4b35](https://github.com/apache/airflow/commit/8b10a4b35e45d536a6475bfe1491ee75fad50186) | 2020-07-25  | Stop using start_date in default_args in example_dags (#9982)                                                                                                      |
+| [33f0cd265](https://github.com/apache/airflow/commit/33f0cd2657b2e77ea3477e0c93f13f1474be628e) | 2020-07-22  | apply_default keeps the function signature for mypy (#9784)                                                                                                        |
+| [e7c87fe45](https://github.com/apache/airflow/commit/e7c87fe453c6a70ed087c7ffbccaacbf0d2831b9) | 2020-07-20  | Refactor AwsBaseHook._get_credentials (#9878)                                                                                                                      |
+| [2577f9334](https://github.com/apache/airflow/commit/2577f9334a5cb71cccd97e62b0ae2d097cb99e1a) | 2020-07-16  | Fix S3FileTransformOperator to support S3 Select transformation only (#8936)                                                                                       |
+| [52b6efe1e](https://github.com/apache/airflow/commit/52b6efe1ecaae74b9c2497f565e116305d575a76) | 2020-07-15  | Add option to delete by prefix to S3DeleteObjectsOperator (#9350)                                                                                                  |
+| [553bb7af7](https://github.com/apache/airflow/commit/553bb7af7cb7a50f7141b5b89297713cee6d19f6) | 2020-07-13  | Keep functions signatures in decorators (#9786)                                                                                                                    |
+| [2f31b3060](https://github.com/apache/airflow/commit/2f31b3060ed8274d5d1b1db7349ce607640b9199) | 2020-07-08  | Get Airflow configs with sensitive data from Secret Backends (#9645)                                                                                               |
+| [07b81029e](https://github.com/apache/airflow/commit/07b81029ebc2a296fb54181f2cec11fcc7704d9d) | 2020-07-08  | Allow AWSAthenaHook to get more than 1000/first page of results (#6075)                                                                                            |
+| [564192c16](https://github.com/apache/airflow/commit/564192c1625a552456cebb3751978c08eebdb2a1) | 2020-07-08  | Add AWS StepFunctions integrations to the aws provider (#8749)                                                                                                     |
+| [ecce1ace7](https://github.com/apache/airflow/commit/ecce1ace7a277c948c61d7d4cbfc8632cc216559) | 2020-07-08  | [AIRFLOW-XXXX] Remove unnecessary docstring in AWSAthenaOperator                                                                                                   |
+| [a79e2d4c4](https://github.com/apache/airflow/commit/a79e2d4c4aa105f3fac5ae6a28e29af9cd572407) | 2020-07-06  | Move provider&#39;s log task handlers to the provider package (#9604)                                                                                                  |
+| [ee20086b8](https://github.com/apache/airflow/commit/ee20086b8c499fa40dcaac71652f21b466e7f80f) | 2020-07-02  | Move S3TaskHandler to the AWS provider package (#9602)                                                                                                             |
+| [40add26d4](https://github.com/apache/airflow/commit/40add26d459c2511a6d9d305ae7300f0d6104211) | 2020-06-29  | Remove almost all references to airflow.contrib (#9559)                                                                                                            |
+| [c858babdd](https://github.com/apache/airflow/commit/c858babddf8b18b417993b5bfefec1c5635510da) | 2020-06-26  | Remove kwargs from Super calls in AWS Secrets Backends (#9523)                                                                                                     |
+| [87fdbd070](https://github.com/apache/airflow/commit/87fdbd0708d942af98d35604fe5962962e25d246) | 2020-06-25  | Use literal syntax instead of function calls to create data structure (#9516)                                                                                      |
+| [c7a454aa3](https://github.com/apache/airflow/commit/c7a454aa32bf33133d042e8438ac259b32144b21) | 2020-06-22  | Add AWS ECS system test (#8888)                                                                                                                                    |
+| [df8efd04f](https://github.com/apache/airflow/commit/df8efd04f394afc4b5affb677bc78d8b7bd5275a) | 2020-06-21  | Enable &amp; Fix &#34;Docstring Content Issues&#34; PyDocStyle Check (#9460)                                                                                                   |
+| [e13a14c87](https://github.com/apache/airflow/commit/e13a14c8730f4f633d996dd7d3468fe827136a84) | 2020-06-21  | Enable &amp; Fix Whitespace related PyDocStyle Checks (#9458)                                                                                                          |
+| [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)                                                                                                                     |
 | [12af6a080](https://github.com/apache/airflow/commit/12af6a08009b8776e00d8a0aab92363eb8c4e8b1) | 2020-06-19  | Final cleanup for 2020.6.23rc1 release preparation (#9404)                                                                                                         |
 | [992a18c84](https://github.com/apache/airflow/commit/992a18c84a355d13e821c703e7364f12233c37dc) | 2020-06-19  | Move MySqlToS3Operator to transfers (#9400)                                                                                                                        |
 | [a60f589aa](https://github.com/apache/airflow/commit/a60f589aa251cc3df6bec5b306ad4a7f736f539f) | 2020-06-19  | Add MySqlToS3Operator (#9054)                                                                                                                                      |
@@ -280,7 +394,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [17adcea83](https://github.com/apache/airflow/commit/17adcea835cb7b0cf2d8da0ac7dda5549cfa3e45) | 2020-06-02  | Fix handling of subprocess error handling in s3_file_transform and gcs (#9106)                                                                                     |
 | [357e11e0c](https://github.com/apache/airflow/commit/357e11e0cfb4c02833018e073bc4f5e5b52fae4f) | 2020-05-29  | Add Delete/Create S3 bucket operators (#8895)                                                                                                                      |
 | [1ed171bfb](https://github.com/apache/airflow/commit/1ed171bfb265ded8674058bdc425640d25f1f4fc) | 2020-05-28  | Add script_args for S3FileTransformOperator (#9019)                                                                                                                |
-| [0b0e4f7a4](https://github.com/apache/airflow/commit/0b0e4f7a4cceff3efe15161fb40b984782760a34) | 2020-05-26  | Preparing for RC3 release of backports (#9026)                                                                                                                      |
+| [0b0e4f7a4](https://github.com/apache/airflow/commit/0b0e4f7a4cceff3efe15161fb40b984782760a34) | 2020-05-26  | Preparing for RC3 relase of backports (#9026)                                                                                                                      |
 | [00642a46d](https://github.com/apache/airflow/commit/00642a46d019870c4decb3d0e47c01d6a25cb88c) | 2020-05-26  | Fixed name of 20 remaining wrongly named operators. (#8994)                                                                                                        |
 | [1d36b0303](https://github.com/apache/airflow/commit/1d36b0303b8632fce6de78ca4e782ae26ee06fea) | 2020-05-23  | Fix references in docs (#8984)                                                                                                                                     |
 | [f946f96da](https://github.com/apache/airflow/commit/f946f96da45d8e6101805450d8cab7ccb2774ad0) | 2020-05-23  | Old json boto compat removed from dynamodb_to_s3 operator (#8987)                                                                                                  |

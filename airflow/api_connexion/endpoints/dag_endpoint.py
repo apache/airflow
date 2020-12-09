@@ -14,9 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from flask import current_app, request
+from flask import current_app, g, request
 from marshmallow import ValidationError
-from sqlalchemy import func
 
 from airflow import DAG
 from airflow.api_connexion import security
@@ -28,16 +27,16 @@ from airflow.api_connexion.schemas.dag_schema import (
     dag_schema,
     dags_collection_schema,
 )
+from airflow.exceptions import SerializedDagNotFound
 from airflow.models.dag import DagModel
+from airflow.security import permissions
 from airflow.utils.session import provide_session
 
 
-@security.requires_authentication
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
 @provide_session
 def get_dag(dag_id, session):
-    """
-    Get basic information about a DAG.
-    """
+    """Get basic information about a DAG."""
     dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
 
     if dag is None:
@@ -46,37 +45,33 @@ def get_dag(dag_id, session):
     return dag_schema.dump(dag)
 
 
-@security.requires_authentication
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
 def get_dag_details(dag_id):
-    """
-    Get details of DAG.
-    """
-    dag: DAG = current_app.dag_bag.get_dag(dag_id)
-    if not dag:
+    """Get details of DAG."""
+    try:
+        dag: DAG = current_app.dag_bag.get_dag(dag_id)
+    except SerializedDagNotFound:
+        raise NotFound("DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found")
+    if dag is None:
         raise NotFound("DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found")
     return dag_detail_schema.dump(dag)
 
 
-@security.requires_authentication
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
 @format_parameters({'limit': check_limit})
-@provide_session
-def get_dags(session, limit, offset=0):
-    """
-    Get all DAGs.
-    """
-    dags = session.query(DagModel).order_by(DagModel.dag_id).offset(offset).limit(limit).all()
-
-    total_entries = session.query(func.count(DagModel.dag_id)).scalar()
+def get_dags(limit, offset=0):
+    """Get all DAGs."""
+    readable_dags = current_app.appbuilder.sm.get_readable_dags(g.user)
+    dags = readable_dags.order_by(DagModel.dag_id).offset(offset).limit(limit).all()
+    total_entries = readable_dags.count()
 
     return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
 
 
-@security.requires_authentication
+@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)])
 @provide_session
 def patch_dag(session, dag_id, update_mask=None):
-    """
-    Update the specific DAG
-    """
+    """Update the specific DAG"""
     dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
     if not dag:
         raise NotFound(f"Dag with id: '{dag_id}' not found")

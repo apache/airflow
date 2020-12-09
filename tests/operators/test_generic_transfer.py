@@ -37,10 +37,7 @@ TEST_DAG_ID = 'unit_test_dag'
 @pytest.mark.backend("mysql")
 class TestMySql(unittest.TestCase):
     def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
 
@@ -48,24 +45,29 @@ class TestMySql(unittest.TestCase):
         drop_tables = {'test_mysql_to_mysql', 'test_airflow'}
         with MySqlHook().get_conn() as conn:
             for table in drop_tables:
-                conn.execute("DROP TABLE IF EXISTS {}".format(table))
+                conn.execute(f"DROP TABLE IF EXISTS {table}")
 
-    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",), ])
+    @parameterized.expand(
+        [
+            ("mysqlclient",),
+            ("mysql-connector-python",),
+        ]
+    )
     def test_mysql_to_mysql(self, client):
         with MySqlContext(client):
-            sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"
+            sql = "SELECT * FROM connection;"
             op = GenericTransfer(
                 task_id='test_m2m',
                 preoperator=[
                     "DROP TABLE IF EXISTS test_mysql_to_mysql",
-                    "CREATE TABLE IF NOT EXISTS "
-                    "test_mysql_to_mysql LIKE INFORMATION_SCHEMA.TABLES"
+                    "CREATE TABLE IF NOT EXISTS test_mysql_to_mysql LIKE connection",
                 ],
                 source_conn_id='airflow_db',
                 destination_conn_id='airflow_db',
                 destination_table="test_mysql_to_mysql",
                 sql=sql,
-                dag=self.dag)
+                dag=self.dag,
+            )
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
 
@@ -89,12 +91,12 @@ class TestPostgres(unittest.TestCase):
             task_id='test_p2p',
             preoperator=[
                 "DROP TABLE IF EXISTS test_postgres_to_postgres",
-                "CREATE TABLE IF NOT EXISTS "
-                "test_postgres_to_postgres (LIKE INFORMATION_SCHEMA.TABLES)"
+                "CREATE TABLE IF NOT EXISTS test_postgres_to_postgres (LIKE INFORMATION_SCHEMA.TABLES)",
             ],
             source_conn_id='postgres_default',
             destination_conn_id='postgres_default',
             destination_table="test_postgres_to_postgres",
             sql=sql,
-            dag=self.dag)
+            dag=self.dag,
+        )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

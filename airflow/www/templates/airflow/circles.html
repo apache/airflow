@@ -33,7 +33,7 @@
             id="div_svg"
             class="centered text-center"
             style="border: 1px solid #ccc;padding:0;margin:0;">
-        <svg></svg>
+        <svg id="circles-svg"></svg>
 
     </div>
     <script src="{{ url_for_asset('d3.min.js') }}"></script>
@@ -68,7 +68,7 @@
     sclx = d3.scale.linear().domain([-1, points]).range([0, width]);
     scly = d3.scale.linear().domain([-1, points]).range([0, height]);
 
-    circles = d3.select("svg")
+    circles = d3.select("#circles-svg")
     .attr('width', "100%")
 
     .attr('height', height)

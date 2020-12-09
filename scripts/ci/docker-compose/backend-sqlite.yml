@@ -22,3 +22,8 @@ services:
       - BACKEND=sqlite
       - AIRFLOW__CORE__SQL_ALCHEMY_CONN=${SQLITE_URL}
       - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
+    volumes:
+      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
+      - sqlite-db-volume:/root/airflow
+volumes:
+  sqlite-db-volume:

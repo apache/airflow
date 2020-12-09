@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains Google Datastore operators.
-"""
+"""This module contains Google Datastore operators."""
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
@@ -113,7 +111,7 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
-    def execute(self, context):
+    def execute(self, context) -> dict:
         self.log.info('Exporting data to Cloud Storage bucket %s', self.bucket)
 
         if self.overwrite_existing and self.namespace:
@@ -139,7 +137,7 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
 
         state = result['metadata']['common']['state']
         if state != 'SUCCESSFUL':
-            raise AirflowException('Operation failed: result={}'.format(result))
+            raise AirflowException(f'Operation failed: result={result}')
         return result
 
 
@@ -244,7 +242,7 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
 
         state = result['metadata']['common']['state']
         if state != 'SUCCESSFUL':
-            raise AirflowException('Operation failed: result={}'.format(result))
+            raise AirflowException(f'Operation failed: result={result}')
 
         return result
 
@@ -305,7 +303,7 @@ class CloudDatastoreAllocateIdsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> list:
         hook = DatastoreHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -373,7 +371,7 @@ class CloudDatastoreBeginTransactionOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> str:
         hook = DatastoreHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -441,7 +439,7 @@ class CloudDatastoreCommitOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> dict:
         hook = DatastoreHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -509,7 +507,7 @@ class CloudDatastoreRollbackOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = DatastoreHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -576,7 +574,7 @@ class CloudDatastoreRunQueryOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> dict:
         hook = DatastoreHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -693,7 +691,7 @@ class CloudDatastoreDeleteOperationOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = DatastoreHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

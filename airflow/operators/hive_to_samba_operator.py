@@ -24,5 +24,6 @@ from airflow.providers.apache.hive.transfers.hive_to_samba import HiveToSambaOpe
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.hive.transfers.hive_to_samba`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

@@ -18,9 +18,9 @@
 import json
 import unittest
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
-from mock import patch
 from requests import HTTPError
 from tenacity import RetryError
 
@@ -38,7 +38,7 @@ URL = "https://api.clouddataprep.com/v4/jobGroups"
 
 class TestGoogleDataprepHook(unittest.TestCase):
     def setUp(self):
-        with mock.patch("airflow.hooks.base_hook.BaseHook.get_connection") as conn:
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection") as conn:
             conn.return_value.extra_dejson = EXTRA
             self.hook = dataprep.GoogleDataprepHook(dataprep_conn_id="dataprep_default")
 

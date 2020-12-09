@@ -20,14 +20,14 @@ import getpass
 import os
 import warnings
 from io import StringIO
-from typing import Optional
+from typing import Dict, Optional, Tuple, Union
 
 import paramiko
 from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class SSHHook(BaseHook):
@@ -57,17 +57,32 @@ class SSHHook(BaseHook):
     :type keepalive_interval: int
     """
 
+    conn_name_attr = 'ssh_conn_id'
+    default_conn_name = 'ssh_default'
+    conn_type = 'ssh'
+    hook_name = 'SSH'
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['schema'],
+            "relabeling": {
+                'login': 'Username',
+            },
+        }
+
     def __init__(
         self,
-        ssh_conn_id=None,
-        remote_host=None,
-        username=None,
-        password=None,
-        key_file=None,
-        port=None,
-        timeout=10,
-        keepalive_interval=30,
-    ):
+        ssh_conn_id: Optional[str] = None,
+        remote_host: Optional[str] = None,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        key_file: Optional[str] = None,
+        port: Optional[int] = None,
+        timeout: int = 10,
+        keepalive_interval: int = 30,
+    ) -> None:
         super().__init__()
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host
@@ -106,7 +121,12 @@ class SSHHook(BaseHook):
                     self.key_file = extra_options.get("key_file")
 
                 private_key = extra_options.get('private_key')
-                if private_key:
+                private_key_passphrase = extra_options.get('private_key_passphrase')
+                if private_key and private_key_passphrase:
+                    self.pkey = paramiko.RSAKey.from_private_key(
+                        StringIO(private_key), password=private_key_passphrase
+                    )
+                elif private_key and not private_key_passphrase:
                     self.pkey = paramiko.RSAKey.from_private_key(StringIO(private_key))
 
                 if "timeout" in extra_options:
@@ -169,7 +189,6 @@ class SSHHook(BaseHook):
 
         :rtype: paramiko.client.SSHClient
         """
-
         self.log.debug('Creating SSH client for conn_id: %s', self.ssh_conn_id)
         client = paramiko.SSHClient()
 
@@ -180,9 +199,7 @@ class SSHHook(BaseHook):
             )
             client.load_system_host_keys()
         if self.no_host_key_check:
-            self.log.warning(
-                'No Host Key Verification. This wont protect ' 'against Man-In-The-Middle attacks'
-            )
+            self.log.warning('No Host Key Verification. This wont protect against Man-In-The-Middle attacks')
             # Default is RejectPolicy
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         connect_kwargs = dict(
@@ -213,7 +230,7 @@ class SSHHook(BaseHook):
         self.client = client
         return client
 
-    def __enter__(self):
+    def __enter__(self) -> 'SSHHook':
         warnings.warn(
             'The contextmanager of SSHHook is deprecated.'
             'Please use get_conn() as a contextmanager instead.'
@@ -222,12 +239,14 @@ class SSHHook(BaseHook):
         )
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         if self.client is not None:
             self.client.close()
             self.client = None
 
-    def get_tunnel(self, remote_port, remote_host="localhost", local_port=None):
+    def get_tunnel(
+        self, remote_port: int, remote_host: str = "localhost", local_port: Optional[int] = None
+    ) -> SSHTunnelForwarder:
         """
         Creates a tunnel between two hosts. Like ssh -L <LOCAL_PORT>:host:<REMOTE_PORT>.
 
@@ -240,9 +259,8 @@ class SSHHook(BaseHook):
 
         :return: sshtunnel.SSHTunnelForwarder object
         """
-
         if local_port:
-            local_bind_address = ('localhost', local_port)
+            local_bind_address: Union[Tuple[str, int], Tuple[str]] = ('localhost', local_port)
         else:
             local_bind_address = ('localhost',)
 
@@ -271,7 +289,7 @@ class SSHHook(BaseHook):
         return client
 
     def create_tunnel(
-        self, local_port: int, remote_port: Optional[int] = None, remote_host: str = "localhost"
+        self, local_port: int, remote_port: int, remote_host: str = "localhost"
     ) -> SSHTunnelForwarder:
         """
         Creates tunnel for SSH connection [Deprecated].

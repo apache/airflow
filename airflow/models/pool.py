@@ -26,11 +26,13 @@ from airflow.models.base import Base
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.typing_compat import TypedDict
 from airflow.utils.session import provide_session
+from airflow.utils.sqlalchemy import nowait, with_row_locks
 from airflow.utils.state import State
 
 
 class PoolStats(TypedDict):
     """Dictionary containing Pool Stats"""
+
     total: int
     running: int
     queued: int
@@ -38,9 +40,8 @@ class PoolStats(TypedDict):
 
 
 class Pool(Base):
-    """
-    the class to get Pool info.
-    """
+    """the class to get Pool info."""
+
     __tablename__ = "slot_pool"
 
     id = Column(Integer, primary_key=True)
@@ -52,7 +53,7 @@ class Pool(Base):
     DEFAULT_POOL_NAME = 'default_pool'
 
     def __repr__(self):
-        return str(self.pool)    # pylint: disable=E0012
+        return str(self.pool)  # pylint: disable=E0012
 
     @staticmethod
     @provide_session
@@ -79,17 +80,31 @@ class Pool(Base):
 
     @staticmethod
     @provide_session
-    def slots_stats(session: Session = None) -> Dict[str, PoolStats]:
+    def slots_stats(
+        *,
+        lock_rows: bool = False,
+        session: Session = None,
+    ) -> Dict[str, PoolStats]:
         """
         Get Pool stats (Number of Running, Queued, Open & Total tasks)
 
+        If ``lock_rows`` is True, and the database engine in use supports the ``NOWAIT`` syntax, then a
+        non-blocking lock will be attempted -- if the lock is not available then SQLAlchemy will throw an
+        OperationalError.
+
+        :param lock_rows: Should we attempt to obtain a row-level lock on all the Pool rows returns
         :param session: SQLAlchemy ORM Session
         """
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
 
         pools: Dict[str, PoolStats] = {}
 
-        pool_rows: Iterable[Tuple[str, int]] = session.query(Pool.pool, Pool.slots).all()
+        query = session.query(Pool.pool, Pool.slots)
+
+        if lock_rows:
+            query = with_row_locks(query, **nowait(session))
+
+        pool_rows: Iterable[Tuple[str, int]] = query.all()
         for (pool_name, total_slots) in pool_rows:
             pools[pool_name] = PoolStats(total=total_slots, running=0, queued=0, open=0)
 
@@ -111,9 +126,7 @@ class Pool(Base):
             elif state == "queued":
                 stats_dict["queued"] = count
             else:
-                raise AirflowException(
-                    f"Unexpected state. Expected values: {EXECUTION_STATES}."
-                )
+                raise AirflowException(f"Unexpected state. Expected values: {EXECUTION_STATES}.")
 
         # calculate open metric
         for pool_name, stats_dict in pools.items():
@@ -147,9 +160,9 @@ class Pool(Base):
         :return: the used number of slots
         """
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
+
         return (
-            session
-            .query(func.sum(TaskInstance.pool_slots))
+            session.query(func.sum(TaskInstance.pool_slots))
             .filter(TaskInstance.pool == self.pool)
             .filter(TaskInstance.state.in_(list(EXECUTION_STATES)))
             .scalar()
@@ -166,8 +179,7 @@ class Pool(Base):
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
 
         return (
-            session
-            .query(func.sum(TaskInstance.pool_slots))
+            session.query(func.sum(TaskInstance.pool_slots))
             .filter(TaskInstance.pool == self.pool)
             .filter(TaskInstance.state == State.RUNNING)
             .scalar()
@@ -184,8 +196,7 @@ class Pool(Base):
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
 
         return (
-            session
-            .query(func.sum(TaskInstance.pool_slots))
+            session.query(func.sum(TaskInstance.pool_slots))
             .filter(TaskInstance.pool == self.pool)
             .filter(TaskInstance.state == State.QUEUED)
             .scalar()

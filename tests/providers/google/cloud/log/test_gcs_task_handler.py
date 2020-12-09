@@ -23,7 +23,7 @@ from unittest import mock
 
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.providers.google.cloud.log.gcs_task_handler import GCSTaskHandler
 from airflow.utils.state import State
 from tests.test_utils.config import conf_vars

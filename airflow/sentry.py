@@ -28,62 +28,54 @@ log = logging.getLogger(__name__)
 
 
 class DummySentry:
-    """
-    Blank class for Sentry.
-    """
+    """Blank class for Sentry."""
 
     @classmethod
     def add_tagging(cls, task_instance):
-        """
-        Blank function for tagging.
-        """
+        """Blank function for tagging."""
 
     @classmethod
     def add_breadcrumbs(cls, task_instance, session=None):
-        """
-        Blank function for breadcrumbs.
-        """
+        """Blank function for breadcrumbs."""
 
     @classmethod
     def enrich_errors(cls, run):
-        """
-        Blank function for formatting a TaskInstance._run_raw_task.
-        """
+        """Blank function for formatting a TaskInstance._run_raw_task."""
         return run
 
     def flush(self):
-        """
-        Blank function for flushing errors.
-        """
+        """Blank function for flushing errors."""
 
 
 Sentry: DummySentry = DummySentry()
 if conf.getboolean("sentry", 'sentry_on', fallback=False):
     import sentry_sdk
+
     # Verify blinker installation
     from blinker import signal  # noqa: F401 pylint: disable=unused-import
     from sentry_sdk.integrations.flask import FlaskIntegration
     from sentry_sdk.integrations.logging import ignore_logger
 
     class ConfiguredSentry(DummySentry):
-        """
-        Configure Sentry SDK.
-        """
+        """Configure Sentry SDK."""
 
-        SCOPE_TAGS = frozenset(
-            ("task_id", "dag_id", "execution_date", "operator", "try_number")
-        )
+        SCOPE_TAGS = frozenset(("task_id", "dag_id", "execution_date", "operator", "try_number"))
         SCOPE_CRUMBS = frozenset(("task_id", "state", "operator", "duration"))
 
         UNSUPPORTED_SENTRY_OPTIONS = frozenset(
-            ("integrations", "in_app_include", "in_app_exclude", "ignore_errors",
-             "before_breadcrumb", "before_send", "transport")
+            (
+                "integrations",
+                "in_app_include",
+                "in_app_exclude",
+                "ignore_errors",
+                "before_breadcrumb",
+                "before_send",
+                "transport",
+            )
         )
 
         def __init__(self):
-            """
-            Initialize the Sentry SDK.
-            """
+            """Initialize the Sentry SDK."""
             ignore_logger("airflow.task")
             ignore_logger("airflow.jobs.backfill_job.BackfillJob")
             executor_name = conf.get("core", "EXECUTOR")
@@ -108,12 +100,11 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
                 # supported backward compability with old way dsn option
                 dsn = old_way_dsn or new_way_dsn
 
-                unsupported_options = self.UNSUPPORTED_SENTRY_OPTIONS.intersection(
-                    sentry_config_opts.keys())
+                unsupported_options = self.UNSUPPORTED_SENTRY_OPTIONS.intersection(sentry_config_opts.keys())
                 if unsupported_options:
                     log.warning(
                         "There are unsupported options in [sentry] section: %s",
-                        ", ".join(unsupported_options)
+                        ", ".join(unsupported_options),
                     )
 
             if dsn:
@@ -124,9 +115,7 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
                 sentry_sdk.init(integrations=integrations, **sentry_config_opts)
 
         def add_tagging(self, task_instance):
-            """
-            Function to add tagging for a task_instance.
-            """
+            """Function to add tagging for a task_instance."""
             task = task_instance.task
 
             with sentry_sdk.configure_scope() as scope:
@@ -138,9 +127,7 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
 
         @provide_session
         def add_breadcrumbs(self, task_instance, session=None):
-            """
-            Function to add breadcrumbs inside of a task_instance.
-            """
+            """Function to add breadcrumbs inside of a task_instance."""
             if session is None:
                 return
             execution_date = task_instance.execution_date
@@ -161,9 +148,7 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
                 sentry_sdk.add_breadcrumb(category="completed_tasks", data=data, level="info")
 
         def enrich_errors(self, func):
-            """
-            Wrap TaskInstance._run_raw_task to support task specific tags and breadcrumbs.
-            """
+            """Wrap TaskInstance._run_raw_task to support task specific tags and breadcrumbs."""
 
             @wraps(func)
             def wrapper(task_instance, *args, session=None, **kwargs):

@@ -38,6 +38,11 @@ __version__ = version.version
 
 __all__ = ['__version__', 'login', 'DAG']
 
+# Make `airflow` an namespace package, supporting installing
+# airflow.providers.* in different locations (i.e. one in site, and one in user
+# lib.)
+__path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
+
 settings.initialize()
 
 login: Optional[Callable] = None
@@ -50,11 +55,24 @@ def __getattr__(name):
     # PEP-562: Lazy loaded attributes on python modules
     if name == "DAG":
         from airflow.models.dag import DAG  # pylint: disable=redefined-outer-name
+
         return DAG
     if name == "AirflowException":
         from airflow.exceptions import AirflowException  # pylint: disable=redefined-outer-name
+
         return AirflowException
     raise AttributeError(f"module {__name__} has no attribute {name}")
+
+
+if not settings.LAZY_LOAD_PLUGINS:
+    from airflow import plugins_manager
+
+    plugins_manager.ensure_plugins_loaded()
+
+if not settings.LAZY_LOAD_PROVIDERS:
+    from airflow import providers_manager
+
+    providers_manager.ProvidersManager().initialize_providers_manager()
 
 
 # This is never executed, but tricks static analyzers (PyDev, PyCharm,

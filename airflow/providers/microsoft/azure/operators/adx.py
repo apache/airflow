@@ -18,7 +18,7 @@
 #
 
 """This module contains Azure Data Explorer operators"""
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from azure.kusto.data._models import KustoResultTable
 
@@ -52,7 +52,7 @@ class AzureDataExplorerQueryOperator(BaseOperator):
         *,
         query: str,
         database: str,
-        options: Optional[Dict] = None,
+        options: Optional[dict] = None,
         azure_data_explorer_conn_id: str = 'azure_data_explorer_default',
         **kwargs,
     ) -> None:
@@ -66,7 +66,7 @@ class AzureDataExplorerQueryOperator(BaseOperator):
         """Returns new instance of AzureDataExplorerHook"""
         return AzureDataExplorerHook(self.azure_data_explorer_conn_id)
 
-    def execute(self, context: Dict[Any, Any]) -> KustoResultTable:
+    def execute(self, context: dict) -> KustoResultTable:
         """
         Run KQL Query on Azure Data Explorer (Kusto).
         Returns `PrimaryResult` of Query v2 HTTP response contents

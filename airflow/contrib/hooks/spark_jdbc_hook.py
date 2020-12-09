@@ -24,5 +24,6 @@ from airflow.providers.apache.spark.hooks.spark_jdbc import SparkJDBCHook  # noq
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.spark.hooks.spark_jdbc`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

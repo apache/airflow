@@ -21,23 +21,42 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.providers.google.cloud.operators.dlp import (  # noqa
-    CloudDLPCancelDLPJobOperator, CloudDLPCreateDeidentifyTemplateOperator, CloudDLPCreateDLPJobOperator,
-    CloudDLPCreateInspectTemplateOperator, CloudDLPCreateJobTriggerOperator,
-    CloudDLPCreateStoredInfoTypeOperator, CloudDLPDeidentifyContentOperator,
-    CloudDLPDeleteDeidentifyTemplateOperator, CloudDLPDeleteDLPJobOperator,
-    CloudDLPDeleteInspectTemplateOperator, CloudDLPDeleteJobTriggerOperator,
-    CloudDLPDeleteStoredInfoTypeOperator, CloudDLPGetDeidentifyTemplateOperator, CloudDLPGetDLPJobOperator,
-    CloudDLPGetDLPJobTriggerOperator, CloudDLPGetInspectTemplateOperator, CloudDLPGetStoredInfoTypeOperator,
-    CloudDLPInspectContentOperator, CloudDLPListDeidentifyTemplatesOperator, CloudDLPListDLPJobsOperator,
-    CloudDLPListInfoTypesOperator, CloudDLPListInspectTemplatesOperator, CloudDLPListJobTriggersOperator,
-    CloudDLPListStoredInfoTypesOperator, CloudDLPRedactImageOperator, CloudDLPReidentifyContentOperator,
-    CloudDLPUpdateDeidentifyTemplateOperator, CloudDLPUpdateInspectTemplateOperator,
-    CloudDLPUpdateJobTriggerOperator, CloudDLPUpdateStoredInfoTypeOperator,
+    CloudDLPCancelDLPJobOperator,
+    CloudDLPCreateDeidentifyTemplateOperator,
+    CloudDLPCreateDLPJobOperator,
+    CloudDLPCreateInspectTemplateOperator,
+    CloudDLPCreateJobTriggerOperator,
+    CloudDLPCreateStoredInfoTypeOperator,
+    CloudDLPDeidentifyContentOperator,
+    CloudDLPDeleteDeidentifyTemplateOperator,
+    CloudDLPDeleteDLPJobOperator,
+    CloudDLPDeleteInspectTemplateOperator,
+    CloudDLPDeleteJobTriggerOperator,
+    CloudDLPDeleteStoredInfoTypeOperator,
+    CloudDLPGetDeidentifyTemplateOperator,
+    CloudDLPGetDLPJobOperator,
+    CloudDLPGetDLPJobTriggerOperator,
+    CloudDLPGetInspectTemplateOperator,
+    CloudDLPGetStoredInfoTypeOperator,
+    CloudDLPInspectContentOperator,
+    CloudDLPListDeidentifyTemplatesOperator,
+    CloudDLPListDLPJobsOperator,
+    CloudDLPListInfoTypesOperator,
+    CloudDLPListInspectTemplatesOperator,
+    CloudDLPListJobTriggersOperator,
+    CloudDLPListStoredInfoTypesOperator,
+    CloudDLPRedactImageOperator,
+    CloudDLPReidentifyContentOperator,
+    CloudDLPUpdateDeidentifyTemplateOperator,
+    CloudDLPUpdateInspectTemplateOperator,
+    CloudDLPUpdateJobTriggerOperator,
+    CloudDLPUpdateStoredInfoTypeOperator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.dlp`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 
@@ -51,8 +70,8 @@ class CloudDLPDeleteDlpJobOperator(CloudDLPDeleteDLPJobOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteDLPJobOperator`.""",
-
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)
 
@@ -67,7 +86,8 @@ class CloudDLPGetDlpJobOperator(CloudDLPGetDLPJobOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.dlp.CloudDLPGetDLPJobOperator`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)
 
@@ -82,7 +102,8 @@ class CloudDLPGetJobTripperOperator(CloudDLPGetDLPJobTriggerOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.dlp.CloudDLPGetDLPJobTriggerOperator`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)
 
@@ -97,6 +118,7 @@ class CloudDLPListDlpJobsOperator(CloudDLPListDLPJobsOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.dlp.CloudDLPListDLPJobsOperator`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)

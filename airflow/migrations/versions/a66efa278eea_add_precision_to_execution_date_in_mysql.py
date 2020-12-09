@@ -42,10 +42,7 @@ def upgrade():
     conn = op.get_bind()
     if conn.dialect.name == "mysql":
         op.alter_column(
-            table_name=TABLE_NAME,
-            column_name=COLUMN_NAME,
-            type_=mysql.TIMESTAMP(fsp=6),
-            nullable=False
+            table_name=TABLE_NAME, column_name=COLUMN_NAME, type_=mysql.TIMESTAMP(fsp=6), nullable=False
         )
 
 
@@ -54,8 +51,5 @@ def downgrade():
     conn = op.get_bind()
     if conn.dialect.name == "mysql":
         op.alter_column(
-            table_name=TABLE_NAME,
-            column_name=COLUMN_NAME,
-            type_=mysql.TIMESTAMP(),
-            nullable=False
+            table_name=TABLE_NAME, column_name=COLUMN_NAME, type_=mysql.TIMESTAMP(), nullable=False
         )

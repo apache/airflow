@@ -52,10 +52,9 @@ class RedisPublishOperator(BaseOperator):
         :param context: the context object
         :type context: dict
         """
-
         redis_hook = RedisHook(redis_conn_id=self.redis_conn_id)
 
-        self.log.info('Sending messsage %s to Redis on channel %s', self.message, self.channel)
+        self.log.info('Sending message %s to Redis on channel %s', self.message, self.channel)
 
         result = redis_hook.get_conn().publish(channel=self.channel, message=self.message)
 

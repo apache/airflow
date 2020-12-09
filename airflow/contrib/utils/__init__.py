@@ -19,7 +19,4 @@
 
 import warnings
 
-warnings.warn(
-    "This module is deprecated. Please use `airflow.utils`.",
-    DeprecationWarning, stacklevel=2
-)
+warnings.warn("This module is deprecated. Please use `airflow.utils`.", DeprecationWarning, stacklevel=2)

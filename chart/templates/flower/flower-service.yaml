@@ -18,7 +18,7 @@
 ################################
 ## Airflow Flower Service Component
 #################################
-{{- if eq .Values.executor "CeleryExecutor" }}
+{{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
 kind: Service
 apiVersion: v1
 metadata:

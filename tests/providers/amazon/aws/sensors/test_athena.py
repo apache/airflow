@@ -17,8 +17,7 @@
 # under the License.
 
 import unittest
-
-import mock
+from unittest import mock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook

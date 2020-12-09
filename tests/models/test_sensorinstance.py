@@ -24,22 +24,20 @@ from airflow.sensors.python import PythonSensor
 
 
 class SensorInstanceTest(unittest.TestCase):
-
     def test_get_classpath(self):
         # Test the classpath in/out airflow
-        obj1 = NamedHivePartitionSensor(
-            partition_names=['test_partition'],
-            task_id='meta_partition_test_1')
+        obj1 = NamedHivePartitionSensor(partition_names=['test_partition'], task_id='meta_partition_test_1')
         obj1_classpath = SensorInstance.get_classpath(obj1)
-        obj1_importpath = "airflow.providers.apache.hive." \
-                          "sensors.named_hive_partition.NamedHivePartitionSensor"
+        obj1_importpath = (
+            "airflow.providers.apache.hive.sensors.named_hive_partition.NamedHivePartitionSensor"
+        )
 
         self.assertEqual(obj1_classpath, obj1_importpath)
 
         def test_callable():
             return
-        obj3 = PythonSensor(python_callable=test_callable,
-                            task_id='python_sensor_test')
+
+        obj3 = PythonSensor(python_callable=test_callable, task_id='python_sensor_test')
         obj3_classpath = SensorInstance.get_classpath(obj3)
         obj3_importpath = "airflow.sensors.python.PythonSensor"
 

@@ -32,9 +32,9 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():   # noqa: D103
+def upgrade():  # noqa: D103
     op.rename_table('user', 'users')
 
 
-def downgrade():   # noqa: D103
+def downgrade():  # noqa: D103
     op.rename_table('users', 'user')

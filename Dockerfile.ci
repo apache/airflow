@@ -29,6 +29,9 @@ ENV AIRFLOW_VERSION=$AIRFLOW_VERSION
 ARG PYTHON_MAJOR_MINOR_VERSION="3.6"
 ENV PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION}
 
+ARG PIP_VERSION=20.2.4
+ENV PIP_VERSION=${PIP_VERSION}
+
 # Print versions
 RUN echo "Base image: ${PYTHON_BASE_IMAGE}"
 RUN echo "Airflow version: ${AIRFLOW_VERSION}"
@@ -38,8 +41,8 @@ ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
 
 # By increasing this number we can do force build of all dependencies
-ARG DEPENDENCIES_EPOCH_NUMBER="4"
-# Increase the value below to force renstalling of all dependencies
+ARG DEPENDENCIES_EPOCH_NUMBER="5"
+# Increase the value below to force reinstalling of all dependencies
 ENV DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER}
 
 # Install curl and gnupg2 - needed to download nodejs in the next step
@@ -51,13 +54,26 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-ARG ADDITIONAL_DEV_DEPS=""
-ENV ADDITIONAL_DEV_DEPS=${ADDITIONAL_DEV_DEPS}
+ARG ADDITIONAL_DEV_APT_DEPS=""
+ENV ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS}
+
+ARG DEV_APT_COMMAND="\
+    curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
+    && curl https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - > /dev/null \
+    && echo 'deb https://dl.yarnpkg.com/debian/ stable main' > /etc/apt/sources.list.d/yarn.list"
+ENV DEV_APT_COMMAND=${DEV_APT_COMMAND}
+
+ARG ADDITIONAL_DEV_APT_COMMAND=""
+ENV ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND}
+
+ARG ADDITIONAL_DEV_ENV_VARS=""
 
 # Install basic and additional apt dependencies
-RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
-    && curl https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - > /dev/null \
-    && echo "deb https://dl.yarnpkg.com/debian/ stable main" > /etc/apt/sources.list.d/yarn.list \
+RUN mkdir -pv /usr/share/man/man1 \
+    && mkdir -pv /usr/share/man/man7 \
+    && export ${ADDITIONAL_DEV_ENV_VARS?} \
+    && bash -o pipefail -e -u -x -c "${DEV_APT_COMMAND}" \
+    && bash -o pipefail -e -u -x -c "${ADDITIONAL_DEV_APT_COMMAND}" \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
            apt-utils \
@@ -86,48 +102,21 @@ RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
            unixodbc \
            unixodbc-dev \
            yarn \
-           ${ADDITIONAL_DEV_DEPS} \
+           ${ADDITIONAL_DEV_APT_DEPS} \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install MySQL client from Oracle repositories (Debian installs mariadb)
-RUN KEY="A4A9406876FCBD3C456770C88C718D3B5072E1F5" \
-    && GNUPGHOME="$(mktemp -d)" \
-    && export GNUPGHOME \
-    && for KEYSERVER in $(shuf -e \
-            ha.pool.sks-keyservers.net \
-            hkp://p80.pool.sks-keyservers.net:80 \
-            keyserver.ubuntu.com \
-            hkp://keyserver.ubuntu.com:80 \
-            pgp.mit.edu) ; do \
-          gpg --keyserver "${KEYSERVER}" --recv-keys "${KEY}" && break || true ; \
-       done \
-    && gpg --export "${KEY}" | apt-key add - \
-    && gpgconf --kill all \
-    rm -rf "${GNUPGHOME}"; \
-    apt-key list > /dev/null \
-    && echo "deb http://repo.mysql.com/apt/debian/ stretch mysql-5.7" | tee -a /etc/apt/sources.list.d/mysql.list \
-    && apt-get update \
-    && apt-get install --no-install-recommends -y \
-        libmysqlclient-dev \
-        mysql-client \
-    && apt-get autoremove -yqq --purge \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+COPY scripts/docker scripts/docker
+RUN ./scripts/docker/install_mysql.sh dev
 
 RUN adduser airflow \
     && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
     && chmod 0440 /etc/sudoers.d/airflow
 
-ARG ADDITIONAL_RUNTIME_DEPS=""
-ENV ADDITIONAL_RUNTIME_DEPS=${ADDITIONAL_RUNTIME_DEPS}
-
-# Note missing man directories on debian-buster
-# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
-RUN mkdir -pv /usr/share/man/man1 \
-    && mkdir -pv /usr/share/man/man7 \
-    && apt-get update \
-    && apt-get install --no-install-recommends -y \
+# The latest buster images do not have libpython 2.7 installed and it is needed
+# To run virtualenv tests with python 2
+ARG RUNTIME_APT_DEPS="\
       gnupg \
       libgcc-8-dev \
       apt-transport-https \
@@ -137,8 +126,6 @@ RUN mkdir -pv /usr/share/man/man1 \
       krb5-user \
       ldap-utils \
       less \
-      # The latest buster images do not have libpython 2.7 installed and it is needed
-      # To run virtualenv tests with python 2
       libpython2.7-stdlib \
       lsb-release \
       net-tools \
@@ -149,7 +136,31 @@ RUN mkdir -pv /usr/share/man/man1 \
       tmux \
       unzip \
       vim \
-      ${ADDITIONAL_RUNTIME_DEPS} \
+      xxd"
+ENV RUNTIME_APT_DEP=${RUNTIME_APT_DEPS}
+
+ARG ADDITIONAL_RUNTIME_APT_DEPS=""
+ENV ADDITIONAL_RUNTIME_APT_DEPS=${ADDITIONAL_RUNTIME_APT_DEPS}
+
+ARG RUNTIME_APT_COMMAND=""
+ENV RUNTIME_APT_COMMAND=${RUNTIME_APT_COMMAND}
+
+ARG ADDITIONAL_RUNTIME_APT_COMMAND=""
+ENV ADDITIONAL_RUNTIME_APT_COMMAND=${ADDITIONAL_RUNTIME_APT_COMMAND}
+
+ARG ADDITIONAL_RUNTIME_ENV_VARS=""
+
+# Note missing man directories on debian-buster
+# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
+RUN mkdir -pv /usr/share/man/man1 \
+    && mkdir -pv /usr/share/man/man7 \
+    && export ${ADDITIONAL_RUNTIME_ENV_VARS?} \
+    && bash -o pipefail -e -u -x -c "${RUNTIME_APT_COMMAND}" \
+    && bash -o pipefail -e -u -x -c "${ADDITIONAL_RUNTIME_APT_COMMAND}" \
+    && apt-get update \
+    && apt-get install --no-install-recommends -y \
+      ${RUNTIME_APT_DEPS} \
+      ${ADDITIONAL_RUNTIME_APT_DEPS} \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -185,6 +196,35 @@ RUN mkdir -pv ${AIRFLOW_HOME} && \
 ARG PIP_DEPENDENCIES_EPOCH_NUMBER="3"
 ENV PIP_DEPENDENCIES_EPOCH_NUMBER=${PIP_DEPENDENCIES_EPOCH_NUMBER}
 
+# Install BATS and its dependencies for "in container" tests
+ARG BATS_VERSION="0.4.0"
+ARG BATS_SUPPORT_VERSION="0.3.0"
+ARG BATS_ASSERT_VERSION="2.0.0"
+ARG BATS_FILE_VERSION="0.2.0"
+
+RUN curl -sSL https://github.com/bats-core/bats-core/archive/v${BATS_VERSION}.tar.gz -o /tmp/bats.tgz \
+    && tar -zxf /tmp/bats.tgz -C /tmp \
+    && /bin/bash /tmp/bats-core-${BATS_VERSION}/install.sh /opt/bats && rm -rf
+
+RUN mkdir -p /opt/bats/lib/bats-support \
+    && curl -sSL https://github.com/bats-core/bats-support/archive/v${BATS_SUPPORT_VERSION}.tar.gz -o /tmp/bats-support.tgz \
+    && tar -zxf /tmp/bats-support.tgz -C /opt/bats/lib/bats-support --strip 1 && rm -rf /tmp/*
+
+RUN mkdir -p /opt/bats/lib/bats-assert \
+    && curl -sSL https://github.com/bats-core/bats-assert/archive/v${BATS_ASSERT_VERSION}.tar.gz -o /tmp/bats-assert.tgz \
+    && tar -zxf /tmp/bats-assert.tgz -C /opt/bats/lib/bats-assert --strip 1 && rm -rf /tmp/*
+
+RUN mkdir -p /opt/bats/lib/bats-file \
+    && curl -sSL https://github.com/bats-core/bats-file/archive/v${BATS_FILE_VERSION}.tar.gz -o /tmp/bats-file.tgz \
+    && tar -zxf /tmp/bats-file.tgz -C /opt/bats/lib/bats-file --strip 1 && rm -rf /tmp/*
+
+RUN echo "export PATH=/opt/bats/bin:${PATH}" >> /root/.bashrc
+
+# Additional scripts for managing BATS addons
+COPY scripts/docker/load.bash /opt/bats/lib/
+RUN chmod a+x /opt/bats/lib/load.bash
+
+
 # Optimizing installation of Cassandra driver
 # Speeds up building the image - cassandra driver without CYTHON saves around 10 minutes
 ARG CASS_DRIVER_NO_CYTHON="1"
@@ -208,21 +248,44 @@ ENV AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}${ADDITIONAL_AIRFLOW_EXTRAS:+,}${ADDITIONAL_
 RUN echo "Installing with extras: ${AIRFLOW_EXTRAS}."
 
 ARG AIRFLOW_CONSTRAINTS_REFERENCE="constraints-master"
-ARG AIRFLOW_CONSTRAINTS_URL="https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_CONSTRAINTS_REFERENCE}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
-ENV AIRFLOW_CONSTRAINTS_URL=${AIRFLOW_CONSTRAINTS_URL}
+ARG AIRFLOW_CONSTRAINTS_LOCATION="https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_CONSTRAINTS_REFERENCE}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+ENV AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}
 
-# By changing the CI build epoch we can force reinstalling Arflow from the current master
+# By changing the CI build epoch we can force reinstalling Airflow from the current master
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
-ARG AIRFLOW_CI_BUILD_EPOCH="2"
+ARG AIRFLOW_CI_BUILD_EPOCH="3"
 ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
+
+ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
+ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES}
+
+# By default in the image, we are installing all providers when installing from sources
+ARG INSTALL_PROVIDERS_FROM_SOURCES="true"
+ENV INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES}
+
+ARG INSTALL_FROM_DOCKER_CONTEXT_FILES=""
+ENV INSTALL_FROM_DOCKER_CONTEXT_FILES=${INSTALL_FROM_DOCKER_CONTEXT_FILES}
+
+ARG INSTALL_FROM_PYPI="true"
+ENV INSTALL_FROM_PYPI=${INSTALL_FROM_PYPI}
+
+RUN pip install --upgrade "pip==${PIP_VERSION}"
 
 # In case of CI builds we want to pre-install master version of airflow dependencies so that
 # We do not have to always reinstall it from the scratch.
 # This can be reinstalled from latest master by increasing PIP_DEPENDENCIES_EPOCH_NUMBER.
 # And is automatically reinstalled from the scratch every time patch release of python gets released
-RUN pip install \
-    "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
-        --constraint "${AIRFLOW_CONSTRAINTS_URL}" && pip uninstall --yes apache-airflow;
+RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
+        pip install \
+            "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
+                --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" \
+                && pip uninstall --yes apache-airflow; \
+    fi
+
+# Generate random hex dump file so that we can determine whether it's faster to rebuild the image
+# using current cache (when our dump is the same as the remote onb) or better to pull
+# the new image (when it is different)
+RUN head -c 30 /dev/urandom | xxd -ps >/build-cache-hash
 
 # Link dumb-init for backwards compatibility (so that older images also work)
 RUN ln -sf /usr/bin/dumb-init /usr/local/bin/dumb-init
@@ -243,7 +306,6 @@ RUN yarn --cwd airflow/www install --frozen-lockfile --no-cache
 COPY setup.py ${AIRFLOW_SOURCES}/setup.py
 COPY setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
 
-COPY airflow/version.py ${AIRFLOW_SOURCES}/airflow/version.py
 COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
 
 ARG UPGRADE_TO_LATEST_CONSTRAINTS="false"
@@ -252,15 +314,25 @@ ENV UPGRADE_TO_LATEST_CONSTRAINTS=${UPGRADE_TO_LATEST_CONSTRAINTS}
 # The goal of this line is to install the dependencies from the most current setup.py from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
 # In non-CI optimized build this will install all dependencies before installing sources.
-# Usually we will install versions constrained to the current constraints file
+# Usually we will install versions based on the dependencies in setup.py and upgraded only if needed.
 # But in cron job we will install latest versions matching setup.py to see if there is no breaking change
 # and push the constraints if everything is successful
-RUN \
-    if [[ "${UPGRADE_TO_LATEST_CONSTRAINTS}" == "true" ]]; then \
-        pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy eager; \
-    else \
-        pip install -e ".[${AIRFLOW_EXTRAS}]" \
-            --constraint "${AIRFLOW_CONSTRAINTS_URL}" ; \
+RUN if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
+        if [[ "${UPGRADE_TO_LATEST_CONSTRAINTS}" != "false" ]]; then \
+            pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy eager; \
+        else \
+            pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy only-if-needed; \
+        fi; \
+    fi
+
+# If wheel files are found in /docker-context-files during installation
+# they are also installed additionally to whatever is installed from Airflow.
+COPY docker-context-files/ /docker-context-files/
+
+RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} != "true" ]]; then \
+        if ls /docker-context-files/*.{whl,tar.gz} 1> /dev/null 2>&1; then \
+            pip install --no-deps /docker-context-files/*.{whl,tar.gz}; \
+        fi ; \
     fi
 
 # Copy all the www/ files we need to compile assets. Done as two separate COPY
@@ -275,18 +347,28 @@ COPY scripts/in_container/entrypoint_ci.sh /entrypoint
 RUN chmod a+x /entrypoint
 
 # We can copy everything here. The Context is filtered by dockerignore. This makes sure we are not
-# copying over stuff that is accidentally generated or that we do not need (such as .egginfo)
+# copying over stuff that is accidentally generated or that we do not need (such as egg-info)
 # if you want to add something that is missing and you expect to see it in the image you can
 # add it with ! in .dockerignore next to the airflow, test etc. directories there
 COPY . ${AIRFLOW_SOURCES}/
 
 # Install autocomplete for airflow
-RUN register-python-argcomplete airflow >> ~/.bashrc
+RUN if command -v airflow; then \
+        register-python-argcomplete airflow >> ~/.bashrc ; \
+    fi
 
-# Install autocomplete for Kubeclt
+# Install autocomplete for Kubectl
 RUN echo "source /etc/bash_completion" >> ~/.bashrc
 
 WORKDIR ${AIRFLOW_SOURCES}
+
+# Install Helm
+ARG HELM_VERSION="v3.2.4"
+
+RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
+    && HELM_URL="https://get.helm.sh/helm-${HELM_VERSION}-${SYSTEM}-amd64.tar.gz" \
+    && curl --location "${HELM_URL}" | tar -xvz -O "${SYSTEM}"-amd64/helm > /usr/local/bin/helm \
+    && chmod +x /usr/local/bin/helm
 
 # Additional python deps to install
 ARG ADDITIONAL_PYTHON_DEPS=""
@@ -307,15 +389,15 @@ ENV BUILD_ID=${BUILD_ID}
 ARG COMMIT_SHA
 ENV COMMIT_SHA=${COMMIT_SHA}
 
-LABEL org.apache.airflow.distro="debian"
-LABEL org.apache.airflow.distro.version="buster"
-LABEL org.apache.airflow.module="airflow"
-LABEL org.apache.airflow.component="airflow"
-LABEL org.apache.airflow.image="airflow-ci"
-LABEL org.apache.airflow.uid="0"
-LABEL org.apache.airflow.gid="0"
-LABEL org.apache.airflow.buildId=${BUILD_ID}
-LABEL org.apache.airflow.commitSha=${COMMIT_SHA}
+LABEL org.apache.airflow.distro="debian" \
+  org.apache.airflow.distro.version="buster" \
+  org.apache.airflow.module="airflow" \
+  org.apache.airflow.component="airflow" \
+  org.apache.airflow.image="airflow-ci" \
+  org.apache.airflow.uid="0" \
+  org.apache.airflow.gid="0" \
+  org.apache.airflow.buildId=${BUILD_ID} \
+  org.apache.airflow.commitSha=${COMMIT_SHA}
 
 EXPOSE 8080
 

@@ -15,28 +15,34 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module is deprecated. Please use `airflow.providers.google.cloud.operators.cloud_sql`.
-"""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.operators.cloud_sql`."""
 
 import warnings
 
 from airflow.providers.google.cloud.operators.cloud_sql import (
-    CloudSQLBaseOperator, CloudSQLCreateInstanceDatabaseOperator, CloudSQLCreateInstanceOperator,
-    CloudSQLDeleteInstanceDatabaseOperator, CloudSQLDeleteInstanceOperator, CloudSQLExecuteQueryOperator,
-    CloudSQLExportInstanceOperator, CloudSQLImportInstanceOperator, CloudSQLInstancePatchOperator,
+    CloudSQLBaseOperator,
+    CloudSQLCreateInstanceDatabaseOperator,
+    CloudSQLCreateInstanceOperator,
+    CloudSQLDeleteInstanceDatabaseOperator,
+    CloudSQLDeleteInstanceOperator,
+    CloudSQLExecuteQueryOperator,
+    CloudSQLExportInstanceOperator,
+    CloudSQLImportInstanceOperator,
+    CloudSQLInstancePatchOperator,
     CloudSQLPatchInstanceDatabaseOperator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.cloud_sql`",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 
 class CloudSqlBaseOperator(CloudSQLBaseOperator):
     """
-    This class is deprecated. Please use `airflow.providers.google.cloud.operators.sql.CloudSQLBaseOperator`.
+    This class is deprecated. Please use
+    `airflow.providers.google.cloud.operators.sql.CloudSQLBaseOperator`.
     """
 
     def __init__(self, *args, **kwargs):

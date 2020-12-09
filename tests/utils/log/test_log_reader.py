@@ -27,7 +27,7 @@ from unittest import mock
 from airflow import DAG, settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import TaskInstance
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import create_session
@@ -79,7 +79,7 @@ class TestLogView(unittest.TestCase):
         ] = "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts | replace(':', '.') }}/{{ try_number }}.log"
         settings_file = os.path.join(self.settings_folder, "airflow_local_settings.py")
         with open(settings_file, "w") as handle:
-            new_logging_file = "LOGGING_CONFIG = {}".format(logging_config)
+            new_logging_file = f"LOGGING_CONFIG = {logging_config}"
             handle.writelines(new_logging_file)
         sys.path.append(self.settings_folder)
         with conf_vars({("logging", "logging_config_class"): "airflow_local_settings.LOGGING_CONFIG"}):
@@ -105,10 +105,12 @@ class TestLogView(unittest.TestCase):
 
         self.assertEqual(
             [
-                ('',
-                 f"*** Reading local file: "
-                 f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-                 f"try_number=1.\n")
+                (
+                    '',
+                    f"*** Reading local file: "
+                    f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
+                    f"try_number=1.\n",
+                )
             ],
             logs[0],
         )
@@ -120,18 +122,30 @@ class TestLogView(unittest.TestCase):
 
         self.assertEqual(
             [
-                [('',
-                  "*** Reading local file: "
-                  f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-                  "try_number=1.\n")],
-                [('',
-                  f"*** Reading local file: "
-                  f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
-                  f"try_number=2.\n")],
-                [('',
-                  f"*** Reading local file: "
-                  f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
-                  f"try_number=3.\n")],
+                [
+                    (
+                        '',
+                        "*** Reading local file: "
+                        f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
+                        "try_number=1.\n",
+                    )
+                ],
+                [
+                    (
+                        '',
+                        f"*** Reading local file: "
+                        f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
+                        f"try_number=2.\n",
+                    )
+                ],
+                [
+                    (
+                        '',
+                        f"*** Reading local file: "
+                        f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
+                        f"try_number=3.\n",
+                    )
+                ],
             ],
             logs,
         )

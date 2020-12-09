@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -33,7 +33,12 @@ class EmrHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    def __init__(self, emr_conn_id: Optional[str] = None, *args, **kwargs) -> None:
+    conn_name_attr = 'emr_conn_id'
+    default_conn_name = 'emr_default'
+    conn_type = 'emr'
+    hook_name = 'Elastic MapReduce'
+
+    def __init__(self, emr_conn_id: Optional[str] = default_conn_name, *args, **kwargs) -> None:
         self.emr_conn_id = emr_conn_id
         kwargs["client_type"] = "emr"
         super().__init__(*args, **kwargs)
@@ -49,7 +54,6 @@ class EmrHook(AwsBaseHook):
         :type cluster_states: list
         :return: id of the EMR cluster
         """
-
         response = self.get_conn().list_clusters(ClusterStates=cluster_states)
 
         matching_clusters = list(
@@ -66,14 +70,13 @@ class EmrHook(AwsBaseHook):
             self.log.info('No cluster found for name %s', emr_cluster_name)
             return None
 
-    def create_job_flow(self, job_flow_overrides: Dict):
+    def create_job_flow(self, job_flow_overrides: Dict[str, Any]) -> Dict[str, Any]:
         """
         Creates a job flow using the config from the EMR connection.
         Keys of the json extra hash may have the arguments of the boto3
         run_job_flow method.
         Overrides for this config may be passed as the job_flow_overrides.
         """
-
         if not self.emr_conn_id:
             raise AirflowException('emr_conn_id must be present to use create_job_flow')
 

@@ -16,6 +16,14 @@
 # under the License.
 HOOKS = [
     (
+        "airflow.hooks.base.BaseHook",
+        "airflow.hooks.base_hook.BaseHook",
+    ),
+    (
+        "airflow.hooks.dbapi.DbApiHook",
+        "airflow.hooks.dbapi_hook.DbApiHook",
+    ),
+    (
         "airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook",
         "airflow.contrib.hooks.cassandra_hook.CassandraHook",
     ),
@@ -250,7 +258,6 @@ HOOKS = [
     (
         'airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook',
         'airflow.contrib.hooks.sagemaker_hook.SageMakerHook',
-
     ),
     (
         'airflow.providers.mongo.hooks.mongo.MongoHook',
@@ -405,7 +412,7 @@ HOOKS = [
         'airflow.contrib.hooks.aws_hook.AwsHook',
     ),
     (
-        'airflow.providers.amazon.aws.hooks.aws_dynamodb.AwsDynamoDBHook',
+        'airflow.providers.amazon.aws.hooks.dynamodb.AwsDynamoDBHook',
         'airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook',
     ),
     (
@@ -466,8 +473,7 @@ OPERATORS = [
     (
         "airflow.providers.google.cloud.operators.compute"
         ".ComputeEngineInstanceGroupUpdateManagerTemplateOperator",
-        "airflow.contrib.operators.gcp_compute_operator."
-        "GceInstanceGroupManagerUpdateTemplateOperator",
+        "airflow.contrib.operators.gcp_compute_operator.GceInstanceGroupManagerUpdateTemplateOperator",
     ),
     (
         "airflow.providers.google.cloud.operators.compute.ComputeEngineStartInstanceOperator",
@@ -628,8 +634,7 @@ OPERATORS = [
     (
         "airflow.providers.google.cloud.operators.natural_language."
         "CloudNaturalLanguageAnalyzeEntitiesOperator",
-        "airflow.contrib.operators.gcp_natural_language_operator."
-        "CloudLanguageAnalyzeEntitiesOperator",
+        "airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeEntitiesOperator",
     ),
     (
         "airflow.providers.google.cloud.operators.natural_language."
@@ -640,8 +645,7 @@ OPERATORS = [
     (
         "airflow.providers.google.cloud.operators.natural_language."
         "CloudNaturalLanguageAnalyzeSentimentOperator",
-        "airflow.contrib.operators.gcp_natural_language_operator."
-        "CloudLanguageAnalyzeSentimentOperator",
+        "airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeSentimentOperator",
     ),
     (
         "airflow.providers.google.cloud.operators.natural_language."
@@ -690,32 +694,27 @@ OPERATORS = [
     (
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
         "CloudDataTransferServiceCancelOperationOperator",
-        "airflow.contrib.operators.gcp_transfer_operator."
-        "GcpTransferServiceOperationCancelOperator",
+        "airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationCancelOperator",
     ),
     (
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
         "CloudDataTransferServiceGetOperationOperator",
-        "airflow.contrib.operators.gcp_transfer_operator."
-        "GcpTransferServiceOperationGetOperator",
+        "airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationGetOperator",
     ),
     (
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
         "CloudDataTransferServicePauseOperationOperator",
-        "airflow.contrib.operators.gcp_transfer_operator."
-        "GcpTransferServiceOperationPauseOperator",
+        "airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationPauseOperator",
     ),
     (
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
         "CloudDataTransferServiceResumeOperationOperator",
-        "airflow.contrib.operators.gcp_transfer_operator."
-        "GcpTransferServiceOperationResumeOperator",
+        "airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationResumeOperator",
     ),
     (
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
         "CloudDataTransferServiceListOperationsOperator",
-        "airflow.contrib.operators.gcp_transfer_operator."
-        "GcpTransferServiceOperationsListOperator",
+        "airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationsListOperator",
     ),
     (
         "airflow.providers.google.cloud.operators.translate.CloudTranslateTextOperator",
@@ -801,8 +800,7 @@ OPERATORS = [
     ),
     (
         "airflow.providers.google.cloud.operators.vision.CloudVisionRemoveProductFromProductSetOperator",
-        "airflow.contrib.operators.gcp_vision_operator."
-        "CloudVisionRemoveProductFromProductSetOperator",
+        "airflow.contrib.operators.gcp_vision_operator.CloudVisionRemoveProductFromProductSetOperator",
     ),
     (
         "airflow.providers.google.cloud.operators.mlengine.MLEngineStartBatchPredictionJobOperator",
@@ -841,66 +839,53 @@ OPERATORS = [
         "airflow.contrib.operators.pubsub_operator.PubSubTopicDeleteOperator",
     ),
     (
-        "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocCreateClusterOperator",
+        "airflow.providers.google.cloud.operators.dataproc.DataprocCreateClusterOperator",
         "airflow.contrib.operators.dataproc_operator.DataprocClusterCreateOperator",
     ),
     (
-        "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocDeleteClusterOperator",
+        "airflow.providers.google.cloud.operators.dataproc.DataprocDeleteClusterOperator",
         "airflow.contrib.operators.dataproc_operator.DataprocClusterDeleteOperator",
     ),
     (
-        "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocScaleClusterOperator",
+        "airflow.providers.google.cloud.operators.dataproc.DataprocScaleClusterOperator",
         "airflow.contrib.operators.dataproc_operator.DataprocClusterScaleOperator",
     ),
     (
-        "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocSubmitHadoopJobOperator",
+        "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitHadoopJobOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcHadoopOperator",
     ),
     (
-        "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocSubmitHiveJobOperator",
+        "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitHiveJobOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcHiveOperator",
     ),
     (
-        "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocJobBaseOperator",
+        "airflow.providers.google.cloud.operators.dataproc.DataprocJobBaseOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator",
     ),
     (
-        "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocSubmitPigJobOperator",
+        "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitPigJobOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcPigOperator",
     ),
     (
-        "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocSubmitPySparkJobOperator",
+        "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitPySparkJobOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcPySparkOperator",
     ),
     (
-        "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocSubmitSparkJobOperator",
+        "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitSparkJobOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcSparkOperator",
     ),
     (
-        "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocSubmitSparkSqlJobOperator",
+        "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitSparkSqlJobOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcSparkSqlOperator",
     ),
     (
         "airflow.providers.google.cloud."
         "operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator",
-        "airflow.contrib.operators.dataproc_operator."
-        "DataprocWorkflowTemplateInstantiateInlineOperator",
+        "airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateInstantiateInlineOperator",
     ),
     (
-        "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocInstantiateWorkflowTemplateOperator",
-        "airflow.contrib.operators.dataproc_operator."
-        "DataprocWorkflowTemplateInstantiateOperator",
+        "airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateWorkflowTemplateOperator",
+        "airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateInstantiateOperator",
     ),
     (
         "airflow.providers.google.cloud.operators.bigquery.BigQueryCreateEmptyDatasetOperator",
@@ -1124,6 +1109,10 @@ OPERATORS = [
         'airflow.contrib.operators.redis_publish_operator.RedisPublishOperator',
     ),
     (
+        'airflow.operators.branch.BaseBranchOperator',
+        'airflow.operators.branch_operator.BaseBranchOperator',
+    ),
+    (
         'airflow.operators.bash.BashOperator',
         'airflow.operators.bash_operator.BashOperator',
     ),
@@ -1285,43 +1274,43 @@ OPERATORS = [
     ),
     (
         'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLBaseOperator',
-        'airflow.contrib.operators.gcp_sql_operator.CloudSqlBaseOperator'
+        'airflow.contrib.operators.gcp_sql_operator.CloudSqlBaseOperator',
     ),
     (
         'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLCreateInstanceDatabaseOperator',
-        'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseCreateOperator'
+        'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseCreateOperator',
     ),
     (
         'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLCreateInstanceOperator',
-        'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceCreateOperator'
+        'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceCreateOperator',
     ),
     (
         'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLDeleteInstanceDatabaseOperator',
-        'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseDeleteOperator'
+        'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseDeleteOperator',
     ),
     (
         'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLDeleteInstanceOperator',
-        'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDeleteOperator'
+        'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDeleteOperator',
     ),
     (
         'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLExecuteQueryOperator',
-        'airflow.contrib.operators.gcp_sql_operator.CloudSqlQueryOperator'
+        'airflow.contrib.operators.gcp_sql_operator.CloudSqlQueryOperator',
     ),
     (
         'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLExportInstanceOperator',
-        'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceExportOperator'
+        'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceExportOperator',
     ),
     (
         'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLImportInstanceOperator',
-        'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceImportOperator'
+        'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceImportOperator',
     ),
     (
         'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLInstancePatchOperator',
-        'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstancePatchOperator'
+        'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstancePatchOperator',
     ),
     (
         'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLPatchInstanceDatabaseOperator',
-        'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabasePatchOperator'
+        'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabasePatchOperator',
     ),
     (
         'airflow.providers.jira.operators.jira.JiraOperator',
@@ -1338,6 +1327,18 @@ OPERATORS = [
     (
         "airflow.providers.google.cloud.operators.text_to_speech.CloudTextToSpeechSynthesizeOperator",
         "airflow.contrib.operators.gcp_text_to_speech_operator.GcpTextToSpeechSynthesizeOperator",
+    ),
+    (
+        "airflow.operators.latest_only.LatestOnlyOperator",
+        "airflow.operators.latest_only_operator.LatestOnlyOperator",
+    ),
+    (
+        "airflow.operators.subdag.SubDagOperator",
+        "airflow.operators.subdag_operator.SubDagOperator",
+    ),
+    (
+        "airflow.operators.dummy.DummyOperator",
+        "airflow.operators.dummy_operator.DummyOperator",
     ),
 ]
 
@@ -1362,6 +1363,18 @@ SECRETS = [
 
 SENSORS = [
     (
+        "airflow.sensors.base.BaseSensorOperator",
+        "airflow.sensors.base_sensor_operator.BaseSensorOperator",
+    ),
+    (
+        "airflow.sensors.date_time.DateTimeSensor",
+        "airflow.sensors.date_time_sensor.DateTimeSensor",
+    ),
+    (
+        "airflow.sensors.time_delta.TimeDeltaSensor",
+        "airflow.sensors.time_delta_sensor.TimeDeltaSensor",
+    ),
+    (
         "airflow.providers.apache.cassandra.sensors.record.CassandraRecordSensor",
         "airflow.contrib.sensors.cassandra_record_sensor.CassandraRecordSensor",
     ),
@@ -1375,14 +1388,12 @@ SENSORS = [
     ),
     (
         "airflow.providers.google.cloud.sensors.bigtable.BigtableTableReplicationCompletedSensor",
-        "airflow.contrib.operators.gcp_bigtable_operator."
-        "BigtableTableWaitForReplicationSensor",
+        "airflow.contrib.operators.gcp_bigtable_operator.BigtableTableWaitForReplicationSensor",
     ),
     (
         "airflow.providers.google.cloud.sensors.cloud_storage_transfer_service."
         "CloudDataTransferServiceJobStatusSensor",
-        "airflow.contrib.sensors.gcp_transfer_sensor."
-        "GCPTransferServiceWaitForJobStatusSensor",
+        "airflow.contrib.sensors.gcp_transfer_sensor.GCPTransferServiceWaitForJobStatusSensor",
     ),
     (
         "airflow.providers.google.cloud.sensors.pubsub.PubSubPullSensor",
@@ -1445,7 +1456,7 @@ SENSORS = [
         'airflow.sensors.hdfs_sensor.HdfsSensor',
     ),
     (
-        'airflow.sensors.weekday_sensor.DayOfWeekSensor',
+        'airflow.sensors.weekday.DayOfWeekSensor',
         'airflow.contrib.sensors.weekday_sensor.DayOfWeekSensor',
     ),
     (
@@ -1571,7 +1582,7 @@ SENSORS = [
     (
         'airflow.providers.sftp.sensors.sftp.SFTPSensor',
         'airflow.contrib.sensors.sftp_sensor.SFTPSensor',
-    )
+    ),
 ]
 
 TRANSFERS = [
@@ -1615,8 +1626,7 @@ TRANSFERS = [
     ),
     (
         "airflow.providers.google.cloud.transfers.postgres_to_gcs.PostgresToGCSOperator",
-        "airflow.contrib.operators.postgres_to_gcs_operator."
-        "PostgresToGoogleCloudStorageOperator",
+        "airflow.contrib.operators.postgres_to_gcs_operator.PostgresToGoogleCloudStorageOperator",
     ),
     (
         "airflow.providers.google.cloud.transfers.bigquery_to_bigquery.BigQueryToBigQueryOperator",
@@ -1734,7 +1744,7 @@ TRANSFERS = [
     (
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service'
         '.CloudDataTransferServiceS3ToGCSOperator',
-        'airflow.contrib.operators.s3_to_gcs_transfer_operator.CloudDataTransferServiceS3ToGCSOperator'
+        'airflow.contrib.operators.s3_to_gcs_transfer_operator.CloudDataTransferServiceS3ToGCSOperator',
     ),
     (
         'airflow.providers.google.cloud.transfers.cassandra_to_gcs.CassandraToGCSOperator',
@@ -1750,34 +1760,34 @@ UTILS = [
     (
         'airflow.utils.weekday.WeekDay',
         'airflow.contrib.utils.weekday.WeekDay',
-    )
+    ),
 ]
 
 LOGS = [
     (
         "airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler",
-        "airflow.utils.log.s3_task_handler.S3TaskHandler"
+        "airflow.utils.log.s3_task_handler.S3TaskHandler",
     ),
     (
         'airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler',
-        'airflow.utils.log.cloudwatch_task_handler.CloudwatchTaskHandler'
+        'airflow.utils.log.cloudwatch_task_handler.CloudwatchTaskHandler',
     ),
     (
         'airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchTaskHandler',
-        'airflow.utils.log.es_task_handler.ElasticsearchTaskHandler'
+        'airflow.utils.log.es_task_handler.ElasticsearchTaskHandler',
     ),
     (
         "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler",
-        "airflow.utils.log.stackdriver_task_handler.StackdriverTaskHandler"
+        "airflow.utils.log.stackdriver_task_handler.StackdriverTaskHandler",
     ),
     (
         "airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler",
-        "airflow.utils.log.gcs_task_handler.GCSTaskHandler"
+        "airflow.utils.log.gcs_task_handler.GCSTaskHandler",
     ),
     (
         "airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler",
-        "airflow.utils.log.wasb_task_handler.WasbTaskHandler"
-    )
+        "airflow.utils.log.wasb_task_handler.WasbTaskHandler",
+    ),
 ]
 
 ALL = HOOKS + OPERATORS + SECRETS + SENSORS + TRANSFERS + UTILS + LOGS

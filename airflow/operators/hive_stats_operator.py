@@ -24,5 +24,6 @@ from airflow.providers.apache.hive.operators.hive_stats import HiveStatsCollecti
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.hive.operators.hive_stats`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

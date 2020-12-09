@@ -76,6 +76,13 @@ class TestSlackWebhookHook(unittest.TestCase):
                 conn_id='slack-webhook-host', conn_type='http', host='https://hooks.slack.com/services/T000/'
             )
         )
+        db.merge_conn(
+            Connection(
+                conn_id='slack-webhook-with-password',
+                conn_type='http',
+                password='your_token_here',
+            )
+        )
 
     def test_get_token_manual_token(self):
         # Given
@@ -91,6 +98,18 @@ class TestSlackWebhookHook(unittest.TestCase):
     def test_get_token_conn_id(self):
         # Given
         conn_id = 'slack-webhook-default'
+        hook = SlackWebhookHook(http_conn_id=conn_id)
+        expected_webhook_token = 'your_token_here'
+
+        # When
+        webhook_token = hook._get_token(None, conn_id)
+
+        # Then
+        self.assertEqual(webhook_token, expected_webhook_token)
+
+    def test_get_token_conn_id_password(self):
+        # Given
+        conn_id = 'slack-webhook-with-password'
         hook = SlackWebhookHook(http_conn_id=conn_id)
         expected_webhook_token = 'your_token_here'
 

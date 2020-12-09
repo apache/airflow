@@ -18,7 +18,7 @@
 ################################
 ## Airflow Worker NetworkPolicy
 #################################
-{{- if (and .Values.networkPolicies.enabled (eq .Values.executor "CeleryExecutor")) }}
+{{- if (and .Values.networkPolicies.enabled ( or (eq .Values.executor "CeleryExecutor"))  (eq .Values.executor "CeleryKubernetesExecutor")) }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

@@ -15,13 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Campaign Manager sensor.
-"""
+"""This module contains Google Campaign Manager sensor."""
 from typing import Dict, Optional, Sequence, Union
 
 from airflow.providers.google.marketing_platform.hooks.campaign_manager import GoogleCampaignManagerHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -94,7 +92,7 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
         poke_interval: int = 60 * 5,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.mode = mode
         self.poke_interval = poke_interval

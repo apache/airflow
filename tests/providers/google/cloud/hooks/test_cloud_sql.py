@@ -20,11 +20,11 @@
 
 import json
 import unittest
+from unittest import mock
+from unittest.mock import PropertyMock
 
 import httplib2
-import mock
 from googleapiclient.errors import HttpError
-from mock import PropertyMock
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException

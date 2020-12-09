@@ -18,7 +18,7 @@
 from datetime import datetime
 
 from airflow.models import DAG
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 
@@ -28,6 +28,4 @@ args = {
 }
 
 dag = DAG(dag_id='test_localtaskjob_double_trigger', default_args=args)
-task = DummyOperator(
-    task_id='test_localtaskjob_double_trigger_task',
-    dag=dag)
+task = DummyOperator(task_id='test_localtaskjob_double_trigger_task', dag=dag)

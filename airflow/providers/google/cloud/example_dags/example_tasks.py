@@ -49,7 +49,7 @@ TASK = {
     "app_engine_http_request": {  # Specify the type of request.
         "http_method": "POST",
         "relative_uri": "/example_task_handler",
-        "body": "Hello".encode(),
+        "body": b"Hello",
     },
     "schedule_time": timestamp,
 }

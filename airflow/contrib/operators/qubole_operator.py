@@ -24,5 +24,6 @@ from airflow.providers.qubole.operators.qubole import QuboleOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.qubole.operators.qubole`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

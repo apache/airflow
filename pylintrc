@@ -570,7 +570,7 @@ max-branches=22
 max-locals=24
 
 # Maximum number of parents for a class (see R0901).
-max-parents=7
+max-parents=8
 
 # Maximum number of public methods for a class (see R0904).
 # BasPH: choose 27 because this was 50% of the sorted list of 30 number of public methods above 20 (Pylint default)

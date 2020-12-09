@@ -17,10 +17,10 @@
 # under the License.
 #
 import unittest
+from unittest import mock
+from unittest.mock import PropertyMock
 
-import mock
 from google.cloud.container_v1.types import Cluster
-from mock import PropertyMock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
@@ -240,7 +240,7 @@ class TestGKEHook(unittest.TestCase):
         self.gke_hook = GKEHook(location=GKE_ZONE)
         self.gke_hook._client = mock.Mock()
 
-    @mock.patch('airflow.providers.google.cloud.hooks.kubernetes_engine.container_v1.' 'ClusterManagerClient')
+    @mock.patch('airflow.providers.google.cloud.hooks.kubernetes_engine.container_v1.ClusterManagerClient')
     @mock.patch('airflow.providers.google.common.hooks.base_google.ClientInfo')
     @mock.patch('airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook._get_credentials')
     def test_get_client(self, mock_get_credentials, mock_client_info, mock_client):

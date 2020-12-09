@@ -24,7 +24,7 @@ TEST_OUTPUT_URI_PREFIX: str = "gs://example-bucket/path"
 TEST_PROJECT_ID: str = "test-project-id"
 
 EXPORT_DOCUMENT_BODY = {
-    "outputUriPrefix": "gs://test-bucket/test-naamespace/",
+    "outputUriPrefix": "gs://test-bucket/test-namespace/",
     "collectionIds": ["test-collection"],
 }
 

@@ -22,7 +22,7 @@ import tempfile
 import time
 import warnings
 from functools import partial
-from typing import Dict, List, Optional
+from typing import Any, Callable, Dict, Generator, List, Optional, Set
 
 from botocore.exceptions import ClientError
 
@@ -51,7 +51,7 @@ class LogState:
 Position = collections.namedtuple('Position', ['timestamp', 'skip'])
 
 
-def argmin(arr, f):
+def argmin(arr, f: Callable) -> Optional[int]:
     """Return the index, i, in arr that minimizes f(arr[i])"""
     min_value = None
     min_idx = None
@@ -63,7 +63,7 @@ def argmin(arr, f):
     return min_idx
 
 
-def secondary_training_status_changed(current_job_description, prev_job_description):
+def secondary_training_status_changed(current_job_description: dict, prev_job_description: dict) -> bool:
     """
     Returns true if training job's secondary status message has changed.
 
@@ -94,7 +94,9 @@ def secondary_training_status_changed(current_job_description, prev_job_descript
     return message != last_message
 
 
-def secondary_training_status_message(job_description, prev_description):
+def secondary_training_status_message(
+    job_description: Dict[str, List[dict]], prev_description: Optional[dict]
+) -> str:
     """
     Returns a string contains start time and the secondary training job status message.
 
@@ -105,23 +107,14 @@ def secondary_training_status_message(job_description, prev_description):
 
     :return: Job status string to be printed.
     """
-
-    if (
-        job_description is None
-        or job_description.get('SecondaryStatusTransitions') is None
-        or len(job_description.get('SecondaryStatusTransitions')) == 0
-    ):
+    current_transitions = job_description.get('SecondaryStatusTransitions')
+    if current_transitions is None or len(current_transitions) == 0:
         return ''
 
-    prev_description_secondary_transitions = (
-        prev_description.get('SecondaryStatusTransitions') if prev_description is not None else None
-    )
-    prev_transitions_num = (
-        len(prev_description['SecondaryStatusTransitions'])
-        if prev_description_secondary_transitions is not None
-        else 0
-    )
-    current_transitions = job_description['SecondaryStatusTransitions']
+    prev_transitions_num = 0
+    if prev_description is not None:
+        if prev_description.get('SecondaryStatusTransitions') is not None:
+            prev_transitions_num = len(prev_description['SecondaryStatusTransitions'])
 
     transitions_to_print = (
         current_transitions[-1:]
@@ -158,7 +151,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         self.s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
         self.logs_hook = AwsLogsHook(aws_conn_id=self.aws_conn_id)
 
-    def tar_and_s3_upload(self, path, key, bucket):
+    def tar_and_s3_upload(self, path: str, key: str, bucket: str) -> None:
         """
         Tar the local file or directory and upload to s3
 
@@ -181,7 +174,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             temp_file.seek(0)
             self.s3_hook.load_file_obj(temp_file, key, bucket, replace=True)
 
-    def configure_s3_resources(self, config):
+    def configure_s3_resources(self, config: dict) -> None:
         """
         Extract the S3 operations from the configuration and execute them.
 
@@ -202,7 +195,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
                 else:
                     self.s3_hook.load_file(op['Path'], op['Key'], op['Bucket'])
 
-    def check_s3_url(self, s3url):
+    def check_s3_url(self, s3url: str) -> bool:
         """
         Check if an S3 URL exists
 
@@ -212,7 +205,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         """
         bucket, key = S3Hook.parse_s3_url(s3url)
         if not self.s3_hook.check_for_bucket(bucket_name=bucket):
-            raise AirflowException("The input S3 Bucket {} does not exist ".format(bucket))
+            raise AirflowException(f"The input S3 Bucket {bucket} does not exist ")
         if (
             key
             and not self.s3_hook.check_for_key(key=key, bucket_name=bucket)
@@ -222,11 +215,11 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             # or if s3 prefix exists in the case user provides multiple files in
             # a prefix
             raise AirflowException(
-                "The input S3 Key " "or Prefix {} does not exist in the Bucket {}".format(s3url, bucket)
+                f"The input S3 Key or Prefix {s3url} does not exist in the Bucket {bucket}"
             )
         return True
 
-    def check_training_config(self, training_config):
+    def check_training_config(self, training_config: dict) -> None:
         """
         Check if a training configuration is valid
 
@@ -238,7 +231,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             for channel in training_config['InputDataConfig']:
                 self.check_s3_url(channel['DataSource']['S3DataSource']['S3Uri'])
 
-    def check_tuning_config(self, tuning_config):
+    def check_tuning_config(self, tuning_config: dict) -> None:
         """
         Check if a tuning configuration is valid
 
@@ -279,7 +272,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
 
         return self.logs_hook.get_log_events(log_group, stream_name, start_time, skip)
 
-    def multi_stream_iter(self, log_group, streams, positions=None):
+    def multi_stream_iter(self, log_group: str, streams: list, positions=None) -> Generator:
         """
         Iterate over the available events coming from a set of log streams in a single log group
         interleaving the events from each stream so they're yielded in timestamp order.
@@ -299,7 +292,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             self.logs_hook.get_log_events(log_group, s, positions[s].timestamp, positions[s].skip)
             for s in streams
         ]
-        events = []
+        events: List[Optional[Any]] = []
         for event_stream in event_iters:
             if not event_stream:
                 events.append(None)
@@ -310,15 +303,20 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
                 events.append(None)
 
         while any(events):
-            i = argmin(events, lambda x: x['timestamp'] if x else 9999999999)
-            yield (i, events[i])
+            i = argmin(events, lambda x: x['timestamp'] if x else 9999999999) or 0
+            yield i, events[i]
             try:
                 events[i] = next(event_iters[i])
             except StopIteration:
                 events[i] = None
 
     def create_training_job(
-        self, config, wait_for_completion=True, print_log=True, check_interval=30, max_ingestion_time=None
+        self,
+        config: dict,
+        wait_for_completion: bool = True,
+        print_log: bool = True,
+        check_interval: int = 30,
+        max_ingestion_time: Optional[int] = None,
     ):
         """
         Create a training job
@@ -336,7 +334,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type max_ingestion_time: int
         :return: A response to training job creation
         """
-
         self.check_training_config(config)
 
         response = self.get_conn().create_training_job(**config)
@@ -365,7 +362,13 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
 
         return response
 
-    def create_tuning_job(self, config, wait_for_completion=True, check_interval=30, max_ingestion_time=None):
+    def create_tuning_job(
+        self,
+        config: dict,
+        wait_for_completion: bool = True,
+        check_interval: int = 30,
+        max_ingestion_time: Optional[int] = None,
+    ):
         """
         Create a tuning job
 
@@ -382,7 +385,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type max_ingestion_time: int
         :return: A response to tuning job creation
         """
-
         self.check_tuning_config(config)
 
         response = self.get_conn().create_hyper_parameter_tuning_job(**config)
@@ -397,7 +399,11 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         return response
 
     def create_transform_job(
-        self, config, wait_for_completion=True, check_interval=30, max_ingestion_time=None
+        self,
+        config: dict,
+        wait_for_completion: bool = True,
+        check_interval: int = 30,
+        max_ingestion_time: Optional[int] = None,
     ):
         """
         Create a transform job
@@ -415,7 +421,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type max_ingestion_time: int
         :return: A response to transform job creation
         """
-
         self.check_s3_url(config['TransformInput']['DataSource']['S3DataSource']['S3Uri'])
 
         response = self.get_conn().create_transform_job(**config)
@@ -430,7 +435,11 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         return response
 
     def create_processing_job(
-        self, config, wait_for_completion=True, check_interval=30, max_ingestion_time=None
+        self,
+        config: dict,
+        wait_for_completion: bool = True,
+        check_interval: int = 30,
+        max_ingestion_time: Optional[int] = None,
     ):
         """
         Create a processing job
@@ -448,7 +457,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type max_ingestion_time: int
         :return: A response to transform job creation
         """
-
         response = self.get_conn().create_processing_job(**config)
         if wait_for_completion:
             self.check_status(
@@ -460,7 +468,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             )
         return response
 
-    def create_model(self, config):
+    def create_model(self, config: dict):
         """
         Create a model job
 
@@ -468,10 +476,9 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type config: dict
         :return: A response to model creation
         """
-
         return self.get_conn().create_model(**config)
 
-    def create_endpoint_config(self, config):
+    def create_endpoint_config(self, config: dict):
         """
         Create an endpoint config
 
@@ -479,10 +486,15 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type config: dict
         :return: A response to endpoint config creation
         """
-
         return self.get_conn().create_endpoint_config(**config)
 
-    def create_endpoint(self, config, wait_for_completion=True, check_interval=30, max_ingestion_time=None):
+    def create_endpoint(
+        self,
+        config: dict,
+        wait_for_completion: bool = True,
+        check_interval: int = 30,
+        max_ingestion_time: Optional[int] = None,
+    ):
         """
         Create an endpoint
 
@@ -499,7 +511,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type max_ingestion_time: int
         :return: A response to endpoint creation
         """
-
         response = self.get_conn().create_endpoint(**config)
         if wait_for_completion:
             self.check_status(
@@ -512,7 +523,13 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             )
         return response
 
-    def update_endpoint(self, config, wait_for_completion=True, check_interval=30, max_ingestion_time=None):
+    def update_endpoint(
+        self,
+        config: dict,
+        wait_for_completion: bool = True,
+        check_interval: int = 30,
+        max_ingestion_time: Optional[int] = None,
+    ):
         """
         Update an endpoint
 
@@ -529,7 +546,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type max_ingestion_time: int
         :return: A response to endpoint update
         """
-
         response = self.get_conn().update_endpoint(**config)
         if wait_for_completion:
             self.check_status(
@@ -542,7 +558,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             )
         return response
 
-    def describe_training_job(self, name):
+    def describe_training_job(self, name: str):
         """
         Return the training job info associated with the name
 
@@ -550,22 +566,19 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type name: str
         :return: A dict contains all the training job info
         """
-
         return self.get_conn().describe_training_job(TrainingJobName=name)
 
     def describe_training_job_with_log(
         self,
-        job_name,
+        job_name: str,
         positions,
-        stream_names,
-        instance_count,
-        state,
-        last_description,
-        last_describe_job_call,
+        stream_names: list,
+        instance_count: int,
+        state: int,
+        last_description: dict,
+        last_describe_job_call: float,
     ):
-        """
-        Return the training job info associated with job_name and print CloudWatch logs
-        """
+        """Return the training job info associated with job_name and print CloudWatch logs"""
         log_group = '/aws/sagemaker/TrainingJobs'
 
         if len(stream_names) < instance_count:
@@ -602,9 +615,9 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
 
         if state == LogState.JOB_COMPLETE:
             state = LogState.COMPLETE
-        elif time.time() - last_describe_job_call >= 30:
+        elif time.monotonic() - last_describe_job_call >= 30:
             description = self.describe_training_job(job_name)
-            last_describe_job_call = time.time()
+            last_describe_job_call = time.monotonic()
 
             if secondary_training_status_changed(description, last_description):
                 self.log.info(secondary_training_status_message(description, last_description))
@@ -616,7 +629,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
                 state = LogState.JOB_COMPLETE
         return state, last_description, last_describe_job_call
 
-    def describe_tuning_job(self, name):
+    def describe_tuning_job(self, name: str) -> dict:
         """
         Return the tuning job info associated with the name
 
@@ -624,10 +637,9 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type name: str
         :return: A dict contains all the tuning job info
         """
-
         return self.get_conn().describe_hyper_parameter_tuning_job(HyperParameterTuningJobName=name)
 
-    def describe_model(self, name):
+    def describe_model(self, name: str) -> dict:
         """
         Return the SageMaker model info associated with the name
 
@@ -635,10 +647,9 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type name: str
         :return: A dict contains all the model info
         """
-
         return self.get_conn().describe_model(ModelName=name)
 
-    def describe_transform_job(self, name):
+    def describe_transform_job(self, name: str) -> dict:
         """
         Return the transform job info associated with the name
 
@@ -646,10 +657,9 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type name: str
         :return: A dict contains all the transform job info
         """
-
         return self.get_conn().describe_transform_job(TransformJobName=name)
 
-    def describe_processing_job(self, name):
+    def describe_processing_job(self, name: str) -> dict:
         """
         Return the processing job info associated with the name
 
@@ -657,10 +667,9 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type name: str
         :return: A dict contains all the processing job info
         """
-
         return self.get_conn().describe_processing_job(ProcessingJobName=name)
 
-    def describe_endpoint_config(self, name):
+    def describe_endpoint_config(self, name: str) -> dict:
         """
         Return the endpoint config info associated with the name
 
@@ -668,20 +677,24 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type name: str
         :return: A dict contains all the endpoint config info
         """
-
         return self.get_conn().describe_endpoint_config(EndpointConfigName=name)
 
-    def describe_endpoint(self, name):
+    def describe_endpoint(self, name: str) -> dict:
         """
         :param name: the name of the endpoint
         :type name: str
         :return: A dict contains all the endpoint info
         """
-
         return self.get_conn().describe_endpoint(EndpointName=name)
 
     def check_status(
-        self, job_name, key, describe_function, check_interval, max_ingestion_time, non_terminal_states=None
+        self,
+        job_name: str,
+        key: str,
+        describe_function: Callable,
+        check_interval: int,
+        max_ingestion_time: Optional[int] = None,
+        non_terminal_states: Optional[Set] = None,
     ):
         """
         Check status of a SageMaker job
@@ -718,7 +731,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             try:
                 response = describe_function(job_name)
                 status = response[key]
-                self.log.info('Job still running for %s seconds... ' 'current status is %s', sec, status)
+                self.log.info('Job still running for %s seconds... current status is %s', sec, status)
             except KeyError:
                 raise AirflowException('Could not get status of the SageMaker job')
             except ClientError:
@@ -741,12 +754,12 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
 
     def check_training_status_with_log(
         self,
-        job_name,
-        non_terminal_states,
-        failed_states,
-        wait_for_completion,
-        check_interval,
-        max_ingestion_time,
+        job_name: str,
+        non_terminal_states: set,
+        failed_states: set,
+        wait_for_completion: bool,
+        check_interval: int,
+        max_ingestion_time: Optional[int] = None,
     ):
         """
         Display the logs for a given training job, optionally tailing them until the
@@ -769,15 +782,14 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type max_ingestion_time: int
         :return: None
         """
-
         sec = 0
         description = self.describe_training_job(job_name)
         self.log.info(secondary_training_status_message(description, None))
         instance_count = description['ResourceConfig']['InstanceCount']
         status = description['TrainingJobStatus']
 
-        stream_names = []  # The list of log streams
-        positions = {}  # The current position in each stream, map of stream name -> position
+        stream_names: list = []  # The list of log streams
+        positions: dict = {}  # The current position in each stream, map of stream name -> position
 
         job_already_completed = status not in non_terminal_states
 
@@ -803,7 +815,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         # Notes:
         # - The JOB_COMPLETE state forces us to do an extra pause and read any items that
         # got to Cloudwatch after the job was marked complete.
-        last_describe_job_call = time.time()
+        last_describe_job_call = time.monotonic()
         last_description = description
 
         while True:
@@ -830,7 +842,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             status = last_description['TrainingJobStatus']
             if status in failed_states:
                 reason = last_description.get('FailureReason', '(No reason provided)')
-                raise AirflowException('Error training {}: {} Reason: {}'.format(job_name, status, reason))
+                raise AirflowException(f'Error training {job_name}: {status} Reason: {reason}')
             billable_time = (
                 last_description['TrainingEndTime'] - last_description['TrainingStartTime']
             ) * instance_count
@@ -856,7 +868,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :param kwargs: (optional) kwargs to boto3's list_training_jobs method
         :return: results of the list_training_jobs request
         """
-
         config = {}
 
         if name_contains:
@@ -893,14 +904,15 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :param kwargs: (optional) kwargs to boto3's list_training_jobs method
         :return: results of the list_processing_jobs request
         """
-
         list_processing_jobs_request = partial(self.get_conn().list_processing_jobs, **kwargs)
         results = self._list_request(
             list_processing_jobs_request, "ProcessingJobSummaries", max_results=kwargs.get("MaxResults")
         )
         return results
 
-    def _list_request(self, partial_func, result_key: str, max_results: Optional[int] = None) -> List[Dict]:
+    def _list_request(
+        self, partial_func: Callable, result_key: str, max_results: Optional[int] = None
+    ) -> List[Dict]:
         """
         All AWS boto3 list_* requests return results in batches (if the key "NextToken" is contained in the
         result, there are more results to fetch). The default AWS batch size is 10, and configurable up to
@@ -915,7 +927,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :param max_results: maximum number of results to return (None = infinite)
         :return: Results of the list_* request
         """
-
         sagemaker_max_results = 100  # Fixed number set by AWS
 
         results: List[Dict] = []

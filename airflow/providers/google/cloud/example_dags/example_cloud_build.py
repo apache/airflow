@@ -54,10 +54,10 @@ create_build_from_storage_body = {
     "steps": [
         {
             "name": "gcr.io/cloud-builders/docker",
-            "args": ["build", "-t", "gcr.io/$PROJECT_ID/{}".format(GCP_SOURCE_BUCKET_NAME), "."],
+            "args": ["build", "-t", f"gcr.io/$PROJECT_ID/{GCP_SOURCE_BUCKET_NAME}", "."],
         }
     ],
-    "images": ["gcr.io/$PROJECT_ID/{}".format(GCP_SOURCE_BUCKET_NAME)],
+    "images": [f"gcr.io/$PROJECT_ID/{GCP_SOURCE_BUCKET_NAME}"],
 }
 # [END howto_operator_gcp_create_build_from_storage_body]
 

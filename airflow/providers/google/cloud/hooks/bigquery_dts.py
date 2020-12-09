@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains a BigQuery Hook.
-"""
+"""This module contains a BigQuery Hook."""
 from copy import copy
 from typing import Optional, Sequence, Tuple, Union
 
@@ -36,9 +34,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 def get_object_id(obj: dict) -> str:
-    """
-    Returns unique id of the object.
-    """
+    """Returns unique id of the object."""
     return obj["name"].rpartition("/")[-1]
 
 

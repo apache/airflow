@@ -49,10 +49,8 @@ class DebugExecutor(BaseExecutor):
         self.tasks_params: Dict[TaskInstanceKey, Dict[str, Any]] = {}
         self.fail_fast = conf.getboolean("debug", "fail_fast")
 
-    def execute_async(self, *args, **kwargs) -> None:   # pylint: disable=signature-differs
-        """
-        The method is replaced by custom trigger_task implementation.
-        """
+    def execute_async(self, *args, **kwargs) -> None:  # pylint: disable=signature-differs
+        """The method is replaced by custom trigger_task implementation."""
 
     def sync(self) -> None:
         task_succeeded = True
@@ -65,9 +63,7 @@ class DebugExecutor(BaseExecutor):
                 continue
 
             if self._terminated.is_set():
-                self.log.info(
-                    "Executor is terminated! Stopping %s to %s", ti.key, State.FAILED
-                )
+                self.log.info("Executor is terminated! Stopping %s to %s", ti.key, State.FAILED)
                 ti.set_state(State.FAILED)
                 self.change_state(ti.key, State.FAILED)
                 continue
@@ -79,9 +75,7 @@ class DebugExecutor(BaseExecutor):
         key = ti.key
         try:
             params = self.tasks_params.pop(ti.key, {})
-            ti._run_raw_task(  # pylint: disable=protected-access
-                job_id=ti.job_id, **params
-            )
+            ti._run_raw_task(job_id=ti.job_id, **params)  # pylint: disable=protected-access
             self.change_state(key, State.SUCCESS)
             return True
         except Exception as e:  # pylint: disable=broad-except
@@ -101,9 +95,7 @@ class DebugExecutor(BaseExecutor):
         pool: Optional[str] = None,
         cfg_path: Optional[str] = None,
     ) -> None:
-        """
-        Queues task instance with empty command because we do not need it.
-        """
+        """Queues task instance with empty command because we do not need it."""
         self.queue_command(
             task_instance,
             [str(task_instance)],  # Just for better logging, it's not used anywhere

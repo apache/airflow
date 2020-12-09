@@ -22,9 +22,7 @@ from airflow.configuration import conf
 
 
 def get_host_ip_address():
-    """
-    Fetch host ip address.
-    """
+    """Fetch host ip address."""
     return socket.gethostbyname(socket.getfqdn())
 
 

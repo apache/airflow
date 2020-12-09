@@ -21,13 +21,17 @@ from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.schemas.task_schema import TaskCollection, task_collection_schema, task_schema
 from airflow.exceptions import TaskNotFound
+from airflow.security import permissions
 
 
-@security.requires_authentication
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+    ]
+)
 def get_task(dag_id, task_id):
-    """
-    Get simplified representation of a task.
-    """
+    """Get simplified representation of a task."""
     dag: DAG = current_app.dag_bag.get_dag(dag_id)
     if not dag:
         raise NotFound("DAG not found")
@@ -39,11 +43,14 @@ def get_task(dag_id, task_id):
     return task_schema.dump(task)
 
 
-@security.requires_authentication
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+    ]
+)
 def get_tasks(dag_id):
-    """
-    Get tasks for DAG
-    """
+    """Get tasks for DAG"""
     dag: DAG = current_app.dag_bag.get_dag(dag_id)
     if not dag:
         raise NotFound("DAG not found")

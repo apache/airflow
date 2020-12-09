@@ -39,9 +39,8 @@ services:
       - ENABLE_KIND_CLUSTER
       - ENABLED_INTEGRATIONS
       - RUN_INTEGRATION_TESTS
-      - ONLY_RUN_LONG_RUNNING_TESTS
-      - ONLY_RUN_QUARANTINED_TESTS
-      - ONLY_RUN_HEISEN_TESTS
+      - TEST_TYPE
+      - PACKAGE_FORMAT
       - GITHUB_TOKEN
       - GITHUB_REPOSITORY
       - ISSUE_ID
@@ -50,6 +49,11 @@ services:
       - INSTALL_AIRFLOW_VERSION
       - DB_RESET
       - START_AIRFLOW
+      - LOAD_EXAMPLES
+      - BACKPORT_PACKAGES
+      - LOAD_DEFAULT_CONNECTIONS
+      - INSTALL_PACKAGES_FROM_DIST
+      - DISABLE_RBAC
       - ENABLED_SYSTEMS
       - RUN_SYSTEM_TESTS
       - PYTHON_MAJOR_MINOR_VERSION
@@ -59,9 +63,14 @@ services:
       - HOST_AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
       - HOST_OS
       - PYTHONDONTWRITEBYTECODE
+      - INIT_SCRIPT_FILE
+      - GITHUB_REGISTRY_PULL_IMAGE_TAG
+      - POSTGRES_VERSION
+      - MYSQL_VERSION
     volumes:
       # Pass docker to inside of the container so that Kind and Moto tests can use it.
       - /var/run/docker.sock:/var/run/docker.sock
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
     ports:
       - "${WEBSERVER_HOST_PORT}:8080"
+      - "${FLOWER_HOST_PORT}:5555"

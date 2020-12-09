@@ -18,8 +18,8 @@
 
 import unittest
 from typing import Any, Dict, List
+from unittest import mock
 
-import mock
 from google.cloud.pubsub_v1.types import ReceivedMessage
 from google.protobuf.json_format import MessageToDict, ParseDict
 
@@ -234,7 +234,7 @@ class TestPubSubPullOperator(unittest.TestCase):
                 {
                     "ack_id": "%s" % i,
                     "message": {
-                        "data": 'Message {}'.format(i).encode('utf8'),
+                        "data": f'Message {i}'.encode('utf8'),
                         "attributes": {"type": "generated message"},
                     },
                 },

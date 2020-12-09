@@ -19,7 +19,7 @@
 """Example DAG demonstrating the usage of the ShortCircuitOperator."""
 from airflow import DAG
 from airflow.models.baseoperator import chain
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.utils import dates
 

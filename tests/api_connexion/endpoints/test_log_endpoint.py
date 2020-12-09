@@ -30,7 +30,8 @@ from airflow import DAG, settings
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DagRun, TaskInstance
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
+from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.types import DagRunType
@@ -47,16 +48,25 @@ class TestGetLog(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        settings.configure_orm()
-        cls.session = settings.Session
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)
-        # TODO: Add new role for each view to test permission.
-        create_user(cls.app, username="test", role="Admin")
+
+        create_user(
+            cls.app,
+            username="test",
+            role_name="Test",
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+            ],
+        )
+        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")
 
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")
+        delete_user(cls.app, username="test_no_permissions")
 
     def setUp(self) -> None:
         self.default_time = "2020-06-10T20:00:00+00:00"
@@ -72,7 +82,7 @@ class TestGetLog(unittest.TestCase):
         dagrun_model = DagRun(
             dag_id=self.DAG_ID,
             run_id='TEST_DAG_RUN_ID',
-            run_type=DagRunType.MANUAL.value,
+            run_type=DagRunType.MANUAL,
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
             external_trigger=True,
@@ -92,7 +102,7 @@ class TestGetLog(unittest.TestCase):
         # Write the custom logging configuration to a file
         self.settings_folder = tempfile.mkdtemp()
         settings_file = os.path.join(self.settings_folder, "airflow_local_settings.py")
-        new_logging_file = "LOGGING_CONFIG = {}".format(logging_config)
+        new_logging_file = f"LOGGING_CONFIG = {logging_config}"
         with open(settings_file, 'w') as handle:
             handle.writelines(new_logging_file)
         sys.path.append(self.settings_folder)
@@ -143,7 +153,7 @@ class TestGetLog(unittest.TestCase):
         super().tearDown()
 
     @provide_session
-    def test_should_response_200_json(self, session):
+    def test_should_respond_200_json(self, session):
         self._create_dagrun(session)
         key = self.app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
@@ -166,7 +176,7 @@ class TestGetLog(unittest.TestCase):
         self.assertEqual(200, response.status_code)
 
     @provide_session
-    def test_should_response_200_text_plain(self, session):
+    def test_should_respond_200_text_plain(self, session):
         self._create_dagrun(session)
         key = self.app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
@@ -287,3 +297,16 @@ class TestGetLog(unittest.TestCase):
         )
 
         assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        key = self.app.config["SECRET_KEY"]
+        serializer = URLSafeSerializer(key)
+        token = serializer.dumps({"download_logs": True})
+
+        response = self.client.get(
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
+            f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
+            headers={'Accept': 'text/plain'},
+            environ_overrides={'REMOTE_USER': "test_no_permissions"},
+        )
+        assert response.status_code == 403

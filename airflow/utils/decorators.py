@@ -40,28 +40,29 @@ def apply_defaults(func: T) -> T:
     inheritance and argument defaults, this decorator also alerts with
     specific information about the missing arguments.
     """
-
     # Cache inspect.signature for the wrapper closure to avoid calling it
     # at every decorated invocation. This is separate sig_cache created
     # per decoration, i.e. each function decorated using apply_defaults will
     # have a different sig_cache.
     sig_cache = signature(func)
     non_optional_args = {
-        name for (name, param) in sig_cache.parameters.items()
-        if param.default == param.empty and
-           param.name != 'self' and
-           param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)}
+        name
+        for (name, param) in sig_cache.parameters.items()
+        if param.default == param.empty
+        and param.name != 'self'
+        and param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)
+    }
 
     @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         from airflow.models.dag import DagContext
+
         if len(args) > 1:
-            raise AirflowException(
-                "Use keyword arguments when initializing operators")
+            raise AirflowException("Use keyword arguments when initializing operators")
         dag_args: Dict[str, Any] = {}
         dag_params: Dict[str, Any] = {}
 
-        dag = kwargs.get('dag', None) or DagContext.get_current_dag()
+        dag = kwargs.get('dag') or DagContext.get_current_dag()
         if dag:
             dag_args = copy(dag.default_args) or {}
             dag_params = copy(dag.params) or {}
@@ -85,13 +86,14 @@ def apply_defaults(func: T) -> T:
 
         missing_args = list(non_optional_args - set(kwargs))
         if missing_args:
-            msg = "Argument {0} is required".format(missing_args)
+            msg = f"Argument {missing_args} is required"
             raise AirflowException(msg)
 
         kwargs['params'] = dag_params
 
         result = func(*args, **kwargs)
         return result
+
     return cast(T, wrapper)
 
 

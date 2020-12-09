@@ -31,15 +31,17 @@
 !common
 !dags
 !dev
+!chart
 !docs
 !licenses
 !metastore_browser
 
 # Add those folders to the context so that they are available in the CI container
 !scripts/in_container
+!scripts/docker
 
-# Add backport packages to the context
-!backport_packages
+# Add provider packages to the context
+!provider_packages
 
 # Add tests and kubernetes_tests to context.
 !tests
@@ -57,6 +59,11 @@
 !NOTICE
 !.github
 !empty
+
+# This folder is for you if you want to add any packages to the docker context when you build your own
+# docker image. most of other files and any new folder you add will be excluded by default
+# if you need other types of files - please add the extensions here.
+!docker-context-files
 
 # Avoid triggering context change on README change (new companies using Airflow)
 # So please do not uncomment this line ;)

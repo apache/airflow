@@ -16,11 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains Databricks operators.
-"""
+"""This module contains Databricks operators."""
 
 import time
+from typing import Any, Dict, List, Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -31,7 +30,7 @@ XCOM_RUN_ID_KEY = 'run_id'
 XCOM_RUN_PAGE_URL_KEY = 'run_page_url'
 
 
-def _deep_string_coerce(content, json_path='json'):
+def _deep_string_coerce(content, json_path: str = 'json') -> Union[str, list, dict]:
     """
     Coerces content or all values of content if it is a dict to a string. The
     function will throw if content contains non-string or non-numeric types.
@@ -53,16 +52,16 @@ def _deep_string_coerce(content, json_path='json'):
         # Databricks can tolerate either numeric or string types in the API backend.
         return str(content)
     elif isinstance(content, (list, tuple)):
-        return [coerce(e, '{0}[{1}]'.format(json_path, i)) for i, e in enumerate(content)]
+        return [coerce(e, f'{json_path}[{i}]') for i, e in enumerate(content)]
     elif isinstance(content, dict):
-        return {k: coerce(v, '{0}[{1}]'.format(json_path, k)) for k, v in list(content.items())}
+        return {k: coerce(v, f'{json_path}[{k}]') for k, v in list(content.items())}
     else:
         param_type = type(content)
-        msg = 'Type {0} used for parameter {1} is not a number or a string'.format(param_type, json_path)
+        msg = f'Type {param_type} used for parameter {json_path} is not a number or a string'
         raise AirflowException(msg)
 
 
-def _handle_databricks_operator_execution(operator, hook, log, context):
+def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
     """
     Handles the Airflow + Databricks lifecycle logic for a Databricks operator
 
@@ -85,7 +84,7 @@ def _handle_databricks_operator_execution(operator, hook, log, context):
                 log.info('View run status, Spark UI, and logs at %s', run_page_url)
                 return
             else:
-                error_message = '{t} failed with terminal state: {s}'.format(t=operator.task_id, s=run_state)
+                error_message = f'{operator.task_id} failed with terminal state: {run_state}'
                 raise AirflowException(error_message)
         else:
             log.info('%s in run state: %s', operator.task_id, run_state)
@@ -150,6 +149,10 @@ class DatabricksSubmitRunOperator(BaseOperator):
         - ``libraries``
         - ``run_name``
         - ``timeout_seconds``
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DatabricksSubmitRunOperator`
 
     :param json: A JSON object containing API parameters which will be passed
         directly to the ``api/2.0/jobs/runs/submit`` endpoint. The other named parameters
@@ -250,26 +253,24 @@ class DatabricksSubmitRunOperator(BaseOperator):
     def __init__(
         self,
         *,
-        json=None,
-        spark_jar_task=None,
-        notebook_task=None,
-        spark_python_task=None,
-        spark_submit_task=None,
-        new_cluster=None,
-        existing_cluster_id=None,
-        libraries=None,
-        run_name=None,
-        timeout_seconds=None,
-        databricks_conn_id='databricks_default',
-        polling_period_seconds=30,
-        databricks_retry_limit=3,
-        databricks_retry_delay=1,
-        do_xcom_push=False,
+        json: Optional[Any] = None,
+        spark_jar_task: Optional[Dict[str, str]] = None,
+        notebook_task: Optional[Dict[str, str]] = None,
+        spark_python_task: Optional[Dict[str, Union[str, List[str]]]] = None,
+        spark_submit_task: Optional[Dict[str, List[str]]] = None,
+        new_cluster: Optional[Dict[str, object]] = None,
+        existing_cluster_id: Optional[str] = None,
+        libraries: Optional[List[Dict[str, str]]] = None,
+        run_name: Optional[str] = None,
+        timeout_seconds: Optional[int] = None,
+        databricks_conn_id: str = 'databricks_default',
+        polling_period_seconds: int = 30,
+        databricks_retry_limit: int = 3,
+        databricks_retry_delay: int = 1,
+        do_xcom_push: bool = False,
         **kwargs,
-    ):
-        """
-        Creates a new ``DatabricksSubmitRunOperator``.
-        """
+    ) -> None:
+        """Creates a new ``DatabricksSubmitRunOperator``."""
         super().__init__(**kwargs)
         self.json = json or {}
         self.databricks_conn_id = databricks_conn_id
@@ -302,7 +303,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self.run_id = None
         self.do_xcom_push = do_xcom_push
 
-    def _get_hook(self):
+    def _get_hook(self) -> DatabricksHook:
         return DatabricksHook(
             self.databricks_conn_id,
             retry_limit=self.databricks_retry_limit,
@@ -463,21 +464,19 @@ class DatabricksRunNowOperator(BaseOperator):
     def __init__(
         self,
         *,
-        job_id=None,
-        json=None,
-        notebook_params=None,
-        python_params=None,
-        spark_submit_params=None,
-        databricks_conn_id='databricks_default',
-        polling_period_seconds=30,
-        databricks_retry_limit=3,
-        databricks_retry_delay=1,
-        do_xcom_push=False,
+        job_id: Optional[str] = None,
+        json: Optional[Any] = None,
+        notebook_params: Optional[Dict[str, str]] = None,
+        python_params: Optional[List[str]] = None,
+        spark_submit_params: Optional[List[str]] = None,
+        databricks_conn_id: str = 'databricks_default',
+        polling_period_seconds: int = 30,
+        databricks_retry_limit: int = 3,
+        databricks_retry_delay: int = 1,
+        do_xcom_push: bool = False,
         **kwargs,
-    ):
-        """
-        Creates a new ``DatabricksRunNowOperator``.
-        """
+    ) -> None:
+        """Creates a new ``DatabricksRunNowOperator``."""
         super().__init__(**kwargs)
         self.json = json or {}
         self.databricks_conn_id = databricks_conn_id
@@ -499,7 +498,7 @@ class DatabricksRunNowOperator(BaseOperator):
         self.run_id = None
         self.do_xcom_push = do_xcom_push
 
-    def _get_hook(self):
+    def _get_hook(self) -> DatabricksHook:
         return DatabricksHook(
             self.databricks_conn_id,
             retry_limit=self.databricks_retry_limit,

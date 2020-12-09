@@ -29,13 +29,14 @@ class DoNotUseAssertsChecker(BaseChecker):
         'E7401': (
             'Do not use asserts.',
             'do-not-use-asserts',
-            'Asserts should not be used in the main Airflow code.'
+            'Asserts should not be used in the main Airflow code.',
         ),
     }
 
     def visit_assert(self, node):
         self.add_message(
-            self.name, node=node,
+            self.name,
+            node=node,
         )
 
 

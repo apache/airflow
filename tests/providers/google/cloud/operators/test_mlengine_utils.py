@@ -17,9 +17,8 @@
 
 import datetime
 import unittest
+from unittest import mock
 from unittest.mock import ANY, patch
-
-import mock
 
 from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
@@ -110,7 +109,12 @@ class TestCreateEvaluateOps(unittest.TestCase):
             hook_instance.start_python_dataflow.return_value = None
             summary.execute(None)
             mock_dataflow_hook.assert_called_once_with(
-                gcp_conn_id='google_cloud_default', delegate_to=None, poll_sleep=10
+                gcp_conn_id='google_cloud_default',
+                delegate_to=None,
+                poll_sleep=10,
+                drain_pipeline=False,
+                cancel_timeout=600,
+                wait_until_finished=None,
             )
             hook_instance.start_python_dataflow.assert_called_once_with(
                 job_name='{{task.task_id}}',

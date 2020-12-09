@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Dataprep hook.
-"""
+"""This module contains Google Dataprep hook."""
 import json
 import os
 from typing import Any, Dict
@@ -26,7 +24,7 @@ import requests
 from requests import HTTPError
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class GoogleDataprepHook(BaseHook):
@@ -39,7 +37,12 @@ class GoogleDataprepHook(BaseHook):
 
     """
 
-    def __init__(self, dataprep_conn_id: str = "dataprep_default") -> None:
+    conn_name_attr = 'dataprep_conn_id'
+    default_conn_name = 'dataprep_default'
+    conn_type = 'dataprep'
+    hook_name = 'Google Dataprep'
+
+    def __init__(self, dataprep_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.dataprep_conn_id = dataprep_conn_id
         conn = self.get_connection(self.dataprep_conn_id)
@@ -63,7 +66,6 @@ class GoogleDataprepHook(BaseHook):
         :param job_id: The ID of the job that will be fetched
         :type job_id: int
         """
-
         endpoint_path = f"v4/jobGroups/{job_id}/jobs"
         url: str = os.path.join(self._base_url, endpoint_path)
         response = requests.get(url, headers=self._headers)
@@ -83,7 +85,6 @@ class GoogleDataprepHook(BaseHook):
         :param include_deleted: if set to "true", will include deleted objects
         :type include_deleted: bool
         """
-
         params: Dict[str, Any] = {"embed": embed, "includeDeleted": include_deleted}
         endpoint_path = f"v4/jobGroups/{job_group_id}"
         url: str = os.path.join(self._base_url, endpoint_path)
@@ -102,7 +103,6 @@ class GoogleDataprepHook(BaseHook):
         :param body_request: The identifier for the recipe you would like to run.
         :type body_request: dict
         """
-
         endpoint_path = "v4/jobGroups"
         url: str = os.path.join(self._base_url, endpoint_path)
         response = requests.post(url, headers=self._headers, data=json.dumps(body_request))

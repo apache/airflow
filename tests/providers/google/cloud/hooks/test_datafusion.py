@@ -185,7 +185,7 @@ class TestDataFusionHook:
     @mock.patch(HOOK_STR.format("DataFusionHook.wait_for_pipeline_state"))
     def test_start_pipeline(self, mock_wait_for_pipeline_state, mock_request, hook):
         run_id = 1234
-        mock_request.return_value = mock.MagicMock(status=200, data='[{{"runId":{}}}]'.format(run_id))
+        mock_request.return_value = mock.MagicMock(status=200, data=f'[{{"runId":{run_id}}}]')
 
         hook.start_pipeline(pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL, runtime_args=RUNTIME_ARGS)
         body = [

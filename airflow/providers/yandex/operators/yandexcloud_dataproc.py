@@ -25,10 +25,6 @@ from airflow.utils.decorators import apply_defaults
 class DataprocCreateClusterOperator(BaseOperator):
     """Creates Yandex.Cloud Data Proc cluster.
 
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:DataprocCreateClusterOperator`
-
     :param folder_id: ID of the folder in which cluster should be created.
     :type folder_id: Optional[str]
     :param cluster_name: Cluster name. Must be unique inside the folder.
@@ -108,7 +104,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         computenode_count: int = 0,
         connection_id: Optional[str] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.folder_id = folder_id
         self.connection_id = connection_id
@@ -132,9 +128,9 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.computenode_disk_size = computenode_disk_size
         self.computenode_disk_type = computenode_disk_type
         self.computenode_count = computenode_count
-        self.hook = None
+        self.hook: Optional[DataprocHook] = None
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         self.hook = DataprocHook(
             connection_id=self.connection_id,
         )
@@ -177,13 +173,15 @@ class DataprocDeleteClusterOperator(BaseOperator):
     template_fields = ['cluster_id']
 
     @apply_defaults
-    def __init__(self, *, connection_id: Optional[str] = None, cluster_id: Optional[str] = None, **kwargs):
+    def __init__(
+        self, *, connection_id: Optional[str] = None, cluster_id: Optional[str] = None, **kwargs
+    ) -> None:
         super().__init__(**kwargs)
         self.connection_id = connection_id
         self.cluster_id = cluster_id
-        self.hook = None
+        self.hook: Optional[DataprocHook] = None
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         cluster_id = self.cluster_id or context['task_instance'].xcom_pull(key='cluster_id')
         connection_id = self.connection_id or context['task_instance'].xcom_pull(
             key='yandexcloud_connection_id'
@@ -232,7 +230,7 @@ class DataprocCreateHiveJobOperator(BaseOperator):
         cluster_id: Optional[str] = None,
         connection_id: Optional[str] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.query = query
         self.query_file_uri = query_file_uri
@@ -242,9 +240,9 @@ class DataprocCreateHiveJobOperator(BaseOperator):
         self.name = name
         self.cluster_id = cluster_id
         self.connection_id = connection_id
-        self.hook = None
+        self.hook: Optional[DataprocHook] = None
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         cluster_id = self.cluster_id or context['task_instance'].xcom_pull(key='cluster_id')
         connection_id = self.connection_id or context['task_instance'].xcom_pull(
             key='yandexcloud_connection_id'
@@ -308,7 +306,7 @@ class DataprocCreateMapReduceJobOperator(BaseOperator):
         cluster_id: Optional[str] = None,
         connection_id: Optional[str] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.main_class = main_class
         self.main_jar_file_uri = main_jar_file_uri
@@ -320,9 +318,9 @@ class DataprocCreateMapReduceJobOperator(BaseOperator):
         self.name = name
         self.cluster_id = cluster_id
         self.connection_id = connection_id
-        self.hook = None
+        self.hook: Optional[DataprocHook] = None
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         cluster_id = self.cluster_id or context['task_instance'].xcom_pull(key='cluster_id')
         connection_id = self.connection_id or context['task_instance'].xcom_pull(
             key='yandexcloud_connection_id'
@@ -387,7 +385,7 @@ class DataprocCreateSparkJobOperator(BaseOperator):
         cluster_id: Optional[str] = None,
         connection_id: Optional[str] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.main_class = main_class
         self.main_jar_file_uri = main_jar_file_uri
@@ -399,9 +397,9 @@ class DataprocCreateSparkJobOperator(BaseOperator):
         self.name = name
         self.cluster_id = cluster_id
         self.connection_id = connection_id
-        self.hook = None
+        self.hook: Optional[DataprocHook] = None
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         cluster_id = self.cluster_id or context['task_instance'].xcom_pull(key='cluster_id')
         connection_id = self.connection_id or context['task_instance'].xcom_pull(
             key='yandexcloud_connection_id'
@@ -466,7 +464,7 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
         cluster_id: Optional[str] = None,
         connection_id: Optional[str] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.main_python_file_uri = main_python_file_uri
         self.python_file_uris = python_file_uris
@@ -478,9 +476,9 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
         self.name = name
         self.cluster_id = cluster_id
         self.connection_id = connection_id
-        self.hook = None
+        self.hook: Optional[DataprocHook] = None
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         cluster_id = self.cluster_id or context['task_instance'].xcom_pull(key='cluster_id')
         connection_id = self.connection_id or context['task_instance'].xcom_pull(
             key='yandexcloud_connection_id'

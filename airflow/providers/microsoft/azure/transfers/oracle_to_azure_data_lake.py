@@ -18,7 +18,7 @@
 
 import os
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 
 import unicodecsv as csv
 
@@ -103,13 +103,13 @@ class OracleToAzureDataLakeOperator(BaseOperator):
             csv_writer.writerows(cursor)
             csvfile.flush()
 
-    def execute(self, context: Dict[Any, Any]) -> None:
+    def execute(self, context: dict) -> None:
         oracle_hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
         azure_data_lake_hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)
 
         self.log.info("Dumping Oracle query results to local file")
         conn = oracle_hook.get_conn()
-        cursor = conn.cursor()
+        cursor = conn.cursor()  # type: ignore[attr-defined]
         cursor.execute(self.sql, self.sql_params)
 
         with TemporaryDirectory(prefix='airflow_oracle_to_azure_op_') as temp:
@@ -119,4 +119,4 @@ class OracleToAzureDataLakeOperator(BaseOperator):
                 os.path.join(temp, self.filename), os.path.join(self.azure_data_lake_path, self.filename)
             )
         cursor.close()
-        conn.close()
+        conn.close()  # type: ignore[attr-defined]

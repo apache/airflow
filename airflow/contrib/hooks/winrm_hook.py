@@ -24,5 +24,6 @@ from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.microsoft.winrm.hooks.winrm`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

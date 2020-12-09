@@ -17,8 +17,7 @@
 # under the License.
 
 import unittest
-
-import mock
+from unittest import mock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
@@ -32,7 +31,7 @@ model_name = 'test-model-name'
 
 image = 'test-image'
 
-output_url = 's3://{}/test/output'.format(bucket)
+output_url = f's3://{bucket}/test/output'
 create_model_params = {
     'ModelName': model_name,
     'PrimaryContainer': {

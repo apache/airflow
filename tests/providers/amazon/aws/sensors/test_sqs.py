@@ -57,7 +57,7 @@ class TestSQSSensor(unittest.TestCase):
         )
 
     @mock_sqs
-    def test_poke_no_messsage_failed(self):
+    def test_poke_no_message_failed(self):
 
         self.sqs_hook.create_queue('test')
         result = self.sensor.poke(self.mock_context)

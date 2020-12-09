@@ -15,14 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import time
 import logging
-from typing import Dict
+import time
+from typing import Any, Dict, Optional
+
 import requests
-from airflow.providers.plexus.hooks.plexus import PlexusHook
-from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
+
 from airflow.exceptions import AirflowException
+from airflow.models import BaseOperator
+from airflow.providers.plexus.hooks.plexus import PlexusHook
+from airflow.utils.decorators import apply_defaults
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +50,7 @@ class PlexusJobOperator(BaseOperator):
         super().__init__(**kwargs)
 
         self.job_params = job_params
-        self.required_params = set(["name", "app", "queue", "num_cores", "num_nodes"])
+        self.required_params = {"name", "app", "queue", "num_cores", "num_nodes"}
         self.lookups = {
             "app": ("apps/", "id", "name"),
             "billing_account_id": ("users/{}/billingaccounts/", "id", None),
@@ -57,7 +59,7 @@ class PlexusJobOperator(BaseOperator):
         self.job_params.update({"billing_account_id": None})
         self.is_service = None
 
-    def execute(self, context):
+    def execute(self, context: Any) -> Any:
         hook = PlexusHook()
         params = self.construct_job_params(hook)
         if self.is_service is True:
@@ -75,7 +77,7 @@ class PlexusJobOperator(BaseOperator):
             )
         logger.info("creating job w/ following params: %s", params)
         jobs_endpoint = hook.host + "jobs/"
-        headers = {"Authorization": "Bearer {}".format(hook.token)}
+        headers = {"Authorization": f"Bearer {hook.token}"}
         create_job = requests.post(jobs_endpoint, headers=headers, data=params, timeout=5)
         if create_job.ok:
             job = create_job.json()
@@ -83,16 +85,16 @@ class PlexusJobOperator(BaseOperator):
             state = job["last_state"]
             while state != end_state:
                 time.sleep(3)
-                jid_endpoint = jobs_endpoint + "{}/".format(jid)
+                jid_endpoint = jobs_endpoint + f"{jid}/"
                 get_job = requests.get(jid_endpoint, headers=headers, timeout=5)
                 if not get_job.ok:
                     raise AirflowException(
-                        "Could not retrieve job status. Status Code: [{0}]. "
-                        "Reason: {1} - {2}".format(get_job.status_code, get_job.reason, get_job.text)
+                        "Could not retrieve job status. Status Code: [{}]. "
+                        "Reason: {} - {}".format(get_job.status_code, get_job.reason, get_job.text)
                     )
                 new_state = get_job.json()["last_state"]
                 if new_state in ("Cancelled", "Failed"):
-                    raise AirflowException("Job {}".format(new_state))
+                    raise AirflowException(f"Job {new_state}")
                 elif new_state != state:
                     logger.info("job is %s", new_state)
                 state = new_state
@@ -111,7 +113,7 @@ class PlexusJobOperator(BaseOperator):
             endpoint = hook.host + lookup[0].format(hook.user_id)
         else:
             endpoint = hook.host + lookup[0]
-        headers = {"Authorization": "Bearer {}".format(hook.token)}
+        headers = {"Authorization": f"Bearer {hook.token}"}
         response = requests.get(endpoint, headers=headers, timeout=5)
         results = response.json()["results"]
 
@@ -125,13 +127,11 @@ class PlexusJobOperator(BaseOperator):
                 if param == 'app':
                     self.is_service = dct['is_service']
         if v is None:
-            raise AirflowException(
-                "Could not locate value for param:{} at endpoint: {}".format(key, endpoint)
-            )
+            raise AirflowException(f"Could not locate value for param:{key} at endpoint: {endpoint}")
 
         return v
 
-    def construct_job_params(self, hook):
+    def construct_job_params(self, hook: Any) -> Dict[Any, Optional[Any]]:
         """
         Creates job_params dict for api call to
         launch a Plexus job.

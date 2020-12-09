@@ -247,18 +247,14 @@ class CassandraToGCSOperator(BaseOperator):
 
     @classmethod
     def generate_data_dict(cls, names: Iterable[str], values: Any) -> Dict[str, Any]:
-        """
-        Generates data structure that will be stored as file in GCS.
-        """
+        """Generates data structure that will be stored as file in GCS."""
         return {n: cls.convert_value(v) for n, v in zip(names, values)}
 
     @classmethod
     def convert_value(  # pylint: disable=too-many-return-statements
         cls, value: Optional[Any]
     ) -> Optional[Any]:
-        """
-        Convert value to BQ type.
-        """
+        """Convert value to BQ type."""
         if not value:
             return value
         elif isinstance(value, (str, int, float, bool, dict)):
@@ -286,9 +282,7 @@ class CassandraToGCSOperator(BaseOperator):
 
     @classmethod
     def convert_array_types(cls, value: Union[List[Any], SortedSet]) -> List[Any]:
-        """
-        Maps convert_value over array.
-        """
+        """Maps convert_value over array."""
         return [cls.convert_value(nested_value) for nested_value in value]
 
     @classmethod
@@ -325,9 +319,7 @@ class CassandraToGCSOperator(BaseOperator):
 
     @classmethod
     def generate_schema_dict(cls, name: str, type_: Any) -> Dict[str, Any]:
-        """
-        Generates BQ schema.
-        """
+        """Generates BQ schema."""
         field_schema: Dict[str, Any] = {}
         field_schema.update({'name': name})
         field_schema.update({'type_': cls.get_bq_type(type_)})
@@ -339,9 +331,7 @@ class CassandraToGCSOperator(BaseOperator):
 
     @classmethod
     def get_bq_fields(cls, type_: Any) -> List[Dict[str, Any]]:
-        """
-        Converts non simple type value to BQ representation.
-        """
+        """Converts non simple type value to BQ representation."""
         if cls.is_simple_type(type_):
             return []
 
@@ -364,30 +354,22 @@ class CassandraToGCSOperator(BaseOperator):
 
     @staticmethod
     def is_simple_type(type_: Any) -> bool:
-        """
-        Check if type is a simple type.
-        """
+        """Check if type is a simple type."""
         return type_.cassname in CassandraToGCSOperator.CQL_TYPE_MAP
 
     @staticmethod
     def is_array_type(type_: Any) -> bool:
-        """
-        Check if type is an array type.
-        """
+        """Check if type is an array type."""
         return type_.cassname in ['ListType', 'SetType']
 
     @staticmethod
     def is_record_type(type_: Any) -> bool:
-        """
-        Checks the record type.
-        """
+        """Checks the record type."""
         return type_.cassname in ['UserType', 'TupleType', 'MapType']
 
     @classmethod
     def get_bq_type(cls, type_: Any) -> str:
-        """
-        Converts type to equivalent BQ type.
-        """
+        """Converts type to equivalent BQ type."""
         if cls.is_simple_type(type_):
             return CassandraToGCSOperator.CQL_TYPE_MAP[type_.cassname]
         elif cls.is_record_type(type_):
@@ -399,9 +381,7 @@ class CassandraToGCSOperator(BaseOperator):
 
     @classmethod
     def get_bq_mode(cls, type_: Any) -> str:
-        """
-        Converts type to equivalent BQ mode.
-        """
+        """Converts type to equivalent BQ mode."""
         if cls.is_array_type(type_) or type_.cassname == 'MapType':
             return 'REPEATED'
         elif cls.is_record_type(type_) or cls.is_simple_type(type_):

@@ -16,10 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+from typing import List, Optional
 
-from azure.storage.file import FileService
+from azure.storage.file import File, FileService
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class AzureFileShareHook(BaseHook):
@@ -33,12 +34,12 @@ class AzureFileShareHook(BaseHook):
     :type wasb_conn_id: str
     """
 
-    def __init__(self, wasb_conn_id='wasb_default'):
+    def __init__(self, wasb_conn_id: str = 'wasb_default') -> None:
         super().__init__()
         self.conn_id = wasb_conn_id
         self._conn = None
 
-    def get_conn(self):
+    def get_conn(self) -> FileService:
         """Return the FileService object."""
         if not self._conn:
             conn = self.get_connection(self.conn_id)
@@ -46,7 +47,7 @@ class AzureFileShareHook(BaseHook):
             self._conn = FileService(account_name=conn.login, account_key=conn.password, **service_options)
         return self._conn
 
-    def check_for_directory(self, share_name, directory_name, **kwargs):
+    def check_for_directory(self, share_name: str, directory_name: str, **kwargs) -> bool:
         """
         Check if a directory exists on Azure File Share.
 
@@ -62,7 +63,7 @@ class AzureFileShareHook(BaseHook):
         """
         return self.get_conn().exists(share_name, directory_name, **kwargs)
 
-    def check_for_file(self, share_name, directory_name, file_name, **kwargs):
+    def check_for_file(self, share_name: str, directory_name: str, file_name: str, **kwargs) -> bool:
         """
         Check if a file exists on Azure File Share.
 
@@ -80,7 +81,9 @@ class AzureFileShareHook(BaseHook):
         """
         return self.get_conn().exists(share_name, directory_name, file_name, **kwargs)
 
-    def list_directories_and_files(self, share_name, directory_name=None, **kwargs):
+    def list_directories_and_files(
+        self, share_name: str, directory_name: Optional[str] = None, **kwargs
+    ) -> list:
         """
         Return the list of directories and files stored on a Azure File Share.
 
@@ -96,7 +99,55 @@ class AzureFileShareHook(BaseHook):
         """
         return self.get_conn().list_directories_and_files(share_name, directory_name, **kwargs)
 
-    def create_directory(self, share_name, directory_name, **kwargs):
+    def list_files(self, share_name: str, directory_name: Optional[str] = None, **kwargs) -> List[str]:
+        """
+        Return the list of files stored on a Azure File Share.
+
+        :param share_name: Name of the share.
+        :type share_name: str
+        :param directory_name: Name of the directory.
+        :type directory_name: str
+        :param kwargs: Optional keyword arguments that
+            `FileService.list_directories_and_files()` takes.
+        :type kwargs: object
+        :return: A list of files
+        :rtype: list
+        """
+        return [
+            obj.name
+            for obj in self.list_directories_and_files(share_name, directory_name, **kwargs)
+            if isinstance(obj, File)
+        ]
+
+    def create_share(self, share_name: str, **kwargs) -> bool:
+        """
+        Create new Azure File Share.
+
+        :param share_name: Name of the share.
+        :type share_name: str
+        :param kwargs: Optional keyword arguments that
+            `FileService.create_share()` takes.
+        :type kwargs: object
+        :return: True if share is created, False if share already exists.
+        :rtype: bool
+        """
+        return self.get_conn().create_share(share_name, **kwargs)
+
+    def delete_share(self, share_name: str, **kwargs) -> bool:
+        """
+        Delete existing Azure File Share.
+
+        :param share_name: Name of the share.
+        :type share_name: str
+        :param kwargs: Optional keyword arguments that
+            `FileService.delete_share()` takes.
+        :type kwargs: object
+        :return: True if share is deleted, False if share does not exist.
+        :rtype: bool
+        """
+        return self.get_conn().delete_share(share_name, **kwargs)
+
+    def create_directory(self, share_name: str, directory_name: str, **kwargs) -> list:
         """
         Create a new directory on a Azure File Share.
 
@@ -112,7 +163,9 @@ class AzureFileShareHook(BaseHook):
         """
         return self.get_conn().create_directory(share_name, directory_name, **kwargs)
 
-    def get_file(self, file_path, share_name, directory_name, file_name, **kwargs):
+    def get_file(
+        self, file_path: str, share_name: str, directory_name: str, file_name: str, **kwargs
+    ) -> None:
         """
         Download a file from Azure File Share.
 
@@ -130,7 +183,9 @@ class AzureFileShareHook(BaseHook):
         """
         self.get_conn().get_file_to_path(share_name, directory_name, file_name, file_path, **kwargs)
 
-    def get_file_to_stream(self, stream, share_name, directory_name, file_name, **kwargs):
+    def get_file_to_stream(
+        self, stream: str, share_name: str, directory_name: str, file_name: str, **kwargs
+    ) -> None:
         """
         Download a file from Azure File Share.
 
@@ -148,7 +203,9 @@ class AzureFileShareHook(BaseHook):
         """
         self.get_conn().get_file_to_stream(share_name, directory_name, file_name, stream, **kwargs)
 
-    def load_file(self, file_path, share_name, directory_name, file_name, **kwargs):
+    def load_file(
+        self, file_path: str, share_name: str, directory_name: str, file_name: str, **kwargs
+    ) -> None:
         """
         Upload a file to Azure File Share.
 
@@ -166,7 +223,9 @@ class AzureFileShareHook(BaseHook):
         """
         self.get_conn().create_file_from_path(share_name, directory_name, file_name, file_path, **kwargs)
 
-    def load_string(self, string_data, share_name, directory_name, file_name, **kwargs):
+    def load_string(
+        self, string_data: str, share_name: str, directory_name: str, file_name: str, **kwargs
+    ) -> None:
         """
         Upload a string to Azure File Share.
 
@@ -184,7 +243,9 @@ class AzureFileShareHook(BaseHook):
         """
         self.get_conn().create_file_from_text(share_name, directory_name, file_name, string_data, **kwargs)
 
-    def load_stream(self, stream, share_name, directory_name, file_name, count, **kwargs):
+    def load_stream(
+        self, stream: str, share_name: str, directory_name: str, file_name: str, count: str, **kwargs
+    ) -> None:
         """
         Upload a stream to Azure File Share.
 

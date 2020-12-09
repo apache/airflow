@@ -15,13 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Bigquery sensor.
-"""
+"""This module contains a Google Bigquery sensor."""
 from typing import Optional, Sequence, Union
 
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -85,8 +83,8 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context):
-        table_uri = '{0}:{1}.{2}'.format(self.project_id, self.dataset_id, self.table_id)
+    def poke(self, context: dict) -> bool:
+        table_uri = f'{self.project_id}:{self.dataset_id}.{self.table_id}'
         self.log.info('Sensor checks existence of table: %s', table_uri)
         hook = BigQueryHook(
             bigquery_conn_id=self.bigquery_conn_id,
@@ -163,8 +161,8 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context):
-        table_uri = '{0}:{1}.{2}'.format(self.project_id, self.dataset_id, self.table_id)
+    def poke(self, context: dict) -> bool:
+        table_uri = f'{self.project_id}:{self.dataset_id}.{self.table_id}'
         self.log.info('Sensor checks existence of partition: "%s" in table: %s', self.partition_id, table_uri)
         hook = BigQueryHook(
             bigquery_conn_id=self.bigquery_conn_id,

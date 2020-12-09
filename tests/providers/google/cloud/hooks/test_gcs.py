@@ -123,7 +123,7 @@ class TestGCSHook(unittest.TestCase):
     @mock.patch(GCS_STRING.format('GoogleBaseHook.get_connection'))
     @mock.patch('google.cloud.storage.Client')
     def test_storage_client_creation(
-        self, mock_client, mock_get_connetion, mock_get_creds_and_project_id, mock_client_info
+        self, mock_client, mock_get_connection, mock_get_creds_and_project_id, mock_client_info
     ):
         hook = gcs.GCSHook()
         result = hook.get_conn()
@@ -707,6 +707,35 @@ class TestGCSHook(unittest.TestCase):
             ]
         )
 
+    @mock.patch(GCS_STRING.format('NamedTemporaryFile'))
+    @mock.patch(GCS_STRING.format('GCSHook.upload'))
+    def test_provide_file_upload(self, mock_upload, mock_temp_file):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+        test_file = 'test_file'
+
+        mock_temp_file.return_value.__enter__.return_value = mock.MagicMock()
+        mock_temp_file.return_value.__enter__.return_value.name = test_file
+
+        with self.gcs_hook.provide_file_and_upload(
+            bucket_name=test_bucket, object_name=test_object
+        ) as fhandle:
+            assert fhandle.name == test_file
+            fhandle.write()
+
+        mock_upload.assert_called_once_with(
+            bucket_name=test_bucket, object_name=test_object, filename=test_file
+        )
+        mock_temp_file.assert_has_calls(
+            [
+                mock.call(suffix='test_object'),
+                mock.call().__enter__(),
+                mock.call().__enter__().write(),
+                mock.call().__enter__().flush(),
+                mock.call().__exit__(None, None, None),
+            ]
+        )
+
 
 class TestGCSHookUpload(unittest.TestCase):
     def setUp(self):
@@ -1210,13 +1239,13 @@ class TestSyncGcsHook(unittest.TestCase):
         mock_copy.assert_not_called()
 
     def _create_blob(self, name: str, crc32: str, bucket=None):
-        blob = mock.MagicMock(name="BLOB:{}".format(name))
+        blob = mock.MagicMock(name=f"BLOB:{name}")
         blob.name = name
         blob.crc32 = crc32
         blob.bucket = bucket
         return blob
 
     def _create_bucket(self, name: str):
-        bucket = mock.MagicMock(name="BUCKET:{}".format(name))
+        bucket = mock.MagicMock(name=f"BUCKET:{name}")
         bucket.name = name
         return bucket

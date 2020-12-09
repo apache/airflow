@@ -47,7 +47,7 @@ labelPRBasedOnFilePath:
     - tests/providers/apache/*
     - tests/providers/apache/**/*
 
-  k8s:
+  area:kubernetes:
     - airflow/**/kubernetes_*.py
     - airflow/example_dags/example_kubernetes_executor.py
     - airflow/example_dags/example_kubernetes_executor_config.py
@@ -75,7 +75,7 @@ labelPRBasedOnFilePath:
     - tests/www/api/*
     - tests/www/api/**/*
 
-  area:dev:
+  area:dev-tools:
     - airflow/mypy/*
     - airflow/mypy/**/*
     - scripts/**/*
@@ -108,7 +108,7 @@ labelPRBasedOnFilePath:
     - airflow/www/.stylelintignore
     - airflow/www/.stylelintrc
 
-  area:docs:
+  kind:documentation:
     - docs/**/*
     - docs/*
 
@@ -126,11 +126,26 @@ labelPRBasedOnFilePath:
     - tests/www_rbac/**/*
     - tests/www_rbac/*
 
+  area:UI:
+    - airflow/www/static/**/*
+    - airflow/www/static/*
+    - airflow/www/templates/**/*
+    - airflow/www/templates/*
+    - airflow/www/.eslintignore
+    - airflow/www/.eslintrc
+    - airflow/www/.stylelintignore
+    - airflow/www/.stylelintrc
+    - airflow/www/compile_assets.sh
+    - airflow/www/package.json
+    - airflow/www/webpack.config.js
+    - airflow/www/yarn.lock
+    - docs/ui.rst
+
   area:CLI:
     - airflow/bin/cli.py
     - airflow/cli/**/*.py
     - tests/cli/**/*.py
-    - docs/cli-ref.rst
+    - docs/cli-and-env-variables-ref.rst
     - docs/usage-cli.rst
 
   area:Lineage:
@@ -221,7 +236,7 @@ firstPRWelcomeComment: >
 
   Mailing List: dev@airflow.apache.org
 
-  Slack: https://apache-airflow-slack.herokuapp.com/
+  Slack: https://s.apache.org/airflow-slack
 
 # Comment to be posted to congratulate user on their first merged PR
 firstPRMergeComment: >

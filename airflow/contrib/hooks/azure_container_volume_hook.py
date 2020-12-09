@@ -24,5 +24,6 @@ from airflow.providers.microsoft.azure.hooks.azure_container_volume import Azure
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.azure_container_volume`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

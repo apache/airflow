@@ -16,9 +16,9 @@
 # under the License.
 
 import textwrap
+from unittest.mock import patch
 
-from mock import patch
-
+from airflow.security import permissions
 from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
@@ -34,25 +34,31 @@ MOCK_CONF = {
 }
 
 
-@patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
 class TestGetConfig:
     @classmethod
     def setup_class(cls) -> None:
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
-        # TODO: Add new role for each view to test permission
-        create_user(cls.app, username="test", role="Admin")  # type: ignore
+        create_user(
+            cls.app,  # type:ignore
+            username="test",
+            role_name="Test",
+            permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG)],  # type: ignore
+        )
+        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
         cls.client = None
 
     @classmethod
     def teardown_class(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
+        delete_user(cls.app, username="test_no_permissions")  # type: ignore
 
     def setup_method(self) -> None:
         self.client = self.app.test_client()  # type:ignore
 
-    def test_should_response_200_text_plain(self, mock_as_dict):
+    @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    def test_should_respond_200_text_plain(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config", headers={'Accept': 'text/plain'}, environ_overrides={'REMOTE_USER': "test"}
         )
@@ -69,7 +75,8 @@ class TestGetConfig:
         )
         assert expected == response.data.decode()
 
-    def test_should_response_200_application_json(self, mock_as_dict):
+    @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    def test_should_respond_200_application_json(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config",
             headers={'Accept': 'application/json'},
@@ -95,7 +102,8 @@ class TestGetConfig:
         }
         assert expected == response.json
 
-    def test_should_response_406(self, mock_as_dict):
+    @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    def test_should_respond_406(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config",
             headers={'Accept': 'application/octet-stream'},
@@ -103,7 +111,16 @@ class TestGetConfig:
         )
         assert response.status_code == 406
 
-    def test_should_raises_401_unauthenticated(self, mock_as_dict):
+    def test_should_raises_401_unauthenticated(self):
         response = self.client.get("/api/v1/config", headers={'Accept': 'application/json'})
 
         assert_401(response)
+
+    def test_should_raises_403_unauthorized(self):
+        response = self.client.get(
+            "/api/v1/config",
+            headers={'Accept': 'application/json'},
+            environ_overrides={'REMOTE_USER': "test_no_permissions"},
+        )
+
+        assert response.status_code == 403

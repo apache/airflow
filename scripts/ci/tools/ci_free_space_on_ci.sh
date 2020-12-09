@@ -21,5 +21,5 @@
 sudo swapoff -a
 sudo rm -f /swapfile
 sudo apt clean
-docker system prune --all
+docker system prune --all --force
 df -h

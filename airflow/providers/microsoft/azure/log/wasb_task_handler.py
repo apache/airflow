@@ -17,6 +17,7 @@
 # under the License.
 import os
 import shutil
+from typing import Dict, Optional, Tuple
 
 from azure.common import AzureHttpError
 from cached_property import cached_property
@@ -34,8 +35,13 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
     """
 
     def __init__(
-        self, base_log_folder, wasb_log_folder, wasb_container, filename_template, delete_local_copy
-    ):
+        self,
+        base_log_folder: str,
+        wasb_log_folder: str,
+        wasb_container: str,
+        filename_template: str,
+        delete_local_copy: str,
+    ) -> None:
         super().__init__(base_log_folder, filename_template)
         self.wasb_container = wasb_container
         self.remote_base = wasb_log_folder
@@ -47,9 +53,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
 
     @cached_property
     def hook(self):
-        """
-        Returns WasbHook.
-        """
+        """Returns WasbHook."""
         remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
@@ -63,17 +67,15 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
                 remote_conn_id,
             )
 
-    def set_context(self, ti):
+    def set_context(self, ti) -> None:
         super().set_context(ti)
         # Local location and remote location is needed to open and
         # upload local log file to Wasb remote storage.
         self.log_relative_path = self._render_filename(ti, ti.try_number)
         self.upload_on_close = not ti.raw
 
-    def close(self):
-        """
-        Close and upload local log file to remote storage Wasb.
-        """
+    def close(self) -> None:
+        """Close and upload local log file to remote storage Wasb."""
         # When application exit, system shuts down all handlers by
         # calling close method. Here we check if logger is already
         # closed to prevent uploading the log to remote storage multiple
@@ -90,7 +92,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         remote_loc = os.path.join(self.remote_base, self.log_relative_path)
         if os.path.exists(local_loc):
             # read log and remove old logs to get just the latest additions
-            with open(local_loc, 'r') as logfile:
+            with open(local_loc) as logfile:
                 log = logfile.read()
             self.wasb_write(log, remote_loc, append=True)
 
@@ -99,7 +101,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
-    def _read(self, ti, try_number, metadata=None):
+    def _read(self, ti, try_number: str, metadata: Optional[str] = None) -> Tuple[str, Dict[str, bool]]:
         """
         Read logs of given task instance and try_number from Wasb remote storage.
         If failed, read the log from task instance host machine.
@@ -120,12 +122,12 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             # local machine even if there are errors reading remote logs, as
             # returned remote_log will contain error messages.
             remote_log = self.wasb_read(remote_loc, return_error=True)
-            log = '*** Reading remote log from {}.\n{}\n'.format(remote_loc, remote_log)
+            log = f'*** Reading remote log from {remote_loc}.\n{remote_log}\n'
             return log, {'end_of_log': True}
         else:
             return super()._read(ti, try_number)
 
-    def wasb_log_exists(self, remote_log_location):
+    def wasb_log_exists(self, remote_log_location: str) -> bool:
         """
         Check if remote_log_location exists in remote storage
 
@@ -138,7 +140,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             pass
         return False
 
-    def wasb_read(self, remote_log_location, return_error=False):
+    def wasb_read(self, remote_log_location: str, return_error: bool = False):
         """
         Returns the log found at the remote_log_location. Returns '' if no
         logs are found or there is an error.
@@ -152,13 +154,13 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         try:
             return self.hook.read_file(self.wasb_container, remote_log_location)
         except AzureHttpError:
-            msg = 'Could not read logs from {}'.format(remote_log_location)
+            msg = f'Could not read logs from {remote_log_location}'
             self.log.exception(msg)
             # return error if needed
             if return_error:
                 return msg
 
-    def wasb_write(self, log, remote_log_location, append=True):
+    def wasb_write(self, log: str, remote_log_location: str, append: bool = True) -> None:
         """
         Writes the log to the remote_log_location. Fails silently if no hook
         was created.

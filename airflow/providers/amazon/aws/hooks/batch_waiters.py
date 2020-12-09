@@ -102,7 +102,7 @@ class AwsBatchWaitersHook(AwsBatchClientHook):
     :type region_name: Optional[str]
     """
 
-    def __init__(self, *args, waiter_config: Optional[Dict] = None, **kwargs):
+    def __init__(self, *args, waiter_config: Optional[Dict] = None, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
 
@@ -189,7 +189,7 @@ class AwsBatchWaitersHook(AwsBatchClientHook):
         """
         return self.waiter_model.waiter_names
 
-    def wait_for_job(self, job_id: str, delay: Union[int, float, None] = None):
+    def wait_for_job(self, job_id: str, delay: Union[int, float, None] = None) -> None:
         """
         Wait for batch job to complete.  This assumes that the ``.waiter_model`` is configured
         using some variation of the ``.default_config`` so that it can generate waiters with the

@@ -26,7 +26,7 @@ dag = DAG(
     schedule_interval="@once",
     start_date=days_ago(2),
     default_args={'owner': 'airflow'},
-    tags=['example']
+    tags=['example'],
 )
 
 value_1 = [1, 2, 3]

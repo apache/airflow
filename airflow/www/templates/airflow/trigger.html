@@ -20,20 +20,20 @@
 {% extends base_template %}
 
 {% block content %}
-    {{ super() }}
-    <h2>Trigger DAG: {{ dag_id }}</h2>
-    <form method="POST">
-      <input name="csrf_token" type="hidden" value="{{ csrf_token() }}"/>
-      <input name="dag_id" type="hidden" value="{{ dag_id }}"/>
-      <input name="origin" type="hidden" value="{{ origin }}"/>
-      <div class="form-group">
-        <label for="conf">Configuration JSON (Optional)</label>
-        <textarea class="form-control" name="conf">{{ conf }}</textarea>
-      </div>
-      <p>
-        To access configuration in your DAG use <code>{{ '{{' }} dag_run.conf {{ '}}' }}</code>.
-      </p>
-      <input class="btn btn-primary" type="submit" value="Trigger"/>
-      <button class="btn" onclick="location.href = '{{ origin }}'; return false">Cancel</button>
-    </form>
+  {{ super() }}
+  <h2>Trigger DAG: {{ dag_id }}</h2>
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="dag_id" value="{{ dag_id }}">
+    <input type="hidden" name="origin" value="{{ origin }}">
+    <div class="form-group">
+      <label for="conf">Configuration JSON (Optional)</label>
+      <textarea class="form-control" name="conf">{{ conf }}</textarea>
+    </div>
+    <p>
+      To access configuration in your DAG use <code>{{ '{{ dag_run.conf }}' }}</code>.
+    </p>
+    <button type="submit" class="btn btn-primary">Trigger</button>
+    <button type="button" class="btn" onclick="location.href = '{{ origin }}'; return false">Cancel</button>
+  </form>
 {% endblock %}

@@ -35,12 +35,12 @@ derived from the moto test suite for testing the batch client.
 import inspect
 import unittest
 from typing import NamedTuple, Optional
+from unittest import mock
 
 import boto3
 import botocore.client
 import botocore.exceptions
 import botocore.waiter
-import mock
 import pytest
 from moto import mock_batch, mock_ec2, mock_ecs, mock_iam, mock_logs
 
@@ -198,7 +198,7 @@ def batch_infrastructure(
     assert resp["jobDefinitionArn"]
     job_definition_arn = resp["jobDefinitionArn"]
     assert resp["revision"]
-    assert resp["jobDefinitionArn"].endswith("{0}:{1}".format(resp["jobDefinitionName"], resp["revision"]))
+    assert resp["jobDefinitionArn"].endswith("{}:{}".format(resp["jobDefinitionName"], resp["revision"]))
 
     infrastructure.vpc_id = vpc_id
     infrastructure.subnet_id = subnet_id
@@ -229,6 +229,7 @@ def test_aws_batch_waiters(aws_region):
 @mock_ecs
 @mock_iam
 @mock_logs
+@pytest.mark.xfail(condition=True, reason="Inexplicable timeout issue when running this test. See PR 11020")
 def test_aws_batch_job_waiting(aws_clients, aws_region, job_queue_name, job_definition_name):
     """
     Submit batch jobs and wait for various job status indicators or errors.

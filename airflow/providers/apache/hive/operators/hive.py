@@ -120,9 +120,7 @@ class HiveOperator(BaseOperator):
         self.hook: Optional[HiveCliHook] = None
 
     def get_hook(self) -> HiveCliHook:
-        """
-        Get Hive cli hook
-        """
+        """Get Hive cli hook"""
         return HiveCliHook(
             hive_cli_conn_id=self.hive_cli_conn_id,
             run_as=self.run_as,
@@ -172,9 +170,7 @@ class HiveOperator(BaseOperator):
             self.hook.kill()
 
     def clear_airflow_vars(self) -> None:
-        """
-        Reset airflow environment variables to prevent existing ones from impacting behavior.
-        """
+        """Reset airflow environment variables to prevent existing ones from impacting behavior."""
         blank_env_vars = {
             value['env_var_format']: '' for value in operator_helpers.AIRFLOW_VAR_NAME_FORMAT_MAPPING.values()
         }

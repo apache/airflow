@@ -23,12 +23,13 @@ from typing import Optional
 
 from sqlalchemy import Column, Index, Integer, String
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import backref, relationship
+from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.orm.session import make_transient
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.models import DagRun
 from airflow.models.base import ID_LEN, Base
 from airflow.models.taskinstance import TaskInstance
 from airflow.stats import Stats
@@ -52,7 +53,9 @@ class BaseJob(Base, LoggingMixin):
     __tablename__ = "job"
 
     id = Column(Integer, primary_key=True)
-    dag_id = Column(String(ID_LEN),)
+    dag_id = Column(
+        String(ID_LEN),
+    )
     state = Column(String(20))
     job_type = Column(String(30))
     start_date = Column(UtcDateTime())
@@ -62,10 +65,7 @@ class BaseJob(Base, LoggingMixin):
     hostname = Column(String(500))
     unixname = Column(String(1000))
 
-    __mapper_args__ = {
-        'polymorphic_on': job_type,
-        'polymorphic_identity': 'BaseJob'
-    }
+    __mapper_args__ = {'polymorphic_on': job_type, 'polymorphic_identity': 'BaseJob'}
 
     __table_args__ = (
         Index('job_type_heart', job_type, latest_heartbeat),
@@ -74,10 +74,16 @@ class BaseJob(Base, LoggingMixin):
 
     task_instances_enqueued = relationship(
         TaskInstance,
-        primaryjoin=id == TaskInstance.queued_by_job_id,
-        foreign_keys=id,
+        primaryjoin=id == foreign(TaskInstance.queued_by_job_id),
         backref=backref('queued_by_job', uselist=False),
     )
+
+    dag_runs = relationship(
+        DagRun,
+        primaryjoin=id == foreign(DagRun.creating_job_id),
+        backref=backref('creating_job'),
+    )
+
     """
     TaskInstances which have been enqueued by this Job.
 
@@ -86,11 +92,7 @@ class BaseJob(Base, LoggingMixin):
 
     heartrate = conf.getfloat('scheduler', 'JOB_HEARTBEAT_SEC')
 
-    def __init__(
-            self,
-            executor=None,
-            heartrate=None,
-            *args, **kwargs):
+    def __init__(self, executor=None, heartrate=None, *args, **kwargs):
         self.hostname = get_hostname()
         self.executor = executor or ExecutorLoader.get_default_executor()
         self.executor_class = self.executor.__class__.__name__
@@ -130,15 +132,14 @@ class BaseJob(Base, LoggingMixin):
         :rtype: boolean
         """
         return (
-            self.state == State.RUNNING and
-            (timezone.utcnow() - self.latest_heartbeat).total_seconds() < self.heartrate * grace_multiplier
+            self.state == State.RUNNING
+            and (timezone.utcnow() - self.latest_heartbeat).total_seconds()
+            < self.heartrate * grace_multiplier
         )
 
     @provide_session
     def kill(self, session=None):
-        """
-        Handles on_kill callback and updates state in database.
-        """
+        """Handles on_kill callback and updates state in database."""
         job = session.query(BaseJob).filter(BaseJob.id == self.id).first()
         job.end_date = timezone.utcnow()
         try:
@@ -150,14 +151,10 @@ class BaseJob(Base, LoggingMixin):
         raise AirflowException("Job shut down externally.")
 
     def on_kill(self):
-        """
-        Will be called when an external kill command is received
-        """
+        """Will be called when an external kill command is received"""
 
     def heartbeat_callback(self, session=None):
-        """
-        Callback that is called during heartbeat. This method should be overwritten.
-        """
+        """Callback that is called during heartbeat. This method should be overwritten."""
 
     def heartbeat(self, only_if_necessary: bool = False):
         """
@@ -203,15 +200,15 @@ class BaseJob(Base, LoggingMixin):
             # Figure out how long to sleep for
             sleep_for = 0
             if self.latest_heartbeat:
-                seconds_remaining = self.heartrate - \
-                    (timezone.utcnow() - self.latest_heartbeat)\
-                    .total_seconds()
+                seconds_remaining = (
+                    self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
+                )
                 sleep_for = max(0, seconds_remaining)
             sleep(sleep_for)
 
             # Update last heartbeat time
             with create_session() as session:
-                # Make the sesion aware of this object
+                # Make the session aware of this object
                 session.merge(self)
                 self.latest_heartbeat = timezone.utcnow()
                 session.commit()
@@ -221,17 +218,13 @@ class BaseJob(Base, LoggingMixin):
                 self.heartbeat_callback(session=session)
                 self.log.debug('[heartbeat]')
         except OperationalError:
-            Stats.incr(
-                convert_camel_to_snake(self.__class__.__name__) + '_heartbeat_failure', 1,
-                1)
+            Stats.incr(convert_camel_to_snake(self.__class__.__name__) + '_heartbeat_failure', 1, 1)
             self.log.exception("%s heartbeat got an exception", self.__class__.__name__)
             # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
             self.latest_heartbeat = previous_heartbeat
 
     def run(self):
-        """
-        Starts the job.
-        """
+        """Starts the job."""
         Stats.incr(self.__class__.__name__.lower() + '_start', 1, 1)
         # Adding an entry in the DB
         with create_session() as session:

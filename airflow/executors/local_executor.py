@@ -22,16 +22,22 @@ LocalExecutor
     For more information on how the LocalExecutor works, take a look at the guide:
     :ref:`executor:LocalExecutor`
 """
+import os
 import subprocess
+from abc import abstractmethod
 from multiprocessing import Manager, Process
 from multiprocessing.managers import SyncManager
 from queue import Empty, Queue  # pylint: disable=unused-import  # noqa: F401
 from typing import Any, List, Optional, Tuple, Union  # pylint: disable=unused-import # noqa: F401
 
+from setproctitle import setproctitle  # pylint: disable=no-name-in-module
+
+from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, PARALLELISM, BaseExecutor, CommandType
 from airflow.models.taskinstance import (  # pylint: disable=unused-import # noqa: F401
-    TaskInstanceKey, TaskInstanceStateType,
+    TaskInstanceKey,
+    TaskInstanceStateType,
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
@@ -49,10 +55,17 @@ class LocalWorkerBase(Process, LoggingMixin):
 
     :param result_queue: the queue to store result state
     """
+
     def __init__(self, result_queue: 'Queue[TaskInstanceStateType]'):
-        super().__init__()
+        super().__init__(target=self.do_work)
         self.daemon: bool = True
         self.result_queue: 'Queue[TaskInstanceStateType]' = result_queue
+
+    def run(self):
+        # We know we've just started a new process, so lets disconnect from the metadata db now
+        settings.engine.pool.dispose()
+        settings.engine.dispose()
+        return super().run()
 
     def execute_work(self, key: TaskInstanceKey, command: CommandType) -> None:
         """
@@ -63,14 +76,62 @@ class LocalWorkerBase(Process, LoggingMixin):
         """
         if key is None:
             return
+
         self.log.info("%s running %s", self.__class__.__name__, command)
+        if settings.EXECUTE_TASKS_NEW_PYTHON_INTERPRETER:
+            state = self._execute_work_in_subprocess(command)
+        else:
+            state = self._execute_work_in_fork(command)
+
+        self.result_queue.put((key, state))
+
+    def _execute_work_in_subprocess(self, command: CommandType) -> str:
         try:
             subprocess.check_call(command, close_fds=True)
-            state = State.SUCCESS
+            return State.SUCCESS
         except subprocess.CalledProcessError as e:
-            state = State.FAILED
             self.log.error("Failed to execute task %s.", str(e))
-        self.result_queue.put((key, state))
+            return State.FAILED
+
+    def _execute_work_in_fork(self, command: CommandType) -> str:
+        pid = os.fork()
+        if pid:
+            # In parent, wait for the child
+            pid, ret = os.waitpid(pid, 0)
+            return State.SUCCESS if ret == 0 else State.FAILED
+
+        from airflow.sentry import Sentry
+
+        ret = 1
+        try:
+            import signal
+
+            from airflow.cli.cli_parser import get_parser
+
+            signal.signal(signal.SIGINT, signal.SIG_DFL)
+            signal.signal(signal.SIGTERM, signal.SIG_DFL)
+            signal.signal(signal.SIGUSR2, signal.SIG_DFL)
+
+            parser = get_parser()
+            # [1:] - remove "airflow" from the start of the command
+            args = parser.parse_args(command[1:])
+
+            setproctitle(f"airflow task supervisor: {command}")
+
+            args.func(args)
+            ret = 0
+            return State.SUCCESS
+        except Exception as e:  # pylint: disable=broad-except
+            self.log.error("Failed to execute task %s.", str(e))
+        finally:
+            Sentry.flush()
+            os._exit(ret)  # pylint: disable=protected-access
+            raise RuntimeError('unreachable -- keep mypy happy')
+
+    @abstractmethod
+    def do_work(self):
+        """Called in the subprocess and should then execute tasks"""
+        raise NotImplementedError()
 
 
 class LocalWorker(LocalWorkerBase):
@@ -81,15 +142,15 @@ class LocalWorker(LocalWorkerBase):
     :param key: key identifying task instance
     :param command: Command to execute
     """
-    def __init__(self,
-                 result_queue: 'Queue[TaskInstanceStateType]',
-                 key: TaskInstanceKey,
-                 command: CommandType):
+
+    def __init__(
+        self, result_queue: 'Queue[TaskInstanceStateType]', key: TaskInstanceKey, command: CommandType
+    ):
         super().__init__(result_queue)
         self.key: TaskInstanceKey = key
         self.command: CommandType = command
 
-    def run(self) -> None:
+    def do_work(self) -> None:
         self.execute_work(key=self.key, command=self.command)
 
 
@@ -102,13 +163,12 @@ class QueuedLocalWorker(LocalWorkerBase):
     :param task_queue: queue from which worker reads tasks
     :param result_queue: queue where worker puts results after finishing tasks
     """
-    def __init__(self,
-                 task_queue: 'Queue[ExecutorWorkType]',
-                 result_queue: 'Queue[TaskInstanceStateType]'):
+
+    def __init__(self, task_queue: 'Queue[ExecutorWorkType]', result_queue: 'Queue[TaskInstanceStateType]'):
         super().__init__(result_queue=result_queue)
         self.task_queue = task_queue
 
-    def run(self) -> None:
+    def do_work(self) -> None:
         while True:
             key, command = self.task_queue.get()
             try:
@@ -128,6 +188,7 @@ class LocalExecutor(BaseExecutor):
 
     :param parallelism: how many parallel processes are run in the executor
     """
+
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__(parallelism=parallelism)
         self.manager: Optional[SyncManager] = None
@@ -135,8 +196,9 @@ class LocalExecutor(BaseExecutor):
         self.workers: List[QueuedLocalWorker] = []
         self.workers_used: int = 0
         self.workers_active: int = 0
-        self.impl: Optional[Union['LocalExecutor.UnlimitedParallelism',
-                                  'LocalExecutor.LimitedParallelism']] = None
+        self.impl: Optional[
+            Union['LocalExecutor.UnlimitedParallelism', 'LocalExecutor.LimitedParallelism']
+        ] = None
 
     class UnlimitedParallelism:
         """
@@ -145,6 +207,7 @@ class LocalExecutor(BaseExecutor):
 
         :param executor: the executor instance to implement.
         """
+
         def __init__(self, executor: 'LocalExecutor'):
             self.executor: 'LocalExecutor' = executor
 
@@ -154,11 +217,13 @@ class LocalExecutor(BaseExecutor):
             self.executor.workers_active = 0
 
         # pylint: disable=unused-argument # pragma: no cover
-        def execute_async(self,
-                          key: TaskInstanceKey,
-                          command: CommandType,
-                          queue: Optional[str] = None,
-                          executor_config: Optional[Any] = None) -> None:
+        def execute_async(
+            self,
+            key: TaskInstanceKey,
+            command: CommandType,
+            queue: Optional[str] = None,
+            executor_config: Optional[Any] = None,
+        ) -> None:
             """
             Executes task asynchronously.
 
@@ -176,9 +241,7 @@ class LocalExecutor(BaseExecutor):
 
         # pylint: enable=unused-argument # pragma: no cover
         def sync(self) -> None:
-            """
-            Sync will get called periodically by the heartbeat method.
-            """
+            """Sync will get called periodically by the heartbeat method."""
             if not self.executor.result_queue:
                 raise AirflowException("Executor should be started first")
             while not self.executor.result_queue.empty():
@@ -202,6 +265,7 @@ class LocalExecutor(BaseExecutor):
 
         :param executor: the executor instance to implement.
         """
+
         def __init__(self, executor: 'LocalExecutor'):
             self.executor: 'LocalExecutor' = executor
             self.queue: Optional['Queue[ExecutorWorkType]'] = None
@@ -228,7 +292,7 @@ class LocalExecutor(BaseExecutor):
             key: TaskInstanceKey,
             command: CommandType,
             queue: Optional[str] = None,  # pylint: disable=unused-argument
-            executor_config: Optional[Any] = None  # pylint: disable=unused-argument
+            executor_config: Optional[Any] = None,  # pylint: disable=unused-argument
         ) -> None:
             """
             Executes task asynchronously.
@@ -243,9 +307,7 @@ class LocalExecutor(BaseExecutor):
             self.queue.put((key, command))
 
         def sync(self):
-            """
-            Sync will get called periodically by the heartbeat method.
-            """
+            """Sync will get called periodically by the heartbeat method."""
             while True:
                 try:
                     results = self.executor.result_queue.get_nowait()
@@ -272,15 +334,21 @@ class LocalExecutor(BaseExecutor):
         self.workers = []
         self.workers_used = 0
         self.workers_active = 0
-        self.impl = (LocalExecutor.UnlimitedParallelism(self) if self.parallelism == 0
-                     else LocalExecutor.LimitedParallelism(self))
+        self.impl = (
+            LocalExecutor.UnlimitedParallelism(self)
+            if self.parallelism == 0
+            else LocalExecutor.LimitedParallelism(self)
+        )
 
         self.impl.start()
 
-    def execute_async(self, key: TaskInstanceKey,
-                      command: CommandType,
-                      queue: Optional[str] = None,
-                      executor_config: Optional[Any] = None) -> None:
+    def execute_async(
+        self,
+        key: TaskInstanceKey,
+        command: CommandType,
+        queue: Optional[str] = None,
+        executor_config: Optional[Any] = None,
+    ) -> None:
         """Execute asynchronously."""
         if not self.impl:
             raise AirflowException(NOT_STARTED_MESSAGE)
@@ -290,9 +358,7 @@ class LocalExecutor(BaseExecutor):
         self.impl.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
 
     def sync(self) -> None:
-        """
-        Sync will get called periodically by the heartbeat method.
-        """
+        """Sync will get called periodically by the heartbeat method."""
         if not self.impl:
             raise AirflowException(NOT_STARTED_MESSAGE)
         self.impl.sync()

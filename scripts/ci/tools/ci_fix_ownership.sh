@@ -22,10 +22,19 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-docker-compose \
-    -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
-    -f "${SCRIPTS_CI_DIR}/docker-compose/local.yml" \
-    -f "${SCRIPTS_CI_DIR}/docker-compose/files.yml" \
-    -f "${SCRIPTS_CI_DIR}/docker-compose/forward-credentials.yml" \
-    run --entrypoint /bin/bash \
-    airflow -c /opt/airflow/scripts/in_container/run_fix_ownership.sh
+if [[ ${OSTYPE} == "darwin"* ]]; then
+    # No need to fix ownership on MacOS - the filesystem there takes care about ownership mapping
+    exit
+fi
+
+declare -a EXTRA_DOCKER_FLAGS
+
+sanity_checks::sanitize_mounted_files
+
+read -r -a EXTRA_DOCKER_FLAGS <<<"$(local_mounts::convert_local_mounts_to_docker_params)"
+
+docker run --entrypoint /bin/bash "${EXTRA_DOCKER_FLAGS[@]}" \
+    --rm \
+    --env-file "${AIRFLOW_SOURCES}/scripts/ci/libraries/_docker.env" \
+    "${AIRFLOW_CI_IMAGE}" \
+    -c /opt/airflow/scripts/in_container/run_fix_ownership.sh

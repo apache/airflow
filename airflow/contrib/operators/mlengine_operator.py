@@ -20,13 +20,16 @@
 import warnings
 
 from airflow.providers.google.cloud.operators.mlengine import (
-    MLEngineManageModelOperator, MLEngineManageVersionOperator, MLEngineStartBatchPredictionJobOperator,
+    MLEngineManageModelOperator,
+    MLEngineManageVersionOperator,
+    MLEngineStartBatchPredictionJobOperator,
     MLEngineStartTrainingJobOperator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.mlengine`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 
@@ -41,7 +44,8 @@ class MLEngineBatchPredictionOperator(MLEngineStartBatchPredictionJobOperator):
             """This class is deprecated.
             Please use
             `airflow.providers.google.cloud.operators.mlengine.MLEngineStartBatchPredictionJobOperator`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)
 
@@ -56,7 +60,8 @@ class MLEngineModelOperator(MLEngineManageModelOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.mlengine.MLEngineManageModelOperator`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)
 
@@ -72,7 +77,8 @@ class MLEngineTrainingOperator(MLEngineStartTrainingJobOperator):
             """This class is deprecated.
             Please use
             `airflow.providers.google.cloud.operators.mlengine.MLEngineStartTrainingJobOperator`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)
 
@@ -88,6 +94,7 @@ class MLEngineVersionOperator(MLEngineManageVersionOperator):
             """This class is deprecated.
             Please use
             `airflow.providers.google.cloud.operators.mlengine.MLEngineManageVersionOperator`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)

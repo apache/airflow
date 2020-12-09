@@ -16,8 +16,7 @@
 # under the License.
 
 import unittest
-
-import mock
+from unittest import mock
 
 from airflow.providers.oracle.hooks.oracle import OracleHook
 from airflow.providers.oracle.operators.oracle import OracleOperator

@@ -21,6 +21,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 import pandas as pd
+from numpy import nan
 from simple_salesforce import Salesforce
 
 from airflow.models.connection import Connection
@@ -54,7 +55,7 @@ class TestSalesforceHook(unittest.TestCase):
             password=mock_get_connection.return_value.password,
             security_token=mock_get_connection.return_value.extra_dejson["security_token"],
             instance_url=mock_get_connection.return_value.host,
-            domain=mock_get_connection.return_value.extra_dejson.get("domain", None),
+            domain=mock_get_connection.return_value.extra_dejson.get("domain"),
         )
 
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
@@ -108,7 +109,7 @@ class TestSalesforceHook(unittest.TestCase):
 
     @patch(
         "airflow.providers.salesforce.hooks.salesforce.pd.DataFrame.from_records",
-        return_value=pd.DataFrame({"test": [1, 2, 3], "dict": [None, None, {"foo": "bar"}]}),
+        return_value=pd.DataFrame({"test": [1, 2, 3], "dict": [nan, nan, {"foo": "bar"}]}),
     )
     def test_write_object_to_file_csv(self, mock_data_frame):
         mock_data_frame.return_value.to_csv = Mock()
@@ -117,8 +118,11 @@ class TestSalesforceHook(unittest.TestCase):
         data_frame = self.salesforce_hook.write_object_to_file(query_results=[], filename=filename, fmt="csv")
 
         mock_data_frame.return_value.to_csv.assert_called_once_with(filename, index=False)
+        # Note that the latest version of pandas dataframes (1.1.2) returns "nan" rather than "None" here
         pd.testing.assert_frame_equal(
-            data_frame, pd.DataFrame({"test": [1, 2, 3], "dict": ["None", "None", str({"foo": "bar"})]})
+            data_frame,
+            pd.DataFrame({"test": [1, 2, 3], "dict": ["nan", "nan", str({"foo": "bar"})]}),
+            check_index_type=False,
         )
 
     @patch(

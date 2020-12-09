@@ -44,7 +44,7 @@ COMMAND_MAP = {
     "pool": "pools",
     "list_users": "users list",
     "create_user": "users create",
-    "delete_user": "users delete"
+    "delete_user": "users delete",
 }
 
 

@@ -28,6 +28,7 @@ class SlaMiss(Base):
     It is used to keep track of SLA failures over time and to avoid double
     triggering alert emails.
     """
+
     __tablename__ = "sla_miss"
 
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
@@ -38,10 +39,7 @@ class SlaMiss(Base):
     description = Column(Text)
     notification_sent = Column(Boolean, default=False)
 
-    __table_args__ = (
-        Index('sm_dag', dag_id, unique=False),
-    )
+    __table_args__ = (Index('sm_dag', dag_id, unique=False),)
 
     def __repr__(self):
-        return str((
-            self.dag_id, self.task_id, self.execution_date.isoformat()))
+        return str((self.dag_id, self.task_id, self.execution_date.isoformat()))

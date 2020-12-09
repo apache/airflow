@@ -14,25 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import inspect
+from typing import Any, List, Optional, Union
 
-import logging
-import shutil
-from pprint import pprint
+from rich.console import Console
 
 from airflow import plugins_manager
+from airflow.cli.simple_table import SimpleTable
+from airflow.configuration import conf
+from airflow.plugins_manager import PluginsDirectorySource
 
 # list to maintain the order of items.
+from airflow.utils.cli import suppress_logs_and_warning
+
 PLUGINS_MANAGER_ATTRIBUTES_TO_DUMP = [
     "plugins",
     "import_errors",
-    "operators_modules",
-    "sensors_modules",
-    "hooks_modules",
     "macros_modules",
     "executors_modules",
-    "admin_views",
     "flask_blueprints",
-    "menu_links",
     "flask_appbuilder_views",
     "flask_appbuilder_menu_links",
     "global_operator_extra_links",
@@ -41,53 +41,70 @@ PLUGINS_MANAGER_ATTRIBUTES_TO_DUMP = [
 ]
 # list to maintain the order of items.
 PLUGINS_ATTRIBUTES_TO_DUMP = [
-    "operators",
-    "sensors",
     "hooks",
     "executors",
     "macros",
-    "admin_views",
     "flask_blueprints",
-    "menu_links",
     "appbuilder_views",
     "appbuilder_menu_items",
     "global_operator_extra_links",
     "operator_extra_links",
+    "source",
 ]
 
 
-def _header(text, fillchar):
-    terminal_size_size = shutil.get_terminal_size((80, 20))
-    print(f" {text} ".center(terminal_size_size.columns, fillchar))
+def _get_name(class_like_object) -> str:
+    if isinstance(class_like_object, (str, PluginsDirectorySource)):
+        return str(class_like_object)
+    if inspect.isclass(class_like_object):
+        return class_like_object.__name__
+    return class_like_object.__class__.__name__
 
 
+def _join_plugins_names(value: Union[List[Any], Any]) -> str:
+    value = value if isinstance(value, list) else [value]
+    return ",".join(_get_name(v) for v in value)
+
+
+@suppress_logs_and_warning()
 def dump_plugins(args):
     """Dump plugins information"""
-    plugins_manager.log.setLevel(logging.DEBUG)
-
     plugins_manager.ensure_plugins_loaded()
-    plugins_manager.integrate_dag_plugins()
+    plugins_manager.integrate_macros_plugins()
     plugins_manager.integrate_executor_plugins()
     plugins_manager.initialize_extra_operators_links_plugins()
     plugins_manager.initialize_web_ui_plugins()
-
-    _header("PLUGINS MANGER:", "#")
-
-    for attr_name in PLUGINS_MANAGER_ATTRIBUTES_TO_DUMP:
-        attr_value = getattr(plugins_manager, attr_name)
-        print(f"{attr_name} = ", end='')
-        pprint(attr_value)
-    print()
-
-    _header("PLUGINS:", "#")
     if not plugins_manager.plugins:
         print("No plugins loaded")
-    else:
-        print(f"Loaded {len(plugins_manager.plugins)} plugins")
-        for plugin_no, plugin in enumerate(plugins_manager.plugins, 1):
-            _header(f"{plugin_no}. {plugin.name}", "=")
-            for attr_name in PLUGINS_ATTRIBUTES_TO_DUMP:
-                attr_value = getattr(plugin, attr_name)
-                print(f"{attr_name} = ", end='')
-                pprint(attr_value)
-            print()
+        return
+
+    console = Console()
+    console.print("[bold yellow]SUMMARY:[/bold yellow]")
+    console.print(
+        f"[bold green]Plugins directory[/bold green]: {conf.get('core', 'plugins_folder')}\n", highlight=False
+    )
+    console.print(
+        f"[bold green]Loaded plugins[/bold green]: {len(plugins_manager.plugins)}\n", highlight=False
+    )
+
+    for attr_name in PLUGINS_MANAGER_ATTRIBUTES_TO_DUMP:
+        attr_value: Optional[List[Any]] = getattr(plugins_manager, attr_name)
+        if not attr_value:
+            continue
+        table = SimpleTable(title=attr_name.capitalize().replace("_", " "))
+        table.add_column(width=100)
+        for item in attr_value:  # pylint: disable=not-an-iterable
+            table.add_row(
+                f"- {_get_name(item)}",
+            )
+        console.print(table)
+
+    console.print("[bold yellow]DETAILED INFO:[/bold yellow]")
+    for plugin in plugins_manager.plugins:
+        table = SimpleTable(title=plugin.name)
+        for attr_name in PLUGINS_ATTRIBUTES_TO_DUMP:
+            value = getattr(plugin, attr_name)
+            if not value:
+                continue
+            table.add_row(attr_name.capitalize().replace("_", " "), _join_plugins_names(value))
+        console.print(table)

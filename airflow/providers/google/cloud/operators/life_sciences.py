@@ -83,13 +83,13 @@ class LifeSciencesRunPipelineOperator(BaseOperator):
         self._validate_inputs()
         self.impersonation_chain = impersonation_chain
 
-    def _validate_inputs(self):
+    def _validate_inputs(self) -> None:
         if not self.body:
             raise AirflowException("The required parameter 'body' is missing")
         if not self.location:
             raise AirflowException("The required parameter 'location' is missing")
 
-    def execute(self, context):
+    def execute(self, context) -> dict:
         hook = LifeSciencesHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,

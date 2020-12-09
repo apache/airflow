@@ -19,6 +19,4 @@
 
 import warnings
 
-warnings.warn(
-    "This module is deprecated.", DeprecationWarning, stacklevel=2
-)
+warnings.warn("This module is deprecated.", DeprecationWarning, stacklevel=2)

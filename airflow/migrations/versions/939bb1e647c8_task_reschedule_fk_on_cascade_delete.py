@@ -32,30 +32,24 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():   # noqa: D103
+def upgrade():  # noqa: D103
     with op.batch_alter_table('task_reschedule') as batch_op:
-        batch_op.drop_constraint(
-            'task_reschedule_dag_task_date_fkey',
-            type_='foreignkey'
-        )
+        batch_op.drop_constraint('task_reschedule_dag_task_date_fkey', type_='foreignkey')
         batch_op.create_foreign_key(
             'task_reschedule_dag_task_date_fkey',
             'task_instance',
             ['task_id', 'dag_id', 'execution_date'],
             ['task_id', 'dag_id', 'execution_date'],
-            ondelete='CASCADE'
+            ondelete='CASCADE',
         )
 
 
-def downgrade():   # noqa: D103
+def downgrade():  # noqa: D103
     with op.batch_alter_table('task_reschedule') as batch_op:
-        batch_op.drop_constraint(
-            'task_reschedule_dag_task_date_fkey',
-            type_='foreignkey'
-        )
+        batch_op.drop_constraint('task_reschedule_dag_task_date_fkey', type_='foreignkey')
         batch_op.create_foreign_key(
             'task_reschedule_dag_task_date_fkey',
             'task_instance',
             ['task_id', 'dag_id', 'execution_date'],
-            ['task_id', 'dag_id', 'execution_date']
+            ['task_id', 'dag_id', 'execution_date'],
         )

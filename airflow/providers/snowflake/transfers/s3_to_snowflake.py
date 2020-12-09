@@ -16,9 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains AWS S3 to Snowflake operator.
-"""
+"""This module contains AWS S3 to Snowflake operator."""
+from typing import Any, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
@@ -29,12 +28,16 @@ class S3ToSnowflakeOperator(BaseOperator):
     """
     Executes an COPY command to load files from s3 to Snowflake
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3ToSnowflakeOperator`
+
     :param s3_keys: reference to a list of S3 keys
     :type s3_keys: list
     :param table: reference to a specific table in snowflake database
     :type table: str
-    :param s3_bucket: reference to a specific S3 bucket
-    :type s3_bucket: str
+    :param stage: reference to a specific snowflake stage
+    :type stage: str
     :param file_format: reference to a specific file format
     :type file_format: str
     :param schema: reference to a specific schema in snowflake database
@@ -49,16 +52,16 @@ class S3ToSnowflakeOperator(BaseOperator):
     def __init__(
         self,
         *,
-        s3_keys,
-        table,
-        stage,
-        file_format,
-        schema,  # TODO: shouldn't be required, rely on session/user defaults
-        columns_array=None,
-        autocommit=True,
-        snowflake_conn_id='snowflake_default',
+        s3_keys: list,
+        table: str,
+        stage: Any,
+        file_format: str,
+        schema: str,  # TODO: shouldn't be required, rely on session/user defaults
+        columns_array: Optional[list] = None,
+        autocommit: bool = True,
+        snowflake_conn_id: str = 'snowflake_default',
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.s3_keys = s3_keys
         self.table = table
@@ -69,7 +72,7 @@ class S3ToSnowflakeOperator(BaseOperator):
         self.autocommit = autocommit
         self.snowflake_conn_id = snowflake_conn_id
 
-    def execute(self, context):
+    def execute(self, context: Any) -> None:
         snowflake_hook = SnowflakeHook(snowflake_conn_id=self.snowflake_conn_id)
 
         # Snowflake won't accept list of files it has to be tuple only.

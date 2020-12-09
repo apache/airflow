@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Iterable
+from typing import Iterable, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -70,7 +70,16 @@ class S3ListOperator(BaseOperator):
     ui_color = '#ffd700'
 
     @apply_defaults
-    def __init__(self, *, bucket, prefix='', delimiter='', aws_conn_id='aws_default', verify=None, **kwargs):
+    def __init__(
+        self,
+        *,
+        bucket: str,
+        prefix: str = '',
+        delimiter: str = '',
+        aws_conn_id: str = 'aws_default',
+        verify: Optional[Union[str, bool]] = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.bucket = bucket
         self.prefix = prefix

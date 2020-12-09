@@ -29,7 +29,9 @@ class TestGoogleOpenID(unittest.TestCase):
     def setUp(self) -> None:
         with conf_vars(
             {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
-        ), mock.patch.dict('os.environ', SKIP_DAGS_PARSING='True'):
+        ), mock.patch.dict('os.environ', SKIP_DAGS_PARSING='True'), conf_vars(
+            {('api', 'enable_experimental_api'): 'true'}
+        ):
             self.app = create_app(testing=True)
 
         self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
@@ -49,9 +51,7 @@ class TestGoogleOpenID(unittest.TestCase):
         clear_db_pools()
 
         with self.app.test_client() as test_client:
-            response = test_client.get(
-                "/api/experimental/pools", environ_overrides={'REMOTE_USER': "test"}
-            )
+            response = test_client.get("/api/experimental/pools", environ_overrides={'REMOTE_USER': "test"})
             self.assertEqual("test@fab.org", current_user.email)
 
         self.assertEqual(200, response.status_code)

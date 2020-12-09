@@ -43,9 +43,8 @@ XCOM_RETURN_KEY = 'return_value'
 
 
 class BaseXCom(Base, LoggingMixin):
-    """
-    Base class for XCom objects.
-    """
+    """Base class for XCom objects."""
+
     __tablename__ = "xcom"
 
     key = Column(String(512, **COLLATION_ARGS), primary_key=True)
@@ -57,10 +56,6 @@ class BaseXCom(Base, LoggingMixin):
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
 
-    """
-    TODO: "pickling" has been deprecated and JSON is preferred.
-          "pickling" will be removed in Airflow 2.0.
-    """
     @reconstructor
     def init_on_load(self):
         """
@@ -68,7 +63,7 @@ class BaseXCom(Base, LoggingMixin):
         i.e automatically deserialize Xcom value when loading from DB.
         """
         try:
-            self.value = XCom.deserialize_value(self)
+            self.value = self.orm_deserialize_value()
         except (UnicodeEncodeError, ValueError):
             # For backward-compatibility.
             # Preventing errors in webserver
@@ -77,24 +72,14 @@ class BaseXCom(Base, LoggingMixin):
 
     def __repr__(self):
         return '<XCom "{key}" ({task_id} @ {execution_date})>'.format(
-            key=self.key,
-            task_id=self.task_id,
-            execution_date=self.execution_date)
+            key=self.key, task_id=self.task_id, execution_date=self.execution_date
+        )
 
     @classmethod
     @provide_session
-    def set(
-            cls,
-            key,
-            value,
-            execution_date,
-            task_id,
-            dag_id,
-            session=None):
+    def set(cls, key, value, execution_date, task_id, dag_id, session=None):
         """
         Store an XCom value.
-        TODO: "pickling" has been deprecated and JSON is preferred.
-        "pickling" will be removed in Airflow 2.0.
 
         :return: None
         """
@@ -104,32 +89,27 @@ class BaseXCom(Base, LoggingMixin):
 
         # remove any duplicate XComs
         session.query(cls).filter(
-            cls.key == key,
-            cls.execution_date == execution_date,
-            cls.task_id == task_id,
-            cls.dag_id == dag_id).delete()
+            cls.key == key, cls.execution_date == execution_date, cls.task_id == task_id, cls.dag_id == dag_id
+        ).delete()
 
         session.commit()
 
         # insert new XCom
-        session.add(XCom(
-            key=key,
-            value=value,
-            execution_date=execution_date,
-            task_id=task_id,
-            dag_id=dag_id))
+        session.add(XCom(key=key, value=value, execution_date=execution_date, task_id=task_id, dag_id=dag_id))
 
         session.commit()
 
     @classmethod
     @provide_session
-    def get_one(cls,
-                execution_date: pendulum.DateTime,
-                key: Optional[str] = None,
-                task_id: Optional[Union[str, Iterable[str]]] = None,
-                dag_id: Optional[Union[str, Iterable[str]]] = None,
-                include_prior_dates: bool = False,
-                session: Session = None) -> Optional[Any]:
+    def get_one(
+        cls,
+        execution_date: pendulum.DateTime,
+        key: Optional[str] = None,
+        task_id: Optional[Union[str, Iterable[str]]] = None,
+        dag_id: Optional[Union[str, Iterable[str]]] = None,
+        include_prior_dates: bool = False,
+        session: Session = None,
+    ) -> Optional[Any]:
         """
         Retrieve an XCom value, optionally meeting certain criteria. Returns None
         of there are no results.
@@ -152,26 +132,30 @@ class BaseXCom(Base, LoggingMixin):
         :param session: database session
         :type session: sqlalchemy.orm.session.Session
         """
-        result = cls.get_many(execution_date=execution_date,
-                              key=key,
-                              task_ids=task_id,
-                              dag_ids=dag_id,
-                              include_prior_dates=include_prior_dates,
-                              session=session).first()
+        result = cls.get_many(
+            execution_date=execution_date,
+            key=key,
+            task_ids=task_id,
+            dag_ids=dag_id,
+            include_prior_dates=include_prior_dates,
+            session=session,
+        ).first()
         if result:
             return result.value
         return None
 
     @classmethod
     @provide_session
-    def get_many(cls,
-                 execution_date: pendulum.DateTime,
-                 key: Optional[str] = None,
-                 task_ids: Optional[Union[str, Iterable[str]]] = None,
-                 dag_ids: Optional[Union[str, Iterable[str]]] = None,
-                 include_prior_dates: bool = False,
-                 limit: Optional[int] = None,
-                 session: Session = None) -> Query:
+    def get_many(
+        cls,
+        execution_date: pendulum.DateTime,
+        key: Optional[str] = None,
+        task_ids: Optional[Union[str, Iterable[str]]] = None,
+        dag_ids: Optional[Union[str, Iterable[str]]] = None,
+        include_prior_dates: bool = False,
+        limit: Optional[int] = None,
+        session: Session = None,
+    ) -> Query:
         """
         Composes a query to get one or more values from the xcom table.
 
@@ -219,10 +203,11 @@ class BaseXCom(Base, LoggingMixin):
         else:
             filters.append(cls.execution_date == execution_date)
 
-        query = (session
-                 .query(cls)
-                 .filter(and_(*filters))
-                 .order_by(cls.execution_date.desc(), cls.timestamp.desc()))
+        query = (
+            session.query(cls)
+            .filter(and_(*filters))
+            .order_by(cls.execution_date.desc(), cls.timestamp.desc())
+        )
 
         if limit:
             return query.limit(limit)
@@ -237,45 +222,56 @@ class BaseXCom(Base, LoggingMixin):
             xcoms = [xcoms]
         for xcom in xcoms:
             if not isinstance(xcom, XCom):
-                raise TypeError(
-                    'Expected XCom; received {}'.format(xcom.__class__.__name__)
-                )
+                raise TypeError(f'Expected XCom; received {xcom.__class__.__name__}')
             session.delete(xcom)
         session.commit()
 
     @staticmethod
     def serialize_value(value: Any):
         """Serialize Xcom value to str or pickled object"""
-        # TODO: "pickling" has been deprecated and JSON is preferred.
-        # "pickling" will be removed in Airflow 2.0.
         if conf.getboolean('core', 'enable_xcom_pickling'):
             return pickle.dumps(value)
         try:
             return json.dumps(value).encode('UTF-8')
         except (ValueError, TypeError):
-            log.error("Could not serialize the XCOM value into JSON. "
-                      "If you are using pickles instead of JSON "
-                      "for XCOM, then you need to enable pickle "
-                      "support for XCOM in your airflow config.")
+            log.error(
+                "Could not serialize the XCom value into JSON. "
+                "If you are using pickles instead of JSON "
+                "for XCom, then you need to enable pickle "
+                "support for XCom in your airflow config."
+            )
             raise
 
     @staticmethod
-    def deserialize_value(result) -> Any:
-        """Deserialize Xcom value from str or pickle object"""
-        # TODO: "pickling" has been deprecated and JSON is preferred.
-        # "pickling" will be removed in Airflow 2.0.
+    def deserialize_value(result: "XCom") -> Any:
+        """Deserialize XCom value from str or pickle object"""
         enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
         if enable_pickling:
-            return pickle.loads(result.value)
-
+            try:
+                return pickle.loads(result.value)
+            except pickle.UnpicklingError:
+                return json.loads(result.value.decode('UTF-8'))
         try:
             return json.loads(result.value.decode('UTF-8'))
         except JSONDecodeError:
-            log.error("Could not deserialize the XCOM value from JSON. "
-                      "If you are using pickles instead of JSON "
-                      "for XCOM, then you need to enable pickle "
-                      "support for XCOM in your airflow config.")
+            log.error(
+                "Could not deserialize the XCom value from JSON. "
+                "If you are using pickles instead of JSON "
+                "for XCom, then you need to enable pickle "
+                "support for XCom in your airflow config."
+            )
             raise
+
+    def orm_deserialize_value(self) -> Any:
+        """
+        Deserialize method which is used to reconstruct ORM XCom object.
+
+        This method should be overridden in custom XCom backends to avoid
+        unnecessary request or other resource consuming operations when
+        creating XCom orm model. This is used when viewing XCom listing
+        in the webserver, for example.
+        """
+        return BaseXCom.deserialize_value(self)
 
 
 def resolve_xcom_backend():

@@ -27,7 +27,7 @@ from typing import Optional
 from urllib.parse import urlsplit
 
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_CLOUDSQL_KEY, GcpAuthenticator
-from tests.utils.logging_command_executor import LoggingCommandExecutor
+from tests.test_utils.logging_command_executor import LoggingCommandExecutor
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 GCP_LOCATION = os.environ.get('GCP_LOCATION', 'europe-west1')
@@ -160,7 +160,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
                 'instances',
                 'describe',
                 get_postgres_instance_name(instance_suffix),
-                "--project={}".format(GCP_PROJECT_ID),
+                f"--project={GCP_PROJECT_ID}",
             ]
         )
         if res_postgres != 0:
@@ -172,7 +172,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
                 'instances',
                 'describe',
                 get_postgres_instance_name(instance_suffix),
-                "--project={}".format(GCP_PROJECT_ID),
+                f"--project={GCP_PROJECT_ID}",
             ]
         )
         if res_postgres != 0:
@@ -190,8 +190,8 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
                     'patch',
                     get_postgres_instance_name(instance_suffix),
                     '--quiet',
-                    "--authorized-networks={}".format(ip_address),
-                    "--project={}".format(GCP_PROJECT_ID),
+                    f"--authorized-networks={ip_address}",
+                    f"--project={GCP_PROJECT_ID}",
                 ]
             )
         )
@@ -204,8 +204,8 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
                     'patch',
                     get_mysql_instance_name(instance_suffix),
                     '--quiet',
-                    "--authorized-networks={}".format(ip_address),
-                    "--project={}".format(GCP_PROJECT_ID),
+                    f"--authorized-networks={ip_address}",
+                    f"--project={GCP_PROJECT_ID}",
                 ]
             )
         )
@@ -272,7 +272,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
 
             self.log.info('... Done creating a test %s instance "%s"!\n', db_version, instance_name)
         except Exception as ex:
-            self.log.error('Exception occurred. ' 'Aborting creating a test instance.\n\n%s', ex)
+            self.log.error('Exception occurred. Aborting creating a test instance.\n\n%s', ex)
             raise ex
 
     def __delete_service_accounts_acls(self):
@@ -284,8 +284,8 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
                 'gsutil',
                 'iam',
                 'get',
-                "gs://{}".format(export_bucket_name),
-                "--project={}".format(GCP_PROJECT_ID),
+                f"gs://{export_bucket_name}",
+                f"--project={GCP_PROJECT_ID}",
             ]
         )
         all_permissions_dejson = json.loads(all_permissions.decode("utf-8"))
@@ -305,9 +305,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
                     self.log.warning(
                         "Skip removing member %s as the type %s is not service account", member, member_type
                     )
-                self.execute_cmd(
-                    ['gsutil', 'acl', 'ch', '-d', member_email, "gs://{}".format(export_bucket_name)]
-                )
+                self.execute_cmd(['gsutil', 'acl', 'ch', '-d', member_email, f"gs://{export_bucket_name}"])
 
     @staticmethod
     def set_ip_addresses_in_env():
@@ -317,7 +315,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
     @staticmethod
     def __set_ip_address_in_env(file_name):
         if os.path.exists(file_name):
-            with open(file_name, "r") as file:
+            with open(file_name) as file:
                 env, ip_address = file.read().split("=")
                 os.environ[env] = ip_address
 
@@ -352,7 +350,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
             self.__create_db(instance_name, db_name)
             self.log.info('... Done setting up a test %s instance "%s"!\n', db_version, instance_name)
         except Exception as ex:
-            self.log.error('Exception occurred. ' 'Aborting setting up test instance and certs.\n\n%s', ex)
+            self.log.error('Exception occurred. Aborting setting up test instance and certs.\n\n%s', ex)
             raise ex
 
     def __delete_instance(self, instance_name: str, master_instance_name: Optional[str]) -> None:
@@ -556,7 +554,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
             .strip()
         )
         os.environ[env_var] = ip_address
-        return "{}={}".format(env_var, ip_address)
+        return f"{env_var}={ip_address}"
 
     def __get_operations(self, instance_name: str) -> str:
         op_name_bytes = self.check_output(
@@ -588,7 +586,7 @@ if __name__ == '__main__':
 
     helper = CloudSqlQueryTestHelper()
     gcp_authenticator = GcpAuthenticator(GCP_CLOUDSQL_KEY)
-    helper.log.info('Starting action: {}'.format(action))
+    helper.log.info(f'Starting action: {action}')
 
     gcp_authenticator.gcp_store_authentication()
     try:
@@ -630,7 +628,7 @@ if __name__ == '__main__':
         elif action == 'delete-service-accounts-acls':
             helper.delete_service_account_acls()
         else:
-            raise Exception("Unknown action: {}".format(action))
+            raise Exception(f"Unknown action: {action}")
     finally:
         gcp_authenticator.gcp_restore_authentication()
-    helper.log.info('Finishing action: {}'.format(action))
+    helper.log.info(f'Finishing action: {action}')

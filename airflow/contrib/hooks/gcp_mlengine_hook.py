@@ -24,5 +24,6 @@ from airflow.providers.google.cloud.hooks.mlengine import MLEngineHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.mlengine`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

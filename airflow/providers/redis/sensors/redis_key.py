@@ -18,14 +18,12 @@
 from typing import Dict
 
 from airflow.providers.redis.hooks.redis import RedisHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
 class RedisKeySensor(BaseSensorOperator):
-    """
-    Checks for the existence of a key in a Redis
-    """
+    """Checks for the existence of a key in a Redis"""
 
     template_fields = ('key',)
     ui_color = '#f0eee4'

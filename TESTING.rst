@@ -111,44 +111,135 @@ This can also be done by specifying a full path to the test:
 
 .. code-block:: bash
 
-    pytest tests/test_core.py::TestCore::test_check_operators
+    pytest tests/core/test_core.py::TestCore::test_check_operators
 
 To run the whole test class, enter:
 
 .. code-block:: bash
 
-    pytest tests/test_core.py::TestCore
+    pytest tests/core/test_core.py::TestCore
 
 You can use all available ``pytest`` flags. For example, to increase a log level
 for debugging purposes, enter:
 
 .. code-block:: bash
 
-    pytest --log-level=DEBUG tests/test_core.py::TestCore
+    pytest --log-level=DEBUG tests/core/test_core.py::TestCore
 
 
 Running Tests for a Specified Target Using Breeze from the Host
 ---------------------------------------------------------------
 
 If you wish to only run tests and not to drop into shell, apply the
-``tests`` command. You can add extra targets and pytest flags after the ``tests`` command.
+``tests`` command. You can add extra targets and pytest flags after the ``--`` command. Note that
+often you want to run the tests with a clean/reset db, so usually you want to add ``--db-reset`` flag
+to breeze.
 
 .. code-block:: bash
 
-     ./breeze tests tests/hooks/test_druid_hook.py tests/tests_core.py --logging-level=DEBUG
+     ./breeze tests tests/hooks/test_druid_hook.py tests/tests_core.py --db-reset -- --logging-level=DEBUG
 
-You can run the whole test suite with a 'tests' test target:
+You can run the whole test suite without adding the test target:
 
 .. code-block:: bash
 
-    ./breeze tests tests
+    ./breeze tests --db-reset
 
 You can also specify individual tests or a group of tests:
 
 .. code-block:: bash
 
-    ./breeze tests tests/test_core.py::TestCore
+    ./breeze tests --db-reset tests/core/test_core.py::TestCore
 
+
+Running Tests of a specified type from the Host
+-----------------------------------------------
+
+You can also run tests for a specific test type. For the stability and performance point of view
+we separated tests to different test types so that they can be run separately.
+
+You can select the test type by adding ``--test-type TEST_TYPE`` before the test command. There are two
+kinds of test types:
+
+* Per-directories types are added to select subset of the tests based on sub-directories in ``tests`` folder.
+  Example test types there - Core, Providers, CLI. The only action that happens when you choose the right
+  test folders are pre-selected. For those types of tests it is only useful to choose the test type
+  when you do not specify test to run.
+
+Runs all core tests:
+
+.. code-block:: bash
+
+     ./breeze --test-type Core  --db-reset tests
+
+Runs all provider tests:
+
+.. code-block:: bash
+
+     ./breeze --test-type Providers --db-reset tests
+
+* Special kinds of tests - Integration, Heisentests, Quarantined, Postgres, MySQL which are marked with pytest
+  marks and for those you need to select the type using test-type switch. If you want to run such tests
+  using breeze, you need to pass appropriate ``--test-type`` otherwise the test will be skipped.
+  Similarly to the per-directory tests if you do not specify the test or tests to run,
+  all tests of a given type are run
+
+Run quarantined test_task_command.py test:
+
+.. code-block:: bash
+
+     ./breeze --test-type Quarantined tests tests/cli/commands/test_task_command.py --db-reset
+
+Run all Quarantined tests:
+
+.. code-block:: bash
+
+     ./breeze --test-type Quarantined tests --db-reset
+
+Helm Unit Tests
+===============
+
+On the Airflow Project, we have decided to stick with Pythonic testing for our Helm chart. This makes our chart
+easier to test, easier to modify, and able to run with the same testing infrastructure. To add Helm unit tests
+go to the ``chart/tests`` directory and add your unit test by creating a class that extends ``unittest.TestCase``
+
+.. code-block:: python
+
+    class TestBaseChartTest(unittest.TestCase):
+
+To render the chart create a YAML string with the nested dictionary of options you wish to test. You can then
+use our ``render_chart`` function to render the object of interest into a testable Python dictionary. Once the chart
+has been rendered, you can use the ``render_k8s_object`` function to create a k8s model object that simultaneously
+ensures that the object created properly conforms to the expected object spec and allows you to use object values
+instead of nested dictionaries.
+
+Example test here:
+
+.. code-block:: python
+
+    from .helm_template_generator import render_chart, render_k8s_object
+
+    git_sync_basic = """
+    dags:
+      gitSync:
+      enabled: true
+    """
+
+
+    class TestGitSyncScheduler(unittest.TestCase):
+
+        def test_basic(self):
+            helm_settings = yaml.safe_load(git_sync_basic)
+            res = render_chart('GIT-SYNC', helm_settings,
+                               show_only=["templates/scheduler/scheduler-deployment.yaml"])
+            dep: k8s.V1Deployment = render_k8s_object(res[0], k8s.V1Deployment)
+            self.assertEqual("dags", dep.spec.template.spec.volumes[1].name)
+
+To run tests using breeze run the following command
+
+.. code-block:: bash
+
+    ./breeze --test-type Helm tests
 
 Airflow Integration Tests
 =========================
@@ -335,9 +426,67 @@ Those tests are marked with ``@pytest.mark.heisentests`` annotation.
 Those tests are skipped by default. You can enable them with ``--include-heisentests`` flag. You
 can also decide to only run tests with ``-m heisentests`` flag to run only those tests.
 
+Running Tests with provider packages
+====================================
+
+Airflow 2.0 introduced the concept of splitting the monolithic Airflow package into separate
+providers packages. The main "apache-airflow" package contains the bare Airflow implementation,
+and additionally we have 70+ providers that we can install additionally to get integrations with
+external services. Those providers live in the same monorepo as Airflow, but we build separate
+packages for them and the main "apache-airflow" package does not contain the providers.
+
+Most of the development in Breeze happens by iterating on sources and when you run
+your tests during development, you usually do not want to build packages and install them separately.
+Therefore by default when you enter Breeze airflow and all providers are available directly from
+sources rather than installed from packages. This is for example to test the "provider discovery"
+mechanism available that reads provider information from the package meta-data.
+
+When Airflow is run from sources, the metadata is read from provider.yaml
+files, but when Airflow is installed from packages, it is read via the package entrypoint
+``apache_airflow_provider``.
+
+By default all packages are prepared in wheel format. In order to install Airflow from packages you
+need to run the following steps:
+
+1. Prepare provider packages
+
+.. code-block:: bash
+
+     ./breeze prepare-provider-packages [PACKAGE ...]
+
+If you run this command without packages, you will prepare all packages, you can however specify
+providers that you would like to build if you just want to build few provider packages.
+The packages are prepared in ``dist`` folder. Note, that this command cleans up the ``dist`` folder
+before running so you should run it before generating airflow package.
+
+2. Prepare airflow packages
+
+.. code-block:: bash
+
+     ./breeze prepare-airflow-packages
+
+This prepares airflow .whl package in the dist folder.
+
+3. Enter breeze installing both airflow and providers from the packages
+
+This installs airflow and enters
+
+.. code-block:: bash
+
+     ./breeze --install-airflow-version wheel --install-packages-from-dist --skip-mounting-local-sources
+
+
 
 Running Tests with Kubernetes
 =============================
+
+Airflow has tests that are run against real kubernetes cluster. We are using
+`Kind <https://kind.sigs.k8s.io/>`_ to create and run the cluster. We integrated the tools to start/stop/
+deploy and run the cluster tests in our repository and into Breeze development environment.
+
+Configuration for the cluster is kept in ``./build/.kube/config`` file in your Airflow source repository and
+our scripts set the ``KUBECONFIG`` variable to it. If you want to interact with the Kind cluster created
+you can do it from outside of the scripts by exporting this variable and point it to this file.
 
 Starting Kubernetes Cluster
 ---------------------------
@@ -346,7 +495,7 @@ For your testing you manage Kind cluster with ``kind-cluster`` breeze command:
 
 .. code-block:: bash
 
-    ./breeze kind-cluster [ start | stop | recreate | status | deploy | test | shell ]
+    ./breeze kind-cluster [ start | stop | recreate | status | deploy | test | shell | k9s ]
 
 The command allows you to start/stop/recreate/status Kind Kubernetes cluster, deploy Airflow via Helm
 chart as well as interact with the cluster (via test and shell commands).
@@ -365,11 +514,11 @@ Deploying Airflow to Kubernetes Cluster
 
 Deploying Airflow to the Kubernetes cluster created is also done via ``kind-cluster deploy`` breeze command:
 
-.. code-block:: bash`
+.. code-block:: bash
 
     ./breeze kind-cluster deploy
 
-The deploy commands performs tthose steps:
+The deploy commands performs those steps:
 
 1. It rebuilds the latest ``apache/airflow:master-pythonX.Y`` production images using the
    latest sources using local cachine. It also adds example DAGs to the image, so that they do not
@@ -386,20 +535,63 @@ Running tests with Kubernetes Cluster
 You can either run all tests or you can select which tests to run. You can also enter interactive virtualenv
 to run the tests manually one by one.
 
-.. code-block:: bash
+Running kubernetes tests via shell:
 
-    Running kubernetes tests
+.. code-block:: bash
 
       ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh                      - runs all kubernetes tests
       ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh TEST [TEST ...]      - runs selected kubernetes tests (from kubernetes_tests folder)
+
+
+Running kubernetes tests via breeze:
+
+.. code-block:: bash
+
+      ./breeze kind-cluster test
+      ./breeze kind-cluster test -- TEST TEST [TEST ...]
+
+
+Entering shell with Kubernetes Cluster
+--------------------------------------
+
+This shell is prepared to run kubernetes tests interactively. It has ``kubectl`` and ``kind`` cli tools
+available in the path, it has also activated virtualenv environment that allows you to run tests via pytest.
+
+You can enter the shell via those scripts
+
       ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh [-i|--interactive]   - Activates virtual environment ready to run tests and drops you in
       ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh [--help]             - Prints this help message
 
 
-You can also run the same tests command with Breeze, using ``kind-cluster test`` command (to run all
-kubernetes tests) and with ``kind-cluster shell`` command you can enter interactive shell when you can
-run tests.
+.. code-block:: bash
 
+      ./breeze kind-cluster shell
+
+
+K9s CLI - debug kubernetes in style!
+------------------------------------
+
+Breeze has built-in integration with fantastic k9s CLI tool, that allows you to debug the kubernetes
+installation effortlessly and in style. K9S provides terminal (but windowed) CLI that allows you to
+easily observe what's going on in the kubernetes instance, observe the resources defined (pods, secrets,
+custom resource definitions), enter shell for the Pods/Containers running, see the log files and more.
+
+You can read more about k9s at `https://k9scli.io/ <https://k9scli.io/>`_
+
+Here is the screenshot of k9s tools in operation:
+
+.. image:: images/testing/k9s.png
+    :align: center
+    :alt: K9S tool
+
+
+You can enter the k9s tool via breeze (after you deployed Airflow):
+
+.. code-block:: bash
+
+      ./breeze kind-cluster k9s
+
+You can exit k9s by pressing Ctrl-C.
 
 Typical testing pattern for Kubernetes tests
 --------------------------------------------
@@ -493,12 +685,11 @@ The virtualenv required will be created automatically when the scripts are run.
 
 4b) You can enter an interactive shell to run tests one-by-one
 
-This prepares and enters the virtualenv in ``.build/.kubernetes_venv`` folder:
+This prepares and enters the virtualenv in ``.build/.kubernetes_venv_<YOUR_CURRENT_PYTHON_VERSION>`` folder:
 
 .. code-block:: bash
 
     ./breeze kind-cluster shell
-
 
 Once you enter the environment you receive this information:
 
@@ -516,11 +707,67 @@ Once you enter the environment you receive this information:
 
     You are entering the virtualenv now. Type exit to exit back to the original shell
 
+In a separate terminal you can open the k9s CLI:
+
+.. code-block:: bash
+
+    ./breeze kind-cluster k9s
+
+Use it to observe what's going on in your cluster.
+
+6. Debugging in IntelliJ/PyCharm
+
+It is very easy to running/debug Kubernetes tests with IntelliJ/PyCharm. Unlike the regular tests they are
+in ``kubernetes_tests`` folder and if you followed the previous steps and entered the shell using
+``./breeze kind-cluster shell`` command, you can setup your IDE very easily to run (and debug) your
+tests using the standard IntelliJ Run/Debug feature. You just need a few steps:
+
+a) Add the virtualenv as interpreter for the project:
+
+.. image:: images/testing/kubernetes-virtualenv.png
+    :align: center
+    :alt: Kubernetes testing virtualenv
+
+The virtualenv is created in your "Airflow" source directory in the
+``.build/.kubernetes_venv_<YOUR_CURRENT_PYTHON_VERSION>`` folder and you
+have to find ``python`` binary and choose it when selecting interpreter.
+
+b) Choose pytest as test runner:
+
+.. image:: images/testing/pytest-runner.png
+    :align: center
+    :alt: Pytest runner
+
+c) Run/Debug tests using standard "Run/Debug" feature of IntelliJ
+
+.. image:: images/testing/run-tests.png
+    :align: center
+    :alt: Run/Debug tests
+
+
+NOTE! The first time you run it, it will likely fail with
+``kubernetes.config.config_exception.ConfigException``:
+``Invalid kube-config file. Expected key current-context in kube-config``. You need to add KUBECONFIG
+environment variabl copying it from the result of "./breeze kind-cluster test":
+
+.. code-block:: bash
+
+    echo ${KUBECONFIG}
+
+    /home/jarek/code/airflow/.build/.kube/config
+
+
+.. image:: images/testing/kubeconfig-env.png
+    :align: center
+    :alt: Run/Debug tests
+
+
+The configuration for kubernetes is stored in your "Airflow" source directory in ".build/.kube/config" file
+and this is where KUBECONFIG env should point to.
 
 You can iterate with tests while you are in the virtualenv. All the tests requiring kubernetes cluster
 are in "kubernetes_tests" folder. You can add extra ``pytest`` parameters then (for example ``-s`` will
 print output generated test logs and print statements to the terminal immediately.
-
 
 .. code-block:: bash
 
@@ -530,6 +777,30 @@ print output generated test logs and print statements to the terminal immediatel
 You can modify the tests or KubernetesPodOperator and re-run them without re-deploying
 airflow to KinD cluster.
 
+
+Sometimes there are side effects from running tests. You can run ``redeploy_airflow.sh`` without
+recreating the whole cluster. This will delete the whole namespace, including the database data
+and start a new Airflow deployment in the cluster.
+
+.. code-block:: bash
+
+    ./scripts/ci/redeploy_airflow.sh
+
+If needed you can also delete the cluster manually:
+
+
+.. code-block:: bash
+
+    kind get clusters
+    kind delete clusters <NAME_OF_THE_CLUSTER>
+
+Kind has also useful commands to inspect your running cluster:
+
+.. code-block:: text
+
+    kind --help
+
+
 However, when you change Airflow Kubernetes executor implementation you need to redeploy
 Airflow to the cluster.
 
@@ -538,7 +809,7 @@ Airflow to the cluster.
     ./breeze kind-cluster deploy
 
 
-5. Stop KinD cluster when you are done
+7. Stop KinD cluster when you are done
 
 .. code-block:: bash
 
@@ -668,16 +939,16 @@ A simple example of a system test is available in:
 It runs two DAGs defined in ``airflow.providers.google.cloud.example_dags.example_compute.py`` and
 ``airflow.providers.google.cloud.example_dags.example_compute_igm.py``.
 
-Preparing backport packages for System Tests for Airflow 1.10.* series
+Preparing provider packages for System Tests for Airflow 1.10.* series
 ----------------------------------------------------------------------
 
-To run system tests with old Airflow version you need to prepare backport packages. This
-can be done by running ``./breeze prepare-backport-packages -- <PACKAGES TO BUILD>``. For
-example the below command will build google postgres and mysql packages:
+To run system tests with old Airflow version you need to prepare provider packages. This
+can be done by running ``./breeze prepare-provider-packages <PACKAGES TO BUILD>``. For
+example the below command will build google postgres and mysql wheel packages:
 
 .. code-block:: bash
 
-  ./breeze prepare-backport-packages -- google postgres mysql
+  ./breeze prepare-provider-packages -- google postgres mysql
 
 Those packages will be prepared in ./dist folder. This folder is mapped to /dist folder
 when you enter Breeze, so it is easy to automate installing those packages for testing.
@@ -700,11 +971,11 @@ Airflow is removed and the released version of Airflow from ``Pypi`` is installe
 are not removed and they can be used to run tests (unit tests and system tests) against the
 freshly installed version.
 
-You should automate installing of the backport packages in your own
+You should automate installing of the provider packages in your own
 ``./files/airflow-breeze-config/variables.env`` file. You should make it depend on
 ``RUN_AIRFLOW_1_10`` variable value equals to "true" so that
-the installation of backport packages is only performed when you install airflow 1.10.*.
-The backport packages are available in ``/dist`` directory if they were prepared as described
+the installation of provider packages is only performed when you install airflow 1.10.*.
+The provider packages are available in ``/dist`` directory if they were prepared as described
 in the previous chapter.
 
 Typically the command in you variables.env file will be similar to:
@@ -735,11 +1006,11 @@ The typical system test session
 
 Here is the typical session that you need to do to run system tests:
 
-1. Prepare backport packages
+1. Prepare provider packages
 
 .. code-block:: bash
 
-  ./breeze prepare-backport-packages -- google postgres mysql
+  ./breeze prepare-provider-packages -- google postgres mysql
 
 2. Enter breeze with installing Airflow 1.10.*, forwarding credentials and installing
    backported packages (you need an appropriate line in ``./files/airflow-breeze-config/variables.env``)
@@ -799,7 +1070,7 @@ Breeze session. They are usually expensive to run.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Important !!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Note that in case you have to update your backported operators or system tests (they are part of
-the backport packageS) you need to rebuild the packages outside of breeze and
+the provider packageS) you need to rebuild the packages outside of breeze and
 ``pip remove/pip install`` those packages to get them installed. This is not needed
 if you run system tests with ``current`` airflow version, so it is better to iterate with the
 system tests with the ``current`` version and fix all problems there and only afterwards run
@@ -807,11 +1078,11 @@ the tests with Airflow 1.10.*
 
 The typical session then looks as follows:
 
-1. Prepare backport packages
+1. Prepare provider packages
 
 .. code-block:: bash
 
-  ./breeze prepare-backport-packages -- google postgres mysql
+  ./breeze prepare-provider-packages -- google postgres mysql
 
 2. Enter breeze with installing Airflow 1.10.*, forwarding credentials and installing
    backported packages (you need an appropriate line in ``./files/airflow-breeze-config/variables.env``)
@@ -833,7 +1104,7 @@ The typical session then looks as follows:
    pytest -o faulthandler_timeout=2400 \
       --system=google tests/providers/google/cloud/operators/test_compute_system.py
 
-5. In case you are running backport packages tests you need to rebuild and reinstall a package
+5. In case you are running provider packages tests you need to rebuild and reinstall a package
    every time you change the operators/hooks or example_dags. The example below shows reinstallation
    of the google package:
 
@@ -841,7 +1112,7 @@ In the host:
 
 .. code-block:: bash
 
-  ./breeze prepare-backport-packages -- google
+  ./breeze prepare-provider-packages -- google
 
 In the container:
 

@@ -35,34 +35,25 @@ depends_on = None
 RESOURCE_TABLE = "kube_worker_uuid"
 
 
-def upgrade():   # noqa: D103
+def upgrade():  # noqa: D103
 
     columns_and_constraints = [
         sa.Column("one_row_id", sa.Boolean, server_default=sa.true(), primary_key=True),
-        sa.Column("worker_uuid", sa.String(255))
+        sa.Column("worker_uuid", sa.String(255)),
     ]
 
     conn = op.get_bind()
 
     # alembic creates an invalid SQL for mssql and mysql dialects
     if conn.dialect.name in {"mysql"}:
-        columns_and_constraints.append(
-            sa.CheckConstraint("one_row_id<>0", name="kube_worker_one_row_id")
-        )
+        columns_and_constraints.append(sa.CheckConstraint("one_row_id<>0", name="kube_worker_one_row_id"))
     elif conn.dialect.name not in {"mssql"}:
-        columns_and_constraints.append(
-            sa.CheckConstraint("one_row_id", name="kube_worker_one_row_id")
-        )
+        columns_and_constraints.append(sa.CheckConstraint("one_row_id", name="kube_worker_one_row_id"))
 
-    table = op.create_table(
-        RESOURCE_TABLE,
-        *columns_and_constraints
-    )
+    table = op.create_table(RESOURCE_TABLE, *columns_and_constraints)
 
-    op.bulk_insert(table, [
-        {"worker_uuid": ""}
-    ])
+    op.bulk_insert(table, [{"worker_uuid": ""}])
 
 
-def downgrade():   # noqa: D103
+def downgrade():  # noqa: D103
     op.drop_table(RESOURCE_TABLE)

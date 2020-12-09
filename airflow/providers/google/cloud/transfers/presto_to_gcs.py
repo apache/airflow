@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, List, Tuple
+from typing import Any, Dict, List, Tuple
 
+from prestodb.client import PrestoResult
 from prestodb.dbapi import Cursor as PrestoCursor
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
@@ -76,7 +77,7 @@ class _PrestoToGCSPrestoCursorAdapter:
         """Close the cursor now"""
         self.cursor.close()
 
-    def execute(self, *args, **kwargs):
+    def execute(self, *args, **kwargs) -> PrestoResult:
         """Prepare and execute a database operation (query or command)."""
         self.initialized = False
         self.rows = []
@@ -92,9 +93,7 @@ class _PrestoToGCSPrestoCursorAdapter:
         return self.cursor.executemany(*args, **kwargs)
 
     def peekone(self) -> Any:
-        """
-        Return the next row without consuming it.
-        """
+        """Return the next row without consuming it."""
         self.initialized = True
         element = self.cursor.fetchone()
         self.rows.insert(0, element)
@@ -109,7 +108,7 @@ class _PrestoToGCSPrestoCursorAdapter:
             return self.rows.pop(0)
         return self.cursor.fetchone()
 
-    def fetchmany(self, size=None) -> List[Any]:
+    def fetchmany(self, size=None) -> list:
         """
         Fetch the next set of rows of a query result, returning a sequence of sequences
         (e.g. a list of tuples). An empty sequence is returned when no more rows are available.
@@ -138,9 +137,7 @@ class _PrestoToGCSPrestoCursorAdapter:
         return result
 
     def __iter__(self) -> "_PrestoToGCSPrestoCursorAdapter":
-        """
-        Return self to make cursors compatible to the iteration protocol
-        """
+        """Return self to make cursors compatible to the iteration protocol"""
         return self
 
 
@@ -184,9 +181,7 @@ class PrestoToGCSOperator(BaseSQLToGCSOperator):
         self.presto_conn_id = presto_conn_id
 
     def query(self):
-        """
-        Queries presto and returns a cursor to the results.
-        """
+        """Queries presto and returns a cursor to the results."""
         presto = PrestoHook(presto_conn_id=self.presto_conn_id)
         conn = presto.get_conn()
         cursor = conn.cursor()
@@ -194,7 +189,7 @@ class PrestoToGCSOperator(BaseSQLToGCSOperator):
         cursor.execute(self.sql)
         return _PrestoToGCSPrestoCursorAdapter(cursor)
 
-    def field_to_bigquery(self, field):
+    def field_to_bigquery(self, field) -> Dict[str, str]:
         """Convert presto field type to BigQuery field type."""
         clear_field_type = field[1].upper()
         # remove type argument e.g. DECIMAL(2, 10) => DECIMAL

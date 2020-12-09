@@ -72,7 +72,7 @@ class GCSToGoogleSheetsOperator(BaseOperator):
         *,
         spreadsheet_id: str,
         bucket_name: str,
-        object_name: Optional[str] = None,
+        object_name: str,
         spreadsheet_range: str = "Sheet1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
@@ -89,7 +89,7 @@ class GCSToGoogleSheetsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Any):
+    def execute(self, context: Any) -> None:
         sheet_hook = GSheetsHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

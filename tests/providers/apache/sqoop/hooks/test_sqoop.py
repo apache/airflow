@@ -205,7 +205,7 @@ class TestSqoopHook(unittest.TestCase):
             self.assertIn("--num-mappers {}".format(self._config['num_mappers']), cmd)
 
         for key, value in self._config['properties'].items():
-            self.assertIn("-D {}={}".format(key, value), cmd)
+            self.assertIn(f"-D {key}={value}", cmd)
 
         # We don't have the sqoop binary available, and this is hard to mock,
         # so just accept an exception for now.

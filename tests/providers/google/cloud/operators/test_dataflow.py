@@ -18,19 +18,22 @@
 #
 
 import unittest
-
-import mock
+from copy import deepcopy
+from unittest import mock
 
 from airflow.providers.google.cloud.operators.dataflow import (
     CheckJobRunning,
     DataflowCreateJavaJobOperator,
     DataflowCreatePythonJobOperator,
+    DataflowStartFlexTemplateOperator,
+    DataflowStartSqlJobOperator,
     DataflowTemplatedJobStartOperator,
 )
 from airflow.version import version
 
 TASK_ID = 'test-dataflow-operator'
-JOB_NAME = 'test-dataflow-pipeline'
+JOB_ID = 'test-dataflow-pipeline-id'
+JOB_NAME = 'test-dataflow-pipeline-name'
 TEMPLATE = 'gs://dataflow-templates/wordcount/template_file'
 PARAMETERS = {
     'inputFile': 'gs://dataflow-samples/shakespeare/kinglear.txt',
@@ -59,7 +62,33 @@ EXPECTED_ADDITIONAL_OPTIONS = {
 }
 POLL_SLEEP = 30
 GCS_HOOK_STRING = 'airflow.providers.google.cloud.operators.dataflow.{}'
-TEST_LOCATION = "custom-location"
+TEST_FLEX_PARAMETERS = {
+    "containerSpecGcsPath": "gs://test-bucket/test-file",
+    "jobName": 'test-job-name',
+    "parameters": {
+        "inputSubscription": 'test-subsription',
+        "outputTable": "test-project:test-dataset.streaming_beam_sql",
+    },
+}
+TEST_LOCATION = 'custom-location'
+TEST_PROJECT = "test-project"
+TEST_SQL_JOB_NAME = 'test-sql-job-name'
+TEST_DATASET = 'test-dataset'
+TEST_SQL_OPTIONS = {
+    "bigquery-project": TEST_PROJECT,
+    "bigquery-dataset": TEST_DATASET,
+    "bigquery-table": "beam_output",
+    'bigquery-write-disposition': "write-truncate",
+}
+TEST_SQL_QUERY = """
+SELECT
+    sales_region as sales_region,
+    count(state_id) as count_state
+FROM
+    bigquery.table.test-project.beam_samples.beam_table
+GROUP BY sales_region;
+"""
+TEST_SQL_JOB_ID = 'test-job-id'
 
 
 class TestDataflowPythonOperator(unittest.TestCase):
@@ -261,6 +290,7 @@ class TestDataflowTemplateOperator(unittest.TestCase):
             dataflow_default_options={"EXTRA_OPTION": "TEST_A"},
             poll_sleep=POLL_SLEEP,
             location=TEST_LOCATION,
+            environment={"maxWorkers": 2},
         )
 
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
@@ -287,4 +317,68 @@ class TestDataflowTemplateOperator(unittest.TestCase):
             on_new_job_id_callback=mock.ANY,
             project_id=None,
             location=TEST_LOCATION,
+            environment={'maxWorkers': 2},
         )
+
+
+class TestDataflowStartFlexTemplateOperator(unittest.TestCase):
+    @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
+    def test_execute(self, mock_dataflow):
+        start_flex_template = DataflowStartFlexTemplateOperator(
+            task_id="start_flex_template_streaming_beam_sql",
+            body={"launchParameter": TEST_FLEX_PARAMETERS},
+            do_xcom_push=True,
+            project_id=TEST_PROJECT,
+            location=TEST_LOCATION,
+        )
+        start_flex_template.execute(mock.MagicMock())
+        mock_dataflow.return_value.start_flex_template.assert_called_once_with(
+            body={"launchParameter": TEST_FLEX_PARAMETERS},
+            location=TEST_LOCATION,
+            project_id=TEST_PROJECT,
+            on_new_job_id_callback=mock.ANY,
+        )
+
+    def test_on_kill(self):
+        start_flex_template = DataflowStartFlexTemplateOperator(
+            task_id="start_flex_template_streaming_beam_sql",
+            body={"launchParameter": TEST_FLEX_PARAMETERS},
+            do_xcom_push=True,
+            location=TEST_LOCATION,
+            project_id=TEST_PROJECT,
+        )
+        start_flex_template.hook = mock.MagicMock()
+        start_flex_template.job_id = JOB_ID
+        start_flex_template.on_kill()
+        start_flex_template.hook.cancel_job.assert_called_once_with(
+            job_id='test-dataflow-pipeline-id', project_id=TEST_PROJECT
+        )
+
+
+class TestDataflowSqlOperator(unittest.TestCase):
+    @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
+    def test_execute(self, mock_hook):
+        start_sql = DataflowStartSqlJobOperator(
+            task_id="start_sql_query",
+            job_name=TEST_SQL_JOB_NAME,
+            query=TEST_SQL_QUERY,
+            options=deepcopy(TEST_SQL_OPTIONS),
+            location=TEST_LOCATION,
+            do_xcom_push=True,
+        )
+
+        start_sql.execute(mock.MagicMock())
+        mock_hook.assert_called_once_with(
+            gcp_conn_id='google_cloud_default', delegate_to=None, drain_pipeline=False
+        )
+        mock_hook.return_value.start_sql_job.assert_called_once_with(
+            job_name=TEST_SQL_JOB_NAME,
+            query=TEST_SQL_QUERY,
+            options=TEST_SQL_OPTIONS,
+            location=TEST_LOCATION,
+            project_id=None,
+            on_new_job_id_callback=mock.ANY,
+        )
+        start_sql.job_id = TEST_SQL_JOB_ID
+        start_sql.on_kill()
+        mock_hook.return_value.cancel_job.assert_called_once_with(job_id='test-job-id', project_id=None)

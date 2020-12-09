@@ -36,6 +36,7 @@ class TestCliRoles(unittest.TestCase):
 
     def setUp(self):
         from airflow.www import app as application
+
         self.app = application.create_app(testing=True)
         self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
         self.clear_roles_and_roles()
@@ -56,9 +57,7 @@ class TestCliRoles(unittest.TestCase):
         self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamA'))
         self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamB'))
 
-        args = self.parser.parse_args([
-            'roles', 'create', 'FakeTeamA', 'FakeTeamB'
-        ])
+        args = self.parser.parse_args(['roles', 'create', 'FakeTeamA', 'FakeTeamB'])
         role_command.roles_create(args)
 
         self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamA'))
@@ -68,9 +67,7 @@ class TestCliRoles(unittest.TestCase):
         self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamA'))
         self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamB'))
 
-        args = self.parser.parse_args([
-            'roles', 'create', 'FakeTeamA', 'FakeTeamB'
-        ])
+        args = self.parser.parse_args(['roles', 'create', 'FakeTeamA', 'FakeTeamB'])
 
         role_command.roles_create(args)
 
@@ -89,4 +86,4 @@ class TestCliRoles(unittest.TestCase):
         self.assertIn('FakeTeamB', stdout)
 
     def test_cli_list_roles_with_args(self):
-        role_command.roles_list(self.parser.parse_args(['roles', 'list', '--output', 'tsv']))
+        role_command.roles_list(self.parser.parse_args(['roles', 'list', '--output', 'yaml']))

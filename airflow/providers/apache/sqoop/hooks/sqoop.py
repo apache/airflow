@@ -17,15 +17,13 @@
 # under the License.
 #
 
-"""
-This module contains a sqoop 1.x hook
-"""
+"""This module contains a sqoop 1.x hook"""
 import subprocess
 from copy import deepcopy
 from typing import Any, Dict, List, Optional
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class SqoopHook(BaseHook):
@@ -54,9 +52,14 @@ class SqoopHook(BaseHook):
     :type properties: dict
     """
 
+    conn_name_attr = 'conn_id'
+    default_conn_name = 'sqoop_default'
+    conn_type = 'sqoop'
+    hook_name = 'Sqoop'
+
     def __init__(
         self,
-        conn_id: str = 'sqoop_default',
+        conn_id: str = default_conn_name,
         verbose: bool = False,
         num_mappers: Optional[int] = None,
         hcatalog_database: Optional[str] = None,
@@ -85,9 +88,7 @@ class SqoopHook(BaseHook):
         return self.conn
 
     def cmd_mask_password(self, cmd_orig: List[str]) -> List[str]:
-        """
-        Mask command password for safety
-        """
+        """Mask command password for safety"""
         cmd = deepcopy(cmd_orig)
         try:
             password_index = cmd.index('--password')
@@ -116,14 +117,14 @@ class SqoopHook(BaseHook):
         self.log.info("Command exited with return code %s", self.sub_process.returncode)
 
         if self.sub_process.returncode:
-            raise AirflowException("Sqoop command failed: {}".format(masked_cmd))
+            raise AirflowException(f"Sqoop command failed: {masked_cmd}")
 
     def _prepare_command(self, export: bool = False) -> List[str]:
         sqoop_cmd_type = "export" if export else "import"
         connection_cmd = ["sqoop", sqoop_cmd_type]
 
         for key, value in self.properties.items():
-            connection_cmd += ["-D", "{}={}".format(key, value)]
+            connection_cmd += ["-D", f"{key}={value}"]
 
         if self.namenode:
             connection_cmd += ["-fs", self.namenode]
@@ -152,9 +153,9 @@ class SqoopHook(BaseHook):
 
         connect_str = self.conn.host
         if self.conn.port:
-            connect_str += ":{}".format(self.conn.port)
+            connect_str += f":{self.conn.port}"
         if self.conn.schema:
-            connect_str += "/{}".format(self.conn.schema)
+            connect_str += f"/{self.conn.schema}"
         connection_cmd += ["--connect", connect_str]
 
         return connection_cmd
@@ -170,7 +171,7 @@ class SqoopHook(BaseHook):
         elif file_type == "text":
             return ["--as-textfile"]
         else:
-            raise AirflowException("Argument file_type should be 'avro', " "'sequence', 'parquet' or 'text'.")
+            raise AirflowException("Argument file_type should be 'avro', 'sequence', 'parquet' or 'text'.")
 
     def _import_cmd(
         self,
@@ -204,7 +205,7 @@ class SqoopHook(BaseHook):
 
         if extra_import_options:
             for key, value in extra_import_options.items():
-                cmd += ['--{}'.format(key)]
+                cmd += [f'--{key}']
                 if value:
                     cmd += [str(value)]
 
@@ -343,7 +344,7 @@ class SqoopHook(BaseHook):
 
         if extra_export_options:
             for key, value in extra_export_options.items():
-                cmd += ['--{}'.format(key)]
+                cmd += [f'--{key}']
                 if value:
                     cmd += [str(value)]
 

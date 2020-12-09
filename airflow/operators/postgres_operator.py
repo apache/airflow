@@ -24,5 +24,6 @@ from airflow.providers.postgres.operators.postgres import Mapping, PostgresOpera
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.postgres.operators.postgres`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

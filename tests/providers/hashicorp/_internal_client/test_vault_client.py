@@ -18,9 +18,9 @@
 
 from unittest import mock
 from unittest.case import TestCase
+from unittest.mock import mock_open, patch
 
 from hvac.exceptions import InvalidPath, VaultError
-from mock import mock_open, patch
 
 from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient  # noqa
 
@@ -819,7 +819,7 @@ class TestVaultClient(TestCase):
             url="http://localhost:8180",
         )
         with self.assertRaisesRegex(
-            VaultError, "Metadata might only be used with" " version 2 of the KV engine."
+            VaultError, "Metadata might only be used with version 2 of the KV engine."
         ):
             vault_client.get_secret_metadata(secret_path="missing")
 
@@ -893,7 +893,7 @@ class TestVaultClient(TestCase):
             url="http://localhost:8180",
         )
         with self.assertRaisesRegex(
-            VaultError, "Metadata might only be used with" " version 2 of the KV engine."
+            VaultError, "Metadata might only be used with version 2 of the KV engine."
         ):
             vault_client.get_secret_including_metadata(secret_path="missing")
 

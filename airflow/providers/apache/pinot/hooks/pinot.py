@@ -23,8 +23,8 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 from pinotdb import connect
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.base import BaseHook
+from airflow.hooks.dbapi import DbApiHook
 from airflow.models import Connection
 
 
@@ -73,14 +73,14 @@ class PinotAdminHook(BaseHook):
     def get_conn(self) -> Any:
         return self.conn
 
-    def add_schema(self, schema_file: str, with_exec: Optional[bool] = True) -> Any:
+    def add_schema(self, schema_file: str, with_exec: bool = True) -> Any:
         """
         Add Pinot schema by run AddSchema command
 
         :param schema_file: Pinot schema file
         :type schema_file: str
         :param with_exec: bool
-        :type with_exec: Optional[bool]
+        :type with_exec: bool
         """
         cmd = ["AddSchema"]
         cmd += ["-controllerHost", self.host]
@@ -90,14 +90,14 @@ class PinotAdminHook(BaseHook):
             cmd += ["-exec"]
         self.run_cli(cmd)
 
-    def add_table(self, file_path: str, with_exec: Optional[bool] = True) -> Any:
+    def add_table(self, file_path: str, with_exec: bool = True) -> Any:
         """
         Add Pinot table with run AddTable command
 
         :param file_path: Pinot table configure file
         :type file_path: str
         :param with_exec: bool
-        :type with_exec: Optional[bool]
+        :type with_exec: bool
         """
         cmd = ["AddTable"]
         cmd += ["-controllerHost", self.host]
@@ -129,9 +129,7 @@ class PinotAdminHook(BaseHook):
         post_creation_verification: Optional[str] = None,
         retry: Optional[str] = None,
     ) -> Any:
-        """
-        Create Pinot segment by run CreateSegment command
-        """
+        """Create Pinot segment by run CreateSegment command"""
         cmd = ["CreateSegment"]
 
         if generator_config_file:
@@ -206,14 +204,14 @@ class PinotAdminHook(BaseHook):
             cmd += ["-tableName", table_name]
         self.run_cli(cmd)
 
-    def run_cli(self, cmd: List[str], verbose: Optional[bool] = True) -> str:
+    def run_cli(self, cmd: List[str], verbose: bool = True) -> str:
         """
         Run command with pinot-admin.sh
 
         :param cmd: List of command going to be run by pinot-admin.sh script
         :type cmd: list
         :param verbose:
-        :type verbose: Optional[bool]
+        :type verbose: bool
         """
         command = [self.cmd_path]
         command.extend(cmd)
@@ -253,7 +251,10 @@ class PinotAdminHook(BaseHook):
 
 class PinotDbApiHook(DbApiHook):
     """
-    Connect to pinot db (https://github.com/apache/incubator-pinot) to issue pql
+    Interact with Pinot Broker Query API
+
+    This hook uses standard-SQL endpoint since PQL endpoint is soon to be deprecated.
+    https://docs.pinot.apache.org/users/api/querying-pinot-using-standard-sql
     """
 
     conn_name_attr = 'pinot_broker_conn_id'
@@ -261,34 +262,32 @@ class PinotDbApiHook(DbApiHook):
     supports_autocommit = False
 
     def get_conn(self) -> Any:
-        """
-        Establish a connection to pinot broker through pinot dbapi.
-        """
+        """Establish a connection to pinot broker through pinot dbapi."""
         # pylint: disable=no-member
         conn = self.get_connection(self.pinot_broker_conn_id)  # type: ignore
         # pylint: enable=no-member
         pinot_broker_conn = connect(
             host=conn.host,
             port=conn.port,
-            path=conn.extra_dejson.get('endpoint', '/pql'),
+            path=conn.extra_dejson.get('endpoint', '/query/sql'),
             scheme=conn.extra_dejson.get('schema', 'http'),
         )
-        self.log.info('Get the connection to pinot ' 'broker on %s', conn.host)
+        self.log.info('Get the connection to pinot broker on %s', conn.host)
         return pinot_broker_conn
 
     def get_uri(self) -> str:
         """
         Get the connection uri for pinot broker.
 
-        e.g: http://localhost:9000/pql
+        e.g: http://localhost:9000/query/sql
         """
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         host = conn.host
         if conn.port is not None:
-            host += ':{port}'.format(port=conn.port)
+            host += f':{conn.port}'
         conn_type = 'http' if not conn.conn_type else conn.conn_type
-        endpoint = conn.extra_dejson.get('endpoint', 'pql')
-        return '{conn_type}://{host}/{endpoint}'.format(conn_type=conn_type, host=host, endpoint=endpoint)
+        endpoint = conn.extra_dejson.get('endpoint', 'query/sql')
+        return f'{conn_type}://{host}/{endpoint}'
 
     def get_records(self, sql: str, parameters: Optional[Union[Dict[str, Any], Iterable[Any]]] = None) -> Any:
         """

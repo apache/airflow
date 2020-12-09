@@ -15,11 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Dataprep operator.
-"""
-
-from typing import Dict
+"""This module contains a Google Dataprep operator."""
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dataprep import GoogleDataprepHook
@@ -47,7 +43,7 @@ class DataprepGetJobsForJobGroupOperator(BaseOperator):
         self.dataprep_conn_id = (dataprep_conn_id,)
         self.job_id = job_id
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> dict:
         self.log.info("Fetching data for job with id: %d ...", self.job_id)
         hook = GoogleDataprepHook(
             dataprep_conn_id="dataprep_default",
@@ -92,7 +88,7 @@ class DataprepGetJobGroupOperator(BaseOperator):
         self.embed = embed
         self.include_deleted = include_deleted
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> dict:
         self.log.info("Fetching data for job with id: %d ...", self.job_group_id)
         hook = GoogleDataprepHook(dataprep_conn_id=self.dataprep_conn_id)
         response = hook.get_job_group(
@@ -121,7 +117,7 @@ class DataprepRunJobGroupOperator(BaseOperator):
         self.body_request = body_request
         self.dataprep_conn_id = dataprep_conn_id
 
-    def execute(self, context: None):
+    def execute(self, context: None) -> dict:
         self.log.info("Creating a job...")
         hook = GoogleDataprepHook(dataprep_conn_id=self.dataprep_conn_id)
         response = hook.run_job_group(body_request=self.body_request)

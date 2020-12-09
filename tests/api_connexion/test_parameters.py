@@ -22,9 +22,29 @@ from pendulum import DateTime
 from pendulum.tz.timezone import Timezone
 
 from airflow.api_connexion.exceptions import BadRequest
-from airflow.api_connexion.parameters import check_limit, format_datetime, format_parameters
+from airflow.api_connexion.parameters import (
+    check_limit,
+    format_datetime,
+    format_parameters,
+    validate_istimezone,
+)
 from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
+
+
+class TestValidateIsTimezone(unittest.TestCase):
+    def setUp(self) -> None:
+        from datetime import datetime
+
+        self.naive = datetime.now()
+        self.timezoned = datetime.now(tz=timezone.utc)
+
+    def test_gives_400_for_naive(self):
+        with self.assertRaises(BadRequest):
+            validate_istimezone(self.naive)
+
+    def test_timezone_passes(self):
+        assert validate_istimezone(self.timezoned) is None
 
 
 class TestDateTimeParser(unittest.TestCase):

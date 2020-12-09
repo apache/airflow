@@ -90,6 +90,7 @@ info:
     The response usually returns a `204 No Content` response code upon success.
 
     ## Conventions
+
     - Resource names are plural and expressed in camelCase.
     - Names are consistent between URL parameter name and field name.
 
@@ -104,7 +105,9 @@ info:
         "open_slots": 0
     }
     ```
+
     ### Update Mask
+
     Update mask is available as a query parameter in patch endpoints. It is used to notify the
     API which fields you want to update. Using `update_mask` makes it easier to update objects
     by helping the server know which fields to update in an object instead of updating all fields.
@@ -131,11 +134,12 @@ info:
     | v2.0 | Initial releaase |
 
     # Trying the API
+
     You can use a third party client, such as [curl](https://curl.haxx.se/), [HTTPie](https://httpie.org/),
-    [Postman](https://www.postman.com/) or the [Insomnia rest client](https://insomnia.rest/) to test
+    [Postman](https://www.postman.com/) or [the Insomnia rest client](https://insomnia.rest/) to test
     the Apache Airflow API.
 
-    Note that you will need to passcredentials data.
+    Note that you will need to pass credentials data.
 
     For e.g., here is how to pause a DAG with [curl](https://curl.haxx.se/), when basic authorization is used:
     ```bash
@@ -149,6 +153,7 @@ info:
 
     Using a graphical tool such as [Postman](https://www.postman.com/) or [Insomnia](https://insomnia.rest/),
     it is possible to import the API specifications directly:
+
     1. Download the API specification by clicking the **Download** button at top of this document
     2. Import the JSON specification in the graphical tool of your choice.
       - In *Postman*, you can click the **import** button at the top
@@ -162,7 +167,7 @@ info:
     To be able to meet the requirements of many organizations, Airflow supports many authentication methods,
     and it is even possible to add your own method.
 
-    If you want to check which executor is currently set, you can use
+    If you want to check which auth backend is currently set, you can use
     `airflow config get-value api auth_backend` command as in the example below.
     ```bash
     $ airflow config get-value api auth_backend
@@ -171,35 +176,53 @@ info:
     The default is to deny all requests.
 
     For details on configuring the authentication, see
-    [API Authorization](https://airflow.readthedocs.io/en/latest/security/api.html).
+    [API Authorization](https://airflow.apache.org/docs/stable/security/api.html).
 
     # Errors
 
     We follow the error response format proposed in [RFC 7807](https://tools.ietf.org/html/rfc7807)
     also known as Problem Details for HTTP APIs.  As with our normal API responses,
     your client must be prepared to gracefully handle additional members of the response.
+
     ## Unauthenticated
+
     This indicates that the request has not been applied because it lacks valid authentication
     credentials for the target resource. Please check that you have valid credentials.
+
     ## PermissionDenied
+
     This response means that the server understood the request but refuses to authorize
     it because it lacks sufficient rights to the resource. It happens when you do not have the
     necessary permission to execute the action you performed. You need to get the appropriate
     permissions in other to resolve this error.
+
     ## BadRequest
+
     This response means that the server cannot or will not process the request due to something
     that is perceived to be a client error (e.g., malformed request syntax, invalid request message
     framing, or deceptive request routing). To resolve this, please ensure that your syntax is correct.
+
     ## NotFound
+
     This client error response indicates that the server cannot find the requested resource.
+
+    ## MethodNotAllowed
+
+    Indicates that the request method is known by the server but is not supported by the target resource.
+
     ## NotAcceptable
+
     The target resource does not have a current representation that would be acceptable to the user
     agent, according to the proactive negotiation header fields received in the request, and the
     server is unwilling to supply a default representation.
+
     ## AlreadyExists
+
     The request could not be completed due to a conflict with the current state of the target
     resource, meaning that the resource already exists
+
     ## Unknown
+
     This means that the server encountered an unexpected condition that prevented it from
     fulfilling the request.
 
@@ -427,6 +450,39 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/ClearTaskInstance'
+
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstanceReferenceCollection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /dags/{dag_id}/updateTaskInstancesState:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+
+    post:
+      summary: Set a state of task instances
+      description: >
+        Updates the state for multiple task instances simultaneously.
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: post_set_task_instances_state
+      tags: [DAG]
+      requestBody:
+        description: Parameters of action
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskInstancesState'
 
       responses:
         '200':
@@ -1477,7 +1533,7 @@ components:
           nullable: true
         state:
           $ref: '#/components/schemas/DagState'
-          readOnly: True
+          readOnly: true
         external_trigger:
           type: boolean
           default: true
@@ -1518,10 +1574,12 @@ components:
           description: The DAG ID
           type: string
           readOnly: true
+          nullable: true
         task_id:
           description: The DAG ID
           type: string
           readOnly: true
+          nullable: true
         event:
           description: A key describing the type of event.
           type: string
@@ -1532,6 +1590,7 @@ components:
           format: date-time
           type: string
           readOnly: true
+          nullable: true
         owner:
           description: Name of the user who triggered these events a.
           type: string
@@ -1669,6 +1728,7 @@ components:
           format: datetime
         description:
           type: string
+          nullable: true
         notification_sent:
           type: boolean
 
@@ -1685,13 +1745,17 @@ components:
         start_date:
           type: string
           format: datetime
+          nullable: true
         end_date:
           type: string
           format: datetime
+          nullable: true
         duration:
           type: number
+          nullable: true
         state:
           $ref: '#/components/schemas/TaskState'
+          nullable: true
         try_number:
           type: integer
         max_tries:
@@ -1712,12 +1776,15 @@ components:
           type: string
         queued_when:
           type: string
+          nullable: true
         pid:
           type: integer
+          nullable: true
         executor_config:
           type: string
         sla_miss:
           $ref: '#/components/schemas/SLAMiss'
+          nullable: true
 
     TaskInstanceCollection:
       type: object
@@ -1834,7 +1901,7 @@ components:
         DAG details.
 
         For details see:
-        (airflow.models.DAG)[https://airflow.readthedocs.io/en/stable/_api/airflow/models/index.html#airflow.models.DAG]
+        (airflow.models.DAG)[https://airflow.apache.org/docs/stable/_api/airflow/models/index.html#airflow.models.DAG]
       allOf:
         - $ref: '#/components/schemas/DAG'
         - type: object
@@ -1860,6 +1927,7 @@ components:
             doc_md:
               type: string
               readOnly: true
+              nullable: true
             default_view:
               type: string
               readOnly: true
@@ -1890,7 +1958,7 @@ components:
       type: object
       description: |
         For details see:
-        (airflow.models.BaseOperator)[https://airflow.readthedocs.io/en/stable/_api/airflow/models/index.html#airflow.models.BaseOperator]
+        (airflow.models.BaseOperator)[https://airflow.apache.org/docs/stable/_api/airflow/models/index.html#airflow.models.BaseOperator]
       properties:
         class_ref:
           $ref: '#/components/schemas/ClassReference'
@@ -2022,7 +2090,7 @@ components:
           description: The git version (including git commit hash)
           nullable: true
 
-    # From
+    # Form
     ClearTaskInstance:
       type: object
       properties:
@@ -2045,13 +2113,13 @@ components:
 
         only_failed:
           description: Only clear failed tasks.
-          type: string
-          format: datetime
+          type: boolean
+          default: true
 
         only_running:
           description: Only clear running tasks.
-          type: string
-          format: datetime
+          type: boolean
+          default: false
 
         include_subdags:
           description: Clear tasks in subdags and clear external tasks indicated by ExternalTaskMarker.
@@ -2064,6 +2132,48 @@ components:
         reset_dag_runs:
           description: Set state of DAG runs to RUNNING.
           type: boolean
+
+    UpdateTaskInstancesState:
+      type: object
+      properties:
+        dry_run:
+          description: |
+            If set, don't actually run this operation. The response will contain a list of task instances
+            planned to be affected, but won't be modified in any way.
+          type: boolean
+          default: true
+
+        task_id:
+          description: The task ID.
+          type: string
+
+        execution_date:
+          description: The execution date.
+          type: string
+          format: datetime
+
+        include_upstream:
+          description: If set to true, upstream tasks are also affected.
+          type: boolean
+
+        include_downstream:
+          description: If set to true, downstream tasks are also affected.
+          type: boolean
+
+        include_future:
+          description: If set to True, also tasks from future DAG Runs are affected.
+          type: boolean
+
+        include_past:
+          description: If set to True, also tasks from past DAG Runs are affected.
+          type: boolean
+
+        new_state:
+          description: Expected new state.
+          type: string
+          enum:
+            - success
+            - failed
 
     ListDagRunsForm:
       type: object
@@ -2200,19 +2310,19 @@ components:
             Returns objects less than or equal to the specified values.
 
             This can be combined with duration_gte parameter to receive only the selected range.
-        State:
+        state:
           type: array
           items:
             type: string
           description:
             The value can be repeated to retrieve multiple matching values (OR condition).
-        Pool:
+        pool:
           type: array
           items:
             type: string
           description:
             The value can be repeated to retrieve multiple matching values (OR condition).
-        Queue:
+        queue:
           type: array
           items:
             type: string
@@ -2294,6 +2404,7 @@ components:
       properties:
         __type: {type: string}
         value: {type: string}
+      nullable: true
 
     Timezone:
       type: string
@@ -2359,7 +2470,7 @@ components:
       properties:
         total_entries:
           type: integer
-          description: Total count for all collection items.
+          description: Count of objects in the current result set.
 
     # Enums
     TaskState:
@@ -2707,6 +2818,13 @@ components:
     # 404
     'NotFound':
       description: A specified resource is not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    # 405
+    'MethodNotAllowed':
+      description: Request method is known by the server but is not supported by the target resource.
       content:
         application/json:
           schema:

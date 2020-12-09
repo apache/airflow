@@ -21,55 +21,53 @@
 {% block title %}Airflow - DAGs{% endblock %}
 
 {% block content %}
-    {{ super() }}
-    <h4>{{ title }}</h4>
-    <div>
-        <h5>Dependencies Blocking Task From Getting Scheduled</h5>
-        <table class="table table-striped table-bordered">
-            <tr>
-                <th>Dependency</th>
-                <th>Reason</th>
-            </tr>
-            {% for dependency, reason in failed_dep_reasons %}
-                <tr>
-                    <td>{{ dependency }}</td>
-                    {% autoescape false %}
-                    <td class='code'>{{ reason }}</td>
-                    {% endautoescape %}
-                </tr>
-            {% endfor %}
-        </table>
-    </div>
-    <div>
-        {% for attr, value in special_attrs_rendered.items() %}
-            <h5>Attribute: {{ attr }}</h5>
-            {{ value }}
-        {% endfor %}
-        <h5>Task Instance Attributes</h5>
-        <table class="table table-striped table-bordered">
-            <tr>
-                <th>Attribute</th>
-                <th>Value</th>
-            </tr>
-            {% for attr, value in ti_attrs %}
-                <tr>
-                    <td>{{ attr }}</td>
-                    <td class='code'>{{ value }}</td>
-                </tr>
-            {% endfor %}
-        </table>
-        <h5>Task Attributes</h5>
-        <table class="table table-striped table-bordered">
-            <tr>
-                <th>Attribute</th>
-                <th>Value</th>
-            </tr>
-            {% for attr, value in task_attrs %}
-                <tr>
-                    <td>{{ attr }}</td>
-                    <td class='code'>{{ value }}</td>
-                </tr>
-            {% endfor %}
-        </table>
-    </div>
+  {{ super() }}
+  <h4>{{ title }}</h4>
+  <h5>Dependencies Blocking Task From Getting Scheduled</h5>
+  <table class="table table-striped table-bordered">
+    <tr>
+      <th>Dependency</th>
+      <th>Reason</th>
+    </tr>
+    {% for dependency, reason in failed_dep_reasons %}
+      <tr>
+        <td>{{ dependency }}</td>
+        {% autoescape false %}
+          <td class="code">{{ reason }}</td>
+        {% endautoescape %}
+      </tr>
+    {% endfor %}
+  </table>
+  <div>
+    {% for attr, value in special_attrs_rendered.items() %}
+      <h5>Attribute: {{ attr }}</h5>
+      {{ value }}
+    {% endfor %}
+    <h5>Task Instance Attributes</h5>
+    <table class="table table-striped table-bordered">
+      <tr>
+        <th>Attribute</th>
+        <th>Value</th>
+      </tr>
+      {% for attr, value in ti_attrs %}
+        <tr>
+          <td>{{ attr }}</td>
+          <td class="code">{{ value }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+    <h5>Task Attributes</h5>
+    <table class="table table-striped table-bordered">
+      <tr>
+        <th>Attribute</th>
+        <th>Value</th>
+      </tr>
+      {% for attr, value in task_attrs %}
+        <tr>
+          <td>{{ attr }}</td>
+          <td class="code">{{ value }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+  </div>
 {% endblock %}

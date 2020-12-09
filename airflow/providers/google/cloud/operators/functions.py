@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Cloud Functions operators.
-"""
+"""This module contains Google Cloud Functions operators."""
 
 import re
 from typing import Any, Dict, List, Optional, Sequence, Union
@@ -180,29 +178,27 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
         self._validate_inputs()
         super().__init__(**kwargs)
 
-    def _validate_inputs(self):
+    def _validate_inputs(self) -> None:
         if not self.location:
             raise AirflowException("The required parameter 'location' is missing")
         if not self.body:
             raise AirflowException("The required parameter 'body' is missing")
         self.zip_path_preprocessor.preprocess_body()
 
-    def _validate_all_body_fields(self):
+    def _validate_all_body_fields(self) -> None:
         if self._field_validator:
             self._field_validator.validate(self.body)
 
-    def _create_new_function(self, hook):
+    def _create_new_function(self, hook) -> None:
         hook.create_new_function(project_id=self.project_id, location=self.location, body=self.body)
 
-    def _update_function(self, hook):
+    def _update_function(self, hook) -> None:
         hook.update_function(self.body['name'], self.body, self.body.keys())
 
-    def _check_if_function_exists(self, hook):
+    def _check_if_function_exists(self, hook) -> bool:
         name = self.body.get('name')
         if not name:
-            raise GcpFieldValidationException(
-                "The 'name' field should be present in " "body: '{}'.".format(self.body)
-            )
+            raise GcpFieldValidationException(f"The 'name' field should be present in body: '{self.body}'.")
         try:
             hook.get_function(name)
         except HttpError as e:
@@ -217,7 +213,7 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
             project_id=self.project_id, location=self.location, zip_path=self.zip_path
         )
 
-    def _set_airflow_version_label(self):
+    def _set_airflow_version_label(self) -> None:
         if 'labels' not in self.body.keys():
             self.body['labels'] = {}
         self.body['labels'].update({'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')})
@@ -274,10 +270,10 @@ class ZipPathPreprocessor:
         self.zip_path = zip_path
 
     @staticmethod
-    def _is_present_and_empty(dictionary, field):
+    def _is_present_and_empty(dictionary, field) -> bool:
         return field in dictionary and not dictionary[field]
 
-    def _verify_upload_url_and_no_zip_path(self):
+    def _verify_upload_url_and_no_zip_path(self) -> None:
         if self._is_present_and_empty(self.body, GCF_SOURCE_UPLOAD_URL):
             if not self.zip_path:
                 raise AirflowException(
@@ -286,7 +282,7 @@ class ZipPathPreprocessor:
                     "when '{url}' is present and empty.".format(url=GCF_SOURCE_UPLOAD_URL, path=GCF_ZIP_PATH)
                 )
 
-    def _verify_upload_url_and_zip_path(self):
+    def _verify_upload_url_and_zip_path(self) -> None:
         if GCF_SOURCE_UPLOAD_URL in self.body and self.zip_path:
             if not self.body[GCF_SOURCE_UPLOAD_URL]:
                 self.upload_function = True
@@ -296,7 +292,7 @@ class ZipPathPreprocessor:
                     "allowed. Found both.".format(GCF_SOURCE_UPLOAD_URL, GCF_ZIP_PATH)
                 )
 
-    def _verify_archive_url_and_zip_path(self):
+    def _verify_archive_url_and_zip_path(self) -> None:
         if GCF_SOURCE_ARCHIVE_URL in self.body and self.zip_path:
             raise AirflowException(
                 "Only one of '{}' in body or '{}' argument "
@@ -313,7 +309,7 @@ class ZipPathPreprocessor:
             raise AirflowException('validate() method has to be invoked before ' 'should_upload_function')
         return self.upload_function
 
-    def preprocess_body(self):
+    def preprocess_body(self) -> None:
         """
         Modifies sourceUploadUrl body field in special way when zip_path
         is not empty.
@@ -381,13 +377,13 @@ class CloudFunctionDeleteFunctionOperator(BaseOperator):
         self._validate_inputs()
         super().__init__(**kwargs)
 
-    def _validate_inputs(self):
+    def _validate_inputs(self) -> None:
         if not self.name:
             raise AttributeError('Empty parameter: name')
         else:
             pattern = FUNCTION_NAME_COMPILED_PATTERN
             if not pattern.match(self.name):
-                raise AttributeError('Parameter name must match pattern: {}'.format(FUNCTION_NAME_PATTERN))
+                raise AttributeError(f'Parameter name must match pattern: {FUNCTION_NAME_PATTERN}')
 
     def execute(self, context):
         hook = CloudFunctionsHook(
@@ -480,6 +476,6 @@ class CloudFunctionInvokeFunctionOperator(BaseOperator):
             location=self.location,
             project_id=self.project_id,
         )
-        self.log.info('Function called successfully. Execution id %s', result.get('executionId', None))
-        self.xcom_push(context=context, key='execution_id', value=result.get('executionId', None))
+        self.log.info('Function called successfully. Execution id %s', result.get('executionId'))
+        self.xcom_push(context=context, key='execution_id', value=result.get('executionId'))
         return result

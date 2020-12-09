@@ -17,6 +17,7 @@
 # under the License.
 #
 import unittest
+from unittest.mock import patch
 
 from google.cloud.language_v1.proto.language_service_pb2 import (
     AnalyzeEntitiesResponse,
@@ -25,7 +26,6 @@ from google.cloud.language_v1.proto.language_service_pb2 import (
     ClassifyTextResponse,
     Document,
 )
-from mock import patch
 
 from airflow.providers.google.cloud.operators.natural_language import (
     CloudNaturalLanguageAnalyzeEntitiesOperator,

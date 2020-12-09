@@ -43,7 +43,7 @@ GCP_BUCKET_NAME = os.environ.get("GCP_VIDEO_INTELLIGENCE_BUCKET_NAME", "test-buc
 
 
 # [START howto_operator_video_intelligence_other_args]
-INPUT_URI = "gs://{}/video.mp4".format(GCP_BUCKET_NAME)
+INPUT_URI = f"gs://{GCP_BUCKET_NAME}/video.mp4"
 # [END howto_operator_video_intelligence_other_args]
 
 

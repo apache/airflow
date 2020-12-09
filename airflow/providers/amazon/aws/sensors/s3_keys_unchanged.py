@@ -23,7 +23,7 @@ from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator, poke_mode_only
+from airflow.sensors.base import BaseSensorOperator, poke_mode_only
 from airflow.utils.decorators import apply_defaults
 
 
@@ -103,9 +103,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self):
-        """
-        Returns S3Hook.
-        """
+        """Returns S3Hook."""
         return S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
     def is_keys_unchanged(self, current_objects: Set[str]) -> bool:

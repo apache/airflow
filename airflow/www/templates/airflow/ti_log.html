@@ -21,37 +21,39 @@
 {% block title %}Airflow - DAGs{% endblock %}
 
 {% block content %}
-{{ super() }}
-<h4>{{ title }}</h4>
-<ul class="nav nav-pills" role="tablist">
-  {% for log in logs %}
-  <li role="presentation" class="{{ 'active' if loop.last else '' }}">
-    <a href="#{{ loop.index }}" aria-controls="{{ loop.index }}" role="tab" data-toggle="tab">
-      {{ loop.index }}
-    </a>
-  </li>
-  {% endfor %}
-  <li class="active" style="float: right">
-    <a onclick='scrollBottom()'>Jump to end</a>
-  </li>
-  <li class="active" style="float: right">
-    <a onclick='toggleWrap()'>Toggle wrap</a>
-  </li>
-
-</ul>
-<div class="tab-content">
-  {% for log in logs %}
-  <div role="tabpanel" class="tab-pane {{ 'active' if loop.last else '' }}" id="{{ loop.index }}">
-    <img id="loading-{{ loop.index }}" style="margin-top:0%; margin-left:50%; height:50px; width:50px; position: absolute;"
-         alt="spinner" src="{{ url_for('static', filename='loading.gif') }}">
-    <div id="log-group-{{ loop.index }}"></div>
+  {{ super() }}
+  <h4>{{ title }}</h4>
+  <div class="row">
+    <div class="col-md-8">
+      <ul class="nav nav-pills" role="tablist">
+        {% for log in logs %}
+          <li role="presentation" class="{{ 'active' if loop.last else '' }}">
+            <a href="#{{ loop.index }}" aria-controls="{{ loop.index }}" role="tab" data-toggle="tab">
+              {{ loop.index }}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="col-md-4 text-right">
+      <a class="btn btn-default" onclick="scrollBottom()">Jump To End</a>
+      <a class="btn btn-default" onclick="toggleWrap()">Toggle Wrap</a>
+    </div>
   </div>
-  {% endfor %}
+  <div class="tab-content">
+    {% for log in logs %}
+      <div role="tabpanel" class="tab-pane {{ 'active' if loop.last else '' }}" id="{{ loop.index }}">
+        <img id="loading-{{ loop.index }}" style="margin-top:0%; margin-left:50%; height:50px; width:50px; position: absolute;"
+             alt="spinner" src="{{ url_for('static', filename='loading.gif') }}">
+        <div id="log-group-{{ loop.index }}"></div>
+      </div>
+    {% endfor %}
   </div>
+  <br>
 {% endblock %}
 {% block tail %}
-{{ super() }}
-<script>
+  {{ super() }}
+  <script>
     // Time interval to wait before next log fetching. Default 2s.
     const DELAY = "{{ (log_fetch_delay_sec | int ) * 1000 }}";
     // Distance away from page bottom to enable auto tailing.
@@ -173,6 +175,5 @@
         autoTailingLog(i, null, auto_tailing=(i == TOTAL_ATTEMPTS));
       }
     });
-
-</script>
+  </script>
 {% endblock %}

@@ -16,8 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from unittest import mock
 
-import mock
 from parameterized import parameterized
 
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import GcpTransferOperationStatus
@@ -25,13 +25,27 @@ from airflow.providers.google.cloud.sensors.cloud_storage_transfer_service impor
     CloudDataTransferServiceJobStatusSensor,
 )
 
+TEST_NAME = "transferOperations/transferJobs-123-456"
+TEST_COUNTERS = {
+    "bytesFoundFromSource": 512,
+    "bytesCopiedToSink": 1024,
+}
+
 
 class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.cloud.sensors.cloud_storage_transfer_service.CloudDataTransferServiceHook'
     )
     def test_wait_for_status_success(self, mock_tool):
-        operations = [{'metadata': {'status': GcpTransferOperationStatus.SUCCESS}}]
+        operations = [
+            {
+                'name': TEST_NAME,
+                'metadata': {
+                    'status': GcpTransferOperationStatus.SUCCESS,
+                    'counters': TEST_COUNTERS,
+                },
+            }
+        ]
         mock_tool.return_value.list_transfer_operations.return_value = operations
         mock_tool.operations_contain_expected_statuses.return_value = True
 
@@ -79,8 +93,24 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
     )
     def test_wait_for_status_after_retry(self, mock_tool):
         operations_set = [
-            [{'metadata': {'status': GcpTransferOperationStatus.SUCCESS}}],
-            [{'metadata': {'status': GcpTransferOperationStatus.SUCCESS}}],
+            [
+                {
+                    'name': TEST_NAME,
+                    'metadata': {
+                        'status': GcpTransferOperationStatus.SUCCESS,
+                        'counters': TEST_COUNTERS,
+                    },
+                },
+            ],
+            [
+                {
+                    'name': TEST_NAME,
+                    'metadata': {
+                        'status': GcpTransferOperationStatus.SUCCESS,
+                        'counters': TEST_COUNTERS,
+                    },
+                },
+            ],
         ]
 
         mock_tool.return_value.list_transfer_operations.side_effect = operations_set
@@ -124,7 +154,15 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
         'airflow.providers.google.cloud.sensors.cloud_storage_transfer_service.CloudDataTransferServiceHook'
     )
     def test_wait_for_status_normalize_status(self, expected_status, received_status, mock_tool):
-        operations = [{'metadata': {'status': GcpTransferOperationStatus.SUCCESS}}]
+        operations = [
+            {
+                'name': TEST_NAME,
+                'metadata': {
+                    'status': GcpTransferOperationStatus.SUCCESS,
+                    'counters': TEST_COUNTERS,
+                },
+            }
+        ]
 
         mock_tool.return_value.list_transfer_operations.return_value = operations
         mock_tool.operations_contain_expected_statuses.side_effect = [False, True]

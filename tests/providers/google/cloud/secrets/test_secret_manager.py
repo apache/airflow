@@ -36,6 +36,8 @@ CONN_ID = 'test-postgres'
 CONN_URI = 'postgresql://airflow:airflow@host:5432/airflow'
 VAR_KEY = 'hello'
 VAR_VALUE = 'world'
+CONFIG_KEY = 'sql_alchemy_conn'
+CONFIG_VALUE = 'postgresql://airflow:airflow@host:5432/airflow'
 
 MODULE_NAME = "airflow.providers.google.cloud.secrets.secret_manager"
 CLIENT_MODULE_NAME = "airflow.providers.google.cloud._internal_client.secret_manager_client"
@@ -149,6 +151,24 @@ class TestCloudSecretManagerBackend(TestCase):
         self.assertEqual(VAR_VALUE, returned_uri)
         mock_client.secret_version_path.assert_called_once_with(PROJECT_ID, secret_id, "latest")
 
+    @parameterized.expand(["airflow-config", "config", "airflow"])
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    @mock.patch(CLIENT_MODULE_NAME + ".SecretManagerServiceClient")
+    def test_get_config(self, config_prefix, mock_client_callable, mock_get_creds):
+        mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
+        mock_client = mock.MagicMock()
+        mock_client_callable.return_value = mock_client
+
+        test_response = AccessSecretVersionResponse()
+        test_response.payload.data = CONFIG_VALUE.encode("UTF-8")
+        mock_client.access_secret_version.return_value = test_response
+
+        secrets_manager_backend = CloudSecretManagerBackend(config_prefix=config_prefix)
+        secret_id = secrets_manager_backend.build_path(config_prefix, CONFIG_KEY, SEP)
+        returned_val = secrets_manager_backend.get_config(CONFIG_KEY)
+        self.assertEqual(CONFIG_VALUE, returned_val)
+        mock_client.secret_version_path.assert_called_once_with(PROJECT_ID, secret_id, "latest")
+
     @parameterized.expand(["airflow-variables", "variables", "airflow"])
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     @mock.patch(CLIENT_MODULE_NAME + ".SecretManagerServiceClient")
@@ -186,3 +206,46 @@ class TestCloudSecretManagerBackend(TestCase):
                 log_output.output[0],
                 f"Google Cloud API Call Error \\(NotFound\\): Secret ID {secret_id} not found",
             )
+
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    @mock.patch(CLIENT_MODULE_NAME + ".SecretManagerServiceClient")
+    def test_connections_prefix_none_value(self, mock_client_callable, mock_get_creds):
+        mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
+        mock_client = mock.MagicMock()
+        mock_client_callable.return_value = mock_client
+
+        with mock.patch(MODULE_NAME + '.CloudSecretManagerBackend._get_secret') as mock_get_secret:
+            with mock.patch(
+                MODULE_NAME + '.CloudSecretManagerBackend._is_valid_prefix_and_sep'
+            ) as mock_is_valid_prefix_sep:
+                secrets_manager_backend = CloudSecretManagerBackend(connections_prefix=None)
+
+                mock_is_valid_prefix_sep.assert_not_called()
+                self.assertIsNone(secrets_manager_backend.get_conn_uri(conn_id=CONN_ID))
+                mock_get_secret.assert_not_called()
+
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    @mock.patch(CLIENT_MODULE_NAME + ".SecretManagerServiceClient")
+    def test_variables_prefix_none_value(self, mock_client_callable, mock_get_creds):
+        mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
+        mock_client = mock.MagicMock()
+        mock_client_callable.return_value = mock_client
+
+        with mock.patch(MODULE_NAME + '.CloudSecretManagerBackend._get_secret') as mock_get_secret:
+            secrets_manager_backend = CloudSecretManagerBackend(variables_prefix=None)
+
+            self.assertIsNone(secrets_manager_backend.get_variable(VAR_KEY))
+            mock_get_secret.assert_not_called()
+
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    @mock.patch(CLIENT_MODULE_NAME + ".SecretManagerServiceClient")
+    def test_config_prefix_none_value(self, mock_client_callable, mock_get_creds):
+        mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
+        mock_client = mock.MagicMock()
+        mock_client_callable.return_value = mock_client
+
+        with mock.patch(MODULE_NAME + '.CloudSecretManagerBackend._get_secret') as mock_get_secret:
+            secrets_manager_backend = CloudSecretManagerBackend(config_prefix=None)
+
+            self.assertIsNone(secrets_manager_backend.get_config(CONFIG_KEY))
+            mock_get_secret.assert_not_called()

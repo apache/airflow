@@ -15,13 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import importlib
+import logging
+import sys
 import unittest
 from unittest import mock
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.plugins_manager import AirflowPlugin
 from airflow.www import app as application
 from tests.test_utils.mock_plugins import mock_plugin_manager
+
+py39 = sys.version_info >= (3, 9)
+importlib_metadata = 'importlib.metadata' if py39 else 'importlib_metadata'
 
 
 class TestPluginsRBAC(unittest.TestCase):
@@ -31,15 +37,20 @@ class TestPluginsRBAC(unittest.TestCase):
 
     def test_flaskappbuilder_views(self):
         from tests.plugins.test_plugin import v_appbuilder_package
+
         appbuilder_class_name = str(v_appbuilder_package['view'].__class__.__name__)
-        plugin_views = [view for view in self.appbuilder.baseviews
-                        if view.blueprint.name == appbuilder_class_name]
+        plugin_views = [
+            view for view in self.appbuilder.baseviews if view.blueprint.name == appbuilder_class_name
+        ]
 
         self.assertTrue(len(plugin_views) == 1)
 
         # view should have a menu item matching category of v_appbuilder_package
-        links = [menu_item for menu_item in self.appbuilder.menu.menu
-                 if menu_item.name == v_appbuilder_package['category']]
+        links = [
+            menu_item
+            for menu_item in self.appbuilder.menu.menu
+            if menu_item.name == v_appbuilder_package['category']
+        ]
 
         self.assertTrue(len(links) == 1)
 
@@ -52,8 +63,11 @@ class TestPluginsRBAC(unittest.TestCase):
         from tests.plugins.test_plugin import appbuilder_mitem
 
         # menu item should exist matching appbuilder_mitem
-        links = [menu_item for menu_item in self.appbuilder.menu.menu
-                 if menu_item.name == appbuilder_mitem['category']]
+        links = [
+            menu_item
+            for menu_item in self.appbuilder.menu.menu
+            if menu_item.name == appbuilder_mitem['category']
+        ]
 
         self.assertTrue(len(links) == 1)
 
@@ -69,59 +83,40 @@ class TestPluginsRBAC(unittest.TestCase):
         self.assertTrue('test_plugin' in self.app.blueprints)
         self.assertEqual(self.app.blueprints['test_plugin'].name, bp.name)
 
-    @mock.patch('airflow.plugins_manager.pkg_resources.iter_entry_points')
-    def test_entrypoint_plugin_errors_dont_raise_exceptions(self, mock_ep_plugins):
-        """
-        Test that Airflow does not raise an Error if there is any Exception because of the
-        Plugin.
-        """
-        from airflow.plugins_manager import import_errors, load_entrypoint_plugins
 
-        mock_entrypoint = mock.Mock()
-        mock_entrypoint.name = 'test-entrypoint'
-        mock_entrypoint.module_name = 'test.plugins.test_plugins_manager'
-        mock_entrypoint.load.side_effect = Exception('Version Conflict')
-        mock_ep_plugins.return_value = [mock_entrypoint]
+class TestPluginsManager:
+    def test_no_log_when_no_plugins(self, caplog):
 
-        with self.assertLogs("airflow.plugins_manager", level="ERROR") as log_output:
-            load_entrypoint_plugins()
+        with mock_plugin_manager(plugins=[]):
+            from airflow import plugins_manager
 
-            received_logs = log_output.output[0]
-            # Assert Traceback is shown too
-            assert "Traceback (most recent call last):" in received_logs
-            assert "Version Conflict" in received_logs
-            assert "Failed to import plugin test-entrypoint" in received_logs
-            assert ("test.plugins.test_plugins_manager", "Version Conflict") in import_errors.items()
+            plugins_manager.ensure_plugins_loaded()
 
+        assert caplog.record_tuples == []
 
-class TestPluginsManager(unittest.TestCase):
-    def test_should_load_plugins_from_property(self):
+    def test_should_load_plugins_from_property(self, caplog):
         class AirflowTestPropertyPlugin(AirflowPlugin):
             name = "test_property_plugin"
 
             @property
-            def operators(self):
-                from airflow.models.baseoperator import BaseOperator
-
-                class PluginPropertyOperator(BaseOperator):
+            def hooks(self):
+                class TestPropertyHook(BaseHook):
                     pass
 
-                return [PluginPropertyOperator]
-
-            class TestNonPropertyHook(BaseHook):
-                pass
-
-            hooks = [TestNonPropertyHook]
+                return [TestPropertyHook]
 
         with mock_plugin_manager(plugins=[AirflowTestPropertyPlugin()]):
             from airflow import plugins_manager
-            plugins_manager.integrate_dag_plugins()
 
-            self.assertIn('AirflowTestPropertyPlugin', str(plugins_manager.plugins))
-            self.assertIn('PluginPropertyOperator', str(plugins_manager.operators_modules[0].__dict__))
-            self.assertIn("TestNonPropertyHook", str(plugins_manager.hooks_modules[0].__dict__))
+            plugins_manager.ensure_plugins_loaded()
 
-    def test_should_warning_about_incompatible_plugins(self):
+            assert 'AirflowTestPropertyPlugin' in str(plugins_manager.plugins)
+            assert 'TestPropertyHook' in str(plugins_manager.registered_hooks)
+
+        assert caplog.records[0].levelname == 'INFO'
+        assert caplog.records[0].msg == 'Loading %d plugin(s) took %.2f seconds'
+
+    def test_should_warning_about_incompatible_plugins(self, caplog):
         class AirflowAdminViewsPlugin(AirflowPlugin):
             name = "test_admin_views_plugin"
 
@@ -132,26 +127,29 @@ class TestPluginsManager(unittest.TestCase):
 
             menu_links = [mock.MagicMock()]
 
-        with mock_plugin_manager(plugins=[
-            AirflowAdminViewsPlugin(),
-            AirflowAdminMenuLinksPlugin()
-        ]):
+        with mock_plugin_manager(
+            plugins=[AirflowAdminViewsPlugin(), AirflowAdminMenuLinksPlugin()]
+        ), caplog.at_level(logging.WARNING, logger='airflow.plugins_manager'):
             from airflow import plugins_manager
 
-            # assert not logs
-            with self.assertLogs(plugins_manager.log) as cm:
-                plugins_manager.initialize_web_ui_plugins()
+            plugins_manager.initialize_web_ui_plugins()
 
-        self.assertEqual(cm.output, [
-            'WARNING:airflow.plugins_manager:Plugin \'test_admin_views_plugin\' may not be '
-            'compatible with the current Airflow version. Please contact the author of '
-            'the plugin.',
-            'WARNING:airflow.plugins_manager:Plugin \'test_menu_links_plugin\' may not be '
-            'compatible with the current Airflow version. Please contact the author of '
-            'the plugin.'
-        ])
+        assert caplog.record_tuples == [
+            (
+                "airflow.plugins_manager",
+                logging.WARNING,
+                "Plugin 'test_admin_views_plugin' may not be compatible with the current Airflow version. "
+                "Please contact the author of the plugin.",
+            ),
+            (
+                "airflow.plugins_manager",
+                logging.WARNING,
+                "Plugin 'test_menu_links_plugin' may not be compatible with the current Airflow version. "
+                "Please contact the author of the plugin.",
+            ),
+        ]
 
-    def test_should_not_warning_about_fab_plugins(self):
+    def test_should_not_warning_about_fab_plugins(self, caplog):
         class AirflowAdminViewsPlugin(AirflowPlugin):
             name = "test_admin_views_plugin"
 
@@ -162,17 +160,16 @@ class TestPluginsManager(unittest.TestCase):
 
             appbuilder_menu_items = [mock.MagicMock()]
 
-        with mock_plugin_manager(plugins=[
-            AirflowAdminViewsPlugin(),
-            AirflowAdminMenuLinksPlugin()
-        ]):
+        with mock_plugin_manager(
+            plugins=[AirflowAdminViewsPlugin(), AirflowAdminMenuLinksPlugin()]
+        ), caplog.at_level(logging.WARNING, logger='airflow.plugins_manager'):
             from airflow import plugins_manager
 
-            # assert not logs
-            with self.assertRaises(AssertionError), self.assertLogs(plugins_manager.log):
-                plugins_manager.initialize_web_ui_plugins()
+            plugins_manager.initialize_web_ui_plugins()
 
-    def test_should_not_warning_about_fab_and_flask_admin_plugins(self):
+        assert caplog.record_tuples == []
+
+    def test_should_not_warning_about_fab_and_flask_admin_plugins(self, caplog):
         class AirflowAdminViewsPlugin(AirflowPlugin):
             name = "test_admin_views_plugin"
 
@@ -185,12 +182,109 @@ class TestPluginsManager(unittest.TestCase):
             menu_links = [mock.MagicMock()]
             appbuilder_menu_items = [mock.MagicMock()]
 
-        with mock_plugin_manager(plugins=[
-            AirflowAdminViewsPlugin(),
-            AirflowAdminMenuLinksPlugin()
-        ]):
+        with mock_plugin_manager(
+            plugins=[AirflowAdminViewsPlugin(), AirflowAdminMenuLinksPlugin()]
+        ), caplog.at_level(logging.WARNING, logger='airflow.plugins_manager'):
             from airflow import plugins_manager
 
-            # assert not logs
-            with self.assertRaises(AssertionError), self.assertLogs(plugins_manager.log):
-                plugins_manager.initialize_web_ui_plugins()
+            plugins_manager.initialize_web_ui_plugins()
+
+        assert caplog.record_tuples == []
+
+    def test_entrypoint_plugin_errors_dont_raise_exceptions(self, caplog):
+        """
+        Test that Airflow does not raise an error if there is any Exception because of a plugin.
+        """
+        from airflow.plugins_manager import import_errors, load_entrypoint_plugins
+
+        mock_dist = mock.Mock()
+
+        mock_entrypoint = mock.Mock()
+        mock_entrypoint.name = 'test-entrypoint'
+        mock_entrypoint.group = 'airflow.plugins'
+        mock_entrypoint.module = 'test.plugins.test_plugins_manager'
+        mock_entrypoint.load.side_effect = ImportError('my_fake_module not found')
+        mock_dist.entry_points = [mock_entrypoint]
+
+        with mock.patch(f'{importlib_metadata}.distributions', return_value=[mock_dist]), caplog.at_level(
+            logging.ERROR, logger='airflow.plugins_manager'
+        ):
+            load_entrypoint_plugins()
+
+            received_logs = caplog.text
+            # Assert Traceback is shown too
+            assert "Traceback (most recent call last):" in received_logs
+            assert "my_fake_module not found" in received_logs
+            assert "Failed to import plugin test-entrypoint" in received_logs
+            assert ("test.plugins.test_plugins_manager", "my_fake_module not found") in import_errors.items()
+
+    def test_registering_plugin_macros(self, request):
+        """
+        Tests whether macros that originate from plugins are being registered correctly.
+        """
+        from airflow import macros
+        from airflow.plugins_manager import integrate_macros_plugins
+
+        def cleanup_macros():
+            """Reloads the airflow.macros module such that the symbol table is reset after the test."""
+            # We're explicitly deleting the module from sys.modules and importing it again
+            # using import_module() as opposed to using importlib.reload() because the latter
+            # does not undo the changes to the airflow.macros module that are being caused by
+            # invoking integrate_macros_plugins()
+            del sys.modules['airflow.macros']
+            importlib.import_module('airflow.macros')
+
+        request.addfinalizer(cleanup_macros)
+
+        def custom_macro():
+            return 'foo'
+
+        class MacroPlugin(AirflowPlugin):
+            name = 'macro_plugin'
+            macros = [custom_macro]
+
+        with mock_plugin_manager(plugins=[MacroPlugin()]):
+            # Ensure the macros for the plugin have been integrated.
+            integrate_macros_plugins()
+            # Test whether the modules have been created as expected.
+            plugin_macros = importlib.import_module(f"airflow.macros.{MacroPlugin.name}")
+            for macro in MacroPlugin.macros:
+                # Verify that the macros added by the plugin are being set correctly
+                # on the plugin's macro module.
+                assert hasattr(plugin_macros, macro.__name__)
+            # Verify that the symbol table in airflow.macros has been updated with an entry for
+            # this plugin, this is necessary in order to allow the plugin's macros to be used when
+            # rendering templates.
+            assert hasattr(macros, MacroPlugin.name)
+
+
+class TestPluginsDirectorySource(unittest.TestCase):
+    def test_should_return_correct_path_name(self):
+        from airflow import plugins_manager
+
+        source = plugins_manager.PluginsDirectorySource(__file__)
+        self.assertEqual("test_plugins_manager.py", source.path)
+        self.assertEqual("$PLUGINS_FOLDER/test_plugins_manager.py", str(source))
+        self.assertEqual("<em>$PLUGINS_FOLDER/</em>test_plugins_manager.py", source.__html__())
+
+
+class TestEntryPointSource:
+    def test_should_return_correct_source_details(self):
+        from airflow import plugins_manager
+
+        mock_entrypoint = mock.Mock()
+        mock_entrypoint.name = 'test-entrypoint-plugin'
+        mock_entrypoint.module = 'module_name_plugin'
+
+        mock_dist = mock.Mock()
+        mock_dist.metadata = {'name': 'test-entrypoint-plugin'}
+        mock_dist.version = '1.0.0'
+        mock_dist.entry_points = [mock_entrypoint]
+
+        with mock.patch(f'{importlib_metadata}.distributions', return_value=[mock_dist]):
+            plugins_manager.load_entrypoint_plugins()
+
+        source = plugins_manager.EntryPointSource(mock_entrypoint, mock_dist)
+        assert str(mock_entrypoint) == source.entrypoint
+        assert "test-entrypoint-plugin==1.0.0: " + str(mock_entrypoint) == str(source)
+        assert "<em>test-entrypoint-plugin==1.0.0:</em> " + str(mock_entrypoint) == source.__html__()

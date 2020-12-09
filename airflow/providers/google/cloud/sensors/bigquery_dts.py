@@ -15,16 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google BigQuery Data Transfer Service sensor.
-"""
+"""This module contains a Google BigQuery Data Transfer Service sensor."""
 from typing import Optional, Sequence, Set, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.protobuf.json_format import MessageToDict
 
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -91,7 +89,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.run_id = run_id
         self.transfer_config_id = transfer_config_id
@@ -105,7 +103,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         self.gcp_cloud_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context):
+    def poke(self, context: dict) -> bool:
         hook = BiqQueryDataTransferServiceHook(
             gcp_conn_id=self.gcp_cloud_conn_id,
             impersonation_chain=self.impersonation_chain,

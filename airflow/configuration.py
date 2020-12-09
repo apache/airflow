@@ -1,4 +1,3 @@
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import copy
 import json
 import logging
 import multiprocessing
@@ -29,6 +27,7 @@ import sys
 import warnings
 from base64 import b64encode
 from collections import OrderedDict
+
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
 from json.decoder import JSONDecodeError
@@ -45,10 +44,8 @@ log = logging.getLogger(__name__)
 
 # show Airflow's deprecation warnings
 if not sys.warnoptions:
-    warnings.filterwarnings(
-        action='default', category=DeprecationWarning, module='airflow')
-    warnings.filterwarnings(
-        action='default', category=PendingDeprecationWarning, module='airflow')
+    warnings.filterwarnings(action='default', category=DeprecationWarning, module='airflow')
+    warnings.filterwarnings(action='default', category=PendingDeprecationWarning, module='airflow')
 
 
 def expand_env_var(env_var):
@@ -68,21 +65,16 @@ def expand_env_var(env_var):
 
 
 def run_command(command):
-    """
-    Runs command and returns stdout
-    """
+    """Runs command and returns stdout"""
     process = subprocess.Popen(
-        shlex.split(command),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        close_fds=True)
-    output, stderr = [stream.decode(sys.getdefaultencoding(), 'ignore')
-                      for stream in process.communicate()]
+        shlex.split(command), stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True
+    )
+    output, stderr = [stream.decode(sys.getdefaultencoding(), 'ignore') for stream in process.communicate()]
 
     if process.returncode != 0:
         raise AirflowConfigException(
-            "Cannot execute {}. Error code is: {}. Output: {}, Stderr: {}"
-            .format(command, process.returncode, output, stderr)
+            f"Cannot execute {command}. Error code is: {process.returncode}. "
+            f"Output: {output}, Stderr: {stderr}"
         )
 
     return output
@@ -136,21 +128,14 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
         ('celery', 'result_backend'),
         ('atlas', 'password'),
         ('smtp', 'smtp_password'),
-        ('ldap', 'bind_password'),
-        ('kubernetes', 'git_password'),
+        ('webserver', 'secret_key'),
     }
 
     # A mapping of (new option -> old option). where option is a tuple of section name and key.
     # When reading new option, the old option will be checked to see if it exists. If it does a
     # DeprecationWarning will be issued and the old option will be used instead
     deprecated_options = {
-        ('elasticsearch', 'host'): ('elasticsearch', 'elasticsearch_host'),
-        ('elasticsearch', 'log_id_template'): ('elasticsearch', 'elasticsearch_log_id_template'),
-        ('elasticsearch', 'end_of_log_mark'): ('elasticsearch', 'elasticsearch_end_of_log_mark'),
-        ('elasticsearch', 'frontend'): ('elasticsearch', 'elasticsearch_frontend'),
-        ('elasticsearch', 'write_stdout'): ('elasticsearch', 'elasticsearch_write_stdout'),
-        ('elasticsearch', 'json_format'): ('elasticsearch', 'elasticsearch_json_format'),
-        ('elasticsearch', 'json_fields'): ('elasticsearch', 'elasticsearch_json_fields'),
+        ('celery', 'worker_precheck'): ('core', 'worker_precheck'),
         ('logging', 'base_log_folder'): ('core', 'base_log_folder'),
         ('logging', 'remote_logging'): ('core', 'remote_logging'),
         ('logging', 'remote_log_conn_id'): ('core', 'remote_log_conn_id'),
@@ -169,22 +154,34 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
         ('logging', 'log_processor_filename_template'): ('core', 'log_processor_filename_template'),
         ('logging', 'dag_processor_manager_log_location'): ('core', 'dag_processor_manager_log_location'),
         ('logging', 'task_log_reader'): ('core', 'task_log_reader'),
+        ('metrics', 'statsd_on'): ('scheduler', 'statsd_on'),
+        ('metrics', 'statsd_host'): ('scheduler', 'statsd_host'),
+        ('metrics', 'statsd_port'): ('scheduler', 'statsd_port'),
+        ('metrics', 'statsd_prefix'): ('scheduler', 'statsd_prefix'),
+        ('metrics', 'statsd_allow_list'): ('scheduler', 'statsd_allow_list'),
+        ('metrics', 'stat_name_handler'): ('scheduler', 'stat_name_handler'),
+        ('metrics', 'statsd_datadog_enabled'): ('scheduler', 'statsd_datadog_enabled'),
+        ('metrics', 'statsd_datadog_tags'): ('scheduler', 'statsd_datadog_tags'),
+        ('metrics', 'statsd_custom_client_path'): ('scheduler', 'statsd_custom_client_path'),
+        ('scheduler', 'parsing_processes'): ('scheduler', 'max_threads'),
     }
 
     # A mapping of old default values that we want to change and warn the user
     # about. Mapping of section -> setting -> { old, replace, by_version }
     deprecated_values = {
         'core': {
-            'task_runner': (re.compile(r'\ABashTaskRunner\Z'), r'StandardTaskRunner', '2.0'),
-            'hostname_callable': (re.compile(r':'), r'.', '2.0'),
+            'hostname_callable': (re.compile(r':'), r'.', '2.1'),
+        },
+        'webserver': {
+            'navbar_color': (re.compile(r'\A#007A87\Z', re.IGNORECASE), '#fff', '2.1'),
         },
         'email': {
             'email_backend': (
                 re.compile(r'^airflow\.contrib\.utils\.sendgrid\.send_email$'),
                 r'airflow.providers.sendgrid.utils.emailer.send_email',
-                '2.0'
+                '2.1',
             ),
-        }
+        },
     }
 
     # This method transforms option names on every read, get, or set operation.
@@ -212,14 +209,14 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
                 current_value = self.get(section, name, fallback=None)
                 if self._using_old_value(old, current_value):
                     new_value = re.sub(old, new, current_value)
-                    self._update_env_var(
-                        section=section, name=name, new_value=new_value)
+                    self._update_env_var(section=section, name=name, new_value=new_value)
                     self._create_future_warning(
                         name=name,
                         section=section,
                         current_value=current_value,
                         new_value=new_value,
-                        version=version)
+                        version=version,
+                    )
 
         self.is_validated = True
 
@@ -228,13 +225,15 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
         Validate that config values aren't invalid given other config values
         or system-level limitations and requirements.
         """
-
-        if (
-                self.get("core", "executor") not in ('DebugExecutor', 'SequentialExecutor') and
-                "sqlite" in self.get('core', 'sql_alchemy_conn')):
+        is_executor_without_sqlite_support = self.get("core", "executor") not in (
+            'DebugExecutor',
+            'SequentialExecutor',
+        )
+        is_sqlite = "sqlite" in self.get('core', 'sql_alchemy_conn')
+        if is_executor_without_sqlite_support and is_sqlite:
             raise AirflowConfigException(
-                "error: cannot use sqlite with the {}".format(
-                    self.get('core', 'executor')))
+                "error: cannot use sqlite with the {}".format(self.get('core', 'executor'))
+            )
 
         if self.has_option('core', 'mp_start_method'):
             mp_start_method = self.get('core', 'mp_start_method')
@@ -242,8 +241,11 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
 
             if mp_start_method not in start_method_options:
                 raise AirflowConfigException(
-                    "mp_start_method should not be " + mp_start_method +
-                    ". Possible values are " + ", ".join(start_method_options))
+                    "mp_start_method should not be "
+                    + mp_start_method
+                    + ". Possible values are "
+                    + ", ".join(start_method_options)
+                )
 
     def _using_old_value(self, old, current_value):  # noqa
         return old.search(current_value) is not None
@@ -264,12 +266,12 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
             'Airflow {version}.'.format(
                 name=name, section=section, current_value=current_value, new_value=new_value, version=version
             ),
-            FutureWarning
+            FutureWarning,
         )
 
     @staticmethod
     def _env_var_name(section, key):
-        return 'AIRFLOW__{S}__{K}'.format(S=section.upper(), K=key.upper())
+        return f'AIRFLOW__{section.upper()}__{key.upper()}'
 
     def _get_env_var_option(self, section, key):
         # must have format AIRFLOW__{SECTION}__{KEY} (note double underscore)
@@ -336,17 +338,12 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
     def _get_option_from_default_config(self, section, key, **kwargs):
         # ...then the default config
         if self.airflow_defaults.has_option(section, key) or 'fallback' in kwargs:
-            return expand_env_var(
-                self.airflow_defaults.get(section, key, **kwargs))
+            return expand_env_var(self.airflow_defaults.get(section, key, **kwargs))
 
         else:
-            log.warning(
-                "section/key [%s/%s] not found in config", section, key
-            )
+            log.warning("section/key [%s/%s] not found in config", section, key)
 
-            raise AirflowConfigException(
-                "section/key [{section}/{key}] not found "
-                "in config".format(section=section, key=key))
+            raise AirflowConfigException(f"section/key [{section}/{key}] not found in config")
 
     def _get_option_from_secrets(self, deprecated_key, deprecated_section, key, section):
         # ...then from secret backends
@@ -377,16 +374,11 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
         if super().has_option(section, key):
             # Use the parent's methods to get the actual config here to be able to
             # separate the config from default config.
-            return expand_env_var(
-                super().get(section, key, **kwargs))
+            return expand_env_var(super().get(section, key, **kwargs))
         if deprecated_section:
             if super().has_option(deprecated_section, deprecated_key):
                 self._warn_deprecate(section, key, deprecated_section, deprecated_key)
-                return expand_env_var(super().get(
-                    deprecated_section,
-                    deprecated_key,
-                    **kwargs
-                ))
+                return expand_env_var(super().get(deprecated_section, deprecated_key, **kwargs))
         return None
 
     def _get_environment_variables(self, deprecated_key, deprecated_section, key, section):
@@ -488,7 +480,6 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
         if self.airflow_defaults.has_option(section, option) and remove_default:
             self.airflow_defaults.remove_option(section, option)
 
-    # noinspection PyProtectedMember
     def getsection(self, section: str) -> Optional[Dict[str, Union[str, int, float, bool]]]:
         """
         Returns the section as a dict. Values are converted to int, float, bool
@@ -497,17 +488,18 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
         :param section: section from the config
         :rtype: dict
         """
-        # pylint: disable=protected-access
-        if section not in self._sections and section not in self.airflow_defaults._sections:  # type: ignore
+        if not self.has_section(section) and not self.airflow_defaults.has_section(section):
             return None
-        # pylint: enable=protected-access
 
-        _section = copy.deepcopy(self.airflow_defaults._sections[section])  # pylint: disable=protected-access
+        if self.airflow_defaults.has_section(section):
+            _section = OrderedDict(self.airflow_defaults.items(section))
+        else:
+            _section = OrderedDict()
 
-        if section in self._sections:  # type: ignore
-            _section.update(copy.deepcopy(self._sections[section]))  # type: ignore
+        if self.has_section(section):
+            _section.update(OrderedDict(self.items(section)))
 
-        section_prefix = 'AIRFLOW__{S}__'.format(S=section.upper())
+        section_prefix = f'AIRFLOW__{section.upper()}__'
         for env_var in sorted(os.environ.keys()):
             if env_var.startswith(section_prefix):
                 key = env_var.replace(section_prefix, '')
@@ -543,8 +535,13 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
             self._write_section(fp, section, self.getsection(section).items(), delimiter)
 
     def as_dict(
-            self, display_source=False, display_sensitive=False, raw=False,
-            include_env=True, include_cmds=True, include_secret=True
+        self,
+        display_source=False,
+        display_sensitive=False,
+        raw=False,
+        include_env=True,
+        include_cmds=True,
+        include_secret=True,
     ) -> Dict[str, Dict[str, str]]:
         """
         Returns the current configuration as an OrderedDict of OrderedDicts.
@@ -624,8 +621,9 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
             del config_sources[section][key + '_cmd']
 
     def _include_envs(self, config_sources, display_sensitive, display_source, raw):
-        for env_var in [os_environment
-                        for os_environment in os.environ if os_environment.startswith('AIRFLOW__')]:
+        for env_var in [
+            os_environment for os_environment in os.environ if os_environment.startswith('AIRFLOW__')
+        ]:
             try:
                 _, section, key = env_var.split('__', 2)
                 opt = self._get_env_var_option(section, key)
@@ -651,13 +649,14 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
     def _replace_config_with_display_sources(config_sources, configs, display_source, raw):
         for (source_name, config) in configs:
             for section in config.sections():
-                AirflowConfigParser.\
-                    _replace_section_config_with_display_sources(
-                        config, config_sources, display_source, raw, section, source_name)
+                AirflowConfigParser._replace_section_config_with_display_sources(
+                    config, config_sources, display_source, raw, section, source_name
+                )
 
     @staticmethod
-    def _replace_section_config_with_display_sources(config, config_sources, display_source, raw, section,
-                                                     source_name):
+    def _replace_section_config_with_display_sources(
+        config, config_sources, display_source, raw, section, source_name
+    ):
         sect = config_sources.setdefault(section, OrderedDict())
         for (k, val) in config.items(section=section, raw=raw):
             if display_source:
@@ -730,9 +729,8 @@ pathlib.Path(AIRFLOW_HOME).mkdir(parents=True, exist_ok=True)
 # Set up dags folder for unit tests
 # this directory won't exist if users install via pip
 _TEST_DAGS_FOLDER = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
-    'tests',
-    'dags')
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'tests', 'dags'
+)
 if os.path.exists(_TEST_DAGS_FOLDER):
     TEST_DAGS_FOLDER = _TEST_DAGS_FOLDER
 else:
@@ -740,9 +738,8 @@ else:
 
 # Set up plugins folder for unit tests
 _TEST_PLUGINS_FOLDER = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
-    'tests',
-    'plugins')
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'tests', 'plugins'
+)
 if os.path.exists(_TEST_PLUGINS_FOLDER):
     TEST_PLUGINS_FOLDER = _TEST_PLUGINS_FOLDER
 else:
@@ -777,20 +774,14 @@ else:
 
 SECRET_KEY = b64encode(os.urandom(16)).decode('utf-8')
 
-TEMPLATE_START = (
-    '# ----------------------- TEMPLATE BEGINS HERE -----------------------')
+TEMPLATE_START = '# ----------------------- TEMPLATE BEGINS HERE -----------------------'
 if not os.path.isfile(TEST_CONFIG_FILE):
-    log.info(
-        'Creating new Airflow config file for unit tests in: %s', TEST_CONFIG_FILE
-    )
+    log.info('Creating new Airflow config file for unit tests in: %s', TEST_CONFIG_FILE)
     with open(TEST_CONFIG_FILE, 'w') as file:
         cfg = parameterized_config(TEST_CONFIG)
         file.write(cfg.split(TEMPLATE_START)[-1].strip())
 if not os.path.isfile(AIRFLOW_CONFIG):
-    log.info(
-        'Creating new Airflow config file in: %s',
-        AIRFLOW_CONFIG
-    )
+    log.info('Creating new Airflow config file in: %s', AIRFLOW_CONFIG)
     with open(AIRFLOW_CONFIG, 'w') as file:
         cfg = parameterized_config(DEFAULT_CONFIG)
         cfg = cfg.split(TEMPLATE_START)[-1].strip()
@@ -835,110 +826,110 @@ if conf.getboolean('core', 'unit_test_mode'):
 
 
 # Historical convenience functions to access config entries
-def load_test_config():   # noqa: D103
+def load_test_config():  # noqa: D103
     """Historical load_test_config"""
     warnings.warn(
         "Accessing configuration method 'load_test_config' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
         "'conf.load_test_config'",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     conf.load_test_config()
 
 
-def get(*args, **kwargs):   # noqa: D103
+def get(*args, **kwargs):  # noqa: D103
     """Historical get"""
     warnings.warn(
         "Accessing configuration method 'get' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
         "'conf.get'",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     return conf.get(*args, **kwargs)
 
 
-def getboolean(*args, **kwargs):   # noqa: D103
+def getboolean(*args, **kwargs):  # noqa: D103
     """Historical getboolean"""
     warnings.warn(
         "Accessing configuration method 'getboolean' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
         "'conf.getboolean'",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     return conf.getboolean(*args, **kwargs)
 
 
-def getfloat(*args, **kwargs):   # noqa: D103
+def getfloat(*args, **kwargs):  # noqa: D103
     """Historical getfloat"""
     warnings.warn(
         "Accessing configuration method 'getfloat' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
         "'conf.getfloat'",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     return conf.getfloat(*args, **kwargs)
 
 
-def getint(*args, **kwargs):   # noqa: D103
+def getint(*args, **kwargs):  # noqa: D103
     """Historical getint"""
     warnings.warn(
         "Accessing configuration method 'getint' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
         "'conf.getint'",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     return conf.getint(*args, **kwargs)
 
 
-def getsection(*args, **kwargs):   # noqa: D103
+def getsection(*args, **kwargs):  # noqa: D103
     """Historical getsection"""
     warnings.warn(
         "Accessing configuration method 'getsection' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
         "'conf.getsection'",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     return conf.getint(*args, **kwargs)
 
 
-def has_option(*args, **kwargs):   # noqa: D103
+def has_option(*args, **kwargs):  # noqa: D103
     """Historical has_option"""
     warnings.warn(
         "Accessing configuration method 'has_option' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
         "'conf.has_option'",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     return conf.has_option(*args, **kwargs)
 
 
-def remove_option(*args, **kwargs):   # noqa: D103
+def remove_option(*args, **kwargs):  # noqa: D103
     """Historical remove_option"""
     warnings.warn(
         "Accessing configuration method 'remove_option' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
         "'conf.remove_option'",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     return conf.remove_option(*args, **kwargs)
 
 
-def as_dict(*args, **kwargs):   # noqa: D103
+def as_dict(*args, **kwargs):  # noqa: D103
     """Historical as_dict"""
     warnings.warn(
         "Accessing configuration method 'as_dict' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
         "'conf.as_dict'",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     return conf.as_dict(*args, **kwargs)
 
@@ -950,7 +941,7 @@ def set(*args, **kwargs):  # noqa pylint: disable=redefined-builtin
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
         "'conf.set'",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     return conf.set(*args, **kwargs)
 

@@ -23,6 +23,7 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import sync_perm_command
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
+from airflow.security import permissions
 
 
 class TestCliSyncPerm(unittest.TestCase):
@@ -33,35 +34,32 @@ class TestCliSyncPerm(unittest.TestCase):
 
     @mock.patch("airflow.cli.commands.sync_perm_command.cached_app")
     @mock.patch("airflow.cli.commands.sync_perm_command.DagBag")
-    @mock.patch("airflow.settings.STORE_SERIALIZED_DAGS", True)
     def test_cli_sync_perm(self, dagbag_mock, mock_cached_app):
-        self.expect_dagbag_contains([
-            DAG('has_access_control',
-                access_control={
-                    'Public': {'can_dag_read'}
-                }),
-            DAG('no_access_control')
-        ], dagbag_mock)
+        self.expect_dagbag_contains(
+            [
+                DAG('has_access_control', access_control={'Public': {permissions.ACTION_CAN_READ}}),
+                DAG('no_access_control'),
+            ],
+            dagbag_mock,
+        )
         appbuilder = mock_cached_app.return_value.appbuilder
         appbuilder.sm = mock.Mock()
 
-        args = self.parser.parse_args([
-            'sync-perm'
-        ])
+        args = self.parser.parse_args(['sync-perm'])
         sync_perm_command.sync_perm(args)
 
         assert appbuilder.sm.sync_roles.call_count == 1
 
-        dagbag_mock.assert_called_once_with(store_serialized_dags=True)
+        dagbag_mock.assert_called_once_with(read_dags_from_db=True)
         self.assertEqual(2, len(appbuilder.sm.sync_perm_for_dag.mock_calls))
         appbuilder.sm.sync_perm_for_dag.assert_any_call(
-            'has_access_control',
-            {'Public': {'can_dag_read'}}
+            'has_access_control', {'Public': {permissions.ACTION_CAN_READ}}
         )
         appbuilder.sm.sync_perm_for_dag.assert_any_call(
             'no_access_control',
             None,
         )
+        appbuilder.add_permissions.assert_called_once_with(update_perms=True)
 
     def expect_dagbag_contains(self, dags, dagbag_mock):
         dagbag = mock.Mock()

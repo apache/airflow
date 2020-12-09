@@ -34,7 +34,8 @@ metadata:
 {{- end }}
   annotations:
     "helm.sh/hook": post-install
-    "helm.sh/hook-delete-policy": hook-succeeded
+    "helm.sh/hook-weight": "2"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:
   template:
     metadata:
@@ -78,6 +79,8 @@ spec:
             - {{ .Values.webserver.defaultUser.lastName }}
             - "-p"
             - {{ .Values.webserver.defaultUser.password }}
+          envFrom:
+          {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}

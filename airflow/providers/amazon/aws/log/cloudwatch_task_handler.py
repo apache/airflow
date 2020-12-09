@@ -39,7 +39,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
     :type filename_template: str
     """
 
-    def __init__(self, base_log_folder, log_group_arn, filename_template):
+    def __init__(self, base_log_folder: str, log_group_arn: str, filename_template: str):
         super().__init__(base_log_folder, filename_template)
         split_arn = log_group_arn.split(':')
 
@@ -50,9 +50,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
 
     @cached_property
     def hook(self):
-        """
-        Returns AwsLogsHook.
-        """
+        """Returns AwsLogsHook."""
         remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
@@ -79,9 +77,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         )
 
     def close(self):
-        """
-        Close the handler responsible for the upload of the local log file to Cloudwatch.
-        """
+        """Close the handler responsible for the upload of the local log file to Cloudwatch."""
         # When application exit, system shuts down all handlers by
         # calling close method. Here we check if logger is already
         # closed to prevent uploading the log to remote storage multiple
@@ -103,7 +99,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
             {'end_of_log': True},
         )
 
-    def get_cloudwatch_logs(self, stream_name):
+    def get_cloudwatch_logs(self, stream_name: str) -> str:
         """
         Return all logs from the given log stream.
 
@@ -111,8 +107,12 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         :return: string of all logs from the given log stream
         """
         try:
-            events = list(self.hook.get_log_events(log_group=self.log_group, log_stream_name=stream_name))
-            return '\n'.join(reversed([event['message'] for event in events]))
+            events = list(
+                self.hook.get_log_events(
+                    log_group=self.log_group, log_stream_name=stream_name, start_from_head=True
+                )
+            )
+            return '\n'.join([event['message'] for event in events])
         except Exception:  # pylint: disable=broad-except
             msg = 'Could not read remote logs from log_group: {} log_stream: {}.'.format(
                 self.log_group, stream_name

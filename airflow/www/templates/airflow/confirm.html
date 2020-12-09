@@ -20,23 +20,21 @@
 {% extends base_template %}
 
 {% block content %}
-    {{ super() }}
-    <h2>Wait a minute.</h2>
-    <div class="panel">
+  {{ super() }}
+  <h2>Wait a minute.</h2>
+  <div class="panel">
     <p>{{ message }}</p>
     {% if details %}
-        <pre><code>{{ details }}</code></pre>
+      <pre><code>{{ details }}</code></pre>
     {% endif %}
-    </div>
-    <form method="POST">
-      <input name="csrf_token" type="hidden" value="{{ csrf_token() }}"/>
-      <input name="confirmed" type="hidden" value="true">
-      {% for name,val in request.form.items() if name != "csrf_token" %}
-        <input type="hidden" name="{{ name }}" value="{{ val }}">
-      {% endfor %}
-      <input class="btn btn-primary" type="submit" value="OK!">
-      <button class="btn" onclick="window.history.back(); return false">Cancel</button>
-    </form>
-    <br>
-    <br>
+  </div>
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <input type="hidden" name="confirmed" value="true">
+    {% for name,val in request.form.items() if name != "csrf_token" %}
+      <input type="hidden" name="{{ name }}" value="{{ val }}">
+    {% endfor %}
+    <button type="submit" class="btn btn-primary">OK!</button>
+    <button type="button" class="btn" onclick="window.history.back(); return false">Cancel</button>
+  </form>
 {% endblock %}

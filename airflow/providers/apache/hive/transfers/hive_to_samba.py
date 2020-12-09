@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains operator to move data from Hive to Samba.
-"""
+"""This module contains operator to move data from Hive to Samba."""
 
 from tempfile import NamedTemporaryFile
 

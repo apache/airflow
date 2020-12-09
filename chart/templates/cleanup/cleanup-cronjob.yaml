@@ -61,7 +61,7 @@ spec:
               image: {{ template "default_airflow_image" . }}
               imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
               # Don't use entry point here, we don't need to wait on pg-bouncer etc being available.
-              command: ["airflow-cleanup-pods", "--namespace={{ .Release.Namespace }}"]
+              args: ["kubernetes", "cleanup-pods", "--namespace={{ .Release.Namespace }}"]
               env:
               {{- include "standard_airflow_environment" . | indent 12 }}
 {{- end }}

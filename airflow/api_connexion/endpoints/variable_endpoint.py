@@ -25,24 +25,21 @@ from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.variable_schema import variable_collection_schema, variable_schema
 from airflow.models import Variable
+from airflow.security import permissions
 from airflow.utils.session import provide_session
 
 
-@security.requires_authentication
+@security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE)])
 def delete_variable(variable_key: str) -> Response:
-    """
-    Delete variable
-    """
+    """Delete variable"""
     if Variable.delete(variable_key) == 0:
         raise NotFound("Variable not found")
     return Response(status=204)
 
 
-@security.requires_authentication
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)])
 def get_variable(variable_key: str) -> Response:
-    """
-    Get a variables by key
-    """
+    """Get a variables by key"""
     try:
         var = Variable.get(variable_key)
     except KeyError:
@@ -50,13 +47,11 @@ def get_variable(variable_key: str) -> Response:
     return variable_schema.dump({"key": variable_key, "val": var})
 
 
-@security.requires_authentication
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)])
 @format_parameters({'limit': check_limit})
 @provide_session
 def get_variables(session, limit: Optional[int], offset: Optional[int] = None) -> Response:
-    """
-    Get all variable values
-    """
+    """Get all variable values"""
     total_entries = session.query(func.count(Variable.id)).scalar()
     query = session.query(Variable).order_by(Variable.id)
     if offset:
@@ -72,11 +67,9 @@ def get_variables(session, limit: Optional[int], offset: Optional[int] = None) -
     )
 
 
-@security.requires_authentication
+@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE)])
 def patch_variable(variable_key: str, update_mask: Optional[List[str]] = None) -> Response:
-    """
-    Update a variable by key
-    """
+    """Update a variable by key"""
     try:
         data = variable_schema.load(request.json)
     except ValidationError as err:
@@ -92,14 +85,12 @@ def patch_variable(variable_key: str, update_mask: Optional[List[str]] = None) -
             raise BadRequest("No field to update")
 
     Variable.set(data["key"], data["val"])
-    return Response(status=204)
+    return variable_schema.dump(data)
 
 
-@security.requires_authentication
+@security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE)])
 def post_variables() -> Response:
-    """
-    Create a variable
-    """
+    """Create a variable"""
     try:
         data = variable_schema.load(request.json)
 

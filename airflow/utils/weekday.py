@@ -14,17 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Get the ISO standard day number of the week from a given day string
-"""
+"""Get the ISO standard day number of the week from a given day string"""
 import enum
 
 
 @enum.unique
 class WeekDay(enum.IntEnum):
-    """
-    Python Enum containing Days of the Week
-    """
+    """Python Enum containing Days of the Week"""
+
     MONDAY = 1
     TUESDAY = 2
     WEDNESDAY = 3
@@ -45,8 +42,6 @@ class WeekDay(enum.IntEnum):
         sanitized_week_day_str = week_day_str.upper()
 
         if sanitized_week_day_str not in cls.__members__:
-            raise AttributeError(
-                'Invalid Week Day passed: "{}"'.format(week_day_str)
-            )
+            raise AttributeError(f'Invalid Week Day passed: "{week_day_str}"')
 
         return cls[sanitized_week_day_str]

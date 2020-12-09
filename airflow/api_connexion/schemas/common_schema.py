@@ -45,7 +45,6 @@ class TimeDeltaSchema(Schema):
     @marshmallow.post_load
     def make_time_delta(self, data, **kwargs):
         """Create time delta based on data"""
-
         if "objectType" in data:
             del data["objectType"]
         return datetime.timedelta(**data)
@@ -74,7 +73,6 @@ class RelativeDeltaSchema(Schema):
     @marshmallow.post_load
     def make_relative_delta(self, data, **kwargs):
         """Create relative delta based on data"""
-
         if "objectType" in data:
             del data["objectType"]
 
@@ -126,7 +124,7 @@ class ScheduleIntervalSchema(OneOfSchema):
         elif isinstance(obj, CronExpression):
             return "CronExpression"
         else:
-            raise Exception("Unknown object type: {}".format(obj.__class__.__name__))
+            raise Exception(f"Unknown object type: {obj.__class__.__name__}")
 
 
 class ColorField(fields.String):
@@ -150,9 +148,7 @@ class TimezoneField(fields.String):
 
 
 class ClassReferenceSchema(Schema):
-    """
-    Class reference schema.
-    """
+    """Class reference schema."""
 
     module_path = fields.Method("_get_module", required=True)
     class_name = fields.Method("_get_class_name", required=True)

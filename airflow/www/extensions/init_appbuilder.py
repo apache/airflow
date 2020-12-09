@@ -34,9 +34,8 @@ def init_appbuilder(app):
         )
 
     class AirflowAppBuilder(AppBuilder):
-        """
-        Custom class to prevent side effects of the session.
-        """
+        """Custom class to prevent side effects of the session."""
+
         def _check_and_init(self, baseview):
             if hasattr(baseview, 'datamodel'):
                 # Delete sessions if initiated previously to limit side effects. We want to use
@@ -48,6 +47,6 @@ def init_appbuilder(app):
         app=app,
         session=settings.Session,
         security_manager_class=security_manager_class,
-        base_template='airflow/master.html',
+        base_template='airflow/main.html',
         update_perms=conf.getboolean('webserver', 'UPDATE_FAB_PERMS'),
     )

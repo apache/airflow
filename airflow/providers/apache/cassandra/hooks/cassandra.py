@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains hook to integrate with Apache Cassandra.
-"""
+"""This module contains hook to integrate with Apache Cassandra."""
 
 from typing import Any, Dict, Union
 
@@ -31,7 +29,7 @@ from cassandra.policies import (
     WhiteListRoundRobinPolicy,
 )
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 Policy = Union[DCAwareRoundRobinPolicy, RoundRobinPolicy, TokenAwarePolicy, WhiteListRoundRobinPolicy]
@@ -85,7 +83,12 @@ class CassandraHook(BaseHook, LoggingMixin):
     For details of the Cluster config, see cassandra.cluster.
     """
 
-    def __init__(self, cassandra_conn_id: str = 'cassandra_default'):
+    conn_name_attr = 'cassandra_conn_id'
+    default_conn_name = 'cassandra_default'
+    conn_type = 'cassandra'
+    hook_name = 'Cassandra'
+
+    def __init__(self, cassandra_conn_id: str = default_conn_name):
         super().__init__()
         conn = self.get_connection(cassandra_conn_id)
 
@@ -113,29 +116,27 @@ class CassandraHook(BaseHook, LoggingMixin):
         if ssl_options:
             conn_config['ssl_options'] = ssl_options
 
+        protocol_version = conn.extra_dejson.get('protocol_version', None)
+        if protocol_version:
+            conn_config['protocol_version'] = protocol_version
+
         self.cluster = Cluster(**conn_config)
         self.keyspace = conn.schema
         self.session = None
 
     def get_conn(self) -> Session:
-        """
-        Returns a cassandra Session object
-        """
+        """Returns a cassandra Session object"""
         if self.session and not self.session.is_shutdown:
             return self.session
         self.session = self.cluster.connect(self.keyspace)
         return self.session
 
     def get_cluster(self) -> Cluster:
-        """
-        Returns Cassandra cluster.
-        """
+        """Returns Cassandra cluster."""
         return self.cluster
 
     def shutdown_cluster(self) -> None:
-        """
-        Closes all sessions and connections associated with this Cluster.
-        """
+        """Closes all sessions and connections associated with this Cluster."""
         if not self.cluster.is_shutdown:
             self.cluster.shutdown()
 

@@ -17,8 +17,7 @@
 # under the License.
 
 import unittest
-
-from mock import Mock
+from unittest.mock import Mock
 
 from airflow.models.dagrun import DagRun
 from airflow.ti_deps.deps.dagrun_id_dep import DagrunIdDep
@@ -32,7 +31,7 @@ class TestDagrunRunningDep(unittest.TestCase):
         """
         dagrun = DagRun()
         dagrun.run_id = "anything"
-        dagrun.run_type = DagRunType.BACKFILL_JOB.value
+        dagrun.run_type = DagRunType.BACKFILL_JOB
         ti = Mock(get_dagrun=Mock(return_value=dagrun))
         self.assertFalse(DagrunIdDep().is_met(ti=ti))
 

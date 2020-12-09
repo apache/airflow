@@ -37,10 +37,7 @@ except ModuleNotFoundError:
 
 SMTP_PORT = 587
 SMTP_SERVER = "mail-relay.apache.org"
-MAILING_LIST = {
-    "dev": "dev@airflow.apache.org",
-    "users": "users@airflow.apache.org"
-}
+MAILING_LIST = {"dev": "dev@airflow.apache.org", "users": "users@airflow.apache.org"}
 
 
 def string_comma_to_list(message: str) -> List[str]:
@@ -51,9 +48,13 @@ def string_comma_to_list(message: str) -> List[str]:
 
 
 def send_email(
-    smtp_server: str, smpt_port: int,
-    username: str, password: str,
-    sender_email: str, receiver_email: Union[str, List], message: str,
+    smtp_server: str,
+    smpt_port: int,
+    username: str,
+    password: str,
+    sender_email: str,
+    receiver_email: Union[str, List],
+    message: str,
 ):
     """
     Send a simple text email (SMTP)
@@ -92,8 +93,7 @@ def show_message(entity: str, message: str):
 
 
 def inter_send_email(
-    username: str, password: str, sender_email: str, receiver_email: Union[str, List],
-    message: str
+    username: str, password: str, sender_email: str, receiver_email: Union[str, List], message: str
 ):
     """
     Send email using SMTP
@@ -104,7 +104,13 @@ def inter_send_email(
 
     try:
         send_email(
-            SMTP_SERVER, SMTP_PORT, username, password, sender_email, receiver_email, message,
+            SMTP_SERVER,
+            SMTP_PORT,
+            username,
+            password,
+            sender_email,
+            receiver_email,
+            message,
         )
         click.secho("✅ Email sent successfully", fg="green")
     except smtplib.SMTPAuthenticationError:
@@ -117,10 +123,8 @@ class BaseParameters:
     """
     Base Class to send emails using Apache Creds and for Jinja templating
     """
-    def __init__(
-        self, name=None, email=None, username=None, password=None,
-        version=None, version_rc=None
-    ):
+
+    def __init__(self, name=None, email=None, username=None, password=None, version=None, version_rc=None):
         self.name = name
         self.email = email
         self.username = username
@@ -136,42 +140,53 @@ class BaseParameters:
 @click.group(context_settings=dict(help_option_names=["-h", "--help"]))
 @click.pass_context
 @click.option(
-    "-e", "--apache_email",
+    "-e",
+    "--apache_email",
     prompt="Apache Email",
-    envvar="APACHE_EMAIL", show_envvar=True,
+    envvar="APACHE_EMAIL",
+    show_envvar=True,
     help="Your Apache email will be used for SMTP From",
-    required=True
+    required=True,
 )
 @click.option(
-    "-u", "--apache_username",
+    "-u",
+    "--apache_username",
     prompt="Apache Username",
-    envvar="APACHE_USERNAME", show_envvar=True,
+    envvar="APACHE_USERNAME",
+    show_envvar=True,
     help="Your LDAP Apache username",
     required=True,
 )
 @click.password_option(  # type: ignore
-    "-p", "--apache_password",
+    "-p",
+    "--apache_password",
     prompt="Apache Password",
-    envvar="APACHE_PASSWORD", show_envvar=True,
+    envvar="APACHE_PASSWORD",
+    show_envvar=True,
     help="Your LDAP Apache password",
     required=True,
 )
 @click.option(
-    "-v", "--version",
+    "-v",
+    "--version",
     prompt="Version",
-    envvar="AIRFLOW_VERSION", show_envvar=True,
+    envvar="AIRFLOW_VERSION",
+    show_envvar=True,
     help="Release Version",
     required=True,
 )
 @click.option(
-    "-rc", "--version_rc",
+    "-rc",
+    "--version_rc",
     prompt="Version (with RC)",
-    envvar="AIRFLOW_VERSION_RC", show_envvar=True,
+    envvar="AIRFLOW_VERSION_RC",
+    show_envvar=True,
     help="Release Candidate Version",
     required=True,
 )
 @click.option(  # type: ignore
-    "-n", "--name",
+    "-n",
+    "--name",
     prompt="Your Name",
     default=lambda: os.environ.get('USER', ''),
     show_default="Current User",
@@ -180,9 +195,13 @@ class BaseParameters:
     required=True,
 )
 def cli(
-    ctx, apache_email: str,
-    apache_username: str, apache_password: str, version: str, version_rc: str,
-    name: str
+    ctx,
+    apache_email: str,
+    apache_username: str,
+    apache_password: str,
+    version: str,
+    version_rc: str,
+    name: str,
 ):
     """
     🚀 CLI to send emails for the following:
@@ -232,7 +251,8 @@ def vote(base_parameters, receiver_email: str):
 
 @cli.command("result")
 @click.option(
-    "-re", "--receiver_email",
+    "-re",
+    "--receiver_email",
     default=MAILING_LIST.get("dev"),
     type=click.STRING,
     prompt="The receiver email (To:)",
@@ -258,25 +278,23 @@ def vote(base_parameters, receiver_email: str):
 @click.pass_obj
 def result(
     base_parameters,
-    receiver_email: str, vote_bindings: str, vote_nonbindings: str, vote_negatives: str,
+    receiver_email: str,
+    vote_bindings: str,
+    vote_nonbindings: str,
+    vote_negatives: str,
 ):
     """
     Send email with results of voting on RC
     """
     template_file = "templates/result_email.j2"
     base_parameters.template_arguments["receiver_email"] = receiver_email
-    base_parameters.template_arguments["vote_bindings"] = string_comma_to_list(
-        vote_bindings
-    )
-    base_parameters.template_arguments["vote_nonbindings"] = string_comma_to_list(
-        vote_nonbindings
-    )
-    base_parameters.template_arguments["vote_negatives"] = string_comma_to_list(
-        vote_negatives
-    )
+    base_parameters.template_arguments["vote_bindings"] = string_comma_to_list(vote_bindings)
+    base_parameters.template_arguments["vote_nonbindings"] = string_comma_to_list(vote_nonbindings)
+    base_parameters.template_arguments["vote_negatives"] = string_comma_to_list(vote_negatives)
     message = render_template(template_file, **base_parameters.template_arguments)
     inter_send_email(
-        base_parameters.username, base_parameters.password,
+        base_parameters.username,
+        base_parameters.password,
         base_parameters.template_arguments["sender_email"],
         base_parameters.template_arguments["receiver_email"],
         message,
@@ -288,12 +306,10 @@ def result(
     "--receiver_email",
     default=",".join(list(MAILING_LIST.values())),
     prompt="The receiver email (To:)",
-    help="Receiver's email address. If more than 1, separate them by comma"
+    help="Receiver's email address. If more than 1, separate them by comma",
 )
 @click.pass_obj
-def announce(
-    base_parameters, receiver_email: str
-):
+def announce(base_parameters, receiver_email: str):
     """
     Send email to announce release of the new version
     """
@@ -304,7 +320,8 @@ def announce(
     message = render_template(template_file, **base_parameters.template_arguments)
 
     inter_send_email(
-        base_parameters.username, base_parameters.password,
+        base_parameters.username,
+        base_parameters.password,
         base_parameters.template_arguments["sender_email"],
         base_parameters.template_arguments["receiver_email"],
         message,
@@ -312,14 +329,12 @@ def announce(
 
     if click.confirm("Show Slack message for announcement?", default=True):
         base_parameters.template_arguments["slack_rc"] = False
-        slack_msg = render_template(
-            "templates/slack.j2", **base_parameters.template_arguments)
+        slack_msg = render_template("templates/slack.j2", **base_parameters.template_arguments)
         show_message("Slack", slack_msg)
     if click.confirm("Show Twitter message for announcement?", default=True):
-        twitter_msg = render_template(
-            "templates/twitter.j2", **base_parameters.template_arguments)
+        twitter_msg = render_template("templates/twitter.j2", **base_parameters.template_arguments)
         show_message("Twitter", twitter_msg)
 
 
 if __name__ == '__main__':
-    cli()   # pylint: disable=no-value-for-parameter
+    cli()  # pylint: disable=no-value-for-parameter

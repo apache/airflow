@@ -54,7 +54,7 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
 
         default_exprs = HiveStatsCollectionOperator(**self.kwargs).get_default_exprs(col, None)
 
-        self.assertEqual(default_exprs, {(col, 'non_null'): 'COUNT({})'.format(col)})
+        self.assertEqual(default_exprs, {(col, 'non_null'): f'COUNT({col})'})
 
     def test_get_default_exprs_excluded_cols(self):
         col = 'excluded_col'
@@ -72,11 +72,11 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
             self.assertEqual(
                 default_exprs,
                 {
-                    (col, 'avg'): 'AVG({})'.format(col),
-                    (col, 'max'): 'MAX({})'.format(col),
-                    (col, 'min'): 'MIN({})'.format(col),
-                    (col, 'non_null'): 'COUNT({})'.format(col),
-                    (col, 'sum'): 'SUM({})'.format(col),
+                    (col, 'avg'): f'AVG({col})',
+                    (col, 'max'): f'MAX({col})',
+                    (col, 'min'): f'MIN({col})',
+                    (col, 'non_null'): f'COUNT({col})',
+                    (col, 'sum'): f'SUM({col})',
                 },
             )
 
@@ -89,9 +89,9 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         self.assertEqual(
             default_exprs,
             {
-                (col, 'false'): 'SUM(CASE WHEN NOT {} THEN 1 ELSE 0 END)'.format(col),
-                (col, 'non_null'): 'COUNT({})'.format(col),
-                (col, 'true'): 'SUM(CASE WHEN {} THEN 1 ELSE 0 END)'.format(col),
+                (col, 'false'): f'SUM(CASE WHEN NOT {col} THEN 1 ELSE 0 END)',
+                (col, 'non_null'): f'COUNT({col})',
+                (col, 'true'): f'SUM(CASE WHEN {col} THEN 1 ELSE 0 END)',
             },
         )
 
@@ -104,9 +104,9 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         self.assertEqual(
             default_exprs,
             {
-                (col, 'approx_distinct'): 'APPROX_DISTINCT({})'.format(col),
-                (col, 'len'): 'SUM(CAST(LENGTH({}) AS BIGINT))'.format(col),
-                (col, 'non_null'): 'COUNT({})'.format(col),
+                (col, 'approx_distinct'): f'APPROX_DISTINCT({col})',
+                (col, 'len'): f'SUM(CAST(LENGTH({col}) AS BIGINT))',
+                (col, 'non_null'): f'COUNT({col})',
             },
         )
 
@@ -169,7 +169,7 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         self, mock_hive_metastore_hook, mock_presto_hook, mock_mysql_hook, mock_json_dumps
     ):
         def assignment_func(col, _):
-            return {(col, 'test'): 'TEST({})'.format(col)}
+            return {(col, 'test'): f'TEST({col})'}
 
         self.kwargs.update(dict(assignment_func=assignment_func))
         mock_hive_metastore_hook.return_value.get_table.return_value.sd.cols = [fake_col]

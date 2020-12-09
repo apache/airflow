@@ -21,9 +21,15 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.providers.google.cloud.operators.bigquery import (  # noqa; noqa; noqa; noqa; noqa
-    BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryCreateExternalTableOperator,
-    BigQueryDeleteDatasetOperator, BigQueryExecuteQueryOperator, BigQueryGetDatasetOperator,
-    BigQueryGetDatasetTablesOperator, BigQueryPatchDatasetOperator, BigQueryUpdateDatasetOperator,
+    BigQueryCreateEmptyDatasetOperator,
+    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateExternalTableOperator,
+    BigQueryDeleteDatasetOperator,
+    BigQueryExecuteQueryOperator,
+    BigQueryGetDatasetOperator,
+    BigQueryGetDatasetTablesOperator,
+    BigQueryPatchDatasetOperator,
+    BigQueryUpdateDatasetOperator,
     BigQueryUpsertTableOperator,
 )
 

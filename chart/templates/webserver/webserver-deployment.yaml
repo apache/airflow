@@ -54,11 +54,14 @@ spec:
       annotations:
         checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
         checksum/pgbouncer-config-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}
-        checksum/airflow-config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
+        checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
+        checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
         {{- if .Values.airflowPodAnnotations }}
         {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
         {{- end }}
     spec:
+      serviceAccountName: {{ .Release.Name }}-webserver
       nodeSelector:
 {{ toYaml .Values.nodeSelector | indent 8 }}
       affinity:
@@ -80,6 +83,8 @@ spec:
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           args:
           {{- include "wait-for-migrations-command" . | indent 10 }}
+          envFrom:
+          {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
@@ -90,7 +95,7 @@ spec:
         - name: webserver
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          args: ["webserver"]
+          args: ["airflow", "webserver"]
           resources:
 {{ toYaml .Values.webserver.resources | indent 12 }}
           volumeMounts:
@@ -136,6 +141,8 @@ spec:
             timeoutSeconds: {{ .Values.webserver.readinessProbe.timeoutSeconds | default 30 }}
             failureThreshold: {{ .Values.webserver.readinessProbe.failureThreshold | default 20 }}
             periodSeconds: {{ .Values.webserver.readinessProbe.periodSeconds | default 5 }}
+          envFrom:
+          {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}

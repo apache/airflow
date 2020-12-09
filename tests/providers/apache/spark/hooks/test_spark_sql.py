@@ -69,7 +69,7 @@ class TestSparkSqlHook(unittest.TestCase):
         # Check if all config settings are there
         for key_value in self._config['conf'].split(","):
             k, v = key_value.split('=')
-            assert "--conf {0}={1}".format(k, v) in cmd
+            assert f"--conf {k}={v}" in cmd
 
         if self._config['verbose']:
             assert "--verbose" in cmd

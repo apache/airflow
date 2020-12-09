@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains operator to move data from MySQL to Druid.
-"""
+"""This module contains operator to move data from MySQL to Druid."""
 
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
@@ -118,9 +116,7 @@ class MySqlToHiveOperator(BaseOperator):
 
     @classmethod
     def type_map(cls, mysql_type: int) -> str:
-        """
-        Maps MySQL type to Hive type.
-        """
+        """Maps MySQL type to Hive type."""
         types = MySQLdb.constants.FIELD_TYPE
         type_map = {
             types.BIT: 'INT',

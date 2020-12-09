@@ -16,8 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
-
-from mock import Mock, patch
+from unittest.mock import Mock, patch
 
 from airflow.models import Pool
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES

@@ -84,7 +84,7 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
         self._validate_inputs()
         self.impersonation_chain = impersonation_chain
 
-    def _validate_inputs(self):
+    def _validate_inputs(self) -> None:
         if not self.body:
             raise AirflowException("The required parameter 'body' is missing")
 

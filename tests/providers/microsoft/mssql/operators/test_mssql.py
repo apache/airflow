@@ -17,8 +17,7 @@
 # under the License.
 
 import unittest
-
-import mock
+from unittest import mock
 
 from airflow import PY38
 from airflow.models import Connection
@@ -40,7 +39,7 @@ PYMSSQL_CONN = Connection(
 
 class TestMsSqlOperator:
     @unittest.skipIf(PY38, "Mssql package not available when Python >= 3.8.")
-    @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
+    @mock.patch('airflow.hooks.base.BaseHook.get_connection')
     def test_get_hook(self, get_connection):
         """
         Operator should use odbc hook if conn type is ``odbc`` and pymssql-based hook otherwise.

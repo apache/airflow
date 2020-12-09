@@ -17,9 +17,7 @@
 # under the License.
 
 # pylint: disable=invalid-name
-"""
-Interact with AWS S3, using the boto3 library.
-"""
+"""Interact with AWS S3, using the boto3 library."""
 import fnmatch
 import gzip as gz
 import io
@@ -47,7 +45,6 @@ def provide_bucket_name(func: T) -> T:
     Function decorator that provides a bucket name taken from the connection
     in case no bucket name has been passed to the function.
     """
-
     function_signature = signature(func)
 
     @wraps(func)
@@ -71,7 +68,6 @@ def unify_bucket_name_and_key(func: T) -> T:
     Function decorator that unifies bucket name and key taken from the key
     in case no bucket name and at least a key has been passed to the function.
     """
-
     function_signature = signature(func)
 
     @wraps(func)
@@ -107,8 +103,19 @@ class S3Hook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
+    conn_type = 's3'
+    hook_name = 'S3'
+
     def __init__(self, *args, **kwargs) -> None:
         kwargs['client_type'] = 's3'
+
+        self.extra_args = {}
+        if 'extra_args' in kwargs:
+            self.extra_args = kwargs['extra_args']
+            if not isinstance(self.extra_args, dict):
+                raise ValueError(f"extra_args '{self.extra_args!r}' must be of type {dict}")
+            del kwargs['extra_args']
+
         super().__init__(*args, **kwargs)
 
     @staticmethod
@@ -124,7 +131,7 @@ class S3Hook(AwsBaseHook):
         parsed_url = urlparse(s3url)
 
         if not parsed_url.netloc:
-            raise AirflowException('Please provide a bucket_name instead of "{s3url}"'.format(s3url=s3url))
+            raise AirflowException(f'Please provide a bucket_name instead of "{s3url}"')
 
         bucket_name = parsed_url.netloc
         key = parsed_url.path.strip('/')
@@ -195,7 +202,7 @@ class S3Hook(AwsBaseHook):
         :rtype: bool
         """
         prefix = prefix + delimiter if prefix[-1] != delimiter else prefix
-        prefix_split = re.split(r'(\w+[{d}])$'.format(d=delimiter), prefix, 1)
+        prefix_split = re.split(fr'(\w+[{delimiter}])$', prefix, 1)
         previous_level = prefix_split[0]
         plist = self.list_prefixes(bucket_name, previous_level, delimiter)
         return prefix in plist
@@ -303,13 +310,14 @@ class S3Hook(AwsBaseHook):
         :return: True if the key exists and False if not.
         :rtype: bool
         """
-
         try:
             self.get_conn().head_object(Bucket=bucket_name, Key=key)
             return True
         except ClientError as e:
-            self.log.error(e.response["Error"]["Message"])
-            return False
+            if e.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
+                return False
+            else:
+                raise e
 
     @provide_bucket_name
     @unify_bucket_name_and_key
@@ -324,7 +332,6 @@ class S3Hook(AwsBaseHook):
         :return: the key object from the bucket
         :rtype: boto3.s3.Object
         """
-
         obj = self.get_resource_type('s3').Object(bucket_name, key)
         obj.load()
         return obj
@@ -342,7 +349,6 @@ class S3Hook(AwsBaseHook):
         :return: the content of the key
         :rtype: str
         """
-
         obj = self.get_key(key, bucket_name)
         return obj.get()['Body'].read().decode('utf-8')
 
@@ -439,7 +445,6 @@ class S3Hook(AwsBaseHook):
         :return: the key object from the bucket or None if none has been found.
         :rtype: boto3.s3.Object
         """
-
         prefix = re.split(r'[*]', wildcard_key, 1)[0]
         key_list = self.list_keys(bucket_name, prefix=prefix, delimiter=delimiter)
         key_matches = [k for k in key_list if fnmatch.fnmatch(k, wildcard_key)]
@@ -481,15 +486,13 @@ class S3Hook(AwsBaseHook):
             uploaded to the S3 bucket.
         :type acl_policy: str
         """
-
         if not replace and self.check_for_key(key, bucket_name):
-            raise ValueError("The key {key} already exists.".format(key=key))
+            raise ValueError(f"The key {key} already exists.")
 
-        extra_args = {}
+        extra_args = self.extra_args
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
         if gzip:
-            filename_gz = ''
             with open(filename, 'rb') as f_in:
                 filename_gz = f_in.name + '.gz'
                 with gz.open(filename_gz, 'wb') as f_out:
@@ -623,9 +626,9 @@ class S3Hook(AwsBaseHook):
         acl_policy: Optional[str] = None,
     ) -> None:
         if not replace and self.check_for_key(key, bucket_name):
-            raise ValueError("The key {key} already exists.".format(key=key))
+            raise ValueError(f"The key {key} already exists.")
 
-        extra_args = {}
+        extra_args = self.extra_args
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
         if acl_policy:
@@ -751,7 +754,7 @@ class S3Hook(AwsBaseHook):
             self.log.info("Deleted: %s", deleted_keys)
             if "Errors" in response:
                 errors_keys = [x['Key'] for x in response.get("Errors", [])]
-                raise AirflowException("Errors when deleting: {}".format(errors_keys))
+                raise AirflowException(f"Errors when deleting: {errors_keys}")
 
     @provide_bucket_name
     @unify_bucket_name_and_key
@@ -806,7 +809,6 @@ class S3Hook(AwsBaseHook):
         :return: The presigned url.
         :rtype: str
         """
-
         s3_client = self.get_conn()
         try:
             return s3_client.generate_presigned_url(

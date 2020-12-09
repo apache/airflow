@@ -17,7 +17,7 @@
 # under the License.
 from typing import List, Optional, Union
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -45,19 +45,23 @@ class GenericTransfer(BaseOperator):
     """
 
     template_fields = ('sql', 'destination_table', 'preoperator')
-    template_ext = ('.sql', '.hql',)
+    template_ext = (
+        '.sql',
+        '.hql',
+    )
     ui_color = '#b0f07c'
 
     @apply_defaults
     def __init__(
-            self,
-            *,
-            sql: str,
-            destination_table: str,
-            source_conn_id: str,
-            destination_conn_id: str,
-            preoperator: Optional[Union[str, List[str]]] = None,
-            **kwargs) -> None:
+        self,
+        *,
+        sql: str,
+        destination_table: str,
+        source_conn_id: str,
+        destination_conn_id: str,
+        preoperator: Optional[Union[str, List[str]]] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.sql = sql
         self.destination_table = destination_table

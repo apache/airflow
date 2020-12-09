@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module is deprecated. Please use `airflow.providers.google.cloud.hooks.cloud_sql`.
-"""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.hooks.cloud_sql`."""
 
 import warnings
 
@@ -42,9 +40,7 @@ class CloudSqlDatabaseHook(CloudSQLDatabaseHook):
 
 
 class CloudSqlHook(CloudSQLHook):
-    """
-    This class is deprecated. Please use `airflow.providers.google.cloud.hooks.sql.CloudSQLHook`.
-    """
+    """This class is deprecated. Please use `airflow.providers.google.cloud.hooks.sql.CloudSQLHook`."""
 
     def __init__(self, *args, **kwargs):
         warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2)

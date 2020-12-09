@@ -21,8 +21,8 @@ import pytest
 
 from airflow.providers.google.cloud.example_dags.example_gcs_to_local import (
     BUCKET,
-    PATH_TO_REMOTE_FILE,
     PATH_TO_LOCAL_FILE,
+    PATH_TO_REMOTE_FILE,
 )
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context

@@ -61,6 +61,7 @@ CLIENT_AUTH: Optional[Union[Tuple[str, str], AuthBase]] = HTTPKerberosAuth(servi
 
 class KerberosService:  # pylint: disable=too-few-public-methods
     """Class to keep information about the Kerberos Service initialized"""
+
     def __init__(self):
         self.service_name = None
 
@@ -71,7 +72,6 @@ _KERBEROS_SERVICE = KerberosService()
 
 def init_app(app):
     """Initializes application with kerberos"""
-
     hostname = app.config.get('SERVER_NAME')
     if not hostname:
         hostname = getfqdn()
@@ -79,7 +79,7 @@ def init_app(app):
 
     service = 'airflow'
 
-    _KERBEROS_SERVICE.service_name = "{}@{}".format(service, hostname)
+    _KERBEROS_SERVICE.service_name = f"{service}@{hostname}"
 
     if 'KRB5_KTNAME' not in os.environ:
         os.environ['KRB5_KTNAME'] = conf.get('kerberos', 'keytab')
@@ -132,6 +132,7 @@ T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 def requires_authentication(function: T):
     """Decorator for functions that require authentication with Kerberos"""
+
     @wraps(function)
     def decorated(*args, **kwargs):
         header = request.headers.get("Authorization")
@@ -144,11 +145,11 @@ def requires_authentication(function: T):
                 response = function(*args, **kwargs)
                 response = make_response(response)
                 if ctx.kerberos_token is not None:
-                    response.headers['WWW-Authenticate'] = ' '.join(['negotiate',
-                                                                     ctx.kerberos_token])
+                    response.headers['WWW-Authenticate'] = ' '.join(['negotiate', ctx.kerberos_token])
 
                 return response
             if return_code != kerberos.AUTH_GSS_CONTINUE:
                 return _forbidden()
         return _unauthorized()
+
     return cast(T, decorated)

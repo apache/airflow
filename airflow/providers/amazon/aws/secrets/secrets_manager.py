@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Objects relating to sourcing secrets from AWS Secrets Manager
-"""
+"""Objects relating to sourcing secrets from AWS Secrets Manager"""
 
 from typing import Optional
 
@@ -52,10 +50,13 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     or ``region_name`` to this class and they would be passed on to Boto3 client.
 
     :param connections_prefix: Specifies the prefix of the secret to read to get Connections.
+        If set to None (null), requests for connections will not be sent to AWS Secrets Manager
     :type connections_prefix: str
     :param variables_prefix: Specifies the prefix of the secret to read to get Variables.
+        If set to None (null), requests for variables will not be sent to AWS Secrets Manager
     :type variables_prefix: str
     :param config_prefix: Specifies the prefix of the secret to read to get Variables.
+        If set to None (null), requests for configurations will not be sent to AWS Secrets Manager
     :type config_prefix: str
     :param profile_name: The name of a profile to use. If not given, then the default profile is used.
     :type profile_name: str
@@ -73,18 +74,25 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         **kwargs,
     ):
         super().__init__()
-        self.connections_prefix = connections_prefix.rstrip("/")
-        self.variables_prefix = variables_prefix.rstrip('/')
-        self.config_prefix = config_prefix.rstrip('/')
+        if connections_prefix is not None:
+            self.connections_prefix = connections_prefix.rstrip("/")
+        else:
+            self.connections_prefix = connections_prefix
+        if variables_prefix is not None:
+            self.variables_prefix = variables_prefix.rstrip('/')
+        else:
+            self.variables_prefix = variables_prefix
+        if config_prefix is not None:
+            self.config_prefix = config_prefix.rstrip('/')
+        else:
+            self.config_prefix = config_prefix
         self.profile_name = profile_name
         self.sep = sep
         self.kwargs = kwargs
 
     @cached_property
     def client(self):
-        """
-        Create a Secrets Manager client
-        """
+        """Create a Secrets Manager client"""
         session = boto3.session.Session(
             profile_name=self.profile_name,
         )
@@ -97,6 +105,9 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: connection id
         :type conn_id: str
         """
+        if self.connections_prefix is None:
+            return None
+
         return self._get_secret(self.connections_prefix, conn_id)
 
     def get_variable(self, key: str) -> Optional[str]:
@@ -106,6 +117,9 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param key: Variable Key
         :return: Variable Value
         """
+        if self.variables_prefix is None:
+            return None
+
         return self._get_secret(self.variables_prefix, key)
 
     def get_config(self, key: str) -> Optional[str]:
@@ -115,6 +129,9 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param key: Configuration Option Key
         :return: Configuration Option Value
         """
+        if self.config_prefix is None:
+            return None
+
         return self._get_secret(self.config_prefix, key)
 
     def _get_secret(self, path_prefix: str, secret_id: str) -> Optional[str]:

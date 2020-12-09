@@ -28,7 +28,6 @@ from airflow.utils.state import State
 
 
 class TestPrevDagrunDep(unittest.TestCase):
-
     def _get_task(self, **kwargs):
         return BaseOperator(task_id='test_task', dag=DAG('test_dag'), **kwargs)
 
@@ -37,14 +36,16 @@ class TestPrevDagrunDep(unittest.TestCase):
         If depends on past isn't set in the task then the previous dagrun should be
         ignored, even though there is no previous_ti which would normally fail the dep
         """
-        task = self._get_task(depends_on_past=False,
-                              start_date=datetime(2016, 1, 1),
-                              wait_for_downstream=False)
-        prev_ti = Mock(task=task, state=State.SUCCESS,
-                       are_dependents_done=Mock(return_value=True),
-                       execution_date=datetime(2016, 1, 2))
-        ti = Mock(task=task, previous_ti=prev_ti,
-                  execution_date=datetime(2016, 1, 3))
+        task = self._get_task(
+            depends_on_past=False, start_date=datetime(2016, 1, 1), wait_for_downstream=False
+        )
+        prev_ti = Mock(
+            task=task,
+            state=State.SUCCESS,
+            are_dependents_done=Mock(return_value=True),
+            execution_date=datetime(2016, 1, 2),
+        )
+        ti = Mock(task=task, previous_ti=prev_ti, execution_date=datetime(2016, 1, 3))
         dep_context = DepContext(ignore_depends_on_past=False)
 
         self.assertTrue(PrevDagrunDep().is_met(ti=ti, dep_context=dep_context))
@@ -54,14 +55,16 @@ class TestPrevDagrunDep(unittest.TestCase):
         If the context overrides depends_on_past then the dep should be met,
         even though there is no previous_ti which would normally fail the dep
         """
-        task = self._get_task(depends_on_past=True,
-                              start_date=datetime(2016, 1, 1),
-                              wait_for_downstream=False)
-        prev_ti = Mock(task=task, state=State.SUCCESS,
-                       are_dependents_done=Mock(return_value=True),
-                       execution_date=datetime(2016, 1, 2))
-        ti = Mock(task=task, previous_ti=prev_ti,
-                  execution_date=datetime(2016, 1, 3))
+        task = self._get_task(
+            depends_on_past=True, start_date=datetime(2016, 1, 1), wait_for_downstream=False
+        )
+        prev_ti = Mock(
+            task=task,
+            state=State.SUCCESS,
+            are_dependents_done=Mock(return_value=True),
+            execution_date=datetime(2016, 1, 2),
+        )
+        ti = Mock(task=task, previous_ti=prev_ti, execution_date=datetime(2016, 1, 3))
         dep_context = DepContext(ignore_depends_on_past=True)
 
         self.assertTrue(PrevDagrunDep().is_met(ti=ti, dep_context=dep_context))
@@ -70,12 +73,11 @@ class TestPrevDagrunDep(unittest.TestCase):
         """
         The first task run for a TI should pass since it has no previous dagrun.
         """
-        task = self._get_task(depends_on_past=True,
-                              start_date=datetime(2016, 1, 1),
-                              wait_for_downstream=False)
+        task = self._get_task(
+            depends_on_past=True, start_date=datetime(2016, 1, 1), wait_for_downstream=False
+        )
         prev_ti = None
-        ti = Mock(task=task, previous_ti=prev_ti,
-                  execution_date=datetime(2016, 1, 1))
+        ti = Mock(task=task, previous_ti=prev_ti, execution_date=datetime(2016, 1, 1))
         dep_context = DepContext(ignore_depends_on_past=False)
 
         self.assertTrue(PrevDagrunDep().is_met(ti=ti, dep_context=dep_context))
@@ -84,13 +86,11 @@ class TestPrevDagrunDep(unittest.TestCase):
         """
         If the previous TI did not complete execution this dep should fail.
         """
-        task = self._get_task(depends_on_past=True,
-                              start_date=datetime(2016, 1, 1),
-                              wait_for_downstream=False)
-        prev_ti = Mock(state=State.NONE,
-                       are_dependents_done=Mock(return_value=True))
-        ti = Mock(task=task, previous_ti=prev_ti,
-                  execution_date=datetime(2016, 1, 2))
+        task = self._get_task(
+            depends_on_past=True, start_date=datetime(2016, 1, 1), wait_for_downstream=False
+        )
+        prev_ti = Mock(state=State.NONE, are_dependents_done=Mock(return_value=True))
+        ti = Mock(task=task, previous_ti=prev_ti, execution_date=datetime(2016, 1, 2))
         dep_context = DepContext(ignore_depends_on_past=False)
 
         self.assertFalse(PrevDagrunDep().is_met(ti=ti, dep_context=dep_context))
@@ -101,13 +101,9 @@ class TestPrevDagrunDep(unittest.TestCase):
         previous dagrun then it should fail this dep if the downstream TIs of
         the previous TI are not done.
         """
-        task = self._get_task(depends_on_past=True,
-                              start_date=datetime(2016, 1, 1),
-                              wait_for_downstream=True)
-        prev_ti = Mock(state=State.SUCCESS,
-                       are_dependents_done=Mock(return_value=False))
-        ti = Mock(task=task, previous_ti=prev_ti,
-                  execution_date=datetime(2016, 1, 2))
+        task = self._get_task(depends_on_past=True, start_date=datetime(2016, 1, 1), wait_for_downstream=True)
+        prev_ti = Mock(state=State.SUCCESS, are_dependents_done=Mock(return_value=False))
+        ti = Mock(task=task, previous_ti=prev_ti, execution_date=datetime(2016, 1, 2))
         dep_context = DepContext(ignore_depends_on_past=False)
 
         self.assertFalse(PrevDagrunDep().is_met(ti=ti, dep_context=dep_context))
@@ -116,16 +112,9 @@ class TestPrevDagrunDep(unittest.TestCase):
         """
         Test to make sure all of the conditions for the dep are met
         """
-        task = self._get_task(depends_on_past=True,
-                              start_date=datetime(2016, 1, 1),
-                              wait_for_downstream=True)
-        prev_ti = Mock(state=State.SUCCESS,
-                       are_dependents_done=Mock(return_value=True))
-        ti = Mock(
-            task=task,
-            execution_date=datetime(2016, 1, 2),
-            **{'get_previous_ti.return_value': prev_ti}
-        )
+        task = self._get_task(depends_on_past=True, start_date=datetime(2016, 1, 1), wait_for_downstream=True)
+        prev_ti = Mock(state=State.SUCCESS, are_dependents_done=Mock(return_value=True))
+        ti = Mock(task=task, execution_date=datetime(2016, 1, 2), **{'get_previous_ti.return_value': prev_ti})
         dep_context = DepContext(ignore_depends_on_past=False)
 
         self.assertTrue(PrevDagrunDep().is_met(ti=ti, dep_context=dep_context))

@@ -35,7 +35,7 @@ class SageMakerTransformSensor(SageMakerBaseSensor):
     template_ext = ()
 
     @apply_defaults
-    def __init__(self, *, job_name, **kwargs):
+    def __init__(self, *, job_name: str, **kwargs):
         super().__init__(**kwargs)
         self.job_name = job_name
 

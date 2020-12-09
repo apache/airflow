@@ -60,7 +60,7 @@ class OracleOperator(BaseOperator):
         self.autocommit = autocommit
         self.parameters = parameters
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         self.log.info('Executing: %s', self.sql)
         hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
         hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)

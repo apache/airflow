@@ -15,31 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module is deprecated. Please use `airflow.sensors.time_delta`."""
 
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.utils import timezone
-from airflow.utils.decorators import apply_defaults
+import warnings
 
+# pylint: disable=unused-import
+from airflow.sensors.time_delta import TimeDeltaSensor  # noqa
 
-class TimeDeltaSensor(BaseSensorOperator):
-    """
-    Waits for a timedelta after the task's execution_date + schedule_interval.
-    In Airflow, the daily task stamped with ``execution_date``
-    2016-01-01 can only start running on 2016-01-02. The timedelta here
-    represents the time after the execution period has closed.
-
-    :param delta: time length to wait after execution_date before succeeding
-    :type delta: datetime.timedelta
-    """
-
-    @apply_defaults
-    def __init__(self, *, delta, **kwargs):
-        super().__init__(**kwargs)
-        self.delta = delta
-
-    def poke(self, context):
-        dag = context['dag']
-        target_dttm = dag.following_schedule(context['execution_date'])
-        target_dttm += self.delta
-        self.log.info('Checking if the time (%s) has come', target_dttm)
-        return timezone.utcnow() > target_dttm
+warnings.warn(
+    "This module is deprecated. Please use `airflow.sensors.time_delta`.", DeprecationWarning, stacklevel=2
+)

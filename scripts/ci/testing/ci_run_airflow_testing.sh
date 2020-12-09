@@ -20,30 +20,6 @@
 
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-INTEGRATIONS=()
-
-ENABLED_INTEGRATIONS=${ENABLED_INTEGRATIONS:=""}
-
-if [[ ${TEST_TYPE:=} == "Integration" ]]; then
-    export ENABLED_INTEGRATIONS="${AVAILABLE_INTEGRATIONS}"
-    export RUN_INTEGRATION_TESTS="${AVAILABLE_INTEGRATIONS}"
-elif [[ ${TEST_TYPE:=} == "Long" ]]; then
-    export ONLY_RUN_LONG_RUNNING_TESTS="true"
-elif [[ ${TEST_TYPE:=} == "Heisentests" ]]; then
-    export ONLY_RUN_HEISEN_TESTS="true"
-elif [[ ${TEST_TYPE:=} == "Quarantined" ]]; then
-    export ONLY_RUN_QUARANTINED_TESTS="true"
-    # Do not fail in quarantined tests
-fi
-
-for _INT in ${ENABLED_INTEGRATIONS}
-do
-    INTEGRATIONS+=("-f")
-    INTEGRATIONS+=("${SCRIPTS_CI_DIR}/docker-compose/integration-${_INT}.yml")
-done
-
-readonly INTEGRATIONS
-
 if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
     echo
     echo "Skipping running tests !!!!!"
@@ -55,11 +31,34 @@ function run_airflow_testing_in_docker() {
     set +u
     set +e
     local exit_code
-    for try_num in {1..3}
+    for try_num in {1..5}
     do
+        echo
+        echo "Making sure docker-compose is down and remnants removed"
+        echo
+        docker-compose --log-level INFO -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
+            down --remove-orphans --volumes --timeout 10
+        echo
+        echo "System-prune docker"
+        echo
+        docker system prune --force --volumes
+        echo
+        echo "Check available space"
+        echo
+        df --human
+        echo
+        echo "Check available memory"
+        echo
+        free --human
         echo
         echo "Starting try number ${try_num}"
         echo
+        if [[ " ${ENABLED_INTEGRATIONS} " =~ " kerberos " ]]; then
+            echo "Creating Kerberos network"
+            kerberos::create_kerberos_network
+        else
+            echo "Skip creating kerberos network"
+        fi
         docker-compose --log-level INFO \
           -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
           -f "${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml" \
@@ -67,15 +66,13 @@ function run_airflow_testing_in_docker() {
           "${DOCKER_COMPOSE_LOCAL[@]}" \
              run airflow "${@}"
         exit_code=$?
-        if [[ ${exit_code} == 254 ]]; then
+        if [[ " ${INTEGRATIONS[*]} " =~ " kerberos " ]]; then
+            echo "Delete kerberos network"
+            kerberos::delete_kerberos_network
+        fi
+        if [[ ${exit_code} == "254" && ${try_num} != "5" ]]; then
             echo
-            echo "Failed starting integration on ${try_num} try. Wiping-out docker-compose remnants"
-            echo
-            docker-compose --log-level INFO \
-                -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
-                down --remove-orphans -v --timeout 5
-            echo
-            echo "Sleeping 5 seconds"
+            echo "Failed try num ${try_num}. Sleeping 5 seconds for retry"
             echo
             sleep 5
             continue
@@ -83,7 +80,7 @@ function run_airflow_testing_in_docker() {
             break
         fi
     done
-    if [[ ${ONLY_RUN_QUARANTINED_TESTS:=} == "true" ]]; then
+    if [[ ${TEST_TYPE:=} == "Quarantined" ]]; then
         if [[ ${exit_code} == "1" ]]; then
             echo
             echo "Some Quarantined tests failed. but we recorded it in an issue"
@@ -104,15 +101,12 @@ build_images::prepare_ci_build
 
 build_images::rebuild_ci_image_if_needed
 
-DOCKER_COMPOSE_LOCAL=()
+DOCKER_COMPOSE_LOCAL=("-f" "${SCRIPTS_CI_DIR}/docker-compose/files.yml")
 
 if [[ ${MOUNT_LOCAL_SOURCES} == "true" ]]; then
     DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/local.yml")
 fi
 
-if [[ ${MOUNT_FILES} == "true" ]]; then
-    DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/files.yml")
-fi
 
 if [[ ${GITHUB_ACTIONS} == "true" ]]; then
     DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/ga.yml")
@@ -132,8 +126,58 @@ echo
 echo "Using docker image: ${AIRFLOW_CI_IMAGE} for docker compose runs"
 echo
 
-RUN_INTEGRATION_TESTS=${RUN_INTEGRATION_TESTS:=""}
-readonly RUN_INTEGRATION_TESTS
 
+if [[ ${TEST_TYPE=} != "" ]]; then
+    # Handle case where test type is passed from outside
+    export TEST_TYPES="${TEST_TYPE}"
+fi
 
-run_airflow_testing_in_docker "${@}"
+if [[ ${TEST_TYPES=} == "" ]]; then
+    TEST_TYPES="Core Providers API CLI Integration Other WWW Heisentests"
+    echo
+    echo "Test types not specified. Running all: ${TEST_TYPES}"
+    echo
+fi
+
+if [[ ${TEST_TYPE=} != "" ]]; then
+    # Add Postgres/MySQL special test types in case we are running several test types
+    if [[ ${BACKEND} == "postgres" ]]; then
+        TEST_TYPES="${TEST_TYPES} Postgres"
+    fi
+    if [[ ${BACKEND} == "mysql" ]]; then
+        TEST_TYPES="${TEST_TYPES} MySQL"
+    fi
+fi
+readonly TEST_TYPES
+
+echo "Running TEST_TYPES: ${TEST_TYPES}"
+
+for TEST_TYPE in ${TEST_TYPES}
+do
+    INTEGRATIONS=()
+    export INTEGRATIONS
+
+    if [[ ${TEST_TYPE:=} == "Integration" ]]; then
+        export ENABLED_INTEGRATIONS="${AVAILABLE_INTEGRATIONS}"
+        export RUN_INTEGRATION_TESTS="${AVAILABLE_INTEGRATIONS}"
+    else
+        export ENABLED_INTEGRATIONS=""
+        export RUN_INTEGRATION_TESTS=""
+    fi
+
+    for _INT in ${ENABLED_INTEGRATIONS}
+    do
+        INTEGRATIONS+=("-f")
+        INTEGRATIONS+=("${SCRIPTS_CI_DIR}/docker-compose/integration-${_INT}.yml")
+    done
+
+    export TEST_TYPE
+
+    echo "**********************************************************************************************"
+    echo
+    echo "      TEST_TYPE: ${TEST_TYPE}, ENABLED INTEGRATIONS: ${ENABLED_INTEGRATIONS}"
+    echo
+    echo "**********************************************************************************************"
+
+    run_airflow_testing_in_docker "${@}"
+done

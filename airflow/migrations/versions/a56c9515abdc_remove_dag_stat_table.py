@@ -41,9 +41,11 @@ def upgrade():
 
 def downgrade():
     """Create dag_stats table"""
-    op.create_table('dag_stats',
-                    sa.Column('dag_id', sa.String(length=250), nullable=False),
-                    sa.Column('state', sa.String(length=50), nullable=False),
-                    sa.Column('count', sa.Integer(), nullable=False, default=0),
-                    sa.Column('dirty', sa.Boolean(), nullable=False, default=False),
-                    sa.PrimaryKeyConstraint('dag_id', 'state'))
+    op.create_table(
+        'dag_stats',
+        sa.Column('dag_id', sa.String(length=250), nullable=False),
+        sa.Column('state', sa.String(length=50), nullable=False),
+        sa.Column('count', sa.Integer(), nullable=False, default=0),
+        sa.Column('dirty', sa.Boolean(), nullable=False, default=False),
+        sa.PrimaryKeyConstraint('dag_id', 'state'),
+    )

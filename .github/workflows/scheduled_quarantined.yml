@@ -17,14 +17,13 @@
 #
 ---
 name: Quarantined Build
-on:
+on:  # yamllint disable-line rule:truthy
   schedule:
     # Run quarantined builds 4 times a day to gather better quarantine stats
     - cron: '12 */6 * * *'
 
 env:
   MOUNT_LOCAL_SOURCES: "false"
-  MOUNT_FILES: "true"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
   FORCE_PULL_IMAGES: "true"
   CHECK_IMAGE_FOR_REBUILD: "true"
@@ -48,10 +47,9 @@ jobs:
   trigger-tests:
     timeout-minutes: 5
     name: "Checks if tests should be run"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     outputs:
       run-tests: ${{ steps.trigger-tests.outputs.run-tests }}
-    if: github.repository == 'apache/airflow'
     steps:
       - uses: actions/checkout@v2
       - name: "Check if tests should be run"
@@ -61,7 +59,7 @@ jobs:
   tests-quarantined:
     timeout-minutes: 80
     name: "Quarantined tests"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     continue-on-error: true
     needs: [trigger-tests]
     strategy:
@@ -77,9 +75,8 @@ jobs:
       TEST_TYPE: Quarantined
       NUM_RUNS: 20
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    if: >
-      github.repository == 'apache/airflow' &&
-      (needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request')
+    if: |
+      needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -88,15 +85,15 @@ jobs:
       - name: "Set issue id for master"
         if: github.ref == 'refs/heads/master'
         run: |
-          echo "::set-env name=ISSUE_ID::10118"
+          echo "ISSUE_ID=10118" >> $GITHUB_ENV
       - name: "Set issue id for v1-10-stable"
         if: github.ref == 'refs/heads/v1-10-stable'
         run: |
-          echo "::set-env name=ISSUE_ID::10127"
+          echo "ISSUE_ID=10127" >> $GITHUB_ENV
       - name: "Set issue id for v1-10-test"
         if: github.ref == 'refs/heads/v1-10-test'
         run: |
-          echo "::set-env name=ISSUE_ID::10128"
+          echo "ISSUE_ID=10128" >> $GITHUB_ENV
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
@@ -109,9 +106,11 @@ jobs:
         with:
           name: 'quarantined_tests'
           path: 'files/test_result.xml'
+          retention-days: 7
       - uses: actions/upload-artifact@v2
         name: Upload airflow logs
         if: always()
         with:
           name: airflow-logs-quarantined-${{matrix.python-version}}-${{ matrix.postgres-version }}
           path: './files/airflow_logs*'
+          retention-days: 7

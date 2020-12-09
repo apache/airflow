@@ -1,4 +1,4 @@
-/**
+/*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,10 @@
  */
 
 body {
-  padding-top: 70px;
+  position: relative;
+  padding: 70px 0 100px;
+  min-height: 100vh;
+  background-color: #fff;
 }
 
 nav {
@@ -48,42 +51,65 @@ div.container {
   padding-right: 15px;
 }
 
-a.navbar-brand span {
-  color: #fff;
+.navbar a {
+  color: #51504f;
+  font-weight: bold;
 }
 
-.modal-backdrop {
-  z-index: 2;
-  position: fixed;
+.navbar a .caret {
+  color: #e2d2e2;
 }
 
-.modal-content {
-  z-index: 5;
+.navbar-nav li.dropdown:hover > .dropdown-menu,
+.navbar-nav li.dropdown:focus-within > .dropdown-menu {
+  display: block;
 }
 
-a.navbar-brand {
-  cursor: default;
+/* If a menu remains open due to focus, a menu
+  opened via hover will always be displayed on top */
+.navbar-nav li.dropdown:hover > .dropdown-menu {
+  z-index: 1001;
 }
 
-td > span.glyphicon {
-  padding-left: 3px;
-  padding-top: 3px;
+.navbar-brand {
+  padding: 0 15px;
+  height: 60px;
+  display: inline-flex;
+  align-items: center;
 }
 
-button.btn,
-label.btn {
-  border: 1px solid #000;
+.brand-logo {
+  width: 104px;
+  height: 40px;
+  overflow: visible !important;/* Allow for animation */
 }
 
-.btn-group label.btn {
-  background-color: #f0f0f0;
+@keyframes pinSpin {
+  from {
+    transform: rotate(0) translateX(0);
+  }
+
+  to {
+    transform: rotate(360deg) translateX(0);
+  }
 }
 
-div.rich_doc {
-  padding: 5px 10px;
-  border: 1px solid #ddd;
-  background: #fff;
-  border-radius: 4px;
+.navbar-brand:hover .brand-logo-pinwheel {
+  transform-origin: 17.66px 17.66px;
+  animation: pinSpin 1.5s linear infinite;
+}
+
+.navbar-user-icon {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  vertical-align: middle;
+  margin: -5px 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: #017cee;
+  background-color: #c0defb;
 }
 
 span.status_square {
@@ -101,7 +127,7 @@ div.squares {
 }
 
 span.success {
-  background-color: green;
+  background-color: #1b8e49;
 }
 
 span.up_for_retry {
@@ -109,19 +135,19 @@ span.up_for_retry {
 }
 
 span.up_for_reschedule {
-  background-color: turquoise;
+  background-color: #00c7d4;
 }
 
 span.started {
-  background-color: lime;
+  background-color: #04d659;
 }
 
 span.error {
-  background-color: red;
+  background-color: #e43921;
 }
 
 span.queued {
-  background-color: gray;
+  background-color: #cbcbcb;
 }
 
 span.upstream_failed {
@@ -129,13 +155,7 @@ span.upstream_failed {
 }
 
 span.skipped {
-  background-color: pink;
-}
-
-.tooltip-inner {
-  max-width: 500px;
-  text-align: left !important;
-  font-size: 12px;
+  background-color: #f8cec8;
 }
 
 .d3-tip {
@@ -162,14 +182,14 @@ div.linenodiv {
 
 .linenos {
   width: 50px;
-  border: none;
+  border: 0;
 }
 
 div.linenodiv pre {
-  padding-left: 4px;
+  padding-left: 0;
   padding-right: 4px;
-  color: #aaa;
-  background-color: #fcfcfc;
+  color: #8e8e8d;
+  background-color: transparent;
   text-align: right;
 }
 
@@ -206,10 +226,6 @@ table.dataframe tbody tr td {
   padding: 2px;
 }
 
-table thead th {
-  background-color: #f3f3f3;
-}
-
 table.dataframe.dataTable thead > tr > th {
   padding: 10px 20px 10px 10px;
 }
@@ -242,36 +258,49 @@ body div.panel {
   filter: url(#blur-effect-1);
 }
 
-div.legend_item {
-  border-radius: 5px;
-  float: right;
-  margin: 0 3px 0 0;
+.legend-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 4px;
+  border-radius: 4px;
+  border: solid 2px #cbcbcb;
   padding: 0 3px;
-  border: solid 2px grey;
   font-size: 11px;
 }
 
-div.legend_circle {
-  border-radius: 10px;
-  width: 15px;
-  height: 15px;
-  border: 1px solid grey;
-  float: left;
-  margin-top: 2px;
+.legend-item--no-border {
+  border-color: transparent;
+  padding: 0;
+}
+
+.legend-item:last-child {
   margin-right: 0;
 }
 
-div.square {
+.legend-item__swatch {
+  display: inline-block;
+  margin-right: 3px;
   width: 12px;
   height: 12px;
-  float: right;
-  margin-top: 2px;
-  border: 1px solid #000;
+  border-radius: 2px;
+  border: solid 1px #8e8e8d;
+  background: #fff;
 }
 
-.btn:active,
-.btn.active {
-  box-shadow: inset 0 6px 6px rgba(0, 0, 0, 0.4);
+.legend-item__swatch--circle {
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+}
+
+.legend-item__swatch--no-border {
+  border-color: transparent;
 }
 
 label[for="timezone-other"],
@@ -291,8 +320,16 @@ label[for="timezone-other"],
   display: block;
 }
 
-.dag-doc {
-  margin-bottom: 15px;
+.accordion-toggle {
+  display: block;
+}
+
+.accordion-toggle.collapsed > .toggle-direction {
+  transform: rotate(180deg);
+}
+
+.dag-import-error {
+  white-space: pre;
 }
 
 /* stylelint-disable declaration-block-single-line-max-declarations */
@@ -348,3 +385,62 @@ label[for="timezone-other"],
 .s2 { color: #ba2121; } /* Literal.String.Double */
 .s1 { color: #ba2121; } /* Literal.String.Single */
 /* stylelint-enable declaration-block-single-line-max-declarations */
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 60px;
+  color: #8e8e8d;
+  background-color: #f5f5f5;
+}
+
+.dag-view-tools {
+  margin: 16px 0;
+  padding: 16px 0;
+  background-color: #f0f0f0;
+}
+
+.code-wrap {
+  position: relative;
+  margin-top: 30px;
+}
+
+.code-wrap-toggle {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+}
+
+.search-input {
+  position: relative;
+}
+
+.search-input__input {
+  padding-right: 40px;
+}
+
+.search-input__clear-btn {
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  border: 0;
+}
+
+/* Override default Bootstrap behavior to prevent wrapping */
+.btn-group {
+  display: inline-flex;
+}
+
+/* Override FAB table views where table width extends beyond parent containers */
+.panel-body .panel-group + div {
+  overflow-x: auto;
+}
+
+.task-instance-modal-column {
+  margin-top: 8px;
+  overflow-x: auto;
+}

@@ -26,7 +26,7 @@ from airflow.models import Connection
 
 # Please keep these variables in alphabetical order.
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
-from tests.utils.logging_command_executor import LoggingCommandExecutor
+from tests.test_utils.logging_command_executor import LoggingCommandExecutor
 
 GCP_AI_KEY = 'gcp_ai.json'
 GCP_AUTOML_KEY = 'gcp_automl.json'
@@ -35,6 +35,7 @@ GCP_BIGTABLE_KEY = 'gcp_bigtable.json'
 GCP_CLOUD_BUILD_KEY = 'gcp_cloud_build.json'
 GCP_CLOUDSQL_KEY = 'gcp_cloudsql.json'
 GCP_COMPUTE_KEY = 'gcp_compute.json'
+GCP_COMPUTE_SSH_KEY = 'gcp_compute_ssh.json'
 GCP_DATAFLOW_KEY = 'gcp_dataflow.json'
 GCP_DATAFUSION_KEY = 'gcp_datafusion.json'
 GCP_DATAPROC_KEY = 'gcp_dataproc.json'
@@ -53,6 +54,7 @@ GCP_STACKDDRIVER = 'gcp_stackdriver.json'
 GCP_TASKS_KEY = 'gcp_tasks.json'
 GMP_KEY = 'gmp.json'
 G_FIREBASE_KEY = 'g_firebase.json'
+GCP_AWS_KEY = 'gcp_aws.json'
 
 KEYPATH_EXTRA = 'extra__google_cloud_platform__key_path'
 KEYFILE_DICT_EXTRA = 'extra__google_cloud_platform__keyfile_dict'
@@ -117,7 +119,7 @@ class GcpAuthenticator(LoggingCommandExecutor):
         try:
             conn = session.query(Connection).filter(Connection.conn_id == 'google_cloud_default')[0]
             extras = conn.extra_dejson
-            with open(self.full_key_path, "r") as path_file:
+            with open(self.full_key_path) as path_file:
                 content = json.load(path_file)
             extras[KEYFILE_DICT_EXTRA] = json.dumps(content)
             if extras.get(KEYPATH_EXTRA):
@@ -180,8 +182,8 @@ class GcpAuthenticator(LoggingCommandExecutor):
                 'gcloud',
                 'auth',
                 'activate-service-account',
-                '--key-file={}'.format(self.full_key_path),
-                '--project={}'.format(self.project_id),
+                f'--key-file={self.full_key_path}',
+                f'--project={self.project_id}',
             ]
         )
         self.set_key_path_in_airflow_connection()
@@ -192,10 +194,8 @@ class GcpAuthenticator(LoggingCommandExecutor):
         """
         self._validate_key_set()
         self.log.info("Revoking authentication - setting it to none")
-        self.execute_cmd(['gcloud', 'config', 'get-value', 'account', '--project={}'.format(self.project_id)])
-        self.execute_cmd(
-            ['gcloud', 'config', 'set', 'account', 'none', '--project={}'.format(self.project_id)]
-        )
+        self.execute_cmd(['gcloud', 'config', 'get-value', 'account', f'--project={self.project_id}'])
+        self.execute_cmd(['gcloud', 'config', 'set', 'account', 'none', f'--project={self.project_id}'])
 
     def gcp_store_authentication(self):
         """
@@ -205,7 +205,7 @@ class GcpAuthenticator(LoggingCommandExecutor):
         self._validate_key_set()
         if not GcpAuthenticator.original_account:
             GcpAuthenticator.original_account = self.check_output(
-                ['gcloud', 'config', 'get-value', 'account', '--project={}'.format(self.project_id)]
+                ['gcloud', 'config', 'get-value', 'account', f'--project={self.project_id}']
             ).decode('utf-8')
             self.log.info("Storing account: to restore it later %s", GcpAuthenticator.original_account)
 
@@ -223,7 +223,7 @@ class GcpAuthenticator(LoggingCommandExecutor):
                     'set',
                     'account',
                     GcpAuthenticator.original_account,
-                    '--project={}'.format(self.project_id),
+                    f'--project={self.project_id}',
                 ]
             )
         else:

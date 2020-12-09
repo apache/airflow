@@ -24,5 +24,6 @@ from airflow.providers.http.operators.http import SimpleHttpOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.http.operators.http`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

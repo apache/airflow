@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
 from datetime import timedelta
 from typing import Optional
 
@@ -35,9 +34,14 @@ from airflow.www.extensions.init_dagbag import init_dagbag
 from airflow.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.www.extensions.init_manifest_files import configure_manifest_files
 from airflow.www.extensions.init_security import init_api_experimental_auth, init_xframe_protection
-from airflow.www.extensions.init_session import init_logout_timeout, init_permanent_session
+from airflow.www.extensions.init_session import init_permanent_session
 from airflow.www.extensions.init_views import (
-    init_api_connexion, init_api_experimental, init_appbuilder_views, init_error_handlers, init_flash_views,
+    init_api_connexion,
+    init_api_experimental,
+    init_appbuilder_views,
+    init_connection_form,
+    init_error_handlers,
+    init_flash_views,
     init_plugins,
 )
 from airflow.www.extensions.init_wsgi_middlewares import init_wsgi_middleware
@@ -58,6 +62,7 @@ def sync_appbuilder_roles(flask_app):
     if conf.getboolean('webserver', 'UPDATE_FAB_PERMS'):
         security_manager = flask_app.appbuilder.sm
         security_manager.sync_roles()
+        security_manager.sync_resource_permissions()
 
 
 def create_app(config=None, testing=False, app_name="Airflow"):
@@ -65,12 +70,11 @@ def create_app(config=None, testing=False, app_name="Airflow"):
     flask_app = Flask(__name__)
     flask_app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
-    session_lifetime_days = conf.getint('webserver', 'SESSION_LIFETIME_DAYS', fallback=30)
-    flask_app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=session_lifetime_days)
-
+    flask_app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=settings.get_session_lifetime_config())
     flask_app.config.from_pyfile(settings.WEBSERVER_CONFIG, silent=True)
     flask_app.config['APP_NAME'] = app_name
     flask_app.config['TESTING'] = testing
+    flask_app.config['SQLALCHEMY_DATABASE_URI'] = conf.get('core', 'SQL_ALCHEMY_CONN')
     flask_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     flask_app.config['SESSION_COOKIE_HTTPONLY'] = True
@@ -79,6 +83,9 @@ def create_app(config=None, testing=False, app_name="Airflow"):
 
     if config:
         flask_app.config.from_mapping(config)
+
+    if 'SQLALCHEMY_ENGINE_OPTIONS' not in flask_app.config:
+        flask_app.config['SQLALCHEMY_ENGINE_OPTIONS'] = settings.prepare_engine_args()
 
     # Configure the JSON encoder used by `|tojson` filter from Flask
     flask_app.json_encoder = AirflowJsonEncoder
@@ -108,6 +115,7 @@ def create_app(config=None, testing=False, app_name="Airflow"):
         init_appbuilder_views(flask_app)
         init_appbuilder_links(flask_app)
         init_plugins(flask_app)
+        init_connection_form()
         init_error_handlers(flask_app)
         init_api_connexion(flask_app)
         init_api_experimental(flask_app)
@@ -115,10 +123,8 @@ def create_app(config=None, testing=False, app_name="Airflow"):
         sync_appbuilder_roles(flask_app)
 
         init_jinja_globals(flask_app)
-        init_logout_timeout(flask_app)
         init_xframe_protection(flask_app)
         init_permanent_session(flask_app)
-
     return flask_app
 
 

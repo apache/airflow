@@ -40,6 +40,7 @@ class CloudSecretsManagerBackend(CloudSecretManagerBackend):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

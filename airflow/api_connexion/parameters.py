@@ -24,6 +24,12 @@ from airflow.configuration import conf
 from airflow.utils import timezone
 
 
+def validate_istimezone(value):
+    """Validates that a datetime is not naive"""
+    if not value.tzinfo:
+        raise BadRequest("Invalid datetime format", detail="Naive datetime is disallowed")
+
+
 def format_datetime(value: str):
     """
     Datetime format parser for args since connexion doesn't parse datetimes

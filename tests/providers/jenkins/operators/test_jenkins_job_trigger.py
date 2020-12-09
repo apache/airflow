@@ -17,9 +17,9 @@
 # under the License.
 
 import unittest
+from unittest.mock import Mock, patch
 
 import jenkins
-from mock import Mock, patch
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException

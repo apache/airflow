@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Cloud MLEngine operators.
-"""
+"""This module contains Google Cloud MLEngine operators."""
 import logging
 import re
 import warnings
@@ -44,11 +42,10 @@ def _normalize_mlengine_job_id(job_id: str) -> str:
     :return: A valid job_id representation.
     :rtype: str
     """
-
     # Add a prefix when a job_id starts with a digit or a template
     match = re.search(r'\d|\{{2}', job_id)
     if match and match.start() == 0:
-        job = 'z_{}'.format(job_id)
+        job = f'z_{job_id}'
     else:
         job = job_id
 
@@ -224,17 +221,17 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         if not self._project_id:
             raise AirflowException('Google Cloud project id is required.')
         if not self._job_id:
-            raise AirflowException('An unique job id is required for Google MLEngine prediction ' 'job.')
+            raise AirflowException('An unique job id is required for Google MLEngine prediction job.')
 
         if self._uri:
             if self._model_name or self._version_name:
                 raise AirflowException(
-                    'Ambiguous model origin: Both uri and ' 'model/version name are provided.'
+                    'Ambiguous model origin: Both uri and model/version name are provided.'
                 )
 
         if self._version_name and not self._model_name:
             raise AirflowException(
-                'Missing model: Batch prediction expects ' 'a model name when a version name is provided.'
+                'Missing model: Batch prediction expects a model name when a version name is provided.'
             )
 
         if not (self._uri or self._model_name):
@@ -260,7 +257,7 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         if self._uri:
             prediction_request['predictionInput']['uri'] = self._uri
         elif self._model_name:
-            origin_name = 'projects/{}/models/{}'.format(self._project_id, self._model_name)
+            origin_name = f'projects/{self._project_id}/models/{self._model_name}'
             if not self._version_name:
                 prediction_request['predictionInput']['modelName'] = origin_name
             else:
@@ -284,7 +281,7 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         # Helper method to check if the existing job's prediction input is the
         # same as the request we get here.
         def check_existing_job(existing_job):
-            return existing_job.get('predictionInput', None) == prediction_request['predictionInput']
+            return existing_job.get('predictionInput') == prediction_request['predictionInput']
 
         finished_prediction_job = hook.create_job(
             project_id=self._project_id, job=prediction_request, use_existing_job_fn=check_existing_job
@@ -383,7 +380,7 @@ class MLEngineManageModelOperator(BaseOperator):
         elif self._operation == 'get':
             return hook.get_model(project_id=self._project_id, model_name=self._model['name'])
         else:
-            raise ValueError('Unknown operation: {}'.format(self._operation))
+            raise ValueError(f'Unknown operation: {self._operation}')
 
 
 class MLEngineCreateModelOperator(BaseOperator):
@@ -708,9 +705,7 @@ class MLEngineManageVersionOperator(BaseOperator):
 
         if self._operation == 'create':
             if not self._version:
-                raise ValueError(
-                    "version attribute of {} could not " "be empty".format(self.__class__.__name__)
-                )
+                raise ValueError(f"version attribute of {self.__class__.__name__} could not be empty")
             return hook.create_version(
                 project_id=self._project_id, model_name=self._model_name, version_spec=self._version
             )
@@ -725,7 +720,7 @@ class MLEngineManageVersionOperator(BaseOperator):
                 project_id=self._project_id, model_name=self._model_name, version_name=self._version['name']
             )
         else:
-            raise ValueError('Unknown operation: {}'.format(self._operation))
+            raise ValueError(f'Unknown operation: {self._operation}')
 
 
 class MLEngineCreateVersionOperator(BaseOperator):
@@ -1058,9 +1053,7 @@ class MLEngineDeleteVersionOperator(BaseOperator):
 
 
 class AIPlatformConsoleLink(BaseOperatorLink):
-    """
-    Helper class for constructing AI Platform Console link.
-    """
+    """Helper class for constructing AI Platform Console link."""
 
     name = "AI Platform Console"
 
@@ -1116,6 +1109,13 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
     :param job_dir: A Google Cloud Storage path in which to store training
         outputs and other data needed for training. (templated)
     :type job_dir: str
+    :param service_account: Optional service account to use when running the training application.
+        (templated)
+        The specified service account must have the `iam.serviceAccounts.actAs` role. The
+        Google-managed Cloud ML Engine service account must have the `iam.serviceAccountAdmin` role
+        for the specified service account.
+        If set to None or missing, the Google-managed Cloud ML Engine service account will be used.
+    :type service_account: str
     :param project_id: The Google Cloud project name within which MLEngine training job should run.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
         (templated)
@@ -1157,6 +1157,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         '_runtime_version',
         '_python_version',
         '_job_dir',
+        '_service_account',
         '_impersonation_chain',
     ]
 
@@ -1177,6 +1178,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         runtime_version: Optional[str] = None,
         python_version: Optional[str] = None,
         job_dir: Optional[str] = None,
+        service_account: Optional[str] = None,
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
@@ -1198,6 +1200,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         self._runtime_version = runtime_version
         self._python_version = python_version
         self._job_dir = job_dir
+        self._service_account = service_account
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
         self._mode = mode
@@ -1207,12 +1210,12 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         if not self._project_id:
             raise AirflowException('Google Cloud project id is required.')
         if not self._job_id:
-            raise AirflowException('An unique job id is required for Google MLEngine training ' 'job.')
+            raise AirflowException('An unique job id is required for Google MLEngine training job.')
         if not package_uris:
-            raise AirflowException('At least one python package is required for MLEngine ' 'Training job.')
+            raise AirflowException('At least one python package is required for MLEngine Training job.')
         if not training_python_module:
             raise AirflowException(
-                'Python module name to run after installing required ' 'packages is required.'
+                'Python module name to run after installing required packages is required.'
             )
         if not self._region:
             raise AirflowException('Google Compute Engine region is required.')
@@ -1245,6 +1248,9 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         if self._job_dir:
             training_request['trainingInput']['jobDir'] = self._job_dir
 
+        if self._service_account:
+            training_request['trainingInput']['serviceAccount'] = self._service_account
+
         if self._scale_tier is not None and self._scale_tier.upper() == "CUSTOM":
             training_request['trainingInput']['masterType'] = self._master_type
 
@@ -1265,12 +1271,12 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         # Helper method to check if the existing job's training input is the
         # same as the request we get here.
         def check_existing_job(existing_job):
-            existing_training_input = existing_job.get('trainingInput', None)
+            existing_training_input = existing_job.get('trainingInput')
             requested_training_input = training_request['trainingInput']
             if 'scaleTier' not in existing_training_input:
                 existing_training_input['scaleTier'] = None
 
-            existing_training_input['args'] = existing_training_input.get('args', None)
+            existing_training_input['args'] = existing_training_input.get('args')
             requested_training_input["args"] = (
                 requested_training_input['args'] if requested_training_input["args"] else None
             )

@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains Google Dataproc operators.
-"""
+"""This module contains Google Dataproc operators."""
 # pylint: disable=C0302
 
 import inspect
@@ -229,7 +227,7 @@ class ClusterGenerator:
         if self.single_node and self.num_preemptible_workers > 0:
             raise ValueError("Single node cannot have preemptible workers.")
 
-    def _get_init_action_timeout(self):
+    def _get_init_action_timeout(self) -> dict:
         match = re.match(r"^(\d+)([sm])$", self.init_action_timeout)
         if match:
             val = float(match.group(1))
@@ -261,7 +259,7 @@ class ClusterGenerator:
 
         if self.internal_ip_only:
             if not self.subnetwork_uri:
-                raise AirflowException("Set internal_ip_only to true only when" " you pass a subnetwork_uri.")
+                raise AirflowException("Set internal_ip_only to true only when you pass a subnetwork_uri.")
             cluster_data['gce_cluster_config']['internal_ip_only'] = True
 
         if self.tags:
@@ -460,6 +458,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         'labels',
         'impersonation_chain',
     )
+    template_fields_renderers = {'cluster_config': 'json'}
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
@@ -552,7 +551,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.log.info("Deleting the cluster")
         hook.delete_cluster(region=self.region, cluster_name=self.cluster_name, project_id=self.project_id)
 
-    def _get_cluster(self, hook: DataprocHook):
+    def _get_cluster(self, hook: DataprocHook) -> Cluster:
         return hook.get_cluster(
             project_id=self.project_id,
             region=self.region,
@@ -600,7 +599,7 @@ class DataprocCreateClusterOperator(BaseOperator):
             cluster = self._get_cluster(hook)
         return cluster
 
-    def execute(self, context):
+    def execute(self, context) -> dict:
         self.log.info('Creating cluster: %s', self.cluster_name)
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         try:
@@ -659,7 +658,7 @@ class DataprocScaleClusterOperator(BaseOperator):
     :type num_workers: int
     :param num_preemptible_workers: The new number of preemptible workers
     :type num_preemptible_workers: int
-    :param graceful_decommission_timeout: Timeout for graceful YARN decomissioning.
+    :param graceful_decommission_timeout: Timeout for graceful YARN decommissioning.
         Maximum value is 1d
     :type graceful_decommission_timeout: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
@@ -710,7 +709,7 @@ class DataprocScaleClusterOperator(BaseOperator):
             stacklevel=1,
         )
 
-    def _build_scale_cluster_data(self):
+    def _build_scale_cluster_data(self) -> dict:
         scale_data = {
             'config': {
                 'worker_config': {'num_instances': self.num_workers},
@@ -748,10 +747,8 @@ class DataprocScaleClusterOperator(BaseOperator):
 
         return {'seconds': timeout}
 
-    def execute(self, context):
-        """
-        Scale, up or down, a cluster on Google Cloud Dataproc.
-        """
+    def execute(self, context) -> None:
+        """Scale, up or down, a cluster on Google Cloud Dataproc."""
         self.log.info("Scaling cluster: %s", self.cluster_name)
 
         scaling_cluster_data = self._build_scale_cluster_data()
@@ -838,7 +835,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Deleting cluster: %s", self.cluster_name)
         operation = hook.delete_cluster(
@@ -959,9 +956,7 @@ class DataprocJobBaseOperator(BaseOperator):
         self.asynchronous = asynchronous
 
     def create_job_template(self):
-        """
-        Initialize `self.job_template` with default values
-        """
+        """Initialize `self.job_template` with default values"""
         self.job_template = DataProcJobBuilder(
             project_id=self.project_id,
             task_id=self.task_id,
@@ -973,7 +968,7 @@ class DataprocJobBaseOperator(BaseOperator):
         self.job_template.add_jar_file_uris(self.dataproc_jars)
         self.job_template.add_labels(self.labels)
 
-    def _generate_job_template(self):
+    def _generate_job_template(self) -> str:
         if self.job_template:
             job = self.job_template.build()
             return job['job']
@@ -998,7 +993,7 @@ class DataprocJobBaseOperator(BaseOperator):
         else:
             raise AirflowException("Create a job template before")
 
-    def on_kill(self):
+    def on_kill(self) -> None:
         """
         Callback called when the operator is killed.
         Cancel any running job.
@@ -1463,9 +1458,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         return "{}_{}_{}".format(date, str(uuid.uuid4())[:8], ntpath.basename(filename))
 
     def _upload_file_temp(self, bucket, local_file):
-        """
-        Upload a local file to a Google Cloud Storage bucket.
-        """
+        """Upload a local file to a Google Cloud Storage bucket."""
         temp_filename = self._generate_temp_filename(local_file)
         if not bucket:
             raise AirflowException(
@@ -1483,7 +1476,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
             mime_type='application/x-python',
             filename=local_file,
         )
-        return "gs://{}/{}".format(bucket, temp_filename)
+        return f"gs://{bucket}/{temp_filename}"
 
     @apply_defaults
     def __init__(
@@ -1524,7 +1517,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
                 project_id=self.hook.project_id, region=self.region, cluster_name=self.cluster_name
             )
             bucket = cluster_info['config']['config_bucket']
-            self.main = "gs://{}/{}".format(bucket, self.main)
+            self.main = f"gs://{bucket}/{self.main}"
         self.job_template.set_python_main(self.main)
         self.job_template.add_args(self.arguments)
         self.job_template.add_archive_uris(self.archives)
@@ -1706,6 +1699,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
     """
 
     template_fields = ['template', 'impersonation_chain']
+    template_fields_renderers = {"template": "json"}
 
     @apply_defaults
     def __init__(
@@ -1792,9 +1786,12 @@ class DataprocSubmitJobOperator(BaseOperator):
     :type asynchronous: bool
     :param cancel_on_kill: Flag which indicates whether cancel the hook's job or not, when on_kill is called
     :type cancel_on_kill: bool
+    :param wait_timeout: How many seconds wait for job to be ready. Used only if ``asynchronous`` is False
+    :type wait_timeout: int
     """
 
     template_fields = ('project_id', 'location', 'job', 'impersonation_chain')
+    template_fields_renderers = {"job": "json"}
 
     @apply_defaults
     def __init__(
@@ -1811,6 +1808,7 @@ class DataprocSubmitJobOperator(BaseOperator):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         asynchronous: bool = False,
         cancel_on_kill: bool = True,
+        wait_timeout: Optional[int] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1827,6 +1825,7 @@ class DataprocSubmitJobOperator(BaseOperator):
         self.cancel_on_kill = cancel_on_kill
         self.hook: Optional[DataprocHook] = None
         self.job_id: Optional[str] = None
+        self.wait_timeout = wait_timeout
 
     def execute(self, context: Dict):
         self.log.info("Submitting job")
@@ -1845,7 +1844,9 @@ class DataprocSubmitJobOperator(BaseOperator):
 
         if not self.asynchronous:
             self.log.info('Waiting for job %s to complete', job_id)
-            self.hook.wait_for_job(job_id=job_id, location=self.location, project_id=self.project_id)
+            self.hook.wait_for_job(
+                job_id=job_id, location=self.location, project_id=self.project_id, timeout=self.wait_timeout
+            )
             self.log.info('Job %s completed successfully.', job_id)
 
         self.job_id = job_id
@@ -1877,7 +1878,7 @@ class DataprocUpdateClusterOperator(BaseOperator):
         new value. If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.cloud.dataproc_v1beta2.types.FieldMask`
     :type update_mask: Union[Dict, google.cloud.dataproc_v1beta2.types.FieldMask]
-    :param graceful_decommission_timeout: Optional. Timeout for graceful YARN decomissioning. Graceful
+    :param graceful_decommission_timeout: Optional. Timeout for graceful YARN decommissioning. Graceful
         decommissioning allows removing nodes from the cluster without interrupting jobs in progress. Timeout
         specifies how long to wait for jobs in progress to finish before forcefully removing nodes (and
         potentially interrupting jobs). Default timeout is 0 (for forceful decommission), and the maximum

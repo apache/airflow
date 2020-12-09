@@ -41,7 +41,7 @@ with DAG(
         task_id="trigger_job",
         job_name="generate-merlin-config",
         parameters={"first_parameter": "a_value", "second_parameter": "18"},
-        # parameters="resources/paremeter.json", You can also pass a path to a json file containing your param
+        # parameters="resources/parameter.json", You can also pass a path to a json file containing your param
         jenkins_connection_id="your_jenkins_connection",  # T he connection must be configured first
     )
 

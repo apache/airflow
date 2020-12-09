@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict, List, Sequence
+from typing import Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
@@ -58,7 +58,7 @@ class AzureDataLakeStorageListOperator(BaseOperator):
         self.path = path
         self.azure_data_lake_conn_id = azure_data_lake_conn_id
 
-    def execute(self, context: Dict[Any, Any]) -> List:
+    def execute(self, context: dict) -> list:
 
         hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)
 
