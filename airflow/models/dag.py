@@ -2025,8 +2025,6 @@ class DAG(LoggingMixin):
                 'task_dict',
                 'template_searchpath',
                 'sla_miss_callback',
-                'on_success_callback',
-                'on_failure_callback',
                 'template_undefined',
                 'jinja_environment_kwargs',
             }
