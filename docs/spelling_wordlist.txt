@@ -69,6 +69,7 @@ Colour
 ComputeNodeState
 Computenodes
 Config
+Configmaps
 Configs
 ContainerPort
 Cron
@@ -478,6 +479,7 @@ backfills
 backoff
 backport
 backported
+backports
 backreference
 backtick
 backticks
@@ -718,6 +720,7 @@ faas
 facebook
 failover
 faq
+favour
 fbee
 fc
 feedCard

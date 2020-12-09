@@ -1089,7 +1089,7 @@ Changes to Airflow Plugins
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If you are using Airflow Plugins and were passing ``admin_views`` & ``menu_links`` which were used in the
-non-RBAC UI (``flask-admin`` based UI), upto it to use ``flask_appbuilder_views`` and ``flask_appbuilder_menu_links``.
+non-RBAC UI (``flask-admin`` based UI), up to it to use ``flask_appbuilder_views`` and ``flask_appbuilder_menu_links``.
 
 **Old**:
 
