@@ -29,7 +29,7 @@ Step 1: Upgrade to Python 3
 
 Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0 will require Python 3.6+.
 
-If you have a specific task that still requires Python 2 then you can use the :class:`~airflow.operators.python.PythonVirtualenvOperator` or the ``KubernetesPodOperator``for this.
+If you have a specific task that still requires Python 2 then you can use the :class:`~airflow.operators.python.PythonVirtualenvOperator` or the ``KubernetesPodOperator`` for this.
 
 For a list of breaking changes between Python 2 and Python 3, please refer to this
 [handy blog](https://blog.couchbase.com/tips-and-tricks-for-upgrading-from-python-2-to-python-3/)
