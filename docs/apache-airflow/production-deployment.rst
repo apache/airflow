@@ -804,7 +804,7 @@ Access to Compute Engine Instance
 
 If you want to establish an SSH connection to the Compute Engine instance, you must have the network address of this instance and credentials to access it. To simplify this task, you can use :class:`~airflow.providers.google.cloud.hooks.compute.ComputeEngineHook` instead of :class:`~airflow.providers.ssh.hooks.ssh.SSHHook`
 
-The :class:ʻ~airflow.providers.google.cloud.hooks.compute.ComputeEngineHook` support authorization with Google OS Login service. It is an extremely robust way to manage Linux access properly as it stores short-lived ssh keys in the metadata service, offers PAM modules for access and sudo privilege checking and offers nsswitch user lookup into the metadata service as well.
+The :class:`~airflow.providers.google.cloud.hooks.compute.ComputeEngineHook` support authorization with Google OS Login service. It is an extremely robust way to manage Linux access properly as it stores short-lived ssh keys in the metadata service, offers PAM modules for access and sudo privilege checking and offers nsswitch user lookup into the metadata service as well.
 
 It also solves the discovery problem that arises as your infrastructure grows. You can use the instance name instead of the network address.
 

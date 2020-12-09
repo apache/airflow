@@ -65,7 +65,7 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 _OPERATOR_EXTRA_LINKS: Set[str] = {
-    "airflow.operators.dagrun_operator.TriggerDagRunLink",
+    "airflow.operators.trigger_dagrun.TriggerDagRunLink",
     "airflow.sensors.external_task.ExternalTaskSensorLink",
 }
 

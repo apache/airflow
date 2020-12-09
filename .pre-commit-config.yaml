@@ -358,8 +358,8 @@ repos:
           ^airflow/providers/.*\.py$
       - id: provide-create-sessions
         language: pygrep
-        name: To avoid import cycles make sure provide_session and create_session are imported from
-              airflow.utils.session
+        name: provide_session and create_session imported from airflow.utils.session
+        description: To avoid import cycles.
         entry: "from airflow\\.utils\\.db import.* (provide_session|create_session)"
         files: \.py$
         pass_filenames: true

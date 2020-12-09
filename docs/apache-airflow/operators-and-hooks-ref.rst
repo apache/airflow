@@ -56,7 +56,7 @@ Airflow has many more integrations available for separate installation as a prov
    * - :mod:`airflow.operators.branch_operator`
      -
 
-   * - :mod:`airflow.operators.dagrun_operator`
+   * - :mod:`airflow.operators.trigger_dagrun`
      -
 
    * - :mod:`airflow.operators.dummy`

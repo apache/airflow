@@ -79,6 +79,8 @@ Content
     license
     start
     installation
+    upgrading-to-2
+    upgrade-check
     tutorial
     tutorial_taskflow_api
     howto/index
@@ -97,11 +99,11 @@ Content
     lineage
     dag-serialization
     modules_management
-    backport-providers
     smart-sensor
     changelog
     best-practices
     production-deployment
+    backport-providers
     faq
     privacy_notice
 

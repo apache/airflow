@@ -22,7 +22,7 @@ import unittest.mock
 from collections import namedtuple
 from datetime import date, datetime, timedelta
 from subprocess import CalledProcessError
-from typing import List
+from typing import Dict, List, Tuple
 
 import funcsigs
 import pytest
@@ -328,6 +328,79 @@ class TestAirflowTaskDecorator(TestPythonBase):
         not_callable = {}
         with pytest.raises(AirflowException):
             task_decorator(not_callable, dag=self.dag)
+
+    def test_infer_multiple_outputs_using_typing(self):
+        @task_decorator
+        def identity_dict(x: int, y: int) -> Dict[str, int]:
+            return {"x": x, "y": y}
+
+        assert identity_dict(5, 5).operator.multiple_outputs is True  # pylint: disable=maybe-no-member
+
+        @task_decorator
+        def identity_tuple(x: int, y: int) -> Tuple[int, int]:
+            return x, y
+
+        assert identity_tuple(5, 5).operator.multiple_outputs is False  # pylint: disable=maybe-no-member
+
+        @task_decorator
+        def identity_int(x: int) -> int:
+            return x
+
+        assert identity_int(5).operator.multiple_outputs is False  # pylint: disable=maybe-no-member
+
+        @task_decorator
+        def identity_notyping(x: int):
+            return x
+
+        assert identity_notyping(5).operator.multiple_outputs is False  # pylint: disable=maybe-no-member
+
+    def test_manual_multiple_outputs_false_with_typings(self):
+        @task_decorator(multiple_outputs=False)
+        def identity2(x: int, y: int) -> Dict[int, int]:
+            return (x, y)
+
+        with self.dag:
+            res = identity2(8, 4)
+
+        dr = self.dag.create_dagrun(
+            run_id=DagRunType.MANUAL.value,
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING,
+        )
+
+        res.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
+
+        ti = dr.get_task_instances()[0]
+
+        assert res.operator.multiple_outputs is False  # pylint: disable=maybe-no-member
+        assert ti.xcom_pull() == [8, 4]  # pylint: disable=maybe-no-member
+        assert ti.xcom_pull(key="return_value_0") is None
+        assert ti.xcom_pull(key="return_value_1") is None
+
+    def test_multiple_outputs_ignore_typing(self):
+        @task_decorator
+        def identity_tuple(x: int, y: int) -> Tuple[int, int]:
+            return x, y
+
+        with self.dag:
+            ident = identity_tuple(35, 36)
+
+        dr = self.dag.create_dagrun(
+            run_id=DagRunType.MANUAL.value,
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING,
+        )
+
+        ident.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
+
+        ti = dr.get_task_instances()[0]
+
+        assert not ident.operator.multiple_outputs  # pylint: disable=maybe-no-member
+        assert ti.xcom_pull() == [35, 36]
+        assert ti.xcom_pull(key="return_value_0") is None
+        assert ti.xcom_pull(key="return_value_1") is None
 
     def test_fails_bad_signature(self):
         """Tests that @task will fail if signature is not binding."""
