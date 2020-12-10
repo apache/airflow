@@ -34,7 +34,7 @@ from docs.exts.docs_build.errors import (  # pylint: disable=no-name-in-module
     DocBuildError,
     display_errors_summary,
 )
-from docs.exts.docs_build.fetch_inventories import fetch_inventories
+from docs.exts.docs_build.fetch_inventories import fetch_inventories  # pylint: disable=no-name-in-module
 from docs.exts.docs_build.github_action_utils import with_group  # pylint: disable=no-name-in-module
 from docs.exts.docs_build.spelling_checks import (  # pylint: disable=no-name-in-module
     SpellingError,

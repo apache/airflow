@@ -24,7 +24,9 @@ import shutil
 import requests
 from requests.adapters import DEFAULT_POOLSIZE
 
-from docs.exts.docs_build.docs_builder import get_available_providers_packages
+from docs.exts.docs_build.docs_builder import (  # pylint: disable=no-name-in-module
+    get_available_providers_packages,
+)
 
 CURRENT_DIR = os.path.dirname(__file__)
 ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir, os.pardir))

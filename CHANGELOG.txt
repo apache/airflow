@@ -25,7 +25,7 @@ Improvements
 - Add new-style 2.0 command names for Airflow 1.10.x (#12725)
 - Add Kubernetes cleanup-pods CLI command for Helm Chart (#11802)
 - Don't let webserver run with dangerous config (#12747)
-- Replace pkg_resources with importlib.metadata to avoid VersionConflict errors (#12694)
+- Replace pkg_resources with ``importlib.metadata`` to avoid VersionConflict errors (#12694)
 
 Doc only changes
 """"""""""""""""
