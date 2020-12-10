@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import argparse
-import fnmatch
+import os
 import sys
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
