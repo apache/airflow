@@ -171,10 +171,10 @@ Turning off checks
 Advanced Airflow users or those with multiple Airflow deployments may want to
 customize the Upgrade Checks to their environment by turning off certain
 checks which are not applicable to them. And example of this is users with
-Airflow deployments not using the KubePodOperator may want to turn off upgrade
-checks related to the KubePodOperator.
+Airflow deployments not using the ``KubernetesPodOperator`` may want to turn off upgrade
+checks related to the ``KubernetesPodOperator``.
 
-This can be down by created an "upgrade config file" in yaml as shown below:
+This can be done by creating an "upgrade config file" in YAML as shown below:
 
 .. code-block::
 
