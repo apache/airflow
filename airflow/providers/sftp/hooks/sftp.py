@@ -18,8 +18,10 @@
 """This module contains SFTP hook."""
 import datetime
 import stat
+from base64 import decodebytes
 from typing import Dict, List, Optional, Tuple
 
+import paramiko
 import pysftp
 
 from airflow.providers.ssh.hooks.ssh import SSHHook
@@ -109,12 +111,22 @@ class SFTPHook(SSHHook):
                     )
                     self.key_file = extra_options.get('private_key')
 
+                if "host_key" in extra_options and self.no_host_key_check is False:
+                    encoded_host_key = decodebytes(extra_options["host_key"].encode('utf-8'))
+                    self.host_key = paramiko.RSAKey(data=encoded_host_key)
+
     def get_conn(self) -> pysftp.Connection:
         """Returns an SFTP connection object"""
         if self.conn is None:
             cnopts = pysftp.CnOpts()
             if self.no_host_key_check:
                 cnopts.hostkeys = None
+            else:
+                if self.host_key is not None:
+                    cnopts.hostkeys.add(self.remote_host, 'ssh-rsa', self.host_key)
+                else:
+                    pass  # will fallback to system host keys if none explicitly specified in conn extra
+
             cnopts.compression = self.compress
             cnopts.ciphers = self.ciphers
             conn_params = {
