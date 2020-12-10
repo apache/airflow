@@ -571,7 +571,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 
     ```shell script
     cd "${AIRFLOW_REPO_ROOT}"
-    ./breeze build-docs -- --package apache-airflow --for-production
+    ./breeze build-docs -- --package-filter apache-airflow --for-production
     ```
 
 - Now you can preview the documentation.

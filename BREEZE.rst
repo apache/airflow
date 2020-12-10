@@ -1235,7 +1235,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
         is generated ('docs/_build') are also mounted to the container - this way results of
         the documentation build is available in the host.
 
-        The possible extra args are: --docs-only, --spellcheck-only, --package, --help
+        The possible extra args are: --docs-only, --spellcheck-only, --package-filter, --help
 
 
   ####################################################################################################
