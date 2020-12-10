@@ -324,7 +324,7 @@ the only supported UI.
 **Breaking Change in OAuth**
 
 The ``flask-ouathlib`` has been replaced with ``authlib`` because ``flask-outhlib`` has
-been deprecated in favour of ``authlib``.
+been deprecated in favor of ``authlib``.
 The Old and New provider configuration keys that have changed are as follows
 
 ======================== ==================
@@ -488,17 +488,30 @@ At this point, just follow the standard Airflow version upgrade process:
 
 * Make sure your Airflow meta database is backed up
 * Pause all the DAGs and make sure there is nothing actively running
+
+  * The reason to pause DAGs is to make sure that nothing is actively being written to the database during the database upgrade which will follow in a later step.
+  * To be extra careful, it is best to have a database backup after the DAGs have been paused.
+
 * Install / upgrade the Airflow version to the 2.0 version of choice
-* Make sure to install the right providers, either using extras option as part of the Airflow installation, or individually installing the providers. Please note that you may have to uninstall the backport providers before installing the new providers, if you are installing using pip. This would not apply if you are installing using an Airflow Docker image with a set of specified requirements, where the change automatically gets a fresh set of modules. You can read more about providers at :doc:`apache-airflow-providers:index`.
-* Upgrade the Airflow meta database using ``airflow db upgrade``. This command is now shown in the Airflow 2.0 CLI syntax.
+* Make sure to install the right providers
+
+  * This can be done by using the "extras" option as part of the Airflow installation, or by individually installing the providers.
+  * Please note that you may have to uninstall the backport providers before installing the new providers, if you are installing using pip. This would not apply if you are installing using an Airflow Docker image with a set of specified requirements, where the change automatically gets a fresh set of modules.
+  * You can read more about providers at :doc:`apache-airflow-providers:index`.
+
+* Upgrade the Airflow meta database using ``airflow db upgrade``.
+
+  * The above command may be unfamiliar, since it is shown using the Airflow 2.0 CLI syntax.
+  * The database upgrade may modify the database schema as needed and also map the existing data to be compliant with the update database schema.
+
+  .. note::
+
+      The database upgrade may take a while depending on the number of DAGs in the database and the volume of history
+      stored in the database for task history, xcom variables, etc.
+      For a faster database upgrade and for better overall performance, it is recommended that you periodically archive
+      the old historical elements which are no longer of value.
+
 * Restart Airflow Scheduler, Webserver, and Workers
-
-.. note::
-
-    The database upgrade may take a while depending on the number of DAGs in the database and the volume of history
-    stored in the database for task history, xcom variables, etc.
-    For a faster database upgrade and for better overall performance, it is recommended that you periodically archive
-    the old historical elements which are no longer of value.
 
 
 
@@ -872,9 +885,9 @@ Delete a pool(DELETE)             ``/api/experimental/pools/<string:name>``     
 DAG Lineage(GET)                  ``/api/experimental/lineage/<DAG_ID>/<string:execution_date>/``                      ``/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries``
 ================================= ==================================================================================== ==================================================================================
 
-::
-    This endpoint ``/api/v1/dags/{dag_id}/dagRuns`` also allows you to filter dag_runs with parameters such as ``start_date``, ``end_date``, ``execution_date`` etc in the query string.
-    Therefore the operation previously performed by this endpoint:
+
+This endpoint ``/api/v1/dags/{dag_id}/dagRuns`` also allows you to filter dag_runs with parameters such as ``start_date``, ``end_date``, ``execution_date`` etc in the query string.
+Therefore the operation previously performed by this endpoint:
 
 .. code-block:: bash
 
@@ -902,10 +915,8 @@ The Airflow CLI has been organized so that related commands are grouped together
 which means that if you use these commands in your scripts, you have to make changes to them.
 
 This section describes the changes that have been made, and what you need to do to update your scripts.
-
 The ability to manipulate users from the command line has been changed. ``airflow create_user``,  ``airflow delete_user``
- and ``airflow list_users`` has been grouped to a single command ``airflow users`` with optional flags ``create``, ``list`` and ``delete``.
-
+and ``airflow list_users`` has been grouped to a single command ``airflow users`` with optional flags ``create``, ``list`` and ``delete``.
 The ``airflow list_dags`` command is now ``airflow dags list``, ``airflow pause`` is ``airflow dags pause``, etc.
 
 In Airflow 1.10 and 2.0 there is an ``airflow config`` command but there is a difference in behavior. In Airflow 1.10,
@@ -1089,7 +1100,7 @@ Changes to Airflow Plugins
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If you are using Airflow Plugins and were passing ``admin_views`` & ``menu_links`` which were used in the
-non-RBAC UI (``flask-admin`` based UI), upto it to use ``flask_appbuilder_views`` and ``flask_appbuilder_menu_links``.
+non-RBAC UI (``flask-admin`` based UI), update it to use ``flask_appbuilder_views`` and ``flask_appbuilder_menu_links``.
 
 **Old**:
 

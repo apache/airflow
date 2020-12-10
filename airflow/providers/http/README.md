@@ -20,7 +20,7 @@
 
 # Package apache-airflow-providers-http
 
-Release: 1.0.0b2
+Release: 1.0.0
 
 **Table of contents**
 
@@ -34,10 +34,7 @@ Release: 1.0.0b2
     - [Hooks](#hooks)
         - [Moved hooks](#moved-hooks)
 - [Releases](#releases)
-    - [Release 1.0.0b2](#release-100b2)
-    - [Release 1.0.0b1](#release-100b1)
-    - [Release 0.0.2a1](#release-002a1)
-    - [Release 0.0.1](#release-001)
+    - [Release 1.0.0](#release-100)
 
 ## Provider package
 
@@ -47,6 +44,14 @@ are in `airflow.providers.http` python package.
 
 
 ## Installation
+
+NOTE!
+
+On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+`pip upgrade --pip==20.2.4` or, in case you use Pip 20.3, you need to add option
+`--use-deprecated legacy-resolver` to your pip install command.
 
 You can install this package on top of an existing airflow 2.* installation via
 `pip install apache-airflow-providers-http`
@@ -94,42 +99,31 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ## Releases
 
-### Release 1.0.0b2
-
-| Commit                                                                                         | Committed   | Subject                                                                        |
-|:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------|
-| [7ca0b6f12](https://github.com/apache/airflow/commit/7ca0b6f121c9cec6e25de130f86a56d7c7fbe38c) | 2020-11-18  | Enable Markdownlint rule MD003/heading-style/header-style (#12427) (#12438)    |
-| [ae7cb4a1e](https://github.com/apache/airflow/commit/ae7cb4a1e2a96351f1976cf5832615e24863e05d) | 2020-11-17  | Update wrong commit hash in backport provider changes (#12390)                 |
-| [6889a333c](https://github.com/apache/airflow/commit/6889a333cff001727eb0a66e375544a28c9a5f03) | 2020-11-15  | Improvements for operators and hooks ref docs (#12366)                         |
-| [7825e8f59](https://github.com/apache/airflow/commit/7825e8f59034645ab3247229be83a3aa90baece1) | 2020-11-13  | Docs installation improvements (#12304)                                        |
-| [85a18e13d](https://github.com/apache/airflow/commit/85a18e13d9dec84275283ff69e34704b60d54a75) | 2020-11-09  | Point at pypi project pages for cross-dependency of provider packages (#12212) |
-
-
-### Release 1.0.0b1
-
-| Commit                                                                                         | Committed   | Subject                                                                                                  |
-|:-----------------------------------------------------------------------------------------------|:------------|:---------------------------------------------------------------------------------------------------------|
-| [badd89067](https://github.com/apache/airflow/commit/badd890675d3cb3dfc088bff6a1d73dfdc275f31) | 2020-11-09  | Extend the same keyword args callable support in PythonOperator to some other sensors/operators (#11922) |
-| [59eb5de78](https://github.com/apache/airflow/commit/59eb5de78c70ee9c7ae6e4cba5c7a2babb8103ca) | 2020-11-09  | Update provider READMEs for up-coming 1.0.0beta1 releases (#12206)                                       |
-| [b2a28d159](https://github.com/apache/airflow/commit/b2a28d1590410630d66966aa1f2b2a049a8c3b32) | 2020-11-09  | Moves provider packages scripts to dev (#12082)                                                          |
-| [41bf172c1](https://github.com/apache/airflow/commit/41bf172c1dc75099f4f9d8b3f3350b4b1f523ef9) | 2020-11-04  | Simplify string expressions (#12093)                                                                     |
-| [4e8f9cc8d](https://github.com/apache/airflow/commit/4e8f9cc8d02b29c325b8a5a76b4837671bdf5f68) | 2020-11-03  | Enable Black - Python Auto Formmatter (#9550)                                                            |
-| [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855)                                                               |
-
-
-### Release 0.0.2a1
-
-| Commit                                                                                         | Committed   | Subject                                                                                |
-|:-----------------------------------------------------------------------------------------------|:------------|:---------------------------------------------------------------------------------------|
-| [872b1566a](https://github.com/apache/airflow/commit/872b1566a11cb73297e657ff325161721b296574) | 2020-10-25  | Generated backport providers readmes/setup for 2020.10.29 (#11826)                     |
-| [3cddc1182](https://github.com/apache/airflow/commit/3cddc11821ff8f9ed0811384c0643f756a2b3dfa) | 2020-10-16  | Updated template_fields_rendereds for PostgresOperator and SimpleHttpOperator (#11555) |
-| [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)                           |
-
-
-### Release 0.0.1
+### Release 1.0.0
 
 | Commit                                                                                         | Committed   | Subject                                                                                                                                                            |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [b40dffa08](https://github.com/apache/airflow/commit/b40dffa08547b610162f8cacfa75847f3c4ca364) | 2020-12-08  | Rename remaing modules to match AIP-21 (#12917)                                                                                                                    |
+| [9b39f2478](https://github.com/apache/airflow/commit/9b39f24780e85f859236672e9060b2fbeee81b36) | 2020-12-08  | Add support for dynamic connection form fields per provider (#12558)                                                                                               |
+| [c1cd50465](https://github.com/apache/airflow/commit/c1cd50465c5473bc817fded5eeb4c425a0529ae5) | 2020-12-05  | Add &#39;headers&#39; to template_fields in HttpSensor (#12809)                                                                                                            |
+| [bd90136aa](https://github.com/apache/airflow/commit/bd90136aaf5035e3234fe545b79a3e4aad21efe2) | 2020-11-30  | Move operator guides to provider documentation packages (#12681)                                                                                                   |
+| [370e7d07d](https://github.com/apache/airflow/commit/370e7d07d1ed1a53b73fe878425fdcd4c71a7ed1) | 2020-11-21  | Fix Python Docstring parameters (#12513)                                                                                                                           |
+| [c34ef853c](https://github.com/apache/airflow/commit/c34ef853c890e08f5468183c03dc8f3f3ce84af2) | 2020-11-20  | Separate out documentation building per provider  (#12444)                                                                                                         |
+| [008035450](https://github.com/apache/airflow/commit/00803545023b096b8db4fbd6eb473843096d7ce4) | 2020-11-18  | Update provider READMEs for 1.0.0b2 batch release (#12449)                                                                                                         |
+| [7ca0b6f12](https://github.com/apache/airflow/commit/7ca0b6f121c9cec6e25de130f86a56d7c7fbe38c) | 2020-11-18  | Enable Markdownlint rule MD003/heading-style/header-style (#12427) (#12438)                                                                                        |
+| [ae7cb4a1e](https://github.com/apache/airflow/commit/ae7cb4a1e2a96351f1976cf5832615e24863e05d) | 2020-11-17  | Update wrong commit hash in backport provider changes (#12390)                                                                                                     |
+| [6889a333c](https://github.com/apache/airflow/commit/6889a333cff001727eb0a66e375544a28c9a5f03) | 2020-11-15  | Improvements for operators and hooks ref docs (#12366)                                                                                                             |
+| [7825e8f59](https://github.com/apache/airflow/commit/7825e8f59034645ab3247229be83a3aa90baece1) | 2020-11-13  | Docs installation improvements (#12304)                                                                                                                            |
+| [85a18e13d](https://github.com/apache/airflow/commit/85a18e13d9dec84275283ff69e34704b60d54a75) | 2020-11-09  | Point at pypi project pages for cross-dependency of provider packages (#12212)                                                                                     |
+| [badd89067](https://github.com/apache/airflow/commit/badd890675d3cb3dfc088bff6a1d73dfdc275f31) | 2020-11-09  | Extend the same keyword args callable support in PythonOperator to some other sensors/operators (#11922)                                                           |
+| [59eb5de78](https://github.com/apache/airflow/commit/59eb5de78c70ee9c7ae6e4cba5c7a2babb8103ca) | 2020-11-09  | Update provider READMEs for up-coming 1.0.0beta1 releases (#12206)                                                                                                 |
+| [b2a28d159](https://github.com/apache/airflow/commit/b2a28d1590410630d66966aa1f2b2a049a8c3b32) | 2020-11-09  | Moves provider packages scripts to dev (#12082)                                                                                                                    |
+| [41bf172c1](https://github.com/apache/airflow/commit/41bf172c1dc75099f4f9d8b3f3350b4b1f523ef9) | 2020-11-04  | Simplify string expressions (#12093)                                                                                                                               |
+| [4e8f9cc8d](https://github.com/apache/airflow/commit/4e8f9cc8d02b29c325b8a5a76b4837671bdf5f68) | 2020-11-03  | Enable Black - Python Auto Formmatter (#9550)                                                                                                                      |
+| [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855)                                                                                                                         |
+| [872b1566a](https://github.com/apache/airflow/commit/872b1566a11cb73297e657ff325161721b296574) | 2020-10-25  | Generated backport providers readmes/setup for 2020.10.29 (#11826)                                                                                                 |
+| [3cddc1182](https://github.com/apache/airflow/commit/3cddc11821ff8f9ed0811384c0643f756a2b3dfa) | 2020-10-16  | Updated template_fields_rendereds for PostgresOperator and SimpleHttpOperator (#11555)                                                                             |
+| [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)                                                                                                       |
 | [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)                                                                                                         |
 | [ca4238eb4](https://github.com/apache/airflow/commit/ca4238eb4d9a2aef70eb641343f59ee706d27d13) | 2020-10-02  | Fixed month in backport packages to October (#11242)                                                                                                               |
 | [5220e4c38](https://github.com/apache/airflow/commit/5220e4c3848a2d2c81c266ef939709df9ce581c5) | 2020-10-02  | Prepare Backport release 2020.09.07 (#11238)                                                                                                                       |

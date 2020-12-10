@@ -22,7 +22,7 @@ description: |
     `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 integrations:
   - integration-name: Java Database Connectivity (JDBC)
     external-doc-url: https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/

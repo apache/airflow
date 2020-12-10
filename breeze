@@ -1605,7 +1605,7 @@ ${CMDNAME} build-docs [-- <EXTRA_ARGS>]
       is generated ('docs/_build') are also mounted to the container - this way results of
       the documentation build is available in the host.
 
-      The possible extra args are: --docs-only, --spellcheck-only, --package, --help
+      The possible extra args are: --docs-only, --spellcheck-only, --package-filter, --help
 "
     readonly DETAILED_USAGE_BUILD_DOCS
     export DETAILED_USAGE_BUILD_IMAGE="
@@ -2853,15 +2853,19 @@ function breeze::check_and_save_all_params() {
     if [[ -n "${INSTALL_AIRFLOW_REFERENCE=}" ]]; then
         if [[ ${INSTALL_AIRFLOW_REFERENCE=} == *1_10* ]]; then
             export BRANCH_NAME="v1-10-test"
+        elif [[ ${INSTALL_AIRFLOW_REFERENCE=} == *2_0* ]]; then
+            export BRANCH_NAME="v2-0-test"
         fi
     elif [[ -n "${INSTALL_AIRFLOW_VERSION=}" ]]; then
         if [[ ${INSTALL_AIRFLOW_VERSION=} == *1.10* ]]; then
             export BRANCH_NAME="v1-10-test"
+        elif [[ ${INSTALL_AIRFLOW_VERSION=} == *2.0* ]]; then
+            export BRANCH_NAME="v2-0-test"
         fi
     fi
 
     if [[ ${PYTHON_MAJOR_MINOR_VERSION} == "2.7" || ${PYTHON_MAJOR_MINOR_VERSION} == "3.5" ]]; then
-        if [[ ${BRANCH_NAME} == "master" ]]; then
+        if [[ ${BRANCH_NAME} == "master" || ${BRANCH_NAME} == "v2-0-test" ]]; then
             echo
             echo  "${COLOR_RED_ERROR} The ${PYTHON_MAJOR_MINOR_VERSION} can only be used when installing Airflow 1.10.*  ${COLOR_RESET}"
             echo

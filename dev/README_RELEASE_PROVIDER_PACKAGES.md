@@ -905,9 +905,9 @@ Documentation for providers can be found in the `/docs/apache-airflow-providers`
     ```shell script
     cd "${AIRFLOW_REPO_ROOT}"
     ./breeze build-docs -- \
-      --package apache-airflow-providers \
-      --package apache-airflow-providers-apache-airflow \
-      --package apache-airflow-providers-telegram \
+      --package-filter apache-airflow-providers \
+      --package-filter apache-airflow-providers-apache-airflow \
+      --package-filter apache-airflow-providers-telegram \
       --for-production
     ```
 
@@ -921,9 +921,9 @@ Documentation for providers can be found in the `/docs/apache-airflow-providers`
 
     ```shell script
     ./docs/publish_docs.py \
-        --package apache-airflow-providers \
-        --package apache-airflow-providers-apache-airflow \
-        --package apache-airflow-providers-telegram \
+        --package-filter apache-airflow-providers \
+        --package-filter apache-airflow-providers-apache-airflow \
+        --package-filter apache-airflow-providers-telegram \
 
     cd "${AIRFLOW_SITE_DIRECTORY}"
     ```

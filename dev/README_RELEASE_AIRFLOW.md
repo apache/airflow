@@ -516,13 +516,13 @@ At this point we release an official package:
 - Build the package:
 
     ```shell script
-    python setup.py compile_assets sdist bdist_wheel`
+    python setup.py compile_assets sdist bdist_wheel
     ```
 
 - Verify the artifacts that would be uploaded:
 
     ```shell script
-    twine check dist/*`
+    twine check dist/*
     ```
 
 - Upload the package to PyPi's test environment:
@@ -571,7 +571,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 
     ```shell script
     cd "${AIRFLOW_REPO_ROOT}"
-    ./breeze build-docs -- --package apache-airflow --for-production
+    ./breeze build-docs -- --package-filter apache-airflow --for-production
     ```
 
 - Now you can preview the documentation.
