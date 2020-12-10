@@ -107,7 +107,9 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY scripts/docker scripts/docker
+COPY scripts/docker /scripts/docker
+# fix permission issue in Azure DevOps when running the script
+RUN chmod a+x /scripts/docker/install_mysql.sh
 RUN ./scripts/docker/install_mysql.sh dev
 
 RUN adduser airflow \
