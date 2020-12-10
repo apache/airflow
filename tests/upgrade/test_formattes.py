@@ -34,8 +34,16 @@ class MockRule(BaseRule):
         return MESSAGES
 
 
+class MockRuleToSkip(BaseRule):
+    title = "title"
+    description = "description"
+
+    def should_skip(self):
+        return "Yes, skipp this rule"
+
+
 class TestJSONFormatter:
-    @mock.patch("airflow.upgrade.checker.ALL_RULES", [MockRule()])
+    @mock.patch("airflow.upgrade.checker.ALL_RULES", [MockRule(), MockRuleToSkip()])
     @mock.patch("airflow.upgrade.checker.logging.disable")  # mock to avoid side effects
     def test_output(self, _):
         expected = [
@@ -43,6 +51,11 @@ class TestJSONFormatter:
                 "rule": MockRule.__name__,
                 "title": MockRule.title,
                 "messages": MESSAGES,
+            },
+            {
+                "rule": MockRuleToSkip.__name__,
+                "title": MockRuleToSkip.title,
+                "messages": ["Yes, skipp this rule"],
             }
         ]
         parser = cli.CLIFactory.get_parser()

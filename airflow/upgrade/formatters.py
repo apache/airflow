@@ -74,20 +74,23 @@ class ConsoleFormatter(BaseFormatter):
     @staticmethod
     def display_recommendations(rule_statuses):
         for rule_status in rule_statuses:
+            # Show recommendations only if there are any messaged
             if not rule_status.messages:
                 continue
 
-            # Show recommendations only if there are any messaged
             rule = rule_status.rule
-            lines = [
-                rule.title,
-                "-" * len(rule.title),
-                rule.description,
-                "",
-                "Problems:",
-                "",
-            ]
-            lines.extend(['{:>3}.  {}'.format(i, m) for i, m in enumerate(rule_status.messages, 1)])
+            lines = [rule.title, "-" * len(rule.title)]
+            if rule_status.skipped:
+                lines.extend([rule_status.messages[0]])
+            else:
+                if rule.description:
+                    lines.extend([rule.description])
+                lines.extend([
+                    "",
+                    "Problems:",
+                    "",
+                ])
+                lines.extend(['{:>3}.  {}'.format(i, m) for i, m in enumerate(rule_status.messages, 1)])
             msg = "\n".join(lines)
 
             formatted_msg = pygments.highlight(
@@ -96,7 +99,12 @@ class ConsoleFormatter(BaseFormatter):
             print(formatted_msg)
 
     def on_next_rule_status(self, rule_status):
-        status = colorize("green", "SUCCESS") if rule_status.is_success else colorize("red", "FAIL")
+        if rule_status.skipped:
+            status = colorize("yellow", "SKIPPED")
+        elif rule_status.is_success:
+            status = colorize("green", "SUCCESS")
+        else:
+            status = colorize("red", "FAIL")
         status_line_fmt = self.prepare_status_line_format()
         print(status_line_fmt.format(rule_status.rule.title, status))
 
