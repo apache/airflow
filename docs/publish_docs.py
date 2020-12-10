@@ -23,6 +23,7 @@ import os
 
 # pylint: disable=no-name-in-module
 from docs.exts.docs_build.docs_builder import AirflowDocsBuilder
+from docs.exts.docs_build.package_filter import process_package_filters
 from docs.exts.provider_yaml_utils import load_package_data
 
 # pylint: enable=no-name-in-module
@@ -83,11 +84,7 @@ def main():
 
     package_filters = args.package_filter
 
-    current_packages = (
-        [p for p in available_packages if any(fnmatch.fnmatch(p, f) for f in package_filters)]
-        if package_filters
-        else available_packages
-    )
+    current_packages = process_package_filters(available_packages, package_filters)
     print(f"Publishing docs for {len(current_packages)} package(s)")
     for pkg in current_packages:
         print(f" - {pkg}")

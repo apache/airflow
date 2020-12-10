@@ -17,7 +17,6 @@
 # under the License.
 import argparse
 import fnmatch
-import os
 import sys
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
@@ -36,6 +35,7 @@ from docs.exts.docs_build.errors import (  # pylint: disable=no-name-in-module
 )
 from docs.exts.docs_build.fetch_inventories import fetch_inventories
 from docs.exts.docs_build.github_action_utils import with_group  # pylint: disable=no-name-in-module
+from docs.exts.docs_build.package_filter import process_package_filters  # pylint: disable=no-name-in-module
 from docs.exts.docs_build.spelling_checks import (  # pylint: disable=no-name-in-module
     SpellingError,
     display_spelling_error_summary,
@@ -198,12 +198,9 @@ def main():
         for pkg in available_packages:
             print(f" - {pkg}")
 
-    print("Current package filters: ", package_filters)
-    current_packages = (
-        [p for p in available_packages if any(fnmatch.fnmatch(p, f) for f in package_filters)]
-        if package_filters
-        else available_packages
-    )
+    if package_filters:
+        print("Current package filters: ", package_filters)
+    current_packages = process_package_filters(available_packages, package_filters)
     with with_group(f"Documentation will be built for {len(current_packages)} package(s)"):
         for pkg_no, pkg in enumerate(current_packages, start=1):
             print(f"{pkg_no}. {pkg}")
