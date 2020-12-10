@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import os
 import re
 import shlex
@@ -27,7 +26,6 @@ from typing import List
 # pylint: disable=no-name-in-module
 from docs.exts.docs_build.code_utils import pretty_format_path
 from docs.exts.docs_build.errors import DocBuildError, parse_sphinx_warnings
-from docs.exts.docs_build.github_action_utils import with_group
 from docs.exts.docs_build.spelling_checks import SpellingError, parse_spelling_warnings
 from docs.exts.provider_yaml_utils import load_package_data
 
@@ -39,6 +37,7 @@ ROOT_PROJECT_DIR = os.path.abspath(
 DOCS_DIR = os.path.join(ROOT_PROJECT_DIR, "docs")
 ALL_PROVIDER_YAMLS = load_package_data()
 AIRFLOW_SITE_DIR = os.environ.get('AIRFLOW_SITE_DIRECTORY')
+PROCESS_TIMEOUT = 4 * 60
 
 
 class AirflowDocsBuilder:
@@ -103,10 +102,11 @@ class AirflowDocsBuilder:
     def check_spelling(self):
         """Checks spelling."""
         spelling_errors = []
-        with TemporaryDirectory() as tmp_dir, with_group(f"Check spelling: {self.package_name}"):
+        with TemporaryDirectory() as tmp_dir, NamedTemporaryFile() as output:
             build_cmd = [
                 "sphinx-build",
                 "-W",  # turn warnings into errors
+                "--color",  # do emit colored output
                 "-T",  # show full traceback on exception
                 "-b",  # builder to use
                 "spelling",
@@ -118,14 +118,18 @@ class AirflowDocsBuilder:
                 tmp_dir,
             ]
             print("Executing cmd: ", " ".join([shlex.quote(c) for c in build_cmd]))
+            print("The output is hidden until an error occurs.")
             env = os.environ.copy()
             env['AIRFLOW_PACKAGE_NAME'] = self.package_name
             if self.for_production:
                 env['AIRFLOW_FOR_PRODUCTION'] = 'true'
             completed_proc = run(  # pylint: disable=subprocess-run-check
-                build_cmd, cwd=self._src_dir, env=env
+                build_cmd, cwd=self._src_dir, env=env, stdout=output, stderr=output, timeout=PROCESS_TIMEOUT
             )
             if completed_proc.returncode != 0:
+                output.seek(0)
+                print(output.read().decode())
+
                 spelling_errors.append(
                     SpellingError(
                         file_path=None,
@@ -149,7 +153,7 @@ class AirflowDocsBuilder:
     def build_sphinx_docs(self) -> List[DocBuildError]:
         """Build Sphinx documentation"""
         build_errors = []
-        with NamedTemporaryFile() as tmp_file, with_group(f"Building docs: {self.package_name}"):
+        with NamedTemporaryFile() as tmp_file, NamedTemporaryFile() as output:
             build_cmd = [
                 "sphinx-build",
                 "-T",  # show full traceback on exception
@@ -166,15 +170,18 @@ class AirflowDocsBuilder:
                 self._build_dir,  # path to output directory
             ]
             print("Executing cmd: ", " ".join([shlex.quote(c) for c in build_cmd]))
+            print("The output is hidden until an error occurs.")
+
             env = os.environ.copy()
             env['AIRFLOW_PACKAGE_NAME'] = self.package_name
             if self.for_production:
                 env['AIRFLOW_FOR_PRODUCTION'] = 'true'
 
             completed_proc = run(  # pylint: disable=subprocess-run-check
-                build_cmd, cwd=self._src_dir, env=env
+                build_cmd, cwd=self._src_dir, env=env, stdout=output, stderr=output, timeout=PROCESS_TIMEOUT
             )
             if completed_proc.returncode != 0:
+                print(completed_proc.stdout.decode())
                 build_errors.append(
                     DocBuildError(
                         file_path=None,

@@ -100,12 +100,14 @@ def build_docs_for_packages(
         builder = AirflowDocsBuilder(package_name=package_name, for_production=for_production)
         builder.clean_files()
         if not docs_only:
-            spelling_errors = builder.check_spelling()
+            with with_group(f"Check spelling: {package_name}"):
+                spelling_errors = builder.check_spelling()
             if spelling_errors:
                 all_spelling_errors[package_name].extend(spelling_errors)
 
         if not spellcheck_only:
-            docs_errors = builder.build_sphinx_docs()
+            with with_group(f"Building docs: {package_name}"):
+                docs_errors = builder.build_sphinx_docs()
             if docs_errors:
                 all_build_errors[package_name].extend(docs_errors)
 
