@@ -59,12 +59,12 @@ ERRORS_ELIGIBLE_TO_REBUILD = [
 ]
 
 ON_GITHUB_ACTIONS = os.environ.get('GITHUB_ACTIONS', 'false') == "true"
-TEXT_GREEN = '\033[94m'
+TEXT_BLUE = '\033[94m'
 TEXT_RESET = '\033[0m'
 
 
 def _promote_new_flags():
-    print(TEXT_GREEN)
+    print(TEXT_BLUE)
     print("Tired of waiting for documentation to be built?")
     print()
     if ON_GITHUB_ACTIONS:
