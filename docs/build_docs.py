@@ -33,6 +33,7 @@ from docs.exts.docs_build.errors import (  # pylint: disable=no-name-in-module
     DocBuildError,
     display_errors_summary,
 )
+from docs.exts.docs_build.fetch_inventories import fetch_inventories
 from docs.exts.docs_build.github_action_utils import with_group  # pylint: disable=no-name-in-module
 from docs.exts.docs_build.spelling_checks import (  # pylint: disable=no-name-in-module
     SpellingError,
@@ -83,7 +84,7 @@ def _get_parser():
         '--for-production',
         dest='for_production',
         action='store_true',
-        help=('Builds documentation for official release i.e. all links point to stable version'),
+        help='Builds documentation for official release i.e. all links point to stable version',
     )
 
     return parser
@@ -173,6 +174,8 @@ def main():
     with with_group(f"Documentation will be built for {len(current_packages)} package(s)"):
         for pkg in current_packages:
             print(f" - {pkg}")
+    with with_group("Fetching inventories"):
+        fetch_inventories()
 
     all_build_errors: Dict[Optional[str], List[DocBuildError]] = {}
     all_spelling_errors: Dict[Optional[str], List[SpellingError]] = {}

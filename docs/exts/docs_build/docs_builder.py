@@ -200,7 +200,12 @@ class AirflowDocsBuilder:
         print()
 
 
+def get_available_providers_packages():
+    """Get list of all available providers packages to build."""
+    return [provider['package-name'] for provider in ALL_PROVIDER_YAMLS]
+
+
 def get_available_packages():
     """Get list of all available packages to build."""
-    provider_package_names = [provider['package-name'] for provider in ALL_PROVIDER_YAMLS]
+    provider_package_names = get_available_providers_packages()
     return ["apache-airflow", *provider_package_names, "apache-airflow-providers"]
