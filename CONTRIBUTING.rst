@@ -818,18 +818,6 @@ You can only run one of the steps via ``--spellcheck-only`` or ``--docs-only``.
 
     ./breeze build-docs
 
-or just to run spell-check
-
-.. code-block:: bash
-
-     ./breeze build-docs -- --spellcheck-only
-
-or just to run documentation building
-
-.. code-block:: bash
-
-     ./breeze build-docs
-
 Also documentation is available as downloadable artifact in GitHub Actions after the CI builds your PR.
 
 **Known issues:**

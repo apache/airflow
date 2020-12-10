@@ -541,6 +541,74 @@ dependencies). If you work offline and do not want to rebuild the images when ne
 ``FORCE_ANSWER_TO_QUESTIONS`` variable to ``no`` as described in the
 `Setting default behaviour for user interaction <#setting-default-behaviour-for-user-interaction>`_ section.
 
+Preparing packages
+------------------
+
+Breeze can also be used to prepare airflow packages - both "apache-airflow" main package and
+provider packages.
+
+You can read more about testing provider packages in
+`TESTING.rst <TESTING.rst#running-tests-with-packages>`_
+
+There are several commands that you can run in Breeze to manage and build packages:
+
+* preparing Provider Readme files
+* preparing Airflow packages
+* preparing Provider packages
+
+Preparing provider readme files is part of the release procedure by the release managers
+and it is described in detail in `dev <dev/README.md>`_ .
+
+You can prepare provider packages - by default regular provider packages are prepared, but with
+``--backport`` flag you can prepare backport packages.
+
+The packages are prepared in ``dist`` folder. Note, that this command cleans up the ``dist`` folder
+before running, so you should run it before generating airflow package below as it will be removed.
+
+The below example builds provider packages in the wheel format.
+
+.. code-block:: bash
+
+     ./breeze prepare-provider-packages
+
+If you run this command without packages, you will prepare all packages, you can however specify
+providers that you would like to build. By default only ``wheel`` packages are prepared,
+but you can change it providing optional --package-format flag.
+
+
+.. code-block:: bash
+
+     ./breeze prepare-provider-packages --package-format=both google amazon
+
+You can also prepare backport provider packages, if you specify ``--backport`` flag. You can read more
+about backport packages in `dev <dev/README.md>`_
+
+.. code-block:: bash
+
+     ./breeze prepare-provider-packages --backports --package-format=both google amazon
+
+You can see all providers available by running this command:
+
+.. code-block:: bash
+
+     ./breeze prepare-provider-packages -- --help
+
+
+You can also prepare airflow packages using breeze:
+
+.. code-block:: bash
+
+     ./breeze prepare-airflow-packages
+
+This prepares airflow .whl package in the dist folder.
+
+Again, you can specify optional ``--package-format`` flag to build airflow packages.
+
+.. code-block:: bash
+
+     ./breeze prepare-airflow-packages --package-format=bot
+
+
 Building Production images
 --------------------------
 
@@ -1067,6 +1135,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
     generate-constraints                     Generates pinned constraint files
     push-image                               Pushes images to registry
     initialize-local-virtualenv              Initializes local virtualenv
+    prepare-airflow-packages                 Prepares airflow packages
     setup-autocomplete                       Sets up autocomplete for breeze
     start-airflow                            Starts Scheduler and Webserver and enters the shell
     stop                                     Stops the docker-compose environment
@@ -1142,15 +1211,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
   Detailed usage for command: build-docs
 
 
-  breeze build-docs [-- <EXTRA_ARGS>]
+  breeze build-docs
 
         Builds Airflow documentation. The documentation is build inside docker container - to
         maintain the same build environment for everyone. Appropriate sources are mapped from
         the host to the container so that latest sources are used. The folders where documentation
         is generated ('docs/_build') are also mounted to the container - this way results of
         the documentation build is available in the host.
-
-        The possible extra args are: --docs-only, --spellcheck-only, --help
 
 
   ####################################################################################################
@@ -1187,8 +1254,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified, installs Airflow directly from PIP released version. This happens at
           image building time in production image and at container entering time for CI image. One of:
 
-                 1.10.13 1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3
-                 1.10.2 wheel none
+                 1.10.14 1.10.13 1.10.12 1.10.11 1.10.10 1.10.9 wheel none
 
           When 'none' is used, you can install airflow from local packages. When building image,
           airflow package should be added to 'docker-context-files' and
@@ -1548,6 +1614,44 @@ This is the current syntax for  `./breeze <./breeze>`_:
           One of:
 
                  2.7 3.5 3.6 3.7 3.8
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: prepare-airflow-packages
+
+
+  breeze prepare-airflow-packages [FLAGS]
+
+        Prepares airflow packages (sdist and wheel) in dist folder. Note that
+        prepare-provider-packages command cleans up the dist folder, so if you want also
+        to generate provider packages, make sure you run prepare-provider-packages first,
+        and prepare-airflow-packages second.
+
+        General form:
+
+        'breeze prepare-airflow-packages
+
+  Flags:
+
+  --package-format PACKAGE_FORMAT
+
+          Chooses format of packages to prepare.
+
+          One of:
+
+                 wheel,sdist,both
+
+          Default: 
+
+  -v, --verbose
+          Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
+          debugging - when you run breeze with --verbose flags you will be able to see the commands
+          executed under the hood and copy&paste them to your terminal to debug them more easily.
+
+          Note that you can further increase verbosity and see all the commands executed by breeze
+          by running 'export VERBOSE_COMMANDS="true"' before running breeze.
 
 
   ####################################################################################################
@@ -2105,8 +2209,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified, installs Airflow directly from PIP released version. This happens at
           image building time in production image and at container entering time for CI image. One of:
 
-                 1.10.13 1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3
-                 1.10.2 wheel none
+                 1.10.14 1.10.13 1.10.12 1.10.11 1.10.10 1.10.9 wheel none
 
           When 'none' is used, you can install airflow from local packages. When building image,
           airflow package should be added to 'docker-context-files' and

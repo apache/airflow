@@ -24,8 +24,8 @@ Airflow has two images (build from Dockerfiles):
 
   * Production image (Dockerfile) - that can be used to build your own production-ready Airflow installation
     You can read more about building and using the production image in the
-    `Production Deployments <docs/production-deployment.rst>`_ document. The image is built using
-    `Dockerfile <Dockerfile>`_
+    `Production Deployments <https://airflow.apache.org/docs/apache-airflow/stable/production-deployment.html>`_ document.
+    The image is built using `Dockerfile <Dockerfile>`_
 
   * CI image (Dockerfile.ci) - used for running tests and local development. The image is built using
     `Dockerfile.ci <Dockerfile.ci>`_
@@ -64,7 +64,7 @@ The easiest way to build those images is to use `<BREEZE.rst>`_.
 
 Note! Breeze by default builds production image from local sources. You can change it's behaviour by
 providing ``--install-airflow-version`` parameter, where you can specify the
-tag/branch used to download Airflow package from in github repository. You can
+tag/branch used to download Airflow package from in GitHub repository. You can
 also change the repository itself by adding ``--dockerhub-user`` and ``--dockerhub-repo`` flag values.
 
 You can build the CI image using this command:
@@ -117,6 +117,16 @@ parameter to Breeze:
   ./breeze build-image --python 3.7 --additional-extras=presto \
       --production-image --install-airflow-version=1.10.14
 
+
+.. note::
+
+   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+   ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``--use-deprecated legacy-resolver`` to your pip install command.
+
+
 This will build the image using command similar to:
 
 .. code-block:: bash
@@ -124,14 +134,6 @@ This will build the image using command similar to:
     pip install \
       apache-airflow[async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,ssh,statsd,virtualenv,presto]==1.10.14 \
       --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.14/constraints-3.6.txt"
-
-.. note::
-   On 30th of November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver.
-   This resolver does not yet work with Apache Airflow and might leads to errors in installation -
-   depends on your choice of extras. In order to install Airflow you need to either downgrade
-   pip to version 20.2.4 ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-   ``--use-deprecated legacy-resolver`` to your pip install command.
-
 
 You can also build production images from specific Git version via providing ``--install-airflow-reference``
 parameter to Breeze (this time constraints are taken from the ``constraints-master`` branch which is the
@@ -141,6 +143,15 @@ HEAD of development for constraints):
 
     pip install "https://github.com/apache/airflow/archive/<tag>.tar.gz#egg=apache-airflow" \
       --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+
+You can also skip installing airflow by providing ``--install-airflow-version none`` parameter to Breeze:
+
+.. code-block:: bash
+
+  ./breeze build-image --python 3.7 --additional-extras=presto \
+      --production-image --install-airflow-version=none --install-from-local-files-when-building
+
+In this case you usually install airflow and all packages in ``docker-context-files`` folder.
 
 Using cache during builds
 =========================
@@ -276,8 +287,8 @@ production image from the local sources.
 
 The image is primarily optimised for size of the final image, but also for speed of rebuilds - the
 'airflow-build-image' segment uses the same technique as the CI builds for pre-installing PIP dependencies.
-It first pre-installs them from the right github branch and only after that final airflow installation is
-done from either local sources or remote location (PIP or github repository).
+It first pre-installs them from the right GitHub branch and only after that final airflow installation is
+done from either local sources or remote location (PIP or GitHub repository).
 
 Customizing the image
 .....................
@@ -409,7 +420,7 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | file has to be in docker context so      |
 |                                          |                                          | it's best to place such file in          |
 |                                          |                                          | one of the folders included in           |
-|                                          |                                          | dockerignore                . for example in the        |
+|                                          |                                          | .dockerignore. for example in the        |
 |                                          |                                          | 'docker-context-files'. Note that the    |
 |                                          |                                          | location does not work for the first     |
 |                                          |                                          | stage of installation when the           |
@@ -418,21 +429,31 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | set to true. Default location from       |
 |                                          |                                          | GitHub is used in this case.             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_LOCAL_PIP_WHEELS``             | ``false``                                | If set to true, Airflow and it's         |
+| ``AIRFLOW_CONSTRAINTS_REFERENCE``        | ``constraints-master``                   | reference (branch or tag) from GitHub    |
+|                                          |                                          | repository from which constraints are    |
+|                                          |                                          | used. By default it is set to            |
+|                                          |                                          | ``constraints-master`` but can be        |
+|                                          |                                          | ``constraints-1-10`` for 1.10.* versions |
+|                                          |                                          | or it could point to specific version    |
+|                                          |                                          | for example ``constraints-1.10.12``      |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``INSTALL_FROM_DOCKER_CONTEXT_FILES``    | ``false``                                | If set to true, Airflow and it's         |
 |                                          |                                          | dependencies are installed from locally  |
 |                                          |                                          | downloaded .whl files placed in the      |
 |                                          |                                          | ``docker-context-files``.                |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_EXTRAS``                       | ``all``                                  | extras to install                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``INSTALL_AIRFLOW_VIA_PIP``              | ``false``                                | If set to true, Airflow is installed via |
-|                                          |                                          | pip install. if you want to install      |
+| ``INSTALL_FROM_PYPI``                    | ``true``                                 | If set to true, Airflow is installed     |
+|                                          |                                          | from pypi. If you want to install        |
 |                                          |                                          | Airflow from externally provided binary  |
 |                                          |                                          | package you can set it to false, place   |
 |                                          |                                          | the package in ``docker-context-files``  |
-|                                          |                                          | and set ``AIRFLOW_LOCAL_PIP_WHEELS`` to  |
-|                                          |                                          | true. You have to also set to true the   |
+|                                          |                                          | and set                                  |
+|                                          |                                          | ``INSTALL_FROM_DOCKER_CONTEXT_FILES`` to |
+|                                          |                                          | true. For this you have to also set the  |
 |                                          |                                          | ``AIRFLOW_PRE_CACHED_PIP_PACKAGES`` flag |
+|                                          |                                          | to false                                 |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_PRE_CACHED_PIP_PACKAGES``      | ``true``                                 | Allows to pre-cache airflow PIP packages |
 |                                          |                                          | from the GitHub of Apache Airflow        |
@@ -530,7 +551,7 @@ Production images
 -----------------
 
 You can find details about using, building, extending and customising the production images in the
-`Latest documentation <https://airflow.readthedocs.io/en/latest/production-deployment.html>`_
+`Latest documentation <https://airflow.apache.org/docs/apache-airflow/stable/production-deployment.html>`_
 
 
 Image manifests
@@ -615,10 +636,8 @@ The entrypoint performs those operations:
 Using, customising, and extending the production image
 ======================================================
 
-You can read more about using, customising, and extending the production image in the documentation:
-
-* [Stable docs](https://airflow.apache.org/docs/stable/production-deployment.html)
-* [Latest docs from master branch](https://airflow.readthedocs.io/en/latest/production-deployment.html
+You can read more about using, customising, and extending the production image in the
+`documentation <https://airflow.apache.org/docs/apache-airflow/stable/production-deployment.html>`_.
 
 Alpha versions of 1.10.10 production-ready images
 =================================================

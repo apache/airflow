@@ -34,6 +34,7 @@ _breeze_allowed_mysql_versions="5.6 5.7"
 _breeze_allowed_postgres_versions="9.6 10 11 12 13"
 _breeze_allowed_kind_operations="start stop restart status deploy test shell k9s"
 _breeze_allowed_test_types="All Core Integration Heisentests Postgres MySQL Helm"
+_breeze_allowed_package_formats="wheel sdist both"
 
 # shellcheck disable=SC2034
 {
@@ -46,21 +47,16 @@ _breeze_allowed_test_types="All Core Integration Heisentests Postgres MySQL Helm
     _breeze_default_postgres_version=$(echo "${_breeze_allowed_postgres_versions}" | awk '{print $1}')
     _breeze_default_mysql_version=$(echo "${_breeze_allowed_mysql_versions}" | awk '{print $1}')
     _breeze_default_test_type=$(echo "${_breeze_allowed_test_types}" | awk '{print $1}')
+    _breeze_default_package_format=$(echo "${_breeze_allowed_package_formats}" | awk '{print $1}')
 }
 
 _breeze_allowed_install_airflow_versions=$(cat <<-EOF
+1.10.14
 1.10.13
 1.10.12
 1.10.11
 1.10.10
 1.10.9
-1.10.8
-1.10.7
-1.10.6
-1.10.5
-1.10.4
-1.10.3
-1.10.2
 wheel
 none
 EOF
@@ -162,6 +158,7 @@ exec
 generate-constraints
 push-image
 initialize-local-virtualenv
+prepare-airflow-packages
 setup-autocomplete
 start-airflow
 stop
@@ -264,6 +261,9 @@ function breeze_complete::get_known_values_breeze() {
         ;;
     --test-type)
         _breeze_known_values="${_breeze_allowed_test_types}"
+        ;;
+    --package-format)
+        _breeze_known_values="${_breeze_allowed_package_formats}"
         ;;
     *)
         _breeze_known_values=""
