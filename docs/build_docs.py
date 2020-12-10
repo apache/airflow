@@ -125,8 +125,8 @@ def build_docs_for_packages(
     """Builds documentation for single package and returns errors"""
     all_build_errors: Dict[str, List[DocBuildError]] = defaultdict(list)
     all_spelling_errors: Dict[str, List[SpellingError]] = defaultdict(list)
-    for package_name in current_packages:
-        print("#" * 20, package_name, "#" * 20)
+    for package_no, package_name in enumerate(current_packages, start=1):
+        print("#" * 20, f"[{package_no}/{len(current_packages)}] {package_name}", "#" * 20)
         builder = AirflowDocsBuilder(package_name=package_name, for_production=for_production)
         builder.clean_files()
         if not docs_only:
@@ -205,8 +205,9 @@ def main():
         else available_packages
     )
     with with_group(f"Documentation will be built for {len(current_packages)} package(s)"):
-        for pkg in current_packages:
-            print(f" - {pkg}")
+        for pkg_no, pkg in enumerate(current_packages, start=1):
+            print(f"{pkg_no}. {pkg}")
+
     with with_group("Fetching inventories"):
         fetch_inventories()
 
