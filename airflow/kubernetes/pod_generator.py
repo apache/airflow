@@ -506,7 +506,8 @@ class PodGenerator(object):
             'volume_mounts',
             'mount_path')
         client_container = extend_object_field(base_container, client_container, 'env')
-        client_container = extend_object_field(base_container, client_container, 'env_from')
+        client_container.env_from = PodGenerator._reconcile_env_from(
+            base_container.env_from, client_container.env_from)
         client_container = extend_object_field(base_container, client_container, 'ports')
         client_container = extend_object_field(base_container, client_container, 'volume_devices')
         client_container = merge_objects(base_container, client_container)
@@ -514,6 +515,15 @@ class PodGenerator(object):
         return [client_container] + PodGenerator.reconcile_containers(
             base_containers[1:], client_containers[1:]
         )
+
+    @staticmethod
+    def _reconcile_env_from(base_env_from, client_env_from):
+        if base_env_from:
+            if client_env_from:
+                return base_env_from.extend(client_env_from)
+            return base_env_from
+        else:
+            return client_env_from
 
     @staticmethod
     def construct_pod(
