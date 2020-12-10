@@ -477,6 +477,7 @@ backfilling
 backfills
 backoff
 backport
+backports
 backported
 backreference
 backtick
@@ -564,6 +565,7 @@ configMapRef
 configMapsRefs
 configfile
 configmap
+configmaps
 configs
 conftest
 conn
