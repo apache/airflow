@@ -516,13 +516,13 @@ At this point we release an official package:
 - Build the package:
 
     ```shell script
-    python setup.py compile_assets sdist bdist_wheel`
+    python setup.py compile_assets sdist bdist_wheel
     ```
 
 - Verify the artifacts that would be uploaded:
 
     ```shell script
-    twine check dist/*`
+    twine check dist/*
     ```
 
 - Upload the package to PyPi's test environment:
