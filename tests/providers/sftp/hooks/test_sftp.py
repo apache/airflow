@@ -50,6 +50,7 @@ TEST_PKEY = paramiko.RSAKey.generate(4096)
 TEST_HOST_PKEY = generate_host_key(pkey=TEST_PKEY)
 TEST_HOST_KEY = TEST_HOST_PKEY.get_base64()
 
+
 class TestSFTPHook(unittest.TestCase):
     @provide_session
     def update_connection(self, login, session=None):
