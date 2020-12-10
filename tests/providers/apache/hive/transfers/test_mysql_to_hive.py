@@ -18,6 +18,7 @@
 
 import unittest
 from collections import OrderedDict
+from os import path
 from unittest import mock
 
 import pytest
@@ -33,6 +34,27 @@ DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 TEST_DAG_ID = 'unit_test_dag'
+
+
+class HiveopTempFile:
+    """
+    Make sure temp file path is in the format of "/tmp/airflow_hiveop_t_78lpye/tmpour2_kig",
+    """
+
+    def __eq__(self, other: str) -> bool:
+        (head, tail) = path.split(other)
+        (head, tail) = path.split(head)
+        return tail.startswith("airflow_hiveop_")
+
+
+class HiveopTempDir:
+    """
+    Make sure temp dir path is in the format of "/tmp/airflow_hiveop_t_78lpye",
+    """
+
+    def __eq__(self, other: str) -> bool:
+        (_, tail) = path.split(other)
+        return tail.startswith("airflow_hiveop_")
 
 
 @pytest.mark.backend("mysql")
@@ -126,13 +148,10 @@ class TestTransfer(unittest.TestCase):
         with MySqlHook().get_conn() as cur:
             cur.execute("DROP TABLE IF EXISTS baby_names CASCADE;")
 
-    @mock.patch('tempfile.tempdir', '/tmp/')
-    @mock.patch('tempfile._RandomNameSequence.__next__')
     @mock.patch('subprocess.Popen')
-    def test_mysql_to_hive(self, mock_popen, mock_temp_dir):
+    def test_mysql_to_hive(self, mock_popen):
         mock_subprocess = MockSubProcess()
         mock_popen.return_value = mock_subprocess
-        mock_temp_dir.return_value = "test_mysql_to_hive"
 
         with mock.patch.dict('os.environ', self.env_vars):
             sql = "SELECT * FROM baby_names LIMIT 1000;"
@@ -170,24 +189,21 @@ class TestTransfer(unittest.TestCase):
             '-hiveconf',
             'tez.queue.name=airflow',
             '-f',
-            '/tmp/airflow_hiveop_test_mysql_to_hive/tmptest_mysql_to_hive',
+            HiveopTempFile(),
         ]
 
         mock_popen.assert_called_with(
             hive_cmd,
             stdout=mock_subprocess.PIPE,
             stderr=mock_subprocess.STDOUT,
-            cwd="/tmp/airflow_hiveop_test_mysql_to_hive",
+            cwd=HiveopTempDir(),
             close_fds=True,
         )
 
-    @mock.patch('tempfile.tempdir', '/tmp/')
-    @mock.patch('tempfile._RandomNameSequence.__next__')
     @mock.patch('subprocess.Popen')
-    def test_mysql_to_hive_partition(self, mock_popen, mock_temp_dir):
+    def test_mysql_to_hive_partition(self, mock_popen):
         mock_subprocess = MockSubProcess()
         mock_popen.return_value = mock_subprocess
-        mock_temp_dir.return_value = "test_mysql_to_hive_partition"
 
         with mock.patch.dict('os.environ', self.env_vars):
             sql = "SELECT * FROM baby_names LIMIT 1000;"
@@ -227,24 +243,21 @@ class TestTransfer(unittest.TestCase):
             '-hiveconf',
             'tez.queue.name=airflow',
             '-f',
-            '/tmp/airflow_hiveop_test_mysql_to_hive_partition/tmptest_mysql_to_hive_partition',
+            HiveopTempFile(),
         ]
 
         mock_popen.assert_called_with(
             hive_cmd,
             stdout=mock_subprocess.PIPE,
             stderr=mock_subprocess.STDOUT,
-            cwd="/tmp/airflow_hiveop_test_mysql_to_hive_partition",
+            cwd=HiveopTempDir(),
             close_fds=True,
         )
 
-    @mock.patch('tempfile.tempdir', '/tmp/')
-    @mock.patch('tempfile._RandomNameSequence.__next__')
     @mock.patch('subprocess.Popen')
-    def test_mysql_to_hive_tblproperties(self, mock_popen, mock_temp_dir):
+    def test_mysql_to_hive_tblproperties(self, mock_popen):
         mock_subprocess = MockSubProcess()
         mock_popen.return_value = mock_subprocess
-        mock_temp_dir.return_value = "test_mysql_to_hive"
 
         with mock.patch.dict('os.environ', self.env_vars):
             sql = "SELECT * FROM baby_names LIMIT 1000;"
@@ -283,14 +296,14 @@ class TestTransfer(unittest.TestCase):
             '-hiveconf',
             'tez.queue.name=airflow',
             '-f',
-            '/tmp/airflow_hiveop_test_mysql_to_hive/tmptest_mysql_to_hive',
+            HiveopTempFile(),
         ]
 
         mock_popen.assert_called_with(
             hive_cmd,
             stdout=mock_subprocess.PIPE,
             stderr=mock_subprocess.STDOUT,
-            cwd="/tmp/airflow_hiveop_test_mysql_to_hive",
+            cwd=HiveopTempDir(),
             close_fds=True,
         )
 
@@ -340,13 +353,10 @@ class TestTransfer(unittest.TestCase):
             with hook.get_conn() as conn:
                 conn.execute(f"DROP TABLE IF EXISTS {mysql_table}")
 
-    @mock.patch('tempfile.tempdir', '/tmp/')
-    @mock.patch('tempfile._RandomNameSequence.__next__')
     @mock.patch('subprocess.Popen')
-    def test_mysql_to_hive_verify_csv_special_char(self, mock_popen, mock_temp_dir):
+    def test_mysql_to_hive_verify_csv_special_char(self, mock_popen):
         mock_subprocess = MockSubProcess()
         mock_popen.return_value = mock_subprocess
-        mock_temp_dir.return_value = "test_mysql_to_hive"
 
         mysql_table = 'test_mysql_to_hive'
         hive_table = 'test_mysql_to_hive'
@@ -424,27 +434,24 @@ class TestTransfer(unittest.TestCase):
                 '-hiveconf',
                 'tez.queue.name=airflow',
                 '-f',
-                '/tmp/airflow_hiveop_test_mysql_to_hive/tmptest_mysql_to_hive',
+                HiveopTempFile(),
             ]
 
             mock_popen.assert_called_with(
                 hive_cmd,
                 stdout=mock_subprocess.PIPE,
                 stderr=mock_subprocess.STDOUT,
-                cwd="/tmp/airflow_hiveop_test_mysql_to_hive",
+                cwd=HiveopTempDir(),
                 close_fds=True,
             )
         finally:
             with hook.get_conn() as conn:
                 conn.execute(f"DROP TABLE IF EXISTS {mysql_table}")
 
-    @mock.patch('tempfile.tempdir', '/tmp/')
-    @mock.patch('tempfile._RandomNameSequence.__next__')
     @mock.patch('subprocess.Popen')
-    def test_mysql_to_hive_verify_loaded_values(self, mock_popen, mock_temp_dir):
+    def test_mysql_to_hive_verify_loaded_values(self, mock_popen):
         mock_subprocess = MockSubProcess()
         mock_popen.return_value = mock_subprocess
-        mock_temp_dir.return_value = "test_mysql_to_hive"
 
         mysql_table = 'test_mysql_to_hive'
         hive_table = 'test_mysql_to_hive'
@@ -537,14 +544,14 @@ class TestTransfer(unittest.TestCase):
                     '-hiveconf',
                     'tez.queue.name=airflow',
                     '-f',
-                    '/tmp/airflow_hiveop_test_mysql_to_hive/tmptest_mysql_to_hive',
+                    HiveopTempFile(),
                 ]
 
                 mock_popen.assert_called_with(
                     hive_cmd,
                     stdout=mock_subprocess.PIPE,
                     stderr=mock_subprocess.STDOUT,
-                    cwd="/tmp/airflow_hiveop_test_mysql_to_hive",
+                    cwd=HiveopTempDir(),
                     close_fds=True,
                 )
 
