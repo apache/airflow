@@ -16,13 +16,18 @@
 # under the License.
 
 
+import textwrap
 from tempfile import NamedTemporaryFile
 from unittest import TestCase
-import textwrap
+
+import pytest
+
 from airflow.upgrade.rules.no_additional_args_in_operators import NoAdditionalArgsInOperatorsRule
 
 
 class TestNoAdditionalArgsInOperatorsRule(TestCase):
+
+    @pytest.mark.filterwarnings('always')
     def test_check(self):
         rule = NoAdditionalArgsInOperatorsRule()
 
