@@ -78,7 +78,7 @@ def _promote_new_flags():
     print()
     print("This usually takes from 20 seconds to 2 minutes.")
     print()
-    print("You can also use extra switches to iterate faster:")
+    print("You can also use other extra flags to iterate faster:")
     print("   --docs-only       - Only build documentation")
     print("   --spellcheck-only - Only perform spellchecking")
     print()
