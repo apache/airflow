@@ -101,6 +101,10 @@ class LocalTaskJob(BaseJob):
             # task callback invocation happens either here or in
             # self.heartbeat() instead of taskinstance._run_raw_task to
             # avoid race conditions
+            #
+            # When self.terminating is set to True by heartbeat_callback, this
+            # loop should not be restarted. Otherwise self.handle_task_exit
+            # will be invoked and we will end up with duplicated callbacks
             while not self.terminating:
                 # Monitor the task to see if it's done. Wait in a syscall
                 # (`os.wait`) for as long as possible so we notice the
