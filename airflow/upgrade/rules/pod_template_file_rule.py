@@ -52,6 +52,11 @@ value for all pods launched by the KubernetesExecutor. Many Kubernetes configs a
 needed once this pod_template_file has been generated.
 """
 
+    def should_skip(self):
+        # Check this rule only if users use KubernetesExecutor
+        if conf.get("core", "executor") != "KubernetesExecutor":
+            return "Skipped because this rule applies only to environment using KubernetesExecutor."
+
     def check(self):
         pod_template_file = conf.get("kubernetes", "pod_template_file", fallback=None)
         if not pod_template_file:

@@ -22,14 +22,15 @@ from airflow.upgrade.problem import RuleStatus
 
 class TestRuleStatus:
     def test_is_success(self):
-        assert RuleStatus(rule=mock.MagicMock(), messages=[]).is_success is True
-        assert RuleStatus(rule=mock.MagicMock(), messages=["aaa"]).is_success is False
+        assert RuleStatus(rule=mock.MagicMock(), messages=[], skipped=False).is_success is True
+        assert RuleStatus(rule=mock.MagicMock(), messages=["aaa"], skipped=False).is_success is False
 
     def test_rule_status_from_rule(self):
         msgs = ["An interesting problem to solve"]
         rule = mock.MagicMock()
         rule.check.return_value = msgs
+        rule.should_skip.return_value = None
 
         result = RuleStatus.from_rule(rule)
         rule.check.assert_called_once_with()
-        assert result == RuleStatus(rule, msgs)
+        assert result == RuleStatus(rule, msgs, skipped=False)

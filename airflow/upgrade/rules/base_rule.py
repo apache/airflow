@@ -33,5 +33,12 @@ class BaseRule(object):
         """A long description explaining the problem in detail. This can be an entry from UPDATING.md file."""
         pass
 
+    def should_skip(self):
+        """
+        Executes a pre check of configuration. If returned value is
+        True then the checking the rule is omitted.
+        """
+        pass
+
     def check(self):
         pass

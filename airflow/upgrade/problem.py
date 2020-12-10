@@ -25,10 +25,10 @@ class RuleStatus(NamedTuple(
     'RuleStatus',
     [
         ('rule', BaseRule),
-        ('messages', List[str])
+        ('messages', List[str]),
+        ('skipped', bool)
     ]
 )):
-
     @property
     def is_success(self):
         return len(self.messages) == 0
@@ -36,10 +36,14 @@ class RuleStatus(NamedTuple(
     @classmethod
     def from_rule(cls, rule):
         # type: (BaseRule) -> RuleStatus
+        msg = rule.should_skip()
+        if msg:
+            return cls(rule=rule, messages=[msg], skipped=True)
+
         messages = []  # type: List[str]
         result = rule.check()
         if isinstance(result, str):
             messages = [result]
         elif isinstance(result, Iterable):
             messages = list(result)
-        return cls(rule=rule, messages=messages)
+        return cls(rule=rule, messages=messages, skipped=False)
