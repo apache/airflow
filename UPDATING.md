@@ -1778,7 +1778,8 @@ This is to align the name with the actual code where the Scheduler launches the 
 ### Airflow CLI changes in line with 2.0
 
 The Airflow CLI has been organized so that related commands are grouped together as subcommands,
-which means that if you use these commands in your scripts, you have to make changes to them.
+which means that if you use these commands in your scripts, they will now raise a DeprecationWarning and
+you have to make changes to them before you upgrade to Airflow 2.0.
 
 This section describes the changes that have been made, and what you need to do to update your script.
 
