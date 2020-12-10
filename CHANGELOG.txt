@@ -1,3 +1,37 @@
+Airflow 1.10.14, 2020-12-10
+----------------------------
+
+Bug Fixes
+"""""""""
+
+- BugFix: Tasks with ``depends_on_past`` or ``task_concurrency`` are stuck (#12663)
+- Fix issue with empty Resources in executor_config (#12633)
+- Fix: Deprecated config ``force_log_out_after`` was not used (#12661)
+- Fix empty asctime field in JSON formatted logs (#10515)
+- [AIRFLOW-2809] Fix security issue regarding Flask SECRET_KEY (#3651)
+- [AIRFLOW-2884] Fix Flask SECRET_KEY security issue in www_rbac (#3729)
+- [AIRFLOW-2886] Generate random Flask SECRET_KEY in default config (#3738)
+- Add missing comma in setup.py (#12790)
+- Bugfix: Unable to import Airflow plugins on Python 3.8 (#12859)
+- Fix setup.py missing comma in ``setup_requires`` (#12880)
+- Don't emit first_task_scheduling_delay metric for only-once dags (#12835)
+
+Improvements
+""""""""""""
+
+- Update setup.py to get non-conflicting set of dependencies (#12636)
+- Rename ``[scheduler] max_threads`` to ``[scheduler] parsing_processes`` (#12605)
+- Add metric for scheduling delay between first run task & expected start time (#9544)
+- Add new-style 2.0 command names for Airflow 1.10.x (#12725)
+- Add Kubernetes cleanup-pods CLI command for Helm Chart (#11802)
+- Don't let webserver run with dangerous config (#12747)
+- Replace pkg_resources with importlib.metadata to avoid VersionConflict errors (#12694)
+
+Doc only changes
+""""""""""""""""
+
+- Clarified information about supported Databases
+
 Airflow 1.10.13, 2020-11-25
 ----------------------------
 

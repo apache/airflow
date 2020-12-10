@@ -364,7 +364,7 @@ jobs:
     env:
       # In this case we want to install airflow from the latest released 1.10 version
       # all provider packages are installed from wheels or .tar.gz files
-      INSTALL_AIRFLOW_VERSION: "1.10.13"
+      INSTALL_AIRFLOW_VERSION: "1.10.14"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       BACKPORT_PACKAGES: "true"
       VERSION_SUFFIX_FOR_SVN: "rc1"

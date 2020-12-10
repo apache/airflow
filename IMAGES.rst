@@ -39,7 +39,7 @@ The images are named as follows:
 
 where:
 
-* ``BRANCH_OR_TAG`` - branch or tag used when creating the image. Examples: ``master``, ``v1-10-test``, ``1.10.13``
+* ``BRANCH_OR_TAG`` - branch or tag used when creating the image. Examples: ``master``, ``v1-10-test``, ``1.10.14``
   The ``master`` and ``v1-10-test`` labels are built from branches so they change over time. The ``1.10.*`` and in
   the future ``2.*`` labels are build from git tags and they are "fixed" once built.
 * ``PYTHON_MAJOR_MINOR_VERSION`` - version of python used to build the image. Examples: ``3.5``, ``3.7``
@@ -115,7 +115,7 @@ parameter to Breeze:
 .. code-block:: bash
 
   ./breeze build-image --python 3.7 --additional-extras=presto \
-      --production-image --install-airflow-version=1.10.13
+      --production-image --install-airflow-version=1.10.14
 
 
 .. note::
@@ -132,8 +132,8 @@ This will build the image using command similar to:
 .. code-block:: bash
 
     pip install \
-      apache-airflow[async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,ssh,statsd,virtualenv,presto]==1.10.13 \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.13/constraints-3.6.txt"
+      apache-airflow[async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,ssh,statsd,virtualenv,presto]==1.10.14 \
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.14/constraints-3.6.txt"
 
 You can also build production images from specific Git version via providing ``--install-airflow-reference``
 parameter to Breeze (this time constraints are taken from the ``constraints-master`` branch which is the
@@ -229,8 +229,8 @@ For example:
   apache/airflow:master-python3.6                - production "latest" image from current master
   apache/airflow:master-python3.6-ci             - CI "latest" image from current master
   apache/airflow:v1-10-test-python2.7-ci         - CI "latest" image from current v1-10-test branch
-  apache/airflow:1.10.13-python3.6               - production image for 1.10.13 release
-  apache/airflow:1.10.13-1-python3.6             - production image for 1.10.13 with some patches applied
+  apache/airflow:1.10.14-python3.6               - production image for 1.10.14 release
+  apache/airflow:1.10.14-1-python3.6             - production image for 1.10.14 with some patches applied
 
 
 You can see DockerHub images at `<https://hub.docker.com/repository/docker/apache/airflow>`_
@@ -311,8 +311,8 @@ additional apt dev and runtime dependencies.
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="1.10.13" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.13" \
+    --build-arg AIRFLOW_VERSION="1.10.14" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
@@ -328,7 +328,7 @@ the same image can be built using ``breeze`` (it supports auto-completion of the
 .. code-block:: bash
 
   ./breeze build-image -f Dockerfile.ci \
-      --production-image  --python 3.7 --install-airflow-version=1.10.13 \
+      --production-image  --python 3.7 --install-airflow-version=1.10.14 \
       --additional-extras=jdbc --additional-python-deps="pandas" \
       --additional-dev-apt-deps="gcc g++" --additional-runtime-apt-deps="default-jre-headless"
 You can build the default production image with standard ``docker build`` command but they will only build
@@ -346,8 +346,8 @@ based on example in `this comment <https://github.com/apache/airflow/issues/8605
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="1.10.13" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.13" \
+    --build-arg AIRFLOW_VERSION="1.10.14" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
