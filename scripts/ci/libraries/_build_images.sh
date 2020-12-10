@@ -30,34 +30,53 @@ function build_images::add_build_args_for_remote_install() {
         EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
             "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${AIRFLOW_CONSTRAINTS_REFERENCE}"
         )
+    else
+        if [[ ${AIRFLOW_VERSION} =~ [^0-9]*1[^0-9]*10[^0-9]([0-9]*) ]]; then
+            # All types of references/versions match this regexp for 1.10 series
+            # for example v1_10_test, 1.10.10, 1.10.9 etc. ${BASH_REMATCH[1]} matches last
+            # minor digit of version and it's length is 0 for v1_10_test, 1 for 1.10.9 and 2 for 1.10.10+
+            AIRFLOW_MINOR_VERSION_NUMBER=${BASH_REMATCH[1]}
+            if [[ ${#AIRFLOW_MINOR_VERSION_NUMBER} == "0" ]]; then
+                # For v1_10_* branches use constraints-1-10 branch
+                EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+                    "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=constraints-1-10"
+                )
+            else
+                EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+                    # For specified minor version of 1.10 or v1 branch use specific reference constraints
+                    "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=constraints-${AIRFLOW_VERSION}"
+                )
+            fi
+        elif  [[ ${AIRFLOW_VERSION} =~ v?2.* ]]; then
+            EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+                # For specified minor version of 2.0 or v2 branch use specific reference constraints
+                "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=constraints-${AIRFLOW_VERSION}"
+            )
+        else
+            # For all other we just get the default constraint branch coming from the _initialization.sh
+            EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+                "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}"
+            )
+        fi
     fi
     if [[ "${AIRFLOW_CONSTRAINTS_LOCATION}" != "" ]]; then
         EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
             "--build-arg" "AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}"
         )
     fi
-    if [[ ${AIRFLOW_VERSION} =~ [^0-9]*1[^0-9]*10[^0-9]([0-9]*) ]]; then
-        # All types of references/versions match this regexp for 1.10 series
-        # for example v1_10_test, 1.10.10, 1.10.9 etc. ${BASH_REMATCH[1]} matches last
-        # minor digit of version and it's length is 0 for v1_10_test, 1 for 1.10.9 and 2 for 1.10.10+
-        AIRFLOW_MINOR_VERSION_NUMBER=${BASH_REMATCH[1]}
-        if [[ ${#AIRFLOW_MINOR_VERSION_NUMBER} == "0" ]]; then
-            # For v1_10_* branches use constraints-1-10 branch
-            EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-                "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=constraints-1-10"
-            )
-        else
-            EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-                # For specified minor version of 1.10 use specific reference constraints
-                "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=constraints-${AIRFLOW_VERSION}"
-            )
-        fi
+    # Depending on the version built, we choose the right branch for preloading the packages from
+    # If we run build for v1-10-test builds we should choose v1-10-test, for v2-0-test we choose v2-0-test
+    # all other builds when you choose a specific version (1.0 or 2.0 series) should choose stable branch
+    # to preload. For all other builds we use the default branch defined in _initialization.sh
+    if [[ ${AIRFLOW_VERSION} == 'v1-10-test' ]]; then
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v1-10-test"
+    elif [[ ${AIRFLOW_VERSION} =~ v?1.* ]]; then
+        AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v1-10-stable"
+    elif [[ ${AIRFLOW_VERSION} == 'v2-0-test' ]]; then
+        AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-0-test"
+    elif [[ ${AIRFLOW_VERSION} =~ v?2.* ]]; then
+        AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-0-stable"
     else
-        # For all other (master, 2.0+) we just get the default constraint branch
-        EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-            "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}"
-        )
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING=${DEFAULT_BRANCH}
     fi
 }
@@ -663,23 +682,18 @@ function build_images::prepare_prod_build() {
     if [[ -n "${INSTALL_AIRFLOW_REFERENCE=}" ]]; then
         # When --install-airflow-reference is used then the image is build from GitHub tag
         EXTRA_DOCKER_PROD_BUILD_FLAGS=(
-            "--build-arg" "AIRFLOW_INSTALL_SOURCES=https://github.com/apache/airflow/archive/${INSTALL_AIRFLOW_REFERENCE}.tar.gz#egg=apache-airflow"
+            "--build-arg" "AIRFLOW_INSTALLATION_METHOD=https://github.com/apache/airflow/archive/${INSTALL_AIRFLOW_REFERENCE}.tar.gz#egg=apache-airflow"
         )
         export AIRFLOW_VERSION="${INSTALL_AIRFLOW_REFERENCE}"
         build_images::add_build_args_for_remote_install
     elif [[ -n "${INSTALL_AIRFLOW_VERSION=}" ]]; then
         # When --install-airflow-version is used then the image is build from PIP package
         EXTRA_DOCKER_PROD_BUILD_FLAGS=(
-            "--build-arg" "AIRFLOW_INSTALL_SOURCES=apache-airflow"
+            "--build-arg" "AIRFLOW_INSTALLATION_METHOD=apache-airflow"
             "--build-arg" "AIRFLOW_INSTALL_VERSION===${INSTALL_AIRFLOW_VERSION}"
             "--build-arg" "AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION}"
         )
         export AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
-        if [[ ${AIRFLOW_VERSION} == "1.10.2" || ${AIRFLOW_VERSION} == "1.10.1" ]]; then
-            EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-                "--build-arg" "SLUGIFY_USES_TEXT_UNIDECODE=yes"
-            )
-        fi
         build_images::add_build_args_for_remote_install
     else
         # When no airflow version/reference is specified, production image is built from local sources

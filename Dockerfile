@@ -167,14 +167,16 @@ ENV AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}
 ENV PATH=${PATH}:/root/.local/bin
 RUN mkdir -p /root/.local/bin
 
-ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
-ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES}
-
 RUN if [[ -f /docker-context-files/.pypirc ]]; then \
         cp /docker-context-files/.pypirc /root/.pypirc; \
     fi
 
 RUN pip install --upgrade "pip==${PIP_VERSION}"
+
+# By default we do not use pre-cached packages, but in CI/Breeze environment we override this to speed up
+# builds in case setup.py/setup.cfg changed. This is pure optimisation of CI/Breeze builds.
+ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
+ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES}
 
 # In case of Production build image segment we want to pre-install master version of airflow
 # dependencies from GitHub so that we do not have to always reinstall it from the scratch.
@@ -188,10 +190,13 @@ RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
           && pip uninstall --yes apache-airflow; \
     fi
 
-ARG AIRFLOW_SOURCES_FROM="."
+# By default we install latest airflow from PyPI so we do not need to copy sources of Airflow
+# but in case of breeze/CI builds we use latest sources and we override those
+# those SOURCES_FROM/TO with "." and "/opt/airflow" respectively
+ARG AIRFLOW_SOURCES_FROM="empty"
 ENV AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM}
 
-ARG AIRFLOW_SOURCES_TO="/opt/airflow"
+ARG AIRFLOW_SOURCES_TO="/empty"
 ENV AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO}
 
 COPY ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
@@ -199,28 +204,41 @@ COPY ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
 ARG CASS_DRIVER_BUILD_CONCURRENCY
 ENV CASS_DRIVER_BUILD_CONCURRENCY=${CASS_DRIVER_BUILD_CONCURRENCY}
 
+# This is airflow version that is put in the label of the image build
 ARG AIRFLOW_VERSION
 ENV AIRFLOW_VERSION=${AIRFLOW_VERSION}
 
 ARG ADDITIONAL_PYTHON_DEPS=""
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS}
 
-ARG AIRFLOW_INSTALL_SOURCES="."
-ENV AIRFLOW_INSTALL_SOURCES=${AIRFLOW_INSTALL_SOURCES}
+# Determines the way airflow is installed. By default we install airflow from PyPI `apache-airflow` package
+# But it also can be `.` from local installation or GitHub URL pointing to specific branch or tag
+# Of Airflow. Note That for local source installation you need to have local sources of
+# Airflow checked out together with the Dockerfile and AIRFLOW_SOURCES_FROM and AIRFLOW_SOURCES_TO
+# set to "." and "/opt/airflow" respectively.
+ARG AIRFLOW_INSTALLATION_METHOD="apache-airflow"
+ENV AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}
 
+# By default latest released version of airflow is installed (when empty) but this value can be overriden
+# and we can install specific version of airflow this way.
 ARG AIRFLOW_INSTALL_VERSION=""
 ENV AIRFLOW_INSTALL_VERSION=${AIRFLOW_INSTALL_VERSION}
 
+# We can seet this value to true in case we want to install .whl .tar.gz packages placed in the
+# docker-context-files folder. This can be done for both - additional packages you want to install
+# and for airflow as well (you have to set INSTALL_FROM_PYPI to false in this case)
 ARG INSTALL_FROM_DOCKER_CONTEXT_FILES=""
 ENV INSTALL_FROM_DOCKER_CONTEXT_FILES=${INSTALL_FROM_DOCKER_CONTEXT_FILES}
 
+# By default we install latest airflow from PyPI. You can set it to false if you want to install
+# Airflow from the .whl or .tar.gz packages placed in `docker-context-files` folder.
 ARG INSTALL_FROM_PYPI="true"
 ENV INSTALL_FROM_PYPI=${INSTALL_FROM_PYPI}
 
-ARG SLUGIFY_USES_TEXT_UNIDECODE=""
-ENV SLUGIFY_USES_TEXT_UNIDECODE=${SLUGIFY_USES_TEXT_UNIDECODE}
-
-ARG INSTALL_PROVIDERS_FROM_SOURCES="true"
+# By default we install providers from PyPI but in case of Breze build we want to install providers
+# from local sources without the neeed of preparing provider packages upfront. This value is
+# automatically overridden by Breeze scripts.
+ARG INSTALL_PROVIDERS_FROM_SOURCES="false"
 ENV INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES}
 
 WORKDIR /opt/airflow
@@ -230,7 +248,7 @@ RUN if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then \
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}; \
     fi; \
     if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
-        pip install --user "${AIRFLOW_INSTALL_SOURCES}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
+        pip install --user "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
             --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
     fi; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
@@ -273,6 +291,7 @@ LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.module="airflow" \
   org.apache.airflow.component="airflow" \
   org.apache.airflow.image="airflow-build-image" \
+  org.apache.airflow.version="${AIRFLOW_VERSION}" \
   org.apache.airflow.buildImage.buildId=${BUILD_ID} \
   org.apache.airflow.buildImage.commitSha=${COMMIT_SHA}
 
@@ -434,6 +453,7 @@ LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.module="airflow" \
   org.apache.airflow.component="airflow" \
   org.apache.airflow.image="airflow" \
+  org.apache.airflow.version="${AIRFLOW_VERSION}" \
   org.apache.airflow.uid="${AIRFLOW_UID}" \
   org.apache.airflow.gid="${AIRFLOW_GID}" \
   org.apache.airflow.mainImage.buildId=${BUILD_ID} \

@@ -396,6 +396,7 @@ LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.module="airflow" \
   org.apache.airflow.component="airflow" \
   org.apache.airflow.image="airflow-ci" \
+  org.apache.airflow.version="${AIRFLOW_VERSION}" \
   org.apache.airflow.uid="0" \
   org.apache.airflow.gid="0" \
   org.apache.airflow.buildId=${BUILD_ID} \

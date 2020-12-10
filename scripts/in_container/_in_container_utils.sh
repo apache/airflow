@@ -327,14 +327,11 @@ function install_released_airflow_version() {
     local version="${1}"
     local extras="${2}"
     echo
-    echo "Installing released ${1} version of airflow with extras ${2}"
+    echo "Installing released ${version} version of airflow with extras ${extras}"
     echo
 
-    if [[ ${version} == "1.10.2" || ${version} == "1.10.1" ]]; then
-        export SLUGIFY_USES_TEXT_UNIDECODE=yes
-    fi
     rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
-    pip install --upgrade "apache-airflow${extras}==${1}" >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
+    pip install --upgrade "apache-airflow${extras}==${version}" >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
 }
 
 function install_all_provider_packages_from_wheels() {

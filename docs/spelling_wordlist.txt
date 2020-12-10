@@ -443,6 +443,7 @@ artwr
 asc
 ascii
 asciiart
+asctime
 ashb
 asia
 assertEqualIgnoreMultipleSpaces

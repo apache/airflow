@@ -175,11 +175,25 @@ function initialization::initialize_base_variables() {
     export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
     readonly INSTALLED_EXTRAS
 
-    PIP_VERSION="20.2.4"
+    # default version of PIP USED (This has to be < 20.3 until https://github.com/apache/airflow/issues/12838 is solved)
+    PIP_VERSION=${PIP_VERSION:="20.2.4"}
     export PIP_VERSION
 
-    WHEEL_VERSION="0.35.1"
+    # We also pin version of wheel used to get consistent builds
+    WHEEL_VERSION=${WHEEL_VERSION:="0.36.1"}
     export WHEEL_VERSION
+
+    # Sources by default are installed from local sources when using breeze/ci
+    AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM:="."}
+    export AIRFLOW_SOURCES_FROM
+
+    # They are copied to /opt/airflow by default (breeze and ci)
+    AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO:="/opt/airflow"}
+    export AIRFLOW_SOURCES_TO
+
+    # And installed from there (breeze and ci)
+    AIRFLOW_INSTALL_VERSION=${AIRFLOW_INSTALL_VERSION:="."}
+    export AIRFLOW_INSTALL_VERSION
 }
 
 # Determine current branch
