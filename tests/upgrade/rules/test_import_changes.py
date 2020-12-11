@@ -34,16 +34,14 @@ class TestImportChange:
         )
         assert change.info(
             "file.py"
-        ) == "Using `{}` will be replaced by `{}` and requires `{}` providers package. " \
-             "Affected file: file.py".format(OLD_PATH, NEW_PATH, PROVIDER)
+        ) == "Using `{}` should be replaced by `{}`. Affected file: file.py".format(OLD_PATH, NEW_PATH)
         assert change.old_class == OLD_CLASS
         assert change.new_class == NEW_CLASS
 
     def test_from_new_old_paths(self):
         paths_tuple = (NEW_PATH, OLD_PATH)
         change = ImportChange.from_new_old_paths(*paths_tuple)
-        assert change.info() == "Using `{}` will be replaced by `{}` and requires `{}` " \
-                                "providers package".format(OLD_PATH, NEW_PATH, PROVIDER)
+        assert change.info() == "Using `{}` should be replaced by `{}`".format(OLD_PATH, NEW_PATH)
 
 
 class TestImportChangesRule:
@@ -58,11 +56,12 @@ class TestImportChangesRule:
 
             temp.write("from airflow.contrib import %s" % OLD_CLASS)
             temp.flush()
-            msgs = ImportChangesRule().check()
+            msgs = list(ImportChangesRule().check())
 
-        assert len(msgs) == 1
+        assert len(msgs) == 2
         msg = msgs[0]
+        assert msg == 'Please install `apache-airflow-backport-providers-dummy`'
+        msg = msgs[1]
         assert temp.name in msg
         assert OLD_PATH in msg
         assert OLD_CLASS in msg
-        assert "requires `{}`".format(PROVIDER) in msg
