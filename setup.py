@@ -153,7 +153,6 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
         file.write(text)
 
 
-<<<<<<< HEAD
 if os.environ.get('USE_THEME_FROM_GIT'):
     _SPHINX_AIRFLOW_THEME_URL = (
         "@ https://github.com/apache/airflow-site/releases/download/v0.0.2/"
@@ -161,12 +160,6 @@ if os.environ.get('USE_THEME_FROM_GIT'):
     )
 else:
     _SPHINX_AIRFLOW_THEME_URL = ''
-=======
-_SPHINX_AIRFLOW_THEME_URL = (
-    "https://github.com/apache/airflow-site/releases/download/v0.0.4/"
-    "sphinx_airflow_theme-0.0.4-py3-none-any.whl"
-)
->>>>>>> 9e9768548... Bump sphinx-airflow-theme.version
 
 # 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
