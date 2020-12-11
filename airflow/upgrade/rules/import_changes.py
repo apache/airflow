@@ -39,7 +39,9 @@ class ImportChange(
     )
 ):
     def info(self, file_path=None):
-        msg = "Using `{}` should be replaced by `{}`".format(self.old_path, self.new_path)
+        msg = "Using `{}` should be replaced by `{}`".format(
+            self.old_path, self.new_path
+        )
         if file_path:
             msg += ". Affected file: {}".format(file_path)
         return msg
@@ -80,9 +82,29 @@ class ImportChangesRule(BaseRule):
         "https://github.com/apache/airflow#backport-packages"
     )
 
+    current_airflow_version = Version(__import__("airflow").__version__)
+
+    if current_airflow_version < Version("2.0.0"):
+
+        def _filter_incompatible_renames(arg):
+            new_path = arg[1]
+            return (
+                not new_path.startswith("airflow.operators")
+                and not new_path.startswith("airflow.sensors")
+                and not new_path.startswith("airflow.hooks")
+            )
+
+    else:
+        # Everything allowed on 2.0.0+
+        def _filter_incompatible_renames(arg):
+            return True
+
     ALL_CHANGES = [
-        ImportChange.from_new_old_paths(*args) for args in ALL
+        ImportChange.from_new_old_paths(*args)
+        for args in filter(_filter_incompatible_renames, ALL)
     ]  # type: List[ImportChange]
+
+    del _filter_incompatible_renames
 
     @staticmethod
     def _check_file(file_path):
