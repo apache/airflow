@@ -18,7 +18,6 @@
 # under the License.
 
 import argparse
-import fnmatch
 import os
 
 # pylint: disable=no-name-in-module
