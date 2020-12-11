@@ -56,6 +56,9 @@ You can use them in your DAGs as:
     foo = Variable.get("foo")
     foo_json = Variable.get("foo_baz", deserialize_json=True)
 
+    # or deserialize YAML
+    foo_yaml = Variable.get("foo_biz", deserialize_yaml=True)
+
 .. note::
 
     Single underscores surround ``VAR``.  This is in contrast with the way ``airflow.cfg``

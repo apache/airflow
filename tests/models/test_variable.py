@@ -89,10 +89,23 @@ class TestVariable(unittest.TestCase):
         Variable.set("tested_var_set_id", "Monday morning breakfast")
         self.assertEqual("Monday morning breakfast", Variable.get("tested_var_set_id"))
 
+    def test_variable_get_serialize_json_and_yaml(self):
+        with self.assertRaises(ValueError):
+            Variable.set("tested_var_set_id", 'some value', serialize_json=True, serialize_yaml=True)
+
+    def test_variable_get_deserialize_json_and_yaml(self):
+        with self.assertRaises(ValueError):
+            Variable.get("tested_var_set_id", deserialize_json=True, deserialize_yaml=True)
+
     def test_variable_set_get_round_trip_json(self):
         value = {"a": 17, "b": 47}
         Variable.set("tested_var_set_id", value, serialize_json=True)
         self.assertEqual(value, Variable.get("tested_var_set_id", deserialize_json=True))
+
+    def test_variable_set_get_round_trip_yaml(self):
+        value = {"a": 17, "b": 47}
+        Variable.set("tested_var_set_id", value, serialize_yaml=True)
+        self.assertEqual(value, Variable.get("tested_var_set_id", deserialize_yaml=True))
 
     def test_variable_set_existing_value_to_blank(self):
         test_value = 'Some value'
@@ -119,6 +132,13 @@ class TestVariable(unittest.TestCase):
             Variable.get("thisIdDoesNotExist", default_var=default_value, deserialize_json=True),
         )
 
+    def test_get_non_existing_var_should_not_deserialize_yaml_default(self):
+        default_value = "}{ this is a non YAML default }{"
+        self.assertEqual(
+            default_value,
+            Variable.get("thisIdDoesNotExist", default_var=default_value, deserialize_yaml=True),
+        )
+
     def test_variable_setdefault_round_trip(self):
         key = "tested_var_setdefault_1_id"
         value = "Monday morning breakfast in Paris"
@@ -139,6 +159,21 @@ class TestVariable(unittest.TestCase):
         # Check the returned value, and the stored value are handled correctly.
         self.assertEqual(value, val)
         self.assertEqual(value, Variable.get(key, deserialize_json=True))
+
+    def test_variable_setdefault_round_trip_yaml(self):
+        key = "tested_var_setdefault_3_id"
+        value = {"city": 'Saratov', "Happiness": True}
+        Variable.setdefault(key, value, deserialize_yaml=True)
+        self.assertEqual(value, Variable.get(key, deserialize_yaml=True))
+
+    def test_variable_setdefault_existing_yaml(self):
+        key = "tested_var_setdefault_3_id"
+        value = {"city": 'Saratov', "Happiness": True}
+        Variable.set(key, value, serialize_yaml=True)
+        val = Variable.setdefault(key, value, deserialize_yaml=True)
+        # Check the returned value, and the stored value are handled correctly.
+        self.assertEqual(value, val)
+        self.assertEqual(value, Variable.get(key, deserialize_yaml=True))
 
     def test_variable_delete(self):
         key = "tested_var_delete"

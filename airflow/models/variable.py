@@ -19,6 +19,7 @@
 import json
 from typing import Any, Optional
 
+import yaml
 from cryptography.fernet import InvalidToken as InvalidFernetToken
 from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.ext.declarative import declared_attr
@@ -82,7 +83,7 @@ class Variable(Base, LoggingMixin):
         return synonym('_val', descriptor=property(cls.get_val, cls.set_val))
 
     @classmethod
-    def setdefault(cls, key, default, deserialize_json=False):
+    def setdefault(cls, key, default, deserialize_json=False, deserialize_yaml=False):
         """
         Like a Python builtin dict object, setdefault returns the current value
         for a key, and if it isn't there, stores the default value and returns it.
@@ -94,12 +95,19 @@ class Variable(Base, LoggingMixin):
         :type default: Mixed
         :param deserialize_json: Store this as a JSON encoded value in the DB
             and un-encode it when retrieving a value
+        :param deserialize_yaml: Store this as a YAML encoded value in the DB
+            and un-encode it when retrieving a value
         :return: Mixed
         """
-        obj = Variable.get(key, default_var=None, deserialize_json=deserialize_json)
+        if deserialize_json and deserialize_yaml:
+            raise ValueError('Only one of (deserialize_json, deserialize_yaml) can be specified')
+
+        obj = Variable.get(
+            key, default_var=None, deserialize_json=deserialize_json, deserialize_yaml=deserialize_yaml
+        )
         if obj is None:
             if default is not None:
-                Variable.set(key, default, serialize_json=deserialize_json)
+                Variable.set(key, default, serialize_json=deserialize_json, serialize_yaml=deserialize_yaml)
                 return default
             else:
                 raise ValueError('Default Value must be set')
@@ -112,14 +120,19 @@ class Variable(Base, LoggingMixin):
         key: str,
         default_var: Any = __NO_DEFAULT_SENTINEL,
         deserialize_json: bool = False,
+        deserialize_yaml: bool = False,
     ) -> Any:
         """
         Gets a value for an Airflow Variable Key
 
         :param key: Variable Key
         :param default_var: Default value of the Variable if the Variable doesn't exists
-        :param deserialize_json: Deserialize the value to a Python dict
+        :param deserialize_json: Deserialize the JSON value to a Python dict
+        :param deserialize_yaml: Deserialize the YAML value to a Python dict
         """
+        if deserialize_json and deserialize_yaml:
+            raise ValueError('Only one of (deserialize_json, deserialize_yaml) can be specified')
+
         var_val = Variable.get_variable_from_secrets(key=key)
         if var_val is None:
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
@@ -129,22 +142,37 @@ class Variable(Base, LoggingMixin):
         else:
             if deserialize_json:
                 return json.loads(var_val)
+            elif deserialize_yaml:
+                return yaml.load(var_val)
             else:
                 return var_val
 
     @classmethod
     @provide_session
-    def set(cls, key: str, value: Any, serialize_json: bool = False, session: Session = None):
+    def set(
+        cls,
+        key: str,
+        value: Any,
+        serialize_json: bool = False,
+        serialize_yaml: bool = False,
+        session: Session = None,
+    ):
         """
         Sets a value for an Airflow Variable with a given Key
 
         :param key: Variable Key
         :param value: Value to set for the Variable
         :param serialize_json: Serialize the value to a JSON string
+        :param serialize_yaml: Serialize the value to a YAML string
         :param session: SQL Alchemy Sessions
         """
+        if serialize_json and serialize_yaml:
+            raise ValueError('Only one of (serialize_json, serialize_yaml) can be specified')
+
         if serialize_json:
             stored_value = json.dumps(value, indent=2)
+        elif serialize_yaml:
+            stored_value = yaml.dump(value)
         else:
             stored_value = str(value)
 

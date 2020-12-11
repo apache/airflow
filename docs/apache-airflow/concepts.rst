@@ -908,6 +908,7 @@ accessible and modifiable through the UI.
     from airflow.models import Variable
     foo = Variable.get("foo")
     bar = Variable.get("bar", deserialize_json=True)
+    bar = Variable.get("biz", deserialize_yaml=True)
     baz = Variable.get("baz", default_var=None)
 
 The second call assumes ``json`` content and will be deserialized into
