@@ -147,6 +147,7 @@ class BaseJob(Base, LoggingMixin):
         except Exception as e:  # pylint: disable=broad-except
             self.log.error('on_kill() method failed: %s', str(e))
         session.merge(job)
+        session.flush()
         raise AirflowException("Job shut down externally.")
 
     def on_kill(self):

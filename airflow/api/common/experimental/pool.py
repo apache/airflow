@@ -65,6 +65,8 @@ def create_pool(name, slots, description, session=None):
         pool.slots = slots
         pool.description = description
 
+    session.flush()
+
     return pool
 
 
@@ -82,5 +84,6 @@ def delete_pool(name, session=None):
         raise PoolNotFound("Pool '%s' doesn't exist" % name)
 
     session.delete(pool)
+    session.flush()
 
     return pool

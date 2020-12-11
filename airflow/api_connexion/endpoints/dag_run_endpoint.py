@@ -228,6 +228,7 @@ def post_dag_run(dag_id, session):
     if not dagrun_instance:
         dag_run = DagRun(dag_id=dag_id, run_type=DagRunType.MANUAL, **post_body)
         session.add(dag_run)
+        session.flush()
         return dagrun_schema.dump(dag_run)
     raise AlreadyExists(
         detail=f"DAGRun with DAG ID: '{dag_id}' and DAGRun ID: '{post_body['run_id']}' already exists"
