@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "description": {
+        "type": ["string", "null"]
+      },
+      "options": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "description": {
+              "type": ["string", "null"]
+            },
+            "version_added": {
+              "type": ["string", "null"]
+            },
+            "type": {
+              "type": "string",
+              "enum": ["string", "boolean", "integer", "float"]
+            },
+            "example": {
+              "type": ["string", "null", "number"]
+            },
+            "default": {
+              "type": ["string", "null", "number"]
+            },
+            "sensitive": {
+              "type": "boolean",
+              "description": "'true' is this value is sensitive and can be specified using {section}___{name}__SECRET or {section}___{name}__CMD environment variables."
+            }
+          },
+          "required": [
+            "name",
+            "description",
+            "version_added",
+            "type",
+            "example",
+            "default"
+          ],
+          "additional_properties": false
+        }
+      }
+    },
+    "required": [
+      "name",
+      "description",
+      "options"
+    ],
+    "additional_properties": false
+  }
+}
