@@ -155,8 +155,8 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
 
 if os.environ.get('USE_THEME_FROM_GIT'):
     _SPHINX_AIRFLOW_THEME_URL = (
-        "@ https://github.com/apache/airflow-site/releases/download/v0.0.2/"
-        "sphinx_airflow_theme-0.0.2-py3-none-any.whl"
+        "@ https://github.com/apache/airflow-site/releases/download/0.0.4/"
+        "sphinx_airflow_theme-0.0.4-py3-none-any.whl"
     )
 else:
     _SPHINX_AIRFLOW_THEME_URL = ''
