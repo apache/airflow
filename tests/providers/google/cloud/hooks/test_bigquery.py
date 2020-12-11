@@ -1648,22 +1648,17 @@ class TestBigQueryWithKMS(_BigQueryBaseTestClass):
         fields = list(body.keys())
 
         self.hook.update_table(
-            table_resource=body
+            table_resource=body,
             fields=fields,
             dataset_id=DATASET_ID,
             table_id=TABLE_ID,
-            project_id=PROJECT_ID
+            project_id=PROJECT_ID,
         )
 
-        mock_table.from_api_repr.assert_called_once_with({"tableReference": TABLE_REFERENCE_REPR})
-
-        mock_client.assert_called_once_with(
-            project_id=PROJECT_ID
-        )
+        mock_table.from_api_repr.assert_called_once_with(body)
 
         mock_client.return_value.update_table.assert_called_once_with(
-            table=mock_table.from_api_repr.return_value,
-            fields=fields
+            table=mock_table.from_api_repr.return_value, fields=fields
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
