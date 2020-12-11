@@ -1598,7 +1598,9 @@ ERROR! Wrong first param: {sys.argv[1]}
     package_format = os.environ.get("PACKAGE_FORMAT", "wheel")
     print(f"Building backport package: {_provider_package} in format ${package_format}")
     copy_readme_and_changelog(_provider_package, BACKPORT_PACKAGES)
-    command = ["python3", "setup.py", "--version-suffix-for-pypi", suffix]
+    command = ["python3", "setup.py"]
+    if suffix != "":
+        command.extend(['egg_info', '--tag-build', suffix])
     if package_format in ['sdist', 'both']:
         command.append("sdist")
     if package_format in ['wheel', 'both']:
