@@ -529,3 +529,16 @@ if airflow_theme_is_available:
         'display_github': 'master',
         'suffix': '.rst',
     }
+
+    html_theme_options = {
+        'hide_website_buttons': False,
+        'navbar_links': [
+            {'href': '/community/', 'text': 'Community'},
+            {'href': '/meetups/', 'text': 'Meetups'},
+            {'href': '/docs/', 'text': 'Documentation'},
+            {'href': '/use-cases/', 'text': 'Use-cases'},
+            {'href': '/announcements/', 'text': 'Announcements'},
+            {'href': '/blog/', 'text': 'Blog'},
+            {'href': '/ecosystem/', 'text': 'Ecosystem'},
+        ]
+    }
