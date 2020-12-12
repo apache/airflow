@@ -22,7 +22,7 @@ description: |
     `Redis <https://redis.io/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 
 integrations:
   - integration-name: Redis

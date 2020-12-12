@@ -424,24 +424,39 @@ combining them into a single operator. If it absolutely can't be avoided,
 Airflow does have a feature for operator cross-communication called XCom that is
 described in the section :ref:`XComs <concepts:xcom>`
 
-Airflow provides operators for many common tasks, including:
+Airflow provides many built-in operators for many common tasks, including:
 
 - :class:`~airflow.operators.bash.BashOperator` - executes a bash command
 - :class:`~airflow.operators.python.PythonOperator` - calls an arbitrary Python function
 - :class:`~airflow.operators.email.EmailOperator` - sends an email
-- :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` - sends an HTTP request
-- :class:`~airflow.providers.mysql.operators.mysql.MySqlOperator`,
-  :class:`~airflow.providers.sqlite.operators.sqlite.SqliteOperator`,
-  :class:`~airflow.providers.postgres.operators.postgres.PostgresOperator`,
-  :class:`~airflow.providers.microsoft.mssql.operators.mssql.MsSqlOperator`,
-  :class:`~airflow.providers.oracle.operators.oracle.OracleOperator`,
-  :class:`~airflow.providers.jdbc.operators.jdbc.JdbcOperator`, etc. - executes a SQL command
 
-In addition to these basic building blocks, there are many more specific
-operators: :class:`~airflow.providers.docker.operators.docker.DockerOperator`,
-:class:`~airflow.providers.apache.hive.operators.hive.HiveOperator`, :class:`~airflow.providers.amazon.aws.operators.s3_file_transform.S3FileTransformOperator`,
-:class:`~airflow.providers.mysql.transfers.presto_to_mysql.PrestoToMySqlOperator`,
-:class:`~airflow.providers.slack.operators.slack.SlackAPIOperator`... you get the idea!
+There are also other, commonly used operators that are installed together with airflow automatically,
+by pre-installing some :doc:`apache-airflow-providers:index` packages (they are always available no
+matter which extras you chose when installing Apache Airflow:
+
+- :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` - sends an HTTP request
+- :class:`~airflow.providers.sqlite.operators.sqlite.SqliteOperator` - SQLite DB operator
+
+In addition to these basic building blocks, there are many more specific operators developed by the
+community that you can install additionally by installing community-maintained provider packages. You
+can install them by adding an extra (for example (``[mysql]``) when installing Airflow or by installing
+additional packages manually (for example ``apache-airflow-providers-mysql`` package).
+
+Some examples of popular operators are:
+
+- :class:`~airflow.providers.mysql.operators.mysql.MySqlOperator`
+- :class:`~airflow.providers.postgres.operators.postgres.PostgresOperator`
+- :class:`~airflow.providers.microsoft.mssql.operators.mssql.MsSqlOperator`
+- :class:`~airflow.providers.oracle.operators.oracle.OracleOperator`
+- :class:`~airflow.providers.jdbc.operators.jdbc.JdbcOperator`
+- :class:`~airflow.providers.docker.operators.docker.DockerOperator`
+- :class:`~airflow.providers.apache.hive.operators.hive.HiveOperator`
+- :class:`~airflow.providers.amazon.aws.operators.s3_file_transform.S3FileTransformOperator`
+- :class:`~airflow.providers.mysql.transfers.presto_to_mysql.PrestoToMySqlOperator`,
+- :class:`~airflow.providers.slack.operators.slack.SlackAPIOperator`
+
+But there are many, many more - you can see the list of those by following the providers documentation
+at :doc:`apache-airflow-providers:index`.
 
 Operators are only loaded by Airflow if they are assigned to a DAG.
 

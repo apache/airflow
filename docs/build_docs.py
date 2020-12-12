@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import argparse
-import fnmatch
+import os
 import sys
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
@@ -33,7 +33,9 @@ from docs.exts.docs_build.errors import (  # pylint: disable=no-name-in-module
     DocBuildError,
     display_errors_summary,
 )
+from docs.exts.docs_build.fetch_inventories import fetch_inventories  # pylint: disable=no-name-in-module
 from docs.exts.docs_build.github_action_utils import with_group  # pylint: disable=no-name-in-module
+from docs.exts.docs_build.package_filter import process_package_filters  # pylint: disable=no-name-in-module
 from docs.exts.docs_build.spelling_checks import (  # pylint: disable=no-name-in-module
     SpellingError,
     display_spelling_error_summary,
@@ -56,6 +58,34 @@ ERRORS_ELIGIBLE_TO_REBUILD = [
     'undefined label:',
     'unknown document:',
 ]
+
+ON_GITHUB_ACTIONS = os.environ.get('GITHUB_ACTIONS', 'false') == "true"
+TEXT_BLUE = '\033[94m'
+TEXT_RESET = '\033[0m'
+
+
+def _promote_new_flags():
+    print(TEXT_BLUE)
+    print("Tired of waiting for documentation to be built?")
+    print()
+    if ON_GITHUB_ACTIONS:
+        print("You can quickly build documentation locally with just one command.")
+        print("    ./breeze build-docs")
+        print()
+        print("Still too slow?")
+        print()
+    print("You can only build one documentation package:")
+    print("    ./breeze build-docs --package-filter <PACKAGE-NAME>")
+    print()
+    print("This usually takes from 20 seconds to 2 minutes.")
+    print()
+    print("You can also use other extra flags to iterate faster:")
+    print("   --docs-only       - Only build documentation")
+    print("   --spellcheck-only - Only perform spellchecking")
+    print()
+    print("For more info:")
+    print("   ./breeze build-docs --help")
+    print(TEXT_RESET)
 
 
 def _get_parser():
@@ -83,7 +113,7 @@ def _get_parser():
         '--for-production',
         dest='for_production',
         action='store_true',
-        help=('Builds documentation for official release i.e. all links point to stable version'),
+        help='Builds documentation for official release i.e. all links point to stable version',
     )
 
     return parser
@@ -95,17 +125,19 @@ def build_docs_for_packages(
     """Builds documentation for single package and returns errors"""
     all_build_errors: Dict[str, List[DocBuildError]] = defaultdict(list)
     all_spelling_errors: Dict[str, List[SpellingError]] = defaultdict(list)
-    for package_name in current_packages:
-        print("#" * 20, package_name, "#" * 20)
+    for package_no, package_name in enumerate(current_packages, start=1):
+        print("#" * 20, f"[{package_no}/{len(current_packages)}] {package_name}", "#" * 20)
         builder = AirflowDocsBuilder(package_name=package_name, for_production=for_production)
         builder.clean_files()
         if not docs_only:
-            spelling_errors = builder.check_spelling()
+            with with_group(f"Check spelling: {package_name}"):
+                spelling_errors = builder.check_spelling()
             if spelling_errors:
                 all_spelling_errors[package_name].extend(spelling_errors)
 
         if not spellcheck_only:
-            docs_errors = builder.build_sphinx_docs()
+            with with_group(f"Building docs: {package_name}"):
+                docs_errors = builder.build_sphinx_docs()
             if docs_errors:
                 all_build_errors[package_name].extend(docs_errors)
 
@@ -131,7 +163,6 @@ def display_packages_summary(
 
 
 def print_build_errors_and_exit(
-    message: str,
     build_errors: Dict[str, List[DocBuildError]],
     spelling_errors: Dict[str, List[SpellingError]],
 ) -> None:
@@ -143,7 +174,7 @@ def print_build_errors_and_exit(
         if spelling_errors:
             display_spelling_error_summary(spelling_errors)
             print()
-        print(message)
+        print("The documentation has errors.")
         display_packages_summary(build_errors, spelling_errors)
         print()
         print(CHANNEL_INVITATION)
@@ -154,25 +185,28 @@ def main():
     """Main code"""
     args = _get_parser().parse_args()
     available_packages = get_available_packages()
-    with with_group("Available packages"):
-        for pkg in available_packages:
-            print(f" - {pkg}")
-
     docs_only = args.docs_only
     spellcheck_only = args.spellcheck_only
     disable_checks = args.disable_checks
     package_filters = args.package_filter
     for_production = args.for_production
 
-    print("Current package filters: ", package_filters)
-    current_packages = (
-        [p for p in available_packages if any(fnmatch.fnmatch(p, f) for f in package_filters)]
-        if package_filters
-        else available_packages
-    )
-    with with_group(f"Documentation will be built for {len(current_packages)} package(s)"):
-        for pkg in current_packages:
+    if not package_filters:
+        _promote_new_flags()
+
+    with with_group("Available packages"):
+        for pkg in available_packages:
             print(f" - {pkg}")
+
+    if package_filters:
+        print("Current package filters: ", package_filters)
+    current_packages = process_package_filters(available_packages, package_filters)
+    with with_group(f"Documentation will be built for {len(current_packages)} package(s)"):
+        for pkg_no, pkg in enumerate(current_packages, start=1):
+            print(f"{pkg_no}. {pkg}")
+
+    with with_group("Fetching inventories"):
+        fetch_inventories()
 
     all_build_errors: Dict[Optional[str], List[DocBuildError]] = {}
     all_spelling_errors: Dict[Optional[str], List[SpellingError]] = {}
@@ -218,8 +252,11 @@ def main():
             all_build_errors[None] = general_errors
 
     dev_index_generator.generate_index(f"{DOCS_DIR}/_build/index.html")
+
+    if not package_filters:
+        _promote_new_flags()
+
     print_build_errors_and_exit(
-        "The documentation has errors.",
         all_build_errors,
         all_spelling_errors,
     )

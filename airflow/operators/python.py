@@ -254,7 +254,7 @@ T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 
 def task(
-    python_callable: Optional[Callable] = None, multiple_outputs: bool = False, **kwargs
+    python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
 ) -> Callable[[T], T]:
     """
     Python operator decorator. Wraps a function into an Airflow operator.
@@ -269,6 +269,12 @@ def task(
     :type multiple_outputs: bool
 
     """
+    # try to infer from  type annotation
+    if python_callable and multiple_outputs is None:
+        sig = signature(python_callable).return_annotation
+        ttype = getattr(sig, "__origin__", None)
+
+        multiple_outputs = sig != inspect.Signature.empty and ttype in (dict, Dict)
 
     def wrapper(f: T):
         """

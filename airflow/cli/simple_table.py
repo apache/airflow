@@ -60,6 +60,8 @@ class AirflowConsole(Console):
             return [self._normalize_data(x, output) for x in value]
         if isinstance(value, dict) and output != "table":
             return {k: self._normalize_data(v, output) for k, v in value.items()}
+        if value is None:
+            return None
         return str(value)
 
     def print_as(self, data: List[Union[Dict, Any]], output: str, mapper: Optional[Callable] = None):

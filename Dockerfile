@@ -144,9 +144,10 @@ RUN mkdir -pv /usr/share/man/man1 \
 ARG INSTALL_MYSQL_CLIENT="true"
 ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT}
 
-COPY scripts/docker scripts/docker
+COPY scripts/docker /scripts/docker
 COPY docker-context-files /docker-context-files
-
+# fix permission issue in Azure DevOps when running the script
+RUN chmod a+x /scripts/docker/install_mysql.sh
 RUN ./scripts/docker/install_mysql.sh dev
 
 ARG AIRFLOW_REPO=apache/airflow
@@ -372,7 +373,9 @@ RUN mkdir -pv /usr/share/man/man1 \
 ARG INSTALL_MYSQL_CLIENT="true"
 ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT}
 
-COPY scripts/docker scripts/docker
+COPY scripts/docker /scripts/docker
+# fix permission issue in Azure DevOps when running the script
+RUN chmod a+x /scripts/docker/install_mysql.sh
 RUN ./scripts/docker/install_mysql.sh prod
 
 ENV AIRFLOW_UID=${AIRFLOW_UID}

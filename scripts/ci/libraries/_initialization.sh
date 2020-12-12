@@ -26,6 +26,7 @@ CURRENT_MYSQL_VERSIONS=()
 CURRENT_KIND_VERSIONS=()
 CURRENT_HELM_VERSIONS=()
 ALL_PYTHON_MAJOR_MINOR_VERSIONS=()
+INSTALLED_PROVIDERS=()
 
 # Creates directories for Breeze
 function initialization::create_directories() {

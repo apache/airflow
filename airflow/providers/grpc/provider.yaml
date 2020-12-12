@@ -22,7 +22,7 @@ description: |
     `gRPC <https://grpc.io/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 integrations:
   - integration-name: gRPC
     external-doc-url: https://grpc.io/

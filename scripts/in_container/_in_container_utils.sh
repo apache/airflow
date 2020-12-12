@@ -393,10 +393,14 @@ function verify_suffix_versions_for_package_preparation() {
     fi
 
     if [[ ${VERSION_SUFFIX_FOR_SVN} =~ ^rc ]]; then
+        echo """
+${COLOR_YELLOW_WARNING} The version suffix for SVN is used only for file names.
+         The version inside the packages has no version suffix.
+         This way we can just rename files when they graduate to final release.
+${COLOR_RESET}
+"""
         echo
-        echo "${COLOR_RED_ERROR} The version suffix for SVN is used only for file names in RC version  ${COLOR_RESET}"
-        echo
-        echo "This suffix is only added to the files '${VERSION_SUFFIX_FOR_SVN}' "
+        echo "This suffix is added '${VERSION_SUFFIX_FOR_SVN}' "
         echo
         FILE_VERSION_SUFFIX=${VERSION_SUFFIX_FOR_SVN}
         VERSION_SUFFIX_FOR_SVN=""

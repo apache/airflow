@@ -22,7 +22,7 @@ description: |
     `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 
 integrations:
   - integration-name: Hypertext Transfer Protocol (HTTP)

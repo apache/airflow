@@ -322,3 +322,28 @@ Passwords cannot be manipulated or read without the key. For information on conf
 
 In addition to retrieving connections from environment variables or the metastore database, you can enable
 an secrets backend to retrieve connections. For more details see :doc:`/security/secrets/secrets-backend/index`.
+
+
+Custom connection types
+-----------------------
+
+Airflow allows to define custom connection types - including modification of the add/edit form for the
+connections. Custom connection types are defined in community maintained providers, but also you can add
+custom providers, that can add their own connection types. See :doc:`apache-airflow-providers:index`
+for description on how to add your own connection type via custom providers.
+
+The custom connection types are defined via Hooks delivered by the providers. The Hooks can implement
+methods defined in the protocol :class:`~airflow.hooks.base_hook.DiscoverableHook`. Note that your custom
+Hook should not derive from the class, the class is merely there to document expectations about class
+fields and methods that your Hook might define.
+
+By implementing those method in the hooks of yours and exposing them via ``hook-class-names`` array in
+the provider meta-data you can customize Airflow by:
+
+* Adding custom connection type
+* Adding automated Hook creation from the connection type
+* Adding custom form widget to display and edit custom "extra" parameters in your connection URL
+* Hiding fields that are not used for your connection
+* Adding placeholders showing examples of how fields should be formatted
+
+You can read more about details how to add custom connection type in the :doc:`apache-airflow-providers:index`

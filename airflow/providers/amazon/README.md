@@ -20,7 +20,7 @@
 
 # Package apache-airflow-providers-amazon
 
-Release: 1.0.0b2
+Release: 1.0.0
 
 **Table of contents**
 
@@ -44,10 +44,7 @@ Release: 1.0.0b2
     - [Secrets](#secrets)
         - [Moved secrets](#moved-secrets)
 - [Releases](#releases)
-    - [Release 1.0.0b2](#release-100b2)
-    - [Release 1.0.0b1](#release-100b1)
-    - [Release 0.0.2a1](#release-002a1)
-    - [Release 0.0.1](#release-001)
+    - [Release 1.0.0](#release-100)
 
 ## Provider package
 
@@ -58,6 +55,14 @@ are in `airflow.providers.amazon` python package.
 
 ## Installation
 
+NOTE!
+
+On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+`pip upgrade --pip==20.2.4` or, in case you use Pip 20.3, you need to add option
+`--use-deprecated legacy-resolver` to your pip install command.
+
 You can install this package on top of an existing airflow 2.* installation via
 `pip install apache-airflow-providers-amazon`
 
@@ -65,7 +70,8 @@ You can install this package on top of an existing airflow 2.* installation via
 
 | PIP package   | Version required   |
 |:--------------|:-------------------|
-| boto3         | &gt;=1.12.0,&lt;2.0.0    |
+| boto3         | &gt;=1.15.0,&lt;1.16.0   |
+| botocore      | &gt;=1.18.0,&lt;1.19.0   |
 | watchtower    | ~=0.7.3            |
 
 ## Cross provider package dependencies
@@ -260,59 +266,53 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ## Releases
 
-### Release 1.0.0b2
-
-| Commit                                                                                         | Committed   | Subject                                                                        |
-|:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------|
-| [7ca0b6f12](https://github.com/apache/airflow/commit/7ca0b6f121c9cec6e25de130f86a56d7c7fbe38c) | 2020-11-18  | Enable Markdownlint rule MD003/heading-style/header-style (#12427) (#12438)    |
-| [ae7cb4a1e](https://github.com/apache/airflow/commit/ae7cb4a1e2a96351f1976cf5832615e24863e05d) | 2020-11-17  | Update wrong commit hash in backport provider changes (#12390)                 |
-| [6889a333c](https://github.com/apache/airflow/commit/6889a333cff001727eb0a66e375544a28c9a5f03) | 2020-11-15  | Improvements for operators and hooks ref docs (#12366)                         |
-| [c94b1241a](https://github.com/apache/airflow/commit/c94b1241a144294f5f1c5f461d5e3b92e4a8fc38) | 2020-11-13  | Add extra error handling to S3 remote logging (#9908)                          |
-| [7825e8f59](https://github.com/apache/airflow/commit/7825e8f59034645ab3247229be83a3aa90baece1) | 2020-11-13  | Docs installation improvements (#12304)                                        |
-| [250436d96](https://github.com/apache/airflow/commit/250436d962c8c950d38c1eb5e54a998891648cc9) | 2020-11-10  | Fix spelling in Python files (#12230)                                          |
-| [85a18e13d](https://github.com/apache/airflow/commit/85a18e13d9dec84275283ff69e34704b60d54a75) | 2020-11-09  | Point at pypi project pages for cross-dependency of provider packages (#12212) |
-
-
-### Release 1.0.0b1
-
-| Commit                                                                                         | Committed   | Subject                                                                     |
-|:-----------------------------------------------------------------------------------------------|:------------|:----------------------------------------------------------------------------|
-| [59eb5de78](https://github.com/apache/airflow/commit/59eb5de78c70ee9c7ae6e4cba5c7a2babb8103ca) | 2020-11-09  | Update provider READMEs for up-coming 1.0.0beta1 releases (#12206)          |
-| [b2a28d159](https://github.com/apache/airflow/commit/b2a28d1590410630d66966aa1f2b2a049a8c3b32) | 2020-11-09  | Moves provider packages scripts to dev (#12082)                             |
-| [fcb6b00ef](https://github.com/apache/airflow/commit/fcb6b00efef80c81272a30cfc618202a29e0c6a9) | 2020-11-08  | Add authentication to AWS with Google credentials (#12079)                  |
-| [fb6bddba0](https://github.com/apache/airflow/commit/fb6bddba0c9e3e7ef2610b4fb3f73622e48d7ea0) | 2020-11-07  | In AWS Secrets backend, a lookup is optional (#12143)                       |
-| [cf9437d79](https://github.com/apache/airflow/commit/cf9437d79f9658d1309e4bfe847fe63d52ec7b99) | 2020-11-06  | Simplify string expressions (#12123)                                        |
-| [41bf172c1](https://github.com/apache/airflow/commit/41bf172c1dc75099f4f9d8b3f3350b4b1f523ef9) | 2020-11-04  | Simplify string expressions (#12093)                                        |
-| [4e8f9cc8d](https://github.com/apache/airflow/commit/4e8f9cc8d02b29c325b8a5a76b4837671bdf5f68) | 2020-11-03  | Enable Black - Python Auto Formmatter (#9550)                               |
-| [8c42cf1b0](https://github.com/apache/airflow/commit/8c42cf1b00c90f0d7f11b8a3a455381de8e003c5) | 2020-11-03  | Use PyUpgrade to use Python 3.6 features (#11447)                           |
-| [5e77a6154](https://github.com/apache/airflow/commit/5e77a61543d26e5466d885d639247aa5189c011d) | 2020-11-02  | Docstring fix for S3DeleteBucketOperator (#12049)                           |
-| [822285134](https://github.com/apache/airflow/commit/8222851348aa81424c9bdcea994e25e0d6692709) | 2020-10-29  | Add Template Fields to RedshiftToS3Operator &amp; S3ToRedshiftOperator (#11844) |
-| [db121f726](https://github.com/apache/airflow/commit/db121f726b3c7a37aca1ea05eb4714f884456005) | 2020-10-28  | Add truncate table (before copy) option to S3ToRedshiftOperator (#9246)     |
-| [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855)                                  |
-
-
-### Release 0.0.2a1
-
-| Commit                                                                                         | Committed   | Subject                                                            |
-|:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------|
-| [8afdb6ac6](https://github.com/apache/airflow/commit/8afdb6ac6a7997cb14806bc2734c81c00ed8da97) | 2020-10-26  | Fix spellings (#11825)                                             |
-| [872b1566a](https://github.com/apache/airflow/commit/872b1566a11cb73297e657ff325161721b296574) | 2020-10-25  | Generated backport providers readmes/setup for 2020.10.29 (#11826) |
-| [6ce855af1](https://github.com/apache/airflow/commit/6ce855af118daeaa4c249669079ab9d9aad23945) | 2020-10-24  | Fix spelling (#11821)                                              |
-| [3934ef224](https://github.com/apache/airflow/commit/3934ef22494db6d9613c229aaa82ea6a366b7c2f) | 2020-10-24  | Remove redundant builtins imports (#11809)                         |
-| [4c8e033c0](https://github.com/apache/airflow/commit/4c8e033c0ee7d28963d504a9216205155f20f58f) | 2020-10-24  | Fix spelling and grammar (#11814)                                  |
-| [483068745](https://github.com/apache/airflow/commit/48306874538eea7cfd42358d5ebb59705204bfc4) | 2020-10-24  | Use Python 3 style super classes (#11806)                          |
-| [0df60b773](https://github.com/apache/airflow/commit/0df60b773671ecf8d4e5f582ac2be200cf2a2edd) | 2020-10-23  | Add reattach flag to ECSOperator (#10643)                          |
-| [b9d677cdd](https://github.com/apache/airflow/commit/b9d677cdd660e0be8278a64658e73359276a9682) | 2020-10-22  | Add type hints to  aws provider (#11531)                           |
-| [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                                 |
-| [674368f66](https://github.com/apache/airflow/commit/674368f66cf61b2a105f326f23868ac3aee08807) | 2020-10-19  | Fixes MySQLToS3 float to int conversion (#10437)                   |
-| [0823d46a7](https://github.com/apache/airflow/commit/0823d46a7f267f2e45195a175021825367938add) | 2020-10-16  | Add type annotations for AWS operators and hooks (#11434)          |
-| [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)       |
-
-
-### Release 0.0.1
+### Release 1.0.0
 
 | Commit                                                                                         | Committed   | Subject                                                                                                                                                            |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [d5589673a](https://github.com/apache/airflow/commit/d5589673a95aaced0b851ea0a4061a010a924a82) | 2020-12-08  | Move dummy_operator.py to dummy.py (#11178) (#11293)                                                                                                               |
+| [b40dffa08](https://github.com/apache/airflow/commit/b40dffa08547b610162f8cacfa75847f3c4ca364) | 2020-12-08  | Rename remaing modules to match AIP-21 (#12917)                                                                                                                    |
+| [9b39f2478](https://github.com/apache/airflow/commit/9b39f24780e85f859236672e9060b2fbeee81b36) | 2020-12-08  | Add support for dynamic connection form fields per provider (#12558)                                                                                               |
+| [bd90136aa](https://github.com/apache/airflow/commit/bd90136aaf5035e3234fe545b79a3e4aad21efe2) | 2020-11-30  | Move operator guides to provider documentation packages (#12681)                                                                                                   |
+| [02d94349b](https://github.com/apache/airflow/commit/02d94349be3d201ce9d37d7358573c937fd010df) | 2020-11-29  | Don&#39;t use time.time() or timezone.utcnow() for duration calculations (#12353)                                                                                      |
+| [de3b1e687](https://github.com/apache/airflow/commit/de3b1e687b26c524c6909b7b4dfbb60d25019751) | 2020-11-28  | Move connection guides to provider documentation packages (#12653)                                                                                                 |
+| [663259d4b](https://github.com/apache/airflow/commit/663259d4b541ab10ce55fec4d2460e23917062c2) | 2020-11-25  | Fix AWS DataSync tests failing (#11020)                                                                                                                            |
+| [3fa51f94d](https://github.com/apache/airflow/commit/3fa51f94d7a17f170ddc31908d36c91f4456a20b) | 2020-11-24  | Add check for duplicates in provider.yaml files (#12578)                                                                                                           |
+| [ed09915a0](https://github.com/apache/airflow/commit/ed09915a02b9b99e60689e647452addaab1688fc) | 2020-11-23  | [AIRFLOW-5115] Bugfix for S3KeySensor failing to accept template_fields (#12389)                                                                                   |
+| [370e7d07d](https://github.com/apache/airflow/commit/370e7d07d1ed1a53b73fe878425fdcd4c71a7ed1) | 2020-11-21  | Fix Python Docstring parameters (#12513)                                                                                                                           |
+| [c34ef853c](https://github.com/apache/airflow/commit/c34ef853c890e08f5468183c03dc8f3f3ce84af2) | 2020-11-20  | Separate out documentation building per provider  (#12444)                                                                                                         |
+| [008035450](https://github.com/apache/airflow/commit/00803545023b096b8db4fbd6eb473843096d7ce4) | 2020-11-18  | Update provider READMEs for 1.0.0b2 batch release (#12449)                                                                                                         |
+| [7ca0b6f12](https://github.com/apache/airflow/commit/7ca0b6f121c9cec6e25de130f86a56d7c7fbe38c) | 2020-11-18  | Enable Markdownlint rule MD003/heading-style/header-style (#12427) (#12438)                                                                                        |
+| [ae7cb4a1e](https://github.com/apache/airflow/commit/ae7cb4a1e2a96351f1976cf5832615e24863e05d) | 2020-11-17  | Update wrong commit hash in backport provider changes (#12390)                                                                                                     |
+| [6889a333c](https://github.com/apache/airflow/commit/6889a333cff001727eb0a66e375544a28c9a5f03) | 2020-11-15  | Improvements for operators and hooks ref docs (#12366)                                                                                                             |
+| [c94b1241a](https://github.com/apache/airflow/commit/c94b1241a144294f5f1c5f461d5e3b92e4a8fc38) | 2020-11-13  | Add extra error handling to S3 remote logging (#9908)                                                                                                              |
+| [7825e8f59](https://github.com/apache/airflow/commit/7825e8f59034645ab3247229be83a3aa90baece1) | 2020-11-13  | Docs installation improvements (#12304)                                                                                                                            |
+| [250436d96](https://github.com/apache/airflow/commit/250436d962c8c950d38c1eb5e54a998891648cc9) | 2020-11-10  | Fix spelling in Python files (#12230)                                                                                                                              |
+| [85a18e13d](https://github.com/apache/airflow/commit/85a18e13d9dec84275283ff69e34704b60d54a75) | 2020-11-09  | Point at pypi project pages for cross-dependency of provider packages (#12212)                                                                                     |
+| [59eb5de78](https://github.com/apache/airflow/commit/59eb5de78c70ee9c7ae6e4cba5c7a2babb8103ca) | 2020-11-09  | Update provider READMEs for up-coming 1.0.0beta1 releases (#12206)                                                                                                 |
+| [b2a28d159](https://github.com/apache/airflow/commit/b2a28d1590410630d66966aa1f2b2a049a8c3b32) | 2020-11-09  | Moves provider packages scripts to dev (#12082)                                                                                                                    |
+| [fcb6b00ef](https://github.com/apache/airflow/commit/fcb6b00efef80c81272a30cfc618202a29e0c6a9) | 2020-11-08  | Add authentication to AWS with Google credentials (#12079)                                                                                                         |
+| [fb6bddba0](https://github.com/apache/airflow/commit/fb6bddba0c9e3e7ef2610b4fb3f73622e48d7ea0) | 2020-11-07  | In AWS Secrets backend, a lookup is optional (#12143)                                                                                                              |
+| [cf9437d79](https://github.com/apache/airflow/commit/cf9437d79f9658d1309e4bfe847fe63d52ec7b99) | 2020-11-06  | Simplify string expressions (#12123)                                                                                                                               |
+| [41bf172c1](https://github.com/apache/airflow/commit/41bf172c1dc75099f4f9d8b3f3350b4b1f523ef9) | 2020-11-04  | Simplify string expressions (#12093)                                                                                                                               |
+| [4e8f9cc8d](https://github.com/apache/airflow/commit/4e8f9cc8d02b29c325b8a5a76b4837671bdf5f68) | 2020-11-03  | Enable Black - Python Auto Formmatter (#9550)                                                                                                                      |
+| [8c42cf1b0](https://github.com/apache/airflow/commit/8c42cf1b00c90f0d7f11b8a3a455381de8e003c5) | 2020-11-03  | Use PyUpgrade to use Python 3.6 features (#11447)                                                                                                                  |
+| [5e77a6154](https://github.com/apache/airflow/commit/5e77a61543d26e5466d885d639247aa5189c011d) | 2020-11-02  | Docstring fix for S3DeleteBucketOperator (#12049)                                                                                                                  |
+| [822285134](https://github.com/apache/airflow/commit/8222851348aa81424c9bdcea994e25e0d6692709) | 2020-10-29  | Add Template Fields to RedshiftToS3Operator &amp; S3ToRedshiftOperator (#11844)                                                                                        |
+| [db121f726](https://github.com/apache/airflow/commit/db121f726b3c7a37aca1ea05eb4714f884456005) | 2020-10-28  | Add truncate table (before copy) option to S3ToRedshiftOperator (#9246)                                                                                            |
+| [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855)                                                                                                                         |
+| [8afdb6ac6](https://github.com/apache/airflow/commit/8afdb6ac6a7997cb14806bc2734c81c00ed8da97) | 2020-10-26  | Fix spellings (#11825)                                                                                                                                             |
+| [872b1566a](https://github.com/apache/airflow/commit/872b1566a11cb73297e657ff325161721b296574) | 2020-10-25  | Generated backport providers readmes/setup for 2020.10.29 (#11826)                                                                                                 |
+| [6ce855af1](https://github.com/apache/airflow/commit/6ce855af118daeaa4c249669079ab9d9aad23945) | 2020-10-24  | Fix spelling (#11821)                                                                                                                                              |
+| [3934ef224](https://github.com/apache/airflow/commit/3934ef22494db6d9613c229aaa82ea6a366b7c2f) | 2020-10-24  | Remove redundant builtins imports (#11809)                                                                                                                         |
+| [4c8e033c0](https://github.com/apache/airflow/commit/4c8e033c0ee7d28963d504a9216205155f20f58f) | 2020-10-24  | Fix spelling and grammar (#11814)                                                                                                                                  |
+| [483068745](https://github.com/apache/airflow/commit/48306874538eea7cfd42358d5ebb59705204bfc4) | 2020-10-24  | Use Python 3 style super classes (#11806)                                                                                                                          |
+| [0df60b773](https://github.com/apache/airflow/commit/0df60b773671ecf8d4e5f582ac2be200cf2a2edd) | 2020-10-23  | Add reattach flag to ECSOperator (#10643)                                                                                                                          |
+| [b9d677cdd](https://github.com/apache/airflow/commit/b9d677cdd660e0be8278a64658e73359276a9682) | 2020-10-22  | Add type hints to  aws provider (#11531)                                                                                                                           |
+| [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                                                                                                                                 |
+| [674368f66](https://github.com/apache/airflow/commit/674368f66cf61b2a105f326f23868ac3aee08807) | 2020-10-19  | Fixes MySQLToS3 float to int conversion (#10437)                                                                                                                   |
+| [0823d46a7](https://github.com/apache/airflow/commit/0823d46a7f267f2e45195a175021825367938add) | 2020-10-16  | Add type annotations for AWS operators and hooks (#11434)                                                                                                          |
+| [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)                                                                                                       |
 | [d38a0a781](https://github.com/apache/airflow/commit/d38a0a781e123c8c50313efdb23f767d6678afe0) | 2020-10-12  | added type hints for aws cloud formation (#11470)                                                                                                                  |
 | [d305876be](https://github.com/apache/airflow/commit/d305876bee328287ff391a29cc1cd632468cc731) | 2020-10-12  | Remove redundant None provided as default to dict.get() (#11448)                                                                                                   |
 | [c3e340584](https://github.com/apache/airflow/commit/c3e340584bf1892c4f73aa9e7495b5823dab0c40) | 2020-10-11  | Change prefix of AwsDynamoDB hook module (#11209)                                                                                                                  |

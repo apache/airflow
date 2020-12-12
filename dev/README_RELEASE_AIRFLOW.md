@@ -148,12 +148,10 @@ svn commit -m "Add artifacts for Airflow ${VERSION}"
 At this point we have the artefact that we vote on, but as a convenience to developers we also want to
 publish "snapshots" of the RC builds to pypi for installing via pip. To do this we need to
 
-- Edit the `setup.py` to include the RC suffix.
-
 - Build the package:
 
     ```shell script
-    python setup.py compile_assets sdist bdist_wheel
+    python setup.py compile_assets egg_info --tag-build "$(sed -e "s/^[0-9.]*//" <<<"$VERSION")" sdist bdist_wheel
     ```
 
 - Verify the artifacts that would be uploaded:
@@ -176,8 +174,6 @@ https://test.pypi.org/project/apache-airflow/#files
 
 - Again, confirm that the package is available here:
 https://pypi.python.org/pypi/apache-airflow
-
-- Throw away the change - we don't want to commit this: `git checkout setup.py`
 
 It is important to stress that this snapshot should not be named "release", and it
 is not supposed to be used by and advertised to the end-users who do not read the devlist.
@@ -516,13 +512,13 @@ At this point we release an official package:
 - Build the package:
 
     ```shell script
-    python setup.py compile_assets sdist bdist_wheel`
+    python setup.py compile_assets sdist bdist_wheel
     ```
 
 - Verify the artifacts that would be uploaded:
 
     ```shell script
-    twine check dist/*`
+    twine check dist/*
     ```
 
 - Upload the package to PyPi's test environment:
@@ -571,7 +567,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 
     ```shell script
     cd "${AIRFLOW_REPO_ROOT}"
-    ./breeze build-docs -- --package apache-airflow --for-production
+    ./breeze build-docs -- --package-filter apache-airflow --for-production
     ```
 
 - Now you can preview the documentation.

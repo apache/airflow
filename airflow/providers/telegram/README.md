@@ -20,40 +20,82 @@
 
 # Package apache-airflow-providers-telegram
 
+Release: 1.0.0
+
 **Table of contents**
 
 - [Provider package](#provider-package)
 - [Installation](#installation)
 - [PIP requirements](#pip-requirements)
-- [Cross provider package dependencies](#cross-provider-package-dependencies)
+- [Provider class summary](#provider-classes-summary)
+    - [Operators](#operators)
+        - [New operators](#new-operators)
+    - [Hooks](#hooks)
+        - [New hooks](#new-hooks)
+- [Releases](#releases)
+    - [Release 1.0.0](#release-100)
 
 ## Provider package
 
 This is a provider package for `telegram` provider. All classes for this provider package
 are in `airflow.providers.telegram` python package.
 
+
+
 ## Installation
+
+NOTE!
+
+On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+`pip upgrade --pip==20.2.4` or, in case you use Pip 20.3, you need to add option
+`--use-deprecated legacy-resolver` to your pip install command.
 
 You can install this package on top of an existing airflow 2.* installation via
 `pip install apache-airflow-providers-telegram`
 
 ## PIP requirements
 
-| PIP package           | Version required   |
-|:----------------------|:-------------------|
-| python-telegram-bot   | 13.0               |
+| PIP package         | Version required   |
+|:--------------------|:-------------------|
+| python-telegram-bot | ==13.0             |
 
-## Cross provider package dependencies
+# Provider classes summary
 
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified backport providers package in order to use them.
+In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `telegram` provider
+are in the `airflow.providers.telegram` package. You can read more about the naming conventions used
+in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-You can install such cross-provider dependencies when installing from PyPI. For example:
 
-```bash
-pip install apache-airflow-providers-telegram[http]
-```
+## Operators
 
-| Dependent package                                                                       | Extra   |
-|:----------------------------------------------------------------------------------------|:--------|
-| [apache-airflow-providers-http](https://pypi.org/project/apache-airflow-providers-http) | http    |
+
+### New operators
+
+| New Airflow 2.0 operators: `airflow.providers.telegram` package                                                                       |
+|:--------------------------------------------------------------------------------------------------------------------------------------|
+| [operators.telegram.TelegramOperator](https://github.com/apache/airflow/blob/master/airflow/providers/telegram/operators/telegram.py) |
+
+
+
+## Hooks
+
+
+### New hooks
+
+| New Airflow 2.0 hooks: `airflow.providers.telegram` package                                                               |
+|:--------------------------------------------------------------------------------------------------------------------------|
+| [hooks.telegram.TelegramHook](https://github.com/apache/airflow/blob/master/airflow/providers/telegram/hooks/telegram.py) |
+
+
+
+
+## Releases
+
+### Release 1.0.0
+
+| Commit                                                                                         | Committed   | Subject                                         |
+|:-----------------------------------------------------------------------------------------------|:------------|:------------------------------------------------|
+| [b40dffa08](https://github.com/apache/airflow/commit/b40dffa08547b610162f8cacfa75847f3c4ca364) | 2020-12-08  | Rename remaing modules to match AIP-21 (#12917) |
+| [cd66450b4](https://github.com/apache/airflow/commit/cd66450b4ee2a219ddc847970255e420ed679700) | 2020-12-05  | Add Telegram hook and operator (#11850)         |
