@@ -508,6 +508,9 @@ At this point, just follow the standard Airflow version upgrade process:
 
       The database upgrade may take a while depending on the number of DAGs in the database and the volume of history
       stored in the database for task history, xcom variables, etc.
+      In our testing, we saw that performing the Airflow database upgrade from Airflow 1.10.14 to Airflow 2.0
+      took between two to three minutes on an Airflow database on PostgreSQL with around 35,000 task instances and
+      500 DAGs.
       For a faster database upgrade and for better overall performance, it is recommended that you periodically archive
       the old historical elements which are no longer of value.
 
