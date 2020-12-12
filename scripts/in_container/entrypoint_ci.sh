@@ -103,7 +103,7 @@ if [[ -z ${INSTALL_AIRFLOW_VERSION=} ]]; then
     export PYTHONPATH=${AIRFLOW_SOURCES}
 elif [[ ${INSTALL_AIRFLOW_VERSION} == "none"  ]]; then
     echo
-    echo "Skip installing airflow - only install wheel packages that are present locally"
+    echo "Skip installing airflow - only install wheel/tar,gz packages that are present locally"
     echo
     uninstall_airflow_and_providers
 elif [[ ${INSTALL_AIRFLOW_VERSION} == "wheel"  ]]; then
@@ -112,6 +112,13 @@ elif [[ ${INSTALL_AIRFLOW_VERSION} == "wheel"  ]]; then
     echo
     uninstall_airflow_and_providers
     install_airflow_from_wheel "[all]"
+    uninstall_providers
+elif [[ ${INSTALL_AIRFLOW_VERSION} == "sdist"  ]]; then
+    echo
+    echo "Install airflow from sdist package with [all] extras but uninstalling providers."
+    echo
+    uninstall_airflow_and_providers
+    install_airflow_from_sdist "[all]"
     uninstall_providers
 else
     echo

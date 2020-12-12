@@ -921,16 +921,11 @@ function build_images::build_prod_images_from_packages() {
     # Build necessary provider packages
     runs::run_prepare_provider_packages "${INSTALLED_PROVIDERS[@]}"
 
-    mv "${AIRFLOW_SOURCES}/dist/"*.whl "${AIRFLOW_SOURCES}/docker-context-files/"
+    mv "${AIRFLOW_SOURCES}/dist/"* "${AIRFLOW_SOURCES}/docker-context-files/"
 
     # Build apache airflow packages
     build_airflow_packages::build_airflow_packages
 
-    # Remove generated tar.gz packages
-    rm -f "${AIRFLOW_SOURCES}/dist/"apache-airflow*.tar.gz
-
-    # move the packages to docker-context-files folder
-    mkdir -pv "${AIRFLOW_SOURCES}/docker-context-files"
     mv "${AIRFLOW_SOURCES}/dist/"* "${AIRFLOW_SOURCES}/docker-context-files/"
     build_images::build_prod_images
 }

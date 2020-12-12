@@ -272,13 +272,30 @@ function install_airflow_from_wheel() {
     local extras
     extras="${1}"
     local airflow_package
-    airflow_package=$(find /dist/ -maxdepth 1 -type f -name 'apache_airflow-*.whl')
+    airflow_package=$(find /dist/ -maxdepth 1 -type f -name 'apache_airflow-[0-9]*.whl')
     echo
     echo "Found package: ${airflow_package}. Installing."
     echo
     if [[ -z "${airflow_package}" ]]; then
         >&2 echo
         >&2 echo "ERROR! Could not find airflow wheel package to install in dist"
+        >&2 echo
+        exit 4
+    fi
+    pip install "${airflow_package}${1}" >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
+}
+
+function install_airflow_from_sdist() {
+    local extras
+    extras="${1}"
+    local airflow_package
+    airflow_package=$(find /dist/ -maxdepth 1 -type f -name 'apache-airflow-[0-9]*.tar.gz')
+    echo
+    echo "Found package: ${airflow_package}. Installing."
+    echo
+    if [[ -z "${airflow_package}" ]]; then
+        >&2 echo
+        >&2 echo "ERROR! Could not find airflow sdist package to install in dist"
         >&2 echo
         exit 4
     fi

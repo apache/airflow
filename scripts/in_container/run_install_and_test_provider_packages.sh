@@ -53,11 +53,20 @@ elif [[ ${INSTALL_AIRFLOW_VERSION} == "wheel"  ]]; then
     echo
     uninstall_airflow_and_providers
     install_airflow_from_wheel "[all]"
+    uninstall_providers
+elif [[ ${INSTALL_AIRFLOW_VERSION} == "sdist"  ]]; then
+    echo
+    echo "Install airflow from sdist including [all] extras"
+    echo
+    uninstall_airflow_and_providers
+    install_airflow_from_sdist "[all]"
+    uninstall_providers
 else
     echo
     echo "Install airflow from PyPI including [all] extras"
     echo
     install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}" "[all]"
+    uninstall_providers
 fi
 
 echo

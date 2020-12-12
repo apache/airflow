@@ -52,4 +52,6 @@ function pull_ci_image() {
 
 build_images::prepare_ci_build
 
+pull_ci_image
+
 verify_ci_image_dependencies

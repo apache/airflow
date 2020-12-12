@@ -618,6 +618,7 @@ production image. There are three types of build:
 |                                   |                        | GitHub repository tag or branch or "." to install from sources.                   |
 |                                   |                        | Note that installing from local sources requires appropriate values of the        |
 |                                   |                        | ``AIRFLOW_SOURCES_FROM`` and ``AIRFLOW_SOURCES_TO`` variables as described below. |
+|                                   |                        | Only used when ``INSTALL_FROM_PYPI`` is set to ``true``.                          |
 +-----------------------------------+------------------------+-----------------------------------------------------------------------------------+
 | ``AIRFLOW_INSTALL_VERSION``       |                        | Optional - might be used for package installation of different Airflow version    |
 |                                   |                        | for example"==1.10.14". For consistency, you should also set``AIRFLOW_VERSION``   |
