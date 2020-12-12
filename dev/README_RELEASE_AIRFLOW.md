@@ -609,13 +609,13 @@ At this point we release an official package:
 
 - Push Tag for the final version
 
-This step should only be done now and not before, because it triggers an automated build of
-the production docker image, using the packages that are currently released in PyPI
-(both airflow and latest provider packages).
+    This step should only be done now and not before, because it triggers an automated build of
+    the production docker image, using the packages that are currently released in PyPI
+    (both airflow and latest provider packages).
 
-```shell script
-git push origin ${VERSION}
-```
+    ```shell script
+    git push origin ${VERSION}
+    ```
 
 ## \[Optional\] - Manually prepare production Docker Image
 
