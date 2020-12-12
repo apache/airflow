@@ -17,7 +17,7 @@
 # under the License.
 
 from airflow.models import BaseOperator
-from hooks.glue_crawler import AwsGlueCrawlerHook
+from airflow.providers.amazon.aws.hooks.glue_crawler import AwsGlueCrawlerHook
 from typing import Optional
 from airflow.utils.decorators import apply_defaults
 
@@ -34,6 +34,8 @@ class AwsGlueCrawlerOperator(BaseOperator):
     :type glue_db_name = Optional[str]
     :param iam_role_name = AWS IAM role for glue crawler
     :type iam_role_name = Optional[str]
+    :param region_name = AWS region name (e.g. 'us-west-2')
+    :type region_name = Optional[str]
     :param s3_targets_configuration = Configurations for crawling AWS S3 paths
     :type s3_targets_configuration = Optional[list]
     :param jdbc_targets_configuration = Configurations for crawling JDBC paths
@@ -74,26 +76,27 @@ class AwsGlueCrawlerOperator(BaseOperator):
     def __init__(
         self,
         *,
-        crawler_name: str = 'aws_glue_default_crawler',
-        crawler_desc: str = 'AWS Glue Crawler with Airflow',
-        glue_db_name: str = 'default_db',
-        aws_conn_id: str = 'aws_default',
-        iam_role_name: Optional[str] = None,
-        s3_targets_configuration: Optional[dict] = None,
-        jdbc_targets_configuration: Optional[dict] = None,
-        mongo_targets_configuration: Optional[dict] = None,
-        dynamo_targets_configuration: Optional[dict] = None,
-        glue_catalog_targets_configuration: Optional[dict] = None,
-        cron_schedule: Optional[str] = None,
-        classifiers: Optional[list] = None,
-        table_prefix: Optional[list] = None,
-        update_behavior: Optional[str] = None,
-        delete_behavior: Optional[str] = None,
-        recrawl_behavior: Optional[str] = None,
-        lineage_settings: Optional[str] = None,
-        json_configuration: Optional[str] = None,
-        security_configuration: Optional[str] = None,
-        tags: Optional[dict] = None,
+        crawler_name='aws_glue_default_crawler',
+        crawler_desc='AWS Glue Crawler with Airflow',
+        aws_conn_id='aws_default',
+        glue_db_name=None,
+        iam_role_name=None,
+        region_name=None,
+        s3_targets_configuration=None,
+        jdbc_targets_configuration=None,
+        mongo_targets_configuration=None,
+        dynamo_targets_configuration=None,
+        glue_catalog_targets_configuration=None,
+        cron_schedule=None,
+        classifiers=None,
+        table_prefix=None,
+        update_behavior=None,
+        delete_behavior=None,
+        recrawl_behavior=None,
+        lineage_settings=None,
+        json_configuration=None,
+        security_configuration=None,
+        tags=None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -101,6 +104,7 @@ class AwsGlueCrawlerOperator(BaseOperator):
         self.crawler_desc = crawler_desc
         self.glue_db_name = glue_db_name
         self.iam_role_name = iam_role_name
+        self.region_name = region_name
         self.s3_targets_configuration = s3_targets_configuration
         self.jdbc_targets_configuration = jdbc_targets_configuration
         self.mongo_targets_configuration = mongo_targets_configuration
@@ -129,6 +133,7 @@ class AwsGlueCrawlerOperator(BaseOperator):
             crawler_desc = self.crawler_desc,
             glue_db_name = self.glue_db_name,
             iam_role_name = self.iam_role_name,
+            region_name = self.region_name,
             s3_targets_configuration = self.s3_targets_configuration,
             jdbc_targets_configuration = self.jdbc_targets_configuration,
             mongo_targets_configuration = self.mongo_targets_configuration,
