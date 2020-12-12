@@ -117,10 +117,10 @@ function build_images::forget_last_answer() {
 }
 
 function build_images::confirm_via_terminal() {
-    echo > "${DETECTED_TERMINAL}"
-    echo > "${DETECTED_TERMINAL}"
-    echo "Make sure that you rebased to latest master before rebuilding!" > "${DETECTED_TERMINAL}"
-    echo > "${DETECTED_TERMINAL}"
+    echo >"${DETECTED_TERMINAL}"
+    echo >"${DETECTED_TERMINAL}"
+    echo "Make sure that you rebased to latest master before rebuilding!" >"${DETECTED_TERMINAL}"
+    echo >"${DETECTED_TERMINAL}"
     # Make sure to use output of tty rather than stdin/stdout when available - this way confirm
     # will works also in case of pre-commits (git does not pass stdin/stdout to pre-commit hooks)
     # shellcheck disable=SC2094
@@ -217,6 +217,31 @@ function build_images::confirm_image_rebuild() {
     fi
 }
 
+function build_images::confirm_non-empty-docker-context-files() {
+    local num_docker_context_files
+    num_docker_context_files=$(find "${AIRFLOW_SOURCES}/docker-context-files/" -type f |\
+        grep -c v "README.md" )
+    if [[ ${num_docker_context_files} == "0" ]]; then
+        if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "false" ]]; then
+            >&2 echo
+            >&2 echo "ERROR! You want to install packages from docker-context-files"
+            >&2 echo "       but there are no packages to install in this folder."
+            >&2 echo
+            exit 1
+        fi
+    else
+        if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "false" ]]; then
+            >&2 echo
+            >&2 echo "ERROR! There are some extra files in docker-context-files except README.md"
+            >&2 echo "       And you did not choose --install-from-docker-context-files flag"
+            >&2 echo "       This might result in unnecessary cache invalidation and long build times"
+            >&2 echo "       Exiting now - please remove those files (except README.md) and retry"
+            >&2 echo
+            exit 2
+        fi
+    fi
+}
+
 # Builds local image manifest
 # It contains only one .json file - result of docker inspect - describing the image
 # We cannot use docker registry APIs as they are available only with authorisation
@@ -251,8 +276,8 @@ function build_images::get_local_build_cache_hash() {
         return
     fi
     docker cp "local-airflow-ci-container:/build-cache-hash" \
-        "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}" 2> /dev/null \
-        || touch "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}"
+        "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}" 2>/dev/null ||
+        touch "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}"
     set -e
     verbosity::print_info
     verbosity::print_info "Local build cache hash: '$(cat "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}")'"
@@ -305,8 +330,8 @@ function build_images::compare_local_and_remote_build_cache_hash() {
     local local_hash
     local_hash=$(cat "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}")
 
-    if [[ ${remote_hash} != "${local_hash}" ||
-        ${local_hash} == "" ]]; then
+    if [[ ${remote_hash} != "${local_hash}" || ${local_hash} == "" ]] \
+        ; then
         echo
         echo
         echo "Your image and the dockerhub have different or missing build cache hashes."
@@ -370,7 +395,7 @@ function build_images::get_docker_image_names() {
     export BUILT_CI_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_MAJOR_MINOR_VERSION}"
 
     # GitHub Registry names must be lowercase :(
-    github_repository_lowercase="$(echo "${GITHUB_REPOSITORY}" |tr '[:upper:]' '[:lower:]')"
+    github_repository_lowercase="$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
     export GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/${AIRFLOW_PROD_BASE_TAG}"
     export GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/${AIRFLOW_PROD_BASE_TAG}-build"
     export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
@@ -380,7 +405,7 @@ function build_images::get_docker_image_names() {
 }
 
 # If GitHub Registry is used, login to the registry using GITHUB_USERNAME and GITHUB_TOKEN
-function build_image::login_to_github_registry_if_needed()  {
+function build_image::login_to_github_registry_if_needed() {
     if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
         if [[ -n ${GITHUB_TOKEN=} ]]; then
             echo "${GITHUB_TOKEN}" | docker login \
@@ -454,9 +479,8 @@ function build_images::rebuild_ci_image_if_needed() {
             echo "Checking if the remote image needs to be pulled"
             echo
             build_images::get_remote_image_build_cache_hash
-            if [[ ${REMOTE_DOCKER_REGISTRY_UNREACHABLE:=} != "true" && \
-                  ${LOCAL_MANIFEST_IMAGE_UNAVAILABLE:=} != "true" ]]; then
-                    build_images::compare_local_and_remote_build_cache_hash
+            if [[ ${REMOTE_DOCKER_REGISTRY_UNREACHABLE:=} != "true" && ${LOCAL_MANIFEST_IMAGE_UNAVAILABLE:=} != "true" ]]; then
+                build_images::compare_local_and_remote_build_cache_hash
             else
                 FORCE_PULL_IMAGES="true"
             fi
@@ -572,7 +596,7 @@ function build_images::build_ci_image() {
         )
     fi
 
-    if [[ -n ${SPIN_PID:=""} ]]; then
+    if [[ -n ${SPIN_PID=} ]]; then
         kill -HUP "${SPIN_PID}" || true
         wait "${SPIN_PID}" || true
         echo >"${DETECTED_TERMINAL}"
@@ -624,8 +648,8 @@ Docker building ${AIRFLOW_CI_IMAGE}.
         --build-arg ADDITIONAL_RUNTIME_APT_COMMAND="${ADDITIONAL_RUNTIME_APT_COMMAND}" \
         --build-arg ADDITIONAL_RUNTIME_APT_DEPS="${ADDITIONAL_RUNTIME_APT_DEPS}" \
         --build-arg ADDITIONAL_RUNTIME_APT_ENV="${ADDITIONAL_RUNTIME_APT_ENV}" \
-        --build-arg INSTALL_AIRFLOW_VIA_PIP="${INSTALL_AIRFLOW_VIA_PIP}" \
-        --build-arg AIRFLOW_LOCAL_PIP_WHEELS="${AIRFLOW_LOCAL_PIP_WHEELS}" \
+        --build-arg INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI}" \
+        --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES}" \
         --build-arg UPGRADE_TO_LATEST_CONSTRAINTS="${UPGRADE_TO_LATEST_CONSTRAINTS}" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
@@ -655,7 +679,7 @@ Docker building ${AIRFLOW_CI_IMAGE}.
 # DockerHub user etc. the variables are set so that other functions can use those variables.
 function build_images::prepare_prod_build() {
     if [[ -n "${INSTALL_AIRFLOW_REFERENCE=}" ]]; then
-        # When --install-airflow-reference is used then the image is build from github tag
+        # When --install-airflow-reference is used then the image is build from GitHub tag
         EXTRA_DOCKER_PROD_BUILD_FLAGS=(
             "--build-arg" "AIRFLOW_INSTALLATION_METHOD=https://github.com/apache/airflow/archive/${INSTALL_AIRFLOW_REFERENCE}.tar.gz#egg=apache-airflow"
         )
@@ -758,8 +782,8 @@ function build_images::build_prod_images() {
         --build-arg ADDITIONAL_DEV_APT_DEPS="${ADDITIONAL_DEV_APT_DEPS}" \
         --build-arg ADDITIONAL_DEV_APT_ENV="${ADDITIONAL_DEV_APT_ENV}" \
         --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES}" \
-        --build-arg INSTALL_AIRFLOW_VIA_PIP="${INSTALL_AIRFLOW_VIA_PIP}" \
-        --build-arg AIRFLOW_LOCAL_PIP_WHEELS="${AIRFLOW_LOCAL_PIP_WHEELS}" \
+        --build-arg INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI}" \
+        --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES}" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
         "${DOCKER_CACHE_PROD_BUILD_DIRECTIVE[@]}" \
@@ -787,8 +811,8 @@ function build_images::build_prod_images() {
         --build-arg ADDITIONAL_RUNTIME_APT_DEPS="${ADDITIONAL_RUNTIME_APT_DEPS}" \
         --build-arg ADDITIONAL_RUNTIME_APT_ENV="${ADDITIONAL_RUNTIME_APT_ENV}" \
         --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES}" \
-        --build-arg INSTALL_AIRFLOW_VIA_PIP="${INSTALL_AIRFLOW_VIA_PIP}" \
-        --build-arg AIRFLOW_LOCAL_PIP_WHEELS="${AIRFLOW_LOCAL_PIP_WHEELS}" \
+        --build-arg INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI}" \
+        --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${AIRFLOW_BRANCH_FOR_PYPI_PRELOADING}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
@@ -888,18 +912,13 @@ function build_images::build_prod_images_from_packages() {
     rm -f "${AIRFLOW_SOURCES}/dist/"apache_airflow*.whl
     rm -f "${AIRFLOW_SOURCES}/dist/"apache-airflow*.tar.gz
 
-    # Remove all downloaded apache airflow packages
-    mv -f "${AIRFLOW_SOURCES}/dist/"* "${AIRFLOW_SOURCES}/docker-context-files/"
+    # Move all downloaded packages
+    mv -f "${AIRFLOW_SOURCES}/dist/"* "${AIRFLOW_SOURCES}/docker-context-files/" || true
 
     # Build apache airflow packages
     build_airflow_packages::build_airflow_packages
 
-    # Remove generated tar.gz packages
-    rm -f "${AIRFLOW_SOURCES}/dist/"apache-airflow*.tar.gz
-
-    # move the packages to docker-context-files folder
-    mkdir -pv "${AIRFLOW_SOURCES}/docker-context-files"
-    mv "${AIRFLOW_SOURCES}/dist/"* "${AIRFLOW_SOURCES}/docker-context-files/"
+    mv -f "${AIRFLOW_SOURCES}/dist/"* "${AIRFLOW_SOURCES}/docker-context-files/" || true
     build_images::build_prod_images
 }
 

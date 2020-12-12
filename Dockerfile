@@ -255,7 +255,7 @@ RUN if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then \
         pip install --user ${ADDITIONAL_PYTHON_DEPS} --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
     fi; \
     if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
-        if ls /docker-context-files/*.whl 1> /dev/null 2>&1; then \
+        if ls /docker-context-files/*.{whl,tar.gz} 1> /dev/null 2>&1; then \
             pip install --user --no-deps /docker-context-files/*.{whl,tar.gz}; \
         fi ; \
     fi; \

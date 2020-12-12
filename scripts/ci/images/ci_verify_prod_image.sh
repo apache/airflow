@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/../libraries/_script_init.sh"
 
 function verify_prod_image_has_airflow {
     echo
@@ -52,7 +52,6 @@ function verify_prod_image_has_airflow {
     fi
 }
 
-
 function verify_prod_image_dependencies {
 
     echo
@@ -70,7 +69,7 @@ function verify_prod_image_dependencies {
         # exit ${res}
     else
         echo
-        echo " \e[32mOK. The ${AIRFLOW_PROD_IMAGE} image dependencies are consistent.  ${COLOR_RESET}"
+        echo "${COLOR_GREEN_OK} The ${AIRFLOW_PROD_IMAGE} image dependencies are consistent.  ${COLOR_RESET}"
         echo
     fi
     set -e
@@ -89,6 +88,7 @@ function pull_prod_image() {
 
 build_images::prepare_prod_build
 
+pull_prod_image
 
 verify_prod_image_has_airflow
 

@@ -28,7 +28,6 @@ on:  # yamllint disable-line rule:truthy
 env:
 
   MOUNT_LOCAL_SOURCES: "false"
-  MOUNT_FILES: "true"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
   FORCE_PULL_IMAGES: "true"
   CHECK_IMAGE_FOR_REBUILD: "true"
@@ -42,6 +41,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.run_id }}"
   GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
+  INSTALL_PROVIDERS_FROM_SOURCES: "true"
 
   # You can switch between building the image in "Build Images" workflow or building them in CI workflow
   # Separately for each job.
@@ -195,6 +195,8 @@ jobs:
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
         if: needs.build-info.outputs.waitForImage == 'true'
+      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Verify CI image Py${{matrix.python-version}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_verify_ci_image.sh
         if: needs.build-info.outputs.waitForImage == 'true'
@@ -451,7 +453,7 @@ jobs:
           retention-days: 7
 
   tests-sqlite:
-    timeout-minutes: 60
+    timeout-minutes: 80
     name: >
       Sqlite Py${{matrix.python-version}}: ${{needs.build-info.outputs.testTypes}}
     runs-on: ubuntu-20.04
@@ -649,6 +651,8 @@ jobs:
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
         if: needs.build-info.outputs.waitForImage == 'true'
+      - name: "Prepare PROD Image"
+        run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
       - name: "Verify PROD image Py${{matrix.python-version}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_verify_prod_image.sh
         if: needs.build-info.outputs.waitForImage == 'true'

@@ -72,6 +72,9 @@ else
 fi
 
 if [[ -z ${INSTALL_AIRFLOW_VERSION=} ]]; then
+    echo
+    echo "Using already installed airflow version"
+    echo
     if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www_rbac/node_modules" ]]; then
         echo
         echo "Installing node modules as they are not yet installed (Sources mounted from Host)"
@@ -84,7 +87,7 @@ if [[ -z ${INSTALL_AIRFLOW_VERSION=} ]]; then
     if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www_rbac/static/dist" ]]; then
         pushd "${AIRFLOW_SOURCES}/airflow/www_rbac/" &>/dev/null || exit 1
         echo
-        echo "Building production version of javascript files (Sources mounted from Host)"
+        echo "Building production version of JavaScript files (Sources mounted from Host)"
         echo
         echo
         yarn run prod
@@ -98,12 +101,64 @@ if [[ -z ${INSTALL_AIRFLOW_VERSION=} ]]; then
     mkdir -p "${AIRFLOW_SOURCES}"/logs/
     mkdir -p "${AIRFLOW_SOURCES}"/tmp/
     export PYTHONPATH=${AIRFLOW_SOURCES}
+elif [[ ${INSTALL_AIRFLOW_VERSION} == "none"  ]]; then
+    echo
+    echo "Skip installing airflow - only install wheel/tar.gz packages that are present locally"
+    echo
+    uninstall_airflow_and_providers
+elif [[ ${INSTALL_AIRFLOW_VERSION} == "wheel"  ]]; then
+    echo
+    echo "Install airflow from wheel package with [all] extras but uninstalling providers."
+    echo
+    uninstall_airflow_and_providers
+    install_airflow_from_wheel "[all]"
+    uninstall_providers
+elif [[ ${INSTALL_AIRFLOW_VERSION} == "sdist"  ]]; then
+    echo
+    echo "Install airflow from sdist package with [all] extras but uninstalling providers."
+    echo
+    uninstall_airflow_and_providers
+    install_airflow_from_sdist "[all]"
+    uninstall_providers
 else
-    install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}"
+    echo
+    echo "Install airflow from PyPI including [all] extras"
+    echo
+    install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}" "[all]"
 fi
-
-if [[ ${INSTALL_WHEELS=} == "true" ]]; then
-  pip install /dist/*.whl || true
+if [[ ${INSTALL_PACKAGES_FROM_DIST=} == "true" ]]; then
+    echo
+    echo "Install all packages from dist folder"
+    if [[ ${INSTALL_AIRFLOW_VERSION} == "wheel" ]]; then
+        echo "(except apache-airflow)"
+    fi
+    if [[ ${PACKAGE_FORMAT} == "both" ]]; then
+        echo
+        echo "${COLOR_RED_ERROR}You can only specify 'wheel' or 'sdist' as PACKAGE_FORMAT not 'both'${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+    echo
+    installable_files=()
+    for file in /dist/*.{whl,tar.gz}
+    do
+        if [[ ${INSTALL_AIRFLOW_VERSION} == "wheel" && ${file} == "apache?airflow-[0-9]"* ]]; then
+            # Skip Apache Airflow package - it's just been installed above with extras
+            echo "Skipping ${file}"
+            continue
+        fi
+        if [[ ${PACKAGE_FORMAT} == "wheel" && ${file} == *".whl" ]]; then
+            echo "Adding ${file} to install"
+            installable_files+=( "${file}" )
+        fi
+        if [[ ${PACKAGE_FORMAT} == "sdist" && ${file} == *".tar.gz" ]]; then
+            echo "Adding ${file} to install"
+            installable_files+=( "${file}" )
+        fi
+    done
+    if (( ${#installable_files[@]} )); then
+        pip install "${installable_files[@]}" --no-deps
+    fi
 fi
 
 export RUN_AIRFLOW_1_10=${RUN_AIRFLOW_1_10:="false"}
@@ -126,24 +181,6 @@ if [[ ${ENVIRONMENT_EXIT_CODE} != 0 ]]; then
     echo "Error: check_environment returned ${ENVIRONMENT_EXIT_CODE}. Exiting."
     echo
     exit ${ENVIRONMENT_EXIT_CODE}
-fi
-
-
-if [[ ${INTEGRATION_KERBEROS:="false"} == "true" ]]; then
-    set +e
-    setup_kerberos
-    RES=$?
-    set -e
-
-    if [[ ${RES} != 0 ]]; then
-        echo
-        echo "ERROR !!!!Kerberos initialisation requested, but failed"
-        echo
-        echo "I will exit now, and you need to run 'breeze --integration kerberos restart'"
-        echo "to re-enter breeze and restart kerberos."
-        echo
-        exit 1
-    fi
 fi
 
 # Create symbolic link to fix possible issues with kubectl config cmd-path

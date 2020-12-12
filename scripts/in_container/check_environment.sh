@@ -16,9 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 # Script to check licences for all code. Can be started from any working directory
-# shellcheck source=scripts/in_container/_in_container_script_init.sh
-. "$(dirname "${BASH_SOURCE[0]}")/_in_container_script_init.sh"
-
 EXIT_CODE=0
 
 DISABLED_INTEGRATIONS=""
@@ -117,8 +114,6 @@ function startairflow_if_requested() {
         export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
 
-        . "$( dirname "${BASH_SOURCE[0]}" )/configure_environment.sh"
-
         # initialize db and create the admin user if it's a new run
         if [[ ${RUN_AIRFLOW_1_10} == "true" ]]; then
             airflow initdb
@@ -127,6 +122,7 @@ function startairflow_if_requested() {
             airflow create_user -u admin -p admin -f Thor -l Adminstra -r Admin -e dummy@dummy.email
         fi
 
+        # shellcheck source=scripts/in_container/run_init_script.sh
         . "$( dirname "${BASH_SOURCE[0]}" )/run_init_script.sh"
 
     fi
