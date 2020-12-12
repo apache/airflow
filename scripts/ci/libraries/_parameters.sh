@@ -26,7 +26,6 @@ function parameters::save_to_file() {
     # shellcheck disable=SC2005
     echo "$(eval echo "\$$1")" >"${BUILD_CACHE_DIR}/.$1"
 }
-
 # check if parameter set for the variable is allowed (should be on the _breeze_allowed list)
 # parameters:
 # $1 - name of the variable

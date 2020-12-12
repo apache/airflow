@@ -148,11 +148,25 @@ function initialization::initialize_base_variables() {
     export INSTALLED_EXTRAS="async,amazon,celery,kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,google,azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
     readonly INSTALLED_EXTRAS
 
-    PIP_VERSION="20.2.4"
+    # default version of PIP USED (This has to be < 20.3 until https://github.com/apache/airflow/issues/12838 is solved)
+    PIP_VERSION=${PIP_VERSION:="20.2.4"}
     export PIP_VERSION
 
-    WHEEL_VERSION="0.35.1"
+    # We also pin version of wheel used to get consistent builds
+    WHEEL_VERSION=${WHEEL_VERSION:="0.36.1"}
     export WHEEL_VERSION
+
+    # Sources by default are installed from local sources when using breeze/ci
+    AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM:="."}
+    export AIRFLOW_SOURCES_FROM
+
+    # They are copied to /opt/airflow by default (breeze and ci)
+    AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO:="/opt/airflow"}
+    export AIRFLOW_SOURCES_TO
+
+    # And installed from there (breeze and ci)
+    AIRFLOW_INSTALL_VERSION=${AIRFLOW_INSTALL_VERSION:="."}
+    export AIRFLOW_INSTALL_VERSION
 }
 
 # Determine current branch
@@ -461,6 +475,11 @@ function initialization::initialize_test_variables() {
     export TEST_TYPE=${TEST_TYPE:=""}
 }
 
+function initialization::initialize_package_variables() {
+    export PACKAGE_FORMAT=${PACKAGE_FORMAT:="wheel"}
+}
+
+
 function initialization::initialize_build_image_variables() {
     REMOTE_IMAGE_CONTAINER_ID_FILE="${AIRFLOW_SOURCES}/manifests/remote-airflow-manifest-image"
     LOCAL_IMAGE_BUILD_CACHE_HASH_FILE="${AIRFLOW_SOURCES}/manifests/local-build-cache-hash"
@@ -504,6 +523,7 @@ function initialization::initialize_common_environment() {
     initialization::initialize_git_variables
     initialization::initialize_github_variables
     initialization::initialize_test_variables
+    initialization::initialize_package_variables
     initialization::initialize_build_image_variables
 }
 
@@ -535,7 +555,6 @@ DockerHub variables:
 Mount variables:
 
     MOUNT_LOCAL_SOURCES: ${MOUNT_LOCAL_SOURCES}
-    MOUNT_FILES: ${MOUNT_FILES}
 
 Force variables:
 
@@ -597,15 +616,13 @@ Detected CI build environment:
     CI_BUILD_ID=${CI_BUILD_ID}
     CI_JOB_ID=${CI_JOB_ID}
     CI_EVENT_TYPE=${CI_EVENT_TYPE}
-    CI_SOURCE_REPO=${CI_SOURCE_REPO}
-    CI_SOURCE_BRANCH=${CI_SOURCE_BRANCH}
 
 Initialization variables:
 
     INIT_SCRIPT_FILE: ${INIT_SCRIPT_FILE=}
     LOAD_DEFAULT_CONNECTIONS: ${LOAD_DEFAULT_CONNECTIONS}
     LOAD_EXAMPLES: ${LOAD_EXAMPLES}
-    INSTALL_WHEELS: ${INSTALL_WHEELS=}
+    INSTALL_PACKAGES_FROM_DIST: ${INSTALL_PACKAGES_FROM_DIST=}
     DISABLE_RBAC: ${DISABLE_RBAC}
 
 Test variables:
@@ -629,30 +646,6 @@ function initialization::get_environment_for_builds_on_ci() {
         export CI_JOB_ID="${GITHUB_JOB}"
         export CI_EVENT_TYPE="${GITHUB_EVENT_NAME}"
         export CI_REF="${GITHUB_REF:=}"
-        if [[ ${CI_EVENT_TYPE:=} == "pull_request" ]]; then
-            # default name of the source repo (assuming it's forked without rename)
-            export SOURCE_AIRFLOW_REPO=${SOURCE_AIRFLOW_REPO:="airflow"}
-            # For Pull Requests it's ambiguous to find the PR and we need to
-            # assume that name of repo is airflow but it could be overridden in case it's not
-            export CI_SOURCE_REPO="${GITHUB_ACTOR}/${SOURCE_AIRFLOW_REPO}"
-            export CI_SOURCE_BRANCH="${GITHUB_HEAD_REF}"
-            BRANCH_EXISTS=$(git ls-remote --heads \
-                "https://github.com/${CI_SOURCE_REPO}.git" "${CI_SOURCE_BRANCH}" || true)
-            if [[ -z ${BRANCH_EXISTS=} ]]; then
-                verbosity::print_info
-                verbosity::print_info "https://github.com/${CI_SOURCE_REPO}.git Branch ${CI_SOURCE_BRANCH} does not exist"
-                verbosity::print_info
-                verbosity::print_info
-                verbosity::print_info "Fallback to https://github.com/${CI_TARGET_REPO}.git Branch ${CI_TARGET_BRANCH}"
-                verbosity::print_info
-                # Fallback to the target repository if the repo does not exist
-                export CI_SOURCE_REPO="${CI_TARGET_REPO}"
-                export CI_SOURCE_BRANCH="${CI_TARGET_BRANCH}"
-            fi
-        else
-            export CI_SOURCE_REPO="${CI_TARGET_REPO}"
-            export CI_SOURCE_BRANCH="${CI_TARGET_BRANCH}"
-        fi
     else
         # CI PR settings
         export CI_TARGET_REPO="${CI_TARGET_REPO="apache/airflow"}"
@@ -661,9 +654,6 @@ function initialization::get_environment_for_builds_on_ci() {
         export CI_JOB_ID="${CI_JOB_ID="0"}"
         export CI_EVENT_TYPE="${CI_EVENT_TYPE="pull_request"}"
         export CI_REF="${CI_REF="refs/head/master"}"
-
-        export CI_SOURCE_REPO="${CI_SOURCE_REPO="apache/airflow"}"
-        export CI_SOURCE_BRANCH="${DEFAULT_BRANCH="master"}"
     fi
 
     if [[ ${VERBOSE} == "true" && ${PRINT_INFO_FROM_SCRIPTS} == "true" ]]; then
@@ -726,8 +716,8 @@ function initialization::make_constants_read_only() {
     readonly IMAGE_TAG
 
     readonly AIRFLOW_PRE_CACHED_PIP_PACKAGES
-    readonly INSTALL_AIRFLOW_VIA_PIP
-    readonly AIRFLOW_LOCAL_PIP_WHEELS
+    readonly INSTALL_FROM_PYPI
+    readonly INSTALL_FROM_DOCKER_CONTEXT_FILES
     readonly AIRFLOW_CONSTRAINTS_REFERENCE
     readonly AIRFLOW_CONSTRAINTS_LOCATION
 

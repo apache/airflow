@@ -49,46 +49,83 @@ echo "DOCKER_TAG=${DOCKER_TAG}"
 echo "Detected PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION}"
 echo
 
-(
+if [[ ! "${DOCKER_TAG}" =~ ^[0-9].* ]]; then
+    echo
+    echo "Building airflow from branch or non-release tag: ${DOCKER_TAG}"
+    echo
+    # Only build and push CI image for the nightly-master, v1-10-test and v2-0-test branches
+    # for tagged releases we build everything from PyPI, so we do not need CI images
+    # For development images, we have to build all packages from current sources because we want to produce
+    # `Latest and greatest` image from those branches. We need to build and push CI image as well as PROD
+    # image but we need to build CI image first, in order to use it to prepare provider packages
+    # The CI image provides an environment where we can reproducibly download the right .whl packages
+    # and build the provider packages and then build the production image using those .whl packages
+    # prepared. This is as close as it can get to production images - everything is build from
+    # packages, but not from PyPI - those packages are built locally using the latest sources!
+
+    # Note - we need sub-processes here, because we can run _script_init.sh only once per process
+    # and it determines how to build the image - since we are building two images here
+    # we need to run those in sub-processes
+    (
+        export INSTALL_FROM_PYPI="true"
+        export INSTALL_FROM_DOCKER_CONTEXT_FILES="false"
+        export INSTALL_PROVIDERS_FROM_SOURCES="true"
+        export AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
+        export DOCKER_CACHE="pulled"
+        # shellcheck source=scripts/ci/libraries/_script_init.sh
+        . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+        echo
+        echo "Building and pushing CI image for ${PYTHON_MAJOR_MINOR_VERSION} in a sub-process"
+        echo
+        rm -rf "${BUILD_CACHE_DIR}"
+        rm -rf "${AIRFLOW_SOURCES}/docker-context-files/*"
+        build_images::prepare_ci_build
+        build_images::rebuild_ci_image_if_needed
+        push_pull_remove_images::push_ci_images
+    )
+    (
+        export INSTALL_FROM_PYPI="false"
+        export INSTALL_FROM_DOCKER_CONTEXT_FILES="true"
+        export INSTALL_PROVIDERS_FROM_SOURCES="false"
+        export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
+        export DOCKER_CACHE="pulled"
+        # shellcheck source=scripts/ci/libraries/_script_init.sh
+        . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+        echo
+        echo "Building and pushing PROD image for ${PYTHON_MAJOR_MINOR_VERSION} in a sub-process"
+        echo
+        rm -rf "${BUILD_CACHE_DIR}"
+        rm -rf "${AIRFLOW_SOURCES}/docker-context-files/*"
+        build_images::prepare_prod_build
+        build_images::build_prod_images_from_packages
+        push_pull_remove_images::push_prod_images
+    )
+else
+    echo
+    echo "Building airflow from release tag: ${DOCKER_TAG}"
+    echo
+    # This is an imaae built from the "release" tag (either RC or final one).
+    # In this case all packages are taken from PyPI rather than from locally built sources
     export INSTALL_FROM_PYPI="true"
     export INSTALL_FROM_DOCKER_CONTEXT_FILES="false"
-    export INSTALL_PROVIDERS_FROM_SOURCES="true"
-    export AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
-    export DOCKER_CACHE="pulled"
-    # shellcheck source=scripts/ci/libraries/_script_init.sh
-    . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
-
-    echo
-    echo "Building and pushing CI image for ${PYTHON_MAJOR_MINOR_VERSION} in a sub-process"
-    echo
-    rm -rf "${BUILD_CACHE_DIR}"
-    build_images::prepare_ci_build
-    build_images::rebuild_ci_image_if_needed
-    if [[ ! "${DOCKER_TAG}" =~ ^[0-9].* ]]; then
-        # Do not push if we are building a tagged version
-        push_pull_remove_images::push_ci_images
-    fi
-)
-
-(
-    export INSTALL_FROM_PYPI="false"
-    export INSTALL_FROM_DOCKER_CONTEXT_FILES="true"
     export INSTALL_PROVIDERS_FROM_SOURCES="false"
     export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
-    export DOCKER_CACHE="pulled"
+    export DOCKER_CACHE="local"
+    # Name the image based on the TAG rather than based on the branch name
+    export FORCE_AIRFLOW_PROD_BASE_TAG="${DOCKER_TAG}"
+    export AIRFLOW_CONSTRAINTS_REFERENCE="constraints-${INSTALL_AIRFLOW_VERSION}"
+    export AIRFLOW_SOURCES_FROM="empty"
+    export AIRFLOW_SOURCES_TO="/empty"
+    export INSTALL_AIRFLOW_VERSION="${DOCKER_TAG%-python*}"
 
-    if [[ "${DOCKER_TAG}" =~ ^[0-9].* ]]; then
-        # Disable cache and set name of the tag as image name if we are building a tagged version
-        export DOCKER_CACHE="disabled"
-        export FORCE_AIRFLOW_PROD_BASE_TAG="${DOCKER_TAG}"
-    fi
     # shellcheck source=scripts/ci/libraries/_script_init.sh
     . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
     echo
     echo "Building and pushing PROD image for ${PYTHON_MAJOR_MINOR_VERSION} in a sub-process"
     echo
     rm -rf "${BUILD_CACHE_DIR}"
+    rm -rf "${AIRFLOW_SOURCES}/docker-context-files/*"
     build_images::prepare_prod_build
-    build_images::build_prod_images_from_packages
+    build_images::build_prod_images
     push_pull_remove_images::push_prod_images
-)
+fi
