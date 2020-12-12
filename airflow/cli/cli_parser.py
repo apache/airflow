@@ -1490,7 +1490,7 @@ airflow_commands: List[CLICommand] = [
         name='plugins',
         help='Dump information about loaded plugins',
         func=lazy_load_command('airflow.cli.commands.plugins_command.dump_plugins'),
-        args=(),
+        args=(ARG_OUTPUT,),
     ),
     GroupCommand(
         name="celery",
