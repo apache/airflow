@@ -68,6 +68,9 @@ and python versions in the URL.
     # For example: https://raw.githubusercontent.com/apache/airflow/constraints-1.10.14/constraints-3.6.txt
     pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
+    Please note that with respect to Python 3 support, Airflow 1.10.14 has been
+    tested with Python 3.6, 3.7, and 3.8, but does not yet support Python 3.9.
+
 2. Installing with extras (for example postgres, google)
 
 .. note::
