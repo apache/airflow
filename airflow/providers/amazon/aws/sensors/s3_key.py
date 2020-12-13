@@ -179,8 +179,6 @@ class S3KeySizeSensor(S3KeySensor):
                 for k in page['Contents']:
                     if isinstance(k.get('Size', None), (int, float):
                         keys.append(k)
-
-
         return keys
 
     def summarizer_fn(self, data: List) -> bool:
