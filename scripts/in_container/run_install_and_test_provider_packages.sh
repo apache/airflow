@@ -49,28 +49,28 @@ if [[ ${INSTALL_AIRFLOW_VERSION} == "none"  ]]; then
     uninstall_airflow_and_providers
 elif [[ ${INSTALL_AIRFLOW_VERSION} == "wheel"  ]]; then
     echo
-    echo "Install airflow from wheel including [all] extras"
+    echo "Install airflow from wheel including [${AIRFLOW_EXTRAS}] extras"
     echo
     uninstall_airflow_and_providers
-    install_airflow_from_wheel "[all]"
+    install_airflow_from_wheel "[${AIRFLOW_EXTRAS}]"
     uninstall_providers
 elif [[ ${INSTALL_AIRFLOW_VERSION} == "sdist"  ]]; then
     echo
-    echo "Install airflow from sdist including [all] extras"
+    echo "Install airflow from sdist including [${AIRFLOW_EXTRAS}] extras"
     echo
     uninstall_airflow_and_providers
-    install_airflow_from_sdist "[all]"
+    install_airflow_from_sdist "[${AIRFLOW_EXTRAS}]"
     uninstall_providers
 else
     echo
-    echo "Install airflow from PyPI including [all] extras"
+    echo "Install airflow from PyPI including [${AIRFLOW_EXTRAS}] extras"
     echo
-    install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}" "[all]"
+    install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}" "[${AIRFLOW_EXTRAS}]"
     uninstall_providers
 fi
 
 echo
-echo "Installs all remaining dependencies that are not installed by 'all' "
+echo "Installs all remaining dependencies that are not installed by '${AIRFLOW_EXTRAS}' "
 echo
 install_remaining_dependencies
 

@@ -333,13 +333,6 @@ function uninstall_airflow_and_providers() {
     uninstall_airflow
 }
 
-function install_all_airflow_dependencies() {
-    echo
-    echo "Installing dependencies from 'all' extras"
-    echo
-    pip install ".[all]" >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
-}
-
 function install_released_airflow_version() {
     local version="${1}"
     local extras="${2}"

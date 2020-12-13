@@ -370,6 +370,7 @@ jobs:
       # In this case we want to install airflow from the latest released 1.10 version
       # all provider packages are installed from wheels or .tar.gz files
       INSTALL_AIRFLOW_VERSION: "1.10.14"
+      AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       BACKPORT_PACKAGES: "true"
       VERSION_SUFFIX_FOR_PYPI: "rc1"
@@ -414,6 +415,7 @@ jobs:
     needs: [build-info, ci-images]
     env:
       INSTALL_AIRFLOW_VERSION: "${{ matrix.package-format }}"
+      AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       VERSION_SUFFIX_FOR_PYPI: "rc1"
       PACKAGE_FORMAT: ${{ matrix.package-format }}
@@ -835,7 +837,6 @@ jobs:
       BACKEND: postgres
       RUN_TESTS: "true"
       RUNTIME: "kubernetes"
-      ENABLE_KIND_CLUSTER: "true"
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
       KUBERNETES_MODE: "${{ matrix.kubernetes-mode }}"
       KUBERNETES_VERSION: "${{ matrix.kubernetes-version }}"

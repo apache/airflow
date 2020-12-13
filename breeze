@@ -58,7 +58,6 @@ export EXTRA_STATIC_CHECK_OPTIONS
 #    SCREEN_WIDTH
 #    MOUNT_LOCAL_SOURCES
 #    FORCE_PULL_IMAGES
-#    ENABLE_KIND_CLUSTER
 #    FORWARD_CREDENTIALS
 #    DB_RESET
 #    START_AIRFLOW
@@ -100,9 +99,6 @@ function breeze::setup_default_breeze_constants() {
     # By default we only pull images if we do not have them locally.
     # This can be overridden by '--force-pull-images' flag
     export FORCE_PULL_IMAGES="false"
-
-    # Do not enable Kind Kubernetes cluster by default
-    export ENABLE_KIND_CLUSTER="false"
 
     # Forward common host credentials to docker (gcloud, aws etc.).
     export FORWARD_CREDENTIALS="false"
@@ -829,7 +825,9 @@ function breeze::parse_arguments() {
             INSTALL_AIRFLOW_VERSION="${2}"
             # Reference is mutually exclusive with version
             INSTALL_AIRFLOW_REFERENCE=""
-            echo "Installs version of Airflow: ${INSTALL_AIRFLOW_VERSION}"
+            # Skip mounting local sources when airflow is installed from remote
+            INSTALL_PROVIDERS_FROM_SOURCES="false"
+            echo "Installs version of Airflow: ${INSTALL_AIRFLOW_VERSION} and skip mounting sources"
             echo
             shift 2
             ;;
@@ -837,6 +835,8 @@ function breeze::parse_arguments() {
             INSTALL_AIRFLOW_REFERENCE="${2}"
             # Reference is mutually exclusive with version
             INSTALL_AIRFLOW_VERSION=""
+            # Skip mounting local sources when airflow is installed from remote
+            INSTALL_PROVIDERS_FROM_SOURCES="false"
             echo "Installs Airflow from reference: ${INSTALL_AIRFLOW_REFERENCE}"
             echo
             shift 2

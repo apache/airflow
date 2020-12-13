@@ -276,7 +276,7 @@ function initialization::initialize_mount_variables() {
         "-v" "${AIRFLOW_SOURCES}/files:/files"
         "-v" "${AIRFLOW_SOURCES}/dist:/dist"
         "--rm"
-        "--env-file" "${AIRFLOW_SOURCES}/scripts/ci/libraries/_docker.env"
+        "--env-file" "${AIRFLOW_SOURCES}/scripts/ci/docker-compose/_docker.env"
     )
     export EXTRA_DOCKER_FLAGS
 }
@@ -425,8 +425,6 @@ function initialization::initialize_provider_package_building() {
 
 # Determine versions of kubernetes cluster and tools used
 function initialization::initialize_kubernetes_variables() {
-    # By default we assume the kubernetes cluster is not being started
-    export ENABLE_KIND_CLUSTER=${ENABLE_KIND_CLUSTER:="false"}
     # Currently supported versions of Kubernetes
     CURRENT_KUBERNETES_VERSIONS+=("v1.18.6" "v1.17.5" "v1.16.9")
     export CURRENT_KUBERNETES_VERSIONS
@@ -700,7 +698,6 @@ function initialization::make_constants_read_only() {
     readonly HOST_HOME
     readonly HOST_OS
 
-    readonly ENABLE_KIND_CLUSTER
     readonly KUBERNETES_MODE
     readonly KUBERNETES_VERSION
     readonly KIND_VERSION
