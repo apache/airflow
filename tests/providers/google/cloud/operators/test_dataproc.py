@@ -19,7 +19,7 @@ import inspect
 import unittest
 from datetime import datetime
 from unittest import mock
-from unittest.mock import call, MagicMock, Mock
+from unittest.mock import MagicMock, Mock, call
 
 import pytest
 from google.api_core.exceptions import AlreadyExists, NotFound
@@ -210,10 +210,18 @@ class DataprocTestBase(unittest.TestCase):
     def setUpClass(cls):
         cls.dagbag = DagBag(dag_folder="/dev/null", include_examples=False)
         cls.dag = DAG(TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
-        cls.mock_ti = MagicMock()
-        cls.mock_context = {"ti": cls.mock_ti}
-        cls.extra_links_manager_mock = Mock()
-        cls.extra_links_manager_mock.attach_mock(cls.mock_ti, 'ti')
+
+    def setUp(self):
+        self.mock_ti = MagicMock()
+        self.mock_context = {"ti": self.mock_ti}
+        self.extra_links_manager_mock = Mock()
+        self.extra_links_manager_mock.attach_mock(self.mock_ti, 'ti')
+
+    def tearDown(self):
+        self.mock_ti = MagicMock()
+        self.mock_context = {"ti": self.mock_ti}
+        self.extra_links_manager_mock = Mock()
+        self.extra_links_manager_mock.attach_mock(self.mock_ti, 'ti')
 
     @classmethod
     def tearDownClass(cls):
@@ -395,7 +403,7 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
             'timeout': TIMEOUT,
             'metadata': METADATA,
             'cluster_config': CONFIG,
-            'labels': LABELS
+            'labels': LABELS,
         }
         expected_calls = self.extra_links_expected_calls_base + [
             call.hook().create_cluster(**create_cluster_args),
@@ -421,12 +429,15 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
         self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         to_dict_mock.assert_called_once_with(mock_hook().create_cluster().result())
         mock_hook.return_value.create_cluster.assert_called_once_with(**create_cluster_args)
         self.mock_ti.xcom_push.assert_called_once_with(
-            key="cluster_conf", value=DATAPROC_CLUSTER_CONF_EXPECTED, execution_date=None,
+            key="cluster_conf",
+            value=DATAPROC_CLUSTER_CONF_EXPECTED,
+            execution_date=None,
         )
 
     @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
@@ -450,7 +461,8 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
         )
         op.execute(context=self.mock_context)
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.create_cluster.assert_called_once_with(
             region=GCP_LOCATION,
@@ -569,7 +581,7 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
             task_id=TASK_ID,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
-            cluster=CLUSTER,
+            cluster_name=CLUSTER_NAME,
             delete_on_error=True,
             gcp_conn_id=GCP_CONN_ID,
             dag=self.dag,
@@ -595,7 +607,8 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
 
         # Assert operator link is empty for deserialized task when no XCom push occured
         self.assertEqual(
-            deserialized_task.get_extra_links(DEFAULT_DATE, DataprocClusterLink.name), "",
+            deserialized_task.get_extra_links(DEFAULT_DATE, DataprocClusterLink.name),
+            "",
         )
 
         ti.xcom_push(key="cluster_conf", value=DATAPROC_CLUSTER_CONF_EXPECTED)
@@ -608,7 +621,8 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
 
         # Assert operator links after execution
         self.assertEqual(
-            op.get_extra_links(DEFAULT_DATE, DataprocClusterLink.name), DATAPROC_CLUSTER_LINK_EXPECTED,
+            op.get_extra_links(DEFAULT_DATE, DataprocClusterLink.name),
+            DATAPROC_CLUSTER_LINK_EXPECTED,
         )
 
         # Check negative case
@@ -657,11 +671,14 @@ class TestDataprocClusterScaleOperator(DataprocClusterTestBase):
         self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.update_cluster.assert_called_once_with(**update_cluster_args)
         self.mock_ti.xcom_push.assert_called_once_with(
-            key="cluster_conf", value=DATAPROC_CLUSTER_CONF_EXPECTED, execution_date=None,
+            key="cluster_conf",
+            value=DATAPROC_CLUSTER_CONF_EXPECTED,
+            execution_date=None,
         )
 
     def test_operator_extra_links(self):
@@ -697,7 +714,8 @@ class TestDataprocClusterScaleOperator(DataprocClusterTestBase):
 
         # Assert operator link is empty for deserialized task when no XCom push occured
         self.assertEqual(
-            deserialized_task.get_extra_links(DEFAULT_DATE, DataprocClusterLink.name), "",
+            deserialized_task.get_extra_links(DEFAULT_DATE, DataprocClusterLink.name),
+            "",
         )
 
         ti.xcom_push(key="cluster_conf", value=DATAPROC_CLUSTER_CONF_EXPECTED)
@@ -710,7 +728,8 @@ class TestDataprocClusterScaleOperator(DataprocClusterTestBase):
 
         # Assert operator links after execution
         self.assertEqual(
-            op.get_extra_links(DEFAULT_DATE, DataprocClusterLink.name), DATAPROC_CLUSTER_LINK_EXPECTED,
+            op.get_extra_links(DEFAULT_DATE, DataprocClusterLink.name),
+            DATAPROC_CLUSTER_LINK_EXPECTED,
         )
 
         # Check negative case
@@ -749,6 +768,13 @@ class TestDataprocClusterDeleteOperator(unittest.TestCase):
 class TestDataprocSubmitJobOperator(DataprocJobTestBase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
+        xcom_push_call = call.ti.xcom_push(
+            execution_date=None, key='job_conf', value=DATAPROC_JOB_CONF_EXPECTED
+        )
+        wait_for_job_call = call.hook().wait_for_job(
+            job_id=TEST_JOB_ID, location=GCP_LOCATION, project_id=GCP_PROJECT, timeout=None
+        )
+
         job = {}
         mock_hook.return_value.wait_for_job.return_value = None
         mock_hook.return_value.submit_job.return_value.reference.job_id = TEST_JOB_ID
@@ -769,10 +795,15 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         op.execute(context=self.mock_context)
 
         # Test whether xcom push occurs before polling for job
-        self.extra_links_manager_mock.assert_has_calls(self.extra_links_expected_calls, any_order=False)
+        self.assertLess(
+            self.extra_links_manager_mock.mock_calls.index(xcom_push_call),
+            self.extra_links_manager_mock.mock_calls.index(wait_for_job_call),
+            msg='Xcom push for Job Link has to be done before polling for job status',
+        )
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT,
@@ -784,7 +815,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             metadata=METADATA,
         )
         mock_hook.return_value.wait_for_job.assert_called_once_with(
-            job_id=job_id, project_id=GCP_PROJECT, location=GCP_LOCATION, timeout=None
+            job_id=TEST_JOB_ID, project_id=GCP_PROJECT, location=GCP_LOCATION, timeout=None
         )
 
         self.mock_ti.xcom_push.assert_called_once_with(
@@ -794,9 +825,8 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_async(self, mock_hook):
         job = {}
-        job_id = "job_id"
         mock_hook.return_value.wait_for_job.return_value = None
-        mock_hook.return_value.submit_job.return_value.reference.job_id = job_id
+        mock_hook.return_value.submit_job.return_value.reference.job_id = TEST_JOB_ID
 
         op = DataprocSubmitJobOperator(
             task_id=TASK_ID,
@@ -827,6 +857,10 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             metadata=METADATA,
         )
         mock_hook.return_value.wait_for_job.assert_not_called()
+
+        self.mock_ti.xcom_push.assert_called_once_with(
+            key="job_conf", value=DATAPROC_JOB_CONF_EXPECTED, execution_date=None
+        )
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_on_kill(self, mock_hook):
@@ -896,11 +930,13 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
 
         # Assert operator links are preserved in deserialized tasks
         self.assertEqual(
-            deserialized_task.get_extra_links(DEFAULT_DATE, DataprocJobLink.name), DATAPROC_JOB_LINK_EXPECTED,
+            deserialized_task.get_extra_links(DEFAULT_DATE, DataprocJobLink.name),
+            DATAPROC_JOB_LINK_EXPECTED,
         )
         # Assert operator links after execution
         self.assertEqual(
-            op.get_extra_links(DEFAULT_DATE, DataprocJobLink.name), DATAPROC_JOB_LINK_EXPECTED,
+            op.get_extra_links(DEFAULT_DATE, DataprocJobLink.name),
+            DATAPROC_JOB_LINK_EXPECTED,
         )
         # Check for negative case
         self.assertEqual(op.get_extra_links(datetime(2020, 7, 20), DataprocJobLink.name), "")
@@ -949,11 +985,14 @@ class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
         self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.update_cluster.assert_called_once_with(**update_cluster_args)
         self.mock_ti.xcom_push.assert_called_once_with(
-            key="cluster_conf", value=DATAPROC_CLUSTER_CONF_EXPECTED, execution_date=None,
+            key="cluster_conf",
+            value=DATAPROC_CLUSTER_CONF_EXPECTED,
+            execution_date=None,
         )
 
     def test_operator_extra_links(self):
@@ -989,7 +1028,8 @@ class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
 
         # Assert operator link is empty for deserialized task when no XCom push occured
         self.assertEqual(
-            deserialized_task.get_extra_links(DEFAULT_DATE, DataprocClusterLink.name), "",
+            deserialized_task.get_extra_links(DEFAULT_DATE, DataprocClusterLink.name),
+            "",
         )
 
         ti.xcom_push(key="cluster_conf", value=DATAPROC_CLUSTER_CONF_EXPECTED)
@@ -1001,7 +1041,8 @@ class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
         )
         # Assert operator links after execution
         self.assertEqual(
-            op.get_extra_links(DEFAULT_DATE, DataprocClusterLink.name), DATAPROC_CLUSTER_LINK_EXPECTED,
+            op.get_extra_links(DEFAULT_DATE, DataprocClusterLink.name),
+            DATAPROC_CLUSTER_LINK_EXPECTED,
         )
         # Check for negative case
         self.assertEqual(op.get_extra_links(datetime(2020, 7, 20), DataprocClusterLink.name), "")
@@ -1108,7 +1149,8 @@ class TestDataProcHiveOperator(unittest.TestCase):
         )
         op.execute(context=MagicMock())
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT, job=self.job, location=GCP_LOCATION
@@ -1169,7 +1211,8 @@ class TestDataProcPigOperator(unittest.TestCase):
         )
         op.execute(context=MagicMock())
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT, job=self.job, location=GCP_LOCATION
@@ -1236,7 +1279,8 @@ class TestDataProcSparkSqlOperator(unittest.TestCase):
         )
         op.execute(context=MagicMock())
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT, job=self.job, location=GCP_LOCATION
@@ -1292,7 +1336,10 @@ class TestDataProcSparkOperator(DataprocJobTestBase):
     main_class = "org.apache.spark.examples.SparkPi"
     jars = ["file:///usr/lib/spark/examples/jars/spark-examples.jar"]
     job = {
-        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + TEST_JOB_ID,},
+        "reference": {
+            "project_id": GCP_PROJECT,
+            "job_id": "{{task.task_id}}_{{ds_nodash}}_" + TEST_JOB_ID,
+        },
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "spark_job": {"jar_file_uris": jars, "main_class": main_class},
@@ -1371,17 +1418,20 @@ class TestDataProcSparkOperator(DataprocJobTestBase):
 
         # Assert operator links after task execution
         self.assertEqual(
-            op.get_extra_links(DEFAULT_DATE, DataprocJobLink.name), DATAPROC_JOB_LINK_EXPECTED,
+            op.get_extra_links(DEFAULT_DATE, DataprocJobLink.name),
+            DATAPROC_JOB_LINK_EXPECTED,
         )
 
         # Assert operator links are preserved in deserialized tasks
         self.assertEqual(
-            deserialized_task.get_extra_links(DEFAULT_DATE, DataprocJobLink.name), DATAPROC_JOB_LINK_EXPECTED,
+            deserialized_task.get_extra_links(DEFAULT_DATE, DataprocJobLink.name),
+            DATAPROC_JOB_LINK_EXPECTED,
         )
 
         # Assert for negative case
         self.assertEqual(
-            deserialized_task.get_extra_links(datetime(2020, 7, 20), DataprocJobLink.name), "",
+            deserialized_task.get_extra_links(datetime(2020, 7, 20), DataprocJobLink.name),
+            "",
         )
 
 
