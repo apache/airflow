@@ -113,10 +113,10 @@ else
     export DOCKER_CACHE="local"
     # Name the image based on the TAG rather than based on the branch name
     export FORCE_AIRFLOW_PROD_BASE_TAG="${DOCKER_TAG}"
-    export AIRFLOW_CONSTRAINTS_REFERENCE="constraints-${INSTALL_AIRFLOW_VERSION}"
     export AIRFLOW_SOURCES_FROM="empty"
     export AIRFLOW_SOURCES_TO="/empty"
     export INSTALL_AIRFLOW_VERSION="${DOCKER_TAG%-python*}"
+    export AIRFLOW_CONSTRAINTS_REFERENCE="constraints-${INSTALL_AIRFLOW_VERSION}"
 
     # shellcheck source=scripts/ci/libraries/_script_init.sh
     . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
