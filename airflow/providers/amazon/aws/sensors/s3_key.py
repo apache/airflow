@@ -166,18 +166,23 @@ class S3KeySizeSensor(S3KeySensor):
     def get_files(self, s3_hook: S3Hook) -> List:
         prefix = self.bucket_key
         delimiter = '/'
+        config = {
+            'PageSize': None,
+            'MaxItems': None,
+        }
         if self.wildcard_match:
-            prefix = re.split(r'[*]', wildcard_key, 1)[0]
+            prefix = re.split(r'[*]', self.bucket_key, 1)[0]
 
         paginator = self.get_conn().get_paginator('list_objects_v2')
         response = paginator.paginate(
-            Bucket=self.bucket_name, Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
+            Bucket=self.bucket_name, Prefix=prefix, Delimiter=delimiter,
+            PaginationConfig=config
         )
         keys = []
         for page in response:
             if 'Contents' in page:
                 for k in page['Contents']:
-                    if isinstance(k.get('Size', None), (int, float):
+                    if isinstance(k.get('Size', None), (int, float)):
                         keys.append(k)
         return keys
 
