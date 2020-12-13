@@ -68,6 +68,10 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             with open(self.handler.baseFilename, 'w'):
                 pass
 
+        # Ensure the hook is connected now -- at close time we will have
+        # already disconnected from the DB
+        self.hook
+
     def close(self):
         """Close and upload local log file to remote storage S3."""
         # When application exit, system shuts down all handlers by

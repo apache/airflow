@@ -109,6 +109,10 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         self.log_relative_path = self._render_filename(ti, ti.try_number)
         self.upload_on_close = not ti.raw
 
+        # Ensure the client is connected now -- at close time we will have
+        # already disconnected from the DB
+        self.client
+
     def close(self):
         """Close and upload local log file to remote storage GCS."""
         # When application exit, system shuts down all handlers by
