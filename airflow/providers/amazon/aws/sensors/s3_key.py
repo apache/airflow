@@ -17,6 +17,7 @@
 # under the License.
 from typing import Optional, Union, List, Callable
 from urllib.parse import urlparse
+import re
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -158,15 +159,29 @@ class S3KeySizeSensor(S3KeySensor):
         if super().poke(context=context) is False:
             return False
 
-        s3_objects = self.get_size(s3_hook=self.get_hook())
+        s3_objects = self.get_files(s3_hook=self.get_hook())
 
         return self.summarizer_fn(s3_objects)
 
-    def get_files(self, s3_hook: S3Hook):
-        return [f for f in s3_hook.get_conn().list_objects_v2(
-            Bucket=self.bucket_name,
-            Prefix=self.bucket_key
-        ).get('Contents', []) if isinstance(f.get('Size', None), (int, float)]
+    def get_files(self, s3_hook: S3Hook) -> List:
+        prefix = self.bucket_key
+        delimiter = '/'
+        if self.wildcard_match:
+            prefix = re.split(r'[*]', wildcard_key, 1)[0]
+
+        paginator = self.get_conn().get_paginator('list_objects_v2')
+        response = paginator.paginate(
+            Bucket=self.bucket_name, Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
+        )
+        keys = []
+        for page in response:
+            if 'Contents' in page:
+                for k in page['Contents']:
+                    if isinstance(k.get('Size', None), (int, float):
+                        keys.append(k)
+
+
+        return keys
 
     def summarizer_fn(self, data: List) -> bool:
         return sum([f.get('Size', 0) for f in data if isinstance(f, dict)]) > 0
