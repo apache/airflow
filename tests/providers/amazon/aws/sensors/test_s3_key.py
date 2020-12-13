@@ -27,6 +27,7 @@ from airflow.models import TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.variable import Variable
 from airflow.providers.amazon.aws.sensors.s3_key import S3KeySensor
+from airflow.providers.amazon.aws.sensors.s3_key import S3KeySizeSensor
 
 
 class TestS3KeySensor(unittest.TestCase):
@@ -120,4 +121,36 @@ class TestS3KeySensor(unittest.TestCase):
         mock_check_for_wildcard_key.assert_called_once_with(op.bucket_key, op.bucket_name)
 
         mock_check_for_wildcard_key.return_value = True
+        self.assertTrue(op.poke(None))
+
+
+class TestS3KeySizeSensor(unittest.TestCase):
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3_key.S3Hook')
+    def test_poke(self, mock_hook):
+        op = S3KeySizeSensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file')
+
+        mock_check_for_key = mock_hook.return_value.check_for_key
+        mock_check_for_key.return_value = False
+        self.assertFalse(op.poke(None))
+        mock_check_for_key.assert_called_once_with(op.bucket_key, op.bucket_name)
+
+        mock_hook.return_value.check_for_key.return_value = True
+        list_objects_v2 = mock_hook.return_value.list_objects_v2
+        list_objects_v2.return_value = {}
+        self.assertFalse(op.poke(None))
+
+        list_objects_v2 = mock_hook.return_value.list_objects_v2
+        list_objects_v2.return_value = {'Contents': [
+            {
+                'Size': 0
+            }
+        ]}
+        self.assertFalse(op.poke(None))
+
+        list_objects_v2 = mock_hook.return_value.list_objects_v2
+        list_objects_v2.return_value = {'Contents': [
+            {
+                'Size': 1
+            }
+        ]}
         self.assertTrue(op.poke(None))

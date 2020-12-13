@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional, Union
+from typing import Optional, Union, List, Callable
 from urllib.parse import urlparse
 
 from airflow.exceptions import AirflowException
@@ -106,3 +106,67 @@ class S3KeySensor(BaseSensorOperator):
 
         self.hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         return self.hook
+
+
+class S3KeySizeSensor(S3KeySensor):
+    """
+    Waits for a key (a file-like instance on S3) to be present and be more than
+    some size in a S3 bucket.
+    S3 being a key/value it does not support folders. The path is just a key
+    a resource.
+
+    :param bucket_key: The key being waited on. Supports full s3:// style url
+        or relative path from root level. When it's specified as a full s3://
+        url, please leave bucket_name as `None`.
+    :type bucket_key: str
+    :param bucket_name: Name of the S3 bucket. Only needed when ``bucket_key``
+        is not provided as a full s3:// url.
+    :type bucket_name: str
+    :param wildcard_match: whether the bucket_key should be interpreted as a
+        Unix wildcard pattern
+    :type wildcard_match: bool
+    :param aws_conn_id: a reference to the s3 connection
+    :type aws_conn_id: str
+    :param verify: Whether or not to verify SSL certificates for S3 connection.
+        By default SSL certificates are verified.
+        You can provide the following values:
+
+        - ``False``: do not validate SSL certificates. SSL will still be used
+                 (unless use_ssl is False), but SSL certificates will not be
+                 verified.
+        - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
+                 You can specify this argument if you want to use a different
+                 CA cert bundle than the one used by botocore.
+    :type verify: bool or str
+    :param summarizer_fn: function that receives the list of the S3 objects,
+        and returns the boolean.
+    :type summarizer_fn: Optional[Callable[..., bool]]
+
+    """
+    @apply_defaults
+    def __init__(
+        self,
+        *,
+        summarizer_fn: Optional[Callable[..., bool]] = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        if summarizer_fn:
+            self.summarizer_fn = summarizer_fn
+
+    def poke(self, context):
+        if super().poke(context=context) is False:
+            return False
+
+        s3_objects = self.get_size(s3_hook=self.get_hook())
+
+        return self.summarizer_fn(s3_objects)
+
+    def get_files(self, s3_hook: S3Hook):
+        return [f for f in s3_hook.get_conn().list_objects_v2(
+            Bucket=self.bucket_name,
+            Prefix=self.bucket_key
+        ).get('Contents', []) if isinstance(f.get('Size', None), (int, float)]
+
+    def summarizer_fn(self, data: List) -> bool:
+        return sum([f.get('Size', 0) for f in data if isinstance(f, dict)]) > 0
