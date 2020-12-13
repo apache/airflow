@@ -1275,6 +1275,6 @@ and slightly modified and consensus reached in October 2020:
 
 Resources & Links
 =================
-- `Airflow’s official documentation <http://airflow.apache.org/>`__
+- `Airflow’s official documentation <https://airflow.apache.org/>`__
 
 - `More resources and links to Airflow related content on the Wiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links>`__

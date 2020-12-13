@@ -151,7 +151,7 @@ from my_plugin import MyOperator
 
 The name under `airflow.operators.` was the plugin name, where as in the second example it is the python module name where the operator is defined.
 
-See http://airflow.apache.org/docs/stable/howto/custom-operator.html for more info.
+See https://airflow.apache.org/docs/stable/howto/custom-operator.html for more info.
 
 ### Importing Hooks via plugins is no longer supported
 
@@ -169,7 +169,7 @@ from my_plugin import MyHook
 
 It is still possible (but not required) to "register" hooks in plugins. This is to allow future support for dynamically populating the Connections form in the UI.
 
-See http://airflow.apache.org/docs/stable/howto/custom-operator.html for more info.
+See https://airflow.apache.org/docs/stable/howto/custom-operator.html for more info.
 
 ### Adding Operators and Sensors via plugins is no longer supported
 
@@ -1875,7 +1875,7 @@ session_lifetime_minutes = 43200
 The ability to import Operators, Hooks and Sensors via the plugin mechanism has been deprecated and will raise warnings
 in Airflow 1.10.13 and will be removed completely in Airflow 2.0.
 
-Check http://airflow.apache.org/docs/1.10.13/howto/custom-operator.html to see how you can create and import
+Check https://airflow.apache.org/docs/1.10.13/howto/custom-operator.html to see how you can create and import
 Custom Hooks, Operators and Sensors.
 
 ## Airflow 1.10.12

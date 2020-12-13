@@ -14,7 +14,7 @@
     "type": "git",
     "url": "git+https://github.com/apache/airflow.git"
   },
-  "homepage": "http://airflow.apache.org/",
+  "homepage": "https://airflow.apache.org/",
   "keywords": [
     "big",
     "data",
