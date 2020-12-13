@@ -23,20 +23,6 @@ from airflow.plugins_manager import PluginsDirectorySource
 from airflow.utils.cli import suppress_logs_and_warning
 
 # list to maintain the order of items.
-
-PLUGINS_MANAGER_ATTRIBUTES_TO_DUMP = [
-    "plugins",
-    "import_errors",
-    "macros_modules",
-    "executors_modules",
-    "flask_blueprints",
-    "flask_appbuilder_views",
-    "flask_appbuilder_menu_links",
-    "global_operator_extra_links",
-    "operator_extra_links",
-    "registered_operator_link_classes",
-]
-# list to maintain the order of items.
 PLUGINS_ATTRIBUTES_TO_DUMP = [
     "source",
     "hooks",
@@ -83,7 +69,7 @@ def dump_plugins(args):
 
     # Remove empty info
     if args.output == "table":  # pylint: disable=too-many-nested-blocks
-        for col in list(plugins_info[0].keys()):  # it will exist as there's at least one plugin
+        for col in list(plugins_info[0]):  # it will exist as there's at least one plugin
             if all(not bool(p[col]) for p in plugins_info):
                 for plugin in plugins_info:
                     del plugin[col]

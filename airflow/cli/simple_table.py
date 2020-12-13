@@ -64,9 +64,7 @@ class AirflowConsole(Console):
             return [self._normalize_data(x, output) for x in value]
         if isinstance(value, dict) and output != "table":
             return {k: self._normalize_data(v, output) for k, v in value.items()}
-        if isinstance(value, PluginsDirectorySource):
-            return str(value)
-        if inspect.isclass(value):
+        if inspect.isclass(value) and not isinstance(value, PluginsDirectorySource):
             return value.__name__
         if value is None:
             return None
