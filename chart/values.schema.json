@@ -633,6 +633,29 @@
                   "description": "Airflow 2.0 allows users to run multiple schedulers. This feature is only recommended for Mysql 8+ and postgres",
                   "type": "integer"
                 },
+                "livenessProbe": {
+                    "description": "Liveness probe configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Scheduler Liveness probe initial delay.",
+                            "type": "integer"
+                        },
+                        "timeoutSeconds": {
+                            "description": "Scheduler Liveness probe timeout seconds.",
+                            "type": "integer"
+                        },
+                        "failureThreshold": {
+                            "description": "Scheduler Liveness probe failure threshold.",
+                            "type": "integer"
+                        },
+                        "periodSeconds": {
+                            "description": "Scheduler Liveness probe period seconds.",
+                            "type": "integer"
+                        }
+                    }
+                },
                 "podDisruptionBudget": {
                     "description": "Scheduler pod disruption budget.",
                     "type": "object",
