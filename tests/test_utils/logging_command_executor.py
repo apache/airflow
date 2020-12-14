@@ -39,7 +39,7 @@ class LoggingCommandExecutor(LoggingMixin):
                 cwd=cwd,
                 env=env,
             )
-            output, err = process.communicate(timeout=60)
+            output, err = process.communicate(timeout=timeout)
             retcode = process.poll()
             self.log.info("Stdout: %s", output)
             self.log.info("Stderr: %s", err)
