@@ -1,4 +1,4 @@
-# Editable install with no version control (apache-airflow==2.0.0b3)
+# Editable install with no version control (apache-airflow==2.0.0)
 APScheduler==3.6.3
 Authlib==0.15.2
 Babel==2.9.0
@@ -366,6 +366,7 @@ snowflake-connector-python==2.3.6
 snowflake-sqlalchemy==1.2.4
 sortedcontainers==2.3.0
 soupsieve==2.0.1
+sphinx-airflow-theme==0.0.2
 sphinx-argparse==0.2.5
 sphinx-autoapi==1.0.0
 sphinx-copybutton==0.3.1
