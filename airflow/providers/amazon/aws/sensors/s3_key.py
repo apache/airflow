@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional, Union, List, Callable
-from urllib.parse import urlparse
 import re
+from typing import Callable, List, Optional, Union
+from urllib.parse import urlparse
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -175,8 +175,7 @@ class S3KeySizeSensor(S3KeySensor):
 
         paginator = s3_hook.get_conn().get_paginator('list_objects_v2')
         response = paginator.paginate(
-            Bucket=self.bucket_name, Prefix=prefix, Delimiter=delimiter,
-            PaginationConfig=config
+            Bucket=self.bucket_name, Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
         )
         keys = []
         for page in response:
