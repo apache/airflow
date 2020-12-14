@@ -144,6 +144,7 @@ class S3KeySizeSensor(S3KeySensor):
     :type summarizer_fn: Optional[Callable[..., bool]]
 
     """
+
     @apply_defaults
     def __init__(
         self,
