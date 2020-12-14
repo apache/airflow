@@ -61,7 +61,7 @@ def _is_outdated(path: str):
 
 
 def fetch_inventories():
-    """Fetch all inventories for Airflow documentatio packages and store in cache."""
+    """Fetch all inventories for Airflow documentation packages and store in cache."""
     os.makedirs(os.path.dirname(CACHE_DIR), exist_ok=True)
     to_download = []
 

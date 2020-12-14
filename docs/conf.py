@@ -386,7 +386,7 @@ autodoc_default_options = {'show-inheritance': True, 'members': True}
 # be linked to in this documentation.
 # Inventories are only downloaded once by docs/exts/docs_build/fetch_inventories.py.
 intersphinx_mapping = {
-    pkg_name: (THIRD_PARTY_INDEXES[pkg_name], (f'{INVENTORY_CACHE_DIR}/{pkg_name}/objects.inv',))
+    pkg_name: (f"{THIRD_PARTY_INDEXES[pkg_name]}/", (f'{INVENTORY_CACHE_DIR}/{pkg_name}/objects.inv',))
     for pkg_name in [
         'boto3',
         'celery',
@@ -402,7 +402,10 @@ intersphinx_mapping = {
 if PACKAGE_NAME in ('apache-airflow-providers-google', 'apache-airflow'):
     intersphinx_mapping.update(
         {
-            pkg_name: (THIRD_PARTY_INDEXES[pkg_name], (f'{INVENTORY_CACHE_DIR}/{pkg_name}/objects.inv',))
+            pkg_name: (
+                f"{THIRD_PARTY_INDEXES[pkg_name]}/",
+                (f'{INVENTORY_CACHE_DIR}/{pkg_name}/objects.inv',),
+            )
             for pkg_name in [
                 'google-api-core',
                 'google-cloud-automl',
