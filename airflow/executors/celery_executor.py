@@ -116,6 +116,7 @@ def _execute_in_fork(command_to_exec: CommandType) -> None:
         ret = 1
     finally:
         Sentry.flush()
+        logging.shutdown()
         os._exit(ret)  # pylint: disable=protected-access
 
 
