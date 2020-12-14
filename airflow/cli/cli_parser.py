@@ -1023,17 +1023,13 @@ POOLS_COMMANDS = (
         name='import',
         help='Import pools',
         func=lazy_load_command('airflow.cli.commands.pool_command.pool_import'),
-        args=(
-            ARG_POOL_IMPORT,
-        ),
+        args=(ARG_POOL_IMPORT,),
     ),
     ActionCommand(
         name='export',
         help='Export all pools',
         func=lazy_load_command('airflow.cli.commands.pool_command.pool_export'),
-        args=(
-            ARG_POOL_EXPORT,
-        ),
+        args=(ARG_POOL_EXPORT,),
     ),
 )
 VARIABLES_COMMANDS = (
