@@ -244,10 +244,7 @@ def main():
             all_spelling_errors.update(package_spelling_errors)
 
     if not disable_checks:
-        general_errors = []
-        general_errors.extend(lint_checks.check_guide_links_in_operator_descriptions())
-        general_errors.extend(lint_checks.check_enforce_code_block())
-        general_errors.extend(lint_checks.check_exampleinclude_for_example_dags())
+        general_errors = lint_checks.run_all_check()
         if general_errors:
             all_build_errors[None] = general_errors
 
