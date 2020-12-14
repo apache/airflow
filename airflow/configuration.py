@@ -65,7 +65,11 @@ def expand_env_var(env_var):
 
 
 def run_command(command):
-    """Runs command and returns stdout"""
+    """
+    Runs command and returns stdout.
+
+    Any process that takes longer than 60 seconds is automatically terminated.
+    """
     process = subprocess.Popen(
         shlex.split(command), stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True
     )

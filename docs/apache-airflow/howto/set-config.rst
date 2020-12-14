@@ -78,6 +78,8 @@ the same way the usual config options can. For example:
 
     export AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD=bash_command_to_run
 
+Process cannot execute for more than 60 seconds. Otherwise it will be terminated.
+
 Similarly, ``_secret`` config options can also be set using a corresponding environment variable.
 For example:
 
