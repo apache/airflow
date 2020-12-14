@@ -46,7 +46,7 @@ class SnowflakeToS3Operator(BaseOperator):
         or hardcoded one like ``type = csv field_delimiter = ',' skip_header = 1``
     :type file_format: str
     :param query_or_table: query or full table to unload. If table, it must include the schema like
-        ``schema.table`
+        `schema.table`
     :type query_or_table: str
     :param snowflake_conn_id: reference to a specific snowflake database
     :type snowflake_conn_id: str`
