@@ -1025,7 +1025,6 @@ POOLS_COMMANDS = (
         func=lazy_load_command('airflow.cli.commands.pool_command.pool_import'),
         args=(
             ARG_POOL_IMPORT,
-            ARG_OUTPUT,
         ),
     ),
     ActionCommand(
@@ -1034,7 +1033,6 @@ POOLS_COMMANDS = (
         func=lazy_load_command('airflow.cli.commands.pool_command.pool_export'),
         args=(
             ARG_POOL_EXPORT,
-            ARG_OUTPUT,
         ),
     ),
 )
