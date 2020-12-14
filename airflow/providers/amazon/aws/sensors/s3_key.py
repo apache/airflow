@@ -188,5 +188,5 @@ class S3KeySizeSensor(S3KeySensor):
         return keys
 
     def summarizer_fn(self, data: List) -> bool:
-        """"Default function for checking that S3 Objects have size more than 0"""
+        """Default function for checking that S3 Objects have size more than 0"""
         return sum([f.get('Size', 0) for f in data if isinstance(f, dict)]) > 0
