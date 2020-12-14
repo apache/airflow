@@ -116,6 +116,7 @@ class LocalWorkerBase(Process, LoggingMixin):
             parser = get_parser()
             # [1:] - remove "airflow" from the start of the command
             args = parser.parse_args(command[1:])
+            args.shut_down_logging = False
 
             setproctitle(f"airflow task supervisor: {command}")
 

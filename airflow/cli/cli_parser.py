@@ -89,7 +89,7 @@ _UNSET = object()
 class Arg:
     """Class to keep information about command line argument"""
 
-    # pylint: disable=redefined-builtin,unused-argument
+    # pylint: disable=redefined-builtin,unused-argument,too-many-arguments
     def __init__(
         self,
         flags=_UNSET,
@@ -101,6 +101,7 @@ class Arg:
         choices=_UNSET,
         required=_UNSET,
         metavar=_UNSET,
+        dest=_UNSET,
     ):
         self.flags = flags
         self.kwargs = {}
@@ -112,7 +113,7 @@ class Arg:
 
             self.kwargs[k] = v
 
-    # pylint: enable=redefined-builtin,unused-argument
+    # pylint: enable=redefined-builtin,unused-argument,too-many-arguments
 
     def add_to_parser(self, parser: argparse.ArgumentParser):
         """Add this argument to an ArgumentParser"""
@@ -307,6 +308,16 @@ ARG_SAVE_DAGRUN = Arg(
 
 # list_tasks
 ARG_TREE = Arg(("-t", "--tree"), help="Tree view", action="store_true")
+
+# tasks_run
+# This is a hidden option -- not meant for users to set or know about
+ARG_SHUT_DOWN_LOGGING = Arg(
+    ("--no-shut-down-logging",),
+    help=argparse.SUPPRESS,
+    dest="shut_down_logging",
+    action="store_false",
+    default=True,
+)
 
 # clear
 ARG_UPSTREAM = Arg(("-u", "--upstream"), help="Include upstream tasks", action="store_true")
@@ -943,6 +954,7 @@ TASKS_COMMANDS = (
             ARG_PICKLE,
             ARG_JOB_ID,
             ARG_INTERACTIVE,
+            ARG_SHUT_DOWN_LOGGING,
         ),
     ),
     ActionCommand(
