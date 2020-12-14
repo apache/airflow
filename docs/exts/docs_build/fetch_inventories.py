@@ -27,6 +27,7 @@ from requests.adapters import DEFAULT_POOLSIZE
 from docs.exts.docs_build.docs_builder import (  # pylint: disable=no-name-in-module
     get_available_providers_packages,
 )
+from docs.exts.docs_build.third_party_inventories import THIRD_PARTY_INDEXES
 
 CURRENT_DIR = os.path.dirname(__file__)
 ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir, os.pardir))
@@ -40,7 +41,6 @@ S3_DOC_URL_NON_VERSIONED = S3_DOC_URL + "/docs/{package_name}/objects.inv"
 
 
 def _fetch_file(session: requests.Session, url: str, path: str):
-
     response = session.get(url, allow_redirects=True, stream=True)
     if not response.ok:
         print(f"Failed to fetch inventory: {url}")
@@ -54,12 +54,14 @@ def _fetch_file(session: requests.Session, url: str, path: str):
 
 
 def _is_outdated(path: str):
+    if not os.path.exists(path):
+        return True
     delta = datetime.datetime.now() - datetime.datetime.fromtimestamp(os.path.getmtime(path))
-    return delta < datetime.timedelta(hours=12)
+    return delta > datetime.timedelta(hours=12)
 
 
 def fetch_inventories():
-    """Fetch all inventories for Airflow documentatio packages and store in cache."""
+    """Fetch all inventories for Airflow documentation packages and store in cache."""
     os.makedirs(os.path.dirname(CACHE_DIR), exist_ok=True)
     to_download = []
 
@@ -82,12 +84,21 @@ def fetch_inventories():
             f'{CACHE_DIR}/apache-airflow-providers/objects.inv',
         )
     )
-    to_download = [
-        (url, path) for url, path in to_download if not (os.path.isfile(path) and _is_outdated(path))
-    ]
-    print(f"To download {len(to_download)} inventorie(s)")
+    to_download.extend(
+        (
+            f"{doc_url}/objects.inv",
+            f'{CACHE_DIR}/{pkg_name}/objects.inv',
+        )
+        for pkg_name, doc_url in THIRD_PARTY_INDEXES.items()
+    )
+
+    to_download = [(url, path) for url, path in to_download if _is_outdated(path)]
     if not to_download:
+        print("Nothing to do")
         return
+
+    print(f"To download {len(to_download)} inventorie(s)")
+
     with requests.Session() as session, concurrent.futures.ThreadPoolExecutor(DEFAULT_POOLSIZE) as pool:
         for url, path in to_download:
             pool.submit(_fetch_file, session=session, url=url, path=path)
