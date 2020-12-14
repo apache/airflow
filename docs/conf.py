@@ -45,6 +45,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'exts'))
 
 CONF_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 ROOT_DIR = os.path.abspath(os.path.join(CONF_DIR, os.pardir))
+FOR_PRODUCTION = os.environ.get('AIRFLOW_FOR_PRODUCTION', 'false') == 'true'
 
 # By default (e.g. on RTD), build docs for `airflow` package
 PACKAGE_NAME = os.environ.get('AIRFLOW_PACKAGE_NAME', 'apache-airflow')
@@ -231,8 +232,12 @@ else:
 # Custom sidebar templates, maps document names to template names.
 html_sidebars = {
     '**': [
-        # TODO(mik-laj): TODO: Add again on production version of documentation
-        # 'version-selector.html',
+        'version-selector.html',
+        'searchbox.html',
+        'globaltoc.html',
+    ]
+    if FOR_PRODUCTION
+    else [
         'searchbox.html',
         'globaltoc.html',
     ]
@@ -248,7 +253,7 @@ html_show_copyright = False
 html_theme_options: Dict[str, Any] = {
     'hide_website_buttons': True,
 }
-if os.environ.get('AIRFLOW_FOR_PRODUCTION', 'false') == 'true':
+if FOR_PRODUCTION:
     html_theme_options['navbar_links'] = [
         {'href': '/community/', 'text': 'Community'},
         {'href': '/meetups/', 'text': 'Meetups'},
