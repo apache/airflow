@@ -24,7 +24,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class LoggingCommandExecutor(LoggingMixin):
-    def execute_cmd(self, cmd, silent=False, cwd=None, env=None):
+    def execute_cmd(self, cmd, silent=False, cwd=None, env=None, timeout=60):
         if silent:
             self.log.info("Executing in silent mode: '%s'", " ".join([shlex.quote(c) for c in cmd]))
             with open(os.devnull, 'w') as dev_null:
@@ -39,7 +39,7 @@ class LoggingCommandExecutor(LoggingMixin):
                 cwd=cwd,
                 env=env,
             )
-            output, err = process.communicate()
+            output, err = process.communicate(timeout=60)
             retcode = process.poll()
             self.log.info("Stdout: %s", output)
             self.log.info("Stderr: %s", err)
@@ -47,10 +47,10 @@ class LoggingCommandExecutor(LoggingMixin):
                 self.log.error("Error when executing %s", " ".join([shlex.quote(c) for c in cmd]))
             return retcode
 
-    def check_output(self, cmd):
+    def check_output(self, cmd, timeout=60):
         self.log.info("Executing for output: '%s'", " ".join([shlex.quote(c) for c in cmd]))
         process = subprocess.Popen(args=cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output, err = process.communicate()
+        output, err = process.communicate(timeout=timeout)
         retcode = process.poll()
         if retcode:
             self.log.error("Error when executing '%s'", " ".join([shlex.quote(c) for c in cmd]))

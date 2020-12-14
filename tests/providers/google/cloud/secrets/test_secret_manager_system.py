@@ -40,13 +40,13 @@ class CloudSecretManagerBackendVariableSystemTest(GoogleSystemTest):
     def test_should_read_secret_from_variable(self):
         cmd = f'echo -n "TEST_CONTENT" | gcloud beta secrets create \
             {self.secret_name} --data-file=-  --replication-policy=automatic'
-        subprocess.run(["bash", "-c", cmd], check=True)
-        result = subprocess.check_output(['airflow', 'variables', 'get', self.name])
+        subprocess.run(["bash", "-c", cmd], check=True, timeout=60)
+        result = subprocess.check_output(['airflow', 'variables', 'get', self.name], timeout=60)
         self.assertIn("TEST_CONTENT", result.decode())
 
     @provide_gcp_context(GCP_SECRET_MANAGER_KEY, project_id=GoogleSystemTest._project_id())
     def tearDown(self) -> None:
-        subprocess.run(["gcloud", "secrets", "delete", self.secret_name, "--quiet"], check=False)
+        subprocess.run(["gcloud", "secrets", "delete", self.secret_name, "--quiet"], check=False, timeout=60)
 
 
 @pytest.mark.credential_file(GCP_SECRET_MANAGER_KEY)
@@ -61,10 +61,10 @@ class CloudSecretManagerBackendConnectionSystemTest(GoogleSystemTest):
     def test_should_read_secret_from_variable(self):
         cmd = f'echo -n "mysql://user:pass@example.org" | gcloud beta secrets create \
             {self.secret_name} --data-file=- --replication-policy=automatic'
-        subprocess.run(["bash", "-c", cmd], check=True)
-        result = subprocess.check_output(['airflow', 'connections', 'get', self.name])
+        subprocess.run(["bash", "-c", cmd], check=True, timeout=60)
+        result = subprocess.check_output(['airflow', 'connections', 'get', self.name], timeout=60)
         self.assertIn("URI: mysql://user:pass@example.org", result.decode())
 
     @provide_gcp_context(GCP_SECRET_MANAGER_KEY, project_id=GoogleSystemTest._project_id())
     def tearDown(self) -> None:
-        subprocess.run(["gcloud", "secrets", "delete", self.secret_name, "--quiet"], check=False)
+        subprocess.run(["gcloud", "secrets", "delete", self.secret_name, "--quiet"], check=False, timeout=60)

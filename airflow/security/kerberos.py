@@ -81,7 +81,7 @@ def renew_from_kt(principal: str, keytab: str, exit_on_fail: bool = True):
         bufsize=-1,
         universal_newlines=True,
     )
-    subp.wait()
+    subp.wait(timeout=60)
     if subp.returncode != 0:
         log.error(
             "Couldn't reinit from keytab! `kinit' exited with %s.\n%s\n%s",
@@ -125,7 +125,7 @@ def perform_krb181_workaround(principal: str):
 
     log.info("Renewing kerberos ticket to work around kerberos 1.8.1: %s", " ".join(cmdv))
 
-    ret = subprocess.call(cmdv, close_fds=True)
+    ret = subprocess.call(cmdv, close_fds=True, timeout=60)
 
     if ret != 0:
         principal = "{}/{}".format(principal or conf.get('kerberos', 'principal'), socket.getfqdn())

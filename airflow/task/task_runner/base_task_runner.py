@@ -65,7 +65,7 @@ class BaseTaskRunner(LoggingMixin):
             cfg_path = tmp_configuration_copy(chmod=0o600)
 
             # Give ownership of file to user; only they can read and write
-            subprocess.call(['sudo', 'chown', self.run_as_user, cfg_path], close_fds=True)
+            subprocess.call(['sudo', 'chown', self.run_as_user, cfg_path], close_fds=True, timeout=60)
 
             # propagate PYTHONPATH environment variable
             pythonpath_value = os.environ.get(PYTHONPATH_VAR, '')
@@ -160,6 +160,6 @@ class BaseTaskRunner(LoggingMixin):
         """A callback that should be called when this is done running."""
         if self._cfg_path and os.path.isfile(self._cfg_path):
             if self.run_as_user:
-                subprocess.call(['sudo', 'rm', self._cfg_path], close_fds=True)
+                subprocess.call(['sudo', 'rm', self._cfg_path], close_fds=True, timeout=60)
             else:
                 os.remove(self._cfg_path)

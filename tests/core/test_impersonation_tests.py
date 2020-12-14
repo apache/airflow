@@ -96,7 +96,7 @@ file (always present inside container) and checking for PYTHON_BASE_IMAGE variab
 
 def create_user():
     try:
-        subprocess.check_output(['sudo', 'useradd', '-m', TEST_USER, '-g', str(os.getegid())])
+        subprocess.check_output(['sudo', 'useradd', '-m', TEST_USER, '-g', str(os.getegid())], timeout=60)
     except OSError as e:
         if e.errno == errno.ENOENT:
             raise unittest.SkipTest(
@@ -128,7 +128,7 @@ class TestImpersonation(unittest.TestCase):
         create_user()
 
     def tearDown(self):
-        subprocess.check_output(['sudo', 'userdel', '-r', TEST_USER])
+        subprocess.check_output(['sudo', 'userdel', '-r', TEST_USER], timeout=60)
         revoke_permissions()
 
     def run_backfill(self, dag_id, task_id):
@@ -191,7 +191,7 @@ class TestImpersonationWithCustomPythonPath(unittest.TestCase):
         create_user()
 
     def tearDown(self):
-        subprocess.check_output(['sudo', 'userdel', '-r', TEST_USER])
+        subprocess.check_output(['sudo', 'userdel', '-r', TEST_USER], timeout=60)
         revoke_permissions()
 
     def run_backfill(self, dag_id, task_id):

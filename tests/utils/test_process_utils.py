@@ -122,36 +122,40 @@ def my_sleep_subprocess_with_signals():
 
 class TestKillChildProcessesByPids(unittest.TestCase):
     def test_should_kill_process(self):
-        before_num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
+        before_num_process = (
+            subprocess.check_output(["ps", "-ax", "-o", "pid="], timeout=60).decode().count("\n")
+        )
 
         process = multiprocessing.Process(target=my_sleep_subprocess, args=())
         process.start()
         sleep(0)
 
-        num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
+        num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="], timeout=60).decode().count("\n")
         self.assertEqual(before_num_process + 1, num_process)
 
         process_utils.kill_child_processes_by_pids([process.pid])
 
-        num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
+        num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="], timeout=60).decode().count("\n")
         self.assertEqual(before_num_process, num_process)
 
     @pytest.mark.quarantined
     def test_should_force_kill_process(self):
-        before_num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
+        before_num_process = (
+            subprocess.check_output(["ps", "-ax", "-o", "pid="], timeout=60).decode().count("\n")
+        )
 
         process = multiprocessing.Process(target=my_sleep_subprocess_with_signals, args=())
         process.start()
         sleep(0)
 
-        num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
+        num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="], timeout=60).decode().count("\n")
         self.assertEqual(before_num_process + 1, num_process)
 
         with self.assertLogs(process_utils.log) as cm:
             process_utils.kill_child_processes_by_pids([process.pid], timeout=0)
         self.assertTrue(any("Killing child PID" in line for line in cm.output))
 
-        num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
+        num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="], timeout=60).decode().count("\n")
         self.assertEqual(before_num_process, num_process)
 
 

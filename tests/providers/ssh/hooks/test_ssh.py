@@ -298,7 +298,7 @@ class TestSSHHook(unittest.TestCase):
             response = socket.recv(5)
             self.assertEqual(response, b"hello")
             socket.close()
-            server_handle.communicate()
+            server_handle.communicate(timeout=60)
             self.assertEqual(server_handle.returncode, 0)
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')

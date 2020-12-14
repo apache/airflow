@@ -47,13 +47,13 @@ SPARK_OPERATOR_MANIFESTS = [
 def kubectl_apply_list(manifests):
     for manifest in manifests:
         command = ['kubectl', 'apply', '-f', manifest]
-        subprocess.run(command, check=True)
+        subprocess.run(command, check=True, timeout=60)
 
 
 def kubectl_delete_list(manifests):
     for manifest in manifests:
         command = ['kubectl', 'delete', '--ignore-not-found', '-f', manifest]
-        subprocess.run(command, check=True)
+        subprocess.run(command, check=True, timeout=60)
 
 
 @pytest.mark.system("cncf.kubernetes")

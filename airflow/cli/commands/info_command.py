@@ -354,7 +354,7 @@ class ToolsInfo(_BaseInfo):
             proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         except OSError:
             return "NOT AVAILABLE"
-        stdoutdata, _ = proc.communicate()
+        stdoutdata, _ = proc.communicate(timeout=15)
         data = [f for f in stdoutdata.split(b"\n") if f]
         if grep:
             data = [line for line in data if grep in line]

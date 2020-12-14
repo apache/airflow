@@ -200,7 +200,7 @@ def _display_dot_via_imgcat(dot: Dot):
             )
         else:
             raise
-    out, err = proc.communicate(data)
+    out, err = proc.communicate(data, timeout=60)
     if out:
         print(out.decode('utf-8'))
     if err:
