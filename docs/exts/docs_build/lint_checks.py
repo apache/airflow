@@ -259,7 +259,7 @@ def check_enforce_code_block() -> List[DocBuildError]:
 
 
 def check_example_dags_in_provider_tocs() -> List[DocBuildError]:
-    """Checks that each documentation for provider packages has a link to sample DAG files in the TOC."""
+    """Checks that each documentation for provider packages has a link to example DAGs in the TOC."""
     build_errors = []
 
     for provider in ALL_PROVIDER_YAMLS:
@@ -289,6 +289,26 @@ def check_example_dags_in_provider_tocs() -> List[DocBuildError]:
     return build_errors
 
 
+def check_pypi_repository_in_provider_tocs() -> List[DocBuildError]:
+    """Checks that each documentation for provider packages has a link to PyPI files in the TOC."""
+    build_errors = []
+    for provider in ALL_PROVIDER_YAMLS:
+        doc_file_path = f"{DOCS_DIR}/{provider['package-name']}/index.rst"
+        expected_text = f"PyPI Repository <https://pypi.org/project/{provider['package-name']}/>"
+        build_error = assert_file_contains(
+            file_path=doc_file_path,
+            pattern=re.escape(expected_text),
+            message=(
+                f"A link to the PyPI in table of contents is missing. Can you add it?\n\n"
+                f"    {expected_text}"
+            ),
+        )
+        if build_error:
+            build_errors.append(build_error)
+
+    return build_errors
+
+
 def run_all_check() -> List[DocBuildError]:
     """Run all checks from this module"""
     general_errors = []
@@ -296,4 +316,5 @@ def run_all_check() -> List[DocBuildError]:
     general_errors.extend(check_enforce_code_block())
     general_errors.extend(check_exampleinclude_for_example_dags())
     general_errors.extend(check_example_dags_in_provider_tocs())
+    general_errors.extend(check_pypi_repository_in_provider_tocs())
     return general_errors
