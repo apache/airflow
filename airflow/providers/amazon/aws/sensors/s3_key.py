@@ -152,18 +152,20 @@ class S3KeySizeSensor(S3KeySensor):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        if summarizer_fn:
-            self.summarizer_fn = summarizer_fn
+        self.summarizer_fn_user = summarizer_fn
 
     def poke(self, context):
         if super().poke(context=context) is False:
             return False
 
         s3_objects = self.get_files(s3_hook=self.get_hook())
-
-        return self.summarizer_fn(s3_objects)
+        summarizer_fn = self.summarizer_fn_user
+        if summarizer_fn is None:
+            summarizer_fn = self.summarizer_fn
+        return summarizer_fn(s3_objects)
 
     def get_files(self, s3_hook: S3Hook) -> List:
+        """Gets a list of files in the bucket"""
         prefix = self.bucket_key
         delimiter = '/'
         config = {

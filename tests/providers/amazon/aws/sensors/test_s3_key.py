@@ -141,10 +141,10 @@ class TestS3KeySizeSensor(unittest.TestCase):
         mock_conn = mock.Mock()
         mock_conn.return_value.get_paginator.return_value = mock_paginator
         mock_hook.return_value.get_conn = mock_conn
-        mock_paginator.paginate.return_value = [{"Contents":[{"Size":0}]}]
+        mock_paginator.paginate.return_value = [{"Contents": [{"Size": 0}]}]
         self.assertFalse(op.poke(None))
 
-        mock_paginator.paginate.return_value = [{"Contents":[{"Size":10}]}]
+        mock_paginator.paginate.return_value = [{"Contents": [{"Size": 10}]}]
         self.assertTrue(op.poke(None))
         mock_check_for_key.return_value = False
         self.assertFalse(op.poke(None))
