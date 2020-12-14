@@ -22,6 +22,7 @@ from glob import glob
 from itertools import chain
 from typing import Iterable, List, Optional, Set
 
+from docs.exts.docs_build.docs_builder import ALL_PROVIDER_YAMLS
 from docs.exts.docs_build.errors import DocBuildError  # pylint: disable=no-name-in-module
 
 ROOT_PROJECT_DIR = os.path.abspath(
@@ -250,7 +251,7 @@ def check_enforce_code_block() -> List[DocBuildError]:
 
 
 def check_example_dags_in_provider_tocs() -> List[DocBuildError]:
-    """Checks that each documentation for provider packages has a link to sample DAG files in the TOC."""
+    """Checks that each documentation for provider packages has a link to example DAGs in the TOC."""
     build_errors = []
 
     for provider in ALL_PROVIDER_YAMLS:
