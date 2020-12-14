@@ -22,7 +22,7 @@
 The Snowflake provider when installed might break other providers. As of 14 December 2020 we know that Presto with
 Kerberos + SSL and Amazon providers are broken.
 
-It's because of Snowflake monkeypatching the urllib3library as described in
+It's because of Snowflake monkeypatching the `urllib3` library as described in
 [this issue](https://github.com/snowflakedb/snowflake-connector-python/issues/324)
 the offending code is [here](https://github.com/snowflakedb/snowflake-connector-python/blob/133d6215f7920d304c5f2d466bae38127c1b836d/src/snowflake/connector/network.py#L89-L92)
 
