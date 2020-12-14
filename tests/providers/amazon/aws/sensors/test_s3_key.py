@@ -132,25 +132,28 @@ class TestS3KeySizeSensor(unittest.TestCase):
         mock_check_for_key = mock_hook.return_value.check_for_key
         mock_check_for_key.return_value = False
         self.assertFalse(op.poke(None))
-        mock_check_for_key.assert_called_once_with(op.bucket_key, op.bucket_name)
 
+        mock_check_for_key.assert_called_once_with(op.bucket_key, op.bucket_name)
         mock_hook.return_value.check_for_key.return_value = True
-        list_objects_v2 = mock_hook.return_value.list_objects_v2
-        list_objects_v2.return_value = {}
         self.assertFalse(op.poke(None))
 
-        list_objects_v2 = mock_hook.return_value.list_objects_v2
-        list_objects_v2.return_value = {'Contents': [
+        mock_paginator = mock.Mock()
+        mock_paginator.paginate.return_value = []
+        mock_conn = mock.Mock()
+        mock_conn.return_value.get_paginator.return_value = mock_paginator
+        mock_hook.return_value.get_conn = mock_conn
+        mock_paginator.paginate.return_value = [{'Contents': [
             {
                 'Size': 0
             }
-        ]}
+        ]}]
         self.assertFalse(op.poke(None))
 
-        list_objects_v2 = mock_hook.return_value.list_objects_v2
-        list_objects_v2.return_value = {'Contents': [
+        mock_paginator.paginate.return_value = [{'Contents': [
             {
-                'Size': 1
+                'Size': 10
             }
-        ]}
+        ]}]
         self.assertTrue(op.poke(None))
+        mock_check_for_key.return_value = False
+        self.assertFalse(op.poke(None))
