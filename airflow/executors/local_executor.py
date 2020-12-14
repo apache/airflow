@@ -22,6 +22,7 @@ LocalExecutor
     For more information on how the LocalExecutor works, take a look at the guide:
     :ref:`executor:LocalExecutor`
 """
+import logging
 import os
 import subprocess
 from abc import abstractmethod
@@ -125,6 +126,7 @@ class LocalWorkerBase(Process, LoggingMixin):
             self.log.error("Failed to execute task %s.", str(e))
         finally:
             Sentry.flush()
+            logging.shutdown()
             os._exit(ret)  # pylint: disable=protected-access
             raise RuntimeError('unreachable -- keep mypy happy')
 
