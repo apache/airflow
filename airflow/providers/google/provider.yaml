@@ -45,6 +45,7 @@ integrations:
     external-doc-url: https://cloud.google.com/automl/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/automl.rst
+    logo: /integration-logos/gcp/Cloud-AutoML.png
     tags: [gcp]
   - integration-name: Google BigQuery Data Transfer Service
     external-doc-url: https://cloud.google.com/bigquery/transfer/
@@ -55,16 +56,19 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/bigquery.rst
     external-doc-url: https://cloud.google.com/bigquery/
+    logo: /integration-logos/gcp/BigQuery.png
     tags: [gcp]
   - integration-name: Google Bigtable
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/bigtable.rst
     external-doc-url: https://cloud.google.com/bigtable/
+    logo: /integration-logos/gcp/Cloud-Bigtable.png
     tags: [gcp]
   - integration-name: Google Cloud Build
     external-doc-url: https://cloud.google.com/cloud-build/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/cloud_build.rst
+    logo: /integration-logos/gcp/Cloud-Build.png
     tags: [gcp]
   - integration-name: Google Cloud Data Loss Prevention (DLP)
     external-doc-url: https://cloud.google.com/dlp/
@@ -80,9 +84,11 @@ integrations:
     external-doc-url: https://cloud.google.com/functions/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/functions.rst
+    logo: /integration-logos/gcp/Cloud-Functions.png
     tags: [gcp]
   - integration-name: Google Cloud Key Management Service (KMS)
     external-doc-url: https://cloud.google.com/kms/
+    logo: /integration-logos/gcp/Key-Management-Service.png
     tags: [gcp]
   - integration-name: Google Cloud Life Sciences
     external-doc-url: https://cloud.google.com/life-sciences/
@@ -94,6 +100,7 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/cloud_memorystore.rst
       - /docs/apache-airflow-providers-google/operators/cloud/cloud_memorystore_memcached.rst
+    logo: /integration-logos/gcp/Cloud-Memorystore.png
     tags: [gcp]
   - integration-name: Google Cloud OS Login
     external-doc-url: https://cloud.google.com/compute/docs/oslogin/
@@ -102,6 +109,7 @@ integrations:
     external-doc-url: https://cloud.google.com/pubsub/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/pubsub.rst
+    logo: /integration-logos/gcp/Cloud-PubSub.png
     tags: [gcp]
   - integration-name: Google Cloud Secret Manager
     external-doc-url: https://cloud.google.com/secret-manager/
@@ -110,17 +118,20 @@ integrations:
     external-doc-url: https://cloud.google.com/spanner/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/spanner.rst
+    logo: /integration-logos/gcp/Cloud-Spanner.png
     tags: [gcp]
   - integration-name: Google Cloud Speech-to-Text
     external-doc-url: https://cloud.google.com/speech-to-text/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/speech_to_text.rst
       - /docs/apache-airflow-providers-google/operators/cloud/translate_speech.rst
+    logo: /integration-logos/gcp/Cloud-Speech-to-Text.png
     tags: [gcp]
   - integration-name: Google Cloud SQL
     external-doc-url: https://cloud.google.com/sql/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/cloud_sql.rst
+    logo: /integration-logos/gcp/Cloud-SQL.png
     tags: [gcp]
   - integration-name: Google Cloud Stackdriver
     external-doc-url: https://cloud.google.com/stackdriver
@@ -131,36 +142,43 @@ integrations:
     external-doc-url: https://cloud.google.com/gcs/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/gcs.rst
+    logo: /integration-logos/gcp/Cloud-Storage.png
     tags: [gcp]
   - integration-name: Google Cloud Tasks
     external-doc-url: https://cloud.google.com/tasks/
+    logo: /integration-logos/gcp/Cloud-Tasks.png
     tags: [gcp]
   - integration-name: Google Cloud Text-to-Speech
     external-doc-url: https://cloud.google.com/text-to-speech/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/text_to_speech.rst
+    logo: /integration-logos/gcp/Cloud-Text-to-Speech.png
     tags: [gcp]
   - integration-name: Google Cloud Translation
     external-doc-url: https://cloud.google.com/translate/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/translate.rst
       - /docs/apache-airflow-providers-google/operators/cloud/translate_speech.rst
+    logo: /integration-logos/gcp/Cloud-Translation-API.png
     tags: [gcp]
   - integration-name: Google Cloud Video Intelligence
     external-doc-url: https://cloud.google.com/video_intelligence/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/video_intelligence.rst
+    logo: /integration-logos/gcp/Cloud-Video-Intelligence-API.png
     tags: [gcp]
   - integration-name: Google Cloud Vision
     external-doc-url: https://cloud.google.com/vision/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/vision.rst
+    logo: /integration-logos/gcp/Cloud-Vision-API.png
     tags: [gcp]
   - integration-name: Google Compute Engine
     external-doc-url: https://cloud.google.com/compute/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/compute.rst
       - /docs/apache-airflow-providers-google/operators/cloud/compute_ssh.rst
+    logo: /integration-logos/gcp/Compute-Engine.png
     tags: [gcp]
   - integration-name: Google Data Proc
     external-doc-url: https://cloud.yandex.com/services/data-proc
@@ -172,6 +190,7 @@ integrations:
     tags: [gcp]
   - integration-name: Google Dataflow
     external-doc-url: https://cloud.google.com/dataflow/
+    logo: /integration-logos/gcp/Cloud-Dataflow.png
     tags: [gcp]
   - integration-name: Google Data Fusion
     external-doc-url: https://cloud.google.com/data-fusion/
@@ -187,11 +206,13 @@ integrations:
     external-doc-url: https://cloud.google.com/dataproc/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/dataproc.rst
+    logo: /integration-logos/gcp/Cloud-Dataproc.png
     tags: [gcp]
   - integration-name: Google Datastore
     external-doc-url: https://cloud.google.com/datastore/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/datastore.rst
+    logo: /integration-logos/gcp/Cloud-Datastore.png
     tags: [gcp]
   - integration-name: Google Deployment Manager
     external-doc-url: https://cloud.google.com/deployment-manager/
@@ -235,21 +256,25 @@ integrations:
     external-doc-url: https://cloud.google.com/storage/transfer/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/cloud_storage_transfer_service.rst
+    logo: /integration-logos/gcp/Cloud-Storage.png
     tags: [gcp]
   - integration-name: Google Kubernetes Engine
     external-doc-url: https://cloud.google.com/kubernetes_engine/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/kubernetes_engine.rst
+    logo: /integration-logos/gcp/Kubernetes-Engine.png
     tags: [gcp]
   - integration-name: Google Machine Learning Engine
     external-doc-url: https://cloud.google.com/ai-platform/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/mlengine.rst
+    logo: /integration-logos/gcp/AI-Platform.png
     tags: [gcp]
   - integration-name: Google Cloud Natural Language
     external-doc-url: https://cloud.google.com/natural-language/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/natural_language.rst
+    logo: /integration-logos/gcp/Cloud-NLP.png
     tags: [gcp]
 
 operators:

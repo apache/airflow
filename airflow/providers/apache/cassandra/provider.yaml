@@ -29,6 +29,7 @@ integrations:
     external-doc-url: http://cassandra.apache.org/
     how-to-guide:
       - /docs/apache-airflow-providers-apache-cassandra/operators.rst
+    logo: /integration-logos/apache/cassandra-3.png
     tags: [apache]
 
 sensors:

@@ -27,12 +27,14 @@ versions:
 integrations:
   - integration-name: Amazon Athena
     external-doc-url: https://aws.amazon.com/athena/
+    logo: /integration-logos/aws/Amazon-Athena_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon CloudFormation
     external-doc-url: https://aws.amazon.com/cloudformation/
     tags: [aws]
   - integration-name: Amazon CloudWatch Logs
     external-doc-url: https://aws.amazon.com/cloudwatch/
+    logo: /integration-logos/aws/Amazon-CloudWatch_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon DataSync
     external-doc-url: https://aws.amazon.com/datasync/
@@ -41,9 +43,11 @@ integrations:
     tags: [aws]
   - integration-name: Amazon DynamoDB
     external-doc-url: https://aws.amazon.com/dynamodb/
+    logo: /integration-logos/aws/Amazon-DynamoDB_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon EC2
     external-doc-url: https://aws.amazon.com/ec2/
+    logo: /integration-logos/aws/Amazon-EC2_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon ECS
     external-doc-url: https://aws.amazon.com/ecs/
@@ -55,6 +59,7 @@ integrations:
     external-doc-url: https://aws.amazon.com/emr/
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/emr.rst
+    logo: /integration-logos/aws/Amazon-EMR_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon Glacier
     external-doc-url: https://aws.amazon.com/glacier/
@@ -63,12 +68,15 @@ integrations:
     tags: [aws]
   - integration-name: Amazon Kinesis Data Firehose
     external-doc-url: https://aws.amazon.com/kinesis/data-firehose/
+    logo: /integration-logos/aws/Amazon-Kinesis-Data-Firehose_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon Redshift
     external-doc-url: https://aws.amazon.com/redshift/
+    logo: /integration-logos/aws/Amazon-Redshift_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon SageMaker
     external-doc-url: https://aws.amazon.com/sagemaker/
+    logo: /integration-logos/aws/Amazon-SageMaker_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon SecretsManager
     external-doc-url: https://aws.amazon.com/secrets-manager/
@@ -80,27 +88,33 @@ integrations:
     tags: [aws]
   - integration-name: Amazon Simple Notification Service (SNS)
     external-doc-url: https://aws.amazon.com/sns/
+    logo: /integration-logos/aws/Amazon-Simple-Notification-Service-SNS_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon Simple Queue Service (SQS)
     external-doc-url: https://aws.amazon.com/sqs/
+    logo: /integration-logos/aws/Amazon-Simple-Queue-Service-SQS_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon Simple Storage Service (S3)
     external-doc-url: https://aws.amazon.com/s3/
+    logo: /integration-logos/aws/Amazon-Simple-Storage-Service-S3_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon Web Services
     external-doc-url: https://aws.amazon.com/
     tags: [aws]
   - integration-name: AWS Batch
     external-doc-url: https://aws.amazon.com/batch/
+    logo: /integration-logos/aws/AWS-Batch_light-bg@4x.png
     tags: [aws]
   - integration-name: AWS DataSync
     external-doc-url: https://aws.amazon.com/datasync/
     tags: [aws]
   - integration-name: AWS Glue
     external-doc-url: https://aws.amazon.com/glue/
+    logo: /integration-logos/aws/AWS-Glue_light-bg@4x.png
     tags: [aws]
   - integration-name: AWS Lambda
     external-doc-url: https://aws.amazon.com/lambda/
+    logo: /integration-logos/aws/AWS-Lambda_light-bg@4x.png
     tags: [aws]
   - integration-name: AWS Step Functions
     external-doc-url: https://aws.amazon.com/step-functions/

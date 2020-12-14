@@ -30,21 +30,26 @@ integrations:
     tags: [azure]
   - integration-name: Microsoft Azure Blob Storage
     external-doc-url: https://azure.microsoft.com/en-us/services/storage/blobs/
+    logo: /integration-logos/azure/Blob Storage.svg
     tags: [azure]
   - integration-name: Microsoft Azure Container Instances
     external-doc-url: https://azure.microsoft.com/en-us/services/container-instances/
+    logo: /integration-logos/azure/Container Instances.svg
     tags: [azure]
   - integration-name: Microsoft Azure Cosmos DB
     external-doc-url: https://azure.microsoft.com/en-us/services/cosmos-db/
+    logo: /integration-logos/azure/Azure Cosmos DB.svg
     tags: [azure]
   - integration-name: Microsoft Azure Data Explorer
     external-doc-url: https://azure.microsoft.com/en-us/services/data-explorer/
     tags: [azure]
   - integration-name: Microsoft Azure Data Lake Storage
     external-doc-url: https://azure.microsoft.com/en-us/services/storage/data-lake-storage/
+    logo: /integration-logos/azure/Data Lake Storage.svg
     tags: [azure]
   - integration-name: Microsoft Azure Files
     external-doc-url: https://azure.microsoft.com/en-us/services/storage/files/
+    logo: /integration-logos/azure/Azure Files.svg
     tags: [azure]
   - integration-name: Microsoft Azure FileShare
     external-doc-url: https://cloud.google.com/storage/
