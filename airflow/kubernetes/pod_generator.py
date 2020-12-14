@@ -535,9 +535,15 @@ class PodGenerator(object):
             - executor_config
             - dynamic arguments
         """
+        try:
+            image = pod_override_object.spec.containers[0].image  # type: ignore
+            if not image:
+                image = kube_image
+        except Exception:  # pylint: disable=W0703
+            image = kube_image
         dynamic_pod = PodGenerator(
             namespace=namespace,
-            image=kube_image,
+            image=image,
             labels={
                 'airflow-worker': worker_uuid,
                 'dag_id': make_safe_label_value(dag_id),
