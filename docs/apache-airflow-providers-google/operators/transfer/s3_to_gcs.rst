@@ -16,6 +16,7 @@
     under the License.
 
 
+.. _howto/operator:S3ToGCSOperator:
 
 Transfer Data from Amazon S3 to Google Cloud Storage
 ====================================================
@@ -31,8 +32,6 @@ Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
 .. include::/howto/operator/google/_partials/prerequisite_tasks.rst
-
-.. _howto/operator:S3ToGCSOperator:
 
 Use the :class:`~airflow.providers.google.cloud.transfers.s3_to_gcs.S3ToGCSOperator`
 to transfer data from Amazon S3 to Google Cloud Storage.

@@ -33,6 +33,10 @@ from airflow.utils.decorators import apply_defaults
 class MySQLToGCSOperator(BaseSQLToGCSOperator):
     """Copy data from MySQL to Google Cloud Storage in JSON or CSV format.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:MySQLToGCSOperator`
+
     :param mysql_conn_id: Reference to a specific MySQL hook.
     :type mysql_conn_id: str
     :param ensure_utc: Ensure TIMESTAMP columns exported as UTC. If set to
