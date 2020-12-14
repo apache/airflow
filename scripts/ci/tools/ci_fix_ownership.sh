@@ -35,6 +35,6 @@ read -r -a EXTRA_DOCKER_FLAGS <<<"$(local_mounts::convert_local_mounts_to_docker
 
 docker run --entrypoint /bin/bash "${EXTRA_DOCKER_FLAGS[@]}" \
     --rm \
-    --env-file "${AIRFLOW_SOURCES}/scripts/ci/libraries/_docker.env" \
+    --env-file "${AIRFLOW_SOURCES}/scripts/ci/docker-compose/_docker.env" \
     "${AIRFLOW_CI_IMAGE}" \
     -c /opt/airflow/scripts/in_container/run_fix_ownership.sh

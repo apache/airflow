@@ -29,16 +29,9 @@ services:
       - ../../../.github:/opt/airflow/.github:cached
       - ../../../.inputrc:/root/.inputrc:cached
       - ../../../.kube:/root/.kube:cached
-      - ../../../dist:/dist:cached
       - ../../../scripts/in_container/prod/entrypoint_prod.sh:/entrypoint:cached
       - ../../../setup.cfg:/opt/airflow/setup.cfg:cached
       - ../../../setup.py:/opt/airflow/setup.py:cached
       - ../../../tests:/opt/airflow/tests:cached
       - ../../../tmp:/tmp:cached
-    environment:
-      - HOST_USER_ID
-      - HOST_GROUP_ID
-      - HOST_HOME=${HOME}
-      - HOST_AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
-      - HOST_OS
-      - PYTHONDONTWRITEBYTECODE
+      - ../../../metastore_browser:/opt/airflow/metastore_browser:cached

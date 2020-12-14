@@ -108,23 +108,23 @@ elif [[ ${INSTALL_AIRFLOW_VERSION} == "none"  ]]; then
     uninstall_airflow_and_providers
 elif [[ ${INSTALL_AIRFLOW_VERSION} == "wheel"  ]]; then
     echo
-    echo "Install airflow from wheel package with [all] extras but uninstalling providers."
+    echo "Install airflow from wheel package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers."
     echo
     uninstall_airflow_and_providers
-    install_airflow_from_wheel "[all]"
+    install_airflow_from_wheel "[${AIRFLOW_EXTRAS}]"
     uninstall_providers
 elif [[ ${INSTALL_AIRFLOW_VERSION} == "sdist"  ]]; then
     echo
-    echo "Install airflow from sdist package with [all] extras but uninstalling providers."
+    echo "Install airflow from sdist package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers."
     echo
     uninstall_airflow_and_providers
-    install_airflow_from_sdist "[all]"
+    install_airflow_from_sdist "[${AIRFLOW_EXTRAS}]"
     uninstall_providers
 else
     echo
-    echo "Install airflow from PyPI including [all] extras"
+    echo "Install airflow from PyPI including [${AIRFLOW_EXTRAS}] extras"
     echo
-    install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}" "[all]"
+    install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}" "[${AIRFLOW_EXTRAS}]"
 fi
 if [[ ${INSTALL_PACKAGES_FROM_DIST=} == "true" ]]; then
     echo
