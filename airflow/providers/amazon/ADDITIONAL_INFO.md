@@ -19,7 +19,7 @@
 
 ## Additional limitations
 
-The amazon provider might not work correctly with when it is installed together with the
+The amazon provider might not work correctly when it is installed together with the
 Snowflake provider. It's because of Snowflake monkeypatching the urllib3
 library as described in [this issue](https://github.com/snowflakedb/snowflake-connector-python/issues/324),
 the offending code is [here](https://github.com/snowflakedb/snowflake-connector-python/blob/133d6215f7920d304c5f2d466bae38127c1b836d/src/snowflake/connector/network.py#L89-L92)
