@@ -183,10 +183,10 @@ class S3KeySizeSensor(S3KeySensor):
         keys = []
         for page in response:
             if 'Contents' in page:
-                for k in page['Contents']:
-                    if isinstance(k.get('Size', None), (int, float)):
-                        keys.append(k)
+                _temp = [k for k in page['Contents'] if isinstance(k.get('Size', None), (int, float))]
+                keys = keys + _temp
         return keys
 
     def summarizer_fn(self, data: List) -> bool:
+        """"Default function for checking that S3 Objects have size more than 0"""
         return sum([f.get('Size', 0) for f in data if isinstance(f, dict)]) > 0
