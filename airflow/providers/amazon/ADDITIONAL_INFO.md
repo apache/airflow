@@ -17,10 +17,16 @@
  under the License.
  -->
 
-## Change in import paths
+## Additional limitations
 
-If you are upgrading from 2020.10.5 note the following changes in import paths
+The amazon provider might not work correctly with when it is installed together with the
+Snowflake provider. It's because of Snowflake monkeypatching the urllib3
+library as described in [this issue](https://github.com/snowflakedb/snowflake-connector-python/issues/324)
+the offending code is [here](https://github.com/snowflakedb/snowflake-connector-python/blob/133d6215f7920d304c5f2d466bae38127c1b836d/src/snowflake/connector/network.py#L89-L92)
 
-| Old path                                                        | New path                                                    |
-| --------------------------------------------------------------- | ----------------------------------------------------------- |
-| airflow.providers.amazon.aws.hooks.aws_dynamodb.AwsDynamoDBHook | airflow.providers.amazon.aws.hooks.dynamodb.AwsDynamoDBHook |
+The Amazon provider is using boto3 library which uses urllib3 under-the-hood.
+
+In the future Snowflake plans to get rid of the monkeypatching.
+
+You can keep track of [the issue](https://github.com/apache/airflow/issues/12881) in order to know when the
+issue will be resolved.
