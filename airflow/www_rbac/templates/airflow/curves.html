@@ -34,7 +34,7 @@
           <th class="position-sticky " style="top:0;z-index: 1;">{{_('curve')}}</th>
         </tr>
         </thead>
-        <tbody>
+        <tbody id="curves-table">
         {% for task in tasks %}
         <tr>
           <td class="h-100" style="text-align: center;vertical-align: middle;">
@@ -56,11 +56,17 @@
               <p class="list-group-item-text ml-4"><span>{{_('Execution Date')}}：</span>{{ task.execution_date }}</p>
               <p class="list-group-item-text ml-4"><span>{{_('Car Code')}}：</span>{{ task.car_code }}</p>
               <p class="list-group-item-text ml-4 "><span>{{_('Measure Result')}}：</span>
-                <a class="badge {{'badge-success' if task.measure_result=='OK' else 'badge-danger' if task.measure_result=='NOK' else 'badge-secondary'}}">{{ task.measure_result if task.measure_result else '无结果' }}</a></p>
+                <a
+                  class="badge {{'badge-success' if task.measure_result=='OK' else 'badge-danger' if task.measure_result=='NOK' else 'badge-secondary'}}">{{
+                  task.measure_result if task.measure_result else '无结果' }}</a></p>
               <p class="list-group-item-text ml-4"><span>{{_('Result')}}：</span>
-                <a class="badge {{'badge-success' if task.result=='OK' else 'badge-danger' if task.result=='NOK' else 'badge-secondary'}}">{{ task.result if task.result else '未分析'}}</a></p>
+                <a
+                  class="badge {{'badge-success' if task.result=='OK' else 'badge-danger' if task.result=='NOK' else 'badge-secondary'}}">{{
+                  task.result if task.result else '未分析'}}</a></p>
               <p class="list-group-item-text ml-4"><span>{{_('Final State')}}：</span>
-                <a class="badge {{'badge-success' if task.final_state=='OK' else 'badge-danger' if task.final_state=='NOK' else 'badge-secondary'}}">{{ task.final_state if task.final_state else '未确认' }}</a></p>
+                <a
+                  class="badge {{'badge-success' if task.final_state=='OK' else 'badge-danger' if task.final_state=='NOK' else 'badge-secondary'}}">{{
+                  task.final_state if task.final_state else '未确认' }}</a></p>
             </button>
           </td>
         </tr>
@@ -69,9 +75,12 @@
       </table>
 
     </div>
-    <div class="panel-body" style="display:inline-block !important">
+    <div class="panel-body" style="display:inline-block !important;">
       {{ lib.render_pagination(page, page_size, count, modelview_name) }}
-      <button id="btn-view-curves" class="btn btn-primary btn-block mt-1">查看</button>
+      <div style="display: flex;flex-direction: row;justify-content: space-between;align-items: center">
+        <button id="btn-clear-curves" class="btn btn-danger btn-block m-1" style="width: 30%">清空对比</button>
+        <button id="btn-view-curves" class="btn btn-primary btn-block m-1">查看</button>
+      </div>
     </div>
   </div>
   {% endcall %}
@@ -87,7 +96,7 @@
 {{ super() }}
 <script src="{{ url_for('static', filename='js/bootstrap-treeview.js') }}" type="text/javascript"></script>
 <script type="text/javascript">
-  const selectedEIds = [];
+  let selectedEIds = [];
   let curvesData = {};
 
   function entityIdSelect(entityId) {
@@ -106,7 +115,6 @@
 
   function curvesListInit() {
     $('.btn.list-group-item').click((ev) => {
-      console.log($(ev.currentTarget).parents('tr').find('.action_check'));
       $(ev.currentTarget).parents('tr').find('.action_check').click();
     });
     $('.action_check_all').change((ev) => {
@@ -128,6 +136,7 @@
   }
 
   function render() {
+    // renderCurvesTable();
     renderChart();
   }
 
@@ -262,18 +271,56 @@
       curves.forEach((c) => {
         newCurves[c.entity_id] = c.curve;
       });
+      const prevData = JSON.parse(window.sessionStorage.getItem('curvesData') || '{}');
+      const prevSelectedEIds = JSON.parse(window.sessionStorage.getItem('selectedEIds') || '[]');
+      selectedEIds = [...(new Set([
+        ...prevSelectedEIds,
+        ...selectedEIds
+      ]))];
       curvesData = {
-        ...curvesData, ...newCurves
+        ...prevData,
+        ...curvesData,
+        ...newCurves
       };
+      window.sessionStorage.setItem('curvesData', JSON.stringify(curvesData));
+      window.sessionStorage.setItem('selectedEIds', JSON.stringify(selectedEIds));
       render();
     });
   }
 
+  // function renderCurvesTable() {
+  //   selectedEIds.forEach((s) => {
+  //     const row = $('.list-group-item-heading:contains(' + s + ')').parents('tr');
+  //     if (!row) {
+  //       return;
+  //     }
+  //     const $newRow = $(row).clone(true);
+  //     $newRow.children('.action_check:not(:checked)').click();
+  //     $('#curves-table').prepend($newRow);
+  //     $(row).detach();
+  //   });
+  // }
+
+  function resetCurves() {
+    viewCurves();
+  }
+
+  function clearCurves() {
+    selectedEIds = [];
+    curvesData = {};
+    window.sessionStorage.setItem('curvesData', JSON.stringify(curvesData));
+    window.sessionStorage.setItem('selectedEIds', JSON.stringify(selectedEIds));
+    $('.action_check:checked').click();
+    render();
+  }
+
   $(document).ready(() => {
+    resetCurves();
     chartInit();
     curvesListInit();
     render();
     $('#btn-view-curves').on('click', viewCurves);
+    $('#btn-clear-curves').on('click', clearCurves);
   });
 </script>
 {% endblock %}
