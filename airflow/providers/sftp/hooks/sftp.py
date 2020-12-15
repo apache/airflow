@@ -111,10 +111,6 @@ class SFTPHook(SSHHook):
                     )
                     self.key_file = extra_options.get('private_key')
 
-                if "host_key" in extra_options and self.no_host_key_check is False:
-                    encoded_host_key = decodebytes(extra_options["host_key"].encode('utf-8'))
-                    self.host_key = paramiko.RSAKey(data=encoded_host_key)
-
     def get_conn(self) -> pysftp.Connection:
         """Returns an SFTP connection object"""
         if self.conn is None:

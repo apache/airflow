@@ -47,8 +47,7 @@ TMP_FILE_FOR_TESTS = 'test_file.txt'
 SFTP_CONNECTION_USER = "root"
 
 TEST_PKEY = paramiko.RSAKey.generate(4096)
-TEST_HOST_PKEY = generate_host_key(pkey=TEST_PKEY)
-TEST_HOST_KEY = TEST_HOST_PKEY.get_base64()
+TEST_HOST_KEY = generate_host_key(pkey=TEST_PKEY).get_base64()
 
 
 class TestSFTPHook(unittest.TestCase):
@@ -202,10 +201,17 @@ class TestSFTPHook(unittest.TestCase):
 
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
     def test_host_key(self, get_connection):
-        connection = Connection(login='login', host='host', extra=json.dumps({"host_key": TEST_HOST_KEY}))
+        connection = Connection(login='login', host='host', extra=json.dumps({"host_key": TEST_HOST_KEY, "no_host_key_check": False}))
         get_connection.return_value = connection
         hook = SFTPHook()
         self.assertEqual(hook.host_key.get_base64(), TEST_HOST_KEY)
+
+    @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
+    def test_host_key_with_no_host_key_check_true(self, get_connection):
+        connection = Connection(login='login', host='host', extra=json.dumps({"host_key": TEST_HOST_KEY, "no_host_key_check": True}))
+        get_connection.return_value = connection
+        hook = SFTPHook()
+        self.assertEqual(hook.host_key, None)
 
     @parameterized.expand(
         [
