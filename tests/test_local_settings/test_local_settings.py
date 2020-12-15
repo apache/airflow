@@ -372,10 +372,11 @@ class LocalSettingsTest(unittest.TestCase):
                                            'key': 'dynamic-pods',
                                            'operator': 'Equal',
                                            'value': 'true'}],
-                          'volumes': [{'name': 'airflow-secrets-mount',
-                                       'secret': {'secretName': 'airflow-test-secrets'}},
+                          'volumes': [{'name': 'foo'},
                                       {'name': 'bar'},
-                                      {'name': 'foo'}]}}
+                                      {'name': 'airflow-secrets-mount',
+                                       'secret': {'secretName': 'airflow-test-secrets'}},
+                                      ]}}
             )
 
     def test_pod_mutation_v1_pod(self):

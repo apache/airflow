@@ -173,6 +173,8 @@ class Pod(object):
         )
 
         pod = k8s.V1Pod(
+            api_version="v1",
+            kind="Pod",
             spec=spec,
             metadata=meta,
         )

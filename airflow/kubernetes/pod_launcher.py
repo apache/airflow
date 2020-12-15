@@ -100,9 +100,7 @@ class PodLauncher(LoggingMixin):
                 "Using `airflow.contrib.kubernetes.pod.Pod` is deprecated. "
                 "Please use `k8s.V1Pod` instead.", DeprecationWarning, stacklevel=2
             )
-            dummy_pod = dummy_pod.to_v1_kubernetes_pod()
-
-            new_pod = PodGenerator.reconcile_pods(pod, dummy_pod)
+            new_pod = dummy_pod.to_v1_kubernetes_pod()
         except AttributeError as e:
             try:
                 settings.pod_mutation_hook(pod)
