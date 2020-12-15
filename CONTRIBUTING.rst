@@ -182,19 +182,19 @@ Only a current PMC member can nominate a current committer to be part of PMC.
 If the vote fails or PMC members needs more evidence, then one of the PMC Member (who is not the Proposer)
 can become the Mentor and guide the proposed candidates on how they can become a PMC member.
 
-1. Candidate Proposer
+1.  Candidate Proposer
 
-  This is the person who launches the DISCUSS thread & makes the case for a PMC promotion
+    This is the person who launches the DISCUSS thread & makes the case for a PMC promotion
 
-2. Candidate Mentor
+2.  Candidate Mentor
 
-  If the committee does not have enough information, requires more time, or requires more evidence of
-  candidate's eligibility, a mentor, who is not the proposer, is selected to help mentor the candidate
-  The mentor should try to remain impartial -- his/her goal is to provide the missing evidence and to
-  try to coach/mentor the candidate to success.
+    If the committee does not have enough information, requires more time, or requires more evidence of
+    candidate's eligibility, a mentor, who is not the proposer, is selected to help mentor the candidate
+    The mentor should try to remain impartial -- his/her goal is to provide the missing evidence and to
+    try to coach/mentor the candidate to success.
 
-  In order to re-raise a candidate vote, both Proposer and Mentor must be in favor. Again,
-  the mentor must try to remain impartial and cannot be the Proposer.
+    In order to re-raise a candidate vote, both Proposer and Mentor must be in favor. Again,
+    the mentor must try to remain impartial and cannot be the Proposer.
 
 
 Contributors
