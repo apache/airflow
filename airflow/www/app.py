@@ -18,6 +18,7 @@
 #
 from datetime import timedelta
 from typing import Optional
+from hashlib import sha256
 
 from flask import Flask
 from flask_appbuilder import SQLA
@@ -102,7 +103,13 @@ def create_app(config=None, testing=False, app_name="Airflow"):
 
     init_api_experimental_auth(flask_app)
 
-    Cache(app=flask_app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
+    Cache(app=flask_app, config={ 
+        'CACHE_TYPE': 'filesystem',
+        'CACHE_DIR': '/tmp',
+        'CACHE_OPTIONS': {
+            'hash_method': sha256
+        }
+    })
 
     init_flash_views(flask_app)
 
