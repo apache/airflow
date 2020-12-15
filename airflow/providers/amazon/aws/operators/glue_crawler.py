@@ -18,8 +18,8 @@
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glue_crawler import AwsGlueCrawlerHook
-from typing import Optional
 from airflow.utils.decorators import apply_defaults
+
 
 class AwsGlueCrawlerOperator(BaseOperator):
     """
@@ -120,7 +120,7 @@ class AwsGlueCrawlerOperator(BaseOperator):
         self.json_configuration = json_configuration
         self.security_configuration = security_configuration
         self.tags = tags
-        self.aws_conn_id = aws_conn_id
+        self.aws_conn_id = (aws_conn_id,)
 
     def execute(self, context):
         """
@@ -149,7 +149,7 @@ class AwsGlueCrawlerOperator(BaseOperator):
             json_configuration=self.json_configuration,
             security_configuration=self.security_configuration,
             tags=self.tags,
-            aws_conn_id=self.aws_conn_id
+            aws_conn_id=self.aws_conn_id,
         )
 
         self.log.info("Initializing AWS Glue Crawler: %s", self.crawler_name)

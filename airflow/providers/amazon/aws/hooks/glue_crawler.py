@@ -90,7 +90,7 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         security_configuration=None,
         tags=None,
         *args,
-        **kwargs
+        **kwargs,
     ):
 
         self.crawler_name = crawler_name
@@ -190,8 +190,9 @@ class AwsGlueCrawlerHook(AwsBaseHook):
                 self.log.info("Crawler: %s State: %s", crawler_name, crawler_run_state)
                 crawler_run_status = self.get_crawler_status(crawler_name)
                 if crawler_run_status in failed_status:
-                    crawler_error_message = "Exiting Crawler: " + crawler_name + " Run State: " \
-                    + crawler_run_state
+                    crawler_error_message = (
+                        "Exiting Crawler: " + crawler_name + " Run State: " + crawler_run_state
+                    )
                     self.log.info(crawler_error_message)
                     raise AirflowException(crawler_error_message)
                 else:
@@ -207,7 +208,9 @@ class AwsGlueCrawlerHook(AwsBaseHook):
                     
             else:
                 self.log.info(
-                    "Polling for AWS Glue crawler: %s Current run state: %s", self.crawler_name, crawler_run_state
+                    "Polling for AWS Glue crawler: %s Current run state: %s",
+                    self.crawler_name,
+                    crawler_run_state,
                 )
                 time.sleep(self.CRAWLER_POLL_INTERVAL)
 
@@ -230,7 +233,7 @@ class AwsGlueCrawlerHook(AwsBaseHook):
             get_crawler_response = glue_client.get_crawler(Name=self.crawler_name)
             self.log.info("Crawler already exists: %s", get_crawler_response['Crawler']['Name'])
             return get_crawler_response['Crawler']['Name']
-            #TODO: update crawler with `glue_client.update_crawler()` if task crawler config don't match with existing crawler config
+            # TODO: update crawler with `glue_client.update_crawler()` if task crawler config don't match with existing crawler config
 
         except glue_client.exceptions.EntityNotFoundException:
             self.log.info("Crawler doesn't exist. Creating AWS Glue crawler")
@@ -246,24 +249,20 @@ class AwsGlueCrawlerHook(AwsBaseHook):
                         'JdbcTargets': self.jdbc_targets_configuration,
                         'MongoDBTargets': self.mongo_targets_configuration,
                         'DynamoDBTargets': self.dynamo_targets_configuration,
-                        'CatalogTargets': self.glue_catalog_targets_configuration
+                        'CatalogTargets': self.glue_catalog_targets_configuration,
                     },
                     Schedule=self.cron_schedule,
                     Classifiers=self.classifiers,
                     TablePrefix=self.table_prefix,
                     SchemaChangePolicy={
                         'UpdateBehavior': self.update_behavior,
-                        'DeleteBehavior': self.delete_behavior
+                        'DeleteBehavior': self.delete_behavior,
                     },
-                    RecrawlPolicy={
-                        'RecrawlBehavior': self.recrawl_behavior
-                    },
-                    LineageConfiguration={
-                        'CrawlerLineageSettings': self.lineage_settings
-                    },
+                    RecrawlPolicy={'RecrawlBehavior': self.recrawl_behavior},
+                    LineageConfiguration={'CrawlerLineageSettings': self.lineage_settings},
                     Configuration=self.json_configuration,
                     CrawlerSecurityConfiguration=self.security_configuration,
-                    Tags=self.tags
+                    Tags=self.tags,
                 )
                 return self.crawler_name
             except Exception as general_error:

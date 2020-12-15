@@ -75,6 +75,7 @@ mock_crawler_config = {
     'tags': {'test': 'foo'},
 }
 
+
 class TestAwsGlueCrawlerOperator(unittest.TestCase):
     @mock.patch('airflow.providers.amazon.aws.hooks.glue_crawler.AwsGlueCrawlerHook')
     def setUp(self, glue_hook_mock):
