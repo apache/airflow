@@ -36,7 +36,7 @@ def generate_host_key(pkey: paramiko.PKey):
     pkey.write_private_key(key_fh)
     key_fh.seek(0)
     key_obj = paramiko.RSAKey(file_obj=key_fh)
-    return key_obj
+    return key_obj.get_base64()
 
 
 TMP_PATH = '/tmp'
@@ -47,7 +47,7 @@ TMP_FILE_FOR_TESTS = 'test_file.txt'
 SFTP_CONNECTION_USER = "root"
 
 TEST_PKEY = paramiko.RSAKey.generate(4096)
-TEST_HOST_KEY = generate_host_key(pkey=TEST_PKEY).get_base64()
+TEST_HOST_KEY = generate_host_key(pkey=TEST_PKEY)
 
 
 class TestSFTPHook(unittest.TestCase):

@@ -56,13 +56,12 @@ def generate_host_key(pkey: paramiko.PKey):
     pkey.write_private_key(key_fh)
     key_fh.seek(0)
     key_obj = paramiko.RSAKey(file_obj=key_fh)
-    return key_obj
+    return key_obj.get_base64()
 
 
 TEST_PKEY = paramiko.RSAKey.generate(4096)
 TEST_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY)
-TEST_HOST_PKEY = generate_host_key(pkey=TEST_PKEY)
-TEST_HOST_KEY = TEST_HOST_PKEY.get_base64()
+TEST_HOST_KEY = generate_host_key(pkey=TEST_PKEY)
 
 PASSPHRASE = ''.join(random.choice(string.ascii_letters) for i in range(10))
 TEST_ENCRYPTED_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY, passphrase=PASSPHRASE)
