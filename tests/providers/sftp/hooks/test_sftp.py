@@ -207,8 +207,8 @@ class TestSFTPHook(unittest.TestCase):
         self.assertEqual(hook.host_key.get_base64(), TEST_HOST_KEY)
 
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
-    def test_host_key_with_no_host_key_check_true(self, get_connection):
-        connection = Connection(login='login', host='host', extra=json.dumps({"host_key": TEST_HOST_KEY, "no_host_key_check": True}))
+    def test_host_key_with_no_host_key_check(self, get_connection):
+        connection = Connection(login='login', host='host', extra=json.dumps({"host_key": TEST_HOST_KEY}))
         get_connection.return_value = connection
         hook = SFTPHook()
         self.assertEqual(hook.host_key, None)
