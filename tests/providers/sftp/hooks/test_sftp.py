@@ -204,7 +204,7 @@ class TestSFTPHook(unittest.TestCase):
         connection = Connection(
             login='login',
             host='host',
-            extra=json.dumps({"host_key": TEST_HOST_KEY, "no_host_key_check": False})
+            extra=json.dumps({"host_key": TEST_HOST_KEY, "no_host_key_check": False}),
         )
         get_connection.return_value = connection
         hook = SFTPHook()
