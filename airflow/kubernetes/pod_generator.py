@@ -34,7 +34,6 @@ from dateutil import parser
 from kubernetes.client.api_client import ApiClient
 from airflow.contrib.kubernetes.pod import _extract_volume_mounts
 
-from airflow.exceptions import AirflowConfigException
 from airflow.version import version as airflow_version
 
 MAX_LABEL_LEN = 63
@@ -50,21 +49,15 @@ class PodDefaults(object):
     def __init__(self):
         pass
 
-    XCOM_MOUNT_PATH = '/airflow/xcom'
-    SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
+    XCOM_MOUNT_PATH = "/airflow/xcom"
+    SIDECAR_CONTAINER_NAME = "airflow-xcom-sidecar"
     XCOM_CMD = 'trap "exit 0" INT; while true; do sleep 30; done;'
-    VOLUME_MOUNT = k8s.V1VolumeMount(
-        name='xcom',
-        mount_path=XCOM_MOUNT_PATH
-    )
-    VOLUME = k8s.V1Volume(
-        name='xcom',
-        empty_dir=k8s.V1EmptyDirVolumeSource()
-    )
+    VOLUME_MOUNT = k8s.V1VolumeMount(name="xcom", mount_path=XCOM_MOUNT_PATH)
+    VOLUME = k8s.V1Volume(name="xcom", empty_dir=k8s.V1EmptyDirVolumeSource())
     SIDECAR_CONTAINER = k8s.V1Container(
         name=SIDECAR_CONTAINER_NAME,
-        command=['sh', '-c', XCOM_CMD],
-        image='alpine',
+        command=["sh", "-c", XCOM_CMD],
+        image="alpine",
         volume_mounts=[VOLUME_MOUNT],
         resources=k8s.V1ResourceRequirements(
             requests={
@@ -88,7 +81,7 @@ def make_safe_label_value(string):
 
     if len(safe_label) > MAX_LABEL_LEN or string != safe_label:
         safe_hash = hashlib.md5(string.encode()).hexdigest()[:9]
-        safe_label = safe_label[:MAX_LABEL_LEN - len(safe_hash) - 1] + "-" + safe_hash
+        safe_label = safe_label[: MAX_LABEL_LEN - len(safe_hash) - 1] + "-" + safe_hash
 
     return safe_label
 
@@ -102,7 +95,7 @@ def datetime_to_label_safe_datestring(datetime_obj):
     :param datetime_obj: datetime.datetime object
     :return: ISO-like string representing the datetime
     """
-    return datetime_obj.isoformat().replace(":", "_").replace('+', '_plus_')
+    return datetime_obj.isoformat().replace(":", "_").replace("+", "_plus_")
 
 
 def label_safe_datestring_to_datetime(string):
@@ -114,7 +107,7 @@ def label_safe_datestring_to_datetime(string):
     :param string: str
     :return: datetime.datetime object
     """
-    return parser.parse(string.replace('_plus_', '+').replace("_", ":"))
+    return parser.parse(string.replace("_plus_", "+").replace("_", ":"))
 
 
 class PodGenerator(object):
@@ -230,8 +223,8 @@ class PodGenerator(object):
             self.ud_pod = pod
 
         self.pod = k8s.V1Pod()
-        self.pod.api_version = 'v1'
-        self.pod.kind = 'Pod'
+        self.pod.api_version = "v1"
+        self.pod.kind = "Pod"
 
         # Pod Metadata
         self.metadata = k8s.V1ObjectMeta()
@@ -241,35 +234,34 @@ class PodGenerator(object):
         self.metadata.annotations = annotations
 
         # Pod Container
-        self.container = k8s.V1Container(name='base')
+        self.container = k8s.V1Container(name="base")
         self.container.image = image
         self.container.env = []
 
         if envs:
             if isinstance(envs, dict):
                 for key, val in envs.items():
-                    self.container.env.append(k8s.V1EnvVar(
-                        name=key,
-                        value=val
-                    ))
+                    self.container.env.append(k8s.V1EnvVar(name=key, value=val))
             elif isinstance(envs, list):
                 self.container.env.extend(envs)
 
         configmaps = configmaps or []
         self.container.env_from = []
         for configmap in configmaps:
-            self.container.env_from.append(k8s.V1EnvFromSource(
-                config_map_ref=k8s.V1ConfigMapEnvSource(
-                    name=configmap
+            self.container.env_from.append(
+                k8s.V1EnvFromSource(
+                    config_map_ref=k8s.V1ConfigMapEnvSource(name=configmap)
                 )
-            ))
+            )
 
         self.container.command = cmds or []
         self.container.args = args or []
         self.container.image_pull_policy = image_pull_policy
         self.container.ports = ports or []
         self.container.resources = resources
-        self.container.volume_mounts = [v.to_k8s_client_obj() for v in _extract_volume_mounts(volume_mounts)]
+        self.container.volume_mounts = [
+            v.to_k8s_client_obj() for v in _extract_volume_mounts(volume_mounts)
+        ]
 
         # Pod Spec
         self.spec = k8s.V1PodSpec(containers=[])
@@ -288,10 +280,10 @@ class PodGenerator(object):
         self.spec.image_pull_secrets = []
 
         if image_pull_secrets:
-            for image_pull_secret in image_pull_secrets.split(','):
-                self.spec.image_pull_secrets.append(k8s.V1LocalObjectReference(
-                    name=image_pull_secret
-                ))
+            for image_pull_secret in image_pull_secrets.split(","):
+                self.spec.image_pull_secrets.append(
+                    k8s.V1LocalObjectReference(name=image_pull_secret)
+                )
 
         # Attach sidecar
         self.extract_xcom = extract_xcom
@@ -325,7 +317,7 @@ class PodGenerator(object):
             return None
 
         safe_uuid = uuid.uuid4().hex
-        safe_pod_id = dag_id[:MAX_POD_ID_LEN - len(safe_uuid) - 1]
+        safe_pod_id = dag_id[: MAX_POD_ID_LEN - len(safe_uuid) - 1]
         safe_pod_id = safe_pod_id + "-" + safe_uuid
 
         return safe_pod_id
@@ -335,7 +327,9 @@ class PodGenerator(object):
         pod_cp = copy.deepcopy(pod)
         pod_cp.spec.volumes = pod.spec.volumes or []
         pod_cp.spec.volumes.insert(0, PodDefaults.VOLUME)
-        pod_cp.spec.containers[0].volume_mounts = pod_cp.spec.containers[0].volume_mounts or []
+        pod_cp.spec.containers[0].volume_mounts = (
+            pod_cp.spec.containers[0].volume_mounts or []
+        )
         pod_cp.spec.containers[0].volume_mounts.insert(0, PodDefaults.VOLUME_MOUNT)
         pod_cp.spec.containers.append(PodDefaults.SIDECAR_CONTAINER)
 
@@ -351,8 +345,9 @@ class PodGenerator(object):
 
         if not isinstance(obj, dict):
             raise TypeError(
-                'Cannot convert a non-dictionary or non-PodGenerator '
-                'object into a KubernetesExecutorConfig')
+                "Cannot convert a non-dictionary or non-PodGenerator "
+                "object into a KubernetesExecutorConfig"
+            )
 
         # We do not want to extract constant here from ExecutorLoader because it is just
         # A name in dictionary rather than executor selection mechanism and it causes cyclic import
@@ -361,50 +356,55 @@ class PodGenerator(object):
         if not namespaced:
             return None
 
-        resources = namespaced.get('resources')
+        resources = namespaced.get("resources")
 
         if resources is None:
+
             def extract(cpu, memory, ephemeral_storage, limit_gpu=None):
                 resources_obj = {
-                    'cpu': namespaced.pop(cpu, None),
-                    'memory': namespaced.pop(memory, None),
-                    'ephemeral-storage': namespaced.pop(ephemeral_storage, None),
+                    "cpu": namespaced.pop(cpu, None),
+                    "memory": namespaced.pop(memory, None),
+                    "ephemeral-storage": namespaced.pop(ephemeral_storage, None),
                 }
                 if limit_gpu is not None:
-                    resources_obj['nvidia.com/gpu'] = namespaced.pop(limit_gpu, None)
+                    resources_obj["nvidia.com/gpu"] = namespaced.pop(limit_gpu, None)
 
-                resources_obj = {k: v for k, v in resources_obj.items() if v is not None}
+                resources_obj = {
+                    k: v for k, v in resources_obj.items() if v is not None
+                }
 
                 if all(r is None for r in resources_obj):
                     resources_obj = None
                 return namespaced, resources_obj
 
-            namespaced, requests = extract('request_cpu', 'request_memory', 'request_ephemeral_storage')
-            namespaced, limits = extract('limit_cpu', 'limit_memory', 'limit_ephemeral_storage',
-                                         limit_gpu='limit_gpu')
+            namespaced, requests = extract(
+                "request_cpu", "request_memory", "request_ephemeral_storage"
+            )
+            namespaced, limits = extract(
+                "limit_cpu",
+                "limit_memory",
+                "limit_ephemeral_storage",
+                limit_gpu="limit_gpu",
+            )
 
             if requests is None and limits is None:
                 resources = None
             else:
-                resources = k8s.V1ResourceRequirements(
-                    requests=requests,
-                    limits=limits
-                )
+                resources = k8s.V1ResourceRequirements(requests=requests, limits=limits)
         elif isinstance(resources, dict):
             resources = k8s.V1ResourceRequirements(
-                requests=resources['requests'],
-                limits=resources['limits']
+                requests=resources["requests"], limits=resources["limits"]
             )
 
-        annotations = namespaced.get('annotations', {})
-        gcp_service_account_key = namespaced.get('gcp_service_account_key', None)
+        annotations = namespaced.get("annotations", {})
+        gcp_service_account_key = namespaced.get("gcp_service_account_key", None)
 
         if annotations is not None and gcp_service_account_key is not None:
-            annotations.update({
-                'iam.cloud.google.com/service-account': gcp_service_account_key
-            })
+            annotations.update(
+                {"iam.cloud.google.com/service-account": gcp_service_account_key}
+            )
 
-        namespaced['resources'] = resources
+        namespaced["resources"] = resources
         return PodGenerator(**namespaced).gen_pod()
 
     @staticmethod
@@ -426,8 +426,12 @@ class PodGenerator(object):
             return base_pod
 
         client_pod_cp = copy.deepcopy(client_pod)
-        client_pod_cp.spec = PodGenerator.reconcile_specs(base_pod.spec, client_pod_cp.spec)
-        client_pod_cp.metadata = PodGenerator.reconcile_metadata(base_pod.metadata, client_pod_cp.metadata)
+        client_pod_cp.spec = PodGenerator.reconcile_specs(
+            base_pod.spec, client_pod_cp.spec
+        )
+        client_pod_cp.metadata = PodGenerator.reconcile_metadata(
+            base_pod.metadata, client_pod_cp.metadata
+        )
         client_pod_cp = merge_objects(base_pod, client_pod_cp)
 
         return client_pod_cp
@@ -448,17 +452,18 @@ class PodGenerator(object):
             return client_meta
         elif client_meta and base_meta:
             client_meta.labels = merge_objects(base_meta.labels, client_meta.labels)
-            client_meta.annotations = merge_objects(base_meta.annotations, client_meta.annotations)
-            extend_object_field(base_meta, client_meta, 'managed_fields')
-            extend_object_field(base_meta, client_meta, 'finalizers')
-            extend_object_field(base_meta, client_meta, 'owner_references')
+            client_meta.annotations = merge_objects(
+                base_meta.annotations, client_meta.annotations
+            )
+            extend_object_field(base_meta, client_meta, "managed_fields")
+            extend_object_field(base_meta, client_meta, "finalizers")
+            extend_object_field(base_meta, client_meta, "owner_references")
             return merge_objects(base_meta, client_meta)
 
         return None
 
     @staticmethod
-    def reconcile_specs(base_spec,
-                        client_spec):
+    def reconcile_specs(base_spec, client_spec):
         """
         :param base_spec: has the base attributes which are overwritten if they exist
             in the client_spec and remain if they do not exist in the client_spec
@@ -475,14 +480,13 @@ class PodGenerator(object):
             client_spec.containers = PodGenerator.reconcile_containers(
                 base_spec.containers, client_spec.containers
             )
-            merged_spec = extend_object_field(base_spec, client_spec, 'volumes')
+            merged_spec = extend_object_field(base_spec, client_spec, "volumes")
             return merge_objects(base_spec, merged_spec)
 
         return None
 
     @staticmethod
-    def reconcile_containers(base_containers,
-                             client_containers):
+    def reconcile_containers(base_containers, client_containers):
         """
         :param base_containers: has the base attributes which are overwritten if they exist
             in the client_containers and remain if they do not exist in the client_containers
@@ -501,14 +505,18 @@ class PodGenerator(object):
         client_container = client_containers[0]
         base_container = base_containers[0]
         client_container = extend_object_field(
-            base_container,
-            client_container,
-            'volume_mounts',
-            'mount_path')
-        client_container = extend_object_field(base_container, client_container, 'env')
-        client_container = extend_object_field(base_container, client_container, 'env_from')
-        client_container = extend_object_field(base_container, client_container, 'ports')
-        client_container = extend_object_field(base_container, client_container, 'volume_devices')
+            base_container, client_container, "volume_mounts"
+        )
+        client_container = extend_object_field(base_container, client_container, "env")
+        client_container = extend_object_field(
+            base_container, client_container, "env_from"
+        )
+        client_container = extend_object_field(
+            base_container, client_container, "ports"
+        )
+        client_container = extend_object_field(
+            base_container, client_container, "volume_devices"
+        )
         client_container = merge_objects(base_container, client_container)
 
         return [client_container] + PodGenerator.reconcile_containers(
@@ -527,7 +535,7 @@ class PodGenerator(object):
         pod_override_object,
         base_worker_pod,
         namespace,
-        worker_uuid
+        worker_uuid,
     ):
         """
         Construct a pod by gathering and consolidating the configuration from 3 places:
@@ -545,22 +553,22 @@ class PodGenerator(object):
             namespace=namespace,
             image=image,
             labels={
-                'airflow-worker': worker_uuid,
-                'dag_id': make_safe_label_value(dag_id),
-                'task_id': make_safe_label_value(task_id),
-                'execution_date': datetime_to_label_safe_datestring(date),
-                'try_number': str(try_number),
-                'airflow_version': airflow_version.replace('+', '-'),
-                'kubernetes_executor': 'True',
+                "airflow-worker": worker_uuid,
+                "dag_id": make_safe_label_value(dag_id),
+                "task_id": make_safe_label_value(task_id),
+                "execution_date": datetime_to_label_safe_datestring(date),
+                "try_number": str(try_number),
+                "airflow_version": airflow_version.replace("+", "-"),
+                "kubernetes_executor": "True",
             },
             annotations={
-                'dag_id': dag_id,
-                'task_id': task_id,
-                'execution_date': date.isoformat(),
-                'try_number': str(try_number),
+                "dag_id": dag_id,
+                "task_id": task_id,
+                "execution_date": date.isoformat(),
+                "try_number": str(try_number),
             },
             cmds=command,
-            name=pod_id
+            name=pod_id,
         ).gen_pod()
 
         # Reconcile the pods starting with the first chronologically,
@@ -627,7 +635,7 @@ def merge_objects(base_obj, client_obj):
     return client_obj_cp
 
 
-def extend_object_field(base_obj, client_obj, field_name, field_to_merge="name"):
+def extend_object_field(base_obj, client_obj, field_name):
     """
     :param base_obj: an object which has a property `field_name` that is a list
     :param client_obj: an object which has a property `field_name` that is a list.
@@ -640,8 +648,9 @@ def extend_object_field(base_obj, client_obj, field_name, field_to_merge="name")
     base_obj_field = getattr(base_obj, field_name, None)
     client_obj_field = getattr(client_obj, field_name, None)
 
-    if (not isinstance(base_obj_field, list) and base_obj_field is not None) or \
-       (not isinstance(client_obj_field, list) and client_obj_field is not None):
+    if (not isinstance(base_obj_field, list) and base_obj_field is not None) or (
+        not isinstance(client_obj_field, list) and client_obj_field is not None
+    ):
         raise ValueError("The chosen field must be a list.")
 
     if not base_obj_field:
@@ -650,36 +659,6 @@ def extend_object_field(base_obj, client_obj, field_name, field_to_merge="name")
         setattr(client_obj_cp, field_name, base_obj_field)
         return client_obj_cp
 
-    base_obj_set = _get_dict_from_list(base_obj_field, field_to_merge)
-    client_obj_set = _get_dict_from_list(client_obj_field, field_to_merge)
-
-    appended_fields = _merge_list_of_objects(base_obj_set, client_obj_set)
-
+    appended_fields = base_obj_field + client_obj_field
     setattr(client_obj_cp, field_name, appended_fields)
     return client_obj_cp
-
-
-def _merge_list_of_objects(base_obj_set, client_obj_set):
-    for k, v in base_obj_set.items():
-        if k not in client_obj_set:
-            client_obj_set[k] = v
-        else:
-            client_obj_set[k] = merge_objects(v, client_obj_set[k])
-    appended_field_keys = sorted(client_obj_set.keys())
-    appended_fields = [client_obj_set[k] for k in appended_field_keys]
-    return appended_fields
-
-
-def _get_dict_from_list(base_list, field_to_merge="name"):
-    """
-    :type base_list: list(Optional[dict, *to_dict])
-    """
-    result = {}
-    for obj in base_list:
-        if isinstance(obj, dict):
-            result[obj[field_to_merge]] = obj
-        elif hasattr(obj, "to_dict"):
-            result[getattr(obj, field_to_merge)] = obj
-        else:
-            raise AirflowConfigException("Trying to merge invalid object {}".format(obj))
-    return result
