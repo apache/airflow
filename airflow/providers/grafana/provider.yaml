@@ -28,5 +28,6 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-grafana/logging.rst
     tags: [service]
-operators: {}
-hooks: {}
+operators: []
+hooks: []
+sensors: []
