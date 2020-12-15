@@ -152,8 +152,8 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
                 ):
                     self.look_for_keys = False
                 if "host_key" in extra_options and self.no_host_key_check is False:
-                    encoded_host_key = decodebytes(extra_options["host_key"].encode('utf-8'))
-                    self.host_key = paramiko.RSAKey(data=encoded_host_key)
+                    decoded_host_key = decodebytes(extra_options["host_key"].encode('utf-8'))
+                    self.host_key = paramiko.RSAKey(data=decoded_host_key)
         if self.pkey and self.key_file:
             raise AirflowException(
                 "Params key_file and private_key both provided.  Must provide no more than one."
