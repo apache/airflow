@@ -23,9 +23,6 @@ import unittest
 from datetime import timedelta
 from time import sleep
 
-from dateutil.relativedelta import relativedelta
-from numpy.testing import assert_array_almost_equal
-
 from airflow import settings
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.hooks.base import BaseHook
@@ -38,7 +35,6 @@ from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
 from airflow.settings import Session
-from airflow.utils.dates import infer_time_unit, round_time, scale_time_units
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
@@ -321,52 +317,6 @@ class TestCore(unittest.TestCase):
             run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=DEFAULT_DATE
         )
         ti.run(ignore_ti_state=True)
-
-    def test_round_time(self):
-
-        rt1 = round_time(datetime(2015, 1, 1, 6), timedelta(days=1))
-        self.assertEqual(datetime(2015, 1, 1, 0, 0), rt1)
-
-        rt2 = round_time(datetime(2015, 1, 2), relativedelta(months=1))
-        self.assertEqual(datetime(2015, 1, 1, 0, 0), rt2)
-
-        rt3 = round_time(datetime(2015, 9, 16, 0, 0), timedelta(1), datetime(2015, 9, 14, 0, 0))
-        self.assertEqual(datetime(2015, 9, 16, 0, 0), rt3)
-
-        rt4 = round_time(datetime(2015, 9, 15, 0, 0), timedelta(1), datetime(2015, 9, 14, 0, 0))
-        self.assertEqual(datetime(2015, 9, 15, 0, 0), rt4)
-
-        rt5 = round_time(datetime(2015, 9, 14, 0, 0), timedelta(1), datetime(2015, 9, 14, 0, 0))
-        self.assertEqual(datetime(2015, 9, 14, 0, 0), rt5)
-
-        rt6 = round_time(datetime(2015, 9, 13, 0, 0), timedelta(1), datetime(2015, 9, 14, 0, 0))
-        self.assertEqual(datetime(2015, 9, 14, 0, 0), rt6)
-
-    def test_infer_time_unit(self):
-
-        self.assertEqual('minutes', infer_time_unit([130, 5400, 10]))
-
-        self.assertEqual('seconds', infer_time_unit([110, 50, 10, 100]))
-
-        self.assertEqual('hours', infer_time_unit([100000, 50000, 10000, 20000]))
-
-        self.assertEqual('days', infer_time_unit([200000, 100000]))
-
-    def test_scale_time_units(self):
-
-        # use assert_almost_equal from numpy.testing since we are comparing
-        # floating point arrays
-        arr1 = scale_time_units([130, 5400, 10], 'minutes')
-        assert_array_almost_equal(arr1, [2.167, 90.0, 0.167], decimal=3)
-
-        arr2 = scale_time_units([110, 50, 10, 100], 'seconds')
-        assert_array_almost_equal(arr2, [110.0, 50.0, 10.0, 100.0], decimal=3)
-
-        arr3 = scale_time_units([100000, 50000, 10000, 20000], 'hours')
-        assert_array_almost_equal(arr3, [27.778, 13.889, 2.778, 5.556], decimal=3)
-
-        arr4 = scale_time_units([200000, 100000], 'days')
-        assert_array_almost_equal(arr4, [2.315, 1.157], decimal=3)
 
     def test_bad_trigger_rule(self):
         with self.assertRaises(AirflowException):
