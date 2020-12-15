@@ -291,7 +291,7 @@ ptyprocess==0.6.0
 py4j==0.10.9
 py==1.9.0
 pyOpenSSL==19.1.0
-pyarrow==0.17.1
+pyarrow==2.0.0
 pyasn1-modules==0.2.8
 pyasn1==0.4.8
 pycodestyle==2.6.0
