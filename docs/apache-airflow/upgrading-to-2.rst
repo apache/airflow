@@ -359,7 +359,7 @@ respect to the Kubernetes Executor. This is called out below for users of the Ku
 
 **Upgrade KubernetesExecutor settings**
 
-*The KubernetesExecutor Will t` Longer Read from the airflow.cfg for Base Pod Configurations.*
+*The KubernetesExecutor Will No Longer Read from the airflow.cfg for Base Pod Configurations.*
 
 In Airflow 2.0, the KubernetesExecutor will require a base pod template written in yaml. This file can exist
 anywhere on the host machine and will be linked using the ``pod_template_file`` configuration in the ``airflow.cfg`` file.
