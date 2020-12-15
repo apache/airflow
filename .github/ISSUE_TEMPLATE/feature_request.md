@@ -33,6 +33,11 @@ step back and describe what you are trying to achieve.
 
 -->
 
+**Are you willing to submit a PR?**
+
+<!--- We accept contributions! -->
+
 **Related Issues**
 
 <!-- Is there currently another issue associated with this? -->
+
