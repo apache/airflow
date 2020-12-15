@@ -148,6 +148,8 @@ class TestPod(unittest.TestCase):
         result = k8s_client.sanitize_for_serialization(result)
 
         expected = {
+            'apiVersion': 'v1',
+            'kind': 'Pod',
             "metadata": {
                 "annotations": {},
                 "labels": {},
