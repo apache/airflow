@@ -116,7 +116,12 @@ def _run_task_by_local_task_job(args, ti):
         ignore_ti_state=args.force,
         pool=args.pool,
     )
-    run_job.run()
+    try:
+        run_job.run()
+
+    finally:
+        if args.shut_down_logging:
+            logging.shutdown()
 
 
 RAW_TASK_UNSUPPORTED_OPTION = [

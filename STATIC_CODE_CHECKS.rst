@@ -72,8 +72,6 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``check-hooks-apply``                 Checks which hooks are applicable to the repository.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``check-hooks-apply``                 Checks which hooks are applicable to the repository.
------------------------------------ ---------------------------------------------------------------- ------------
 ``check-integrations``                Checks if integration list is synchronized in code.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``check-merge-conflicts``             Checks that merge conflicts are not being committed.

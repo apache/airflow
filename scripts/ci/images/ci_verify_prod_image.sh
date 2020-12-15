@@ -90,6 +90,8 @@ function pull_prod_image() {
 
 build_images::prepare_prod_build
 
+pull_prod_image
+
 verify_prod_image_has_airflow_and_providers
 
 verify_prod_image_dependencies

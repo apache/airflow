@@ -24,49 +24,10 @@ services:
       - ADDITIONAL_PATH=~/.local/bin
       - CELERY_BROKER_URLS=amqp://guest:guest@rabbitmq:5672,redis://redis:6379/0
       - KUBECONFIG=/files/.kube/config
-      - BACKEND
-      - CI
-      - CI_BUILD_ID
-      - CI_JOB_ID
-      - CI_EVENT_TYPE
-      - CI_TARGET_REPO
-      - CI_TARGET_BRANCH
-      - COMMIT_SHA
-      - RUN_TESTS
-      - VERBOSE
-      - VEROSE_COMMANDS
-      - AIRFLOW_CI_IMAGE
-      - ENABLE_KIND_CLUSTER
-      - ENABLED_INTEGRATIONS
-      - RUN_INTEGRATION_TESTS
-      - TEST_TYPE
-      - PACKAGE_FORMAT
-      - GITHUB_TOKEN
-      - GITHUB_REPOSITORY
-      - ISSUE_ID
-      - NUM_RUNS
-      - BREEZE
-      - INSTALL_AIRFLOW_VERSION
-      - DB_RESET
-      - START_AIRFLOW
-      - LOAD_EXAMPLES
-      - BACKPORT_PACKAGES
-      - LOAD_DEFAULT_CONNECTIONS
-      - INSTALL_PACKAGES_FROM_DIST
-      - DISABLE_RBAC
-      - ENABLED_SYSTEMS
-      - RUN_SYSTEM_TESTS
-      - PYTHON_MAJOR_MINOR_VERSION
-      - HOST_USER_ID
-      - HOST_GROUP_ID
-      - HOST_HOME=${HOME}
       - HOST_AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
-      - HOST_OS
-      - PYTHONDONTWRITEBYTECODE
-      - INIT_SCRIPT_FILE
-      - GITHUB_REGISTRY_PULL_IMAGE_TAG
-      - POSTGRES_VERSION
-      - MYSQL_VERSION
+      - HOST_HOME=${HOME}
+    env_file:
+      - _docker.env
     volumes:
       # Pass docker to inside of the container so that Kind and Moto tests can use it.
       - /var/run/docker.sock:/var/run/docker.sock

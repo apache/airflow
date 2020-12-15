@@ -163,3 +163,52 @@ statement for the Python Operator to be as follows will make this DAG work in Ai
 
 However, at the time of writing, this is incompatible in Airflow 1.10.14. So, this change
 can only be made while moving to Airflow 2.0.
+
+
+Turning off checks
+''''''''''''''''''
+
+Advanced Airflow users or those with multiple Airflow deployments may want to
+customize the Upgrade Checks to their environment by turning off certain
+checks which are not applicable to them. And example of this is users with
+Airflow deployments not using the ``KubernetesPodOperator`` may want to turn off upgrade
+checks related to the ``KubernetesPodOperator``.
+
+This can be done by creating an "upgrade config file" in YAML as shown below:
+
+.. code-block::
+
+    ignored_rules:
+        - PodTemplateFileRule
+
+To use this configuration file (named ```upgrade-configuration.yaml`` for  this
+example) while running the upgrade check script, use the following command syntax:
+
+.. code-block:: bash
+
+    airflow upgrade_check --config=./upgrade-configuration.yaml
+
+
+Adding custom checks
+''''''''''''''''''''
+
+Advanced Airflow users or those with multiple Airflow deployments may also
+want to add additional upgrade checks for specific elements in their
+environment whether it is DAGs or configuration related.
+
+These additional checks should be defined in a Python class and added as
+``custom_rules`` in the "upgrade config file" as shown below:
+
+.. code-block::
+
+    custom_rules:
+        - path.CustomCheckClass1
+        - path.CustomCheckClass2
+
+Now, invoke the upgrade check script using this configuration file as shown
+below (the config file is named ``upgrade-configuration.yaml`` in
+this example):
+
+.. code-block:: bash
+
+    airflow upgrade_check --config=./upgrade-configuration.yaml

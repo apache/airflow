@@ -106,6 +106,7 @@ def _execute_in_fork(command_to_exec: CommandType) -> None:
         parser = get_parser()
         # [1:] - remove "airflow" from the start of the command
         args = parser.parse_args(command_to_exec[1:])
+        args.shut_down_logging = False
 
         setproctitle(f"airflow task supervisor: {command_to_exec}")
 
@@ -116,6 +117,7 @@ def _execute_in_fork(command_to_exec: CommandType) -> None:
         ret = 1
     finally:
         Sentry.flush()
+        logging.shutdown()
         os._exit(ret)  # pylint: disable=protected-access
 
 

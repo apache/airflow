@@ -21,9 +21,9 @@ on:  # yamllint disable-line rule:truthy
   schedule:
     - cron: '28 0 * * *'
   push:
-    branches: ['master', 'v1-10-test', 'v1-10-stable']
+    branches: ['master', 'v1-10-test', 'v1-10-stable', 'v2-0-test']
   pull_request:
-    branches: ['master', 'v1-10-test', 'v1-10-stable']
+    branches: ['master', 'v1-10-test', 'v1-10-stable', 'v2-0-test']
 
 env:
 
@@ -210,6 +210,8 @@ jobs:
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
         if: needs.build-info.outputs.waitForImage == 'true'
+      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Verify CI image Py${{matrix.python-version}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_verify_ci_image.sh
         if: needs.build-info.outputs.waitForImage == 'true'
@@ -354,20 +356,25 @@ jobs:
         if: >
           github.ref == 'refs/heads/master' && github.repository == 'apache/airflow' &&
           github.event_name == 'push'
-        run: aws s3 sync ./files/documentation s3://apache-airflow-docs
+        run: aws s3 sync --delete ./files/documentation s3://apache-airflow-docs
 
   prepare-backport-provider-packages:
     timeout-minutes: 30
-    name: "Backport packages"
+    name: "Backport packages: ${{ matrix.package-format }}"
     runs-on: ubuntu-20.04
     needs: [build-info, ci-images]
+    strategy:
+      matrix:
+        package-format: ['wheel', 'sdist']
     env:
       # In this case we want to install airflow from the latest released 1.10 version
       # all provider packages are installed from wheels or .tar.gz files
-      INSTALL_AIRFLOW_VERSION: "1.10.13"
+      INSTALL_AIRFLOW_VERSION: "1.10.14"
+      AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       BACKPORT_PACKAGES: "true"
-      VERSION_SUFFIX_FOR_SVN: "rc1"
+      VERSION_SUFFIX_FOR_PYPI: "rc1"
+      PACKAGE_FORMAT: ${{ matrix.package-format }}
     if: needs.build-info.outputs.image-build == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -382,18 +389,10 @@ jobs:
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Prepare provider readmes"
         run: ./scripts/ci/provider_packages/ci_prepare_provider_readmes.sh
-      - name: "Prepare provider packages"
+      - name: "Prepare provider packages: ${{ matrix.package-format }}"
         run: ./scripts/ci/provider_packages/ci_prepare_provider_packages.sh
-        env:
-          PACKAGE_FORMAT: "both"
-      - name: "Install and test provider packages via wheel files"
+      - name: "Install and test provider packages and airflow via ${{ matrix.package-format }} files"
         run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
-        env:
-          PACKAGE_FORMAT: "wheel"
-      - name: "Install and test provider packages via sdist files"
-        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
-        env:
-          PACKAGE_FORMAT: "sdist"
       - name: "Upload provider package artifacts"
         uses: actions/upload-artifact@v2
         if: always()
@@ -403,7 +402,7 @@ jobs:
           retention-days: 7
       - name: "Upload readme artifacts"
         uses: actions/upload-artifact@v2
-        if: always()
+        if: always() && matrix.package-format == 'wheel'
         with:
           name: airflow-backport-readmes
           path: "./files/airflow-readme-*"
@@ -411,15 +410,18 @@ jobs:
 
   prepare-provider-packages:
     timeout-minutes: 30
-    name: "Provider packages"
+    name: "Provider packages ${{ matrix.package-format }}"
     runs-on: ubuntu-20.04
     needs: [build-info, ci-images]
     env:
-      INSTALL_AIRFLOW_VERSION: "wheel"
+      INSTALL_AIRFLOW_VERSION: "${{ matrix.package-format }}"
+      AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-      VERSION_SUFFIX_FOR_PYPI: "a2"
-      VERSION_SUFFIX_FOR_SVN: "a2"
-      PACKAGE_FORMAT: "both"
+      VERSION_SUFFIX_FOR_PYPI: "rc1"
+      PACKAGE_FORMAT: ${{ matrix.package-format }}
+    strategy:
+      matrix:
+        package-format: ['wheel', 'sdist']
     if: needs.build-info.outputs.image-build == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -434,20 +436,12 @@ jobs:
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Prepare provider readmes"
         run: ./scripts/ci/provider_packages/ci_prepare_provider_readmes.sh
-      - name: "Prepare provider packages"
+      - name: "Prepare provider packages: ${{ matrix.package-format }}"
         run: ./scripts/ci/provider_packages/ci_prepare_provider_packages.sh
-        env:
-          PACKAGE_FORMAT: "both"
-      - name: "Prepare airflow package so that it can be installed"
+      - name: "Prepare airflow packages: ${{ matrix.package-format }}"
         run: ./scripts/ci/build_airflow/ci_build_airflow_package.sh
-      - name: "Install and test provider packages via wheel files"
+      - name: "Install and test provider packages and airflow via ${{ matrix.package-format }} files"
         run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
-        env:
-          PACKAGE_FORMAT: "wheel"
-      - name: "Install and test provider packages via sdist files"
-        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
-        env:
-          PACKAGE_FORMAT: "sdist"
       - name: "Upload provider package artifacts"
         uses: actions/upload-artifact@v2
         if: always()
@@ -457,7 +451,7 @@ jobs:
           retention-days: 7
       - name: "Upload readme artifacts"
         uses: actions/upload-artifact@v2
-        if: always()
+        if: always() && matrix.package-format == 'wheel'
         with:
           name: airflow-provider-readmes
           path: "./files/airflow-readme-*"
@@ -821,6 +815,8 @@ jobs:
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
         if: needs.build-info.outputs.waitForImage == 'true'
+      - name: "Prepare PROD Image"
+        run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
       - name: "Verify PROD image Py${{matrix.python-version}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_verify_prod_image.sh
         if: needs.build-info.outputs.waitForImage == 'true'
@@ -841,7 +837,6 @@ jobs:
       BACKEND: postgres
       RUN_TESTS: "true"
       RUNTIME: "kubernetes"
-      ENABLE_KIND_CLUSTER: "true"
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
       KUBERNETES_MODE: "${{ matrix.kubernetes-mode }}"
       KUBERNETES_VERSION: "${{ matrix.kubernetes-version }}"
@@ -921,7 +916,8 @@ jobs:
       - verify-prod-images
       - docs
     if: >
-      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test') &&
+      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
+      github.ref == 'refs/heads/v2-0-test') &&
       github.event_name != 'schedule'
     strategy:
       matrix:
@@ -960,7 +956,8 @@ jobs:
       - verify-ci-images
       - docs
     if: >
-      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ) &&
+      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
+      github.ref == 'refs/heads/v2-0-test') &&
       github.event_name != 'schedule'
     strategy:
       matrix:
@@ -995,7 +992,9 @@ jobs:
       - ci-images
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test'
+    if: >
+      github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
+      github.ref == 'refs/heads/v2-0-test'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -1031,7 +1030,9 @@ jobs:
       - tests-mysql
       - tests-postgres
       - tests-kubernetes
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test'
+    if: >
+      github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
+      github.ref == 'refs/heads/v2-0-test'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2

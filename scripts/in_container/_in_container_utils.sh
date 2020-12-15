@@ -272,13 +272,30 @@ function install_airflow_from_wheel() {
     local extras
     extras="${1}"
     local airflow_package
-    airflow_package=$(find /dist/ -maxdepth 1 -type f -name 'apache_airflow-*.whl')
+    airflow_package=$(find /dist/ -maxdepth 1 -type f -name 'apache_airflow-[0-9]*.whl')
     echo
     echo "Found package: ${airflow_package}. Installing."
     echo
     if [[ -z "${airflow_package}" ]]; then
         >&2 echo
         >&2 echo "ERROR! Could not find airflow wheel package to install in dist"
+        >&2 echo
+        exit 4
+    fi
+    pip install "${airflow_package}${1}" >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
+}
+
+function install_airflow_from_sdist() {
+    local extras
+    extras="${1}"
+    local airflow_package
+    airflow_package=$(find /dist/ -maxdepth 1 -type f -name 'apache-airflow-[0-9]*.tar.gz')
+    echo
+    echo "Found package: ${airflow_package}. Installing."
+    echo
+    if [[ -z "${airflow_package}" ]]; then
+        >&2 echo
+        >&2 echo "ERROR! Could not find airflow sdist package to install in dist"
         >&2 echo
         exit 4
     fi
@@ -316,25 +333,15 @@ function uninstall_airflow_and_providers() {
     uninstall_airflow
 }
 
-function install_all_airflow_dependencies() {
-    echo
-    echo "Installing dependencies from 'all' extras"
-    echo
-    pip install ".[all]" >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
-}
-
 function install_released_airflow_version() {
     local version="${1}"
     local extras="${2}"
     echo
-    echo "Installing released ${1} version of airflow with extras ${2}"
+    echo "Installing released ${version} version of airflow with extras ${extras}"
     echo
 
-    if [[ ${version} == "1.10.2" || ${version} == "1.10.1" ]]; then
-        export SLUGIFY_USES_TEXT_UNIDECODE=yes
-    fi
     rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
-    pip install --upgrade "apache-airflow${extras}==${1}" >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
+    pip install --upgrade "apache-airflow${extras}==${version}" >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
 }
 
 function install_all_provider_packages_from_wheels() {
@@ -393,10 +400,14 @@ function verify_suffix_versions_for_package_preparation() {
     fi
 
     if [[ ${VERSION_SUFFIX_FOR_SVN} =~ ^rc ]]; then
+        echo """
+${COLOR_YELLOW_WARNING} The version suffix for SVN is used only for file names.
+         The version inside the packages has no version suffix.
+         This way we can just rename files when they graduate to final release.
+${COLOR_RESET}
+"""
         echo
-        echo "${COLOR_RED_ERROR} The version suffix for SVN is used only for file names in RC version  ${COLOR_RESET}"
-        echo
-        echo "This suffix is only added to the files '${VERSION_SUFFIX_FOR_SVN}' "
+        echo "This suffix is added '${VERSION_SUFFIX_FOR_SVN}' "
         echo
         FILE_VERSION_SUFFIX=${VERSION_SUFFIX_FOR_SVN}
         VERSION_SUFFIX_FOR_SVN=""

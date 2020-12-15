@@ -732,15 +732,15 @@ The image names follow the patterns:
 |              |                            | <COMMIT_SHA>                   | It contains only compiled libraries and minimal set of dependencies to run Airflow.        |
 +--------------+----------------------------+--------------------------------+--------------------------------------------------------------------------------------------+
 
-* <BRANCH> might be either "master" or "v1-10-test"
-* <X.Y> - Python version (Major + Minor). For "master" it should be in ["3.6", "3.7", "3.8"]. For
+* <BRANCH> might be either "master" or "v1-10-test" or "v2-0-test"
+* <X.Y> - Python version (Major + Minor). For "master" and "v2-0-test" should be in ["3.6", "3.7", "3.8"]. For
   v1-10-test it should be in ["2.7", "3.5", "3.6". "3.7", "3.8"].
 * <RUN_ID> - GitHub Actions RUN_ID. You can get it from CI action job outputs (run id is printed in
   logs and displayed as part of the step name. All PRs belong to some RUN_ID and this way you can
   pull the very exact version of image used in that RUN_ID
-* <COMMIT_SHA> - for images that get merged to "master" of "v1-10-test" the images are also tagged
+* <COMMIT_SHA> - for images that get merged to "master", "v2-0-test" of "v1-10-test" the images are also tagged
   with the commit SHA of that particular commit. This way you can easily find the image that was used
-  for testing for that "master" or "v1-10-test" test run.
+  for testing for that "master", "v2-0-test" or "v1-10-test" test run.
 
 Reproducing CI Runs locally
 ===========================

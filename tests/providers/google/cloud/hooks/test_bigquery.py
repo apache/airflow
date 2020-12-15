@@ -1609,6 +1609,58 @@ class TestBigQueryWithKMS(_BigQueryBaseTestClass):
             exists_ok=True,
         )
 
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_update_table(self, mock_client, mock_table):
+        description_patched = 'Test description.'
+        expiration_time_patched = 2524608000000
+        friendly_name_patched = 'Test friendly name.'
+        labels_patched = {'label1': 'test1', 'label2': 'test2'}
+        schema_patched = [
+            {'name': 'id', 'type': 'STRING', 'mode': 'REQUIRED'},
+            {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
+            {'name': 'balance', 'type': 'FLOAT', 'mode': 'NULLABLE'},
+            {'name': 'new_field', 'type': 'STRING', 'mode': 'NULLABLE'},
+        ]
+        time_partitioning_patched = {'expirationMs': 10000000}
+        require_partition_filter_patched = True
+        view_patched = {
+            'query': "SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*` LIMIT 500",
+            'useLegacySql': False,
+        }
+
+        body = {
+            "tableReference": {
+                "projectId": PROJECT_ID,
+                "datasetId": DATASET_ID,
+                "tableId": TABLE_ID,
+            },
+            "description": description_patched,
+            "expirationTime": expiration_time_patched,
+            "friendlyName": friendly_name_patched,
+            "labels": labels_patched,
+            "schema": {"fields": schema_patched},
+            "timePartitioning": time_partitioning_patched,
+            "view": view_patched,
+            "requirePartitionFilter": require_partition_filter_patched,
+        }
+
+        fields = list(body.keys())
+
+        self.hook.update_table(
+            table_resource=body,
+            fields=fields,
+            dataset_id=DATASET_ID,
+            table_id=TABLE_ID,
+            project_id=PROJECT_ID,
+        )
+
+        mock_table.from_api_repr.assert_called_once_with(body)
+
+        mock_client.return_value.update_table.assert_called_once_with(
+            table=mock_table.from_api_repr.return_value, fields=fields
+        )
+
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
     def test_run_query_with_kms(self, mock_insert):
         encryption_configuration = {"kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"}

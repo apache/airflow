@@ -26,6 +26,7 @@ CURRENT_MYSQL_VERSIONS=()
 CURRENT_KIND_VERSIONS=()
 CURRENT_HELM_VERSIONS=()
 ALL_PYTHON_MAJOR_MINOR_VERSIONS=()
+INSTALLED_PROVIDERS=()
 
 # Creates directories for Breeze
 function initialization::create_directories() {
@@ -174,11 +175,25 @@ function initialization::initialize_base_variables() {
     export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
     readonly INSTALLED_EXTRAS
 
-    PIP_VERSION="20.2.4"
+    # default version of PIP USED (This has to be < 20.3 until https://github.com/apache/airflow/issues/12838 is solved)
+    PIP_VERSION=${PIP_VERSION:="20.2.4"}
     export PIP_VERSION
 
-    WHEEL_VERSION="0.35.1"
+    # We also pin version of wheel used to get consistent builds
+    WHEEL_VERSION=${WHEEL_VERSION:="0.36.1"}
     export WHEEL_VERSION
+
+    # Sources by default are installed from local sources when using breeze/ci
+    AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM:="."}
+    export AIRFLOW_SOURCES_FROM
+
+    # They are copied to /opt/airflow by default (breeze and ci)
+    AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO:="/opt/airflow"}
+    export AIRFLOW_SOURCES_TO
+
+    # And installed from there (breeze and ci)
+    AIRFLOW_INSTALL_VERSION=${AIRFLOW_INSTALL_VERSION:="."}
+    export AIRFLOW_INSTALL_VERSION
 }
 
 # Determine current branch
@@ -261,7 +276,7 @@ function initialization::initialize_mount_variables() {
         "-v" "${AIRFLOW_SOURCES}/files:/files"
         "-v" "${AIRFLOW_SOURCES}/dist:/dist"
         "--rm"
-        "--env-file" "${AIRFLOW_SOURCES}/scripts/ci/libraries/_docker.env"
+        "--env-file" "${AIRFLOW_SOURCES}/scripts/ci/docker-compose/_docker.env"
     )
     export EXTRA_DOCKER_FLAGS
 }
@@ -410,8 +425,6 @@ function initialization::initialize_provider_package_building() {
 
 # Determine versions of kubernetes cluster and tools used
 function initialization::initialize_kubernetes_variables() {
-    # By default we assume the kubernetes cluster is not being started
-    export ENABLE_KIND_CLUSTER=${ENABLE_KIND_CLUSTER:="false"}
     # Currently supported versions of Kubernetes
     CURRENT_KUBERNETES_VERSIONS+=("v1.18.6" "v1.17.5" "v1.16.9")
     export CURRENT_KUBERNETES_VERSIONS
@@ -685,7 +698,6 @@ function initialization::make_constants_read_only() {
     readonly HOST_HOME
     readonly HOST_OS
 
-    readonly ENABLE_KIND_CLUSTER
     readonly KUBERNETES_MODE
     readonly KUBERNETES_VERSION
     readonly KIND_VERSION

@@ -58,7 +58,6 @@ export EXTRA_STATIC_CHECK_OPTIONS
 #    SCREEN_WIDTH
 #    MOUNT_LOCAL_SOURCES
 #    FORCE_PULL_IMAGES
-#    ENABLE_KIND_CLUSTER
 #    FORWARD_CREDENTIALS
 #    DB_RESET
 #    START_AIRFLOW
@@ -100,9 +99,6 @@ function breeze::setup_default_breeze_constants() {
     # By default we only pull images if we do not have them locally.
     # This can be overridden by '--force-pull-images' flag
     export FORCE_PULL_IMAGES="false"
-
-    # Do not enable Kind Kubernetes cluster by default
-    export ENABLE_KIND_CLUSTER="false"
 
     # Forward common host credentials to docker (gcloud, aws etc.).
     export FORWARD_CREDENTIALS="false"
@@ -829,7 +825,9 @@ function breeze::parse_arguments() {
             INSTALL_AIRFLOW_VERSION="${2}"
             # Reference is mutually exclusive with version
             INSTALL_AIRFLOW_REFERENCE=""
-            echo "Installs version of Airflow: ${INSTALL_AIRFLOW_VERSION}"
+            # Skip mounting local sources when airflow is installed from remote
+            INSTALL_PROVIDERS_FROM_SOURCES="false"
+            echo "Installs version of Airflow: ${INSTALL_AIRFLOW_VERSION} and skip mounting sources"
             echo
             shift 2
             ;;
@@ -837,6 +835,8 @@ function breeze::parse_arguments() {
             INSTALL_AIRFLOW_REFERENCE="${2}"
             # Reference is mutually exclusive with version
             INSTALL_AIRFLOW_VERSION=""
+            # Skip mounting local sources when airflow is installed from remote
+            INSTALL_PROVIDERS_FROM_SOURCES="false"
             echo "Installs Airflow from reference: ${INSTALL_AIRFLOW_REFERENCE}"
             echo
             shift 2
@@ -1605,7 +1605,7 @@ ${CMDNAME} build-docs [-- <EXTRA_ARGS>]
       is generated ('docs/_build') are also mounted to the container - this way results of
       the documentation build is available in the host.
 
-      The possible extra args are: --docs-only, --spellcheck-only, --package, --help
+      The possible extra args are: --docs-only, --spellcheck-only, --package-filter, --help
 "
     readonly DETAILED_USAGE_BUILD_DOCS
     export DETAILED_USAGE_BUILD_IMAGE="
@@ -2853,15 +2853,19 @@ function breeze::check_and_save_all_params() {
     if [[ -n "${INSTALL_AIRFLOW_REFERENCE=}" ]]; then
         if [[ ${INSTALL_AIRFLOW_REFERENCE=} == *1_10* ]]; then
             export BRANCH_NAME="v1-10-test"
+        elif [[ ${INSTALL_AIRFLOW_REFERENCE=} == *2_0* ]]; then
+            export BRANCH_NAME="v2-0-test"
         fi
     elif [[ -n "${INSTALL_AIRFLOW_VERSION=}" ]]; then
         if [[ ${INSTALL_AIRFLOW_VERSION=} == *1.10* ]]; then
             export BRANCH_NAME="v1-10-test"
+        elif [[ ${INSTALL_AIRFLOW_VERSION=} == *2.0* ]]; then
+            export BRANCH_NAME="v2-0-test"
         fi
     fi
 
     if [[ ${PYTHON_MAJOR_MINOR_VERSION} == "2.7" || ${PYTHON_MAJOR_MINOR_VERSION} == "3.5" ]]; then
-        if [[ ${BRANCH_NAME} == "master" ]]; then
+        if [[ ${BRANCH_NAME} == "master" || ${BRANCH_NAME} == "v2-0-test" ]]; then
             echo
             echo  "${COLOR_RED_ERROR} The ${PYTHON_MAJOR_MINOR_VERSION} can only be used when installing Airflow 1.10.*  ${COLOR_RESET}"
             echo

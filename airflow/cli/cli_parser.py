@@ -89,7 +89,7 @@ _UNSET = object()
 class Arg:
     """Class to keep information about command line argument"""
 
-    # pylint: disable=redefined-builtin,unused-argument
+    # pylint: disable=redefined-builtin,unused-argument,too-many-arguments
     def __init__(
         self,
         flags=_UNSET,
@@ -101,6 +101,7 @@ class Arg:
         choices=_UNSET,
         required=_UNSET,
         metavar=_UNSET,
+        dest=_UNSET,
     ):
         self.flags = flags
         self.kwargs = {}
@@ -112,7 +113,7 @@ class Arg:
 
             self.kwargs[k] = v
 
-    # pylint: enable=redefined-builtin,unused-argument
+    # pylint: enable=redefined-builtin,unused-argument,too-many-arguments
 
     def add_to_parser(self, parser: argparse.ArgumentParser):
         """Add this argument to an ArgumentParser"""
@@ -177,7 +178,7 @@ ARG_OUTPUT = Arg(
         "-o",
         "--output",
     ),
-    help=("Output format. Allowed values: json, yaml, table (default: table)"),
+    help="Output format. Allowed values: json, yaml, table (default: table)",
     metavar="(table, json, yaml)",
     choices=("table", "json", "yaml"),
     default="table",
@@ -307,6 +308,16 @@ ARG_SAVE_DAGRUN = Arg(
 
 # list_tasks
 ARG_TREE = Arg(("-t", "--tree"), help="Tree view", action="store_true")
+
+# tasks_run
+# This is a hidden option -- not meant for users to set or know about
+ARG_SHUT_DOWN_LOGGING = Arg(
+    ("--no-shut-down-logging",),
+    help=argparse.SUPPRESS,
+    dest="shut_down_logging",
+    action="store_false",
+    default=True,
+)
 
 # clear
 ARG_UPSTREAM = Arg(("-u", "--upstream"), help="Include upstream tasks", action="store_true")
@@ -943,6 +954,7 @@ TASKS_COMMANDS = (
             ARG_PICKLE,
             ARG_JOB_ID,
             ARG_INTERACTIVE,
+            ARG_SHUT_DOWN_LOGGING,
         ),
     ),
     ActionCommand(
@@ -1011,19 +1023,13 @@ POOLS_COMMANDS = (
         name='import',
         help='Import pools',
         func=lazy_load_command('airflow.cli.commands.pool_command.pool_import'),
-        args=(
-            ARG_POOL_IMPORT,
-            ARG_OUTPUT,
-        ),
+        args=(ARG_POOL_IMPORT,),
     ),
     ActionCommand(
         name='export',
         help='Export all pools',
         func=lazy_load_command('airflow.cli.commands.pool_command.pool_export'),
-        args=(
-            ARG_POOL_EXPORT,
-            ARG_OUTPUT,
-        ),
+        args=(ARG_POOL_EXPORT,),
     ),
 )
 VARIABLES_COMMANDS = (
@@ -1490,7 +1496,7 @@ airflow_commands: List[CLICommand] = [
         name='plugins',
         help='Dump information about loaded plugins',
         func=lazy_load_command('airflow.cli.commands.plugins_command.dump_plugins'),
-        args=(),
+        args=(ARG_OUTPUT,),
     ),
     GroupCommand(
         name="celery",

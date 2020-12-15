@@ -22,7 +22,7 @@ description: |
     `ODBC <https://github.com/mkleehammer/pyodbc/wiki>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 integrations:
   - integration-name: ODBC
     external-doc-url: https://github.com/mkleehammer/pyodbc/wiki

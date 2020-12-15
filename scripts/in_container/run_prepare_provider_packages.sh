@@ -119,7 +119,8 @@ for PROVIDER_PACKAGE in "${PROVIDER_PACKAGES[@]}"
 do
     rm -rf -- *.egg-info build/
     LOG_FILE=$(mktemp)
-    python3 "${PREPARE_PROVIDER_PACKAGES_PY}" generate-setup-files "${PROVIDER_PACKAGE}"
+    python3 "${PREPARE_PROVIDER_PACKAGES_PY}" --version-suffix "${VERSION_SUFFIX_FOR_PYPI}" \
+        generate-setup-files "${PROVIDER_PACKAGE}"
     echo "==================================================================================="
     echo " Preparing ${PACKAGE_TYPE} package ${PROVIDER_PACKAGE} format: ${PACKAGE_FORMAT}"
     if [[ "${VERSION_SUFFIX_FOR_PYPI}" == '' && "${VERSION_SUFFIX_FOR_SVN}" == ''
@@ -170,14 +171,18 @@ pushd dist
 
 if [[ ${FILE_VERSION_SUFFIX} != "" ]]; then
     # In case we have FILE_VERSION_SUFFIX we rename prepared files
-    for FILE in *.tar.gz
-    do
-        mv "${FILE}" "${FILE//\.tar\.gz/${FILE_VERSION_SUFFIX}-bin.tar.gz}"
-    done
-    for FILE in *.whl
-    do
-        mv "${FILE}" "${FILE//\-py3/${FILE_VERSION_SUFFIX}-py3}"
-    done
+    if [[ "${PACKAGE_FORMAT}" == "sdist" || "${PACKAGE_FORMAT}" == "both" ]]; then
+        for FILE in *.tar.gz
+        do
+            mv "${FILE}" "${FILE//\.tar\.gz/${FILE_VERSION_SUFFIX}-bin.tar.gz}"
+        done
+    fi
+    if [[ "${PACKAGE_FORMAT}" == "wheel" || "${PACKAGE_FORMAT}" == "both" ]]; then
+        for FILE in *.whl
+        do
+            mv "${FILE}" "${FILE//\-py3/${FILE_VERSION_SUFFIX}-py3}"
+        done
+    fi
 fi
 
 popd

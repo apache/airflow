@@ -75,7 +75,8 @@ ALL_PROVIDERS = [
     'apache-airflow-providers-sftp',
     'apache-airflow-providers-singularity',
     'apache-airflow-providers-slack',
-    'apache-airflow-providers-snowflake',
+    # Uncomment when https://github.com/apache/airflow/issues/12881 is fixed
+    # 'apache-airflow-providers-snowflake',
     'apache-airflow-providers-sqlite',
     'apache-airflow-providers-ssh',
     'apache-airflow-providers-telegram',
@@ -132,7 +133,8 @@ CONNECTIONS_LIST = [
     'samba',
     'segment',
     'sftp',
-    'snowflake',
+    #  Uncomment when https://github.com/apache/airflow/issues/12881 is fixed
+    # 'snowflake',
     'spark',
     'spark_jdbc',
     'spark_sql',
