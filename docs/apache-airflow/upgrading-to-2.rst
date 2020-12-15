@@ -325,6 +325,13 @@ the only supported UI.
 
 **Breaking Change in OAuth**
 
+.. note::
+
+    When multiple replicas of the airflow-web pods are running in Kubernetes they
+    need to share the same *secret_key* to access the same user session accross pods. Inject
+    this via the environmnet and rotate it regularly like the fernet_key to ensure security.
+    The 1.10.14 bridge-release has this feature.
+
 The ``flask-ouathlib`` has been replaced with ``authlib`` because ``flask-outhlib`` has
 been deprecated in favor of ``authlib``.
 The Old and New provider configuration keys that have changed are as follows
@@ -352,7 +359,7 @@ respect to the Kubernetes Executor. This is called out below for users of the Ku
 
 **Upgrade KubernetesExecutor settings**
 
-*The KubernetesExecutor Will No Longer Read from the airflow.cfg for Base Pod Configurations.*
+*The KubernetesExecutor Will t` Longer Read from the airflow.cfg for Base Pod Configurations.*
 
 In Airflow 2.0, the KubernetesExecutor will require a base pod template written in yaml. This file can exist
 anywhere on the host machine and will be linked using the ``pod_template_file`` configuration in the ``airflow.cfg`` file.
