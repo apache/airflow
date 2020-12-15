@@ -18,10 +18,8 @@
 """This module contains SFTP hook."""
 import datetime
 import stat
-from base64 import decodebytes
 from typing import Dict, List, Optional, Tuple
 
-import paramiko
 import pysftp
 
 from airflow.providers.ssh.hooks.ssh import SSHHook
