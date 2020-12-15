@@ -271,6 +271,7 @@ def check_invalid_integration(yaml_files: Dict[str, Dict]):
 def check_doc_files(yaml_files: Dict[str, Dict]):
     print("Checking doc files")
     current_doc_urls = []
+    current_logo_urls = []
     for provider in yaml_files.values():
         if 'integrations' in provider:
             current_doc_urls.extend(
@@ -278,6 +279,9 @@ def check_doc_files(yaml_files: Dict[str, Dict]):
                 for guides in provider['integrations']
                 if 'how-to-guide' in guides
                 for guide in guides['how-to-guide']
+            )
+            current_logo_urls.extend(
+                integration['logo'] for integration in provider['integrations'] if 'logo' in integration
             )
         if 'transfers' in provider:
             current_doc_urls.extend(
@@ -293,9 +297,15 @@ def check_doc_files(yaml_files: Dict[str, Dict]):
         "/docs/" + os.path.relpath(f, start=DOCS_DIR)
         for f in glob(f"{DOCS_DIR}/apache-airflow-providers-*/operators.rst", recursive=True)
     }
+    expected_logo_urls = {
+        "/" + os.path.relpath(f, start=DOCS_DIR)
+        for f in glob(f"{DOCS_DIR}/integration-logos/**/*", recursive=True)
+        if os.path.isfile(f)
+    }
 
     try:
         assert_sets_equal(set(expected_doc_urls), set(current_doc_urls))
+        assert_sets_equal(set(expected_logo_urls), set(current_logo_urls))
     except AssertionError as ex:
         print(ex)
         sys.exit(1)

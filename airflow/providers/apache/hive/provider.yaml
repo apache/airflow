@@ -27,6 +27,7 @@ versions:
 integrations:
   - integration-name: Apache Hive
     external-doc-url: https://hive.apache.org/
+    logo: /integration-logos/apache/hive.png
     tags: [apache]
 
 operators:

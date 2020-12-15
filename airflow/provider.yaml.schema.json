@@ -42,6 +42,10 @@
               "type": "string"
             }
           },
+          "logo": {
+            "description": "Path to the logo for the integration. The path must start with '/integration-logos/'",
+            "type": "string"
+          },
           "tags": {
             "description": "List of tags describing the integration. While we're using RST, only one tag is supported per integration.",
             "type": "array",
