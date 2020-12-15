@@ -17,8 +17,7 @@
 # under the License.
 import json
 import unittest
-
-import mock
+from unittest import mock
 
 from airflow.providers.amazon.aws.hooks.glue_crawler import AwsGlueCrawlerHook
 
@@ -40,7 +39,7 @@ mock_crawler_config = {
             'Exclusions': [
                 's3://test-glue-crawler/bar/',
             ],
-            'ConnectionName': 'test-s3-conn'
+            'ConnectionName': 'test-s3-conn',
         }
     ],
     'jdbc_targets_configuration': [
@@ -49,29 +48,21 @@ mock_crawler_config = {
             'Path': 'test_db/test_table>',
             'Exclusions': [
                 'string',
-            ]
+            ],
         }
     ],
     'mongo_targets_configuration': [
-        {
-            'ConnectionName': 'test-mongo-conn',
-            'Path': 'test_db/test_collection',
-            'ScanAll': True
-        }
+        {'ConnectionName': 'test-mongo-conn', 'Path': 'test_db/test_collection', 'ScanAll': True}
     ],
     'dynamo_targets_configuration': [
-        {
-            'Path': 'test_db/test_table',
-            'scanAll': True|False,
-            'scanRate': 123.0
-        }
+        {'Path': 'test_db/test_table', 'scanAll': True | False, 'scanRate': 123.0}
     ],
     'glue_catalog_targets_configuration': [
         {
             'DatabaseName': 'test_glue_db',
             'Tables': [
                 'test',
-            ]
+            ],
         }
     ],
     'cron_schedule': 'cron(12 12 * * ? *)',
@@ -83,10 +74,10 @@ mock_crawler_config = {
     'lineage_settings': 'ENABLE',
     'json_configuration': 'test',
     'security_configuration': 'test',
-    'tags': {
-        'test': 'foo'
-    }
+    'tags': {'test': 'foo'},
 }
+
+
 class TestAwsGlueCrawlerHook(unittest.TestCase):
     def setUp(self):
         self.some_aws_region = "us-west-2"
@@ -99,14 +90,16 @@ class TestAwsGlueCrawlerHook(unittest.TestCase):
         iam_role = hook.get_client_type('iam').create_role(
             Path="/",
             RoleName=mock_role_name,
-            AssumeRolePolicyDocument=json.dumps({
-                "Version": "2012-10-17",
-                "Statement": {
-                    "Effect": "Allow",
-                    "Principal": {"Service": "glue.amazonaws.com"},
-                    "Action": "sts:AssumeRole"
+            AssumeRolePolicyDocument=json.dumps(
+                {
+                    "Version": "2012-10-17",
+                    "Statement": {
+                        "Effect": "Allow",
+                        "Principal": {"Service": "glue.amazonaws.com"},
+                        "Action": "sts:AssumeRole",
+                    },
                 }
-            })
+            ),
         )
         iam_role = hook.get_iam_execution_role()
 
@@ -114,9 +107,7 @@ class TestAwsGlueCrawlerHook(unittest.TestCase):
 
     @mock.patch.object(AwsGlueCrawlerHook, "get_iam_execution_role")
     @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
-    def test_get_or_create_glue_crawler(self, mock_get_conn,
-                                    mock_get_iam_execution_role
-                                    ):
+    def test_get_or_create_glue_crawler(self, mock_get_conn, mock_get_iam_execution_role):
         mock_get_iam_execution_role.return_value = mock.MagicMock(Role={'RoleName': mock_role_name})
 
         mock_glue_crawler = mock_get_conn.return_value.get_crawler()['Crawler']['Name']
@@ -128,16 +119,14 @@ class TestAwsGlueCrawlerHook(unittest.TestCase):
     @mock.patch.object(AwsGlueCrawlerHook, "crawler_completion")
     @mock.patch.object(AwsGlueCrawlerHook, "get_or_create_glue_crawler")
     @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
-    def test_initialize_crawler(self, mock_get_conn,
-                            mock_get_or_create_glue_crawler,
-                            mock_completion):
+    def test_initialize_crawler(self, mock_get_conn, mock_get_or_create_glue_crawler, mock_completion):
 
         mock_get_or_create_glue_crawler.Name = mock.Mock(Name=mock_crawler_name)
         mock_get_conn.return_value.start_crawler()
 
         mock_crawler_run_state = mock_completion.return_value
         glue_crawler_run_state = AwsGlueCrawlerHook(**mock_crawler_config)
-        glue_crawler_run_state = glue_crawler_run_state.crawler_completion()
+        glue_crawler_run_state = glue_crawler_run_state.crawler_completion(crawler_name=mock_crawler_name)
 
         self.assertEqual(glue_crawler_run_state, mock_crawler_run_state, msg='Mocks but be equal')
 

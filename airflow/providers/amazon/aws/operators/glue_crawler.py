@@ -23,7 +23,7 @@ from airflow.utils.decorators import apply_defaults
 
 class AwsGlueCrawlerOperator(BaseOperator):
     """
-    Creates an AWS Glue Crawler. AWS Glue Crawler is a serverless 
+    Creates an AWS Glue Crawler. AWS Glue Crawler is a serverless
     service for infering the schema, format and data type of data store on the AWS cloud.
     Language support: Python
     :param crawler_name = Unique crawler name per AWS Account
@@ -48,7 +48,7 @@ class AwsGlueCrawlerOperator(BaseOperator):
     :type glue_catalog_targets_configuration = Optional[list]
     :param cron_schedule = Cron expression used to define the crawler schedule (e.g. cron(11 18 * ? * *))
     :type cron_schedule = Optional[str]
-    :param classifiers = List of user defined custom classifiers to be used by the crawler 
+    :param classifiers = List of user defined custom classifiers to be used by the crawler
     :type classifiers = Optional[list]
     :param table_prefix = Prefix for catalog table to be created
     :type table_prefix = Optional[str]
@@ -58,7 +58,7 @@ class AwsGlueCrawlerOperator(BaseOperator):
     :type delete_behavior = Optional[str]
     :param recrawl_behavior = Behavior when the crawler needs to crawl again
     :type recrawl_behavior = Optional[str]
-    :param lineage_settings = Enables or disables data lineage 
+    :param lineage_settings = Enables or disables data lineage
     :type lineage_settings = Optional[str]
     :param json_configuration = Versioned JSON configuration for the crawler
     :type json_configuration = Optional[str]
@@ -111,7 +111,7 @@ class AwsGlueCrawlerOperator(BaseOperator):
         self.dynamo_targets_configuration = dynamo_targets_configuration
         self.glue_catalog_targets_configuration = glue_catalog_targets_configuration
         self.cron_schedule = cron_schedule
-        self.classifiers = classifiers 
+        self.classifiers = classifiers
         self.table_prefix = table_prefix
         self.update_behavior = update_behavior
         self.delete_behavior = delete_behavior
@@ -127,34 +127,34 @@ class AwsGlueCrawlerOperator(BaseOperator):
         Executes AWS Glue Crawler from Airflow
         :return: the name of the current glue crawler.
         """
-        
+
         glue_crawler = AwsGlueCrawlerHook(
-            crawler_name = self.crawler_name,
-            crawler_desc = self.crawler_desc,
-            glue_db_name = self.glue_db_name,
-            iam_role_name = self.iam_role_name,
-            region_name = self.region_name,
-            s3_targets_configuration = self.s3_targets_configuration,
-            jdbc_targets_configuration = self.jdbc_targets_configuration,
-            mongo_targets_configuration = self.mongo_targets_configuration,
-            dynamo_targets_configuration = self.dynamo_targets_configuration,
-            glue_catalog_targets_configuration = self.glue_catalog_targets_configuration,
-            cron_schedule = self.cron_schedule,
-            classifiers = self.classifiers,
-            table_prefix = self.table_prefix,
-            update_behavior = self.update_behavior,
-            delete_behavior = self.delete_behavior,
-            recrawl_behavior = self.recrawl_behavior,
-            lineage_settings = self.lineage_settings,
-            json_configuration = self.json_configuration,
-            security_configuration = self.security_configuration,
-            tags = self.tags,
-            aws_conn_id = self.aws_conn_id
+            crawler_name=self.crawler_name,
+            crawler_desc=self.crawler_desc,
+            glue_db_name=self.glue_db_name,
+            iam_role_name=self.iam_role_name,
+            region_name=self.region_name,
+            s3_targets_configuration=self.s3_targets_configuration,
+            jdbc_targets_configuration=self.jdbc_targets_configuration,
+            mongo_targets_configuration=self.mongo_targets_configuration,
+            dynamo_targets_configuration=self.dynamo_targets_configuration,
+            glue_catalog_targets_configuration=self.glue_catalog_targets_configuration,
+            cron_schedule=self.cron_schedule,
+            classifiers=self.classifiers,
+            table_prefix=self.table_prefix,
+            update_behavior=self.update_behavior,
+            delete_behavior=self.delete_behavior,
+            recrawl_behavior=self.recrawl_behavior,
+            lineage_settings=self.lineage_settings,
+            json_configuration=self.json_configuration,
+            security_configuration=self.security_configuration,
+            tags=self.tags,
+            aws_conn_id=self.aws_conn_id
         )
 
         self.log.info("Initializing AWS Glue Crawler: %s", self.crawler_name)
         glue_crawler_run = glue_crawler.initialize_crawler()
         glue_crawler_run = glue_crawler.crawler_completion(self.crawler_name)
-        self.log.info(f"AWS Glue Crawler: {self.crawler_name} {glue_crawler_run}")
+        self.log.info("AWS Glue Crawler: %s %s", self.crawler_name, glue_crawler_run)
 
         return self.crawler_name

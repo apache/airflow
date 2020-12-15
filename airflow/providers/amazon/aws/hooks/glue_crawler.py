@@ -46,7 +46,7 @@ class AwsGlueCrawlerHook(AwsBaseHook):
     :type glue_catalog_target_configuration = Optional[list]
     :param cron_schedule = Cron expression used to define the crawler schedule (e.g. cron(11 18 * ? * *))
     :type cron_schedule = Optional[str]
-    :param classifiers = List of user defined custom classifiers to be used by the crawler 
+    :param classifiers = List of user defined custom classifiers to be used by the crawler
     :type classifiers = Optional[list]
     :param table_prefix = Prefix for catalog table to be created
     :type table_prefix = Optional[str]
@@ -56,7 +56,7 @@ class AwsGlueCrawlerHook(AwsBaseHook):
     :type delete_behavior = Optional[str]
     :param recrawl_behavior = Behavior when the crawler needs to crawl again
     :type recrawl_behavior = Optional[str]
-    :param lineage_settings = Enables or disables data lineage 
+    :param lineage_settings = Enables or disables data lineage
     :type lineage_settings = Optional[str]
     :param json_configuration = Versioned JSON configuration for the crawler
     :type json_configuration = Optional[str]
@@ -69,26 +69,26 @@ class AwsGlueCrawlerHook(AwsBaseHook):
     CRAWLER_POLL_INTERVAL = 6  # polls crawler status after every CRAWLER_POLL_INTERVAL seconds
 
     def __init__(
-        self, 
-        crawler_name = None,
-        crawler_desc = None,
-        glue_db_name = None,
-        iam_role_name = None,
-        s3_targets_configuration = None,
-        jdbc_targets_configuration = None,
-        mongo_targets_configuration = None,
-        dynamo_targets_configuration = None,
-        glue_catalog_targets_configuration = None,
-        cron_schedule = None,
-        classifiers = None,
-        table_prefix = None,
-        update_behavior = None,
-        delete_behavior = None,
-        recrawl_behavior = None,
-        lineage_settings = None,
-        json_configuration = None,
-        security_configuration = None,
-        tags = None,
+        self,
+        crawler_name=None,
+        crawler_desc=None,
+        glue_db_name=None,
+        iam_role_name=None,
+        s3_targets_configuration=None,
+        jdbc_targets_configuration=None,
+        mongo_targets_configuration=None,
+        dynamo_targets_configuration=None,
+        glue_catalog_targets_configuration=None,
+        cron_schedule=None,
+        classifiers=None,
+        table_prefix=None,
+        update_behavior=None,
+        delete_behavior=None,
+        recrawl_behavior=None,
+        lineage_settings=None,
+        json_configuration=None,
+        security_configuration=None,
+        tags=None,
         *args,
         **kwargs
     ):
@@ -114,7 +114,7 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         self.tags = tags
         kwargs['client_type'] = 'glue'
         super().__init__(*args, **kwargs)
-    
+
     def list_crawlers(self) -> List:
         ":return: Lists of Crawlers"
         conn = self.get_conn()
@@ -131,7 +131,7 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         except Exception as general_error:
             self.log.error("Failed to create aws glue crawler, error: %s", general_error)
             raise
-    
+
     def initialize_crawler(self):
         """
         Initializes connection with AWS Glue to run crawler
@@ -159,10 +159,10 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         crawler_run = glue_client.get_crawler(Name=crawler_name)
         crawler_run_state = crawler_run['Crawler']['State']
         return crawler_run_state
-    
+
     def get_crawler_status(self, crawler_name: str) -> str:
         """
-        Get current status of the Glue crawler. The crawler 
+        Get current status of the Glue crawler. The crawler
         status can be succeeded, cancelled, or failed.
         :param crawler_name: unique crawler name per AWS account
         :type crawler_name: str
@@ -187,14 +187,15 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         while True:
             crawler_run_state = self.get_crawler_state(crawler_name)
             if crawler_run_state == 'READY':
-                self.log.info(f"Crawler: {crawler_name} State: {crawler_run_state}")
+                self.log.info("Crawler: %s State: %s", crawler_name, crawler_run_state)
                 crawler_run_status = self.get_crawler_status(crawler_name)
                 if crawler_run_status in failed_status:
-                    crawler_error_message = "Exiting Crawler: " + cralwer_name + " Run State: " + crawler_run_state
+                    crawler_error_message = "Exiting Crawler: " + crawler_name + " Run State: " \
+                    + crawler_run_state
                     self.log.info(crawler_error_message)
                     raise AirflowException(crawler_error_message)
                 else:
-                    self.log.info(f"Crawler Status: {crawler_run_status}")
+                    self.log.info("Crawler Status: %s", crawler_run_status)
                     metrics = self.get_crawler_metrics(self.crawler_name)
                     print('Last Runtime Duration (seconds): ', metrics['LastRuntimeSeconds'])
                     print('Median Runtime Duration (seconds): ', metrics['MedianRuntimeSeconds'])
@@ -206,20 +207,18 @@ class AwsGlueCrawlerHook(AwsBaseHook):
                     
             else:
                 self.log.info(
-                    f"Polling for AWS Glue crawler: {self.crawler_name} Current run state: {crawler_run_state}"
+                    "Polling for AWS Glue crawler: %s Current run state: %s", self.crawler_name, crawler_run_state
                 )
                 time.sleep(self.CRAWLER_POLL_INTERVAL)
-                
+
                 metrics = self.get_crawler_metrics(self.crawler_name)
-                if metrics['StillEstimating']:
-                    print('Estimated Time Left (seconds): Still Estimating')
+                time_left = int(metrics['TimeLeftSeconds'])
+                
+                if time_left > 0:
+                    print('Estimated Time Left (seconds): ', time_left)
+                    self.CRAWLER_POLL_INTERVAL = time_left
                 else:
-                    time_left = int(metrics['TimeLeftSeconds'])
-                    if time_left > 0:
-                        print('Estimated Time Left (seconds): ', time_left)
-                        sleep_secs = time_left
-                    else:
-                        print('Crawler should finish soon')
+                    print('Crawler should finish soon')
 
     def get_or_create_glue_crawler(self) -> str:
         """
@@ -229,7 +228,7 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         glue_client = self.get_conn()
         try:
             get_crawler_response = glue_client.get_crawler(Name=self.crawler_name)
-            self.log.info(f"Crawler already exists: {get_crawler_response['Crawler']['Name']}")
+            self.log.info("Crawler already exists: %s", get_crawler_response['Crawler']['Name'])
             return get_crawler_response['Crawler']['Name']
             #TODO: update crawler with `glue_client.update_crawler()` if task crawler config don't match with existing crawler config
 
@@ -274,7 +273,7 @@ class AwsGlueCrawlerHook(AwsBaseHook):
     def get_crawler_metrics(self, crawler_name):
         """
         Prints crawl runtime and glue catalog table metrics associated with the crawler
-        :return:Dictionary of all the crawler metrics 
+        :return:Dictionary of all the crawler metrics
         """
         glue_client = self.get_conn()
         crawler = glue_client.get_crawler_metrics(CrawlerNameList=[crawler_name])

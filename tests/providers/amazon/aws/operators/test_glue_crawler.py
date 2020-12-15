@@ -1,4 +1,3 @@
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,13 +16,11 @@
 # under the License.
 
 import unittest
-
-import mock
+from unittest import mock
 
 from airflow import configuration
 from airflow.providers.amazon.aws.hooks.glue_crawler import AwsGlueCrawlerHook
 from airflow.providers.amazon.aws.operators.glue_crawler import AwsGlueCrawlerOperator
-
 
 mock_crawler_name = 'test-crawler'
 mock_role_name = 'test-role'
@@ -40,7 +37,7 @@ mock_crawler_config = {
             'Exclusions': [
                 's3://test-glue-crawler/bar/',
             ],
-            'ConnectionName': 'test-s3-conn'
+            'ConnectionName': 'test-s3-conn',
         }
     ],
     'jdbc_targets_configuration': [
@@ -49,29 +46,21 @@ mock_crawler_config = {
             'Path': 'test_db/test_table>',
             'Exclusions': [
                 'string',
-            ]
+            ],
         }
     ],
     'mongo_targets_configuration': [
-        {
-            'ConnectionName': 'test-mongo-conn',
-            'Path': 'test_db/test_collection',
-            'ScanAll': True
-        }
+        {'ConnectionName': 'test-mongo-conn', 'Path': 'test_db/test_collection', 'ScanAll': True}
     ],
     'dynamo_targets_configuration': [
-        {
-            'Path': 'test_db/test_table',
-            'scanAll': True|False,
-            'scanRate': 123.0
-        }
+        {'Path': 'test_db/test_table', 'scanAll': True | False, 'scanRate': 123.0}
     ],
     'glue_catalog_targets_configuration': [
         {
             'DatabaseName': 'test_glue_db',
             'Tables': [
                 'test',
-            ]
+            ],
         }
     ],
     'cron_schedule': 'cron(12 12 * * ? *)',
@@ -83,20 +72,16 @@ mock_crawler_config = {
     'lineage_settings': 'ENABLE',
     'json_configuration': 'test',
     'security_configuration': 'test',
-    'tags': {
-        'test': 'foo'
-    }
+    'tags': {'test': 'foo'},
 }
 
 class TestAwsGlueCrawlerOperator(unittest.TestCase):
-
     @mock.patch('airflow.providers.amazon.aws.hooks.glue_crawler.AwsGlueCrawlerHook')
     def setUp(self, glue_hook_mock):
         configuration.load_test_config()
 
         self.glue_hook_mock = glue_hook_mock
         self.glue = AwsGlueCrawlerOperator(task_id='test_glue_operator', **mock_crawler_config)
-                                    
 
     @mock.patch.object(AwsGlueCrawlerHook, 'initialize_crawler')
     @mock.patch.object(AwsGlueCrawlerHook, "get_conn")

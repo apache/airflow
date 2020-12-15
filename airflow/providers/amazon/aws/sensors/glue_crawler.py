@@ -41,7 +41,7 @@ class AwsGlueCrawlerSensor(BaseSensorOperator):
         self.errored_statuses = ['FAILED', 'CANCELLED']
 
     def poke(self, context):
-        hook = AwsGluecrawlerHook(aws_conn_id=self.aws_conn_id)
+        hook = AwsGlueCrawlerHook(aws_conn_id=self.aws_conn_id)
         self.log.info(f"Poking for Glue crawler: {self.crawler_name}")
         crawler_status = hook.get_crawler_status(crawler_name=self.crawler_name)
         if crawler_status in self.success_statuses:
