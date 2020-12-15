@@ -139,31 +139,36 @@ class S3KeySizeSensor(S3KeySensor):
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
     :type verify: bool or str
-    :param summarizer_fn: function that receives the list of the S3 objects,
+    :param check_fn: function that receives the list of the S3 objects,
         and returns the boolean.
-    :type summarizer_fn: Optional[Callable[..., bool]]
-
+    :type check_fn: Optional[Callable[..., bool]]
+        Function that receives list of the S3 objects and return bool, where:
+            `True` - a certain criteria is met
+            `False` - the criteria isn't met
+        **Example**: Wait for any S3 object size more than 1 mebibyte
+        def check_fn(self, data: List) -> bool:
+            return any(f.get('Size', 0) > 1048576 for f in data if isinstance(f, dict))
     """
 
     @apply_defaults
     def __init__(
         self,
         *,
-        summarizer_fn: Optional[Callable[..., bool]] = None,
+        check_fn: Optional[Callable[..., bool]] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.summarizer_fn_user = summarizer_fn
+        self.check_fn_user = check_fn
 
     def poke(self, context):
         if super().poke(context=context) is False:
             return False
 
         s3_objects = self.get_files(s3_hook=self.get_hook())
-        summarizer_fn = self.summarizer_fn_user
-        if summarizer_fn is None:
-            summarizer_fn = self.summarizer_fn
-        return summarizer_fn(s3_objects)
+        check_fn = self.check_fn_user
+        if check_fn is None:
+            check_fn = self.check_fn
+        return check_fn(s3_objects)
 
     def get_files(self, s3_hook: S3Hook) -> List:
         """Gets a list of files in the bucket"""
@@ -187,6 +192,6 @@ class S3KeySizeSensor(S3KeySensor):
                 keys = keys + _temp
         return keys
 
-    def summarizer_fn(self, data: List) -> bool:
+    def check_fn(self, data: List) -> bool:
         """Default function for checking that S3 Objects have size more than 0"""
-        return sum([f.get('Size', 0) for f in data if isinstance(f, dict)]) > 0
+        return all(f.get('Size', 0) > 0 for f in data if isinstance(f, dict))
