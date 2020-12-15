@@ -139,15 +139,15 @@ class S3KeySizeSensor(S3KeySensor):
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
     :type verify: bool or str
-    :param check_fn: function that receives the list of the S3 objects,
-        and returns the boolean.
     :type check_fn: Optional[Callable[..., bool]]
-        Function that receives list of the S3 objects and return bool, where:
-            `True` - a certain criteria is met
-            `False` - the criteria isn't met
-        **Example**: Wait for any S3 object size more than 1 mebibyte
-        def check_fn(self, data: List) -> bool:
-            return any(f.get('Size', 0) > 1048576 for f in data if isinstance(f, dict))
+    :param check_fn: Function that receives the list of the S3 objects,
+        and returns the boolean:
+        - ``True``: a certain criteria is met
+        - ``False``: the criteria isn't met
+        **Example**: Wait for any S3 object size more than 1 megabyte  ::
+
+            def check_fn(self, data: List) -> bool:
+                return any(f.get('Size', 0) > 1048576 for f in data if isinstance(f, dict))
     """
 
     @apply_defaults
