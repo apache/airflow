@@ -27,7 +27,9 @@ from requests.adapters import DEFAULT_POOLSIZE
 from docs.exts.docs_build.docs_builder import (  # pylint: disable=no-name-in-module
     get_available_providers_packages,
 )
-from docs.exts.docs_build.third_party_inventories import THIRD_PARTY_INDEXES
+from docs.exts.docs_build.third_party_inventories import (  # pylint: disable=no-name-in-module
+    THIRD_PARTY_INDEXES,
+)
 
 CURRENT_DIR = os.path.dirname(__file__)
 ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir, os.pardir))
