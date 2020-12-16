@@ -343,6 +343,7 @@ Currently, **officially** using Airflow:
 1. [Syapse](https://www.syapse.com/) [[@zedmor](https://github.com/zedmor)]
 1. [T2 Systems](http://t2systems.com) [[@unclaimedpants](https://github.com/unclaimedpants)]
 1. [TEK](https://www.tek.fi/en) [[@telac](https://github.com/telac)]
+1. [The Dyrt](https://thedyrt.com/) [[@mfjackson](https://github.com/mfjackson)]
 1. [THE ICONIC](https://www.theiconic.com.au/) [[@revathijay](https://github.com/revathijay), [@ilikedata](https://github.com/ilikedata)]
 1. [Tails.com](https://tails.com/) [[@alanmcruickshank](https://github.com/alanmcruickshank)]
 1. [Telefonica Innovation Alpha](https://www.alpha.company/) [[@Alpha-Health](https://github.com/Alpha-health)]
