@@ -21,6 +21,10 @@ default_language_version:
   python: python3
 minimum_pre_commit_version: "1.20.0"
 repos:
+  - repo: meta
+    hooks:
+      - id: identity
+      - id: check-hooks-apply
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     rev: v1.1.9
     hooks:
@@ -146,10 +150,6 @@ repos:
         args:
           - "--maxlevel"
           - "2"
-  - repo: meta
-    hooks:
-      - id: identity
-      - id: check-hooks-apply
   - repo: https://github.com/psf/black
     rev: 20.8b1
     hooks:

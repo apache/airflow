@@ -222,7 +222,7 @@ jobs:
     runs-on: ubuntu-20.04
     needs: [build-info, ci-images]
     env:
-      SKIP: "pylint"
+      SKIP: "pylint,identity"
       MOUNT_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     if: needs.build-info.outputs.basic-checks-only == 'false'
@@ -258,7 +258,7 @@ jobs:
     runs-on: ubuntu-20.04
     needs: [build-info]
     env:
-      SKIP: "build,mypy,flake8,pylint,bats-in-container-tests"
+      SKIP: "build,mypy,flake8,pylint,bats-in-container-tests,identity"
       MOUNT_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     if: needs.build-info.outputs.basic-checks-only == 'true'
