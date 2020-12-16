@@ -537,7 +537,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
-        name = DataCatalogClient.field_path(project_id, location, tag_template, field)
+        name = DataCatalogClient.tag_template_field_path(project_id, location, tag_template, field)
 
         self.log.info('Deleting a tag template field: name=%s', name)
         client.delete_tag_template_field(
@@ -860,7 +860,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
-        name = DataCatalogClient.field_path(project_id, location, tag_template, field)
+        name = DataCatalogClient.tag_template_field_path(project_id, location, tag_template, field)
 
         self.log.info(
             'Renaming field: old_name=%s, new_tag_template_field_id=%s', name, new_tag_template_field_id
@@ -1246,7 +1246,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         """
         client = self.get_conn()
         if project_id and location and tag_template and tag_template_field_id:
-            tag_template_field_name = DataCatalogClient.field_path(
+            tag_template_field_name = DataCatalogClient.tag_template_field_path(
                 project_id, location, tag_template, tag_template_field_id
             )
 
