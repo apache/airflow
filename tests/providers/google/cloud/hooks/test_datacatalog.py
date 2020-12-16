@@ -21,7 +21,7 @@ from typing import Dict, Sequence, Tuple
 from unittest import TestCase, mock
 
 from google.api_core.retry import Retry
-from google.cloud.datacatalog_v1beta1.types import Tag
+from google.cloud.datacatalog_v1beta1.types import Entry, Tag, TagTemplate
 
 from airflow import AirflowException
 from airflow.providers.google.cloud.hooks.datacatalog import CloudDataCatalogHook
@@ -571,7 +571,7 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.update_entry.assert_called_once_with(
-            entry=TEST_ENTRY,
+            entry=Entry(name=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_1)),
             update_mask=TEST_UPDATE_MASK,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
@@ -596,7 +596,7 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.update_tag.assert_called_once_with(
-            tag={"name": TEST_TAG_PATH.format(TEST_PROJECT_ID_1)},
+            tag=Tag(name=TEST_TAG_PATH.format(TEST_PROJECT_ID_1)),
             update_mask=TEST_UPDATE_MASK,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
@@ -619,7 +619,7 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.update_tag_template.assert_called_once_with(
-            tag_template=TEST_TAG_TEMPLATE,
+            tag_template=TagTemplate(name=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_1)),
             update_mask=TEST_UPDATE_MASK,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
@@ -1084,7 +1084,7 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.update_entry.assert_called_once_with(
-            entry=TEST_ENTRY,
+            entry=Entry(name=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_2)),
             update_mask=TEST_UPDATE_MASK,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
@@ -1110,7 +1110,7 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.update_tag.assert_called_once_with(
-            tag={"name": TEST_TAG_PATH.format(TEST_PROJECT_ID_2)},
+            tag=Tag(name=TEST_TAG_PATH.format(TEST_PROJECT_ID_2)),
             update_mask=TEST_UPDATE_MASK,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
@@ -1134,7 +1134,7 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.update_tag_template.assert_called_once_with(
-            tag_template=TEST_TAG_TEMPLATE,
+            tag_template=TagTemplate(name=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_2)),
             update_mask=TEST_UPDATE_MASK,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
