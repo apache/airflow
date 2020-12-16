@@ -135,6 +135,70 @@ The key aspects of a committer are:
 * Visibility in community discussions (dev mailing list, Slack and GitHub)
 * Testing Release Candidates
 
+Guidelines for promoting Committers to Airflow PMC
+---------------------------------------------------
+
+To become a PMC member the committers should meet all **general prerequisites**.
+Apart from that the person should demonstrate distinct **community involvement** or **code contributions**.
+
+Guidelines from ASF are listed at
+`ASF: New Candidates for Committership <http://community.apache.org/newcommitter.html#guidelines-for-assessing-new-candidates-for-committership>`__.
+
+Prerequisites
+==============
+
+* Has been a committer for at least 3 months
+* Is still active community member (Visible on mailing list or reviewing PRs at the minimum)
+
+Community involvement
+======================
+
+* Visibility on discussions on the dev mailing list
+* Spreading the word for "Airflow" either:
+
+  * Talks at meetups, conferences, etc
+  * Creating content like videos, blogs, etc
+
+* Growing the community:
+
+  * Mentors new members/contributors
+  * Answers users/contributors via Github issues, dev list or slack
+
+Code contribution
+==================
+
+* Consistent voting on RCs for at least past 3 releases lifecycles
+* Engagement in Airflow Improvements Proposals either:
+
+  * Has been actively voting on AIPs
+  * Has been proposing and leading their implementation
+
+* Actively involved in code contributions:
+
+  * Code reviews
+  * Merging pull requests
+  * Fixing bugs and implementing improvements
+
+
+Only a current PMC member can nominate a current committer to be part of PMC.
+
+If the vote fails or PMC members needs more evidence, then one of the PMC Member (who is not the Proposer)
+can become the Mentor and guide the proposed candidates on how they can become a PMC member.
+
+1.  Candidate Proposer
+
+    This is the person who launches the DISCUSS thread & makes the case for a PMC promotion
+
+2.  Candidate Mentor
+
+    If the committee does not have enough information, requires more time, or requires more evidence of
+    candidate's eligibility, a mentor, who is not the proposer, is selected to help mentor the candidate
+    The mentor should try to remain impartial -- his/her goal is to provide the missing evidence and to
+    try to coach/mentor the candidate to success.
+
+    In order to re-raise a candidate vote, both Proposer and Mentor must be in favor. Again,
+    the mentor must try to remain impartial and cannot be the Proposer.
+
 
 Contributors
 ------------
