@@ -176,7 +176,7 @@ info:
     The default is to deny all requests.
 
     For details on configuring the authentication, see
-    [API Authorization](https://airflow.apache.org/docs/stable/security/api.html).
+    [API Authorization](https://airflow.apache.org/docs/apache-airflow/stable/security/api.html).
 
     # Errors
 
@@ -1901,7 +1901,7 @@ components:
         DAG details.
 
         For details see:
-        (airflow.models.DAG)[https://airflow.apache.org/docs/stable/_api/airflow/models/index.html#airflow.models.DAG]
+        (airflow.models.DAG)[https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.DAG]
       allOf:
         - $ref: '#/components/schemas/DAG'
         - type: object
@@ -1958,7 +1958,7 @@ components:
       type: object
       description: |
         For details see:
-        (airflow.models.BaseOperator)[https://airflow.apache.org/docs/stable/_api/airflow/models/index.html#airflow.models.BaseOperator]
+        (airflow.models.BaseOperator)[https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.BaseOperator]
       properties:
         class_ref:
           $ref: '#/components/schemas/ClassReference'
@@ -2893,4 +2893,4 @@ tags:
 
 
 externalDocs:
-  url: https://airflow.apache.org/docs/stable/
+  url: https://airflow.apache.org/docs/apache-airflow/stable/
