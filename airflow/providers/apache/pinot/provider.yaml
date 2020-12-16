@@ -26,6 +26,7 @@ versions:
 integrations:
   - integration-name: Apache Pinot
     external-doc-url: https://pinot.apache.org/
+    logo: /integration-logos/apache/pinot.png
     tags: [apache]
 
 hooks:

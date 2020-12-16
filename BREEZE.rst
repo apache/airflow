@@ -751,6 +751,14 @@ The above will run mypy check for all files.
       </a>
     </div>
 
+If you want ever need to get a list of the files that will be checked (for troubleshooting when playing with the
+``--from-ref`` and ``--to-ref``
+
+.. code-block:: bash
+
+     breeze static-check identity --verbose # currently staged files
+     breeze static-check identity --verbose -- --from-ref $(git merge-base master HEAD) --to-ref HEAD #  branch updates
+
 Building the Documentation
 --------------------------
 
@@ -2144,15 +2152,15 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  check-executables-have-shebangs check-hooks-apply check-integrations
                  check-merge-conflict check-xml consistent-pylint daysago-import-check
                  debug-statements detect-private-key doctoc dont-use-safe-filter end-of-file-fixer
-                 fix-encoding-pragma flake8 forbid-tabs helm-lint incorrect-use-of-LoggingMixin
-                 insert-license isort json-schema language-matters lint-dockerfile lint-openapi
-                 markdownlint mermaid mixed-line-ending mypy mypy-helm no-providers-in-core-examples
-                 no-relative-imports pre-commit-descriptions provide-create-sessions
-                 providers-init-file provider-yamls pydevd pydocstyle pylint pylint-tests
-                 python-no-log-warn pyupgrade restrict-start_date rst-backticks setup-order
-                 setup-extra-packages shellcheck sort-in-the-wild stylelint trailing-whitespace
-                 update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
-                 version-sync yamllint
+                 fix-encoding-pragma flake8 forbid-tabs helm-lint identity
+                 incorrect-use-of-LoggingMixin insert-license isort json-schema language-matters
+                 lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending mypy mypy-helm
+                 no-providers-in-core-examples no-relative-imports pre-commit-descriptions
+                 provide-create-sessions providers-init-file provider-yamls pydevd pydocstyle pylint
+                 pylint-tests python-no-log-warn pyupgrade restrict-start_date rst-backticks
+                 setup-order setup-extra-packages shellcheck sort-in-the-wild stylelint
+                 trailing-whitespace update-breeze-file update-extras update-local-yml-file
+                 update-setup-cfg-file version-sync yamllint
 
         You can pass extra arguments including options to to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:

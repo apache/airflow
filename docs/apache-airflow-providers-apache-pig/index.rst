@@ -32,3 +32,4 @@ Content
     :caption: Resources
 
     Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/apache/pig/example_dags>
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-pig/>

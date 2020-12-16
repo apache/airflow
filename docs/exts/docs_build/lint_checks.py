@@ -151,17 +151,39 @@ def _check_missing_guide_references(operator_names, python_module_paths) -> List
 def assert_file_not_contains(file_path: str, pattern: str, message: str) -> Optional[DocBuildError]:
     """
     Asserts that file does not contain the pattern. Return message error if it does.
+
     :param file_path: file
     :param pattern: pattern
     :param message: message to return
     """
+    return _extract_file_content(file_path, message, pattern, False)
+
+
+def assert_file_contains(file_path: str, pattern: str, message: str) -> Optional[DocBuildError]:
+    """
+    Asserts that file does contain the pattern. Return message error if it does not.
+
+    :param file_path: file
+    :param pattern: pattern
+    :param message: message to return
+    """
+    return _extract_file_content(file_path, message, pattern, True)
+
+
+def _extract_file_content(file_path: str, message, pattern: str, expected_contain: bool):
     with open(file_path, "rb", 0) as doc_file:
         pattern_compiled = re.compile(pattern)
-
+        found = False
         for num, line in enumerate(doc_file, 1):
             line_decode = line.decode()
-            if re.search(pattern_compiled, line_decode):
+            result = re.search(pattern_compiled, line_decode)
+            if not expected_contain and result:
                 return DocBuildError(file_path=file_path, line_no=num, message=message)
+            elif expected_contain and result:
+                found = True
+
+        if expected_contain and not found:
+            return DocBuildError(file_path=file_path, line_no=None, message=message)
     return None
 
 
@@ -234,3 +256,65 @@ def check_enforce_code_block() -> List[DocBuildError]:
         if build_error:
             build_errors.append(build_error)
     return build_errors
+
+
+def check_example_dags_in_provider_tocs() -> List[DocBuildError]:
+    """Checks that each documentation for provider packages has a link to example DAGs in the TOC."""
+    build_errors = []
+
+    for provider in ALL_PROVIDER_YAMLS:
+        example_dags_dirs = list(glob(f"{provider['package-dir']}/**/example_dags", recursive=True))
+        if not example_dags_dirs:
+            continue
+        doc_file_path = f"{DOCS_DIR}/{provider['package-name']}/index.rst"
+
+        if len(example_dags_dirs) == 1:
+            package_rel_path = os.path.relpath(example_dags_dirs[0], start=ROOT_PROJECT_DIR)
+            github_url = f"https://github.com/apache/airflow/tree/master/{package_rel_path}"
+            expected_text = f"Example DAGs <{github_url}>"
+        else:
+            expected_text = "Example DAGs <example-dags>"
+
+        build_error = assert_file_contains(
+            file_path=doc_file_path,
+            pattern=re.escape(expected_text),
+            message=(
+                f"A link to the example DAGs in table of contents is missing. Can you add it?\n\n"
+                f"    {expected_text}"
+            ),
+        )
+        if build_error:
+            build_errors.append(build_error)
+
+    return build_errors
+
+
+def check_pypi_repository_in_provider_tocs() -> List[DocBuildError]:
+    """Checks that each documentation for provider packages has a link to PyPI files in the TOC."""
+    build_errors = []
+    for provider in ALL_PROVIDER_YAMLS:
+        doc_file_path = f"{DOCS_DIR}/{provider['package-name']}/index.rst"
+        expected_text = f"PyPI Repository <https://pypi.org/project/{provider['package-name']}/>"
+        build_error = assert_file_contains(
+            file_path=doc_file_path,
+            pattern=re.escape(expected_text),
+            message=(
+                f"A link to the PyPI in table of contents is missing. Can you add it?\n\n"
+                f"    {expected_text}"
+            ),
+        )
+        if build_error:
+            build_errors.append(build_error)
+
+    return build_errors
+
+
+def run_all_check() -> List[DocBuildError]:
+    """Run all checks from this module"""
+    general_errors = []
+    general_errors.extend(check_guide_links_in_operator_descriptions())
+    general_errors.extend(check_enforce_code_block())
+    general_errors.extend(check_exampleinclude_for_example_dags())
+    general_errors.extend(check_example_dags_in_provider_tocs())
+    general_errors.extend(check_pypi_repository_in_provider_tocs())
+    return general_errors

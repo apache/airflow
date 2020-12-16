@@ -438,6 +438,7 @@ with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_inte
     lookup_entry_linked_resource >> lookup_entry_result
 
     # Rename
+    update_tag >> rename_tag_template_field
     create_tag_template_field >> rename_tag_template_field >> delete_tag_template_field
 
     # Search
