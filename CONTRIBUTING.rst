@@ -141,20 +141,23 @@ Guidelines for promoting Committers to Airflow PMC
 To become a PMC member the committers should meet all **general prerequisites**.
 Apart from that the person should demonstrate distinct **community involvement** or **code contributions**.
 
+Guidelines from ASF are listed at
+`ASF: New Candidates for Committership <http://community.apache.org/newcommitter.html#guidelines-for-assessing-new-candidates-for-committership>`__.
+
 Prerequisites
 ==============
 
 * Has been a committer for at least 3 months
-* Is still active community member
+* Is still active community member (Visible on mailing list or reviewing PRs at the minimum)
 
 Community involvement
 ======================
 
 * Visibility on discussions on the dev mailing list
-* Spreading the “Airflow” either:
+* Spreading the word for "Airflow" either:
 
   * Talks at meetups, conferences, etc
-  * Creating content (videos, blogs etc)
+  * Creating content like videos, blogs, etc
 
 * Growing the community:
 
