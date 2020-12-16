@@ -328,8 +328,8 @@ the only supported UI.
 .. note::
 
     When multiple replicas of the airflow-web pods are running in Kubernetes they
-    need to share the same *secret_key* to access the same user session accross pods. Inject
-    this via the environmnet and rotate it regularly like the fernet_key to ensure security.
+    need to share the same *secret_key* to access the same user session across pods. Inject
+    this via the environment and rotate it regularly like the fernet_key to ensure security.
     The 1.10.14 bridge-release has this feature.
 
 The ``flask-ouathlib`` has been replaced with ``authlib`` because ``flask-outhlib`` has
