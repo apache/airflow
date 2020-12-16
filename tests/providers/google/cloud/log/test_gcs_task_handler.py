@@ -19,6 +19,7 @@ import shutil
 import tempfile
 import unittest
 from datetime import datetime
+from parameterized import parameterized
 from unittest import mock
 
 from airflow.models import TaskInstance
@@ -67,6 +68,7 @@ class TestGCSTaskHandler(unittest.TestCase):
         )
         self.assertEqual(mock_client.return_value, return_value)
 
+    @parameterized.expand([('CONTENT',), (b'CONTENT',)])
     @conf_vars({("logging", "remote_log_conn_id"): "gcs_default"})
     @mock.patch(
         "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
@@ -74,8 +76,8 @@ class TestGCSTaskHandler(unittest.TestCase):
     )
     @mock.patch("google.cloud.storage.Client")
     @mock.patch("google.cloud.storage.Blob")
-    def test_should_read_logs_from_remote(self, mock_blob, mock_client, mock_creds):
-        mock_blob.from_string.return_value.download_as_string.return_value = "CONTENT"
+    def test_should_read_logs_from_remote(self, content, mock_blob, mock_client, mock_creds):
+        mock_blob.from_string.return_value.download_as_string.return_value = content
 
         logs, metadata = self.gcs_task_handler._read(self.ti, self.ti.try_number)
         mock_blob.from_string.assert_called_once_with(
