@@ -148,6 +148,7 @@ repos:
           - "2"
   - repo: meta
     hooks:
+      - id: identity
       - id: check-hooks-apply
   - repo: https://github.com/psf/black
     rev: 20.8b1

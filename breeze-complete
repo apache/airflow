@@ -92,6 +92,7 @@ fix-encoding-pragma
 flake8
 forbid-tabs
 helm-lint
+identity
 incorrect-use-of-LoggingMixin
 insert-license
 isort
