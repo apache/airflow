@@ -1328,7 +1328,8 @@
     - name: kubernetes_queue
       description: |
         Define when to send a task to ``KubernetesExecutor`` when using ``CeleryKubernetesExecutor``.
-        When the queue of a task is ``kubernetes_queue``, the task is executed via ``KubernetesExecutor``,
+        When the queue of a task is the value of ``kubernetes_queue`` (default ``kubernetes``),
+        the task is executed via ``KubernetesExecutor``,
         otherwise via ``CeleryExecutor``
       version_added: ~
       type: string
