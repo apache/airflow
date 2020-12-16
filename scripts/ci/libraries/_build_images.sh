@@ -119,7 +119,7 @@ function build_images::forget_last_answer() {
 function build_images::confirm_via_terminal() {
     echo >"${DETECTED_TERMINAL}"
     echo >"${DETECTED_TERMINAL}"
-    echo "Make sure that you rebased to latest master before rebuilding!" >"${DETECTED_TERMINAL}"
+    echo "${COLOR_YELLOW_WARNING}Make sure that you rebased to latest master before rebuilding!${COLOR_RESET}" >"${DETECTED_TERMINAL}"
     echo >"${DETECTED_TERMINAL}"
     # Make sure to use output of tty rather than stdin/stdout when available - this way confirm
     # will works also in case of pre-commits (git does not pass stdin/stdout to pre-commit hooks)
@@ -170,7 +170,7 @@ function build_images::confirm_image_rebuild() {
     elif [[ -t 0 ]]; then
         echo
         echo
-        echo "Make sure that you rebased to latest master before rebuilding!"
+        echo "${COLOR_YELLOW_WARNING}Make sure that you rebased to latest master before rebuilding!${COLOR_RESET}"
         echo
         # Check if this script is run interactively with stdin open and terminal attached
         "${AIRFLOW_SOURCES}/confirm" "${ACTION} image ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}"
