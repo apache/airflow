@@ -19,8 +19,9 @@ import shutil
 import tempfile
 import unittest
 from datetime import datetime
-from parameterized import parameterized
 from unittest import mock
+
+from parameterized import parameterized
 
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG
