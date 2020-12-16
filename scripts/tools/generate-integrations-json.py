@@ -68,7 +68,7 @@ for provider_info in ALL_PROVIDER_YAMLS:
             result['logo'] = logo
         result_integrations.append(result)
 
-result_integrations = sorted(result_integrations, key=lambda x: x['name'])
+result_integrations = sorted(result_integrations, key=lambda x: x['name'].lower())
 with open(os.path.join(AIRFLOW_SITE_DIR, 'landing-pages/site/static/integrations.json'), 'w') as f:
     f.write(
         json.dumps(
