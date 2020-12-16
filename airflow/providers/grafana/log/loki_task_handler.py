@@ -190,7 +190,6 @@ class LokiTaskHandler(FileTaskHandler, LoggingMixin):
         :param try_number: current try_number to read log from
         :type: try_number: int
         """
-
         start_time, end_time = self.query_time_range(task_instance)
         task_lables = self.get_label(task_instance)
         del task_lables["airflow_try_number"]  # try_number will come from read method

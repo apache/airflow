@@ -21,13 +21,11 @@ name: Grafana
 description: |
     `Grafana <https://grafana.com/>`__
 versions:
-  - 1.0.0
+  - 0.0.1
 integrations:
-  - integration-name: Grafana-Loki
+  - integration-name: Grafana Loki
     external-doc-url: https://grafana.com/oss/loki/
-    how-to-guide:
-      - /docs/apache-airflow-providers-grafana/logging.rst
-    tags: [service]
+    tags: [apache]
 operators: []
 hooks: []
 sensors: []

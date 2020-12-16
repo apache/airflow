@@ -17,7 +17,7 @@
     under the License.
 
 ``apache-airflow-providers-grafana``
-============================================
+====================================
 
 Content
 -------
@@ -32,4 +32,4 @@ Content
     :maxdepth: 1
     :caption: References
 
-    Python API <_api/airflow/providers/grafana/log/index>
+    Python API <_api/airflow/providers/grafana/index>
