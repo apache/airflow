@@ -152,10 +152,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
         try:
             blob = storage.Blob.from_string(remote_loc, self.client)
-            remote_log = blob.download_as_string()
-
-            if isinstance(remote_log, bytes):
-                remote_log = remote_log.decode()
+            remote_log = blob.download_as_byte().decode()
 
             log = f'*** Reading remote log from {remote_loc}.\n{remote_log}\n'
             return log, {'end_of_log': True}
@@ -178,7 +175,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         """
         try:
             blob = storage.Blob.from_string(remote_log_location, self.client)
-            old_log = blob.download_as_string()
+            old_log = blob.download_as_byte().decode()
             log = '\n'.join([old_log, log]) if old_log else log
         except Exception as e:  # pylint: disable=broad-except
             if not hasattr(e, 'resp') or e.resp.get('status') != '404':  # pylint: disable=no-member

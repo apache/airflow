@@ -21,8 +21,6 @@ import unittest
 from datetime import datetime
 from unittest import mock
 
-from parameterized import parameterized
-
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG
 from airflow.operators.dummy import DummyOperator
@@ -69,7 +67,6 @@ class TestGCSTaskHandler(unittest.TestCase):
         )
         self.assertEqual(mock_client.return_value, return_value)
 
-    @parameterized.expand([('CONTENT',), (b'CONTENT',)])
     @conf_vars({("logging", "remote_log_conn_id"): "gcs_default"})
     @mock.patch(
         "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
@@ -77,8 +74,8 @@ class TestGCSTaskHandler(unittest.TestCase):
     )
     @mock.patch("google.cloud.storage.Client")
     @mock.patch("google.cloud.storage.Blob")
-    def test_should_read_logs_from_remote(self, content, mock_blob, mock_client, mock_creds):
-        mock_blob.from_string.return_value.download_as_string.return_value = content
+    def test_should_read_logs_from_remote(self, mock_blob, mock_client, mock_creds):
+        mock_blob.from_string.return_value.download_as_byte.return_value = "CONTENT"
 
         logs, metadata = self.gcs_task_handler._read(self.ti, self.ti.try_number)
         mock_blob.from_string.assert_called_once_with(
@@ -97,7 +94,7 @@ class TestGCSTaskHandler(unittest.TestCase):
     @mock.patch("google.cloud.storage.Client")
     @mock.patch("google.cloud.storage.Blob")
     def test_should_read_from_local(self, mock_blob, mock_client, mock_creds):
-        mock_blob.from_string.return_value.download_as_string.side_effect = Exception("Failed to connect")
+        mock_blob.from_string.return_value.download_as_byte.side_effect = Exception("Failed to connect")
 
         self.gcs_task_handler.set_context(self.ti)
         log, metadata = self.gcs_task_handler._read(self.ti, self.ti.try_number)
@@ -119,7 +116,7 @@ class TestGCSTaskHandler(unittest.TestCase):
     @mock.patch("google.cloud.storage.Client")
     @mock.patch("google.cloud.storage.Blob")
     def test_write_to_remote_on_close(self, mock_blob, mock_client, mock_creds):
-        mock_blob.from_string.return_value.download_as_string.return_value = "CONTENT"
+        mock_blob.from_string.return_value.download_as_byte.return_value = b"CONTENT"
 
         self.gcs_task_handler.set_context(self.ti)
         self.gcs_task_handler.emit(
@@ -138,7 +135,7 @@ class TestGCSTaskHandler(unittest.TestCase):
         mock_blob.assert_has_calls(
             [
                 mock.call.from_string("gs://bucket/remote/log/location/1.log", mock_client.return_value),
-                mock.call.from_string().download_as_string(),
+                mock.call.from_string().download_as_byte(),
                 mock.call.from_string("gs://bucket/remote/log/location/1.log", mock_client.return_value),
                 mock.call.from_string().upload_from_string("CONTENT\nMESSAGE\n", content_type="text/plain"),
             ],
@@ -155,7 +152,7 @@ class TestGCSTaskHandler(unittest.TestCase):
     @mock.patch("google.cloud.storage.Blob")
     def test_failed_write_to_remote_on_close(self, mock_blob, mock_client, mock_creds):
         mock_blob.from_string.return_value.upload_from_string.side_effect = Exception("Failed to connect")
-        mock_blob.from_string.return_value.download_as_string.return_value = b"Old log"
+        mock_blob.from_string.return_value.download_as_byte.return_value = b"Old log"
 
         self.gcs_task_handler.set_context(self.ti)
         with self.assertLogs(self.gcs_task_handler.log) as cm:
@@ -173,7 +170,7 @@ class TestGCSTaskHandler(unittest.TestCase):
         mock_blob.assert_has_calls(
             [
                 mock.call.from_string("gs://bucket/remote/log/location/1.log", mock_client.return_value),
-                mock.call.from_string().download_as_string(),
+                mock.call.from_string().download_as_byte(),
                 mock.call.from_string("gs://bucket/remote/log/location/1.log", mock_client.return_value),
                 mock.call.from_string().upload_from_string(
                     "*** Previous log discarded: sequence item 0: expected str instance, bytes found\n\n",
@@ -190,7 +187,7 @@ class TestGCSTaskHandler(unittest.TestCase):
     @mock.patch("google.cloud.storage.Client")
     @mock.patch("google.cloud.storage.Blob")
     def test_write_to_remote_on_close_failed_read_old_logs(self, mock_blob, mock_client, mock_creds):
-        mock_blob.from_string.return_value.download_as_string.side_effect = Exception("Fail to download")
+        mock_blob.from_string.return_value.download_as_byte.side_effect = Exception("Fail to download")
 
         self.gcs_task_handler.set_context(self.ti)
         self.gcs_task_handler.emit(
@@ -209,7 +206,7 @@ class TestGCSTaskHandler(unittest.TestCase):
         mock_blob.assert_has_calls(
             [
                 mock.call.from_string("gs://bucket/remote/log/location/1.log", mock_client.return_value),
-                mock.call.from_string().download_as_string(),
+                mock.call.from_string().download_as_byte(),
                 mock.call.from_string("gs://bucket/remote/log/location/1.log", mock_client.return_value),
                 mock.call.from_string().upload_from_string(
                     "*** Previous log discarded: Fail to download\n\nMESSAGE\n", content_type="text/plain"
