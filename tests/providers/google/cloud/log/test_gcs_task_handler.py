@@ -75,7 +75,7 @@ class TestGCSTaskHandler(unittest.TestCase):
     @mock.patch("google.cloud.storage.Client")
     @mock.patch("google.cloud.storage.Blob")
     def test_should_read_logs_from_remote(self, mock_blob, mock_client, mock_creds):
-        mock_blob.from_string.return_value.download_as_byte.return_value = "CONTENT"
+        mock_blob.from_string.return_value.download_as_byte.return_value = b"CONTENT"
 
         logs, metadata = self.gcs_task_handler._read(self.ti, self.ti.try_number)
         mock_blob.from_string.assert_called_once_with(
