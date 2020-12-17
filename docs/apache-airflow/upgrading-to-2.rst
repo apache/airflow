@@ -327,7 +327,7 @@ the only supported UI.
 
 .. note::
 
-    When multiple replicas of the airflow-web are running they
+    When multiple replicas of the airflow webserver are running they
     need to share the same *secret_key* to access the same user session. Inject
     this via any configuration mechanism. The 1.10.14 bridge-release modifies this feature
     to use randomly generated secret keys instead of an insecure default and may break existing
