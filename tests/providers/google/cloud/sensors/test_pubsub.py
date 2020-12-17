@@ -21,7 +21,6 @@ from typing import Any, Dict, List
 from unittest import mock
 
 from google.cloud.pubsub_v1.types import ReceivedMessage
-from google.protobuf.json_format import MessageToDict, ParseDict
 
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.providers.google.cloud.sensors.pubsub import PubSubPullSensor
