@@ -141,7 +141,7 @@ function build_images::confirm_image_rebuild() {
     fi
     if [[ -f "${LAST_FORCE_ANSWER_FILE}" ]]; then
         # set variable from last answered response given in the same pre-commit run - so that it can be
-        # answered in teh first pre-commit check (build) and then used in another (pylint/mypy/flake8 etc).
+        # answered in the first pre-commit check (build) and then used in another (pylint/mypy/flake8 etc).
         # shellcheck disable=SC1090
         source "${LAST_FORCE_ANSWER_FILE}"
     fi

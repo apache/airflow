@@ -1537,7 +1537,7 @@ Migrated are:
 
 #### `airflow.providers.amazon.aws.operators.emr_terminate_job_flow.EmrTerminateJobFlowOperator`
 
-The default value for the [aws_conn_id](https://airflow.apache.org/howto/manage-connections.html#amazon-web-services) was accidently set to 's3_default' instead of 'aws_default' in some of the emr operators in previous
+The default value for the [aws_conn_id](https://airflow.apache.org/howto/manage-connections.html#amazon-web-services) was accidentally set to 's3_default' instead of 'aws_default' in some of the emr operators in previous
 versions. This was leading to EmrStepSensor not being able to find their corresponding emr cluster. With the new
 changes in the EmrAddStepsOperator, EmrTerminateJobFlowOperator and EmrCreateJobFlowOperator this issue is
 solved.

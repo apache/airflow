@@ -1338,7 +1338,7 @@ paths:
     get:
       summary: Get a instance status
       description: |
-        Get the status of Airflow's metadatabase and scheduler. It incluse info about
+        Get the status of Airflow's metadatabase and scheduler. It includes info about
         metadatabase and last heartbeat of scheduler.
       x-openapi-router-controller: airflow.api_connexion.endpoints.health_endpoint
       operationId: get_health
@@ -1883,7 +1883,7 @@ components:
             $ref: '#/components/schemas/XComCollectionItem'
 
     XCom:
-      description: Full representaiton of XCom entry.
+      description: Full representations of XCom entry.
       allOf:
         - $ref: '#/components/schemas/XComCollectionItem'
         - type: object
