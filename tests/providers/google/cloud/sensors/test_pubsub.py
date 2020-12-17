@@ -34,21 +34,18 @@ TEST_SUBSCRIPTION = 'test-subscription'
 class TestPubSubPullSensor(unittest.TestCase):
     def _generate_messages(self, count):
         return [
-            ParseDict(
-                {
-                    "ack_id": "%s" % i,
-                    "message": {
-                        "data": f'Message {i}'.encode('utf8'),
-                        "attributes": {"type": "generated message"},
-                    },
+            ReceivedMessage(
+                ack_id="%s" % i,
+                message={
+                    "data": f'Message {i}'.encode('utf8'),
+                    "attributes": {"type": "generated message"},
                 },
-                ReceivedMessage(),
             )
             for i in range(1, count + 1)
         ]
 
     def _generate_dicts(self, count):
-        return [MessageToDict(m) for m in self._generate_messages(count)]
+        return [ReceivedMessage.to_dict(m) for m in self._generate_messages(count)]
 
     @mock.patch('airflow.providers.google.cloud.sensors.pubsub.PubSubHook')
     def test_poke_no_messages(self, mock_hook):
