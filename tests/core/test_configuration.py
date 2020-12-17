@@ -384,7 +384,7 @@ key3 = value3
 
         self.assertEqual(
             None,
-            test_conf.getsection('non_existant_secion'),
+            test_conf.getsection('non_existent_section'),
         )
 
     def test_get_section_should_respect_cmd_env_variable(self):

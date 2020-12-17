@@ -624,7 +624,7 @@ The entrypoint performs those operations:
 
 * Sets up Kerberos if Kerberos integration is enabled (generates and configures Kerberos token)
 
-* Sets up ssh keys for ssh tests and restarts teh SSH server
+* Sets up ssh keys for ssh tests and restarts the SSH server
 
 * Sets all variables and configurations needed for unit tests to run
 

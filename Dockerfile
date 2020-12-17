@@ -219,7 +219,7 @@ ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS}
 ARG AIRFLOW_INSTALLATION_METHOD="apache-airflow"
 ENV AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}
 
-# By default latest released version of airflow is installed (when empty) but this value can be overriden
+# By default latest released version of airflow is installed (when empty) but this value can be overridden
 # and we can install specific version of airflow this way.
 ARG AIRFLOW_INSTALL_VERSION=""
 ENV AIRFLOW_INSTALL_VERSION=${AIRFLOW_INSTALL_VERSION}
@@ -413,7 +413,7 @@ RUN addgroup --gid "${AIRFLOW_GID}" "airflow" && \
 ARG AIRFLOW_HOME
 ENV AIRFLOW_HOME=${AIRFLOW_HOME}
 
-# Make Airflow files belong to the root group and are accessible. This is to accomodate the guidelines from
+# Make Airflow files belong to the root group and are accessible. This is to accommodate the guidelines from
 # OpenShift https://docs.openshift.com/enterprise/3.0/creating_images/guidelines.html
 RUN mkdir -pv "${AIRFLOW_HOME}"; \
     mkdir -pv "${AIRFLOW_HOME}/dags"; \

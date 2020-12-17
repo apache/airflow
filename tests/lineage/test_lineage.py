@@ -93,7 +93,7 @@ class TestLineage(unittest.TestCase):
 
     def test_lineage_render(self):
         # tests inlets / outlets are rendered if they are added
-        # after initalization
+        # after initialization
         dag = DAG(dag_id='test_lineage_render', start_date=DEFAULT_DATE)
 
         with dag:
