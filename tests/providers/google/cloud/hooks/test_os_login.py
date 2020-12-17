@@ -38,7 +38,7 @@ TEST_CREDENTIALS = mock.MagicMock()
 TEST_BODY: Dict = mock.MagicMock()
 TEST_RETRY: Retry = mock.MagicMock()
 TEST_TIMEOUT: float = 4
-TEST_METADATA: Sequence[Tuple[str, str]] = []
+TEST_METADATA: Sequence[Tuple[str, str]] = ()
 TEST_PARENT: str = "users/test-user"
 
 
@@ -67,9 +67,11 @@ class TestOSLoginHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.import_ssh_public_key.assert_called_once_with(
-            parent=TEST_PARENT,
-            ssh_public_key=TEST_BODY,
-            project_id=TEST_PROJECT_ID,
+            request=dict(
+                parent=TEST_PARENT,
+                ssh_public_key=TEST_BODY,
+                project_id=TEST_PROJECT_ID,
+            ),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -101,9 +103,11 @@ class TestOSLoginHookWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.import_ssh_public_key.assert_called_once_with(
-            parent=TEST_PARENT,
-            ssh_public_key=TEST_BODY,
-            project_id=TEST_PROJECT_ID_2,
+            request=dict(
+                parent=TEST_PARENT,
+                ssh_public_key=TEST_BODY,
+                project_id=TEST_PROJECT_ID_2,
+            ),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -135,9 +139,7 @@ class TestOSLoginHookWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.import_ssh_public_key.assert_called_once_with(
-            parent=TEST_PARENT,
-            ssh_public_key=TEST_BODY,
-            project_id=TEST_PROJECT_ID,
+            request=dict(parent=TEST_PARENT, ssh_public_key=TEST_BODY, project_id=TEST_PROJECT_ID),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
