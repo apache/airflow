@@ -155,14 +155,23 @@ class TestGCSTaskHandler(unittest.TestCase):
         mock_blob.from_string.return_value.download_as_byte.return_value = b"Old log"
 
         self.gcs_task_handler.set_context(self.ti)
+        self.gcs_task_handler.emit(
+            logging.LogRecord(
+                name="NAME",
+                level="DEBUG",
+                pathname=None,
+                lineno=None,
+                msg="MESSAGE",
+                args=None,
+                exc_info=None,
+            )
+        )
         with self.assertLogs(self.gcs_task_handler.log) as cm:
             self.gcs_task_handler.close()
 
         self.assertEqual(
             cm.output,
             [
-                'INFO:airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler:Previous '
-                'log discarded: sequence item 0: expected str instance, bytes found',
                 'ERROR:airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler:Could '
                 'not write logs to gs://bucket/remote/log/location/1.log: Failed to connect',
             ],
@@ -172,10 +181,7 @@ class TestGCSTaskHandler(unittest.TestCase):
                 mock.call.from_string("gs://bucket/remote/log/location/1.log", mock_client.return_value),
                 mock.call.from_string().download_as_byte(),
                 mock.call.from_string("gs://bucket/remote/log/location/1.log", mock_client.return_value),
-                mock.call.from_string().upload_from_string(
-                    "*** Previous log discarded: sequence item 0: expected str instance, bytes found\n\n",
-                    content_type="text/plain",
-                ),
+                mock.call.from_string().upload_from_string("Old log\nMESSAGE\n", content_type="text/plain"),
             ],
             any_order=False,
         )
