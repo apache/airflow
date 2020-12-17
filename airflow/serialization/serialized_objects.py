@@ -78,8 +78,9 @@ BUILTIN_OPERATOR_EXTRA_LINKS: List[str] = [
     "airflow.providers.google.cloud.operators.dataproc.DataprocJobLink",
     "airflow.providers.google.cloud.operators.dataproc.DataprocClusterLink",
     "airflow.providers.google.cloud.operators.mlengine.AIPlatformConsoleLink",
-    "airflow.providers.qubole.operators.qubole.QDSLink"
+    "airflow.providers.qubole.operators.qubole.QDSLink",
 ]
+
 
 @cache
 def get_operator_extra_links():
