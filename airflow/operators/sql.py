@@ -50,6 +50,12 @@ class BaseSQLOperator(BaseOperator):
     You can custom the behavior by overriding the .get_db_hook() method.
     """
 
+    @apply_defaults
+    def __init__(self, *, conn_id: Optional[str] = None, database: Optional[str] = None, **kwargs):
+        super().__init__(**kwargs)
+        self.conn_id = conn_id
+        self.database = database
+
     @cached_property
     def _hook(self):
         """Get DB Hook based on connection type"""
@@ -128,10 +134,8 @@ class SQLCheckOperator(BaseSQLOperator):
     def __init__(
         self, *, sql: str, conn_id: Optional[str] = None, database: Optional[str] = None, **kwargs
     ) -> None:
-        super().__init__(**kwargs)
-        self.conn_id = conn_id
+        super().__init__(conn_id=conn_id, database=database, **kwargs)
         self.sql = sql
-        self.database = database
 
     def execute(self, context=None):
         self.log.info("Executing SQL check: %s", self.sql)
@@ -195,10 +199,8 @@ class SQLValueCheckOperator(BaseSQLOperator):
         database: Optional[str] = None,
         **kwargs,
     ):
-        super().__init__(**kwargs)
+        super().__init__(conn_id=conn_id, database=database, **kwargs)
         self.sql = sql
-        self.conn_id = conn_id
-        self.database = database
         self.pass_value = str(pass_value)
         tol = _convert_to_float_if_possible(tolerance)
         self.tol = tol if isinstance(tol, float) else None
@@ -312,7 +314,7 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
         database: Optional[str] = None,
         **kwargs,
     ):
-        super().__init__(**kwargs)
+        super().__init__(conn_id=conn_id, database=database, **kwargs)
         if ratio_formula not in self.ratio_formulas:
             msg_template = "Invalid diff_method: {diff_method}. Supported diff methods are: {diff_methods}"
 
@@ -326,8 +328,6 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
         self.metrics_sorted = sorted(metrics_thresholds.keys())
         self.date_filter_column = date_filter_column
         self.days_back = -abs(days_back)
-        self.conn_id = conn_id
-        self.database = database
         sqlexp = ", ".join(self.metrics_sorted)
         sqlt = f"SELECT {sqlexp} FROM {table} WHERE {date_filter_column}="
 
@@ -434,10 +434,8 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
         database: Optional[str] = None,
         **kwargs,
     ):
-        super().__init__(**kwargs)
+        super().__init__(conn_id=conn_id, database=database, **kwargs)
         self.sql = sql
-        self.conn_id = conn_id
-        self.database = database
         self.min_threshold = _convert_to_float_if_possible(min_threshold)
         self.max_threshold = _convert_to_float_if_possible(max_threshold)
 
@@ -524,13 +522,11 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
         parameters: Optional[Union[Mapping, Iterable]] = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
-        self.conn_id = conn_id
+        super().__init__(conn_id=conn_id, database=database, **kwargs)
         self.sql = sql
         self.parameters = parameters
         self.follow_task_ids_if_true = follow_task_ids_if_true
         self.follow_task_ids_if_false = follow_task_ids_if_false
-        self.database = database
 
     def execute(self, context: Dict):
         if self._hook is None:

@@ -72,6 +72,7 @@ SUPPORTED_FALSE_VALUES = [
     return_value=Connection(conn_id='sql_default', conn_type='postgres'),
 )
 class TestSQLCheckOperatorDbHook:
+    # pylint: disable=attribute-defined-outside-init
     def setup_method(self):
         self.task_id = "test_task"
         self.conn_id = "sql_default"

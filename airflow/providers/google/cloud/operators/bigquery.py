@@ -89,6 +89,7 @@ class BigQueryConsoleIndexableLink(BaseOperatorLink):
 
 class _BigQueryDbHookMixin:
     def get_db_hook(self) -> BigQueryHook:
+        """Get BigQuery DB Hook"""
         return BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             use_legacy_sql=self.use_legacy_sql,
