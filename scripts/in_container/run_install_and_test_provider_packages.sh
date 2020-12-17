@@ -137,7 +137,7 @@ function discover_all_extra_links() {
     group_start "Listing available extra links via 'airflow providers links'"
     COLUMNS=180 airflow providers links
 
-    local expected_number_of_extra_links=4
+    local expected_number_of_extra_links=6
     local actual_number_of_extra_links
     actual_number_of_extra_links=$(airflow providers links --output table | grep -c ^airflow.providers | xargs)
     if [[ ${actual_number_of_extra_links} != "${expected_number_of_extra_links}" ]]; then
