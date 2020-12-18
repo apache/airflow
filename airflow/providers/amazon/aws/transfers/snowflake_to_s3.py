@@ -32,7 +32,7 @@ class SnowflakeToS3Operator(BaseOperator):
     :param stage: Reference to a specific Snowflake stage to copy the data into it. This allows you to use
         the method 'Configuring AWS IAM User Credentials' for unloading data to s3. If this is passed,
         s3_bucket can't be used and file_format is not necessary
-    :type stage: bool
+    :type stage: str
     :param warehouse: reference to a specific snowflake warehouse to override the one in the conn
     :type warehouse: str
     :param database: reference to a specific snowflake database to override the one in the conn
