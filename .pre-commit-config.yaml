@@ -461,19 +461,6 @@ repos:
         language: system
         files: ^.pre-commit-config.yaml$|^STATIC_CODE_CHECKS.rst|^breeze-complete$
         require_serial: true
-      - id: sort-in-the-wild
-        name: Sort INTHEWILD.md alphabetically
-        entry: ./scripts/ci/pre_commit/pre_commit_sort_in_the_wild.sh
-        language: system
-        files: ^.pre-commit-config.yaml$|^INTHEWILD.md$
-        require_serial: true
-      - id: helm-lint
-        name: Lint Helm Chart
-        entry: ./scripts/ci/pre_commit/pre_commit_helm_lint.sh
-        language: system
-        pass_filenames: false
-        files: ^chart
-        require_serial: true
       - id: airflow-providers-available
         name: Checks for providers being available when declared by extras in setup.py
         language: python
