@@ -66,6 +66,8 @@ class SnowflakeHook(DbApiHook):
         schema = conn.schema or ''
         authenticator = conn.extra_dejson.get('authenticator', 'snowflake')
         session_parameters = conn.extra_dejson.get('session_parameters')
+        lowercase_columns = conn.extra_dejson.get('lowercase_columns')
+        self.lowercase_columns = lowercase_columns if lowercase_columns else None
 
         conn_config = {
             "user": conn.login,
@@ -77,7 +79,7 @@ class SnowflakeHook(DbApiHook):
             "region": self.region or region,
             "role": self.role or role,
             "authenticator": self.authenticator or authenticator,
-            "session_parameters": self.session_parameters or session_parameters,
+            "session_parameters": self.session_parameters or session_parameters
         }
 
         # If private_key_file is specified in the extra json, load the contents of the file as a private
@@ -144,3 +146,13 @@ class SnowflakeHook(DbApiHook):
 
     def get_autocommit(self, conn):
         return getattr(conn, 'autocommit_mode', False)
+
+    def get_pandas_df(self, sql, parameters=None, **kwargs):
+        """
+        overrides DbApiHook get_pandas_df for allowing df columns to be lowercase
+        """
+        df = super(SnowflakeHook, self).get_pandas_df(sql, parameters, **kwargs)
+        if self.lowercase_columns:
+            df.columns = df.columns.str.lower()
+
+        return df
