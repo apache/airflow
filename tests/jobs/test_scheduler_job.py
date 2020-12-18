@@ -2125,6 +2125,50 @@ class TestSchedulerJob(unittest.TestCase):
         session.rollback()
         session.close()
 
+    @parameterized.expand([(State.SUCCESS,), (State.FAILED,)])
+    def test_dagrun_callbacks_are_not_added_when_callbacks_are_not_defined(self, state):
+        """
+        Test if no on_*_callback are defined on DAG, Callbacks not registered and sent to DAG Processor
+        """
+        dag = DAG(
+            dag_id='test_dagrun_callbacks_are_not_added_when_callbacks_are_not_defined',
+            start_date=DEFAULT_DATE,
+        )
+
+        BashOperator(task_id='test_task', dag=dag, owner='airflow', bash_command='echo hi')
+
+        scheduler = SchedulerJob()
+        scheduler.processor_agent = mock.Mock()
+        scheduler.processor_agent.send_callback_to_execute = mock.Mock()
+        scheduler._send_dag_callbacks_to_processor = mock.Mock()
+
+        # Sync DAG into DB
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            scheduler.dagbag.bag_dag(dag, root_dag=dag)
+            scheduler.dagbag.sync_to_db()
+
+        session = settings.Session()
+        orm_dag = session.query(DagModel).get(dag.dag_id)
+        assert orm_dag is not None
+
+        # Create DagRun
+        scheduler._create_dag_runs([orm_dag], session)
+
+        drs = DagRun.find(dag_id=dag.dag_id, session=session)
+        assert len(drs) == 1
+        dr = drs[0]
+
+        ti = dr.get_task_instance('test_task')
+        ti.set_state(state, session)
+
+        scheduler._schedule_dag_run(dr, set(), session)
+
+        # Verify Callback is not set (i.e is None) when no callbacks are set on DAG
+        scheduler._send_dag_callbacks_to_processor.assert_called_once_with(dr, None)
+
+        session.rollback()
+        session.close()
+
     def test_do_not_schedule_removed_task(self):
         dag = DAG(dag_id='test_scheduler_do_not_schedule_removed_task', start_date=DEFAULT_DATE)
         DummyOperator(task_id='dummy', dag=dag, owner='airflow')
