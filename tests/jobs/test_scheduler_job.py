@@ -3534,6 +3534,50 @@ class TestSchedulerJob(unittest.TestCase):
         ti = run2.get_task_instance(task1.task_id, session)
         assert ti.state == State.QUEUED
 
+    def test_do_schedule_max_active_runs_task_removed(self):
+        """Test that tasks in removed state don't count as actively running."""
+
+        with DAG(
+            dag_id='test_do_schedule_max_active_runs_task_removed',
+            start_date=DEFAULT_DATE,
+            schedule_interval='@once',
+            max_active_runs=1,
+        ) as dag:
+            # Cant use DummyOperator as that goes straight to success
+            task1 = BashOperator(task_id='dummy1', bash_command='true')
+
+        session = settings.Session()
+        dagbag = DagBag(
+            dag_folder=os.devnull,
+            include_examples=False,
+            read_dags_from_db=True,
+        )
+
+        dagbag.bag_dag(dag=dag, root_dag=dag)
+        dagbag.sync_to_db(session=session)
+
+        session.add(TaskInstance(task1, DEFAULT_DATE, State.REMOVED))
+        session.flush()
+
+        run1 = dag.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE + timedelta(hours=1),
+            state=State.RUNNING,
+            session=session,
+        )
+
+        dag.sync_to_db(session=session)  # Update the date fields
+
+        job = SchedulerJob()
+        job.executor = MockExecutor(do_update=False)
+        job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
+
+        num_queued = job._do_scheduling(session)
+
+        assert num_queued == 1
+        ti = run1.get_task_instance(task1.task_id, session)
+        assert ti.state == State.QUEUED
+
     def test_do_schedule_max_active_runs_and_manual_trigger(self):
         """
         Make sure that when a DAG is already at max_active_runs, that manually triggering a run doesn't cause
