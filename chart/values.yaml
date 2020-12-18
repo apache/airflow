@@ -31,7 +31,7 @@ airflowHome: "/opt/airflow"
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: 1.10.12
+defaultAirflowTag: 2.0.0
 
 
 # Select certain nodes for airflow pods.
