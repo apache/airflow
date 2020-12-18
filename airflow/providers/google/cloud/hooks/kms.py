@@ -169,5 +169,4 @@ class CloudKMSHook(GoogleBaseHook):
             metadata=metadata,
         )
 
-        plaintext = response.plaintext
-        return plaintext
+        return response.plaintext
