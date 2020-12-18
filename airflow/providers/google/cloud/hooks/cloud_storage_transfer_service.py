@@ -96,6 +96,13 @@ TRANSFER_OPERATIONS = 'transferOperations'
 TRANSFER_OPTIONS = 'transfer_options'
 TRANSFER_SPEC = 'transferSpec'
 YEAR = 'year'
+
+AZURE_BS_DATA_SOURCE = 'azureBlobStorageDataSource'
+AZURE_BS_CREDENTIALS = 'azureCredentials'
+AZURE_BS_ACCOUNT = 'storageAccount'
+AZURE_SAS_TOKEN = 'sasToken'
+AZURE_CONTAINER = 'container'
+
 ALREADY_EXIST_CODE = 409
 
 NEGATIVE_STATUSES = {GcpTransferOperationStatus.FAILED, GcpTransferOperationStatus.ABORTED}
