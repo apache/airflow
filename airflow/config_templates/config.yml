@@ -1331,7 +1331,7 @@
         When the queue of a task is the value of ``kubernetes_queue`` (default ``kubernetes``),
         the task is executed via ``KubernetesExecutor``,
         otherwise via ``CeleryExecutor``
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: "kubernetes"
@@ -1776,7 +1776,7 @@
       description: |
         The scheduler can run multiple processes in parallel to parse dags.
         This defines how many processes will run.
-      version_added: ~
+      version_added: 1.10.14
       type: string
       example: ~
       default: "2"
@@ -2076,7 +2076,7 @@
       description: |
         When `use_smart_sensor` is True, Airflow redirects multiple qualified sensor tasks to
         smart sensor task.
-      version_added: ~
+      version_added: 2.0.0
       type: boolean
       example: ~
       default: "False"
@@ -2084,7 +2084,7 @@
       description: |
         `shard_code_upper_limit` is the upper limit of `shard_code` value. The `shard_code` is generated
         by `hashcode % shard_code_upper_limit`.
-      version_added: ~
+      version_added: 2.0.0
       type: integer
       example: ~
       default: "10000"
@@ -2098,7 +2098,7 @@
     - name: sensors_enabled
       description: |
         comma separated sensor classes support in smart_sensor.
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: "NamedHivePartitionSensor"
