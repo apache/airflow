@@ -234,7 +234,7 @@ Here's the list of the :ref:`subpackages <installation:extra_packages>` and what
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 
 
-** Deprecated 1.10 Extras **
+**Deprecated 1.10 Extras**
 
 Those are the extras that have been deprecated in 2.0 and will be removed
 (current plan is to remove them in 2.1):
@@ -251,7 +251,7 @@ Those are the extras that have been deprecated in 2.0 and will be removed
 +---------------------+-----------------------------+
 | cassandra           | apache.cassandra            |
 +---------------------+-----------------------------+
-| crypto              | - *                         |
+| crypto              | \- \*                       |
 +---------------------+-----------------------------+
 | druid               | apache.druid                |
 +---------------------+-----------------------------+
@@ -279,4 +279,4 @@ Those are the extras that have been deprecated in 2.0 and will be removed
 +---------------------+-----------------------------+
 
 
-* crypto extra is not needed as cryptography is installed by default in Airflow 2.0
+\* crypto extra is not needed as cryptography is installed by default in Airflow 2.0
