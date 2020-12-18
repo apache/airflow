@@ -2784,8 +2784,8 @@ components:
         items:
           type: string
       description: |
-        The fields to update on the connection (connection, pool etc). If absent or empty, all
-        modifiable fields are updated. A comma-separated list of fully qualified names of fields.
+        The fields to update on the resource. If absent or empty, all modifiable fields are updated.
+        A comma-separated list of fully qualified names of fields.
       style: form
       explode: false
 
