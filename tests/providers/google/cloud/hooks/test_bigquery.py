@@ -690,7 +690,6 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             skip_invalid_rows=True,
         )
         mock_client.return_value.get_table.assert_called_once_with(TABLE_REFERENCE)
-        mock_client.assert_called_once_with(project_id=PROJECT_ID)
         mock_client.return_value.insert_rows.assert_called_once_with(
             table=mock_client.return_value.get_table.return_value,
             rows=rows,
