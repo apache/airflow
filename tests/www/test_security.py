@@ -27,7 +27,7 @@ from sqlalchemy import Column, Date, Float, Integer, String
 
 from airflow import settings
 from airflow.exceptions import AirflowException
-from airflow.models import DagModel
+from airflow.models import DagModel, DagTag
 from airflow.security import permissions
 from airflow.www import app as application
 from airflow.www.utils import CustomSQLAInterface
@@ -209,25 +209,30 @@ class TestSecurity(unittest.TestCase):
         dag_id = 'dag_id'
         username = "ElUser"
 
-        user = fab_utils.create_user(
-            self.app,
-            username,
-            role_name,
-            permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            ],
-        )
+        user = fab_utils.create_user(self.app, username, role_name, permissions=[])
 
         dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
         self.session.add(dag_model)
         self.session.commit()
+
+        dag_with_tag = "dag_id_with_tag"
+        dag_tag_name = "test_tag"
+        dag_model = DagModel(dag_id=dag_with_tag, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
+        dag_tag_model = DagTag(dag_id=dag_with_tag, name=dag_tag_name)
+        self.session.add(dag_model)
+        self.session.add(dag_tag_model)
 
         self.security_manager.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
             dag_id, access_control={role_name: permission_action}
         )
 
         self.assertEqual(self.security_manager.get_accessible_dag_ids(user), {'dag_id'})
+
+        permission_view = self.security_manager.add_permission_view_menu(
+            permissions.ACTION_CAN_READ, f"{permissions.RESOURCE_TAGS_PREFIX}{dag_tag_name}"
+        )
+        self.security_manager.add_permission_role(user.roles[0], permission_view)
+        self.assertEqual(self.security_manager.get_accessible_dag_ids(user), {"dag_id", dag_with_tag})
 
     def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(self):
         # In this test case,

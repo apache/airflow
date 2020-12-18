@@ -28,7 +28,7 @@ from sqlalchemy.orm import joinedload
 
 from airflow import models
 from airflow.exceptions import AirflowException
-from airflow.models import DagModel
+from airflow.models import DagModel, DagTag
 from airflow.security import permissions
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
@@ -269,6 +269,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             .first()
         )
         resources = set()
+        tags = set()
         for role in user_query.roles:
             for permission in role.permissions:
                 action = permission.permission.name
@@ -281,10 +282,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
                 if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
                     resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
+                elif resource.startswith(permissions.RESOURCE_TAGS_PREFIX):
+                    tags.add(resource[len(permissions.RESOURCE_TAGS_PREFIX) :])
                 else:
                     resources.add(resource)
 
-        return session.query(DagModel).filter(DagModel.dag_id.in_(resources))
+        return session.query(DagModel).filter(
+            DagModel.dag_id.in_(resources) | DagModel.tags.any(DagTag.name.in_(tags))
+        )
 
     def can_access_some_dags(self, action: str, dag_id: Optional[str] = None) -> bool:
         """Checks if user has read or write access to some dags."""
@@ -298,22 +303,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def can_read_dag(self, dag_id, user=None) -> bool:
         """Determines whether a user has DAG read access."""
-        if not user:
-            user = g.user
-        prefixed_dag_id = self.prefixed_dag_id(dag_id)
-        return self._has_view_access(
-            user, permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG
-        ) or self._has_view_access(user, permissions.ACTION_CAN_READ, prefixed_dag_id)
+        return dag_id in self.get_readable_dag_ids(user or g.user)
 
     def can_edit_dag(self, dag_id, user=None) -> bool:
         """Determines whether a user has DAG edit access."""
-        if not user:
-            user = g.user
-        prefixed_dag_id = self.prefixed_dag_id(dag_id)
-
-        return self._has_view_access(
-            user, permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG
-        ) or self._has_view_access(user, permissions.ACTION_CAN_EDIT, prefixed_dag_id)
+        return dag_id in self.get_editable_dag_ids(user or g.user)
 
     def prefixed_dag_id(self, dag_id):
         """Returns the permission name for a DAG id."""
@@ -354,10 +348,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         # FAB built-in view access method. Won't work for AllDag access.
 
         if self.is_dag_resource(resource):
+            dag_id = resource[len(permissions.RESOURCE_DAG_PREFIX) :]
             if permission == permissions.ACTION_CAN_READ:
-                has_access |= self.can_read_dag(resource, user)
+                has_access |= self.can_read_dag(dag_id, user)
             elif permission == permissions.ACTION_CAN_EDIT:
-                has_access |= self.can_edit_dag(resource, user)
+                has_access |= self.can_edit_dag(dag_id, user)
 
         return has_access
 
@@ -440,16 +435,18 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             self.add_permission_view_menu(permission_name, view_menu_name)
 
     @provide_session
-    def create_custom_dag_permission_view(self, session=None):
+    def create_custom_dag_permission_view(self, session=None):  # pylint: disable=too-many-locals
         """
         Workflow:
         1. Fetch all the existing (permissions, view-menu) from Airflow DB.
         2. Fetch all the existing dag models that are either active or paused.
         3. Create both read and write permission view-menus relation for every dags from step 2
-        4. Find out all the dag specific roles(excluded pubic, admin, viewer, op, user)
-        5. Get all the permission-vm owned by the user role.
-        6. Grant all the user role's permission-vm except the all-dag view-menus to the dag roles.
-        7. Commit the updated permission-vm-role into db
+        4. Fetch all the existing dag tags.
+        5. Create both read and write permission view-menus relation for every tag from step 4.
+        6. Find out all the dag specific roles(excluded pubic, admin, viewer, op, user)
+        7. Get all the permission-vm owned by the user role.
+        8. Grant all the user role's permission-vm except the all-dag view-menus to the dag roles.
+        9. Commit the updated permission-vm-role into db
 
         :return: None.
         """
@@ -476,6 +473,13 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         for dag in all_dags_models:
             for perm in self.DAG_PERMS:
                 merge_pv(perm, self.prefixed_dag_id(dag.dag_id))
+
+        all_tags = session.query(models.DagTag).distinct(models.DagTag.name).all()
+
+        # Create can_dag_tag_edit and can_dag_tag_read permissions for every tag
+        for tag in all_tags:
+            for perm in self.DAG_PERMS:
+                merge_pv(perm, f"{permissions.RESOURCE_TAGS_PREFIX}{tag.name}")
 
         # for all the dag-level role, add the permission of viewer
         # with the dag view to ab_permission_view

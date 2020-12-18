@@ -53,6 +53,10 @@ assists users migrating to a new version.
 
 ## Master
 
+### Add DAG tags level permission
+
+It's now possible to grant users read/edit permissions for all the dags that contains a specific tag.
+
 ### The experimental REST API is disabled by default
 
 The experimental REST API is disabled by default. To restore these APIs while migrating to
