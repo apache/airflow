@@ -29,18 +29,18 @@ class SnowflakeToS3Operator(BaseOperator):
     Snowflake handles it. You have to follow one of the setups in:
     https://docs.snowflake.com/en/user-guide/data-load-s3-config.html
 
-    :param stage: Copy the data into a Snowflake Stage. This allows you to use the method
-        'Configuring AWS IAM User Credentials' for unloading data to s3. If this is true,
-        s3_bucket and file_format are not necessaries.
+    :param stage: Reference to a specific Snowflake stage to copy the data into it. This allows you to use
+        the method 'Configuring AWS IAM User Credentials' for unloading data to s3. If this is passed,
+        s3_bucket can't be used and file_format is not necessary
     :type stage: bool
-    :param warehouse: reference to a specific snowflake warehouse to override the one in conn
+    :param warehouse: reference to a specific snowflake warehouse to override the one in the conn
     :type warehouse: str
-    :param database: reference to a specific snowflake database to override the one in conn
+    :param database: reference to a specific snowflake database to override the one in the conn
     :type warehouse: str
     :param s3_bucket: reference to a specific S3 bucket where the data will be saved. For using it, you
         should have done the one-time setup 'Configuring a Snowflake Storage Integration'
     :type s3_bucket: str
-    :param s3_key: reference to a specific S3 key within the previous bucket
+    :param s3_key: reference to a specific S3 key within a bucket or stage.
     :type s3_key: str
     :param file_format: can be either a previous file format created in Snowflake
         or hardcoded one like ``type = csv field_delimiter = ',' skip_header = 1``
@@ -48,7 +48,7 @@ class SnowflakeToS3Operator(BaseOperator):
     :param query_or_table: query or full table to unload. If table, it must include the schema like
         `schema.table`
     :type query_or_table: str
-    :param snowflake_conn_id: reference to a specific snowflake database
+    :param snowflake_conn_id: reference to a specific snowflake connection
     :type snowflake_conn_id: str
     :param unload_options: reference to a list of UNLOAD options (SINGLE, MAX_FILE_SIZE,
         OVERWRITE etc). Each element of the list has to be a string
@@ -82,7 +82,7 @@ class SnowflakeToS3Operator(BaseOperator):
     def __init__(
         self,
         *,
-        stage: bool = False,
+        stage: Optional[str] = None,
         s3_bucket: Optional[str],
         s3_key: str,
         query_or_table: str,
