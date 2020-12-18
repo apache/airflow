@@ -145,13 +145,13 @@ Guidelines from ASF are listed at
 `ASF: New Candidates for Committership <http://community.apache.org/newcommitter.html#guidelines-for-assessing-new-candidates-for-committership>`__.
 
 Prerequisites
-==============
+^^^^^^^^^^^^^^
 
 * Has been a committer for at least 3 months
 * Is still active community member (Visible on mailing list or reviewing PRs at the minimum)
 
 Community involvement
-======================
+^^^^^^^^^^^^^^^^^^^^^^
 
 * Visibility on discussions on the dev mailing list
 * Spreading the word for "Airflow" either:
@@ -165,7 +165,7 @@ Community involvement
   * Answers users/contributors via Github issues, dev list or slack
 
 Code contribution
-==================
+^^^^^^^^^^^^^^^^^^
 
 * Consistent voting on RCs for at least past 3 releases lifecycles
 * Engagement in Airflow Improvements Proposals either:
