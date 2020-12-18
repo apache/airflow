@@ -24,7 +24,6 @@ from uuid import UUID
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.cloud.exceptions import NotFound
 from google.cloud.pubsub_v1.types import ReceivedMessage
-from google.protobuf.json_format import ParseDict
 from googleapiclient.errors import HttpError
 from parameterized import parameterized
 
