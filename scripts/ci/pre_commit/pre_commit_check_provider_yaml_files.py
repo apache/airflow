@@ -301,6 +301,13 @@ def check_doc_files(yaml_files: Dict[str, Dict]):
         sys.exit(1)
 
 
+def check_unique_provider_name(yaml_files: Dict[str, Dict]):
+    provider_names = [d['name'] for d in yaml_files.values()]
+    duplicates = {x for x in provider_names if provider_names.count(x) > 1}
+    if duplicates:
+        errors.append(f"Provider name must be unique. Duplicates: {duplicates}")
+
+
 if __name__ == '__main__':
     all_provider_files = sorted(glob(f"{ROOT_DIR}/airflow/providers/**/provider.yaml", recursive=True))
     if len(sys.argv) > 1:
@@ -319,6 +326,7 @@ if __name__ == '__main__':
     check_completeness_of_list_of_transfers(all_parsed_yaml_files)
     check_duplicates_in_list_of_transfers(all_parsed_yaml_files)
     check_hook_classes(all_parsed_yaml_files)
+    check_unique_provider_name(all_parsed_yaml_files)
 
     if all_files_loaded:
         # Only check those if all provider files are loaded
