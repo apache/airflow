@@ -138,3 +138,11 @@ class TestSnowflakeHook(unittest.TestCase):
         self.conn.password = None
         params = self.db_hook._get_conn_params()
         self.assertTrue('private_key' in params)
+
+    def test_execute_string(self):
+        sql = "SELECT * FROM TABLE; DROP TABLE"
+
+
+
+    def test_execute_list_of_queries(self):
+        sql = ['SELECT * FROM TABLE', 'DROP TABLE']
