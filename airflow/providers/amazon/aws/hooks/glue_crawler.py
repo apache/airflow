@@ -18,8 +18,10 @@
 
 import time
 from typing import Dict, List, Optional
+
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+
 
 class AwsGlueCrawlerHook(AwsBaseHook):
     """
@@ -116,7 +118,7 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         super().__init__(*args, **kwargs)
 
     def list_crawlers(self) -> List:
-        ":return: Lists of Crawlers"
+        """:return: Lists of Crawlers"""
         conn = self.get_conn()
         return conn.get_crawlers()
 
@@ -203,9 +205,9 @@ class AwsGlueCrawlerHook(AwsBaseHook):
                     print('Tables Created: ', metrics['TablesCreated'])
                     print('Tables Updated: ', metrics['TablesUpdated'])
                     print('Tables Deleted: ', metrics['TablesDeleted'])
-                    
+
                     return {'Status': crawler_run_status}
-                    
+
             else:
                 self.log.info(
                     "Polling for AWS Glue crawler: %s Current run state: %s",

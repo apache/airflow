@@ -127,7 +127,6 @@ class AwsGlueCrawlerOperator(BaseOperator):
         Executes AWS Glue Crawler from Airflow
         :return: the name of the current glue crawler.
         """
-
         glue_crawler = AwsGlueCrawlerHook(
             crawler_name=self.crawler_name,
             crawler_desc=self.crawler_desc,

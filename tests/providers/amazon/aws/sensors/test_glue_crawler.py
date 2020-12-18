@@ -29,7 +29,7 @@ class TestAwsGlueCrawlerSensor(unittest.TestCase):
 
     @mock.patch.object(AwsGlueCrawlerHook, 'get_conn')
     @mock.patch.object(AwsGlueCrawlerHook, 'get_crawler_state')
-    def test_poke(self, mock_get_crawler_status, mock_conn):
+    def test_poke(self, mock_get_crawler_state, mock_conn):
         mock_conn.return_value.get_crawler_state()
         mock_get_crawler_state.return_value = 'SUCCEEDED'
         op = AwsGlueCrawlerSensor(
