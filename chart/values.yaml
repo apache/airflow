@@ -662,7 +662,7 @@ config:
     expose_config: 'True'
     rbac: 'True'
   celery:
-    default_queue: celery   
+    default_queue: celery
   scheduler:
     scheduler_heartbeat_sec: 5
     # For Airflow 1.10, backward compatibility
