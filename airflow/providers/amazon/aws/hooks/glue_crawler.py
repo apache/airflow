@@ -265,14 +265,17 @@ class AwsGlueCrawlerHook(AwsBaseHook):
             get_crawler_response = glue_client.get_crawler(Name=self.crawler_name)
             self.log.info("Crawler already exists: %s", get_crawler_response['Crawler']['Name'])
             if self.overwrite:
-                get_crawler_response = glue_client.update_crawler(**crawler_config)
                 self.log.info("Updating crawler")
-            return get_crawler_response['Crawler']['Name']
-
+                try:
+                    glue_client.update_crawler(**crawler_config)
+                    return get_crawler_response['Crawler']['Name']
+                except Exception as general_error:
+                    self.log.error("Failed to update aws glue crawler, error: %s", general_error)
+                    raise
         except glue_client.exceptions.EntityNotFoundException:
             self.log.info("Crawler doesn't exist. Creating AWS Glue crawler")
             try:
-                _ = glue_client.create_crawler(**crawler_config)
+                glue_client.create_crawler(**crawler_config)
                 return self.crawler_name
             except Exception as general_error:
                 self.log.error("Failed to create aws glue crawler, error: %s", general_error)
