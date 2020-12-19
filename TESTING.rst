@@ -521,7 +521,7 @@ Deploying Airflow to the Kubernetes cluster created is also done via ``kind-clus
 The deploy commands performs those steps:
 
 1. It rebuilds the latest ``apache/airflow:master-pythonX.Y`` production images using the
-   latest sources using local cachine. It also adds example DAGs to the image, so that they do not
+   latest sources using local caching. It also adds example DAGs to the image, so that they do not
    have to be mounted inside.
 2. Loads the image to the Kind Cluster using the ``kind load`` command.
 3. Starts airflow in the cluster using the official helm chart (in ``airflow`` namespace)
@@ -748,7 +748,7 @@ c) Run/Debug tests using standard "Run/Debug" feature of IntelliJ
 NOTE! The first time you run it, it will likely fail with
 ``kubernetes.config.config_exception.ConfigException``:
 ``Invalid kube-config file. Expected key current-context in kube-config``. You need to add KUBECONFIG
-environment variabl copying it from the result of "./breeze kind-cluster test":
+environment variable copying it from the result of "./breeze kind-cluster test":
 
 .. code-block:: bash
 
@@ -918,7 +918,7 @@ tests whenever an operator/hook/sensor is added/modified in a given system.
   The tests should read the right credentials and authenticate them on their own. The credentials are read
   in Breeze from the ``/files`` directory. The local "files" folder is mounted to the "/files" folder in Breeze.
 
-* If your system tests are long-runnin ones (i.e., require more than 20-30 minutes
+* If your system tests are long-running ones (i.e., require more than 20-30 minutes
   to complete), mark them with the ```@pytest.markers.long_running`` marker.
   Such tests are skipped by default unless you specify the ``--long-running`` flag to pytest.
 
@@ -1214,7 +1214,7 @@ Below are the steps you need to take to set up your virtual machine in the Googl
         --zone="${GCP_ZONE}" \
         --format='value(networkInterfaces[].accessConfigs[0].natIP.notnull().list())'
 
-4. The SSH Deamon's default configuration does not allow traffic forwarding to public addresses.
+4. The SSH Daemon's default configuration does not allow traffic forwarding to public addresses.
    To change it, modify the ``GatewayPorts`` options in the ``/etc/ssh/sshd_config`` file to ``Yes``
    and restart the SSH daemon.
 
