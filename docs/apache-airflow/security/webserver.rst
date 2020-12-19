@@ -68,6 +68,14 @@ following CLI commands to create an account:
 It is however possible to switch on authentication by either using one of the supplied
 backends or creating your own.
 
+To deactivate the authentication and allow users to be identified as Anonymous, the following entry
+in ``$AIRFLOW_HOME/webserver_config.py`` needs to be set with the desired role that the Anonymous
+user will have by default:
+
+.. code-block:: ini
+
+    AUTH_ROLE_PUBLIC = 'Admin'
+
 Be sure to checkout :doc:`/rest-api-ref` for securing the API.
 
 .. note::
