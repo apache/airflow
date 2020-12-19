@@ -66,6 +66,8 @@ class AwsGlueCrawlerHook(AwsBaseHook):
     :type security_configuration = Optional[str]
     :param tags = Tags to attach to the crawler request
     :type tags = Optional[dict]
+    :param overwrite = Determines if crawler should be updated if the crawler configuration change
+    :type overwrite = Optional[bool]
     """
 
     CRAWLER_POLL_INTERVAL = 6  # polls crawler status after every CRAWLER_POLL_INTERVAL seconds
