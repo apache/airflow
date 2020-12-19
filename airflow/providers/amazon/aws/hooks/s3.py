@@ -515,6 +515,7 @@ class S3Hook(AwsBaseHook):
         encrypt: bool = False,
         encoding: Optional[str] = None,
         acl_policy: Optional[str] = None,
+        compression: Optional[str] = None,
     ) -> None:
         """
         Loads a string to S3
@@ -539,11 +540,26 @@ class S3Hook(AwsBaseHook):
         :param acl_policy: The string to specify the canned ACL policy for the
             object to be uploaded
         :type acl_policy: str
+        :param compression: Type of compression to use, currently only gzip is supported.
+        :type compression: str
         """
         encoding = encoding or 'utf-8'
 
         bytes_data = string_data.encode(encoding)
+
+        # Compress string
+        available_compressions = ['gzip']
+        if compression is not None and compression not in available_compressions:
+            raise NotImplementedError(
+                "Received {} compression type. String "
+                "can currently be compressed in {} "
+                "only.".format(compression, available_compressions)
+            )
+        if compression == 'gzip':
+            bytes_data = gz.compress(bytes_data)
+
         file_obj = io.BytesIO(bytes_data)
+
         self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt, acl_policy)
         file_obj.close()
 
