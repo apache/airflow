@@ -161,6 +161,7 @@ operators:
   - integration-name: AWS Glue
     python-modules:
       - airflow.providers.amazon.aws.operators.glue
+      - airflow.providers.amazon.aws.operators.glue_crawler
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.operators.s3_bucket
@@ -210,6 +211,7 @@ sensors:
   - integration-name: AWS Glue
     python-modules:
       - airflow.providers.amazon.aws.sensors.glue
+      - airflow.providers.amazon.aws.sensors.glue_crawler
       - airflow.providers.amazon.aws.sensors.glue_catalog_partition
   - integration-name: Amazon Redshift
     python-modules:
@@ -269,6 +271,7 @@ hooks:
   - integration-name: AWS Glue
     python-modules:
       - airflow.providers.amazon.aws.hooks.glue
+      - airflow.providers.amazon.aws.hooks.glue_crawler
       - airflow.providers.amazon.aws.hooks.glue_catalog
   - integration-name: Amazon Kinesis Data Firehose
     python-modules:
