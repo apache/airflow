@@ -290,10 +290,16 @@ def should_use_colors(args) -> bool:
 @contextlib.contextmanager
 def suppress_logs_and_warning():
     """Context manager to suppress logging and warning messages"""
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        logging.disable(logging.CRITICAL)
+    from airflow.configuration import conf
+
+    # Show everything if someone is debugging
+    if conf.get("logging", "logging_level").upper() == "DEBUG":
         yield
-        # logging output again depends on the effective
-        # levels of individual loggers
-        logging.disable(logging.NOTSET)
+    else:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            logging.disable(logging.CRITICAL)
+            yield
+            # logging output again depends on the effective
+            # levels of individual loggers
+            logging.disable(logging.NOTSET)
