@@ -646,7 +646,7 @@ config:
     load_examples: 'False'
     executor: '{{ .Values.executor }}'
     # For Airflow 1.10, backward compatibility
-		colored_console_log: 'False'
+    colored_console_log: 'False'
     remote_logging: '{{- ternary "True" "False" .Values.elasticsearch.enabled }}'
   # Authentication backend used for the experimental API
   api:
