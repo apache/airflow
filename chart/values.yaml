@@ -645,6 +645,9 @@ config:
     dags_folder: '{{ include "airflow_dags" . }}'
     load_examples: 'False'
     executor: '{{ .Values.executor }}'
+    # For Airflow 1.10, backward compatibility
+		colored_console_log: 'False'
+    remote_logging: '{{- ternary "True" "False" .Values.elasticsearch.enabled }}'
   # Authentication backend used for the experimental API
   api:
     auth_backend: airflow.api.auth.backend.deny_all
