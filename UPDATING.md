@@ -27,8 +27,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Master](#master)
-- [Airflow 2.0.0b1](#airflow-200b1)
-- [Airflow 2.0.0a1](#airflow-200a1)
+- [Airflow 2.0.0](#airflow-200)
 - [Airflow 1.10.14](#airflow-11014)
 - [Airflow 1.10.13](#airflow-11013)
 - [Airflow 1.10.12](#airflow-11012)
@@ -52,6 +51,8 @@ assists users migrating to a new version.
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Master
+
+## Airflow 2.0.0
 
 ### The experimental REST API is disabled by default
 
@@ -116,8 +117,6 @@ that this extra does not contain development dependencies. If you were relying o
 extras at all.
 
 ### Context variables `prev_execution_date_success` and `prev_execution_date_success` are now `pendulum.DateTime`
-
-## Airflow 2.0.0b1
 
 ### Rename policy to task_policy
 
@@ -216,8 +215,6 @@ def execution_date_fn(execution_date, ds_nodash, dag):
 
 As [recommended](https://flask.palletsprojects.com/en/1.1.x/config/#SESSION_COOKIE_SAMESITE) by Flask, the
 `[webserver] cookie_samesite` has bee changed to `Lax` from `None`.
-
-## Airflow 2.0.0a1
 
 The 2.0 release of the Airflow is a significant upgrade, and includes substantial major changes,
 and some of them may be breaking. Existing code written for earlier versions of this project will may require updates
