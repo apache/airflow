@@ -17,7 +17,7 @@
 # under the License.
 
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -91,6 +91,7 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         json_configuration=None,
         security_configuration=None,
         tags=None,
+        overwrite=False,
         *args,
         **kwargs,
     ):
@@ -114,6 +115,7 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         self.json_configuration = json_configuration
         self.security_configuration = security_configuration
         self.tags = tags
+        self.overwrite = overwrite
         kwargs['client_type'] = 'glue'
         super().__init__(*args, **kwargs)
 
@@ -123,7 +125,7 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         return conn.get_crawlers()
 
     def get_iam_execution_role(self) -> Dict:
-        ":return: iam role for crawler execution"
+        """:return: iam role for crawler execution"""
         iam_client = self.get_client_type('iam', self.region_name)
 
         try:
@@ -218,7 +220,7 @@ class AwsGlueCrawlerHook(AwsBaseHook):
 
                 metrics = self.get_crawler_metrics(self.crawler_name)
                 time_left = int(metrics['TimeLeftSeconds'])
-                
+
                 if time_left > 0:
                     print('Estimated Time Left (seconds): ', time_left)
                     self.CRAWLER_POLL_INTERVAL = time_left
@@ -231,41 +233,44 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         :return:Name of the crawler
         """
         glue_client = self.get_conn()
+        execution_role = self.get_iam_execution_role()
+        crawler_config = {
+            'Name': self.crawler_name,
+            'Role': execution_role['Role']['RoleName'],
+            'DatabaseName': self.glue_db_name,
+            'Description': self.crawler_desc,
+            'Targets': {
+                'S3Targets': self.s3_targets_configuration,
+                'JdbcTargets': self.jdbc_targets_configuration,
+                'MongoDBTargets': self.mongo_targets_configuration,
+                'DynamoDBTargets': self.dynamo_targets_configuration,
+                'CatalogTargets': self.glue_catalog_targets_configuration,
+            },
+            'Schedule': self.cron_schedule,
+            'Classifiers': self.classifiers,
+            'TablePrefix': self.table_prefix,
+            'SchemaChangePolicy': {
+                'UpdateBehavior': self.update_behavior,
+                'DeleteBehavior': self.delete_behavior,
+            },
+            'RecrawlPolicy': {'RecrawlBehavior': self.recrawl_behavior},
+            'LineageConfiguration': {'CrawlerLineageSettings': self.lineage_settings},
+            'Configuration': self.json_configuration,
+            'CrawlerSecurityConfiguration': self.security_configuration,
+            'Tags': self.tags,
+        }
         try:
             get_crawler_response = glue_client.get_crawler(Name=self.crawler_name)
             self.log.info("Crawler already exists: %s", get_crawler_response['Crawler']['Name'])
+            if self.overwrite:
+                get_crawler_response = glue_client.update_crawler(**crawler_config)
+                self.log.info("Updating crawler")
             return get_crawler_response['Crawler']['Name']
-            # TODO: update crawler with `glue_client.update_crawler()` if task crawler config don't match with existing crawler config
 
         except glue_client.exceptions.EntityNotFoundException:
             self.log.info("Crawler doesn't exist. Creating AWS Glue crawler")
-            execution_role = self.get_iam_execution_role()
             try:
-                create_crawler_response = glue_client.create_crawler(
-                    Name=self.crawler_name,
-                    Role=execution_role['Role']['RoleName'],
-                    DatabaseName=self.glue_db_name,
-                    Description=self.crawler_desc,
-                    Targets={
-                        'S3Targets': self.s3_targets_configuration,
-                        'JdbcTargets': self.jdbc_targets_configuration,
-                        'MongoDBTargets': self.mongo_targets_configuration,
-                        'DynamoDBTargets': self.dynamo_targets_configuration,
-                        'CatalogTargets': self.glue_catalog_targets_configuration,
-                    },
-                    Schedule=self.cron_schedule,
-                    Classifiers=self.classifiers,
-                    TablePrefix=self.table_prefix,
-                    SchemaChangePolicy={
-                        'UpdateBehavior': self.update_behavior,
-                        'DeleteBehavior': self.delete_behavior,
-                    },
-                    RecrawlPolicy={'RecrawlBehavior': self.recrawl_behavior},
-                    LineageConfiguration={'CrawlerLineageSettings': self.lineage_settings},
-                    Configuration=self.json_configuration,
-                    CrawlerSecurityConfiguration=self.security_configuration,
-                    Tags=self.tags,
-                )
+                _ = glue_client.create_crawler(**crawler_config)
                 return self.crawler_name
             except Exception as general_error:
                 self.log.error("Failed to create aws glue crawler, error: %s", general_error)

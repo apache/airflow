@@ -66,6 +66,8 @@ class AwsGlueCrawlerOperator(BaseOperator):
     :type security_configuration = Optional[str]
     :param tags = Tags to attach to the crawler request
     :type tags = Optional[dict]
+    :param overwrite = Determines if crawler should be updated if the crawler configuration change
+    :type overwrite = Optional[bool]
     """
 
     template_fields = ()
@@ -97,6 +99,7 @@ class AwsGlueCrawlerOperator(BaseOperator):
         json_configuration=None,
         security_configuration=None,
         tags=None,
+        overwrite=False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -120,6 +123,7 @@ class AwsGlueCrawlerOperator(BaseOperator):
         self.json_configuration = json_configuration
         self.security_configuration = security_configuration
         self.tags = tags
+        self.overwrite = overwrite
         self.aws_conn_id = (aws_conn_id,)
 
     def execute(self, context):
@@ -148,6 +152,7 @@ class AwsGlueCrawlerOperator(BaseOperator):
             json_configuration=self.json_configuration,
             security_configuration=self.security_configuration,
             tags=self.tags,
+            overwrite=self.overwrite,
             aws_conn_id=self.aws_conn_id,
         )
 
