@@ -644,13 +644,16 @@ config:
   core:
     dags_folder: '{{ include "airflow_dags" . }}'
     load_examples: 'False'
-    colored_console_log: 'False'
     executor: '{{ .Values.executor }}'
+    # For Airflow 1.10, backward compatibility
+    colored_console_log: 'False'
     remote_logging: '{{- ternary "True" "False" .Values.elasticsearch.enabled }}'
   # Authentication backend used for the experimental API
   api:
     auth_backend: airflow.api.auth.backend.deny_all
   logging:
+    remote_logging: '{{- ternary "True" "False" .Values.elasticsearch.enabled }}'
+    colored_console_log: 'False'
     logging_level: DEBUG
   metrics:
     statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
@@ -661,10 +664,8 @@ config:
     enable_proxy_fix: 'True'
     expose_config: 'True'
     rbac: 'True'
-
   celery:
     default_queue: celery
-
   scheduler:
     scheduler_heartbeat_sec: 5
     # For Airflow 1.10, backward compatibility
@@ -672,7 +673,6 @@ config:
     statsd_port: 9125
     statsd_prefix: airflow
     statsd_host: '{{ printf "%s-statsd" .Release.Name }}'
-
     # Restart Scheduler every 41460 seconds (11 hours 31 minutes)
     # The odd time is chosen so it is not always restarting on the same "hour" boundary
     run_duration: 41460
@@ -683,13 +683,11 @@ config:
     max_retries: 3
     timeout: 30
     retry_timeout: 'True'
-
   kerberos:
     keytab: '{{ .Values.kerberos.keytabPath }}'
     reinit_frequency: '{{ .Values.kerberos.reinitFrequency }}'
     principal: '{{ .Values.kerberos.principal }}'
     ccache: '{{ .Values.kerberos.ccacheMountPath }}/{{ .Values.kerberos.ccacheFileName }}'
-
   kubernetes:
     namespace: '{{ .Release.Namespace }}'
     airflow_configmap: '{{ include "airflow_config" . }}'
