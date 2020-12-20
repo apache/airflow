@@ -3772,7 +3772,6 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
 
     @parameterized.expand(
         [
-            # pylint: disable=bad-whitespace
             # expected, dag_count, task_count
             # One DAG with one task per DAG file
             (23, 1, 1),  # noqa
@@ -3834,7 +3833,6 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
 
     @parameterized.expand(
         [
-            # pylint: disable=bad-whitespace
             # expected, dag_count, task_count, start_ago, schedule_interval, shape
             # One DAG with one task per DAG file
             ([8, 8, 8, 8], 1, 1, "1d", "None", "no_structure"),  # noqa
@@ -3866,7 +3864,6 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
             ([93, 107, 107, 107], 10, 10, "1d", "30m", "binary_tree"),  # noqa
             ([93, 107, 107, 107], 10, 10, "1d", "30m", "star"),  # noqa
             ([93, 107, 107, 107], 10, 10, "1d", "30m", "grid"),  # noqa
-            # pylint: enable=bad-whitespace
         ]
     )
     @pytest.mark.quarantined
