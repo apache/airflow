@@ -20,8 +20,8 @@ from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.memcache_v1beta2.types import cloud_memcache
-from google.protobuf.field_mask_pb2 import FieldMask
 from google.cloud.redis_v1 import FailoverInstanceRequest, InputConfig, Instance, OutputConfig
+from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.cloud_memorystore import (
