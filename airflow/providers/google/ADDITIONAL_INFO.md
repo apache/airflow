@@ -19,9 +19,9 @@
 
 # Migration Guide
 
-# Next
+## 2.0.0
 
-## Update ``google-cloud-*`` libraries
+### Update ``google-cloud-*`` libraries
 
 This release of the provider package contains third-party library updates, which may require updating your DAG files or custom hooks and operators, if you were using objects from those libraries. Updating of these libraries is necessary to be able to use new features made available by new versions of the libraries and to obtain bug fixes that are only available for new versions of the library.
 
@@ -35,7 +35,7 @@ Details are covered in the UPDATING.md files for each library, but there are som
 
 ### The field names use the snake_case convention
 
-If your DAG uses an object from the above mentioned libraries passed by Jinja, it is necessary to update the naming convention of the fields that are read. Previously, the fields used the CamelSnake convention, now the snake_case convention is used.
+If your DAG uses an object from the above mentioned libraries passed by XCom, it is necessary to update the naming convention of the fields that are read. Previously, the fields used the CamelSnake convention, now the snake_case convention is used.
 
 **Before:**
 
