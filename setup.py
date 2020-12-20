@@ -178,7 +178,7 @@ atlas = [
     'atlasclient>=0.1.2',
 ]
 azure = [
-    'azure-batch>=8.0.0',
+    'azure-batch>=8.0.0,<10.0.0',
     'azure-cosmos>=3.0.1,<4',
     'azure-datalake-store>=0.0.45',
     'azure-identity>=1.3.1',
@@ -345,7 +345,7 @@ password = [
     'flask-bcrypt>=0.7.1',
 ]
 pinot = [
-    'pinotdb==0.1.1',
+    'pinotdb>=0.1.1,<1.0.0',
 ]
 plexus = [
     'arrow>=0.16.0',
@@ -393,11 +393,16 @@ snowflake = [
     # once it is merged, we can move those two back to `azure` extra.
     'azure-storage-blob',
     'azure-storage-common',
+    # snowflake-connector-python is not compatible with newest version.
+    'pyjwt<2',
     # snowflake is not compatible with latest version.
     # This library monkey patches the requests library, so SSL is broken globally.
     # See: https://github.com/snowflakedb/snowflake-connector-python/issues/324
     'requests<2.24.0',
-    'snowflake-connector-python>=1.5.2',
+    # Newest version drop support for old version of azure-storage-blob
+    # Until #12188 is solved at least we need to limit maximum version.
+    # https://github.com/apache/airflow/pull/12188
+    'snowflake-connector-python>=1.5.2,<=2.3.6',
     'snowflake-sqlalchemy>=1.1.0',
 ]
 spark = [
