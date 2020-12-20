@@ -320,6 +320,64 @@ Apache projects. As a community, we provide all the software for free and this w
 change. What 3rd-party developers are doing is not under control of Apache Airflow community.
 
 
+Prerequisites that new provider package should fulfill
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+* Directory structure:
+
+  .. code-block:: bash
+
+      airflow/airflow/providers/some_provider
+      ├── BACKPORT_PROVIDER_README.md
+      ├── README.md
+      ├── __init__.py
+      ├── example_dags
+      │   ├── __init__.py
+      │   └── example_some_provider.py
+      ├── hooks
+      │   ├── __init__.py
+      │   └── some_provider.py
+      ├── operators
+      │   ├── __init__.py
+      │   └── some_provider.py
+      ├── sensors
+      │   ├── __init__.py
+      │   └── some_provider.py
+      ├── transfers
+      │   ├── __init__.py
+      │   └── some_provider.py
+      └── provider.yaml
+
+      tests/providers/some_provider
+      ├── __init__.py
+      ├── hooks
+      │   ├── __init__.py
+      │   └── test_some_provider.py
+      ├── operators
+      │   ├── __init__.py
+      │   ├── test_some_provider.py
+      │   └── test_some_provider_system.py
+      ├── sensors
+      │   ├── __init__.py
+      │   └── test_some_provider.py
+      └── transfers
+          ├── __init__.py
+          └── test_some_provider.py
+
+* Add documentation in ``docs/apache-airflow-providers-some-provider/index.rst``
+
+* Update files:
+
+  * ``airflow/CONTRIBUTING.rst``:
+
+    * extras
+    * provider packages
+
+  * ``airflow/providers/dependencies.json``
+  * ``setup.py``
+  * ``tests/core/test_providers_manager.py``
+
+
 Content
 -------
 
