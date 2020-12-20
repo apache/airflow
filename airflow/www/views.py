@@ -3772,3 +3772,102 @@ class DagModelView(AirflowModelView):
         payload = [row[0] for row in dag_ids_query.union(owners_query).limit(10).all()]
 
         return wwwutils.json_response(payload)
+
+
+class DagDependenciesView(AirflowBaseView):
+    """View to show dependencies between DAGs"""
+
+    refresh_interval = conf.getint(
+        "dag_dependencies_plugin",
+        "refresh_interval",
+        fallback=conf.getint("scheduler", "dag_dir_list_interval"),
+    )
+    last_refresh = datetime.utcnow() - timedelta(seconds=refresh_interval)
+    nodes = []
+    edges = []
+
+    @expose('/dag-dependencies')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        ]
+    )
+    @gzipped
+    @action_logging
+    def list(self):
+        """Display DAG dependencies"""
+        title = "DAG Dependencies"
+
+        if datetime.utcnow() > self.last_refresh + timedelta(seconds=self.refresh_interval):
+            self._calculate_graph()
+            self.last_refresh = datetime.utcnow()
+
+        return self.render_template(
+            "airflow/dag_dependencies.html",
+            title=title,
+            nodes=self.nodes,
+            edges=self.edges,
+            last_refresh=self.last_refresh.strftime("%Y-%m-%d %H:%M:%S"),
+            arrange=conf.get("webserver", "dag_orientation"),
+            width=request.args.get("width", "100%"),
+            height=request.args.get("height", "800"),
+        )
+
+    def _calculate_graph(self):
+
+        current_app.dag_bag.collect_dags_from_db()
+
+        nodes = {}
+        edges = []
+
+        for dag_id, dag in current_app.dag_bag.dags.items():
+            dag_node_id = f"d--{dag_id}"
+            nodes[dag_node_id] = self._node_dict(dag_node_id, dag_id, "fill: rgb(232, 247, 228)")
+
+            for task in dag.tasks:
+                task_node_id = f"t--{dag_id}--{task.task_id}"
+                if task.task_type in ["TriggerDagRunOperator"]:
+                    nodes[task_node_id] = self._node_dict(
+                        task_node_id, task.task_id, "fill: rgb(255, 239, 235)"
+                    )
+
+                    edges.extend(
+                        [
+                            {"u": dag_node_id, "v": task_node_id},
+                            {"u": task_node_id, "v": f"d--{task.trigger_dag_id}"},
+                        ]
+                    )
+                elif task.task_type in ["ExternalTaskSensor"]:
+                    nodes[task_node_id] = self._node_dict(
+                        task_node_id, task.task_id, "fill: rgb(230, 241, 242)"
+                    )
+
+                    edges.extend(
+                        [
+                            {"u": task_node_id, "v": dag_node_id},
+                            {"u": f"d--{task.external_dag_id}", "v": task_node_id},
+                        ]
+                    )
+
+            implicit = getattr(dag, "implicit_dependencies", None)
+            if isinstance(implicit, list):
+                for dep in implicit:
+                    dep_node_id = f"i--{dag_id}--{dep}"
+                    nodes[dep_node_id] = self._node_dict(dep_node_id, "implicit", "fill: gold")
+
+                    edges.extend(
+                        [
+                            {"u": dep_node_id, "v": dag_node_id},
+                            {"u": f"d--{dep}", "v": dep_node_id},
+                        ]
+                    )
+
+        self.nodes = list(nodes.values())
+        self.edges = edges
+
+    @staticmethod
+    def _node_dict(node_id, label, style):
+        return {
+            "id": node_id,
+            "value": {"label": label, "style": style, "rx": 5, "ry": 5},
+        }

@@ -123,13 +123,11 @@
   <script src="{{ url_for_asset('dagre-d3.min.js') }}"></script>
   <script src="{{ url_for_asset('d3-tip.js') }}"></script>
   <script src="{{ url_for_asset('taskInstances.js') }}"></script>
+  <script src="{{ url_for_asset('graph.js') }}"></script>
   <script>
 
-      var highlight_color = "#000";
-      var upstream_color = "#2020a0";
-      var downstream_color = "#0000ff";
-      var initialStrokeWidth = '3px';
-      var highlightStrokeWidth = '5px';
+      const initialStrokeWidth = '3px';
+      const highlightStrokeWidth = '5px';
 
       var nodes = {{ nodes|tojson }};
       var edges = {{ edges|tojson }};
@@ -218,78 +216,12 @@
           }
         });
 
-        d3.selectAll("g.node").on("mouseover", function (d) {
-          d3.select(this).selectAll("rect").style("stroke", highlight_color);
-          highlight_nodes(g.predecessors(d), upstream_color, highlightStrokeWidth);
-          highlight_nodes(g.successors(d), downstream_color, highlightStrokeWidth)
-          adjacent_node_names = [d, ...g.predecessors(d), ...g.successors(d)]
-          d3.selectAll("g.nodes g.node")
-            .filter(x => !adjacent_node_names.includes(x))
-            .style("opacity", 0.2);
-          adjacent_edges = g.nodeEdges(d)
-          d3.selectAll("g.edgePath")[0]
-            .filter(x => !adjacent_edges.includes(x.__data__))
-            .forEach(function (x) {
-              d3.select(x).style('opacity', .2)
-            })
-        });
-
-        d3.selectAll("g.node").on("mouseout", function (d) {
-          d3.select(this).selectAll("rect").style("stroke", null);
-          highlight_nodes(g.predecessors(d), null, initialStrokeWidth)
-          highlight_nodes(g.successors(d), null, initialStrokeWidth)
-          d3.selectAll("g.node")
-            .style("opacity", 1);
-          d3.selectAll("g.node rect")
-            .style("stroke-width", initialStrokeWidth);
-          d3.selectAll("g.edgePath")
-            .style("opacity", 1);
-        });
+        Airflow.graph.setUpNodeHighlighting();
         updateNodesStates(task_instances);
-        setUpZoomSupport();
+        Airflow.graph.setUpZoomSupport();
       }
 
       var zoom = null;
-
-      function setUpZoomSupport() {
-        // Set up zoom support for Graph
-        zoom = d3.behavior.zoom().on("zoom", function() {
-              innerSvg.attr("transform", "translate(" + d3.event.translate + ")" +
-                                          "scale(" + d3.event.scale + ")");
-            });
-        svg.call(zoom);
-
-        // Centering the DAG on load
-        // Get Dagre Graph dimensions
-        var graphWidth = g.graph().width;
-        var graphHeight = g.graph().height;
-        // Get SVG dimensions
-        var padding = 20;
-        var svgBb = svg.node().getBoundingClientRect();
-        var width = svgBb.width - padding*2;
-        var height = svgBb.height - padding;  // we are not centering the dag vertically
-
-        // Calculate applicable scale for zoom
-        zoomScale = Math.min(
-          Math.min(width / graphWidth, height / graphHeight),
-          1.5,  // cap zoom level to 1.5 so nodes are not too large
-        );
-
-        zoom.translate([(width/2) - ((graphWidth*zoomScale)/2) + padding, padding]);
-        zoom.scale(zoomScale);
-        zoom.event(innerSvg);
-      }
-
-      function highlight_nodes(nodes, color, stroke_width) {
-          nodes.forEach (function (nodeid) {
-              const my_node = g.node(nodeid).elem
-              d3.select(my_node)
-                  .selectAll("rect,circle")
-                  .style("stroke", color)
-                  .style("stroke-width", stroke_width) ;
-          })
-      }
-
 
       {% if blur %}
       d3.selectAll("text").attr("class", "blur");
@@ -346,63 +278,13 @@
           if(s == "")
             return;
 
-          var match = null;
-
           if (stateIsSet()){
               clearFocus();
               setFocusMap();
           }
 
-          d3.selectAll("g.nodes g.node").filter(function(d, i){
-              if (s==""){
-                  d3.select("g.edgePaths")
-                      .transition().duration(duration)
-                      .style("opacity", 1);
-                  d3.select(this)
-                      .transition().duration(duration)
-                      .style("opacity", 1)
-                      .selectAll("rect")
-                      .style("stroke-width", initialStrokeWidth);
-              }
-              else{
-                  d3.select("g.edgePaths")
-                      .transition().duration(duration)
-                      .style("opacity", 0.2);
-                  if (node_matches(d, s)) {
-                      if (!match)
-                          match = this;
-                      d3.select(this)
-                          .transition().duration(duration)
-                          .style("opacity", 1)
-                          .selectAll("rect")
-                          .style("stroke-width", highlightStrokeWidth);
-                  } else {
-                      d3.select(this)
-                          .transition()
-                          .style("opacity", 0.2).duration(duration)
-                          .selectAll("rect")
-                          .style("stroke-width", initialStrokeWidth);
-                  }
-              }
-          });
+        Airflow.graph.searchboxHighlighting(s);
 
-          // This moves the matched node to the center of the graph area
-          if(match) {
-              var transform = d3.transform(d3.select(match).attr("transform"));
-
-              var svgBb = svg.node().getBoundingClientRect();
-              transform.translate = [
-                svgBb.width / 2 - transform.translate[0],
-                svgBb.height / 2 - transform.translate[1]
-              ];
-              transform.scale = [1, 1];
-
-              if(zoom != null) {
-                zoom.translate(transform.translate);
-                zoom.scale(1);
-                zoom.event(innerSvg);
-              }
-          }
       });
 
       function clearFocus(){

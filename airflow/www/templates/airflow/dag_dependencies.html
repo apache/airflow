@@ -1,0 +1,111 @@
+{#
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+#}
+
+{% extends "airflow/main.html" %}
+
+{% block title %}Airflow - DAGs{% endblock %}
+
+{% block head_css %}
+{{ super() }}
+<link rel="stylesheet" type="text/css" href="{{ url_for_asset('graph.css') }}">
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<h2>
+  {{ title }}
+  <div class="input-group" style="float: right">
+    <input type="text" id="searchbox" class="form-control" placeholder="Search for..." onenter="null">
+  </div>
+</h2>
+<hr/>
+<div class="legend-row">
+  <div>
+    <span class="legend-item" style="float:left; background-color: rgb(232, 247, 228)">dag</span>
+    <span class="legend-item" style="float:left; background-color: rgb(255, 239, 235)">trigger</span>
+    <span class="legend-item" style="float:left; background-color: rgb(230, 241, 242)">sensor</span>
+    <span class="legend-item" style="float:left; background-color: gold">implicit</span>
+  </div>
+  <div style="float:right">Last refresh: {{ last_refresh }}</div>
+</div>
+<div id="error" style="display: none; margin-top: 10px;" class="alert alert-danger" role="alert">
+  <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
+  <span id="error_msg">Oops.</span>
+</div>
+<br/>
+<div class="svg-wrapper">
+  <div class="graph-svg-wrap">
+    <svg id="graph-svg" width="{{ width }}" height="{{ height }}">
+      <g id="dig" transform="translate(20,20)"></g>
+      <filter id="blur-effect-1">
+        <feGaussianBlur stdDeviation="3"></feGaussianBlur>
+      </filter>
+    </svg>
+  </div>
+</div>
+{% endblock %}
+
+{% block tail %}
+{{ super() }}
+
+<script src="{{ url_for_asset('d3.min.js') }}"></script>
+<script src="{{ url_for_asset('dagre-d3.min.js') }}"></script>
+<script src="{{ url_for_asset('d3-tip.js') }}"></script>
+<script src="{{ url_for_asset('graph.js') }}"></script>
+<script>
+
+  let nodes = {{ nodes|tojson }};
+  let edges = {{ edges|tojson }};
+  const arrange = "{{ arrange }}";
+
+  // Preparation of DagreD3 data structures
+  var g = new dagreD3.graphlib.Graph().setGraph({
+    nodesep: 25,
+    ranksep: 50,
+    rankdir: arrange,
+  })
+    .setDefaultEdgeLabel(function() { return { lineInterpolate: 'basis' } });
+
+  // Set all nodes and styles
+  nodes.forEach(function(node) {
+    g.setNode(node.id, node.value)
+  });
+
+  // Set edges
+  edges.forEach(function(edge) {
+    g.setEdge(edge.u, edge.v)
+  });
+
+  let render = dagreD3.render(),
+    svg = d3.select("#graph-svg"),
+    innerSvg = d3.select("#graph-svg g");
+
+  innerSvg.call(render, g);
+
+  Airflow.graph.setUpNodeHighlighting();
+  Airflow.graph.setUpZoomSupport();
+
+  d3.select("#searchbox").on("keyup", function(){
+    let s = document.getElementById("searchbox").value;
+    Airflow.graph.searchboxHighlighting(s);
+  });
+
+</script>
+
+{% endblock %}

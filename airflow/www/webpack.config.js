@@ -42,7 +42,7 @@ const config = {
     flash: `${STATIC_DIR}/css/flash.css`,
     gantt: `${STATIC_DIR}/css/gantt.css`,
     ganttChartD3v2: `${STATIC_DIR}/js/gantt-chart-d3v2.js`,
-    graph: `${STATIC_DIR}/css/graph.css`,
+    graph: [`${STATIC_DIR}/css/graph.css`, `${STATIC_DIR}/js/graph.js`],
     ie: `${STATIC_DIR}/js/ie.js`,
     loadingDots: `${STATIC_DIR}/css/loading-dots.css`,
     main: [`${STATIC_DIR}/css/main.css`, `${STATIC_DIR}/js/main.js`],
