@@ -38,6 +38,6 @@ class TestS3ToSFTPOperator(unittest.TestCase):
 
         mock_s3_hook_get_key.assert_called_once_with(operator.s3_key, operator.s3_bucket)
 
-        mock_local_tmp_file_value = mock_local_tmp_file.__enter__.return_value
+       mock_local_tmp_file_value = mock_local_tmp_file.return_value.__enter__.return_value
         mock_s3_hook_get_key.return_value.download_fileobj.assert_called_once_with(mock_local_tmp_file_value)
         mock_ftp_hook_store_file.assert_called_once_with(operator.ftp_path, mock_local_tmp_file_value.name)
