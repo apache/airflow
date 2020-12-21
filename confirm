@@ -17,7 +17,7 @@
 # under the License.
 set -euo pipefail
 
-if [[ "${FORCE_ANSWER_TO_QUESTIONS:=""}" != "" ]]; then
+if [[ -n "${FORCE_ANSWER_TO_QUESTIONS=}" ]]; then
     RESPONSE=${FORCE_ANSWER_TO_QUESTIONS}
     echo
     echo "Forcing response '${FORCE_ANSWER_TO_QUESTIONS}' to '${1}?'"
@@ -37,7 +37,7 @@ fi
 
 case "${RESPONSE}" in
     [yY][eE][sS]|[yY])
-        echo "The answer is 'yes'. ${1}. This can take some time !"
+        echo "The answer is 'yes'. ${1}. This can take some time!"
         exit 0
         ;;
     [qQ][uU][iI][tT]|[qQ])

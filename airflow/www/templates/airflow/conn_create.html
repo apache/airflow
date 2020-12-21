@@ -21,5 +21,6 @@
 
 {% block tail %}
   {{ super() }}
-    <script src="{{ url_for_asset('connectionForm.js') }}"></script>
+  <script src="{{ url_for_asset('connectionForm.js') }}"></script>
+  <script id="field_behaviours" type="text/json">{{ widgets["add"].field_behaviours }}</script>
 {% endblock %}

@@ -19,8 +19,9 @@
 
 import unittest
 from collections import namedtuple
+from unittest import mock
+from unittest.mock import MagicMock
 
-import mock
 from azure.mgmt.containerinstance.models import ContainerState, Event
 
 from airflow.exceptions import AirflowException
@@ -35,24 +36,21 @@ def make_mock_cg(container_state, events=None):
     See https://docs.microsoft.com/en-us/rest/api/container-instances/containergroups
     """
     events = events or []
-    instance_view_dict = {"current_state": container_state,
-                          "events": events}
-    instance_view = namedtuple("InstanceView",
-                               instance_view_dict.keys())(*instance_view_dict.values())
+    instance_view_dict = {"current_state": container_state, "events": events}
+    instance_view = namedtuple("InstanceView", instance_view_dict.keys())(*instance_view_dict.values())
 
     container_dict = {"instance_view": instance_view}
     container = namedtuple("Container", container_dict.keys())(*container_dict.values())
 
     container_g_dict = {"containers": [container]}
-    container_g = namedtuple("ContainerGroup",
-                             container_g_dict.keys())(*container_g_dict.values())
+    container_g = namedtuple("ContainerGroup", container_g_dict.keys())(*container_g_dict.values())
     return container_g
 
 
 class TestACIOperator(unittest.TestCase):
-
-    @mock.patch("airflow.providers.microsoft.azure.operators."
-                "azure_container_instances.AzureContainerInstanceHook")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators." "azure_container_instances.AzureContainerInstanceHook"
+    )
     def test_execute(self, aci_mock):
         expected_c_state = ContainerState(state='Terminated', exit_code=0, detail_status='test')
         expected_cg = make_mock_cg(expected_c_state)
@@ -60,18 +58,19 @@ class TestACIOperator(unittest.TestCase):
         aci_mock.return_value.get_state.return_value = expected_cg
         aci_mock.return_value.exists.return_value = False
 
-        aci = AzureContainerInstancesOperator(ci_conn_id=None,
-                                              registry_conn_id=None,
-                                              resource_group='resource-group',
-                                              name='container-name',
-                                              image='container-image',
-                                              region='region',
-                                              task_id='task')
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id=None,
+            registry_conn_id=None,
+            resource_group='resource-group',
+            name='container-name',
+            image='container-image',
+            region='region',
+            task_id='task',
+        )
         aci.execute(None)
 
         self.assertEqual(aci_mock.return_value.create_or_update.call_count, 1)
-        (called_rg, called_cn, called_cg), _ = \
-            aci_mock.return_value.create_or_update.call_args
+        (called_rg, called_cn, called_cg), _ = aci_mock.return_value.create_or_update.call_args
 
         self.assertEqual(called_rg, 'resource-group')
         self.assertEqual(called_cn, 'container-name')
@@ -87,8 +86,9 @@ class TestACIOperator(unittest.TestCase):
 
         self.assertEqual(aci_mock.return_value.delete.call_count, 1)
 
-    @mock.patch("airflow.providers.microsoft.azure.operators."
-                "azure_container_instances.AzureContainerInstanceHook")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators." "azure_container_instances.AzureContainerInstanceHook"
+    )
     def test_execute_with_failures(self, aci_mock):
         expected_c_state = ContainerState(state='Terminated', exit_code=1, detail_status='test')
         expected_cg = make_mock_cg(expected_c_state)
@@ -96,20 +96,23 @@ class TestACIOperator(unittest.TestCase):
         aci_mock.return_value.get_state.return_value = expected_cg
         aci_mock.return_value.exists.return_value = False
 
-        aci = AzureContainerInstancesOperator(ci_conn_id=None,
-                                              registry_conn_id=None,
-                                              resource_group='resource-group',
-                                              name='container-name',
-                                              image='container-image',
-                                              region='region',
-                                              task_id='task')
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id=None,
+            registry_conn_id=None,
+            resource_group='resource-group',
+            name='container-name',
+            image='container-image',
+            region='region',
+            task_id='task',
+        )
         with self.assertRaises(AirflowException):
             aci.execute(None)
 
         self.assertEqual(aci_mock.return_value.delete.call_count, 1)
 
-    @mock.patch("airflow.providers.microsoft.azure.operators."
-                "azure_container_instances.AzureContainerInstanceHook")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators." "azure_container_instances.AzureContainerInstanceHook"
+    )
     def test_execute_with_tags(self, aci_mock):
         expected_c_state = ContainerState(state='Terminated', exit_code=0, detail_status='test')
         expected_cg = make_mock_cg(expected_c_state)
@@ -118,19 +121,20 @@ class TestACIOperator(unittest.TestCase):
         aci_mock.return_value.get_state.return_value = expected_cg
         aci_mock.return_value.exists.return_value = False
 
-        aci = AzureContainerInstancesOperator(ci_conn_id=None,
-                                              registry_conn_id=None,
-                                              resource_group='resource-group',
-                                              name='container-name',
-                                              image='container-image',
-                                              region='region',
-                                              task_id='task',
-                                              tags=tags)
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id=None,
+            registry_conn_id=None,
+            resource_group='resource-group',
+            name='container-name',
+            image='container-image',
+            region='region',
+            task_id='task',
+            tags=tags,
+        )
         aci.execute(None)
 
         self.assertEqual(aci_mock.return_value.create_or_update.call_count, 1)
-        (called_rg, called_cn, called_cg), _ = \
-            aci_mock.return_value.create_or_update.call_args
+        (called_rg, called_cn, called_cg), _ = aci_mock.return_value.create_or_update.call_args
 
         self.assertEqual(called_rg, 'resource-group')
         self.assertEqual(called_cn, 'container-name')
@@ -147,8 +151,9 @@ class TestACIOperator(unittest.TestCase):
 
         self.assertEqual(aci_mock.return_value.delete.call_count, 1)
 
-    @mock.patch("airflow.providers.microsoft.azure.operators."
-                "azure_container_instances.AzureContainerInstanceHook")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators." "azure_container_instances.AzureContainerInstanceHook"
+    )
     def test_execute_with_messages_logs(self, aci_mock):
         events = [Event(message="test"), Event(message="messages")]
         expected_c_state1 = ContainerState(state='Running', exit_code=0, detail_status='test')
@@ -156,18 +161,19 @@ class TestACIOperator(unittest.TestCase):
         expected_c_state2 = ContainerState(state='Terminated', exit_code=0, detail_status='test')
         expected_cg2 = make_mock_cg(expected_c_state2, events)
 
-        aci_mock.return_value.get_state.side_effect = [expected_cg1,
-                                                       expected_cg2]
+        aci_mock.return_value.get_state.side_effect = [expected_cg1, expected_cg2]
         aci_mock.return_value.get_logs.return_value = ["test", "logs"]
         aci_mock.return_value.exists.return_value = False
 
-        aci = AzureContainerInstancesOperator(ci_conn_id=None,
-                                              registry_conn_id=None,
-                                              resource_group='resource-group',
-                                              name='container-name',
-                                              image='container-image',
-                                              region='region',
-                                              task_id='task')
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id=None,
+            registry_conn_id=None,
+            resource_group='resource-group',
+            name='container-name',
+            image='container-image',
+            region='region',
+            task_id='task',
+        )
         aci.execute(None)
 
         self.assertEqual(aci_mock.return_value.create_or_update.call_count, 1)
@@ -179,10 +185,12 @@ class TestACIOperator(unittest.TestCase):
     def test_name_checker(self):
         valid_names = ['test-dash', 'name-with-length---63' * 3]
 
-        invalid_names = ['test_underscore',
-                         'name-with-length---84' * 4,
-                         'name-ending-with-dash-',
-                         '-name-starting-with-dash']
+        invalid_names = [
+            'test_underscore',
+            'name-with-length---84' * 4,
+            'name-ending-with-dash-',
+            '-name-starting-with-dash',
+        ]
         for name in invalid_names:
             with self.assertRaises(AirflowException):
                 AzureContainerInstancesOperator._check_name(name)
@@ -191,6 +199,115 @@ class TestACIOperator(unittest.TestCase):
             checked_name = AzureContainerInstancesOperator._check_name(name)
             self.assertEqual(checked_name, name)
 
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators.azure_container_instances.AzureContainerInstanceHook"
+    )
+    def test_execute_with_ipaddress(self, aci_mock):
+        expected_c_state = ContainerState(state='Terminated', exit_code=0, detail_status='test')
+        expected_cg = make_mock_cg(expected_c_state)
+        ipaddress = MagicMock()
 
-if __name__ == '__main__':
-    unittest.main()
+        aci_mock.return_value.get_state.return_value = expected_cg
+        aci_mock.return_value.exists.return_value = False
+
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id=None,
+            registry_conn_id=None,
+            resource_group='resource-group',
+            name='container-name',
+            image='container-image',
+            region='region',
+            task_id='task',
+            ip_address=ipaddress,
+        )
+        aci.execute(None)
+        self.assertEqual(aci_mock.return_value.create_or_update.call_count, 1)
+        (_, _, called_cg), _ = aci_mock.return_value.create_or_update.call_args
+
+        self.assertEqual(called_cg.ip_address, ipaddress)
+
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators.azure_container_instances.AzureContainerInstanceHook"
+    )
+    def test_execute_with_windows_os_and_diff_restart_policy(self, aci_mock):
+        expected_c_state = ContainerState(state='Terminated', exit_code=0, detail_status='test')
+        expected_cg = make_mock_cg(expected_c_state)
+
+        aci_mock.return_value.get_state.return_value = expected_cg
+        aci_mock.return_value.exists.return_value = False
+
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id=None,
+            registry_conn_id=None,
+            resource_group='resource-group',
+            name='container-name',
+            image='container-image',
+            region='region',
+            task_id='task',
+            restart_policy="Always",
+            os_type='Windows',
+        )
+        aci.execute(None)
+        self.assertEqual(aci_mock.return_value.create_or_update.call_count, 1)
+        (_, _, called_cg), _ = aci_mock.return_value.create_or_update.call_args
+
+        self.assertEqual(called_cg.restart_policy, 'Always')
+        self.assertEqual(called_cg.os_type, 'Windows')
+
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators.azure_container_instances.AzureContainerInstanceHook"
+    )
+    def test_execute_fails_with_incorrect_os_type(self, aci_mock):
+        expected_c_state = ContainerState(state='Terminated', exit_code=0, detail_status='test')
+        expected_cg = make_mock_cg(expected_c_state)
+
+        aci_mock.return_value.get_state.return_value = expected_cg
+        aci_mock.return_value.exists.return_value = False
+
+        with self.assertRaises(AirflowException) as e:
+            AzureContainerInstancesOperator(
+                ci_conn_id=None,
+                registry_conn_id=None,
+                resource_group='resource-group',
+                name='container-name',
+                image='container-image',
+                region='region',
+                task_id='task',
+                os_type='MacOs',
+            )
+
+        self.assertEqual(
+            str(e.exception),
+            "Invalid value for the os_type argument. "
+            "Please set 'Linux' or 'Windows' as the os_type. "
+            "Found `MacOs`.",
+        )
+
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators.azure_container_instances.AzureContainerInstanceHook"
+    )
+    def test_execute_fails_with_incorrect_restart_policy(self, aci_mock):
+        expected_c_state = ContainerState(state='Terminated', exit_code=0, detail_status='test')
+        expected_cg = make_mock_cg(expected_c_state)
+
+        aci_mock.return_value.get_state.return_value = expected_cg
+        aci_mock.return_value.exists.return_value = False
+
+        with self.assertRaises(AirflowException) as e:
+            AzureContainerInstancesOperator(
+                ci_conn_id=None,
+                registry_conn_id=None,
+                resource_group='resource-group',
+                name='container-name',
+                image='container-image',
+                region='region',
+                task_id='task',
+                restart_policy='Everyday',
+            )
+
+        self.assertEqual(
+            str(e.exception),
+            "Invalid value for the restart_policy argument. "
+            "Please set one of 'Always', 'OnFailure','Never' as the restart_policy. "
+            "Found `Everyday`",
+        )

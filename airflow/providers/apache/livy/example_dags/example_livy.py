@@ -25,17 +25,13 @@ from airflow import DAG
 from airflow.providers.apache.livy.operators.livy import LivyOperator
 from airflow.utils.dates import days_ago
 
-args = {
-    'owner': 'airflow',
-    'email': ['airflow@example.com'],
-    'depends_on_past': False,
-    'start_date': days_ago(5)
-}
+args = {'owner': 'airflow', 'email': ['airflow@example.com'], 'depends_on_past': False}
 
 with DAG(
     dag_id='example_livy_operator',
     default_args=args,
-    schedule_interval='@daily'
+    schedule_interval='@daily',
+    start_date=days_ago(5),
 ) as dag:
 
     livy_java_task = LivyOperator(

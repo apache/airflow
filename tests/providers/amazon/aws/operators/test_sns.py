@@ -31,7 +31,6 @@ MESSAGE_ATTRIBUTES = {"test-attribute": "Attribute to send"}
 
 
 class TestSnsPublishOperator(unittest.TestCase):
-
     def test_init(self):
         # Given / When
         operator = SnsPublishOperator(
@@ -73,7 +72,3 @@ class TestSnsPublishOperator(unittest.TestCase):
 
         # Then
         self.assertEqual(hook_response, result)
-
-
-if __name__ == '__main__':
-    unittest.main()

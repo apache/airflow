@@ -17,8 +17,7 @@
 # under the License.
 #
 import unittest
-
-import mock
+from unittest import mock
 
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 from tests.providers.google.cloud.utils.base_gcp_mock import GCP_CONNECTION_WITH_PROJECT_ID
@@ -26,17 +25,18 @@ from tests.providers.google.cloud.utils.base_gcp_mock import GCP_CONNECTION_WITH
 
 class TestGoogleDriveHook(unittest.TestCase):
     def setUp(self):
-        self.patcher_get_connections = mock.patch(
-            "airflow.hooks.base_hook.BaseHook.get_connections", return_value=[GCP_CONNECTION_WITH_PROJECT_ID]
+        self.patcher_get_connection = mock.patch(
+            "airflow.hooks.base.BaseHook.get_connection", return_value=GCP_CONNECTION_WITH_PROJECT_ID
         )
-        self.patcher_get_connections.start()
+        self.patcher_get_connection.start()
         self.gdrive_hook = GoogleDriveHook(gcp_conn_id="test")
 
     def tearDown(self) -> None:
-        self.patcher_get_connections.stop()
+        self.patcher_get_connection.stop()
 
     @mock.patch(
-        "airflow.providers.google.cloud.hooks.base.CloudBaseHook._authorize", return_value="AUTHORIZE"
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook._authorize",
+        return_value="AUTHORIZE",
     )
     @mock.patch("airflow.providers.google.suite.hooks.drive.build")
     def test_get_conn(self, mock_discovery_build, mock_authorize):
@@ -189,7 +189,7 @@ class TestGoogleDriveHook(unittest.TestCase):
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
     @mock.patch(
         "airflow.providers.google.suite.hooks.drive.GoogleDriveHook._ensure_folders_exists",
-        return_value="PARENT_ID"
+        return_value="PARENT_ID",
     )
     def test_upload_file_to_subdirectory(
         self, mock_ensure_folders_exists, mock_get_conn, mock_media_file_upload

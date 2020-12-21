@@ -1,0 +1,1311 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "description": "Default values for airflow. Declare variables to be passed into your templates.",
+    "type": "object",
+    "properties": {
+        "uid": {
+            "description": "User of airflow user.",
+            "type": "integer"
+        },
+        "gid": {
+            "description": "Group of airflow user.",
+            "type": "integer"
+        },
+        "airflowHome": {
+            "description": "Airflow home directory. Used for mount paths.",
+            "type": "string"
+        },
+        "defaultAirflowRepository": {
+            "description": "Default airflow repository. Overrides all the specific images below.",
+            "type": "string"
+        },
+        "defaultAirflowTag": {
+            "description": "Default airflow tag to deploy.",
+            "type": "string"
+        },
+        "nodeSelector": {
+            "description": "Select certain nodes for airflow pods.",
+            "type": "object",
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
+        "affinity": {
+            "description": "Select certain nodes for airflow pods.",
+            "type": "object"
+        },
+        "tolerations": {
+            "description": "Select certain nodes for airflow pods.",
+            "type": "array"
+        },
+        "labels": {
+            "description": "Add common labels to all objects and pods defined in this chart.",
+            "type": "object",
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
+        "ingress": {
+            "description": "Ingress configuration.",
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "description": "Enable ingress resource.",
+                    "type": "boolean"
+                },
+                "web": {
+                    "description": "Configuration for the Ingress of the web Service.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "annotations": {
+                            "description": "Annotations for the web Ingress.",
+                            "type": "object"
+                        },
+                        "path": {
+                            "description": "The path for the web Ingress.",
+                            "type": "string"
+                        },
+                        "host": {
+                            "description": "The hostname for the web Ingress.",
+                            "type": "string"
+                        },
+                        "tls": {
+                            "description": "Configuration for web Ingress TLS.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Enable TLS termination for the web Ingress.",
+                                    "type": "boolean"
+                                },
+                                "secretName": {
+                                    "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "precedingPaths": {
+                            "description": "HTTP paths to add to the web Ingress before the default path.",
+                            "type": "array"
+                        },
+                        "succeedingPaths": {
+                            "description": "HTTP paths to add to the web Ingress after the default path.",
+                            "type": "array"
+                        }
+                    }
+                },
+                "flower": {
+                    "description": "Configuration for the Ingress of the flower Service.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "annotations": {
+                            "description": "Annotations for the flower Ingress.",
+                            "type": "object"
+                        },
+                        "path": {
+                            "description": "The path for the flower Ingress.",
+                            "type": "string"
+                        },
+                        "host": {
+                            "description": "The hostname for the flower Ingress.",
+                            "type": "string"
+                        },
+                        "tls": {
+                            "description": "Configuration for flower Ingress TLS.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Enable TLS termination for the flower Ingress.",
+                                    "type": "boolean"
+                                },
+                                "secretName": {
+                                    "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "precedingPaths": {
+                            "description": "HTTP paths to add to the flower Ingress before the default path.",
+                            "type": "array"
+                        },
+                        "succeedingPaths": {
+                            "description": "HTTP paths to add to the flower Ingress after the default path.",
+                            "type": "array"
+                        }
+                    }
+                }
+            }
+        },
+        "networkPolicies": {
+            "description": "Network policy configuration.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "description": "Enabled network policies.",
+                    "type": "boolean"
+                }
+            }
+        },
+        "airflowPodAnnotations": {
+            "description": "Extra annotations to apply to all Airflow pods.",
+            "type": "object"
+        },
+        "rbacEnabled": {
+            "description": "Enable RBAC (default on most clusters these days).",
+            "type": "boolean"
+        },
+        "executor": {
+            "description": "Airflow executor.",
+            "type": "string"
+        },
+        "allowPodLaunching": {
+            "description": "If this is true and using LocalExecutor/SequentialExecutor/KubernetesExecutor, the scheduler's service account will have access to communicate with the api-server and launch pods. If this is true and using the CeleryExecutor, the workers will be able to launch pods.",
+            "type": "boolean"
+        },
+        "images": {
+            "description": "Images.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "airflow": {
+                    "description": "Configuration of the airflow image.",
+                    "type": "object",
+                    "properties": {
+                        "repository": {
+                            "description": "The airflow image repository.",
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        },
+                        "tag": {
+                            "description": "The airflow image tag.",
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        },
+                        "pullPolicy": {
+                            "description": "The airflow image pull policy.",
+                            "type": "string"
+                        }
+                    }
+                },
+                "pod_template": {
+                    "description": "Configuration of the pod_template image.",
+                    "type": "object",
+                    "properties": {
+                        "repository": {
+                            "description": "The pod_template image repository.",
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        },
+                        "tag": {
+                            "description": "The pod_template image tag.",
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        },
+                        "pullPolicy": {
+                            "description": "The pod_template image pull policy.",
+                            "type": "string"
+                        }
+                    }
+                },
+                "flower": {
+                    "description": "Configuration of the flower image.",
+                    "type": "object",
+                    "properties": {
+                        "repository": {
+                            "description": "The flower image repository.",
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        },
+                        "tag": {
+                            "description": "The flower image tag.",
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        },
+                        "pullPolicy": {
+                            "description": "The flower image pull policy.",
+                            "type": "string"
+                        }
+                    }
+                },
+                "statsd": {
+                    "description": "Configuration of the statsd image.",
+                    "type": "object",
+                    "properties": {
+                        "repository": {
+                            "description": "The statsd image repository.",
+                            "type": "string"
+                        },
+                        "tag": {
+                            "description": "The statsd image tag.",
+                            "type": "string"
+                        },
+                        "pullPolicy": {
+                            "description": "The statsd image pull policy.",
+                            "type": "string"
+                        }
+                    }
+                },
+                "redis": {
+                    "description": "Configuration of the redis image.",
+                    "type": "object",
+                    "properties": {
+                        "repository": {
+                            "description": "The redis image repository.",
+                            "type": "string"
+                        },
+                        "tag": {
+                            "description": "The redis image tag.",
+                            "type": "string"
+                        },
+                        "pullPolicy": {
+                            "description": "The redis image pull policy.",
+                            "type": "string"
+                        }
+                    }
+                },
+                "pgbouncer": {
+                    "description": "Configuration of the pgbouncer image.",
+                    "type": "object",
+                    "properties": {
+                        "repository": {
+                            "description": "The pgbouncer image repository.",
+                            "type": "string"
+                        },
+                        "tag": {
+                            "description": "The pgbouncer image tag.",
+                            "type": "string"
+                        },
+                        "pullPolicy": {
+                            "description": "The pgbouncer image pull policy.",
+                            "type": "string"
+                        }
+                    }
+                },
+                "pgbouncerExporter": {
+                    "description": "Configuration of the pgbouncerExporter image.",
+                    "type": "object",
+                    "properties": {
+                        "repository": {
+                            "description": "The pgbouncerExporter image repository.",
+                            "type": "string"
+                        },
+                        "tag": {
+                            "description": "The pgbouncerExporter image tag.",
+                            "type": "string"
+                        },
+                        "pullPolicy": {
+                            "description": "The pgbouncerExporter image pull policy.",
+                            "type": "string"
+                        }
+                    }
+                },
+                "gitSync": {
+                    "description": "Configuration of the gitSync image.",
+                    "type": "object",
+                    "properties": {
+                        "repository": {
+                            "description": "The gitSync image repository.",
+                            "type": "string"
+                        },
+                        "tag": {
+                            "description": "The gitSync image tag.",
+                            "type": "string"
+                        },
+                        "pullPolicy": {
+                            "description": "The gitSync image pull policy.",
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "env": {
+            "description": "Environment variables for all airflow containers.",
+            "type": "array"
+        },
+        "secret": {
+            "description": "Secrets for all airflow containers.",
+            "type": "array"
+        },
+        "extraEnv": {
+          "description": "Extra env 'items' that will be added to the definition of airflow containers ; a string is expected (can be templated).",
+          "type": ["null", "string"]
+        },
+        "extraEnvFrom": {
+          "description": "Extra envFrom 'items' that will be added to the definition of airflow containers ; a string is expected (can be templated).",
+          "type": ["null", "string"]
+        },
+        "extraSecrets": {
+          "description": "Extra secrets that will be managed by the chart.",
+          "type": "object",
+          "additionalProperties": {
+            "description": "Name of the secret (can be templated).",
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": false,
+            "properties": {
+              "data": {
+                "description": "Content **as string** for the 'data' item of the secret (can be templated)",
+                "type": "string"
+              },
+              "stringData": {
+                "description": "Content **as string** for the 'stringData' item of the secret (can be templated)",
+                "type": "string"
+              }
+            }
+          }
+        },
+        "extraConfigMaps": {
+          "description": "Extra configMaps that will be managed by the chart.",
+          "type": "object",
+          "additionalProperties": {
+            "description": "Name of the configMap (can be templated).",
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": false,
+            "properties": {
+              "data": {
+                "description": "Content **as string** for the 'data' item of the secret (can be templated)",
+                "type": "string"
+              }
+            }
+          }
+        },
+        "data": {
+            "description": "Airflow database configuration.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "metadataSecretName": {
+                    "description": "Metadata connection string secret.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "resultBackendSecretName": {
+                    "description": "Result backend connection string secret.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "metadataConnection": {
+                    "description": "Metadata connection configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "user": {
+                            "description": "The database user.",
+                            "type": "string"
+                        },
+                        "pass": {
+                            "description": "The user's password.",
+                            "type": "string"
+                        },
+                        "host": {
+                            "description": "The database host.",
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        },
+                        "port": {
+                            "description": "The database port.",
+                            "type": "integer"
+                        },
+                        "db": {
+                            "description": "The name of the database.",
+                            "type": "string"
+                        },
+                        "sslmode": {
+                            "description": "The database SSL parameter.",
+                            "type": "string"
+                        }
+                    }
+                },
+                "resultBackendConnection": {
+                    "description": "Result backend connection configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "user": {
+                            "description": "The database user.",
+                            "type": "string"
+                        },
+                        "pass": {
+                            "description": "The database password.",
+                            "type": "string"
+                        },
+                        "host": {
+                            "description": "The database host.",
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        },
+                        "port": {
+                            "description": "The database port.",
+                            "type": "integer"
+                        },
+                        "db": {
+                            "description": "The name of the database.",
+                            "type": "string"
+                        },
+                        "sslmode": {
+                            "description": "The database SSL parameter.",
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "fernetKey": {
+            "description": "The Fernet key used to encrypt passwords.",
+            "type": [
+                "string",
+                "null"
+            ]
+        },
+        "fernetKeySecretName": {
+            "description": "The Fernet key secret name.",
+            "type": [
+                "string",
+                "null"
+            ]
+        },
+        "kerberos": {
+            "description": "Kerberos configurations for airflow",
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "description": "Enable kerberos.",
+                    "type": "boolean"
+                },
+                "ccacheMountPath": {
+                    "description": "Path to mount shared volume for kerberos credentials cache.",
+                    "type": "string"
+                },
+                "ccacheFileName": {
+                    "description": "Name for kerberos credentials cache file.",
+                    "type": "string"
+                },
+                "configPath":{
+                    "description": "Path to mount krb5.conf kerberos configuration file.",
+                    "type": "string"
+                },
+                "keytabPath":{
+                    "description": "Path to mount the keytab for refreshing credentials in the kerberos sidecar.",
+                    "type": "string"
+                },
+                "principal":{
+                    "description": "Principal to use when refreshing kerberos credentials.",
+                    "type": "string"
+                },
+                "reinitFrequency": {
+                    "description": "How often (in seconds) airflow kerberos will reinitialize the credentials cache.",
+                    "type": "integer"
+                },
+                "config": {
+                    "description": "Contents of krb5.conf.",
+                    "type": "string"
+                }
+            }
+        },
+        "workers": {
+            "description": "Airflow Worker configuration.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "replicas": {
+                    "description": "Number of airflow celery workers in StatefulSet.",
+                    "type": "integer"
+                },
+                "keda": {
+                    "description": "KEDA configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Allow KEDA autoscaling. `Persistence.enabled` must be set to false to use KEDA.",
+                            "type": "boolean"
+                        },
+                        "namespaceLabels": {
+                            "type": "object"
+                        },
+                        "pollingInterval": {
+                            "description": "How often KEDA polls the airflow DB to report new scale requests to the HPA.",
+                            "type": "integer"
+                        },
+                        "cooldownPeriod": {
+                            "description": "How many seconds KEDA will wait before scaling to zero.",
+                            "type": "integer"
+                        },
+                        "maxReplicaCount": {
+                            "description": "Maximum number of workers created by KEDA.",
+                            "type": "integer"
+                        }
+                    }
+                },
+                "persistence": {
+                    "description": "Persistence configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable persistent volumes.",
+                            "type": "boolean"
+                        },
+                        "size": {
+                            "description": "Volume size for worker StatefulSet.",
+                            "type": "string"
+                        },
+                        "storageClassName": {
+                            "description": "If using a custom storageClass, pass name ref to all StatefulSets here.",
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        },
+                        "fixPermissions": {
+                            "description": "Execute init container to chown log directory. This is currently only needed in KinD, due to usage of local-path provisioner.",
+                            "type": "boolean"
+                        }
+                    }
+                },
+                "kerberosSidecar": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable Kerberos sidecar for the worker.",
+                            "type": "boolean"
+                        }
+                    }
+                },
+                "resources": {
+                    "type": "object"
+                },
+                "terminationGracePeriodSeconds": {
+                    "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
+                    "type": "integer"
+                },
+                "safeToEvict": {
+                    "description": "This setting tells Kubernetes that it's ok to evict when it wants to scale a node down.",
+                    "type": "boolean"
+                },
+                "serviceAccountAnnotations": {
+                  "description": "Annotations to add to the worker kubernetes service account.",
+                  "type": "object"
+                },
+                "extraVolumes": {
+                    "description": "Mount additional volumes into workers.",
+                    "type": "array"
+                },
+                "extraVolumeMounts": {
+                    "description": "Mount additional volumes into workers.",
+                    "type": "array"
+                }
+            }
+        },
+        "scheduler": {
+            "description": "Airflow scheduler settings.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "replicas": {
+                  "description": "Airflow 2.0 allows users to run multiple schedulers. This feature is only recommended for Mysql 8+ and postgres",
+                  "type": "integer"
+                },
+                "podDisruptionBudget": {
+                    "description": "Scheduler pod disruption budget.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable pod disruption budget.",
+                            "type": "boolean"
+                        },
+                        "config": {
+                            "description": "Disruption budget configuration.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "maxUnavailable": {
+                                    "description": "Max unavailable pods for scheduler.",
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    }
+                },
+                "resources": {
+                    "type": "object"
+                },
+                "airflowLocalSettings": {
+                    "description": "This setting can overwrite podMutation setting.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "safeToEvict": {
+                    "description": "This setting tells Kubernetes that its ok to evict when it wants to scale a node down.",
+                    "type": "boolean"
+                },
+                "serviceAccountAnnotations": {
+                  "description": "Annotations to add to the scheduler kubernetes service account.",
+                  "type": "object"
+                },
+                "extraVolumes": {
+                    "description": "Mount additional volumes into scheduler.",
+                    "type": "array"
+                },
+                "extraVolumeMounts": {
+                    "description": "Mount additional volumes into scheduler.",
+                    "type": "array"
+                }
+            }
+        },
+        "webserver": {
+            "description": "Airflow webserver settings.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "allowPodLogReading": {
+                  "description": "Allow webserver to read k8s pod logs. Useful when you don't have an external log store.",
+                  "type": "boolean"
+                },
+                "livenessProbe": {
+                    "description": "Liveness probe configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Webserver Liveness probe initial delay.",
+                            "type": "integer"
+                        },
+                        "timeoutSeconds": {
+                            "description": "Webserver Liveness probe timeout seconds.",
+                            "type": "integer"
+                        },
+                        "failureThreshold": {
+                            "description": "Webserver Liveness probe failure threshold.",
+                            "type": "integer"
+                        },
+                        "periodSeconds": {
+                            "description": "Webserver Liveness probe period seconds.",
+                            "type": "integer"
+                        }
+                    }
+                },
+                "readinessProbe": {
+                    "description": "Readiness probe configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Webserver Readiness probe initial delay.",
+                            "type": "integer"
+                        },
+                        "timeoutSeconds": {
+                            "description": "Webserver Readiness probe timeout seconds.",
+                            "type": "integer"
+                        },
+                        "failureThreshold": {
+                            "description": "Webserver Readiness probe failure threshold.",
+                            "type": "integer"
+                        },
+                        "periodSeconds": {
+                            "description": "Webserver Readiness probe period seconds.",
+                            "type": "integer"
+                        }
+                    }
+                },
+                "replicas": {
+                    "description": "How many Airflow webserver replicas should run.",
+                    "type": "integer"
+                },
+                "extraNetworkPolicies": {
+                    "description": "Additional network policies as needed.",
+                    "type": "array"
+                },
+                "resources": {
+                    "type": "object"
+                },
+                "defaultUser": {
+                    "description": "Optional default airflow user information",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable default user creation.",
+                            "type": "boolean"
+                        },
+                        "role": {
+                            "description": "Default user role.",
+                            "type": "string"
+                        },
+                        "username": {
+                            "description": "Default user username.",
+                            "type": "string"
+                        },
+                        "email": {
+                            "description": "Default user email address.",
+                            "type": "string"
+                        },
+                        "firstName": {
+                            "description": "Default user firstname.",
+                            "type": "string"
+                        },
+                        "lastName": {
+                            "description": "Default user lastname.",
+                            "type": "string"
+                        },
+                        "password": {
+                            "description": "Default user password.",
+                            "type": "string"
+                        }
+                    }
+                },
+                "extraVolumes": {
+                    "description": "Mount additional volumes into webserver.",
+                    "type": "array"
+                },
+                "extraVolumeMounts": {
+                    "description": "Mount additional volumes into webserver.",
+                    "type": "array"
+                },
+                "webserverConfig": {
+                    "description": "This will be mounted into the Airflow Webserver as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "service": {
+                    "description": "Webserver service configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "type": {
+                            "description": "Webserver service type.",
+                            "type": "string"
+                        },
+                        "annotations": {
+                            "description": "Annotations for the webserver service.",
+                            "type": "object"
+                        }
+                    }
+                },
+                "serviceAccountAnnotations": {
+                  "description": "Annotations to add to the webserver kubernetes service account.",
+                  "type": "object"
+                }
+            }
+        },
+        "flower": {
+            "description": "Flower settings.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "extraNetworkPolicies": {
+                    "description": "Additional network policies as needed.",
+                    "type": "array"
+                },
+                "resources": {
+                    "type": "object"
+                },
+                "secretName": {
+                    "description": "A secret containing the user and password pair.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "username": {
+                    "description": "Username use to access flower.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "password": {
+                    "description": "Password use to access flower.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "service": {
+                    "description": "Flower service configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "type": {
+                            "description": "Flower service type.",
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "statsd": {
+            "description": "Statsd settings.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "description": "Enable statsd.",
+                    "type": "boolean"
+                },
+                "extraNetworkPolicies": {
+                    "description": "Additional network policies as needed.",
+                    "type": "array"
+                },
+                "resources": {
+                    "type": "object"
+                },
+                "service": {
+                    "description": "Statsd service configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "extraAnnotations": {
+                            "description": "Extra annotations for the statsd service.",
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "pgbouncer": {
+            "description": "Pgbouncer settings.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "description": "Enable pgbouncer.",
+                    "type": "boolean"
+                },
+                "extraNetworkPolicies": {
+                    "description": "Additional network policies as needed.",
+                    "type": "array"
+                },
+                "metadataPoolSize": {
+                    "description": "Metadata pool size.",
+                    "type": "integer"
+                },
+                "resultBackendPoolSize": {
+                    "description": "Result backend pool size.",
+                    "type": "integer"
+                },
+                "maxClientConn": {
+                    "description": "Maximum clients that can connect to pgbouncer (higher = more file descriptors).",
+                    "type": "integer"
+                },
+                "podDisruptionBudget": {
+                    "description": "Pgbouner pod disruption budget.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enabled pod distribution budget.",
+                            "type": "boolean"
+                        },
+                        "config": {
+                            "description": "Pod distribution configuration.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "maxUnavailable": {
+                                    "description": "Max unavailable pods for pgbouncer.",
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    }
+                },
+                "resources": {
+                    "type": "object"
+                },
+                "service": {
+                    "description": "Pgbouncer service configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "extraAnnotations": {
+                            "description": "Extra annotations for the pgbouncer service.",
+                            "type": "object"
+                        }
+                    }
+                },
+                "verbose": {
+                    "description": "Increase pgbouncer verbosity.",
+                    "type": "integer"
+                },
+                "logDisconnections": {
+                    "description": "Log disconnections with reasons.",
+                    "type": "integer"
+                },
+                "logConnections": {
+                    "description": "Log successful logins.",
+                    "type": "integer"
+                },
+                "sslmode": {
+                    "description": "SSL mode for pgbouncer.",
+                    "type": "string",
+                    "enum": ["disable", "allow", "prefer", "require", "verify-ca", "verify-full"]
+                },
+                "ciphers": {
+                    "description": "The allowed ciphers, might be 'fast', 'normal' or list ciphers separated with ':'.",
+                    "type": "string"
+                },
+                "ssl": {
+                    "description": "SSL certificates for pgbouncer connection.",
+                    "type": "object",
+                    "properties": {
+                        "ca": {
+                            "description": "Certificate Authority for server side",
+                            "type": ["string", "null"]
+                        },
+                        "cert": {
+                            "description": "Server Certificate for server side",
+                            "type": ["string", "null"]
+                        },
+                        "key": {
+                            "description": "Private key used to authenticate with the server",
+                            "type": ["string", "null"]
+                        }
+                    }
+                }
+            }
+        },
+        "redis": {
+            "description": "",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "terminationGracePeriodSeconds": {
+                    "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
+                    "type": "integer"
+                },
+                "persistence": {
+                    "description": "Persistence configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable persistent volumes.",
+                            "type": "boolean"
+                        },
+                        "size": {
+                            "description": "Volume size for worker StatefulSet.",
+                            "type": "string"
+                        },
+                        "storageClassName": {
+                            "description": "If using a custom storageClass, pass name ref to all StatefulSets here.",
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    }
+                },
+                "resources": {
+                    "type": "object"
+                },
+                "passwordSecretName": {
+                    "description": "Redis password secret.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "brokerURLSecretName": {
+                    "description": "Redis broker URL secret.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "password": {
+                    "description": "If password is set, create secret with it, else generate a new one on install.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "safeToEvict": {
+                    "description": "This setting tells Kubernetes that its ok to evict when it wants to scale a node down.",
+                    "type": "boolean"
+                }
+            }
+        },
+        "registry": {
+            "description": "Auth secret for a private registry. This is used if pulling airflow images from a private registry.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "secretName": {
+                    "description": "Registry connection string secret.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "connection": {
+                    "description": "Registry connection configuration.",
+                    "type": "object"
+                }
+            }
+        },
+        "elasticsearch": {
+            "description": "Elasticsearch logging configuration.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "description": "Enable elasticsearch task logging.",
+                    "type": "boolean"
+                },
+                "secretName": {
+                    "description": "A secret containing the connection string.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "connection": {
+                    "description": "Elasticsearch connection configuration.",
+                    "type": "object"
+                }
+            }
+        },
+        "ports": {
+            "description": "All ports used by chart.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "flowerUI": {
+                    "description": "Flower UI port.",
+                    "type": "integer"
+                },
+                "airflowUI": {
+                    "description": "Airflow UI port.",
+                    "type": "integer"
+                },
+                "workerLogs": {
+                    "description": "Worker logs port.",
+                    "type": "integer"
+                },
+                "redisDB": {
+                    "description": "Redis port.",
+                    "type": "integer"
+                },
+                "statsdIngest": {
+                    "description": "Statsd ingest port.",
+                    "type": "integer"
+                },
+                "statsdScrape": {
+                    "description": "Statsd scrape port.",
+                    "type": "integer"
+                },
+                "pgbouncer": {
+                    "description": "Pgbouncer port.",
+                    "type": "integer"
+                },
+                "pgbouncerScrape": {
+                    "description": "Pgbouncer scrape port.",
+                    "type": "integer"
+                }
+            }
+        },
+        "quotas": {
+            "description": "Define any ResourceQuotas for namespace.",
+            "type": "object"
+        },
+        "limits": {
+            "description": "Define default/max/min values for pods and containers in namespace.",
+            "type": "array"
+        },
+        "cleanup": {
+            "description": "This runs as a CronJob to cleanup old pods.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "description": "Enable cleanup.",
+                    "type": "boolean"
+                },
+                "schedule": {
+                    "description": "Cleanup schedule.",
+                    "type": "string"
+                }
+            }
+        },
+        "postgresql": {
+            "description": "Configuration for postgresql subchart.",
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "description": "Enable postgresql subchart.",
+                    "type": "boolean"
+                },
+                "postgresqlPassword": {
+                    "description": "Postgresql password.",
+                    "type": "string"
+                },
+                "postgresqlUsername": {
+                    "description": "Postgresql username.",
+                    "type": "string"
+                }
+            }
+        },
+        "config": {
+            "description": "Settings to go into the mounted airflow.cfg",
+            "type": "object",
+            "additionalProperties": {
+                "type": "object",
+                "additionalProperties": {
+                    "type": [
+                        "boolean",
+                        "integer",
+                        "number",
+                        "string"
+                    ]
+                }
+            }
+        },
+        "multiNamespaceMode": {
+            "description": "Whether the KubernetesExecutor can launch workers and pods in multiple namespaces",
+            "type": "boolean"
+        },
+        "podTemplate": {
+            "description": "TODO ; also add type if you know it"
+        },
+        "dags": {
+            "description": "DAGs settings.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "persistence": {
+                    "description": "Persistence configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable persistent volume for storing dags.",
+                            "type": "boolean"
+                        },
+                        "size": {
+                            "description": "Volume size for dags.",
+                            "type": "string"
+                        },
+                        "storageClassName": {
+                            "description": "If using a custom storageClass, pass name here.",
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        },
+                        "accessMode": {
+                            "description": "Access mode of the persistent volume.",
+                            "type": "string"
+                        },
+                        "existingClaim": {
+                            "description": "The name of an existing PVC to use.",
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    }
+                },
+                "gitSync": {
+                    "description": "Git sync settings.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable Git sync.",
+                            "type": "boolean"
+                        },
+                        "repo": {
+                            "description": "Git repository.",
+                            "type": "string"
+                        },
+                        "branch": {
+                            "description": "Git branch",
+                            "type": "string"
+                        },
+                        "rev": {
+                            "description": "Git revision.",
+                            "type": "string"
+                        },
+                        "root": {
+                            "description": "Root directory.",
+                            "type": "string"
+                        },
+                        "dest": {
+                            "description": "Destination folder.",
+                            "type": "string"
+                        },
+                        "depth": {
+                            "description": "Repository depth.",
+                            "type": "integer"
+                        },
+                        "maxFailures": {
+                            "description": "The number of consecutive failures allowed before aborting.",
+                            "type": "integer"
+                        },
+                        "subPath": {
+                            "description": "Subpath within the repo where dags are located.",
+                            "type": "string"
+                        },
+                        "wait": {
+                            "description": "Interval between git sync attempts in seconds.",
+                            "type": "integer"
+                        },
+                        "containerName": {
+                            "description": "Git sync container name.",
+                            "type": "string"
+                        },
+                        "uid": {
+                            "description": "Git sync container run as user parameter.",
+                            "type": "integer"
+                        },
+                        "credentialsSecret": {
+                            "description": "TODO",
+                            "type": ["string", "null"]
+                        },
+                        "sshKeySecret": {
+                            "description": "TODO",
+                            "type": ["string", "null"]
+                        },
+                        "knownHosts": {
+                            "description": "TODO",
+                            "type": ["string", "null"]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

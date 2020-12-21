@@ -18,7 +18,6 @@
 
 from typing import Any, Dict, Iterable, Optional
 
-from airflow.providers.amazon.aws.hooks.emr import EmrHook
 from airflow.providers.amazon.aws.sensors.emr_base import EmrBaseSensor
 from airflow.utils.decorators import apply_defaults
 
@@ -42,24 +41,24 @@ class EmrStepSensor(EmrBaseSensor):
     :type failed_states: list[str]
     """
 
-    template_fields = ['job_flow_id', 'step_id',
-                       'target_states', 'failed_states']
+    template_fields = ['job_flow_id', 'step_id', 'target_states', 'failed_states']
     template_ext = ()
 
     @apply_defaults
-    def __init__(self,
-                 job_flow_id: str,
-                 step_id: str,
-                 target_states: Optional[Iterable[str]] = None,
-                 failed_states: Optional[Iterable[str]] = None,
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        *,
+        job_flow_id: str,
+        step_id: str,
+        target_states: Optional[Iterable[str]] = None,
+        failed_states: Optional[Iterable[str]] = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
         self.job_flow_id = job_flow_id
         self.step_id = step_id
         self.target_states = target_states or ['COMPLETED']
-        self.failed_states = failed_states or ['CANCELLED', 'FAILED',
-                                               'INTERRUPTED']
+        self.failed_states = failed_states or ['CANCELLED', 'FAILED', 'INTERRUPTED']
 
     def get_emr_response(self) -> Dict[str, Any]:
         """
@@ -71,13 +70,10 @@ class EmrStepSensor(EmrBaseSensor):
         :return: response
         :rtype: dict[str, Any]
         """
-        emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
+        emr_client = self.get_hook().get_conn()
 
-        self.log.info('Poking step %s on cluster %s',
-                      self.step_id,
-                      self.job_flow_id)
-        return emr.describe_step(ClusterId=self.job_flow_id,
-                                 StepId=self.step_id)
+        self.log.info('Poking step %s on cluster %s', self.step_id, self.job_flow_id)
+        return emr_client.describe_step(ClusterId=self.job_flow_id, StepId=self.step_id)
 
     @staticmethod
     def state_from_response(response: Dict[str, Any]) -> str:
@@ -104,7 +100,6 @@ class EmrStepSensor(EmrBaseSensor):
         fail_details = response['Step']['Status'].get('FailureDetails')
         if fail_details:
             return 'for reason {} with message {} and log file {}'.format(
-                fail_details.get('Reason'),
-                fail_details.get('Message'),
-                fail_details.get('LogFile'))
+                fail_details.get('Reason'), fail_details.get('Message'), fail_details.get('LogFile')
+            )
         return None

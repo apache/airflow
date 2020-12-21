@@ -21,20 +21,20 @@
 import random
 
 from airflow import DAG
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import BranchPythonOperator
 from airflow.utils.dates import days_ago
 
 args = {
     'owner': 'airflow',
-    'start_date': days_ago(2),
 }
 
 dag = DAG(
     dag_id='example_branch_operator',
     default_args=args,
+    start_date=days_ago(2),
     schedule_interval="@daily",
-    tags=['example']
+    tags=['example', 'example2'],
 )
 
 run_this_first = DummyOperator(
@@ -53,7 +53,7 @@ run_this_first >> branching
 
 join = DummyOperator(
     task_id='join',
-    trigger_rule='one_success',
+    trigger_rule='none_failed_or_skipped',
     dag=dag,
 )
 

@@ -24,5 +24,6 @@ from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import Kubernete
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.cncf.kubernetes.operators.kubernetes_pod`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

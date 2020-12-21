@@ -24,12 +24,18 @@ import calendar
 import logging
 import os
 import time
-from datetime import datetime
+from typing import Optional, cast
 
+import pendulum
 import yaml
 from kubernetes.client import Configuration
 from kubernetes.config.exec_provider import ExecProvider
 from kubernetes.config.kube_config import KUBE_CONFIG_DEFAULT_LOCATION, KubeConfigLoader
+
+
+def _parse_timestamp(ts_str: str) -> int:
+    parsed_dt = cast(pendulum.DateTime, pendulum.parse(ts_str))
+    return calendar.timegm(parsed_dt.timetuple())
 
 
 class RefreshKubeConfigLoader(KubeConfigLoader):
@@ -37,6 +43,7 @@ class RefreshKubeConfigLoader(KubeConfigLoader):
     Patched KubeConfigLoader, this subclass takes expirationTimestamp into
     account and sets api key refresh callback hook in Configuration object
     """
+
     def __init__(self, *args, **kwargs):
         KubeConfigLoader.__init__(self, *args, **kwargs)
         self.api_key_expire_ts = None
@@ -57,17 +64,13 @@ class RefreshKubeConfigLoader(KubeConfigLoader):
             self.token = "Bearer %s" % status['token']  # pylint: disable=W0201
             ts_str = status.get('expirationTimestamp')
             if ts_str:
-                self.api_key_expire_ts = calendar.timegm(
-                    datetime.strptime(ts_str, "%Y-%m-%dT%H:%M:%S%z").timetuple(),
-                )
+                self.api_key_expire_ts = _parse_timestamp(ts_str)
             return True
         except Exception as e:  # pylint: disable=W0703
             logging.error(str(e))
 
     def refresh_api_key(self, client_configuration):
-        """
-        Refresh API key if expired
-        """
+        """Refresh API key if expired"""
         if self.api_key_expire_ts and time.time() >= self.api_key_expire_ts:
             self.load_and_set(client_configuration)
 
@@ -81,6 +84,7 @@ class RefreshConfiguration(Configuration):
     Patched Configuration, this subclass taskes api key refresh callback hook
     into account
     """
+
     def __init__(self, *args, **kwargs):
         Configuration.__init__(self, *args, **kwargs)
         self.refresh_api_key = None
@@ -91,7 +95,7 @@ class RefreshConfiguration(Configuration):
         return Configuration.get_api_key_with_prefix(self, identifier)
 
 
-def _get_kube_config_loader_for_yaml_file(filename, **kwargs):
+def _get_kube_config_loader_for_yaml_file(filename, **kwargs) -> Optional[RefreshKubeConfigLoader]:
     """
     Adapted from the upstream _get_kube_config_loader_for_yaml_file function, changed
     KubeConfigLoader to RefreshKubeConfigLoader
@@ -100,7 +104,8 @@ def _get_kube_config_loader_for_yaml_file(filename, **kwargs):
         return RefreshKubeConfigLoader(
             config_dict=yaml.safe_load(f),
             config_base_path=os.path.abspath(os.path.dirname(filename)),
-            **kwargs)
+            **kwargs,
+        )
 
 
 def load_kube_config(client_configuration, config_file=None, context=None):
@@ -113,7 +118,5 @@ def load_kube_config(client_configuration, config_file=None, context=None):
     if config_file is None:
         config_file = os.path.expanduser(KUBE_CONFIG_DEFAULT_LOCATION)
 
-    loader = _get_kube_config_loader_for_yaml_file(
-        config_file, active_context=context, config_persister=None)
-
+    loader = _get_kube_config_loader_for_yaml_file(config_file, active_context=context, config_persister=None)
     loader.load_and_set(client_configuration)

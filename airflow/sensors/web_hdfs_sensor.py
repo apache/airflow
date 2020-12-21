@@ -24,5 +24,6 @@ from airflow.providers.apache.hdfs.sensors.web_hdfs import WebHdfsSensor  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.hdfs.sensors.web_hdfs`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

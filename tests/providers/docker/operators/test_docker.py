@@ -15,117 +15,141 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import logging
 import unittest
-
-import mock
+from unittest import mock
 
 from airflow.exceptions import AirflowException
 
 try:
-    from airflow.providers.docker.operators.docker import DockerOperator
-    from airflow.providers.docker.hooks.docker import DockerHook
     from docker import APIClient
+
+    from airflow.providers.docker.hooks.docker import DockerHook
+    from airflow.providers.docker.operators.docker import DockerOperator
 except ImportError:
     pass
 
 
 class TestDockerOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.docker.operators.docker.TemporaryDirectory')
-    @mock.patch('airflow.providers.docker.operators.docker.APIClient')
-    def test_execute(self, client_class_mock, tempdir_mock):
-        host_config = mock.Mock()
-        tempdir_mock.return_value.__enter__.return_value = '/mkdtemp'
+    def setUp(self):
+        self.tempdir_patcher = mock.patch('airflow.providers.docker.operators.docker.TemporaryDirectory')
+        self.tempdir_mock = self.tempdir_patcher.start()
+        self.tempdir_mock.return_value.__enter__.return_value = '/mkdtemp'
 
-        client_mock = mock.Mock(spec=APIClient)
-        client_mock.create_container.return_value = {'Id': 'some_id'}
-        client_mock.create_host_config.return_value = host_config
-        client_mock.images.return_value = []
-        client_mock.attach.return_value = ['container log']
-        client_mock.logs.return_value = ['container log']
-        client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.wait.return_value = {"StatusCode": 0}
+        self.client_mock = mock.Mock(spec=APIClient)
+        self.client_mock.create_container.return_value = {'Id': 'some_id'}
+        self.client_mock.images.return_value = []
+        self.client_mock.attach.return_value = ['container log']
+        self.client_mock.logs.return_value = ['container log']
+        self.client_mock.pull.return_value = {"status": "pull log"}
+        self.client_mock.wait.return_value = {"StatusCode": 0}
+        self.client_mock.create_host_config.return_value = mock.Mock()
+        self.client_class_patcher = mock.patch(
+            'airflow.providers.docker.operators.docker.APIClient',
+            return_value=self.client_mock,
+        )
+        self.client_class_mock = self.client_class_patcher.start()
 
-        client_class_mock.return_value = client_mock
+    def tearDown(self) -> None:
+        self.tempdir_patcher.stop()
+        self.client_class_patcher.stop()
 
-        operator = DockerOperator(api_version='1.19', command='env', environment={'UNIT': 'TEST'},
-                                  image='ubuntu:latest', network_mode='bridge', owner='unittest',
-                                  task_id='unittest', volumes=['/host/path:/container/path'],
-                                  working_dir='/container/path', shm_size=1000,
-                                  host_tmp_dir='/host/airflow', container_name='test_container',
-                                  tty=True)
+    def test_execute(self):
+        operator = DockerOperator(
+            api_version='1.19',
+            command='env',
+            environment={'UNIT': 'TEST'},
+            private_environment={'PRIVATE': 'MESSAGE'},
+            image='ubuntu:latest',
+            network_mode='bridge',
+            owner='unittest',
+            task_id='unittest',
+            volumes=['/host/path:/container/path'],
+            working_dir='/container/path',
+            shm_size=1000,
+            host_tmp_dir='/host/airflow',
+            container_name='test_container',
+            tty=True,
+        )
         operator.execute(None)
 
-        client_class_mock.assert_called_once_with(base_url='unix://var/run/docker.sock', tls=None,
-                                                  version='1.19')
+        self.client_class_mock.assert_called_once_with(
+            base_url='unix://var/run/docker.sock', tls=None, version='1.19'
+        )
 
-        client_mock.create_container.assert_called_once_with(command='env',
-                                                             name='test_container',
-                                                             environment={
-                                                                 'AIRFLOW_TMP_DIR': '/tmp/airflow',
-                                                                 'UNIT': 'TEST'
-                                                             },
-                                                             host_config=host_config,
-                                                             image='ubuntu:latest',
-                                                             user=None,
-                                                             working_dir='/container/path',
-                                                             tty=True
-                                                             )
-        client_mock.create_host_config.assert_called_once_with(binds=['/host/path:/container/path',
-                                                                      '/mkdtemp:/tmp/airflow'],
-                                                               network_mode='bridge',
-                                                               shm_size=1000,
-                                                               cpu_shares=1024,
-                                                               mem_limit=None,
-                                                               auto_remove=False,
-                                                               dns=None,
-                                                               dns_search=None)
-        tempdir_mock.assert_called_once_with(dir='/host/airflow', prefix='airflowtmp')
-        client_mock.images.assert_called_once_with(name='ubuntu:latest')
-        client_mock.attach.assert_called_once_with(container='some_id', stdout=True,
-                                                   stderr=True, stream=True)
-        client_mock.pull.assert_called_once_with('ubuntu:latest', stream=True)
-        client_mock.wait.assert_called_once_with('some_id')
+        self.client_mock.create_container.assert_called_once_with(
+            command='env',
+            name='test_container',
+            environment={'AIRFLOW_TMP_DIR': '/tmp/airflow', 'UNIT': 'TEST', 'PRIVATE': 'MESSAGE'},
+            host_config=self.client_mock.create_host_config.return_value,
+            image='ubuntu:latest',
+            user=None,
+            working_dir='/container/path',
+            tty=True,
+        )
+        self.client_mock.create_host_config.assert_called_once_with(
+            binds=['/host/path:/container/path', '/mkdtemp:/tmp/airflow'],
+            network_mode='bridge',
+            shm_size=1000,
+            cpu_shares=1024,
+            mem_limit=None,
+            auto_remove=False,
+            dns=None,
+            dns_search=None,
+            cap_add=None,
+            extra_hosts=None,
+        )
+        self.tempdir_mock.assert_called_once_with(dir='/host/airflow', prefix='airflowtmp')
+        self.client_mock.images.assert_called_once_with(name='ubuntu:latest')
+        self.client_mock.attach.assert_called_once_with(
+            container='some_id', stdout=True, stderr=True, stream=True
+        )
+        self.client_mock.pull.assert_called_once_with('ubuntu:latest', stream=True, decode=True)
+        self.client_mock.wait.assert_called_once_with('some_id')
+        self.assertEqual(
+            operator.cli.pull('ubuntu:latest', stream=True, decode=True), self.client_mock.pull.return_value
+        )
+
+    def test_private_environment_is_private(self):
+        operator = DockerOperator(
+            private_environment={'PRIVATE': 'MESSAGE'}, image='ubuntu:latest', task_id='unittest'
+        )
+        self.assertEqual(
+            operator._private_environment,
+            {'PRIVATE': 'MESSAGE'},
+            "To keep this private, it must be an underscored attribute.",
+        )
 
     @mock.patch('airflow.providers.docker.operators.docker.tls.TLSConfig')
-    @mock.patch('airflow.providers.docker.operators.docker.APIClient')
-    def test_execute_tls(self, client_class_mock, tls_class_mock):
-        client_mock = mock.Mock(spec=APIClient)
-        client_mock.create_container.return_value = {'Id': 'some_id'}
-        client_mock.create_host_config.return_value = mock.Mock()
-        client_mock.images.return_value = []
-        client_mock.attach.return_value = []
-        client_mock.pull.return_value = []
-        client_mock.wait.return_value = {"StatusCode": 0}
-
-        client_class_mock.return_value = client_mock
+    def test_execute_tls(self, tls_class_mock):
         tls_mock = mock.Mock()
         tls_class_mock.return_value = tls_mock
 
-        operator = DockerOperator(docker_url='tcp://127.0.0.1:2376', image='ubuntu',
-                                  owner='unittest', task_id='unittest', tls_client_cert='cert.pem',
-                                  tls_ca_cert='ca.pem', tls_client_key='key.pem')
+        operator = DockerOperator(
+            docker_url='tcp://127.0.0.1:2376',
+            image='ubuntu',
+            owner='unittest',
+            task_id='unittest',
+            tls_client_cert='cert.pem',
+            tls_ca_cert='ca.pem',
+            tls_client_key='key.pem',
+        )
         operator.execute(None)
 
-        tls_class_mock.assert_called_once_with(assert_hostname=None, ca_cert='ca.pem',
-                                               client_cert=('cert.pem', 'key.pem'),
-                                               ssl_version=None, verify=True)
+        tls_class_mock.assert_called_once_with(
+            assert_hostname=None,
+            ca_cert='ca.pem',
+            client_cert=('cert.pem', 'key.pem'),
+            ssl_version=None,
+            verify=True,
+        )
 
-        client_class_mock.assert_called_once_with(base_url='https://127.0.0.1:2376',
-                                                  tls=tls_mock, version=None)
+        self.client_class_mock.assert_called_once_with(
+            base_url='https://127.0.0.1:2376', tls=tls_mock, version=None
+        )
 
-    @mock.patch('airflow.providers.docker.operators.docker.APIClient')
-    def test_execute_unicode_logs(self, client_class_mock):
-        client_mock = mock.Mock(spec=APIClient)
-        client_mock.create_container.return_value = {'Id': 'some_id'}
-        client_mock.create_host_config.return_value = mock.Mock()
-        client_mock.images.return_value = []
-        client_mock.attach.return_value = ['unicode container log 😁']
-        client_mock.pull.return_value = []
-        client_mock.wait.return_value = {"StatusCode": 0}
-
-        client_class_mock.return_value = client_mock
+    def test_execute_unicode_logs(self):
+        self.client_mock.attach.return_value = ['unicode container log 😁']
 
         originalRaiseExceptions = logging.raiseExceptions  # pylint: disable=invalid-name
         logging.raiseExceptions = True
@@ -137,20 +161,9 @@ class TestDockerOperator(unittest.TestCase):
             logging.raiseExceptions = originalRaiseExceptions
             print_exception_mock.assert_not_called()
 
-    @mock.patch('airflow.providers.docker.operators.docker.APIClient')
-    def test_execute_container_fails(self, client_class_mock):
-        client_mock = mock.Mock(spec=APIClient)
-        client_mock.create_container.return_value = {'Id': 'some_id'}
-        client_mock.create_host_config.return_value = mock.Mock()
-        client_mock.images.return_value = []
-        client_mock.attach.return_value = []
-        client_mock.pull.return_value = []
-        client_mock.wait.return_value = {"StatusCode": 1}
-
-        client_class_mock.return_value = client_mock
-
+    def test_execute_container_fails(self):
+        self.client_mock.wait.return_value = {"StatusCode": 1}
         operator = DockerOperator(image='ubuntu', owner='unittest', task_id='unittest')
-
         with self.assertRaises(AirflowException):
             operator.execute(None)
 
@@ -166,98 +179,53 @@ class TestDockerOperator(unittest.TestCase):
 
         client_mock.stop.assert_called_once_with('some_id')
 
-    @mock.patch('airflow.providers.docker.operators.docker.APIClient')
-    def test_execute_no_docker_conn_id_no_hook(self, operator_client_mock):
-        # Mock out a Docker client, so operations don't raise errors
-        client_mock = mock.Mock(name='DockerOperator.APIClient mock', spec=APIClient)
-        client_mock.images.return_value = []
-        client_mock.create_container.return_value = {'Id': 'some_id'}
-        client_mock.attach.return_value = []
-        client_mock.pull.return_value = []
-        client_mock.wait.return_value = {"StatusCode": 0}
-        operator_client_mock.return_value = client_mock
-
+    def test_execute_no_docker_conn_id_no_hook(self):
         # Create the DockerOperator
-        operator = DockerOperator(
-            image='publicregistry/someimage',
-            owner='unittest',
-            task_id='unittest'
-        )
+        operator = DockerOperator(image='publicregistry/someimage', owner='unittest', task_id='unittest')
 
         # Mock out the DockerHook
         hook_mock = mock.Mock(name='DockerHook mock', spec=DockerHook)
-        hook_mock.get_conn.return_value = client_mock
+        hook_mock.get_conn.return_value = self.client_mock
         operator.get_hook = mock.Mock(
-            name='DockerOperator.get_hook mock',
-            spec=DockerOperator.get_hook,
-            return_value=hook_mock
+            name='DockerOperator.get_hook mock', spec=DockerOperator.get_hook, return_value=hook_mock
         )
 
         operator.execute(None)
-        self.assertEqual(
-            operator.get_hook.call_count, 0,
-            'Hook called though no docker_conn_id configured'
-        )
+        self.assertEqual(operator.get_hook.call_count, 0, 'Hook called though no docker_conn_id configured')
 
     @mock.patch('airflow.providers.docker.operators.docker.DockerHook')
-    @mock.patch('airflow.providers.docker.operators.docker.APIClient')
-    def test_execute_with_docker_conn_id_use_hook(self, operator_client_mock,
-                                                  operator_docker_hook):
-        # Mock out a Docker client, so operations don't raise errors
-        client_mock = mock.Mock(name='DockerOperator.APIClient mock', spec=APIClient)
-        client_mock.images.return_value = []
-        client_mock.create_container.return_value = {'Id': 'some_id'}
-        client_mock.attach.return_value = []
-        client_mock.pull.return_value = []
-        client_mock.wait.return_value = {"StatusCode": 0}
-        operator_client_mock.return_value = client_mock
-
+    def test_execute_with_docker_conn_id_use_hook(self, hook_class_mock):
         # Create the DockerOperator
         operator = DockerOperator(
             image='publicregistry/someimage',
             owner='unittest',
             task_id='unittest',
-            docker_conn_id='some_conn_id'
+            docker_conn_id='some_conn_id',
         )
 
         # Mock out the DockerHook
         hook_mock = mock.Mock(name='DockerHook mock', spec=DockerHook)
-        hook_mock.get_conn.return_value = client_mock
-        operator_docker_hook.return_value = hook_mock
+        hook_mock.get_conn.return_value = self.client_mock
+        hook_class_mock.return_value = hook_mock
 
         operator.execute(None)
 
         self.assertEqual(
-            operator_client_mock.call_count, 0,
-            'Client was called on the operator instead of the hook'
+            self.client_class_mock.call_count, 0, 'Client was called on the operator instead of the hook'
         )
         self.assertEqual(
-            operator_docker_hook.call_count, 1,
-            'Hook was not called although docker_conn_id configured'
+            hook_class_mock.call_count, 1, 'Hook was not called although docker_conn_id configured'
         )
-        self.assertEqual(
-            client_mock.pull.call_count, 1,
-            'Image was not pulled using operator client'
-        )
+        self.assertEqual(self.client_mock.pull.call_count, 1, 'Image was not pulled using operator client')
 
-    @mock.patch('airflow.providers.docker.operators.docker.TemporaryDirectory')
-    @mock.patch('airflow.providers.docker.operators.docker.APIClient')
-    def test_execute_xcom_behavior(self, client_class_mock, tempdir_mock):
-        tempdir_mock.return_value.__enter__.return_value = '/mkdtemp'
-
-        client_mock = mock.Mock(spec=APIClient)
-        client_mock.images.return_value = []
-        client_mock.create_container.return_value = {'Id': 'some_id'}
-        client_mock.attach.return_value = ['container log']
-        client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.wait.return_value = {"StatusCode": 0}
-
-        client_class_mock.return_value = client_mock
+    def test_execute_xcom_behavior(self):
+        self.client_mock.pull.return_value = [b'{"status":"pull log"}']
 
         kwargs = {
             'api_version': '1.19',
             'command': 'env',
             'environment': {'UNIT': 'TEST'},
+            'private_environment': {'PRIVATE': 'MESSAGE'},
             'image': 'ubuntu:latest',
             'network_mode': 'bridge',
             'owner': 'unittest',
@@ -279,6 +247,20 @@ class TestDockerOperator(unittest.TestCase):
         self.assertEqual(xcom_push_result, b'container log')
         self.assertIs(no_xcom_push_result, None)
 
-
-if __name__ == "__main__":
-    unittest.main()
+    def test_extra_hosts(self):
+        hosts_obj = mock.Mock()
+        operator = DockerOperator(task_id='test', image='test', extra_hosts=hosts_obj)
+        operator.execute(None)
+        self.client_mock.create_container.assert_called_once()
+        self.assertIn(
+            'host_config',
+            self.client_mock.create_container.call_args[1],
+        )
+        self.assertIn(
+            'extra_hosts',
+            self.client_mock.create_host_config.call_args[1],
+        )
+        self.assertIs(
+            hosts_obj,
+            self.client_mock.create_host_config.call_args[1]['extra_hosts'],
+        )

@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+from typing import Any, Dict, Optional
+
 from airflow.providers.http.operators.http import SimpleHttpOperator
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.utils.decorators import apply_defaults
@@ -58,27 +60,35 @@ class SlackWebhookOperator(SimpleHttpOperator):
     :type proxy: str
     """
 
-    template_fields = ['webhook_token', 'message', 'attachments', 'blocks', 'channel',
-                       'username', 'proxy', ]
+    template_fields = [
+        'webhook_token',
+        'message',
+        'attachments',
+        'blocks',
+        'channel',
+        'username',
+        'proxy',
+    ]
 
+    # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self,
-                 http_conn_id=None,
-                 webhook_token=None,
-                 message="",
-                 attachments=None,
-                 blocks=None,
-                 channel=None,
-                 username=None,
-                 icon_emoji=None,
-                 icon_url=None,
-                 link_names=False,
-                 proxy=None,
-                 *args,
-                 **kwargs):
-        super().__init__(endpoint=webhook_token,
-                         *args,
-                         **kwargs)
+    def __init__(
+        self,
+        *,
+        http_conn_id: str,
+        webhook_token: Optional[str] = None,
+        message: str = "",
+        attachments: Optional[list] = None,
+        blocks: Optional[list] = None,
+        channel: Optional[str] = None,
+        username: Optional[str] = None,
+        icon_emoji: Optional[str] = None,
+        icon_url: Optional[str] = None,
+        link_names: bool = False,
+        proxy: Optional[str] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(endpoint=webhook_token, **kwargs)
         self.http_conn_id = http_conn_id
         self.webhook_token = webhook_token
         self.message = message
@@ -90,12 +100,10 @@ class SlackWebhookOperator(SimpleHttpOperator):
         self.icon_url = icon_url
         self.link_names = link_names
         self.proxy = proxy
-        self.hook = None
+        self.hook: Optional[SlackWebhookHook] = None
 
-    def execute(self, context):
-        """
-        Call the SlackWebhookHook to post the provided Slack message
-        """
+    def execute(self, context: Dict[str, Any]) -> None:
+        """Call the SlackWebhookHook to post the provided Slack message"""
         self.hook = SlackWebhookHook(
             self.http_conn_id,
             self.webhook_token,
@@ -107,6 +115,6 @@ class SlackWebhookOperator(SimpleHttpOperator):
             self.icon_emoji,
             self.icon_url,
             self.link_names,
-            self.proxy
+            self.proxy,
         )
         self.hook.execute()

@@ -31,8 +31,7 @@ def get_task_instance(dag_id: str, task_id: str, execution_date: datetime) -> Ta
     # Get task instance object and check that it exists
     task_instance = dagrun.get_task_instance(task_id)
     if not task_instance:
-        error_message = ('Task {} instance for date {} not found'
-                         .format(task_id, execution_date))
+        error_message = f'Task {task_id} instance for date {execution_date} not found'
         raise TaskInstanceNotFound(error_message)
 
     return task_instance

@@ -24,10 +24,9 @@ import os
 from tempfile import TemporaryDirectory
 from urllib.parse import urlparse
 
-from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_CLOUD_BUILD_KEY, GcpAuthenticator
+from tests.test_utils.logging_command_executor import LoggingCommandExecutor
 
-GCE_INSTANCE = os.environ.get("GCE_INSTANCE", "testinstance")
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 GCP_ARCHIVE_URL = os.environ.get("GCP_CLOUD_BUILD_ARCHIVE_URL", "gs://example-bucket/source-code.tar.gz")
 GCP_ARCHIVE_URL_PARTS = urlparse(GCP_ARCHIVE_URL)
@@ -53,36 +52,34 @@ class GCPCloudBuildTestHelper(LoggingCommandExecutor):
                 file.write('echo "Hello, world! The time is $(date)."\n')
                 file.flush()
 
-            os.chmod(quickstart_path, 555)
+            os.chmod(quickstart_path, 777)
 
             with open(os.path.join(tmp_dir, "Dockerfile"), "w") as file:
                 file.write("FROM alpine\n")
                 file.write("COPY quickstart.sh /\n")
                 file.write('CMD ["/quickstart.sh"]\n')
-                file.flush()
 
             # 2. Prepare bucket
-            self.execute_cmd(["gsutil", "mb", "gs://{}".format(GCP_BUCKET_NAME)])
-            self.execute_cmd(
-                ["bash", "-c", "tar -zcvf - -C {} . | gsutil cp -r - {}".format(tmp_dir, GCP_ARCHIVE_URL)]
-            )
+            self.execute_cmd(["gsutil", "mb", f"gs://{GCP_BUCKET_NAME}"])
+            self.execute_cmd(["bash", "-c", f"tar -zcvf - -C {tmp_dir} . | gsutil cp -r - {GCP_ARCHIVE_URL}"])
 
             # 3. Prepare repo
             self.execute_cmd(["gcloud", "source", "repos", "create", GCP_REPOSITORY_NAME])
             self.execute_cmd(["git", "init"], cwd=tmp_dir)
             self.execute_cmd(["git", "config", "user.email", "bot@example.com"], cwd=tmp_dir)
-            self.execute_cmd(["git", "config", "user.name", "system-test"])
+            self.execute_cmd(["git", "config", "user.name", "system-test"], cwd=tmp_dir)
             self.execute_cmd(
                 ["git", "config", "credential.https://source.developers.google.com.helper", "gcloud.sh"],
                 cwd=tmp_dir,
             )
-            self.execute_cmd(["git", "add", "."], cwd=tmp_dir)
+            self.execute_cmd(["git", "add", "quickstart.sh"], cwd=tmp_dir)
+            self.execute_cmd(["git", "add", "Dockerfile"], cwd=tmp_dir)
             self.execute_cmd(["git", "commit", "-m", "Initial commit"], cwd=tmp_dir)
             repo_url = "https://source.developers.google.com/p/{}/r/{}".format(
                 GCP_PROJECT_ID, GCP_REPOSITORY_NAME
             )
             self.execute_cmd(["git", "remote", "add", "origin", repo_url], cwd=tmp_dir)
-            self.execute_cmd(["git", "push", "origin", "master"], cwd=tmp_dir)
+            self.execute_cmd(["git", "push", "--force", "origin", "master"], cwd=tmp_dir)
 
     def delete_repo(self):
         """Delete repository in Google Cloud Source Repository service"""
@@ -92,15 +89,15 @@ class GCPCloudBuildTestHelper(LoggingCommandExecutor):
     def delete_bucket(self):
         """Delete bucket in Google Cloud Storage service"""
 
-        self.execute_cmd(["gsutil", "rb", "gs://{}".format(GCP_BUCKET_NAME)])
+        self.execute_cmd(["gsutil", "rm", "-r", f"gs://{GCP_BUCKET_NAME}"])
 
     def delete_docker_images(self):
         """Delete images in Google Cloud Container Registry"""
 
-        repo_image_name = "gcr.io/{}/{}".format(GCP_PROJECT_ID, GCP_REPOSITORY_NAME)
-        self.execute_cmd(["gcloud", "container", "images", "delete", repo_image_name])
-        bucket_image_name = "gcr.io/{}/{}".format(GCP_PROJECT_ID, GCP_BUCKET_NAME)
-        self.execute_cmd(["gcloud", "container", "images", "delete", bucket_image_name])
+        repo_image_name = f"gcr.io/{GCP_PROJECT_ID}/{GCP_REPOSITORY_NAME}"
+        self.execute_cmd(["gcloud", "container", "images", "delete", "--quiet", repo_image_name])
+        bucket_image_name = f"gcr.io/{GCP_PROJECT_ID}/{GCP_BUCKET_NAME}"
+        self.execute_cmd(["gcloud", "container", "images", "delete", "--quiet", bucket_image_name])
 
 
 if __name__ == "__main__":
@@ -145,7 +142,7 @@ if __name__ == "__main__":
         elif action == "delete-docker-images":
             helper.delete_docker_images()
         else:
-            raise Exception("Unknown action: {}".format(action))
+            raise Exception(f"Unknown action: {action}")
     finally:
         gcp_authenticator.gcp_restore_authentication()
 

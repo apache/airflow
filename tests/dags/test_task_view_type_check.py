@@ -28,18 +28,20 @@ from airflow.models import DAG
 from airflow.operators.python import PythonOperator
 
 DEFAULT_DATE = datetime(2016, 1, 1)
-default_args = dict(
-    start_date=DEFAULT_DATE,
-    owner='airflow')
+default_args = dict(start_date=DEFAULT_DATE, owner='airflow')
 
 
 class CallableClass:
+    """
+    Class that is callable.
+    """
+
     def __call__(self):
-        """ A __call__ method """
+        """A __call__ method """
 
 
 def a_function(_, __):
-    """ A function with two args """
+    """A function with two args """
 
 
 partial_function = functools.partial(a_function, arg_x=1)

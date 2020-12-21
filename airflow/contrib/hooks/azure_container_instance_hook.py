@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module is deprecated.
-Please use `airflow.providers.microsoft.azure.hooks.azure_container_instance`."""
+
+Please use `airflow.providers.microsoft.azure.hooks.azure_container_instance`.
+"""
 
 import warnings
 
@@ -28,5 +30,6 @@ from airflow.providers.microsoft.azure.hooks.azure_container_instance import (  
 warnings.warn(
     "This module is deprecated. "
     "Please use `airflow.providers.microsoft.azure.hooks.azure_container_instance`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

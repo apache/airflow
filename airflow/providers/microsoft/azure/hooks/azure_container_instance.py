@@ -17,18 +17,16 @@
 # under the License.
 #
 
-import os
 import warnings
+from typing import Any
 
-from azure.common.client_factory import get_client_from_auth_file
-from azure.common.credentials import ServicePrincipalCredentials
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
+from azure.mgmt.containerinstance.models import ContainerGroup
 
-from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
 
 
-class AzureContainerInstanceHook(BaseHook):
+class AzureContainerInstanceHook(AzureBaseHook):
     """
     A hook to communicate with Azure Container Instances.
 
@@ -43,40 +41,16 @@ class AzureContainerInstanceHook(BaseHook):
     :type conn_id: str
     """
 
-    def __init__(self, conn_id='azure_default'):
-        self.conn_id = conn_id
+    conn_name_attr = 'conn_id'
+    default_conn_name = 'azure_default'
+    conn_type = 'azure_container_instances'
+    hook_name = 'Azure Container Instance'
+
+    def __init__(self, conn_id: str = default_conn_name) -> None:
+        super().__init__(sdk_client=ContainerInstanceManagementClient, conn_id=conn_id)
         self.connection = self.get_conn()
 
-    def get_conn(self):
-        conn = self.get_connection(self.conn_id)
-        key_path = conn.extra_dejson.get('key_path', False)
-        if key_path:
-            if key_path.endswith('.json'):
-                self.log.info('Getting connection using a JSON key file.')
-                return get_client_from_auth_file(ContainerInstanceManagementClient,
-                                                 key_path)
-            else:
-                raise AirflowException('Unrecognised extension for key file.')
-
-        if os.environ.get('AZURE_AUTH_LOCATION'):
-            key_path = os.environ.get('AZURE_AUTH_LOCATION')
-            if key_path.endswith('.json'):
-                self.log.info('Getting connection using a JSON key file.')
-                return get_client_from_auth_file(ContainerInstanceManagementClient,
-                                                 key_path)
-            else:
-                raise AirflowException('Unrecognised extension for key file.')
-
-        credentials = ServicePrincipalCredentials(
-            client_id=conn.login,
-            secret=conn.password,
-            tenant=conn.extra_dejson['tenantId']
-        )
-
-        subscription_id = conn.extra_dejson['subscriptionId']
-        return ContainerInstanceManagementClient(credentials, str(subscription_id))
-
-    def create_or_update(self, resource_group, name, container_group):
+    def create_or_update(self, resource_group: str, name: str, container_group: ContainerGroup) -> None:
         """
         Create a new container group
 
@@ -87,11 +61,9 @@ class AzureContainerInstanceHook(BaseHook):
         :param container_group: the properties of the container group
         :type container_group: azure.mgmt.containerinstance.models.ContainerGroup
         """
-        self.connection.container_groups.create_or_update(resource_group,
-                                                          name,
-                                                          container_group)
+        self.connection.container_groups.create_or_update(resource_group, name, container_group)
 
-    def get_state_exitcode_details(self, resource_group, name):
+    def get_state_exitcode_details(self, resource_group: str, name: str) -> tuple:
         """
         Get the state and exitcode of a container group
 
@@ -106,13 +78,13 @@ class AzureContainerInstanceHook(BaseHook):
         warnings.warn(
             "get_state_exitcode_details() is deprecated. Related method is get_state()",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         cg_state = self.get_state(resource_group, name)
         c_state = cg_state.containers[0].instance_view.current_state
         return (c_state.state, c_state.exit_code, c_state.detail_status)
 
-    def get_messages(self, resource_group, name):
+    def get_messages(self, resource_group: str, name: str) -> list:
         """
         Get the messages of a container group
 
@@ -124,15 +96,13 @@ class AzureContainerInstanceHook(BaseHook):
         :rtype: list[str]
         """
         warnings.warn(
-            "get_messages() is deprecated. Related method is get_state()",
-            DeprecationWarning,
-            stacklevel=2
+            "get_messages() is deprecated. Related method is get_state()", DeprecationWarning, stacklevel=2
         )
         cg_state = self.get_state(resource_group, name)
         instance_view = cg_state.containers[0].instance_view
         return [event.message for event in instance_view.events]
 
-    def get_state(self, resource_group, name):
+    def get_state(self, resource_group: str, name: str) -> Any:
         """
         Get the state of a container group
 
@@ -143,11 +113,9 @@ class AzureContainerInstanceHook(BaseHook):
         :return: ContainerGroup
         :rtype: ~azure.mgmt.containerinstance.models.ContainerGroup
         """
-        return self.connection.container_groups.get(resource_group,
-                                                    name,
-                                                    raw=False)
+        return self.connection.container_groups.get(resource_group, name, raw=False)
 
-    def get_logs(self, resource_group, name, tail=1000):
+    def get_logs(self, resource_group: str, name: str, tail: int = 1000) -> list:
         """
         Get the tail from logs of a container group
 
@@ -163,7 +131,7 @@ class AzureContainerInstanceHook(BaseHook):
         logs = self.connection.container.list_logs(resource_group, name, name, tail=tail)
         return logs.content.splitlines(True)
 
-    def delete(self, resource_group, name):
+    def delete(self, resource_group: str, name: str) -> None:
         """
         Delete a container group
 
@@ -174,7 +142,7 @@ class AzureContainerInstanceHook(BaseHook):
         """
         self.connection.container_groups.delete(resource_group, name)
 
-    def exists(self, resource_group, name):
+    def exists(self, resource_group: str, name: str) -> bool:
         """
         Test if a container group exists
 

@@ -39,7 +39,3 @@ class TestHive(unittest.TestCase):
         self.assertEqual("2017-04-26", str(hive._closest_date(target_dt, [date1, date2, date3, date5], None)))
         self.assertEqual("2017-04-28", str(hive._closest_date(target_dt, [date1, date2, date4, date5])))
         self.assertEqual("2017-04-26", str(hive._closest_date(target_dt, date_list)))
-
-
-if __name__ == '__main__':
-    unittest.main()

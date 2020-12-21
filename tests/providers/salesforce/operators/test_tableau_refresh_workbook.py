@@ -23,7 +23,6 @@ from airflow.providers.salesforce.operators.tableau_refresh_workbook import Tabl
 
 
 class TestTableauRefreshWorkbookOperator(unittest.TestCase):
-
     def setUp(self):
         self.mocked_workbooks = []
         for i in range(3):
@@ -31,11 +30,7 @@ class TestTableauRefreshWorkbookOperator(unittest.TestCase):
             mock_workbook.id = i
             mock_workbook.name = f'wb_{i}'
             self.mocked_workbooks.append(mock_workbook)
-        self.kwargs = {
-            'site_id': 'test_site',
-            'task_id': 'task',
-            'dag': None
-        }
+        self.kwargs = {'site_id': 'test_site', 'task_id': 'task', 'dag': None}
 
     @patch('airflow.providers.salesforce.operators.tableau_refresh_workbook.TableauHook')
     def test_execute(self, mock_tableau_hook):
@@ -64,7 +59,7 @@ class TestTableauRefreshWorkbookOperator(unittest.TestCase):
             site_id=self.kwargs['site_id'],
             tableau_conn_id='tableau_default',
             task_id='wait_until_succeeded',
-            dag=None
+            dag=None,
         )
 
     @patch('airflow.providers.salesforce.operators.tableau_refresh_workbook.TableauHook')

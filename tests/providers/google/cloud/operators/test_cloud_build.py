@@ -17,14 +17,16 @@
 # under the License.
 """Tests for Google Cloud Build operators """
 
+import tempfile
 from copy import deepcopy
-from unittest import TestCase
+from datetime import datetime
+from unittest import TestCase, mock
 
-import mock
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.operators.cloud_build import BuildProcessor, CloudBuildCreateOperator
+from airflow.models import DAG, TaskInstance
+from airflow.providers.google.cloud.operators.cloud_build import BuildProcessor, CloudBuildCreateBuildOperator
 
 TEST_CREATE_BODY = {
     "source": {"storageSource": {"bucket": "cloud-build-examples", "object": "node-docker-example.tar.gz"}},
@@ -34,6 +36,7 @@ TEST_CREATE_BODY = {
     "images": ["gcr.io/$PROJECT_ID/my-image"],
 }
 TEST_PROJECT_ID = "example-id"
+TEST_DEFAULT_DATE = datetime(year=2020, month=1, day=1)
 
 
 class TestBuildProcessor(TestCase):
@@ -110,11 +113,11 @@ class TestBuildProcessor(TestCase):
         self.assertEqual(body, expected_body)
 
 
-class TestGcpCloudBuildCreateOperator(TestCase):
+class TestGcpCloudBuildCreateBuildOperator(TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
     def test_minimal_green_path(self, mock_hook):
         mock_hook.return_value.create_build.return_value = TEST_CREATE_BODY
-        operator = CloudBuildCreateOperator(
+        operator = CloudBuildCreateBuildOperator(
             body=TEST_CREATE_BODY, project_id=TEST_PROJECT_ID, task_id="task-id"
         )
         result = operator.execute({})
@@ -123,7 +126,7 @@ class TestGcpCloudBuildCreateOperator(TestCase):
     @parameterized.expand([({},), (None,)])
     def test_missing_input(self, body):
         with self.assertRaisesRegex(AirflowException, "The required parameter 'body' is missing"):
-            CloudBuildCreateOperator(body=body, project_id=TEST_PROJECT_ID, task_id="task-id")
+            CloudBuildCreateBuildOperator(body=body, project_id=TEST_PROJECT_ID, task_id="task-id")
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
     def test_storage_source_replace(self, hook_mock):
@@ -141,7 +144,7 @@ class TestGcpCloudBuildCreateOperator(TestCase):
             "images": ["gcr.io/$PROJECT_ID/docker-image"],
         }
 
-        operator = CloudBuildCreateOperator(
+        operator = CloudBuildCreateBuildOperator(
             body=current_body, project_id=TEST_PROJECT_ID, task_id="task-id"
         )
         operator.execute({})
@@ -177,9 +180,10 @@ class TestGcpCloudBuildCreateOperator(TestCase):
             ],
             "images": ["gcr.io/$PROJECT_ID/docker-image"],
         }
-        operator = CloudBuildCreateOperator(
+        operator = CloudBuildCreateBuildOperator(
             body=current_body, project_id=TEST_PROJECT_ID, task_id="task-id"
         )
+
         return_value = operator.execute({})
         expected_body = {
             # [START howto_operator_gcp_cloud_build_source_repo_dict]
@@ -203,3 +207,24 @@ class TestGcpCloudBuildCreateOperator(TestCase):
             body=expected_body, project_id=TEST_PROJECT_ID
         )
         self.assertEqual(return_value, TEST_CREATE_BODY)
+
+    def test_load_templated_yaml(self):
+        dag = DAG(dag_id='example_cloudbuild_operator', start_date=TEST_DEFAULT_DATE)
+        with tempfile.NamedTemporaryFile(suffix='.yaml', mode='w+t') as build:
+            build.writelines(
+                """
+            steps:
+                - name: 'ubuntu'
+                  args: ['echo', 'Hello {{ params.name }}!']
+            """
+            )
+            build.seek(0)
+            body_path = build.name
+            operator = CloudBuildCreateBuildOperator(
+                body=body_path, task_id="task-id", dag=dag, params={'name': 'airflow'}
+            )
+            operator.prepare_template()
+            ti = TaskInstance(operator, TEST_DEFAULT_DATE)
+            ti.render_templates()
+            expected_body = {'steps': [{'name': 'ubuntu', 'args': ['echo', 'Hello airflow!']}]}
+            self.assertEqual(expected_body, operator.body)

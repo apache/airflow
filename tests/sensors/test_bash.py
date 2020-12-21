@@ -27,10 +27,7 @@ from airflow.sensors.bash import BashSensor
 
 class TestBashSensor(unittest.TestCase):
     def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': datetime.datetime(2017, 1, 1)
-        }
+        args = {'owner': 'airflow', 'start_date': datetime.datetime(2017, 1, 1)}
         dag = DAG('test_dag_id', default_args=args)
         self.dag = dag
 
@@ -41,7 +38,7 @@ class TestBashSensor(unittest.TestCase):
             output_encoding='utf-8',
             poke_interval=1,
             timeout=2,
-            dag=self.dag
+            dag=self.dag,
         )
         op.execute(None)
 
@@ -52,7 +49,7 @@ class TestBashSensor(unittest.TestCase):
             output_encoding='utf-8',
             poke_interval=1,
             timeout=2,
-            dag=self.dag
+            dag=self.dag,
         )
         with self.assertRaises(AirflowSensorTimeout):
             op.execute(None)

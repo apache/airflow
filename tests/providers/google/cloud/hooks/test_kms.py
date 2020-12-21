@@ -19,8 +19,7 @@
 import unittest
 from base64 import b64decode, b64encode
 from collections import namedtuple
-
-import mock
+from unittest import mock
 
 from airflow.providers.google.cloud.hooks.kms import CloudKMSHook
 
@@ -45,14 +44,19 @@ TEST_KEY_ID = "projects/{}/locations/{}/keyRings/{}/cryptoKeys/{}".format(
 RESPONSE = Response(PLAINTEXT, PLAINTEXT)
 
 
-def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-argument
+def mock_init(
+    self,
+    gcp_conn_id,
+    delegate_to=None,
+    impersonation_chain=None,
+):  # pylint: disable=unused-argument
     pass
 
 
 class TestCloudKMSHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            "airflow.providers.google.cloud.hooks.base.CloudBaseHook.__init__",
+            "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_init,
         ):
             self.kms_hook = CloudKMSHook(gcp_conn_id="test")

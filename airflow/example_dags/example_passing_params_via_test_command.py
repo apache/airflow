@@ -18,6 +18,7 @@
 
 """Example DAG demonstrating the usage of the params arguments in templated arguments."""
 
+import os
 from datetime import timedelta
 
 from airflow import DAG
@@ -29,11 +30,11 @@ dag = DAG(
     "example_passing_params_via_test_command",
     default_args={
         "owner": "airflow",
-        "start_date": days_ago(1),
     },
     schedule_interval='*/1 * * * *',
+    start_date=days_ago(1),
     dagrun_timeout=timedelta(minutes=4),
-    tags=['example']
+    tags=['example'],
 )
 
 
@@ -44,8 +45,12 @@ def my_py_command(test_mode, params):
     -t '{"foo":"bar"}'`
     """
     if test_mode:
-        print(" 'foo' was passed in via test={} command : kwargs[params][foo] \
-               = {}".format(test_mode, params["foo"]))
+        print(
+            " 'foo' was passed in via test={} command : kwargs[params][foo] \
+               = {}".format(
+                test_mode, params["foo"]
+            )
+        )
     # Print out the value of "miff", passed in below via the Python Operator
     print(" 'miff' was passed in via task params = {}".format(params["miff"]))
     return 1
@@ -69,5 +74,19 @@ also_run_this = BashOperator(
     params={"miff": "agg"},
     dag=dag,
 )
+
+
+def print_env_vars(test_mode):
+    """
+    Print out the "foo" param passed in via
+    `airflow tasks test example_passing_params_via_test_command env_var_test_task <date>
+    --env-vars '{"foo":"bar"}'`
+    """
+    if test_mode:
+        print("foo={}".format(os.environ.get('foo')))
+        print("AIRFLOW_TEST_MODE={}".format(os.environ.get('AIRFLOW_TEST_MODE')))
+
+
+env_var_test_task = PythonOperator(task_id='env_var_test_task', python_callable=print_env_vars, dag=dag)
 
 run_this >> also_run_this

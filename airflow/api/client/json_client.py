@@ -19,8 +19,6 @@
 
 from urllib.parse import urljoin
 
-import requests
-
 from airflow.api.client import api_client
 
 
@@ -30,42 +28,42 @@ class Client(api_client.Client):
     def _request(self, url, method='GET', json=None):
         params = {
             'url': url,
-            'auth': self._auth,
         }
         if json is not None:
             params['json'] = json
-
-        resp = getattr(requests, method.lower())(**params)  # pylint: disable=not-callable
+        resp = getattr(self._session, method.lower())(**params)  # pylint: disable=not-callable
         if not resp.ok:
             # It is justified here because there might be many resp types.
-            # noinspection PyBroadException
             try:
                 data = resp.json()
-            except Exception:  # pylint: disable=broad-except
+            except Exception:  # noqa pylint: disable=broad-except
                 data = {}
             raise OSError(data.get('error', 'Server error'))
 
         return resp.json()
 
     def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None):
-        endpoint = '/api/experimental/dags/{}/dag_runs'.format(dag_id)
+        endpoint = f'/api/experimental/dags/{dag_id}/dag_runs'
         url = urljoin(self._api_base_url, endpoint)
-        data = self._request(url, method='POST',
-                             json={
-                                 "run_id": run_id,
-                                 "conf": conf,
-                                 "execution_date": execution_date,
-                             })
+        data = self._request(
+            url,
+            method='POST',
+            json={
+                "run_id": run_id,
+                "conf": conf,
+                "execution_date": execution_date,
+            },
+        )
         return data['message']
 
     def delete_dag(self, dag_id):
-        endpoint = '/api/experimental/dags/{}/delete_dag'.format(dag_id)
+        endpoint = f'/api/experimental/dags/{dag_id}/delete_dag'
         url = urljoin(self._api_base_url, endpoint)
         data = self._request(url, method='DELETE')
         return data['message']
 
     def get_pool(self, name):
-        endpoint = '/api/experimental/pools/{}'.format(name)
+        endpoint = f'/api/experimental/pools/{name}'
         url = urljoin(self._api_base_url, endpoint)
         pool = self._request(url)
         return pool['pool'], pool['slots'], pool['description']
@@ -79,16 +77,19 @@ class Client(api_client.Client):
     def create_pool(self, name, slots, description):
         endpoint = '/api/experimental/pools'
         url = urljoin(self._api_base_url, endpoint)
-        pool = self._request(url, method='POST',
-                             json={
-                                 'name': name,
-                                 'slots': slots,
-                                 'description': description,
-                             })
+        pool = self._request(
+            url,
+            method='POST',
+            json={
+                'name': name,
+                'slots': slots,
+                'description': description,
+            },
+        )
         return pool['pool'], pool['slots'], pool['description']
 
     def delete_pool(self, name):
-        endpoint = '/api/experimental/pools/{}'.format(name)
+        endpoint = f'/api/experimental/pools/{name}'
         url = urljoin(self._api_base_url, endpoint)
         pool = self._request(url, method='DELETE')
         return pool['pool'], pool['slots'], pool['description']

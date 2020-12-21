@@ -23,7 +23,6 @@ from airflow.utils.decorators import apply_defaults
 
 
 class SageMakerModelOperator(SageMakerBaseOperator):
-
     """
     Create a SageMaker model.
 
@@ -38,20 +37,17 @@ class SageMakerModelOperator(SageMakerBaseOperator):
     """
 
     @apply_defaults
-    def __init__(self,
-                 config,
-                 *args, **kwargs):
-        super().__init__(config=config,
-                         *args, **kwargs)
+    def __init__(self, *, config, **kwargs):
+        super().__init__(config=config, **kwargs)
 
         self.config = config
 
-    def expand_role(self):
+    def expand_role(self) -> None:
         if 'ExecutionRoleArn' in self.config:
-            hook = AwsBaseHook(self.aws_conn_id)
+            hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
             self.config['ExecutionRoleArn'] = hook.expand_role(self.config['ExecutionRoleArn'])
 
-    def execute(self, context):
+    def execute(self, context) -> dict:
         self.preprocess_config()
 
         self.log.info('Creating SageMaker Model %s.', self.config['ModelName'])
@@ -59,8 +55,4 @@ class SageMakerModelOperator(SageMakerBaseOperator):
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             raise AirflowException('Sagemaker model creation failed: %s' % response)
         else:
-            return {
-                'Model': self.hook.describe_model(
-                    self.config['ModelName']
-                )
-            }
+            return {'Model': self.hook.describe_model(self.config['ModelName'])}

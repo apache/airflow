@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import json
 import unittest
 from unittest.mock import patch
@@ -22,9 +21,9 @@ from unittest.mock import patch
 from airflow.models import Connection
 
 try:
-    from airflow.providers.yandex.hooks.yandexcloud_dataproc import DataprocHook
-
     import yandexcloud
+
+    from airflow.providers.yandex.hooks.yandexcloud_dataproc import DataprocHook
 except ImportError:
     yandexcloud = None
 
@@ -63,11 +62,10 @@ SSH_PUBLIC_KEYS = [
 HAS_CREDENTIALS = OAUTH_TOKEN != 'my_oauth_token'
 
 
-@unittest.skipIf(yandexcloud is None, 'Skipping Yadnex.Cloud hook test: no yandexcloud module')
+@unittest.skipIf(yandexcloud is None, 'Skipping Yandex.Cloud hook test: no yandexcloud module')
 class TestYandexCloudDataprocHook(unittest.TestCase):
-
     def _init_hook(self):
-        with patch('airflow.hooks.base_hook.BaseHook.get_connection') as get_connection_mock:
+        with patch('airflow.hooks.base.BaseHook.get_connection') as get_connection_mock:
             get_connection_mock.return_value = self.connection
             self.hook = DataprocHook()
 
@@ -94,9 +92,7 @@ class TestYandexCloudDataprocHook(unittest.TestCase):
     @patch('yandexcloud.SDK.create_operation_and_get_result')
     def test_delete_dataproc_cluster_mocked(self, create_operation_mock):
         self._init_hook()
-        self.hook.client.delete_cluster(
-            'my_cluster_id'
-        )
+        self.hook.client.delete_cluster('my_cluster_id')
         self.assertTrue(create_operation_mock.called)
 
     @patch('yandexcloud.SDK.create_operation_and_get_result')
@@ -120,14 +116,21 @@ class TestYandexCloudDataprocHook(unittest.TestCase):
         self.hook.client.create_mapreduce_job(
             archive_uris=None,
             args=[
-                '-mapper', 'mapper.py', '-reducer', 'reducer.py', '-numReduceTasks', '1', '-input',
-                's3a://some-in-bucket/jobs/sources/data/cities500.txt.bz2', '-output',
-                's3a://some-out-bucket/dataproc/job/results'
+                '-mapper',
+                'mapper.py',
+                '-reducer',
+                'reducer.py',
+                '-numReduceTasks',
+                '1',
+                '-input',
+                's3a://some-in-bucket/jobs/sources/data/cities500.txt.bz2',
+                '-output',
+                's3a://some-out-bucket/dataproc/job/results',
             ],
             cluster_id='my_cluster_id',
             file_uris=[
                 's3a://some-in-bucket/jobs/sources/mapreduce-001/mapper.py',
-                's3a://some-in-bucket/jobs/sources/mapreduce-001/reducer.py'
+                's3a://some-in-bucket/jobs/sources/mapreduce-001/reducer.py',
             ],
             jar_file_uris=None,
             main_class='org.apache.hadoop.streaming.HadoopStreaming',
@@ -136,8 +139,8 @@ class TestYandexCloudDataprocHook(unittest.TestCase):
             properties={
                 'yarn.app.mapreduce.am.resource.mb': '2048',
                 'yarn.app.mapreduce.am.command-opts': '-Xmx2048m',
-                'mapreduce.job.maps': '6'
-            }
+                'mapreduce.job.maps': '6',
+            },
         )
         self.assertTrue(create_operation_mock.called)
 
@@ -149,7 +152,7 @@ class TestYandexCloudDataprocHook(unittest.TestCase):
             archive_uris=['s3a://some-in-bucket/jobs/sources/data/country-codes.csv.zip'],
             args=[
                 's3a://some-in-bucket/jobs/sources/data/cities500.txt.bz2',
-                's3a://some-out-bucket/dataproc/job/results/${{JOB_ID}}'
+                's3a://some-out-bucket/dataproc/job/results/${{JOB_ID}}',
             ],
             cluster_id='my_cluster_id',
             file_uris=['s3a://some-in-bucket/jobs/sources/data/config.json'],
@@ -157,12 +160,12 @@ class TestYandexCloudDataprocHook(unittest.TestCase):
                 's3a://some-in-bucket/jobs/sources/java/icu4j-61.1.jar',
                 's3a://some-in-bucket/jobs/sources/java/commons-lang-2.6.jar',
                 's3a://some-in-bucket/jobs/sources/java/opencsv-4.1.jar',
-                's3a://some-in-bucket/jobs/sources/java/json-20190722.jar'
+                's3a://some-in-bucket/jobs/sources/java/json-20190722.jar',
             ],
             main_class='ru.yandex.cloud.dataproc.examples.PopulationSparkJob',
             main_jar_file_uri='s3a://data-proc-public/jobs/sources/java/dataproc-examples-1.0.jar',
             name='Spark job',
-            properties={'spark.submit.deployMode': 'cluster'}
+            properties={'spark.submit.deployMode': 'cluster'},
         )
         self.assertTrue(create_operation_mock.called)
 
@@ -174,18 +177,18 @@ class TestYandexCloudDataprocHook(unittest.TestCase):
             archive_uris=['s3a://some-in-bucket/jobs/sources/data/country-codes.csv.zip'],
             args=[
                 's3a://some-in-bucket/jobs/sources/data/cities500.txt.bz2',
-                's3a://some-out-bucket/jobs/results/${{JOB_ID}}'
+                's3a://some-out-bucket/jobs/results/${{JOB_ID}}',
             ],
             cluster_id='my_cluster_id',
             file_uris=['s3a://some-in-bucket/jobs/sources/data/config.json'],
             jar_file_uris=[
                 's3a://some-in-bucket/jobs/sources/java/dataproc-examples-1.0.jar',
                 's3a://some-in-bucket/jobs/sources/java/icu4j-61.1.jar',
-                's3a://some-in-bucket/jobs/sources/java/commons-lang-2.6.jar'
+                's3a://some-in-bucket/jobs/sources/java/commons-lang-2.6.jar',
             ],
             main_python_file_uri='s3a://some-in-bucket/jobs/sources/pyspark-001/main.py',
             name='Pyspark job',
             properties={'spark.submit.deployMode': 'cluster'},
-            python_file_uris=['s3a://some-in-bucket/jobs/sources/pyspark-001/geonames.py']
+            python_file_uris=['s3a://some-in-bucket/jobs/sources/pyspark-001/geonames.py'],
         )
         self.assertTrue(create_operation_mock.called)

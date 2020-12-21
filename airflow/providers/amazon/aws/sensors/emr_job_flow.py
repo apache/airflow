@@ -18,7 +18,6 @@
 
 from typing import Any, Dict, Iterable, Optional
 
-from airflow.providers.amazon.aws.hooks.emr import EmrHook
 from airflow.providers.amazon.aws.sensors.emr_base import EmrBaseSensor
 from airflow.utils.decorators import apply_defaults
 
@@ -47,13 +46,15 @@ class EmrJobFlowSensor(EmrBaseSensor):
     template_ext = ()
 
     @apply_defaults
-    def __init__(self,
-                 job_flow_id: str,
-                 target_states: Optional[Iterable[str]] = None,
-                 failed_states: Optional[Iterable[str]] = None,
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        *,
+        job_flow_id: str,
+        target_states: Optional[Iterable[str]] = None,
+        failed_states: Optional[Iterable[str]] = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
         self.job_flow_id = job_flow_id
         self.target_states = target_states or ['TERMINATED']
         self.failed_states = failed_states or ['TERMINATED_WITH_ERRORS']
@@ -68,10 +69,10 @@ class EmrJobFlowSensor(EmrBaseSensor):
         :return: response
         :rtype: dict[str, Any]
         """
-        emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
+        emr_client = self.get_hook().get_conn()
 
         self.log.info('Poking cluster %s', self.job_flow_id)
-        return emr.describe_cluster(ClusterId=self.job_flow_id)
+        return emr_client.describe_cluster(ClusterId=self.job_flow_id)
 
     @staticmethod
     def state_from_response(response: Dict[str, Any]) -> str:
@@ -99,6 +100,6 @@ class EmrJobFlowSensor(EmrBaseSensor):
         state_change_reason = cluster_status.get('StateChangeReason')
         if state_change_reason:
             return 'for code: {} with message {}'.format(
-                state_change_reason.get('Code', 'No code'),
-                state_change_reason.get('Message', 'Unknown'))
+                state_change_reason.get('Code', 'No code'), state_change_reason.get('Message', 'Unknown')
+            )
         return None

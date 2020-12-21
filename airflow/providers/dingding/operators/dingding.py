@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import List, Optional, Union
 
-from airflow.operators.bash import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.dingding.hooks.dingding import DingdingHook
 from airflow.utils.decorators import apply_defaults
 
@@ -42,32 +43,31 @@ class DingdingOperator(BaseOperator):
     :param at_all: Remind all people in group or not. If True, will overwrite ``at_mobiles``
     :type at_all: bool
     """
+
     template_fields = ('message',)
     ui_color = '#4ea4d4'  # Dingding icon color
 
     @apply_defaults
-    def __init__(self,
-                 dingding_conn_id='dingding_default',
-                 message_type='text',
-                 message=None,
-                 at_mobiles=None,
-                 at_all=False,
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        *,
+        dingding_conn_id: str = 'dingding_default',
+        message_type: str = 'text',
+        message: Union[str, dict, None] = None,
+        at_mobiles: Optional[List[str]] = None,
+        at_all: bool = False,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
         self.dingding_conn_id = dingding_conn_id
         self.message_type = message_type
         self.message = message
         self.at_mobiles = at_mobiles
         self.at_all = at_all
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         self.log.info('Sending Dingding message.')
         hook = DingdingHook(
-            self.dingding_conn_id,
-            self.message_type,
-            self.message,
-            self.at_mobiles,
-            self.at_all
+            self.dingding_conn_id, self.message_type, self.message, self.at_mobiles, self.at_all
         )
         hook.send()

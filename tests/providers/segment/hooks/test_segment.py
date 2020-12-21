@@ -27,7 +27,6 @@ WRITE_KEY = 'foo'
 
 
 class TestSegmentHook(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
 
@@ -37,7 +36,6 @@ class TestSegmentHook(unittest.TestCase):
         self.conn.extra_dejson = {'write_key': self.expected_write_key}
 
         class UnitTestSegmentHook(SegmentHook):
-
             def get_conn(self):
                 return conn
 
@@ -55,7 +53,3 @@ class TestSegmentHook(unittest.TestCase):
     def test_on_error(self):
         with self.assertRaises(AirflowException):
             self.test_hook.on_error('error', ['items'])
-
-
-if __name__ == '__main__':
-    unittest.main()

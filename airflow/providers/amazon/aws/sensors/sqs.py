@@ -15,13 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Reads and then deletes the message from SQS queue
-"""
+"""Reads and then deletes the message from SQS queue"""
+from typing import Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sqs import SQSHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -44,18 +43,21 @@ class SQSSensor(BaseSensorOperator):
     template_fields = ('sqs_queue', 'max_messages')
 
     @apply_defaults
-    def __init__(self,
-                 sqs_queue,
-                 aws_conn_id='aws_default',
-                 max_messages=5,
-                 wait_time_seconds=1,
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        *,
+        sqs_queue,
+        aws_conn_id: str = 'aws_default',
+        max_messages: int = 5,
+        wait_time_seconds: int = 1,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
         self.sqs_queue = sqs_queue
         self.aws_conn_id = aws_conn_id
         self.max_messages = max_messages
         self.wait_time_seconds = wait_time_seconds
+        self.hook: Optional[SQSHook] = None
 
     def poke(self, context):
         """
@@ -65,30 +67,40 @@ class SQSSensor(BaseSensorOperator):
         :type context: dict
         :return: ``True`` if message is available or ``False``
         """
-
-        sqs_hook = SQSHook(aws_conn_id=self.aws_conn_id)
-        sqs_conn = sqs_hook.get_conn()
+        sqs_conn = self.get_hook().get_conn()
 
         self.log.info('SQSSensor checking for message on queue: %s', self.sqs_queue)
 
-        messages = sqs_conn.receive_message(QueueUrl=self.sqs_queue,
-                                            MaxNumberOfMessages=self.max_messages,
-                                            WaitTimeSeconds=self.wait_time_seconds)
+        messages = sqs_conn.receive_message(
+            QueueUrl=self.sqs_queue,
+            MaxNumberOfMessages=self.max_messages,
+            WaitTimeSeconds=self.wait_time_seconds,
+        )
 
         self.log.info("received message %s", str(messages))
 
         if 'Messages' in messages and messages['Messages']:
-            entries = [{'Id': message['MessageId'], 'ReceiptHandle': message['ReceiptHandle']}
-                       for message in messages['Messages']]
+            entries = [
+                {'Id': message['MessageId'], 'ReceiptHandle': message['ReceiptHandle']}
+                for message in messages['Messages']
+            ]
 
-            result = sqs_conn.delete_message_batch(QueueUrl=self.sqs_queue,
-                                                   Entries=entries)
+            result = sqs_conn.delete_message_batch(QueueUrl=self.sqs_queue, Entries=entries)
 
             if 'Successful' in result:
                 context['ti'].xcom_push(key='messages', value=messages)
                 return True
             else:
                 raise AirflowException(
-                    'Delete SQS Messages failed ' + str(result) + ' for messages ' + str(messages))
+                    'Delete SQS Messages failed ' + str(result) + ' for messages ' + str(messages)
+                )
 
         return False
+
+    def get_hook(self) -> SQSHook:
+        """Create and return an SQSHook"""
+        if self.hook:
+            return self.hook
+
+        self.hook = SQSHook(aws_conn_id=self.aws_conn_id)
+        return self.hook

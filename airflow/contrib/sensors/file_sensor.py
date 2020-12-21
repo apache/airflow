@@ -23,6 +23,5 @@ import warnings
 from airflow.sensors.filesystem import FileSensor  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.sensors.filesystem`.",
-    DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.sensors.filesystem`.", DeprecationWarning, stacklevel=2
 )

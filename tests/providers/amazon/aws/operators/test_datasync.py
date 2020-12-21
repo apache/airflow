@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import unittest
 from unittest import mock
 
 import boto3
+from moto import mock_datasync
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, TaskInstance
@@ -27,22 +27,6 @@ from airflow.providers.amazon.aws.operators.datasync import AWSDataSyncOperator
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 
-
-def no_datasync(x):
-    return x
-
-
-try:
-    from moto import mock_datasync
-    from moto.datasync.models import DataSyncBackend
-    # ToDo: Remove after the moto>1.3.14 is released and contains following commit:
-    # https://github.com/spulec/moto/commit/5cfbe2bb3d24886f2b33bb4480c60b26961226fc
-    if "create_task" not in dir(DataSyncBackend) or "delete_task" not in dir(DataSyncBackend):
-        mock_datasync = no_datasync
-except ImportError:
-    # flake8: noqa: F811
-    mock_datasync = no_datasync
-
 TEST_DAG_ID = "unit_tests"
 DEFAULT_DATE = datetime(2018, 1, 1)
 
@@ -50,9 +34,9 @@ SOURCE_HOST_NAME = "airflow.host"
 SOURCE_SUBDIR = "airflow_subdir"
 DESTINATION_BUCKET_NAME = "airflow_bucket"
 
-SOURCE_LOCATION_URI = "smb://{0}/{1}".format(SOURCE_HOST_NAME, SOURCE_SUBDIR)
-DESTINATION_LOCATION_URI = "s3://{0}".format(DESTINATION_BUCKET_NAME)
-DESTINATION_LOCATION_ARN = "arn:aws:s3:::{0}".format(DESTINATION_BUCKET_NAME)
+SOURCE_LOCATION_URI = f"smb://{SOURCE_HOST_NAME}/{SOURCE_SUBDIR}"
+DESTINATION_LOCATION_URI = f"s3://{DESTINATION_BUCKET_NAME}"
+DESTINATION_LOCATION_ARN = f"arn:aws:s3:::{DESTINATION_BUCKET_NAME}"
 CREATE_TASK_KWARGS = {"Options": {"VerifyMode": "NONE", "Atime": "NONE"}}
 UPDATE_TASK_KWARGS = {"Options": {"VerifyMode": "BEST_EFFORT", "Atime": "NONE"}}
 
@@ -82,9 +66,6 @@ MOCK_DATA = {
 
 @mock_datasync
 @mock.patch.object(AWSDataSyncHook, "get_conn")
-@unittest.skipIf(
-    mock_datasync == no_datasync, "moto datasync package missing"
-)  # pylint: disable=W0143
 class AWSDataSyncTestCaseBase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -130,20 +111,18 @@ class AWSDataSyncTestCaseBase(unittest.TestCase):
 
 @mock_datasync
 @mock.patch.object(AWSDataSyncHook, "get_conn")
-@unittest.skipIf(
-    mock_datasync == no_datasync, "moto datasync package missing"
-)  # pylint: disable=W0143
 class TestAWSDataSyncOperatorCreate(AWSDataSyncTestCaseBase):
     def set_up_operator(
         self,
+        task_id="test_aws_datasync_create_task_operator",
         task_arn=None,
         source_location_uri=SOURCE_LOCATION_URI,
         destination_location_uri=DESTINATION_LOCATION_URI,
-        allow_random_location_choice=False
+        allow_random_location_choice=False,
     ):
         # Create operator
         self.datasync = AWSDataSyncOperator(
-            task_id="test_aws_datasync_create_task_operator",
+            task_id=task_id,
             dag=self.dag,
             task_arn=task_arn,
             source_location_uri=source_location_uri,
@@ -171,20 +150,14 @@ class TestAWSDataSyncOperatorCreate(AWSDataSyncTestCaseBase):
         # Defaults
         self.assertEqual(self.datasync.aws_conn_id, "aws_default")
         self.assertFalse(self.datasync.allow_random_task_choice)
-        self.assertFalse(  # Empty dict
-            self.datasync.task_execution_kwargs
-        )
+        self.assertFalse(self.datasync.task_execution_kwargs)  # Empty dict
         # Assignments
-        self.assertEqual(
-            self.datasync.source_location_uri, MOCK_DATA["source_location_uri"]
-        )
+        self.assertEqual(self.datasync.source_location_uri, MOCK_DATA["source_location_uri"])
         self.assertEqual(
             self.datasync.destination_location_uri,
             MOCK_DATA["destination_location_uri"],
         )
-        self.assertEqual(
-            self.datasync.create_task_kwargs, MOCK_DATA["create_task_kwargs"]
-        )
+        self.assertEqual(self.datasync.create_task_kwargs, MOCK_DATA["create_task_kwargs"])
         self.assertEqual(
             self.datasync.create_source_location_kwargs,
             MOCK_DATA["create_source_location_kwargs"],
@@ -193,9 +166,7 @@ class TestAWSDataSyncOperatorCreate(AWSDataSyncTestCaseBase):
             self.datasync.create_destination_location_kwargs,
             MOCK_DATA["create_destination_location_kwargs"],
         )
-        self.assertFalse(
-            self.datasync.allow_random_location_choice
-        )
+        self.assertFalse(self.datasync.allow_random_location_choice)
         # ### Check mocks:
         mock_get_conn.assert_not_called()
 
@@ -209,9 +180,7 @@ class TestAWSDataSyncOperatorCreate(AWSDataSyncTestCaseBase):
         with self.assertRaises(AirflowException):
             self.set_up_operator(destination_location_uri=None)
         with self.assertRaises(AirflowException):
-            self.set_up_operator(
-                source_location_uri=None, destination_location_uri=None
-            )
+            self.set_up_operator(source_location_uri=None, destination_location_uri=None)
         # ### Check mocks:
         mock_get_conn.assert_not_called()
 
@@ -299,21 +268,28 @@ class TestAWSDataSyncOperatorCreate(AWSDataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_called()
 
-    def create_task_many_locations(self, mock_get_conn):
+    def test_create_task_many_locations(self, mock_get_conn):
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
         # ### Begin tests:
 
+        # Delete all tasks:
+        tasks = self.client.list_tasks()
+        for task in tasks["Tasks"]:
+            self.client.delete_task(TaskArn=task["TaskArn"])
         # Create duplicate source location to choose from
-        self.client.create_location_smb(
-            **MOCK_DATA["create_source_location_kwargs"]
-        )
+        self.client.create_location_smb(**MOCK_DATA["create_source_location_kwargs"])
 
-        self.set_up_operator(task_arn=self.task_arn)
+        self.set_up_operator(task_id='datasync_task1')
         with self.assertRaises(AirflowException):
             self.datasync.execute(None)
 
-        self.set_up_operator(task_arn=self.task_arn, allow_random_location_choice=True)
+        # Delete all tasks:
+        tasks = self.client.list_tasks()
+        for task in tasks["Tasks"]:
+            self.client.delete_task(TaskArn=task["TaskArn"])
+
+        self.set_up_operator(task_id='datasync_task2', allow_random_location_choice=True)
         self.datasync.execute(None)
         # ### Check mocks:
         mock_get_conn.assert_called()
@@ -351,28 +327,24 @@ class TestAWSDataSyncOperatorCreate(AWSDataSyncTestCaseBase):
 
 @mock_datasync
 @mock.patch.object(AWSDataSyncHook, "get_conn")
-@unittest.skipIf(
-    mock_datasync == no_datasync, "moto datasync package missing"
-)  # pylint: disable=W0143
 class TestAWSDataSyncOperatorGetTasks(AWSDataSyncTestCaseBase):
     def set_up_operator(
         self,
+        task_id="test_aws_datasync_get_tasks_operator",
         task_arn=None,
         source_location_uri=SOURCE_LOCATION_URI,
         destination_location_uri=DESTINATION_LOCATION_URI,
-        allow_random_task_choice=False
+        allow_random_task_choice=False,
     ):
         # Create operator
         self.datasync = AWSDataSyncOperator(
-            task_id="test_aws_datasync_get_tasks_operator",
+            task_id=task_id,
             dag=self.dag,
             task_arn=task_arn,
             source_location_uri=source_location_uri,
             destination_location_uri=destination_location_uri,
             create_source_location_kwargs=MOCK_DATA["create_source_location_kwargs"],
-            create_destination_location_kwargs=MOCK_DATA[
-                "create_destination_location_kwargs"
-            ],
+            create_destination_location_kwargs=MOCK_DATA["create_destination_location_kwargs"],
             create_task_kwargs=MOCK_DATA["create_task_kwargs"],
             allow_random_task_choice=allow_random_task_choice,
             wait_interval_seconds=0,
@@ -386,9 +358,7 @@ class TestAWSDataSyncOperatorGetTasks(AWSDataSyncTestCaseBase):
         self.assertEqual(self.datasync.aws_conn_id, "aws_default")
         self.assertFalse(self.datasync.allow_random_location_choice)
         # Assignments
-        self.assertEqual(
-            self.datasync.source_location_uri, MOCK_DATA["source_location_uri"]
-        )
+        self.assertEqual(self.datasync.source_location_uri, MOCK_DATA["source_location_uri"])
         self.assertEqual(
             self.datasync.destination_location_uri,
             MOCK_DATA["destination_location_uri"],
@@ -407,9 +377,7 @@ class TestAWSDataSyncOperatorGetTasks(AWSDataSyncTestCaseBase):
         with self.assertRaises(AirflowException):
             self.set_up_operator(destination_location_uri=None)
         with self.assertRaises(AirflowException):
-            self.set_up_operator(
-                source_location_uri=None, destination_location_uri=None
-            )
+            self.set_up_operator(source_location_uri=None, destination_location_uri=None)
         # ### Check mocks:
         mock_get_conn.assert_not_called()
 
@@ -460,7 +428,7 @@ class TestAWSDataSyncOperatorGetTasks(AWSDataSyncTestCaseBase):
         mock_get_conn.return_value = self.client
         # ### Begin tests:
 
-        # Make sure we dont cheat
+        # Make sure we don't cheat
         self.set_up_operator()
         self.assertEqual(self.datasync.task_arn, None)
 
@@ -492,7 +460,7 @@ class TestAWSDataSyncOperatorGetTasks(AWSDataSyncTestCaseBase):
         mock_get_conn.return_value = self.client
         # ### Begin tests:
 
-        self.set_up_operator()
+        self.set_up_operator(task_id='datasync_task1')
 
         self.client.create_task(
             SourceLocationArn=self.source_location_arn,
@@ -515,7 +483,7 @@ class TestAWSDataSyncOperatorGetTasks(AWSDataSyncTestCaseBase):
         locations = self.client.list_locations()
         self.assertEqual(len(locations["Locations"]), 2)
 
-        self.set_up_operator(task_arn=self.task_arn, allow_random_task_choice=True)
+        self.set_up_operator(task_id='datasync_task2', task_arn=self.task_arn, allow_random_task_choice=True)
         self.datasync.execute(None)
         # ### Check mocks:
         mock_get_conn.assert_called()
@@ -545,9 +513,7 @@ class TestAWSDataSyncOperatorGetTasks(AWSDataSyncTestCaseBase):
         self.set_up_operator()
         ti = TaskInstance(task=self.datasync, execution_date=timezone.utcnow())
         ti.run()
-        pushed_task_arn = ti.xcom_pull(
-            task_ids=self.datasync.task_id, key="return_value"
-        )["TaskArn"]
+        pushed_task_arn = ti.xcom_pull(task_ids=self.datasync.task_id, key="return_value")["TaskArn"]
         self.assertEqual(pushed_task_arn, self.task_arn)
         # ### Check mocks:
         mock_get_conn.assert_called()
@@ -555,24 +521,21 @@ class TestAWSDataSyncOperatorGetTasks(AWSDataSyncTestCaseBase):
 
 @mock_datasync
 @mock.patch.object(AWSDataSyncHook, "get_conn")
-@unittest.skipIf(
-    mock_datasync == no_datasync, "moto datasync package missing"
-)  # pylint: disable=W0143
 class TestAWSDataSyncOperatorUpdate(AWSDataSyncTestCaseBase):
-    def __init(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.datasync = None
 
-    def set_up_operator(self, task_arn="self", update_task_kwargs="default"):
+    def set_up_operator(
+        self, task_id="test_aws_datasync_update_task_operator", task_arn="self", update_task_kwargs="default"
+    ):
         if task_arn == "self":
             task_arn = self.task_arn
         if update_task_kwargs == "default":
-            update_task_kwargs = {
-                "Options": {"VerifyMode": "BEST_EFFORT", "Atime": "NONE"}
-            }
+            update_task_kwargs = {"Options": {"VerifyMode": "BEST_EFFORT", "Atime": "NONE"}}
         # Create operator
         self.datasync = AWSDataSyncOperator(
-            task_id="test_aws_datasync_update_task_operator",
+            task_id=task_id,
             dag=self.dag,
             task_arn=task_arn,
             update_task_kwargs=update_task_kwargs,
@@ -587,9 +550,7 @@ class TestAWSDataSyncOperatorUpdate(AWSDataSyncTestCaseBase):
         self.assertEqual(self.datasync.aws_conn_id, "aws_default")
         # Assignments
         self.assertEqual(self.datasync.task_arn, self.task_arn)
-        self.assertEqual(
-            self.datasync.update_task_kwargs, MOCK_DATA["update_task_kwargs"]
-        )
+        self.assertEqual(self.datasync.update_task_kwargs, MOCK_DATA["update_task_kwargs"])
         # ### Check mocks:
         mock_get_conn.assert_not_called()
 
@@ -652,9 +613,7 @@ class TestAWSDataSyncOperatorUpdate(AWSDataSyncTestCaseBase):
         self.set_up_operator()
         ti = TaskInstance(task=self.datasync, execution_date=timezone.utcnow())
         ti.run()
-        pushed_task_arn = ti.xcom_pull(
-            task_ids=self.datasync.task_id, key="return_value"
-        )["TaskArn"]
+        pushed_task_arn = ti.xcom_pull(task_ids=self.datasync.task_id, key="return_value")["TaskArn"]
         self.assertEqual(pushed_task_arn, self.task_arn)
         # ### Check mocks:
         mock_get_conn.assert_called()
@@ -662,16 +621,13 @@ class TestAWSDataSyncOperatorUpdate(AWSDataSyncTestCaseBase):
 
 @mock_datasync
 @mock.patch.object(AWSDataSyncHook, "get_conn")
-@unittest.skipIf(
-    mock_datasync == no_datasync, "moto datasync package missing"
-)  # pylint: disable=W0143
 class TestAWSDataSyncOperator(AWSDataSyncTestCaseBase):
-    def set_up_operator(self, task_arn="self"):
+    def set_up_operator(self, task_id="test_aws_datasync_task_operator", task_arn="self"):
         if task_arn == "self":
             task_arn = self.task_arn
         # Create operator
         self.datasync = AWSDataSyncOperator(
-            task_id="test_aws_datasync_task_operator",
+            task_id=task_id,
             dag=self.dag,
             wait_interval_seconds=0,
             task_arn=task_arn,
@@ -727,9 +683,7 @@ class TestAWSDataSyncOperator(AWSDataSyncTestCaseBase):
         self.assertEqual(len(locations["Locations"]), len_locations_before)
 
         # Check with the DataSync client what happened
-        task_execution = self.client.describe_task_execution(
-            TaskExecutionArn=task_execution_arn
-        )
+        task_execution = self.client.describe_task_execution(TaskExecutionArn=task_execution_arn)
         self.assertEqual(task_execution["Status"], "SUCCESS")
 
         # Insist that this specific task was executed, not anything else
@@ -782,9 +736,7 @@ class TestAWSDataSyncOperator(AWSDataSyncTestCaseBase):
         # Verify the task was killed
         task = self.client.describe_task(TaskArn=self.task_arn)
         self.assertEqual(task["Status"], "AVAILABLE")
-        task_execution = self.client.describe_task_execution(
-            TaskExecutionArn=task_execution_arn
-        )
+        task_execution = self.client.describe_task_execution(TaskExecutionArn=task_execution_arn)
         self.assertEqual(task_execution["Status"], "ERROR")
         # ### Check mocks:
         mock_get_conn.assert_called()
@@ -822,16 +774,13 @@ class TestAWSDataSyncOperator(AWSDataSyncTestCaseBase):
 
 @mock_datasync
 @mock.patch.object(AWSDataSyncHook, "get_conn")
-@unittest.skipIf(
-    mock_datasync == no_datasync, "moto datasync package missing"
-)  # pylint: disable=W0143
 class TestAWSDataSyncOperatorDelete(AWSDataSyncTestCaseBase):
-    def set_up_operator(self, task_arn="self"):
+    def set_up_operator(self, task_id="test_aws_datasync_delete_task_operator", task_arn="self"):
         if task_arn == "self":
             task_arn = self.task_arn
         # Create operator
         self.datasync = AWSDataSyncOperator(
-            task_id="test_aws_datasync_delete_task_operator",
+            task_id=task_id,
             dag=self.dag,
             task_arn=task_arn,
             delete_task_after_execution=True,
@@ -910,9 +859,7 @@ class TestAWSDataSyncOperatorDelete(AWSDataSyncTestCaseBase):
         self.set_up_operator()
         ti = TaskInstance(task=self.datasync, execution_date=timezone.utcnow())
         ti.run()
-        pushed_task_arn = ti.xcom_pull(
-            task_ids=self.datasync.task_id, key="return_value"
-        )["TaskArn"]
+        pushed_task_arn = ti.xcom_pull(task_ids=self.datasync.task_id, key="return_value")["TaskArn"]
         self.assertEqual(pushed_task_arn, self.task_arn)
         # ### Check mocks:
         mock_get_conn.assert_called()

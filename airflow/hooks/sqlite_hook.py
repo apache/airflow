@@ -24,5 +24,6 @@ from airflow.providers.sqlite.hooks.sqlite import SqliteHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.sqlite.hooks.sqlite`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

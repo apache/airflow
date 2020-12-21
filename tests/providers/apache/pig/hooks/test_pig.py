@@ -17,14 +17,12 @@
 # under the License.
 
 import unittest
-
-import mock
+from unittest import mock
 
 from airflow.providers.apache.pig.hooks.pig import PigCliHook
 
 
 class TestPigCliHook(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
 
@@ -66,6 +64,7 @@ class TestPigCliHook(unittest.TestCase):
         hook = self.pig_hook()
 
         from airflow.exceptions import AirflowException
+
         self.assertRaises(AirflowException, hook.run_cli, "")
 
     @mock.patch('subprocess.Popen')
@@ -105,7 +104,7 @@ class TestPigCliHook(unittest.TestCase):
     def test_kill_no_sp(self):
         sp_mock = mock.Mock()
         hook = self.pig_hook()
-        hook.sp = sp_mock  # pylint: disable=attribute-defined-outside-init
+        hook.sub_process = sp_mock
 
         hook.kill()
         self.assertFalse(sp_mock.kill.called)
@@ -115,7 +114,7 @@ class TestPigCliHook(unittest.TestCase):
         sp_mock.poll.return_value = 0
 
         hook = self.pig_hook()
-        hook.sp = sp_mock  # pylint: disable=attribute-defined-outside-init
+        hook.sub_process = sp_mock
 
         hook.kill()
         self.assertFalse(sp_mock.kill.called)
@@ -125,7 +124,7 @@ class TestPigCliHook(unittest.TestCase):
         sp_mock.poll.return_value = None
 
         hook = self.pig_hook()
-        hook.sp = sp_mock  # pylint: disable=attribute-defined-outside-init
+        hook.sub_process = sp_mock
 
         hook.kill()
         self.assertTrue(sp_mock.kill.called)

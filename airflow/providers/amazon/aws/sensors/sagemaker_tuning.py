@@ -35,11 +35,8 @@ class SageMakerTuningSensor(SageMakerBaseSensor):
     template_ext = ()
 
     @apply_defaults
-    def __init__(self,
-                 job_name,
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *, job_name: str, **kwargs):
+        super().__init__(**kwargs)
         self.job_name = job_name
 
     def non_terminal_states(self):
@@ -49,10 +46,8 @@ class SageMakerTuningSensor(SageMakerBaseSensor):
         return SageMakerHook.failed_states
 
     def get_sagemaker_response(self):
-        sagemaker = SageMakerHook(aws_conn_id=self.aws_conn_id)
-
         self.log.info('Poking Sagemaker Tuning Job %s', self.job_name)
-        return sagemaker.describe_tuning_job(self.job_name)
+        return self.get_hook().describe_tuning_job(self.job_name)
 
     def get_failed_reason_from_response(self, response):
         return response['FailureReason']

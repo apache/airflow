@@ -15,16 +15,65 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.presto.operators.presto_check`."""
+"""This module is deprecated. Please use `airflow.operators.sql`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.presto.operators.presto_check import (  # noqa
-    PrestoCheckOperator, PrestoIntervalCheckOperator, PrestoValueCheckOperator,
-)
+from airflow.operators.sql import SQLCheckOperator, SQLIntervalCheckOperator, SQLValueCheckOperator  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.presto.operators.presto_check`.",
-    DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.operators.sql`.", DeprecationWarning, stacklevel=2
 )
+
+
+class PrestoCheckOperator(SQLCheckOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.operators.sql.SQLCheckOperator`.
+    """
+
+    def __init__(self, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.operators.sql.SQLCheckOperator`.""",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        super().__init__(**kwargs)
+
+
+class PrestoIntervalCheckOperator(SQLIntervalCheckOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.operators.sql.SQLIntervalCheckOperator`.
+    """
+
+    def __init__(self, **kwargs):
+        warnings.warn(
+            """
+            This class is deprecated.l
+            Please use `airflow.operators.sql.SQLIntervalCheckOperator`.
+            """,
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        super().__init__(**kwargs)
+
+
+class PrestoValueCheckOperator(SQLValueCheckOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.operators.sql.SQLValueCheckOperator`.
+    """
+
+    def __init__(self, **kwargs):
+        warnings.warn(
+            """
+            This class is deprecated.l
+            Please use `airflow.operators.sql.SQLValueCheckOperator`.
+            """,
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        super().__init__(**kwargs)

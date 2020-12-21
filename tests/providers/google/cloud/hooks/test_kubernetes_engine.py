@@ -17,10 +17,10 @@
 # under the License.
 #
 import unittest
+from unittest import mock
+from unittest.mock import PropertyMock
 
-import mock
 from google.cloud.container_v1.types import Cluster
-from mock import PropertyMock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
@@ -37,7 +37,7 @@ class TestGKEHookClient(unittest.TestCase):
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook.client_info",
-        new_callable=mock.PropertyMock
+        new_callable=mock.PropertyMock,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook._get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.kubernetes_engine.container_v1.ClusterManagerClient")
@@ -45,8 +45,7 @@ class TestGKEHookClient(unittest.TestCase):
 
         result = self.gke_hook.get_conn()
         mock_client.assert_called_once_with(
-            credentials=mock_get_creds.return_value,
-            client_info=mock_client_info.return_value
+            credentials=mock_get_creds.return_value, client_info=mock_client_info.return_value
         )
         self.assertEqual(mock_client.return_value, result)
         self.assertEqual(self.gke_hook._client, result)
@@ -58,42 +57,42 @@ class TestGKEHookDelete(unittest.TestCase):
         self.gke_hook._client = mock.Mock()
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=None
+        return_value=None,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.kubernetes_engine.ParseDict")
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook.wait_for_operation")
+    @mock.patch("airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook.wait_for_operation")
     def test_delete_cluster(self, wait_mock, convert_mock, mock_project_id):
         retry_mock, timeout_mock = mock.Mock(), mock.Mock()
 
         client_delete = self.gke_hook._client.delete_cluster = mock.Mock()
 
-        self.gke_hook.delete_cluster(name=CLUSTER_NAME, project_id=TEST_GCP_PROJECT_ID,
-                                     retry=retry_mock,
-                                     timeout=timeout_mock)
+        self.gke_hook.delete_cluster(
+            name=CLUSTER_NAME, project_id=TEST_GCP_PROJECT_ID, retry=retry_mock, timeout=timeout_mock
+        )
 
-        client_delete.assert_called_once_with(project_id=TEST_GCP_PROJECT_ID,
-                                              zone=GKE_ZONE,
-                                              cluster_id=CLUSTER_NAME,
-                                              retry=retry_mock,
-                                              timeout=timeout_mock)
+        client_delete.assert_called_once_with(
+            project_id=TEST_GCP_PROJECT_ID,
+            zone=GKE_ZONE,
+            cluster_id=CLUSTER_NAME,
+            retry=retry_mock,
+            timeout=timeout_mock,
+        )
         wait_mock.assert_called_once_with(client_delete.return_value)
         convert_mock.assert_not_called()
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=None
+        return_value=None,
     )
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook.log")
+    @mock.patch("airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook.log")
     @mock.patch("airflow.providers.google.cloud.hooks.kubernetes_engine.ParseDict")
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook.wait_for_operation")
+    @mock.patch("airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook.wait_for_operation")
     def test_delete_cluster_not_found(self, wait_mock, convert_mock, log_mock, mock_project_id):
         from google.api_core.exceptions import NotFound
+
         # To force an error
         message = 'Not Found'
         self.gke_hook._client.delete_cluster.side_effect = NotFound(message=message)
@@ -104,19 +103,18 @@ class TestGKEHookDelete(unittest.TestCase):
         log_mock.info.assert_any_call("Assuming Success: %s", message)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=None
+        return_value=None,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.kubernetes_engine.ParseDict")
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook.wait_for_operation")
+    @mock.patch("airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook.wait_for_operation")
     def test_delete_cluster_error(self, wait_mock, convert_mock, mock_project_id):
         # To force an error
         self.gke_hook._client.delete_cluster.side_effect = AirflowException('400')
 
         with self.assertRaises(AirflowException):
-            self.gke_hook.delete_cluster(name='a-cluster')
+            self.gke_hook.delete_cluster(name='a-cluster')  # pylint: disable=no-value-for-parameter
             wait_mock.assert_not_called()
             convert_mock.assert_not_called()
 
@@ -127,13 +125,12 @@ class TestGKEHookCreate(unittest.TestCase):
         self.gke_hook._client = mock.Mock()
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=None
+        return_value=None,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.kubernetes_engine.ParseDict")
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook.wait_for_operation")
+    @mock.patch("airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook.wait_for_operation")
     def test_create_cluster_proto(self, wait_mock, convert_mock, mock_project_id):
         mock_cluster_proto = Cluster()
         mock_cluster_proto.name = CLUSTER_NAME
@@ -142,26 +139,27 @@ class TestGKEHookCreate(unittest.TestCase):
 
         client_create = self.gke_hook._client.create_cluster = mock.Mock()
 
-        self.gke_hook.create_cluster(cluster=mock_cluster_proto,
-                                     project_id=TEST_GCP_PROJECT_ID,
-                                     retry=retry_mock,
-                                     timeout=timeout_mock)
+        self.gke_hook.create_cluster(
+            cluster=mock_cluster_proto, project_id=TEST_GCP_PROJECT_ID, retry=retry_mock, timeout=timeout_mock
+        )
 
-        client_create.assert_called_once_with(project_id=TEST_GCP_PROJECT_ID,
-                                              zone=GKE_ZONE,
-                                              cluster=mock_cluster_proto,
-                                              retry=retry_mock, timeout=timeout_mock)
+        client_create.assert_called_once_with(
+            project_id=TEST_GCP_PROJECT_ID,
+            zone=GKE_ZONE,
+            cluster=mock_cluster_proto,
+            retry=retry_mock,
+            timeout=timeout_mock,
+        )
         wait_mock.assert_called_once_with(client_create.return_value)
         convert_mock.assert_not_called()
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=None
+        return_value=None,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.kubernetes_engine.ParseDict")
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook.wait_for_operation")
+    @mock.patch("airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook.wait_for_operation")
     def test_create_cluster_dict(self, wait_mock, convert_mock, mock_project_id):
         mock_cluster_dict = {'name': CLUSTER_NAME}
         retry_mock, timeout_mock = mock.Mock(), mock.Mock()
@@ -169,44 +167,41 @@ class TestGKEHookCreate(unittest.TestCase):
         client_create = self.gke_hook._client.create_cluster = mock.Mock()
         proto_mock = convert_mock.return_value = mock.Mock()
 
-        self.gke_hook.create_cluster(cluster=mock_cluster_dict,
-                                     project_id=TEST_GCP_PROJECT_ID,
-                                     retry=retry_mock,
-                                     timeout=timeout_mock)
-
-        client_create.assert_called_once_with(project_id=TEST_GCP_PROJECT_ID,
-                                              zone=GKE_ZONE,
-                                              cluster=proto_mock,
-                                              retry=retry_mock, timeout=timeout_mock)
-        wait_mock.assert_called_once_with(client_create.return_value)
-        convert_mock.assert_called_once_with(
-            {'name': 'test-cluster'},
-            Cluster()
+        self.gke_hook.create_cluster(
+            cluster=mock_cluster_dict, project_id=TEST_GCP_PROJECT_ID, retry=retry_mock, timeout=timeout_mock
         )
 
+        client_create.assert_called_once_with(
+            project_id=TEST_GCP_PROJECT_ID,
+            zone=GKE_ZONE,
+            cluster=proto_mock,
+            retry=retry_mock,
+            timeout=timeout_mock,
+        )
+        wait_mock.assert_called_once_with(client_create.return_value)
+        convert_mock.assert_called_once_with({'name': 'test-cluster'}, Cluster())
+
     @mock.patch("airflow.providers.google.cloud.hooks.kubernetes_engine.ParseDict")
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook.wait_for_operation")
+    @mock.patch("airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook.wait_for_operation")
     def test_create_cluster_error(self, wait_mock, convert_mock):
         # to force an error
         mock_cluster_proto = None
 
         with self.assertRaises(AirflowException):
-            self.gke_hook.create_cluster(mock_cluster_proto)
+            self.gke_hook.create_cluster(mock_cluster_proto)  # pylint: disable=no-value-for-parameter
             wait_mock.assert_not_called()
             convert_mock.assert_not_called()
 
     @mock.patch(
         'airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook._get_credentials_and_project_id',
-        return_value=(mock.MagicMock(), TEST_GCP_PROJECT_ID)
+        return_value=(mock.MagicMock(), TEST_GCP_PROJECT_ID),
     )
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook.log")
+    @mock.patch("airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook.log")
     @mock.patch("airflow.providers.google.cloud.hooks.kubernetes_engine.ParseDict")
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook.wait_for_operation")
+    @mock.patch("airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook.wait_for_operation")
     def test_create_cluster_already_exists(self, wait_mock, convert_mock, log_mock, mock_get_credentials):
         from google.api_core.exceptions import AlreadyExists
+
         # To force an error
         message = 'Already Exists'
         self.gke_hook._client.create_cluster.side_effect = AlreadyExists(message=message)
@@ -227,40 +222,41 @@ class TestGKEHookGet(unittest.TestCase):
 
         client_get = self.gke_hook._client.get_cluster = mock.Mock()
 
-        self.gke_hook.get_cluster(name=CLUSTER_NAME,
-                                  project_id=TEST_GCP_PROJECT_ID,
-                                  retry=retry_mock,
-                                  timeout=timeout_mock)
+        self.gke_hook.get_cluster(
+            name=CLUSTER_NAME, project_id=TEST_GCP_PROJECT_ID, retry=retry_mock, timeout=timeout_mock
+        )
 
-        client_get.assert_called_once_with(project_id=TEST_GCP_PROJECT_ID,
-                                           zone=GKE_ZONE,
-                                           cluster_id=CLUSTER_NAME,
-                                           retry=retry_mock, timeout=timeout_mock)
+        client_get.assert_called_once_with(
+            project_id=TEST_GCP_PROJECT_ID,
+            zone=GKE_ZONE,
+            cluster_id=CLUSTER_NAME,
+            retry=retry_mock,
+            timeout=timeout_mock,
+        )
 
 
 class TestGKEHook(unittest.TestCase):
-
     def setUp(self):
         self.gke_hook = GKEHook(location=GKE_ZONE)
         self.gke_hook._client = mock.Mock()
 
-    @mock.patch('airflow.providers.google.cloud.hooks.kubernetes_engine.container_v1.'
-                'ClusterManagerClient')
-    @mock.patch('airflow.providers.google.cloud.hooks.base.ClientInfo')
+    @mock.patch('airflow.providers.google.cloud.hooks.kubernetes_engine.container_v1.ClusterManagerClient')
+    @mock.patch('airflow.providers.google.common.hooks.base_google.ClientInfo')
     @mock.patch('airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook._get_credentials')
     def test_get_client(self, mock_get_credentials, mock_client_info, mock_client):
         self.gke_hook._client = None
         self.gke_hook.get_conn()
         assert mock_get_credentials.called
         mock_client.assert_called_once_with(
-            credentials=mock_get_credentials.return_value,
-            client_info=mock_client_info.return_value)
+            credentials=mock_get_credentials.return_value, client_info=mock_client_info.return_value
+        )
 
     def test_get_operation(self):
         self.gke_hook._client.get_operation = mock.Mock()
         self.gke_hook.get_operation('TEST_OP', project_id=TEST_GCP_PROJECT_ID)
         self.gke_hook._client.get_operation.assert_called_once_with(
-            project_id=TEST_GCP_PROJECT_ID, zone=GKE_ZONE, operation_id='TEST_OP')
+            project_id=TEST_GCP_PROJECT_ID, zone=GKE_ZONE, operation_id='TEST_OP'
+        )
 
     def test_append_label(self):
         key = 'test-key'
@@ -279,6 +275,7 @@ class TestGKEHook(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.kubernetes_engine.time.sleep")
     def test_wait_for_response_done(self, time_mock):
         from google.cloud.container_v1.gapic.enums import Operation
+
         mock_op = mock.Mock()
         mock_op.status = Operation.Status.DONE
         self.gke_hook.wait_for_operation(mock_op)

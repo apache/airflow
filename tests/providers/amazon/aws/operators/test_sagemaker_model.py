@@ -17,8 +17,7 @@
 # under the License.
 
 import unittest
-
-import mock
+from unittest import mock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
@@ -32,43 +31,32 @@ model_name = 'test-model-name'
 
 image = 'test-image'
 
-output_url = 's3://{}/test/output'.format(bucket)
+output_url = f's3://{bucket}/test/output'
 create_model_params = {
     'ModelName': model_name,
     'PrimaryContainer': {
         'Image': image,
         'ModelDataUrl': output_url,
     },
-    'ExecutionRoleArn': role
+    'ExecutionRoleArn': role,
 }
 
 
 class TestSageMakerModelOperator(unittest.TestCase):
-
     def setUp(self):
         self.sagemaker = SageMakerModelOperator(
-            task_id='test_sagemaker_operator',
-            aws_conn_id='sagemaker_test_id',
-            config=create_model_params
+            task_id='test_sagemaker_operator', aws_conn_id='sagemaker_test_id', config=create_model_params
         )
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_model')
     def test_execute(self, mock_model, mock_client):
-        mock_model.return_value = {'ModelArn': 'testarn',
-                                   'ResponseMetadata':
-                                       {'HTTPStatusCode': 200}}
+        mock_model.return_value = {'ModelArn': 'testarn', 'ResponseMetadata': {'HTTPStatusCode': 200}}
         self.sagemaker.execute(None)
         mock_model.assert_called_once_with(create_model_params)
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_model')
     def test_execute_with_failure(self, mock_model, mock_client):
-        mock_model.return_value = {'ModelArn': 'testarn',
-                                   'ResponseMetadata':
-                                       {'HTTPStatusCode': 404}}
+        mock_model.return_value = {'ModelArn': 'testarn', 'ResponseMetadata': {'HTTPStatusCode': 404}}
         self.assertRaises(AirflowException, self.sagemaker.execute, None)
-
-
-if __name__ == '__main__':
-    unittest.main()

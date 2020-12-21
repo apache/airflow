@@ -15,14 +15,36 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.mysql.operators.presto_to_mysql`."""
+"""This module is deprecated.
+
+Please use `airflow.providers.mysql.transfers.presto_to_mysql`.
+"""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.mysql.operators.presto_to_mysql import PrestoToMySqlTransfer  # noqa
+from airflow.providers.mysql.transfers.presto_to_mysql import PrestoToMySqlOperator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.mysql.operators.presto_to_mysql`.",
-    DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.providers.mysql.transfers.presto_to_mysql`.",
+    DeprecationWarning,
+    stacklevel=2,
 )
+
+
+class PrestoToMySqlTransfer(PrestoToMySqlOperator):
+    """This class is deprecated.
+
+    Please use:
+    `airflow.providers.mysql.transfers.presto_to_mysql.PrestoToMySqlOperator`.
+    """
+
+    def __init__(self, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.mysql.transfers.presto_to_mysql.PrestoToMySqlOperator`.""",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        super().__init__(**kwargs)

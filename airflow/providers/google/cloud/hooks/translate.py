@@ -15,17 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Translate Hook.
-"""
-from typing import Dict, List, Optional, Union
+"""This module contains a Google Cloud Translate Hook."""
+from typing import List, Optional, Sequence, Union
 
 from google.cloud.translate_v2 import Client
 
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class CloudTranslateHook(CloudBaseHook):
+class CloudTranslateHook(GoogleBaseHook):
     """
     Hook for Google Cloud translate APIs.
 
@@ -33,8 +31,17 @@ class CloudTranslateHook(CloudBaseHook):
     keyword arguments rather than positional.
     """
 
-    def __init__(self, gcp_conn_id: str = 'google_cloud_default') -> None:
-        super().__init__(gcp_conn_id)
+    def __init__(
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+    ) -> None:
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
         self._client = None  # type: Optional[Client]
 
     def get_conn(self) -> Client:
@@ -48,15 +55,15 @@ class CloudTranslateHook(CloudBaseHook):
             self._client = Client(credentials=self._get_credentials(), client_info=self.client_info)
         return self._client
 
-    @CloudBaseHook.quota_retry()
+    @GoogleBaseHook.quota_retry()
     def translate(
         self,
         values: Union[str, List[str]],
         target_language: str,
         format_: Optional[str] = None,
         source_language: Optional[str] = None,
-        model: Optional[Union[str, List[str]]] = None
-    ) -> Dict:
+        model: Optional[Union[str, List[str]]] = None,
+    ) -> dict:
         """Translate a string or list of strings.
 
         See https://cloud.google.com/translate/docs/translating-text
@@ -98,7 +105,7 @@ class CloudTranslateHook(CloudBaseHook):
         """
         client = self.get_conn()
 
-        return client.translate(  # type: ignore
+        return client.translate(
             values=values,
             target_language=target_language,
             format_=format_,

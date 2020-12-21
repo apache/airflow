@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+from typing import Any, Dict, List, Optional
+
 from airflow.models import BaseOperator
 from airflow.providers.opsgenie.hooks.opsgenie_alert import OpsgenieAlertHook
 from airflow.utils.decorators import apply_defaults
@@ -42,9 +44,9 @@ class OpsgenieAlertOperator(BaseOperator):
     :param responders: Teams, users, escalations and schedules that
         the alert will be routed to send notifications.
     :type responders: list[dict]
-    :param visibleTo: Teams and users that the alert will become visible
+    :param visible_to: Teams and users that the alert will become visible
         to without sending any notification.
-    :type visibleTo: list[dict]
+    :type visible_to: list[dict]
     :param actions: Custom actions that will be available for the alert.
     :type actions: list[str]
     :param tags: Tags of the alert.
@@ -64,35 +66,38 @@ class OpsgenieAlertOperator(BaseOperator):
     :param note: Additional note that will be added while creating the alert. (templated)
     :type note: str
     """
+
     template_fields = ('message', 'alias', 'description', 'entity', 'priority', 'note')
 
+    # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self,
-                 message,
-                 opsgenie_conn_id='opsgenie_default',
-                 alias=None,
-                 description=None,
-                 responders=None,
-                 visibleTo=None,
-                 actions=None,
-                 tags=None,
-                 details=None,
-                 entity=None,
-                 source=None,
-                 priority=None,
-                 user=None,
-                 note=None,
-                 *args,
-                 **kwargs
-                 ):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        *,
+        message: str,
+        opsgenie_conn_id: str = 'opsgenie_default',
+        alias: Optional[str] = None,
+        description: Optional[str] = None,
+        responders: Optional[List[dict]] = None,
+        visible_to: Optional[List[dict]] = None,
+        actions: Optional[List[dict]] = None,
+        tags: Optional[List[dict]] = None,
+        details: Optional[dict] = None,
+        entity: Optional[str] = None,
+        source: Optional[str] = None,
+        priority: Optional[str] = None,
+        user: Optional[str] = None,
+        note: Optional[str] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
 
         self.message = message
         self.opsgenie_conn_id = opsgenie_conn_id
         self.alias = alias
         self.description = description
         self.responders = responders
-        self.visibleTo = visibleTo
+        self.visible_to = visible_to
         self.actions = actions
         self.tags = tags
         self.details = details
@@ -101,9 +106,9 @@ class OpsgenieAlertOperator(BaseOperator):
         self.priority = priority
         self.user = user
         self.note = note
-        self.hook = None
+        self.hook: Optional[OpsgenieAlertHook] = None
 
-    def _build_opsgenie_payload(self):
+    def _build_opsgenie_payload(self) -> Dict[str, Any]:
         """
         Construct the Opsgenie JSON payload. All relevant parameters are combined here
         to a valid Opsgenie JSON payload.
@@ -113,18 +118,26 @@ class OpsgenieAlertOperator(BaseOperator):
         payload = {}
 
         for key in [
-            "message", "alias", "description", "responders",
-            "visibleTo", "actions", "tags", "details", "entity",
-            "source", "priority", "user", "note"
+            "message",
+            "alias",
+            "description",
+            "responders",
+            "visible_to",
+            "actions",
+            "tags",
+            "details",
+            "entity",
+            "source",
+            "priority",
+            "user",
+            "note",
         ]:
             val = getattr(self, key)
             if val:
                 payload[key] = val
         return payload
 
-    def execute(self, context):
-        """
-        Call the OpsgenieAlertHook to post message
-        """
+    def execute(self, context) -> None:
+        """Call the OpsgenieAlertHook to post message"""
         self.hook = OpsgenieAlertHook(self.opsgenie_conn_id)
         self.hook.execute(self._build_opsgenie_payload())

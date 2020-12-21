@@ -24,5 +24,6 @@ from airflow.providers.jdbc.hooks.jdbc import JdbcHook, jaydebeapi  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.jdbc.hooks.jdbc`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

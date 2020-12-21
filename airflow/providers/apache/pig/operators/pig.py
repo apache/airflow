@@ -15,9 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import re
-from typing import Optional
+from typing import Any, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.pig.hooks.pig import PigCliHook
@@ -43,35 +42,37 @@ class PigOperator(BaseOperator):
     """
 
     template_fields = ('pig',)
-    template_ext = ('.pig', '.piglatin',)
+    template_ext = (
+        '.pig',
+        '.piglatin',
+    )
     ui_color = '#f0e4ec'
 
     @apply_defaults
     def __init__(
-            self,
-            pig: str,
-            pig_cli_conn_id: str = 'pig_cli_default',
-            pigparams_jinja_translate: bool = False,
-            pig_opts: Optional[str] = None,
-            *args, **kwargs) -> None:
+        self,
+        *,
+        pig: str,
+        pig_cli_conn_id: str = 'pig_cli_default',
+        pigparams_jinja_translate: bool = False,
+        pig_opts: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.pigparams_jinja_translate = pigparams_jinja_translate
         self.pig = pig
         self.pig_cli_conn_id = pig_cli_conn_id
         self.pig_opts = pig_opts
-
-    def get_hook(self):
-        return PigCliHook(pig_cli_conn_id=self.pig_cli_conn_id)
+        self.hook = None
 
     def prepare_template(self):
         if self.pigparams_jinja_translate:
-            self.pig = re.sub(
-                r"(\$([a-zA-Z_][a-zA-Z0-9_]*))", r"{{ \g<2> }}", self.pig)
+            self.pig = re.sub(r"(\$([a-zA-Z_][a-zA-Z0-9_]*))", r"{{ \g<2> }}", self.pig)
 
     def execute(self, context):
         self.log.info('Executing: %s', self.pig)
-        self.hook = self.get_hook()
+        self.hook = PigCliHook(pig_cli_conn_id=self.pig_cli_conn_id)
         self.hook.run_cli(pig=self.pig, pig_opts=self.pig_opts)
 
     def on_kill(self):

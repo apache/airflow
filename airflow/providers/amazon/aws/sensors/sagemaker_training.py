@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import time
+from typing import Optional
 
 from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
 from airflow.providers.amazon.aws.sensors.sagemaker_base import SageMakerBaseSensor
@@ -38,23 +38,19 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
     template_ext = ()
 
     @apply_defaults
-    def __init__(self,
-                 job_name,
-                 print_log=True,
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *, job_name, print_log=True, **kwargs):
+        super().__init__(**kwargs)
         self.job_name = job_name
         self.print_log = print_log
         self.positions = {}
         self.stream_names = []
-        self.instance_count = None
-        self.state = None
+        self.instance_count: Optional[int] = None
+        self.state: Optional[int] = None
         self.last_description = None
         self.last_describe_job_call = None
         self.log_resource_inited = False
 
-    def init_log_resource(self, hook):
+    def init_log_resource(self, hook: SageMakerHook) -> None:
         """Set tailing LogState for associated training job."""
         description = hook.describe_training_job(self.job_name)
         self.instance_count = description['ResourceConfig']['InstanceCount']
@@ -63,7 +59,7 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
         job_already_completed = status not in self.non_terminal_states()
         self.state = LogState.TAILING if not job_already_completed else LogState.COMPLETE
         self.last_description = description
-        self.last_describe_job_call = time.time()
+        self.last_describe_job_call = time.monotonic()
         self.log_resource_inited = True
 
     def non_terminal_states(self):
@@ -73,24 +69,30 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
         return SageMakerHook.failed_states
 
     def get_sagemaker_response(self):
-        sagemaker_hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
         if self.print_log:
             if not self.log_resource_inited:
-                self.init_log_resource(sagemaker_hook)
-            self.state, self.last_description, self.last_describe_job_call = \
-                sagemaker_hook.describe_training_job_with_log(self.job_name,
-                                                              self.positions, self.stream_names,
-                                                              self.instance_count, self.state,
-                                                              self.last_description,
-                                                              self.last_describe_job_call)
+                self.init_log_resource(self.get_hook())
+            (
+                self.state,
+                self.last_description,
+                self.last_describe_job_call,
+            ) = self.get_hook().describe_training_job_with_log(
+                self.job_name,
+                self.positions,
+                self.stream_names,
+                self.instance_count,
+                self.state,
+                self.last_description,
+                self.last_describe_job_call,
+            )
         else:
-            self.last_description = sagemaker_hook.describe_training_job(self.job_name)
+            self.last_description = self.get_hook().describe_training_job(self.job_name)
 
         status = self.state_from_response(self.last_description)
         if status not in self.non_terminal_states() and status not in self.failed_states():
-            billable_time = \
-                (self.last_description['TrainingEndTime'] - self.last_description['TrainingStartTime']) * \
-                self.last_description['ResourceConfig']['InstanceCount']
+            billable_time = (
+                self.last_description['TrainingEndTime'] - self.last_description['TrainingStartTime']
+            ) * self.last_description['ResourceConfig']['InstanceCount']
             self.log.info('Billable seconds: %s', int(billable_time.total_seconds()) + 1)
 
         return self.last_description

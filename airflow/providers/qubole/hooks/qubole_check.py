@@ -18,6 +18,7 @@
 #
 import logging
 from io import StringIO
+from typing import List, Optional, Union
 
 from qds_sdk.commands import Command
 
@@ -30,7 +31,8 @@ COL_DELIM = '\t'
 ROW_DELIM = '\r\n'
 
 
-def isint(value):
+def isint(value) -> bool:
+    """Whether Qubole column are integer"""
     try:
         int(value)
         return True
@@ -38,7 +40,8 @@ def isint(value):
         return False
 
 
-def isfloat(value):
+def isfloat(value) -> bool:
+    """Whether Qubole column are float"""
     try:
         float(value)
         return True
@@ -46,15 +49,16 @@ def isfloat(value):
         return False
 
 
-def isbool(value):
+def isbool(value) -> bool:
+    """Whether Qubole column are boolean"""
     try:
-        if value.lower() in ["true", "false"]:
-            return True
+        return value.lower() in ["true", "false"]
     except ValueError:
         return False
 
 
-def parse_first_row(row_list):
+def parse_first_row(row_list) -> List[Union[bool, float, int, str]]:
+    """Parse Qubole first record list"""
     record_list = []
     first_row = row_list[0] if row_list else ""
 
@@ -64,25 +68,26 @@ def parse_first_row(row_list):
         elif isfloat(col_value):
             col_value = float(col_value)
         elif isbool(col_value):
-            col_value = (col_value.lower() == "true")
+            col_value = col_value.lower() == "true"
         record_list.append(col_value)
 
     return record_list
 
 
 class QuboleCheckHook(QuboleHook):
-    def __init__(self, context, *args, **kwargs):
+    """Qubole check hook"""
+
+    def __init__(self, context, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.results_parser_callable = parse_first_row
-        if 'results_parser_callable' in kwargs and \
-                kwargs['results_parser_callable'] is not None:
+        if 'results_parser_callable' in kwargs and kwargs['results_parser_callable'] is not None:
             if not callable(kwargs['results_parser_callable']):
                 raise AirflowException('`results_parser_callable` param must be callable')
             self.results_parser_callable = kwargs['results_parser_callable']
         self.context = context
 
     @staticmethod
-    def handle_failure_retry(context):
+    def handle_failure_retry(context) -> None:
         ti = context['ti']
         cmd_id = ti.xcom_pull(key='qbol_cmd_id', task_ids=ti.task_id)
 
@@ -93,21 +98,24 @@ class QuboleCheckHook(QuboleHook):
                     log.info('Cancelling the Qubole Command Id: %s', cmd_id)
                     cmd.cancel()
 
-    def get_first(self, sql):
+    def get_first(self, sql):  # pylint: disable=unused-argument
+        """Get Qubole query first record list"""
         self.execute(context=self.context)
         query_result = self.get_query_results()
         row_list = list(filter(None, query_result.split(ROW_DELIM)))
         record_list = self.results_parser_callable(row_list)
         return record_list
 
-    def get_query_results(self):
+    def get_query_results(self) -> Optional[str]:
+        """Get Qubole query result"""
         if self.cmd is not None:
             cmd_id = self.cmd.id
-            self.log.info("command id: " + str(cmd_id))
+            self.log.info("command id: %d", cmd_id)
             query_result_buffer = StringIO()
             self.cmd.get_results(fp=query_result_buffer, inline=True, delim=COL_DELIM)
             query_result = query_result_buffer.getvalue()
             query_result_buffer.close()
             return query_result
         else:
-            self.log.info("Qubole command not found")
+            self.log.error("Qubole command not found")
+            return None

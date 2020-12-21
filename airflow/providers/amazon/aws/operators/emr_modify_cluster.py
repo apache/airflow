@@ -15,6 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from typing import Any, Dict
+
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
@@ -33,25 +36,23 @@ class EmrModifyClusterOperator(BaseOperator):
     :param do_xcom_push: if True, cluster_id is pushed to XCom with key cluster_id.
     :type do_xcom_push: bool
     """
+
     template_fields = ['cluster_id', 'step_concurrency_level']
     template_ext = ()
     ui_color = '#f9c915'
 
     @apply_defaults
     def __init__(
-            self,
-            cluster_id: str,
-            step_concurrency_level: int,
-            aws_conn_id: str = 'aws_default',
-            *args, **kwargs):
+        self, *, cluster_id: str, step_concurrency_level: int, aws_conn_id: str = 'aws_default', **kwargs
+    ):
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.cluster_id = cluster_id
         self.step_concurrency_level = step_concurrency_level
 
-    def execute(self, context):
+    def execute(self, context: Dict[str, Any]) -> int:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
 
         emr = emr_hook.get_conn()
@@ -60,8 +61,9 @@ class EmrModifyClusterOperator(BaseOperator):
             context['ti'].xcom_push(key='cluster_id', value=self.cluster_id)
 
         self.log.info('Modifying cluster %s', self.cluster_id)
-        response = emr.modify_cluster(ClusterId=self.cluster_id,
-                                      StepConcurrencyLevel=self.step_concurrency_level)
+        response = emr.modify_cluster(
+            ClusterId=self.cluster_id, StepConcurrencyLevel=self.step_concurrency_level
+        )
 
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             raise AirflowException('Modify cluster failed: %s' % response)

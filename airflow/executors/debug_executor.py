@@ -16,8 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module contains DebugExecutor that is a single
-process executor meaning it does not use multiprocessing.
+DebugExecutor
+
+.. seealso::
+    For more information on how the DebugExecutor works, take a look at the guide:
+    :ref:`executor:DebugExecutor`
 """
 
 import threading
@@ -25,7 +28,7 @@ from typing import Any, Dict, List, Optional
 
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
-from airflow.models.taskinstance import TaskInstance, TaskInstanceKeyType
+from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.utils.state import State
 
 
@@ -43,13 +46,11 @@ class DebugExecutor(BaseExecutor):
         super().__init__()
         self.tasks_to_run: List[TaskInstance] = []
         # Place where we keep information for task instance raw run
-        self.tasks_params: Dict[TaskInstanceKeyType, Dict[str, Any]] = {}
+        self.tasks_params: Dict[TaskInstanceKey, Dict[str, Any]] = {}
         self.fail_fast = conf.getboolean("debug", "fail_fast")
 
-    def execute_async(self, *args, **kwargs) -> None:
-        """
-        The method is replaced by custom trigger_task implementation.
-        """
+    def execute_async(self, *args, **kwargs) -> None:  # pylint: disable=signature-differs
+        """The method is replaced by custom trigger_task implementation."""
 
     def sync(self) -> None:
         task_succeeded = True
@@ -62,9 +63,7 @@ class DebugExecutor(BaseExecutor):
                 continue
 
             if self._terminated.is_set():
-                self.log.info(
-                    "Executor is terminated! Stopping %s to %s", ti.key, State.FAILED
-                )
+                self.log.info("Executor is terminated! Stopping %s to %s", ti.key, State.FAILED)
                 ti.set_state(State.FAILED)
                 self.change_state(ti.key, State.FAILED)
                 continue
@@ -76,9 +75,7 @@ class DebugExecutor(BaseExecutor):
         key = ti.key
         try:
             params = self.tasks_params.pop(ti.key, {})
-            ti._run_raw_task(  # pylint: disable=protected-access
-                job_id=ti.job_id, **params
-            )
+            ti._run_raw_task(job_id=ti.job_id, **params)  # pylint: disable=protected-access
             self.change_state(key, State.SUCCESS)
             return True
         except Exception as e:  # pylint: disable=broad-except
@@ -98,9 +95,7 @@ class DebugExecutor(BaseExecutor):
         pool: Optional[str] = None,
         cfg_path: Optional[str] = None,
     ) -> None:
-        """
-        Queues task instance with empty command because we do not need it.
-        """
+        """Queues task instance with empty command because we do not need it."""
         self.queue_command(
             task_instance,
             [str(task_instance)],  # Just for better logging, it's not used anywhere
@@ -144,7 +139,7 @@ class DebugExecutor(BaseExecutor):
     def terminate(self) -> None:
         self._terminated.set()
 
-    def change_state(self, key: TaskInstanceKeyType, state: str) -> None:
+    def change_state(self, key: TaskInstanceKey, state: str, info=None) -> None:
         self.log.debug("Popping %s from executor task queue.", key)
         self.running.remove(key)
-        self.event_buffer[key] = state
+        self.event_buffer[key] = state, info

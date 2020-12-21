@@ -15,23 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import importlib
 import unittest
 from argparse import Namespace
 from tempfile import NamedTemporaryFile
+from unittest import mock
 
-import mock
 import pytest
 import sqlalchemy
 
 import airflow
-from airflow.bin import cli
+from airflow.cli import cli_parser
 from airflow.cli.commands import celery_command
 from airflow.configuration import conf
 from tests.test_utils.config import conf_vars
-
-mock.patch('airflow.utils.cli.action_logging', lambda x: x).start()
-mock_args = Namespace(queues=1, concurrency=1)
 
 
 class TestWorkerPrecheck(unittest.TestCase):
@@ -43,10 +39,10 @@ class TestWorkerPrecheck(unittest.TestCase):
         """
         mock_validate_session.return_value = False
         with self.assertRaises(SystemExit) as cm:
-            celery_command.worker(mock_args)
-        self.assertEqual(cm.exception.code, 1)
+            celery_command.worker(Namespace(queues=1, concurrency=1))
+        self.assertEqual(str(cm.exception), "Worker exiting, database connection precheck failed.")
 
-    @conf_vars({('core', 'worker_precheck'): 'False'})
+    @conf_vars({('celery', 'worker_precheck'): 'False'})
     def test_worker_precheck_exception(self):
         """
         Test to check the behaviour of validate_session method
@@ -55,7 +51,7 @@ class TestWorkerPrecheck(unittest.TestCase):
         self.assertTrue(airflow.settings.validate_session())
 
     @mock.patch('sqlalchemy.orm.session.Session.execute')
-    @conf_vars({('core', 'worker_precheck'): 'True'})
+    @conf_vars({('celery', 'worker_precheck'): 'True'})
     def test_validate_session_dbapi_exception(self, mock_session):
         """
         Test to validate connection failure scenario on SELECT 1 query
@@ -66,18 +62,14 @@ class TestWorkerPrecheck(unittest.TestCase):
 
 @pytest.mark.integration("redis")
 @pytest.mark.integration("rabbitmq")
+@pytest.mark.backend("mysql", "postgres")
 class TestWorkerServeLogs(unittest.TestCase):
-
     @classmethod
-    @conf_vars({("core", "executor"): "CeleryExecutor"})
     def setUpClass(cls):
-        importlib.reload(cli)
-        cls.parser = cli.CLIFactory.get_parser()
-
-    def tearDown(self):
-        importlib.reload(cli)
+        cls.parser = cli_parser.get_parser()
 
     @mock.patch('airflow.cli.commands.celery_command.worker_bin')
+    @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_serve_logs_on_worker_start(self, mock_worker):
         with mock.patch('airflow.cli.commands.celery_command.Process') as mock_process:
             args = self.parser.parse_args(['celery', 'worker', '--concurrency', '1'])
@@ -88,6 +80,7 @@ class TestWorkerServeLogs(unittest.TestCase):
                 mock_process.assert_called()
 
     @mock.patch('airflow.cli.commands.celery_command.worker_bin')
+    @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_skip_serve_logs_on_worker_start(self, mock_worker):
         with mock.patch('airflow.cli.commands.celery_command.Process') as mock_popen:
             args = self.parser.parse_args(['celery', 'worker', '--concurrency', '1', '--skip-serve-logs'])
@@ -98,18 +91,15 @@ class TestWorkerServeLogs(unittest.TestCase):
                 mock_popen.assert_not_called()
 
 
+@pytest.mark.backend("mysql", "postgres")
 class TestCeleryStopCommand(unittest.TestCase):
     @classmethod
-    @conf_vars({("core", "executor"): "CeleryExecutor"})
     def setUpClass(cls):
-        importlib.reload(cli)
-        cls.parser = cli.CLIFactory.get_parser()
-
-    def tearDown(self):
-        importlib.reload(cli)
+        cls.parser = cli_parser.get_parser()
 
     @mock.patch("airflow.cli.commands.celery_command.setup_locations")
     @mock.patch("airflow.cli.commands.celery_command.psutil.Process")
+    @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_if_right_pid_is_read(self, mock_process, mock_setup_locations):
         args = self.parser.parse_args(['celery', 'stop'])
         pid = "123"
@@ -130,11 +120,9 @@ class TestCeleryStopCommand(unittest.TestCase):
     @mock.patch("airflow.cli.commands.celery_command.read_pid_from_pidfile")
     @mock.patch("airflow.cli.commands.celery_command.worker_bin.worker")
     @mock.patch("airflow.cli.commands.celery_command.setup_locations")
+    @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_same_pid_file_is_used_in_start_and_stop(
-        self,
-        mock_setup_locations,
-        mock_celery_worker,
-        mock_read_pid_from_pidfile
+        self, mock_setup_locations, mock_celery_worker, mock_read_pid_from_pidfile
     ):
         pid_file = "test_pid_file"
         mock_setup_locations.return_value = (pid_file, None, None, None)
@@ -145,8 +133,9 @@ class TestCeleryStopCommand(unittest.TestCase):
         celery_command.worker(worker_args)
         run_mock = mock_celery_worker.return_value.run
         assert run_mock.call_args
-        assert 'pidfile' in run_mock.call_args.kwargs
-        assert run_mock.call_args.kwargs['pidfile'] == pid_file
+        _, kwargs = run_mock.call_args
+        assert 'pidfile' in kwargs
+        assert kwargs['pidfile'] == pid_file
 
         # Call stop
         stop_args = self.parser.parse_args(['celery', 'stop'])
@@ -154,19 +143,16 @@ class TestCeleryStopCommand(unittest.TestCase):
         mock_read_pid_from_pidfile.assert_called_once_with(pid_file)
 
 
+@pytest.mark.backend("mysql", "postgres")
 class TestWorkerStart(unittest.TestCase):
     @classmethod
-    @conf_vars({("core", "executor"): "CeleryExecutor"})
     def setUpClass(cls):
-        importlib.reload(cli)
-        cls.parser = cli.CLIFactory.get_parser()
-
-    def tearDown(self):
-        importlib.reload(cli)
+        cls.parser = cli_parser.get_parser()
 
     @mock.patch("airflow.cli.commands.celery_command.setup_locations")
     @mock.patch('airflow.cli.commands.celery_command.Process')
     @mock.patch('airflow.cli.commands.celery_command.worker_bin')
+    @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_worker_started_with_required_arguments(self, mock_worker, mock_popen, mock_locations):
         pid_file = "pid_file"
         mock_locations.return_value = (pid_file, None, None, None)
@@ -174,18 +160,20 @@ class TestWorkerStart(unittest.TestCase):
         celery_hostname = "celery_hostname"
         queues = "queue"
         autoscale = "2,5"
-        args = self.parser.parse_args([
-            'celery',
-            'worker',
-            '--autoscale',
-            autoscale,
-            '--concurrency',
-            concurrency,
-            '--celery-hostname',
-            celery_hostname,
-            '--queues',
-            queues
-        ])
+        args = self.parser.parse_args(
+            [
+                'celery',
+                'worker',
+                '--autoscale',
+                autoscale,
+                '--concurrency',
+                concurrency,
+                '--celery-hostname',
+                celery_hostname,
+                '--queues',
+                queues,
+            ]
+        )
 
         with mock.patch('celery.platforms.check_privileges') as mock_privil:
             mock_privil.return_value = 0

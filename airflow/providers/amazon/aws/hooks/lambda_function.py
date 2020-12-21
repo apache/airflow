@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains AWS Lambda hook
-"""
+"""This module contains AWS Lambda hook"""
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
@@ -26,50 +24,46 @@ class AwsLambdaHook(AwsBaseHook):
     """
     Interact with AWS Lambda
 
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+
     :param function_name: AWS Lambda Function Name
     :type function_name: str
-    :param region_name: AWS Region Name (example: us-west-2)
-    :type region_name: str
     :param log_type: Tail Invocation Request
     :type log_type: str
     :param qualifier: AWS Lambda Function Version or Alias Name
     :type qualifier: str
     :param invocation_type: AWS Lambda Invocation Type (RequestResponse, Event etc)
     :type invocation_type: str
-    :param config: Configuration for botocore client.
-        (https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html)
-    :type config: botocore.client.Config
     """
 
-    def __init__(self, function_name, region_name=None,
-                 log_type='None', qualifier='$LATEST',
-                 invocation_type='RequestResponse', config=None, *args, **kwargs):
+    def __init__(
+        self,
+        function_name: str,
+        log_type: str = 'None',
+        qualifier: str = '$LATEST',
+        invocation_type: str = 'RequestResponse',
+        *args,
+        **kwargs,
+    ) -> None:
         self.function_name = function_name
-        self.region_name = region_name
         self.log_type = log_type
         self.invocation_type = invocation_type
         self.qualifier = qualifier
-        self.conn = None
-        self.config = config
+        kwargs["client_type"] = "lambda"
         super().__init__(*args, **kwargs)
 
-    def get_conn(self):
-        self.conn = self.get_client_type('lambda', self.region_name, config=self.config)
-        return self.conn
-
-    def invoke_lambda(self, payload):
-        """
-        Invoke Lambda Function
-        """
-
-        awslambda_conn = self.get_conn()
-
-        response = awslambda_conn.invoke(
+    def invoke_lambda(self, payload: str) -> str:
+        """Invoke Lambda Function"""
+        response = self.conn.invoke(
             FunctionName=self.function_name,
             InvocationType=self.invocation_type,
             LogType=self.log_type,
             Payload=payload,
-            Qualifier=self.qualifier
+            Qualifier=self.qualifier,
         )
 
         return response

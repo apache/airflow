@@ -25,11 +25,12 @@ from parameterized import parameterized
 import airflow
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.subdag_operator import SkippedStatePropagationOptions, SubDagOperator
+from airflow.operators.dummy import DummyOperator
+from airflow.operators.subdag import SkippedStatePropagationOptions, SubDagOperator
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
+from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs
 
 DEFAULT_DATE = datetime(2016, 1, 1)
@@ -41,7 +42,6 @@ default_args = dict(
 
 
 class TestSubDagOperator(unittest.TestCase):
-
     def setUp(self):
         clear_db_runs()
         self.dag_run_running = DagRun()
@@ -62,15 +62,9 @@ class TestSubDagOperator(unittest.TestCase):
         subdag_bad3 = DAG('bad.bad', default_args=default_args)
 
         SubDagOperator(task_id='test', dag=dag, subdag=subdag_good)
-        self.assertRaises(
-            AirflowException,
-            SubDagOperator, task_id='test', dag=dag, subdag=subdag_bad1)
-        self.assertRaises(
-            AirflowException,
-            SubDagOperator, task_id='test', dag=dag, subdag=subdag_bad2)
-        self.assertRaises(
-            AirflowException,
-            SubDagOperator, task_id='test', dag=dag, subdag=subdag_bad3)
+        self.assertRaises(AirflowException, SubDagOperator, task_id='test', dag=dag, subdag=subdag_bad1)
+        self.assertRaises(AirflowException, SubDagOperator, task_id='test', dag=dag, subdag=subdag_bad2)
+        self.assertRaises(AirflowException, SubDagOperator, task_id='test', dag=dag, subdag=subdag_bad3)
 
     def test_subdag_in_context_manager(self):
         """
@@ -100,14 +94,12 @@ class TestSubDagOperator(unittest.TestCase):
         DummyOperator(task_id='dummy', dag=subdag, pool='test_pool_1')
 
         self.assertRaises(
-            AirflowException,
-            SubDagOperator,
-            task_id='child', dag=dag, subdag=subdag, pool='test_pool_1')
+            AirflowException, SubDagOperator, task_id='child', dag=dag, subdag=subdag, pool='test_pool_1'
+        )
 
         # recreate dag because failed subdagoperator was already added
         dag = DAG('parent', default_args=default_args)
-        SubDagOperator(
-            task_id='child', dag=dag, subdag=subdag, pool='test_pool_10')
+        SubDagOperator(task_id='child', dag=dag, subdag=subdag, pool='test_pool_10')
 
         session.delete(pool_1)
         session.delete(pool_10)
@@ -131,9 +123,7 @@ class TestSubDagOperator(unittest.TestCase):
         DummyOperator(task_id='dummy', dag=subdag, pool='test_pool_10')
 
         mock_session = Mock()
-        SubDagOperator(
-            task_id='child', dag=dag, subdag=subdag, pool='test_pool_1',
-            session=mock_session)
+        SubDagOperator(task_id='child', dag=dag, subdag=subdag, pool='test_pool_1', session=mock_session)
         self.assertFalse(mock_session.query.called)
 
         session.delete(pool_1)
@@ -160,8 +150,39 @@ class TestSubDagOperator(unittest.TestCase):
         subdag_task.post_execute(context={'execution_date': DEFAULT_DATE})
 
         subdag.create_dagrun.assert_called_once_with(
-            run_id="scheduled__{}".format(DEFAULT_DATE.isoformat()),
+            run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
+            conf=None,
+            state=State.RUNNING,
+            external_trigger=True,
+        )
+
+        self.assertEqual(3, len(subdag_task._get_dagrun.mock_calls))
+
+    def test_execute_create_dagrun_with_conf(self):
+        """
+        When SubDagOperator executes, it creates a DagRun if there is no existing one
+        and wait until the DagRun succeeds.
+        """
+        conf = {"key": "value"}
+        dag = DAG('parent', default_args=default_args)
+        subdag = DAG('parent.test', default_args=default_args)
+        subdag_task = SubDagOperator(task_id='test', subdag=subdag, dag=dag, poke_interval=1, conf=conf)
+
+        subdag.create_dagrun = Mock()
+        subdag.create_dagrun.return_value = self.dag_run_running
+
+        subdag_task._get_dagrun = Mock()
+        subdag_task._get_dagrun.side_effect = [None, self.dag_run_success, self.dag_run_success]
+
+        subdag_task.pre_execute(context={'execution_date': DEFAULT_DATE})
+        subdag_task.execute(context={'execution_date': DEFAULT_DATE})
+        subdag_task.post_execute(context={'execution_date': DEFAULT_DATE})
+
+        subdag.create_dagrun.assert_called_once_with(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+            conf=conf,
             state=State.RUNNING,
             external_trigger=True,
         )
@@ -226,7 +247,7 @@ class TestSubDagOperator(unittest.TestCase):
             session.commit()
 
         sub_dagrun = subdag.create_dagrun(
-            run_id="scheduled__{}".format(DEFAULT_DATE.isoformat()),
+            run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
             state=State.FAILED,
             external_trigger=True,
@@ -240,22 +261,19 @@ class TestSubDagOperator(unittest.TestCase):
         sub_dagrun.refresh_from_db()
         self.assertEqual(sub_dagrun.state, State.RUNNING)
 
-    @parameterized.expand([
-        (SkippedStatePropagationOptions.ALL_LEAVES, [State.SKIPPED, State.SKIPPED], True),
-        (SkippedStatePropagationOptions.ALL_LEAVES, [State.SKIPPED, State.SUCCESS], False),
-        (SkippedStatePropagationOptions.ANY_LEAF, [State.SKIPPED, State.SUCCESS], True),
-        (SkippedStatePropagationOptions.ANY_LEAF, [State.FAILED, State.SKIPPED], True),
-        (None, [State.SKIPPED, State.SKIPPED], False),
-    ])
-    @mock.patch('airflow.operators.subdag_operator.SubDagOperator.skip')
-    @mock.patch('airflow.operators.subdag_operator.get_task_instance')
+    @parameterized.expand(
+        [
+            (SkippedStatePropagationOptions.ALL_LEAVES, [State.SKIPPED, State.SKIPPED], True),
+            (SkippedStatePropagationOptions.ALL_LEAVES, [State.SKIPPED, State.SUCCESS], False),
+            (SkippedStatePropagationOptions.ANY_LEAF, [State.SKIPPED, State.SUCCESS], True),
+            (SkippedStatePropagationOptions.ANY_LEAF, [State.FAILED, State.SKIPPED], True),
+            (None, [State.SKIPPED, State.SKIPPED], False),
+        ]
+    )
+    @mock.patch('airflow.operators.subdag.SubDagOperator.skip')
+    @mock.patch('airflow.operators.subdag.get_task_instance')
     def test_subdag_with_propagate_skipped_state(
-        self,
-        propagate_option,
-        states,
-        skip_parent,
-        mock_get_task_instance,
-        mock_skip
+        self, propagate_option, states, skip_parent, mock_get_task_instance, mock_skip
     ):
         """
         Tests that skipped state of leaf tasks propagates to the parent dag.
@@ -264,15 +282,10 @@ class TestSubDagOperator(unittest.TestCase):
         dag = DAG('parent', default_args=default_args)
         subdag = DAG('parent.test', default_args=default_args)
         subdag_task = SubDagOperator(
-            task_id='test',
-            subdag=subdag,
-            dag=dag,
-            poke_interval=1,
-            propagate_skipped_state=propagate_option
+            task_id='test', subdag=subdag, dag=dag, poke_interval=1, propagate_skipped_state=propagate_option
         )
         dummy_subdag_tasks = [
-            DummyOperator(task_id='dummy_subdag_{}'.format(i), dag=subdag)
-            for i in range(len(states))
+            DummyOperator(task_id=f'dummy_subdag_{i}', dag=subdag) for i in range(len(states))
         ]
         dummy_dag_task = DummyOperator(task_id='dummy_dag', dag=dag)
         subdag_task >> dummy_dag_task
@@ -280,25 +293,14 @@ class TestSubDagOperator(unittest.TestCase):
         subdag_task._get_dagrun = Mock()
         subdag_task._get_dagrun.return_value = self.dag_run_success
         mock_get_task_instance.side_effect = [
-            TaskInstance(
-                task=task,
-                execution_date=DEFAULT_DATE,
-                state=state
-            ) for task, state in zip(dummy_subdag_tasks, states)
+            TaskInstance(task=task, execution_date=DEFAULT_DATE, state=state)
+            for task, state in zip(dummy_subdag_tasks, states)
         ]
 
-        context = {
-            'execution_date': DEFAULT_DATE,
-            'dag_run': DagRun(),
-            'task': subdag_task
-        }
+        context = {'execution_date': DEFAULT_DATE, 'dag_run': DagRun(), 'task': subdag_task}
         subdag_task.post_execute(context)
 
         if skip_parent:
-            mock_skip.assert_called_once_with(
-                context['dag_run'],
-                context['execution_date'],
-                [dummy_dag_task]
-            )
+            mock_skip.assert_called_once_with(context['dag_run'], context['execution_date'], [dummy_dag_task])
         else:
             mock_skip.assert_not_called()

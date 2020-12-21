@@ -19,6 +19,7 @@
 from collections import defaultdict
 
 from airflow.executors.base_executor import BaseExecutor
+from airflow.models.taskinstance import TaskInstanceKey
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
@@ -36,9 +37,16 @@ class MockExecutor(BaseExecutor):
         self.history = []
         # All the tasks, in a stable sort order
         self.sorted_tasks = []
-        self.mock_task_results = defaultdict(lambda: State.SUCCESS)
+
+        # If multiprocessing runs in spawn mode,
+        # arguments are to be pickled but lambda is not picclable.
+        # So we should pass self.success instead of lambda.
+        self.mock_task_results = defaultdict(self.success)
 
         super().__init__(*args, **kwargs)
+
+    def success(self):
+        return State.SUCCESS
 
     def heartbeat(self):
         if not self.do_update:
@@ -59,10 +67,9 @@ class MockExecutor(BaseExecutor):
             open_slots = self.parallelism - len(self.running)
             sorted_queue = sorted(self.queued_tasks.items(), key=sort_by)
             for index in range(min((open_slots, len(sorted_queue)))):
-                (key, (_, _, _, simple_ti)) = sorted_queue[index]
+                (key, (_, _, _, ti)) = sorted_queue[index]
                 self.queued_tasks.pop(key)
                 state = self.mock_task_results[key]
-                ti = simple_ti.construct_task_instance(session=session, lock_for_update=True)
                 ti.set_state(state, session=session)
                 self.change_state(key, state)
 
@@ -72,11 +79,11 @@ class MockExecutor(BaseExecutor):
     def end(self):
         self.sync()
 
-    def change_state(self, key, state):
-        super().change_state(key, state)
+    def change_state(self, key, state, info=None):
+        super().change_state(key, state, info=info)
         # The normal event buffer is cleared after reading, we want to keep
         # a list of all events for testing
-        self.sorted_tasks.append((key, state))
+        self.sorted_tasks.append((key, (state, info)))
 
     def mock_task_fail(self, dag_id, task_id, date, try_number=1):
         """
@@ -86,4 +93,4 @@ class MockExecutor(BaseExecutor):
         If the task identified by the tuple ``(dag_id, task_id, date,
         try_number)`` is run by this executor it's state will be FAILED.
         """
-        self.mock_task_results[(dag_id, task_id, date, try_number)] = State.FAILED
+        self.mock_task_results[TaskInstanceKey(dag_id, task_id, date, try_number)] = State.FAILED

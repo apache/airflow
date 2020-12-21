@@ -15,6 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional
+
+from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -23,7 +26,6 @@ from airflow.utils.decorators import apply_defaults
 
 
 class SageMakerEndpointOperator(SageMakerBaseOperator):
-
     """
     Create a SageMaker endpoint.
 
@@ -70,15 +72,17 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
     """
 
     @apply_defaults
-    def __init__(self,
-                 config,
-                 wait_for_completion=True,
-                 check_interval=30,
-                 max_ingestion_time=None,
-                 operation='create',
-                 *args, **kwargs):
-        super().__init__(config=config,
-                         *args, **kwargs)
+    def __init__(
+        self,
+        *,
+        config: dict,
+        wait_for_completion: bool = True,
+        check_interval: int = 30,
+        max_ingestion_time: Optional[int] = None,
+        operation: str = 'create',
+        **kwargs,
+    ):
+        super().__init__(config=config, **kwargs)
 
         self.config = config
         self.wait_for_completion = wait_for_completion
@@ -89,22 +93,20 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
             raise ValueError('Invalid value! Argument operation has to be one of "create" and "update"')
         self.create_integer_fields()
 
-    def create_integer_fields(self):
+    def create_integer_fields(self) -> None:
         """Set fields which should be casted to integers."""
         if 'EndpointConfig' in self.config:
-            self.integer_fields = [
-                ['EndpointConfig', 'ProductionVariants', 'InitialInstanceCount']
-            ]
+            self.integer_fields = [['EndpointConfig', 'ProductionVariants', 'InitialInstanceCount']]
 
-    def expand_role(self):
+    def expand_role(self) -> None:
         if 'Model' not in self.config:
             return
-        hook = AwsBaseHook(self.aws_conn_id)
+        hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
         config = self.config['Model']
         if 'ExecutionRoleArn' in config:
             config['ExecutionRoleArn'] = hook.expand_role(config['ExecutionRoleArn'])
 
-    def execute(self, context):
+    def execute(self, context) -> dict:
         self.preprocess_config()
 
         model_info = self.config.get('Model')
@@ -129,22 +131,28 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
             raise ValueError('Invalid value! Argument operation has to be one of "create" and "update"')
 
         self.log.info('%s SageMaker endpoint %s.', log_str, endpoint_info['EndpointName'])
+        try:
+            response = sagemaker_operation(
+                endpoint_info,
+                wait_for_completion=self.wait_for_completion,
+                check_interval=self.check_interval,
+                max_ingestion_time=self.max_ingestion_time,
+            )
+        except ClientError:  # Botocore throws a ClientError if the endpoint is already created
+            self.operation = 'update'
+            sagemaker_operation = self.hook.update_endpoint
+            log_str = 'Updating'
+            response = sagemaker_operation(
+                endpoint_info,
+                wait_for_completion=self.wait_for_completion,
+                check_interval=self.check_interval,
+                max_ingestion_time=self.max_ingestion_time,
+            )
 
-        response = sagemaker_operation(
-            endpoint_info,
-            wait_for_completion=self.wait_for_completion,
-            check_interval=self.check_interval,
-            max_ingestion_time=self.max_ingestion_time
-        )
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-            raise AirflowException(
-                'Sagemaker endpoint creation failed: %s' % response)
+            raise AirflowException('Sagemaker endpoint creation failed: %s' % response)
         else:
             return {
-                'EndpointConfig': self.hook.describe_endpoint_config(
-                    endpoint_info['EndpointConfigName']
-                ),
-                'Endpoint': self.hook.describe_endpoint(
-                    endpoint_info['EndpointName']
-                )
+                'EndpointConfig': self.hook.describe_endpoint_config(endpoint_info['EndpointConfigName']),
+                'Endpoint': self.hook.describe_endpoint(endpoint_info['EndpointName']),
             }

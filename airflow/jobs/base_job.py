@@ -21,24 +21,25 @@ import getpass
 from time import sleep
 from typing import Optional
 
-from sqlalchemy import Column, Index, Integer, String, and_
+from sqlalchemy import Column, Index, Integer, String
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.orm.session import make_transient
 
-from airflow import models
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.models import DagRun
 from airflow.models.base import ID_LEN, Base
+from airflow.models.taskinstance import TaskInstance
 from airflow.stats import Stats
-from airflow.utils import helpers, timezone
+from airflow.utils import timezone
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
-from airflow.utils.types import DagRunType
 
 
 class BaseJob(Base, LoggingMixin):
@@ -52,7 +53,9 @@ class BaseJob(Base, LoggingMixin):
     __tablename__ = "job"
 
     id = Column(Integer, primary_key=True)
-    dag_id = Column(String(ID_LEN),)
+    dag_id = Column(
+        String(ID_LEN),
+    )
     state = Column(String(20))
     job_type = Column(String(30))
     start_date = Column(UtcDateTime())
@@ -62,26 +65,37 @@ class BaseJob(Base, LoggingMixin):
     hostname = Column(String(500))
     unixname = Column(String(1000))
 
-    __mapper_args__ = {
-        'polymorphic_on': job_type,
-        'polymorphic_identity': 'BaseJob'
-    }
+    __mapper_args__ = {'polymorphic_on': job_type, 'polymorphic_identity': 'BaseJob'}
 
     __table_args__ = (
         Index('job_type_heart', job_type, latest_heartbeat),
         Index('idx_job_state_heartbeat', state, latest_heartbeat),
     )
 
+    task_instances_enqueued = relationship(
+        TaskInstance,
+        primaryjoin=id == foreign(TaskInstance.queued_by_job_id),
+        backref=backref('queued_by_job', uselist=False),
+    )
+
+    dag_runs = relationship(
+        DagRun,
+        primaryjoin=id == foreign(DagRun.creating_job_id),
+        backref=backref('creating_job'),
+    )
+
+    """
+    TaskInstances which have been enqueued by this Job.
+
+    Only makes sense for SchedulerJob and BackfillJob instances.
+    """
+
     heartrate = conf.getfloat('scheduler', 'JOB_HEARTBEAT_SEC')
 
-    def __init__(
-            self,
-            executor=None,
-            heartrate=None,
-            *args, **kwargs):
+    def __init__(self, executor=None, heartrate=None, *args, **kwargs):
         self.hostname = get_hostname()
         self.executor = executor or ExecutorLoader.get_default_executor()
-        self.executor_class = executor.__class__.__name__
+        self.executor_class = self.executor.__class__.__name__
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
         if heartrate is not None:
@@ -118,15 +132,14 @@ class BaseJob(Base, LoggingMixin):
         :rtype: boolean
         """
         return (
-            self.state == State.RUNNING and
-            (timezone.utcnow() - self.latest_heartbeat).total_seconds() < self.heartrate * grace_multiplier
+            self.state == State.RUNNING
+            and (timezone.utcnow() - self.latest_heartbeat).total_seconds()
+            < self.heartrate * grace_multiplier
         )
 
     @provide_session
     def kill(self, session=None):
-        """
-        Handles on_kill callback and updates state in database.
-        """
+        """Handles on_kill callback and updates state in database."""
         job = session.query(BaseJob).filter(BaseJob.id == self.id).first()
         job.end_date = timezone.utcnow()
         try:
@@ -138,16 +151,12 @@ class BaseJob(Base, LoggingMixin):
         raise AirflowException("Job shut down externally.")
 
     def on_kill(self):
-        """
-        Will be called when an external kill command is received
-        """
+        """Will be called when an external kill command is received"""
 
     def heartbeat_callback(self, session=None):
-        """
-        Callback that is called during heartbeat. This method should be overwritten.
-        """
+        """Callback that is called during heartbeat. This method should be overwritten."""
 
-    def heartbeat(self):
+    def heartbeat(self, only_if_necessary: bool = False):
         """
         Heartbeats update the job's entry in the database with a timestamp
         for the latest_heartbeat and allows for the job to be killed
@@ -165,7 +174,18 @@ class BaseJob(Base, LoggingMixin):
         will sleep 50 seconds to complete the 60 seconds and keep a steady
         heart rate. If you go over 60 seconds before calling it, it won't
         sleep at all.
+
+        :param only_if_necessary: If the heartbeat is not yet due then do
+            nothing (don't update column, don't call ``heartbeat_callback``)
+        :type only_if_necessary: boolean
         """
+        seconds_remaining = 0
+        if self.latest_heartbeat:
+            seconds_remaining = self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
+
+        if seconds_remaining > 0 and only_if_necessary:
+            return
+
         previous_heartbeat = self.latest_heartbeat
 
         try:
@@ -180,15 +200,15 @@ class BaseJob(Base, LoggingMixin):
             # Figure out how long to sleep for
             sleep_for = 0
             if self.latest_heartbeat:
-                seconds_remaining = self.heartrate - \
-                    (timezone.utcnow() - self.latest_heartbeat)\
-                    .total_seconds()
+                seconds_remaining = (
+                    self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
+                )
                 sleep_for = max(0, seconds_remaining)
             sleep(sleep_for)
 
             # Update last heartbeat time
             with create_session() as session:
-                # Make the sesion aware of this object
+                # Make the session aware of this object
                 session.merge(self)
                 self.latest_heartbeat = timezone.utcnow()
                 session.commit()
@@ -198,26 +218,20 @@ class BaseJob(Base, LoggingMixin):
                 self.heartbeat_callback(session=session)
                 self.log.debug('[heartbeat]')
         except OperationalError:
-            Stats.incr(
-                convert_camel_to_snake(self.__class__.__name__) + '_heartbeat_failure', 1,
-                1)
+            Stats.incr(convert_camel_to_snake(self.__class__.__name__) + '_heartbeat_failure', 1, 1)
             self.log.exception("%s heartbeat got an exception", self.__class__.__name__)
             # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
             self.latest_heartbeat = previous_heartbeat
 
     def run(self):
-        """
-        Starts the job.
-        """
+        """Starts the job."""
         Stats.incr(self.__class__.__name__.lower() + '_start', 1, 1)
         # Adding an entry in the DB
         with create_session() as session:
             self.state = State.RUNNING
             session.add(self)
             session.commit()
-            id_ = self.id
             make_transient(self)
-            self.id = id_
 
             try:
                 self._execute()
@@ -238,80 +252,3 @@ class BaseJob(Base, LoggingMixin):
 
     def _execute(self):
         raise NotImplementedError("This method needs to be overridden")
-
-    @provide_session
-    def reset_state_for_orphaned_tasks(self, filter_by_dag_run=None, session=None):
-        """
-        This function checks if there are any tasks in the dagrun (or all)
-        that have a scheduled state but are not known by the
-        executor. If it finds those it will reset the state to None
-        so they will get picked up again.
-        The batch option is for performance reasons as the queries are made in
-        sequence.
-
-        :param filter_by_dag_run: the dag_run we want to process, None if all
-        :type filter_by_dag_run: airflow.models.DagRun
-        :return: the TIs reset (in expired SQLAlchemy state)
-        :rtype: list[airflow.models.TaskInstance]
-        """
-        queued_tis = self.executor.queued_tasks
-        # also consider running as the state might not have changed in the db yet
-        running_tis = self.executor.running
-
-        resettable_states = [State.SCHEDULED, State.QUEUED]
-        TI = models.TaskInstance
-        DR = models.DagRun
-        if filter_by_dag_run is None:
-            resettable_tis = (
-                session
-                .query(TI)
-                .join(
-                    DR,
-                    and_(
-                        TI.dag_id == DR.dag_id,
-                        TI.execution_date == DR.execution_date))
-                .filter(
-                    DR.state == State.RUNNING,
-                    DR.run_id.notlike(DagRunType.BACKFILL_JOB.value + '%'),
-                    TI.state.in_(resettable_states))).all()
-        else:
-            resettable_tis = filter_by_dag_run.get_task_instances(state=resettable_states,
-                                                                  session=session)
-        tis_to_reset = []
-        # Can't use an update here since it doesn't support joins
-        for ti in resettable_tis:
-            if ti.key not in queued_tis and ti.key not in running_tis:
-                tis_to_reset.append(ti)
-
-        if len(tis_to_reset) == 0:
-            return []
-
-        def query(result, items):
-            if not items:
-                return result
-
-            filter_for_tis = TI.filter_for_tis(items)
-            reset_tis = session.query(TI).filter(
-                filter_for_tis, TI.state.in_(resettable_states)
-            ).with_for_update().all()
-
-            for ti in reset_tis:
-                ti.state = State.NONE
-                session.merge(ti)
-
-            return result + reset_tis
-
-        reset_tis = helpers.reduce_in_chunks(query,
-                                             tis_to_reset,
-                                             [],
-                                             self.max_tis_per_query)
-
-        task_instance_str = '\n\t'.join(
-            [repr(x) for x in reset_tis])
-        session.commit()
-
-        self.log.info(
-            "Reset the following %s TaskInstances:\n\t%s",
-            len(reset_tis), task_instance_str
-        )
-        return reset_tis

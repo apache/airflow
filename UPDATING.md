@@ -16,6 +16,7 @@
  specific language governing permissions and limitations
  under the License.
 -->
+
 # Updating Airflow
 
 This file documents any backwards-incompatible changes in Airflow and
@@ -25,7 +26,13 @@ assists users migrating to a new version.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
-- [Airflow Master](#airflow-master)
+- [Master](#master)
+- [Airflow 2.0.0](#airflow-200)
+- [Airflow 1.10.14](#airflow-11014)
+- [Airflow 1.10.13](#airflow-11013)
+- [Airflow 1.10.12](#airflow-11012)
+- [Airflow 1.10.11](#airflow-11011)
+- [Airflow 1.10.10](#airflow-11010)
 - [Airflow 1.10.9](#airflow-1109)
 - [Airflow 1.10.8](#airflow-1108)
 - [Airflow 1.10.7](#airflow-1107)
@@ -43,7 +50,178 @@ assists users migrating to a new version.
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## Airflow Master
+## Master
+
+## Airflow 2.0.0
+
+### The experimental REST API is disabled by default
+
+The experimental REST API is disabled by default. To restore these APIs while migrating to
+the stable REST API, set `enable_experimental_api` option in `[api]` section to `True`.
+
+Please note that the experimental REST API do not have access control.
+The authenticated user has full access.
+
+### SparkJDBCHook default connection
+
+For SparkJDBCHook default connection was `spark-default`, and for SparkSubmitHook it was
+`spark_default`. Both hooks now use the `spark_default` which is a common pattern for the connection
+names used across all providers.
+
+### Changes to output argument in commands
+
+From Airflow 2.0, We are replacing [tabulate](https://pypi.org/project/tabulate/) with [rich](https://github.com/willmcgugan/rich) to render commands output. Due to this change, the `--output` argument
+will no longer accept formats of tabulate tables. Instead, it now accepts:
+
+- `table` - will render the output in predefined table
+- `json` - will render the output as a json
+- `yaml` - will render the output as yaml
+
+By doing this we increased consistency and gave users possibility to manipulate the
+output programmatically (when using json or yaml).
+
+Affected commands:
+
+- `airflow dags list`
+- `airflow dags report`
+- `airflow dags list-runs`
+- `airflow dags list-jobs`
+- `airflow connections list`
+- `airflow connections get`
+- `airflow pools list`
+- `airflow pools get`
+- `airflow pools set`
+- `airflow pools delete`
+- `airflow pools import`
+- `airflow pools export`
+- `airflow role list`
+- `airflow providers list`
+- `airflow providers get`
+- `airflow providers hooks`
+- `airflow tasks states-for-dag-run`
+- `airflow users list`
+- `airflow variables list`
+
+### Azure Wasb Hook does not work together with Snowflake hook
+
+The WasbHook in Apache Airflow use a legacy version of Azure library. While the conflict is not
+significant for most of the Azure hooks, it is a problem for Wasb Hook because the `blob` folders
+for both libraries overlap. Installing both Snowflake and Azure extra will result in non-importable
+WasbHook.
+
+### Rename `all` to `devel_all` extra
+
+The `all` extras were reduced to include only user-facing dependencies. This means
+that this extra does not contain development dependencies. If you were relying on
+`all` extra then you should use now `devel_all` or figure out if you need development
+extras at all.
+
+### Context variables `prev_execution_date_success` and `prev_execution_date_success` are now `pendulum.DateTime`
+
+### Rename policy to task_policy
+
+Because Airflow introduced DAG level policy (`dag_policy`) we decided to rename existing `policy`
+function to `task_policy` to make the distinction more profound and avoid any confusion.
+
+Users using cluster policy need to rename their `policy` functions in `airflow_local_settings.py`
+to `task_policy`.
+
+### Default value for `[celery] operation_timeout` has changed to `1.0`
+
+From Airflow 2, by default Airflow will retry 3 times to publish task to Celery broker. This is controlled by
+`[celery] task_publish_max_retries`. Because of this we can now have a lower Operation timeout that raises
+`AirflowTaskTimeout`. This generally occurs during network blips or intermittent DNS issues.
+
+### Adding Operators and Sensors via plugins is no longer supported
+
+Operators and Sensors should no longer be registered or imported via Airflow's plugin mechanism -- these types of classes are just treated as plain python classes by Airflow, so there is no need to register them with Airflow.
+
+If you previously had a `plugins/my_plugin.py` and you used it like this in a DAG:
+
+```
+from airflow.operators.my_plugin import MyOperator
+```
+
+You should instead import it as:
+
+```
+from my_plugin import MyOperator
+```
+
+The name under `airflow.operators.` was the plugin name, where as in the second example it is the python module name where the operator is defined.
+
+See https://airflow.apache.org/docs/stable/howto/custom-operator.html for more info.
+
+### Importing Hooks via plugins is no longer supported
+
+Importing hooks added in plugins via `airflow.hooks.<plugin_name>` is no longer supported, and hooks should just be imported as regular python modules.
+
+```
+from airflow.hooks.my_plugin import MyHook
+```
+
+You should instead import it as:
+
+```
+from my_plugin import MyHook
+```
+
+It is still possible (but not required) to "register" hooks in plugins. This is to allow future support for dynamically populating the Connections form in the UI.
+
+See https://airflow.apache.org/docs/stable/howto/custom-operator.html for more info.
+
+### Adding Operators and Sensors via plugins is no longer supported
+
+### The default value for `[core] enable_xcom_pickling` has been changed to `False`
+
+The pickle type for XCom messages has been replaced to JSON by default to prevent RCE attacks.
+Note that JSON serialization is stricter than pickling, so for example if you want to pass
+raw bytes through XCom you must encode them using an encoding like ``base64``.
+If you understand the risk and still want to use [pickling](https://docs.python.org/3/library/pickle.html),
+set `enable_xcom_pickling = False` in your Airflow config's `core` section.
+
+### Airflowignore of base path
+
+There was a bug fixed in https://github.com/apache/airflow/pull/11993 that the "airflowignore" checked
+the base path of the dag folder for forbidden dags, not only the relative part. This had the effect
+that if the base path contained the excluded word the whole dag folder could have been excluded. For
+example if the airflowignore file contained x, and the dags folder was '/var/x/dags', then all dags in
+the folder would be excluded. The fix only matches the relative path only now which means that if you
+previously used full path as ignored, you should change it to relative one. For example if your dag
+folder was '/var/dags/' and your airflowignore contained '/var/dag/excluded/', you should change it
+to 'excluded/'.
+
+### `ExternalTaskSensor` provides all task context variables to `execution_date_fn` as keyword arguments
+
+The old syntax of passing `context` as a dictionary will continue to work with the caveat that the argument must be named `context`. The following will break. To fix it, change `ctx` to `context`.
+
+```python
+def execution_date_fn(execution_date, ctx):
+```
+
+`execution_date_fn` can take in any number of keyword arguments available in the task context dictionary. The following forms of `execution_date_fn` are all supported:
+
+```python
+def execution_date_fn(dt):
+
+def execution_date_fn(execution_date):
+
+def execution_date_fn(execution_date, ds_nodash):
+
+def execution_date_fn(execution_date, ds_nodash, dag):
+```
+
+### The default value for `[webserver] cookie_samesite` has been changed to `Lax`
+
+As [recommended](https://flask.palletsprojects.com/en/1.1.x/config/#SESSION_COOKIE_SAMESITE) by Flask, the
+`[webserver] cookie_samesite` has bee changed to `Lax` from `None`.
+
+The 2.0 release of the Airflow is a significant upgrade, and includes substantial major changes,
+and some of them may be breaking. Existing code written for earlier versions of this project will may require updates
+to use this version. Sometimes necessary configuration changes are also required.
+This document describes the changes that have been made, and what you need to do to update your usage.
+
+If you experience issues or have questions, please file [an issue](https://github.com/apache/airflow/issues/new/choose).
 
 <!--
 
@@ -61,12 +239,131 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
-### Deprecating ignore_first_depends_on_past on backfill command and default it to True
+### Major changes
 
-When doing backfill with `depends_on_past` dags, users will need to pass `ignore_first_depends_on_past`.
-We should default it as `true` to avoid confusion
+This section describes the major changes that have been made in this release.
 
-### Custom executors is loaded using full import path
+
+
+#### Changes to import paths
+
+Formerly the core code was maintained by the original creators - Airbnb. The code that was in the contrib
+package was supported by the community. The project was passed to the Apache community and currently the
+entire code is maintained by the community, so now the division has no justification, and it is only due
+to historical reasons. In Airflow 2.0, we want to organize packages and move integrations
+with third party services to the ``airflow.providers`` package.
+
+All changes made are backward compatible, but if you use the old import paths you will
+see a deprecation warning. The old import paths can be abandoned in the future.
+
+According to [AIP-21](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths)
+`_operator` suffix has been removed from operators. A deprecation warning has also been raised for paths
+importing with the suffix.
+
+
+The following table shows changes in import paths.
+
+
+| Old path                            | New path                   |
+|-------------------------------------|----------------------------|
+| airflow.hooks.base_hook.BaseHook | airflow.hooks.base.BaseHook |
+| airflow.hooks.dbapi_hook.DbApiHook | airflow.hooks.dbapi.DbApiHook |
+| airflow.operators.dummy_operator.DummyOperator | airflow.operators.dummy.DummyOperator |
+| airflow.operators.dagrun_operator.TriggerDagRunOperator | airflow.operators.trigger_dagrun.TriggerDagRunOperator |
+| airflow.operators.branch_operator.BaseBranchOperator | airflow.operators.branch.BaseBranchOperator |
+| airflow.operators.subdag_operator.SubDagOperator | airflow.operators.subdag.SubDagOperator |
+| airflow.sensors.base_sensor_operator.BaseSensorOperator | airflow.sensors.base.BaseSensorOperator |
+| airflow.sensors.date_time_sensor.DateTimeSensor | airflow.sensors.date_time.DateTimeSensor |
+| airflow.sensors.external_task_sensor.ExternalTaskMarker | airflow.sensors.external_task.ExternalTaskMarker |
+| airflow.sensors.external_task_sensor.ExternalTaskSensor | airflow.sensors.external_task.ExternalTaskSensor |
+| airflow.sensors.sql_sensor.SqlSensor | airflow.sensors.sql.SqlSensor |
+| airflow.sensors.time_delta_sensor.TimeDeltaSensor | airflow.sensors.time_delta.TimeDeltaSensor |
+| airflow.contrib.sensors.weekday_sensor.DayOfWeekSensor | airflow.sensors.weekday.DayOfWeekSensor |
+
+
+### Database schema changes
+
+In order to migrate the database, you should use the command `airflow db upgrade`, but in
+some cases manual steps are required.
+
+#### Unique conn_id in connection table
+
+Previously, Airflow allowed users to add more than one connection with the same `conn_id` and on access it would choose one connection randomly. This acted as a basic load balancing and fault tolerance technique, when used in conjunction with retries.
+
+This behavior caused some confusion for users, and there was no clear evidence if it actually worked well or not.
+
+Now the `conn_id` will be unique. If you already have duplicates in your metadata database, you will have to manage those duplicate connections before upgrading the database.
+
+#### Not-nullable conn_type column in connection table
+
+The `conn_type` column in the `connection` table must contain content. Previously, this rule was enforced
+by application logic, but was not enforced by the database schema.
+
+If you made any modifications to the table directly, make sure you don't have
+null in the conn_type column.
+
+### Configuration changes
+
+This release contains many changes that require a change in the configuration of this application or
+other application that integrate with it.
+
+This section describes the changes that have been made, and what you need to do to.
+
+#### airflow.contrib.utils.log has been moved
+
+Formerly the core code was maintained by the original creators - Airbnb. The code that was in the contrib
+package was supported by the community. The project was passed to the Apache community and currently the
+entire code is maintained by the community, so now the division has no justification, and it is only due
+to historical reasons. In Airflow 2.0, we want to organize packages and move integrations
+with third party services to the ``airflow.providers`` package.
+
+To clean up, the following packages were moved:
+| Old package | New package |
+|-|-|
+| ``airflow.contrib.utils.log`` | ``airflow.utils.log`` |
+| ``airflow.utils.log.gcs_task_handler`` | ``airflow.providers.google.cloud.log.gcs_task_handler`` |
+| ``airflow.utils.log.wasb_task_handler`` | ``airflow.providers.microsoft.azure.log.wasb_task_handler`` |
+| ``airflow.utils.log.stackdriver_task_handler`` | ``airflow.providers.google.cloud.log.stackdriver_task_handler`` |
+| ``airflow.utils.log.s3_task_handler`` | ``airflow.providers.amazon.aws.log.s3_task_handler`` |
+| ``airflow.utils.log.es_task_handler`` | ``airflow.providers.elasticsearch.log.es_task_handler`` |
+| ``airflow.utils.log.cloudwatch_task_handler`` | ``airflow.providers.amazon.aws.log.cloudwatch_task_handler`` |
+
+You should update the import paths if you are setting log configurations with the ``logging_config_class`` option.
+The old import paths still works but can be abandoned.
+
+#### SendGrid emailer has been moved
+
+Formerly the core code was maintained by the original creators - Airbnb. The code that was in the contrib
+package was supported by the community. The project was passed to the Apache community and currently the
+entire code is maintained by the community, so now the division has no justification, and it is only due
+to historical reasons.
+
+To clean up, the `send_mail` function from the `airflow.contrib.utils.sendgrid` module has been moved.
+
+If your configuration file looks like this:
+
+```ini
+[email]
+email_backend = airflow.contrib.utils.sendgrid.send_email
+```
+
+It should look like this now:
+
+```ini
+[email]
+email_backend = airflow.providers.sendgrid.utils.emailer.send_email
+```
+
+The old configuration still works but can be abandoned.
+
+#### Unify `hostname_callable` option in `core` section
+
+The previous option used a colon(`:`) to split the module from function. Now the dot(`.`) is used.
+
+The change aims to unify the format of all options that refer to objects in the `airflow.cfg` file.
+
+
+#### Custom executors is loaded using full import path
 
 In previous versions of Airflow it was possible to use plugins to load custom executors. It is still
 possible, but the configuration has changed. Now you don't have to create a plugin to configure a
@@ -79,9 +376,11 @@ called `my_plugin` then your configuration looks like this
 
 ```ini
 [core]
-executor = my_plguin.MyCustomExecutor
+executor = my_plugin.MyCustomExecutor
 ```
+
 And now it should look like this:
+
 ```ini
 [core]
 executor = my_acme_company.executors.MyCustomExecutor
@@ -89,38 +388,13 @@ executor = my_acme_company.executors.MyCustomExecutor
 
 The old configuration is still works but can be abandoned at any time.
 
-### Removed sub-package imports from `airflow/__init__.py`
-
-The imports `LoggingMixin`, `conf`, and `AirflowException` have been removed from `airflow/__init__.py`.
-All implicit references of these objects will no longer be valid. To migrate, all usages of each old path must be
-replaced with its corresponding new path.
-
-| Old Path (Implicit Import)   | New Path (Explicit Import)                       |
-|------------------------------|--------------------------------------------------|
-| ``airflow.LoggingMixin``     | ``airflow.utils.log.logging_mixin.LoggingMixin`` |
-| ``airflow.conf``             | ``airflow.configuration.conf``                   |
-| ``airflow.AirflowException`` | ``airflow.exceptions.AirflowException``          |
-
-### Success Callback will be called when a task in marked as success from UI
-
-When a task is marked as success by a used from Airflow UI - on_success_callback will be called
-
-### Added `airflow dags test` CLI command
-
-A new command was added to the CLI for executing one full run of a DAG for a given execution date, similar to
-`airflow tasks test`. Example usage:
-
-```
-airflow dags test [dag_id] [execution_date]
-airflow dags test example_branch_operator 2018-01-01
-```
-
-### Drop plugin support for stat_name_handler
+#### Drop plugin support for stat_name_handler
 
 In previous version, you could use plugins mechanism to configure ``stat_name_handler``. You should now use the `stat_name_handler`
 option in `[scheduler]` section to achieve the same effect.
 
 If your plugin looked like this and was available through the `test_plugin` path:
+
 ```python
 def my_stat_name_handler(stat):
     return stat
@@ -129,7 +403,9 @@ class AirflowTestPlugin(AirflowPlugin):
     name = "test_plugin"
     stat_name_handler = my_stat_name_handler
 ```
+
 then your `airflow.cfg` file should look like this:
+
 ```ini
 [scheduler]
 stat_name_handler=test_plugin.my_stat_name_handler
@@ -137,91 +413,7 @@ stat_name_handler=test_plugin.my_stat_name_handler
 
 This change is intended to simplify the statsd configuration.
 
-### Move methods from BiqQueryBaseCursor to BigQueryHook
-
-To simplify BigQuery operators (no need of `Cursor`) and standardize usage of hooks within all GCP integration methods from `BiqQueryBaseCursor`
-were moved to `BigQueryHook`. Using them by from `Cursor` object is still possible due to preserved backward compatibility but they will raise `DeprecationWarning`.
-The following methods were moved:
-
-| Old path                                                                                       | New path                                                                                 |
-|------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------|
-| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.cancel_query                  | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.cancel_query                  |
-| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.create_empty_dataset          | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_dataset          |
-| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.create_empty_table            | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_table            |
-| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.create_external_table         | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_external_table         |
-| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.delete_dataset                | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.delete_dataset                |
-| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_dataset                   | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset                   |
-| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_dataset_tables            | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables            |
-| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_dataset_tables_list       | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables_list       |
-| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_datasets_list             | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_datasets_list             |
-| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_schema                    | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_schema                    |
-| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_tabledata                 | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_tabledata                 |
-| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.insert_all                    | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_all                    |
-| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.patch_dataset                 | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.patch_dataset                 |
-| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.patch_table                   | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.patch_table                   |
-| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.poll_job_complete             | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.poll_job_complete             |
-| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_copy                      | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_copy                      |
-| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_extract                   | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_extract                   |
-| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_grant_dataset_view_access | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_grant_dataset_view_access |
-| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_load                      | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_load                      |
-| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_query                     | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_query                     |
-| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_table_delete              | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_table_delete              |
-| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_table_upsert              | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_table_upsert              |
-| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_with_configuration        | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration        |
-| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.update_dataset                | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_dataset                |
-
-### Standardize handling http exception in BigQuery
-
-Since BigQuery is the part of the GCP it was possible to simplify the code by handling the exceptions
-by usage of the `airflow.providers.google.cloud.hooks.base.CloudBaseHook.catch_http_exception` decorator however it changes
-exceptions raised by the following methods:
-* `airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_table_delete` raises `AirflowException` instead of `Exception`.
-* `airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.create_empty_dataset` raises `AirflowException` instead of `ValueError`.
-* `airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_dataset` raises `AirflowException` instead of `ValueError`.
-
-### Remove airflow.utils.file.TemporaryDirectory
-
-Since Airflow dropped support for Python < 3.5 there's no need to have this custom
-implementation of `TemporaryDirectory` because the same functionality is provided by
-`tempfile.TemporaryDirectory`.
-
-Now users instead of `import from airflow.utils.files import TemporaryDirectory` should
-do `from tempfile import TemporaryDirectory`. Both context managers provide the same
-interface, thus no additional changes should be required.
-
-### Chain and cross_downstream moved from helpers to BaseOperator
-
-The `chain` and `cross_downstream` methods are now moved to airflow.models.baseoperator module from
-`airflow.utils.helpers` module.
-
-The baseoperator module seems to be a better choice to keep
-closely coupled methods together. Helpers module is supposed to contain standalone helper methods
-that can be imported by all classes.
-
-The `chain` method and `cross_downstream` method both use BaseOperator. If any other package imports
-any classes or functions from helpers module, then it automatically has an
-implicit dependency to BaseOperator. That can often lead to cyclic dependencies.
-
-More information in [AIFLOW-6392](https://issues.apache.org/jira/browse/AIRFLOW-6392)
-
-In Airflow <2.0 you imported those two methods like this:
-
-```python
-from airflow.utils.helpers import chain
-from airflow.utils.helpers import cross_downstream
-```
-
-In Airflow 2.0 it should be changed to:
-```python
-from airflow.models.baseoperator import chain
-from airflow.models.baseoperator import cross_downstream
-```
-
-### Change python3 as Dataflow Hooks/Operators default interpreter
-
-Now the `py_interpreter` argument for DataFlow Hooks/Operators has been changed from python2 to python3.
-
-### Logging configuration has been moved to new section
+#### Logging configuration has been moved to new section
 
 The following configurations have been moved from `[core]` to the new `[logging]` section.
 
@@ -244,121 +436,481 @@ The following configurations have been moved from `[core]` to the new `[logging]
 * `dag_processor_manager_log_location`
 * `task_log_reader`
 
-### Simplification of CLI commands
+#### Metrics configuration has been moved to new section
 
-#### Grouped to improve UX of CLI
+The following configurations have been moved from `[scheduler]` to the new `[metrics]` section.
 
-Some commands have been grouped to improve UX of CLI. New commands are available according to the following table:
+- `statsd_on`
+- `statsd_host`
+- `statsd_port`
+- `statsd_prefix`
+- `statsd_allow_list`
+- `stat_name_handler`
+- `statsd_datadog_enabled`
+- `statsd_datadog_tags`
+- `statsd_custom_client_path`
 
-| Old command               | New command                        |
-|---------------------------|------------------------------------|
-| ``airflow worker``        | ``airflow celery worker``          |
-| ``airflow flower``        | ``airflow celery flower``          |
+#### Changes to Elasticsearch logging provider
 
-#### Cli use exactly single character for short option style change
+When JSON output to stdout is enabled, log lines will now contain the `log_id` & `offset` fields, this should make reading task logs from elasticsearch on the webserver work out of the box. Example configuration:
 
-For Airflow short option, use exactly one single character, New commands are available according to the following table:
+```ini
+[logging]
+remote_logging = True
+[elasticsearch]
+host = http://es-host:9200
+write_stdout = True
+json_format = True
+```
 
-| Old command                                        | New command                                       |
-| :------------------------------------------------- | :------------------------------------------------ |
-| ``airflow (dags|tasks|scheduler) [-sd, --subdir]`` | ``airflow (dags|tasks|scheduler) [-S, --subdir]`` |
-| ``airflow tasks test [-dr, --dry_run]``            | ``airflow tasks test [-n, --dry-run]``            |
-| ``airflow dags backfill [-dr, --dry_run]``         | ``airflow dags backfill [-n, --dry-run]``         |
-| ``airflow tasks clear [-dx, --dag_regex]``         | ``airflow tasks clear [-R, --dag-regex]``         |
-| ``airflow kerberos [-kt, --keytab]``               | ``airflow kerberos [-k, --keytab]``               |
-| ``airflow tasks run [-int, --interactive]``        | ``airflow tasks run [-N, --interactive]``         |
-| ``airflow webserver [-hn, --hostname]``            | ``airflow webserver [-H, --hostname]``            |
-| ``airflow celery worker [-cn, --celery_hostname]`` | ``airflow celery worker [-H, --celery-hostname]`` |
-| ``airflow celery flower [-hn, --hostname]``        | ``airflow celery flower [-H, --hostname]``        |
-| ``airflow celery flower [-fc, --flower_conf]``     | ``airflow celery flower [-c, --flower-conf]``     |
-| ``airflow celery flower [-ba, --basic_auth]``      | ``airflow celery flower [-A, --basic-auth]``      |
-| ``airflow celery flower [-tp, --task_params]``     | ``airflow celery flower [-t, --task-params]``     |
-| ``airflow celery flower [-pm, --post_mortem]``     | ``airflow celery flower [-m, --post-mortem]``     |
+Note that the webserver expects the log line data itself to be present in the `message` field of the document.
 
-For Airflow long option, use [kebab-case](https://en.wikipedia.org/wiki/Letter_case) instead of [snake_case](https://en.wikipedia.org/wiki/Snake_case)
-
-| Old option                         | New option                         |
-| :--------------------------------- | :--------------------------------- |
-| ``--task_regex``                   | ``--task-regex``                   |
-| ``--start_date``                   | ``--start-date``                   |
-| ``--end_date``                     | ``--end-date``                     |
-| ``--dry_run``                      | ``--dry-run``                      |
-| ``--no_backfill``                  | ``--no-backfill``                  |
-| ``--mark_success``                 | ``--mark-success``                 |
-| ``--donot_pickle``                 | ``--donot-pickle``                 |
-| ``--ignore_dependencies``          | ``--ignore-dependencies``          |
-| ``--ignore_first_depends_on_past`` | ``--ignore-first-depends-on-past`` |
-| ``--delay_on_limit``               | ``--delay-on-limit``               |
-| ``--reset_dagruns``                | ``--reset-dagruns``                |
-| ``--rerun_failed_tasks``           | ``--rerun-failed-tasks``           |
-| ``--run_backwards``                | ``--run-backwards``                |
-| ``--only_failed``                  | ``--only-failed``                  |
-| ``--only_running``                 | ``--only-running``                 |
-| ``--exclude_subdags``              | ``--exclude-subdags``              |
-| ``--exclude_parentdag``            | ``--exclude-parentdag``            |
-| ``--dag_regex``                    | ``--dag-regex``                    |
-| ``--run_id``                       | ``--run-id``                       |
-| ``--exec_date``                    | ``--exec-date``                    |
-| ``--ignore_all_dependencies``      | ``--ignore-all-dependencies``      |
-| ``--ignore_depends_on_past``       | ``--ignore-depends-on-past``       |
-| ``--ship_dag``                     | ``--ship-dag``                     |
-| ``--job_id``                       | ``--job-id``                       |
-| ``--cfg_path``                     | ``--cfg-path``                     |
-| ``--ssl_cert``                     | ``--ssl-cert``                     |
-| ``--ssl_key``                      | ``--ssl-key``                      |
-| ``--worker_timeout``               | ``--worker-timeout``               |
-| ``--access_logfile``               | ``--access-logfile``               |
-| ``--error_logfile``                | ``--error-logfile``                |
-| ``--dag_id``                       | ``--dag-id``                       |
-| ``--num_runs``                     | ``--num-runs``                     |
-| ``--do_pickle``                    | ``--do-pickle``                    |
-| ``--celery_hostname``              | ``--celery-hostname``              |
-| ``--broker_api``                   | ``--broker-api``                   |
-| ``--flower_conf``                  | ``--flower-conf``                  |
-| ``--url_prefix``                   | ``--url-prefix``                   |
-| ``--basic_auth``                   | ``--basic-auth``                   |
-| ``--task_params``                  | ``--task-params``                  |
-| ``--post_mortem``                  | ``--post-mortem``                  |
-| ``--conn_uri``                     | ``--conn-uri``                     |
-| ``--conn_type``                    | ``--conn-type``                    |
-| ``--conn_host``                    | ``--conn-host``                    |
-| ``--conn_login``                   | ``--conn-login``                   |
-| ``--conn_password``                | ``--conn-password``                |
-| ``--conn_schema``                  | ``--conn-schema``                  |
-| ``--conn_port``                    | ``--conn-port``                    |
-| ``--conn_extra``                   | ``--conn-extra``                   |
-| ``--use_random_password``          | ``--use-random-password``          |
-| ``--skip_serve_logs``              | ``--skip-serve-logs``              |
-
-### Remove serve_logs command from CLI
-
-The ``serve_logs`` command has been deleted. This command should be run only by internal application mechanisms
-and there is no need for it to be accessible from the CLI interface.
-
-### dag_state CLI command
-
-If the DAGRun was triggered with conf key/values passed in, they will also be printed in the dag_state CLI response
-ie. running, {"name": "bob"}
-whereas in in prior releases it just printed the state:
-ie. running
-
-### Remove gcp_service_account_keys option in airflow.cfg file
+#### Remove gcp_service_account_keys option in airflow.cfg file
 
 This option has been removed because it is no longer supported by the Google Kubernetes Engine. The new
-recommended service account keys for the Google Cloud Platform management method is
+recommended service account keys for the Google Cloud management method is
 [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity).
 
-### BranchPythonOperator has a return value
+#### Fernet is enabled by default
+
+The fernet mechanism is enabled by default to increase the security of the default installation.  In order to
+restore the previous behavior, the user must consciously set an empty key in the ``fernet_key`` option of
+section ``[core]`` in the ``airflow.cfg`` file.
+
+At the same time, this means that the `apache-airflow[crypto]` extra-packages are always installed.
+However, this requires that your operating system has ``libffi-dev`` installed.
+
+#### Changes to propagating Kubernetes worker annotations
+
+`kubernetes_annotations` configuration section has been removed.
+A new key `worker_annotations` has been added to existing `kubernetes` section instead.
+That is to remove restriction on the character set for k8s annotation keys.
+All key/value pairs from `kubernetes_annotations` should now go to `worker_annotations` as a json. I.e. instead of e.g.
+
+```
+[kubernetes_annotations]
+annotation_key = annotation_value
+annotation_key2 = annotation_value2
+```
+
+it should be rewritten to
+
+```
+[kubernetes]
+worker_annotations = { "annotation_key" : "annotation_value", "annotation_key2" : "annotation_value2" }
+```
+
+#### Remove run_duration
+
+We should not use the `run_duration` option anymore. This used to be for restarting the scheduler from time to time, but right now the scheduler is getting more stable and therefore using this setting is considered bad and might cause an inconsistent state.
+
+#### Rename pool statsd metrics
+
+Used slot has been renamed to running slot to make the name self-explanatory
+and the code more maintainable.
+
+This means `pool.used_slots.<pool_name>` metric has been renamed to
+`pool.running_slots.<pool_name>`. The `Used Slots` column in Pools Web UI view
+has also been changed to `Running Slots`.
+
+#### Removal of Mesos Executor
+
+The Mesos Executor is removed from the code base as it was not widely used and not maintained. [Mailing List Discussion on deleting it](https://lists.apache.org/thread.html/daa9500026b820c6aaadeffd66166eae558282778091ebbc68819fb7@%3Cdev.airflow.apache.org%3E).
+
+#### Change dag loading duration metric name
+
+Change DAG file loading duration metric from
+`dag.loading-duration.<dag_id>` to `dag.loading-duration.<dag_file>`. This is to
+better handle the case when a DAG file has multiple DAGs.
+
+#### Sentry is disabled by default
+
+Sentry is disabled by default. To enable these integrations, you need set ``sentry_on`` option
+in ``[sentry]`` section to ``"True"``.
+
+#### Simplified GCSTaskHandler configuration
+
+In previous versions, in order to configure the service account key file, you had to create a connection entry.
+In the current version, you can configure ``google_key_path`` option in ``[logging]`` section to set
+the key file path.
+
+Users using Application Default Credentials (ADC) need not take any action.
+
+The change aims to simplify the configuration of logging, to prevent corruption of
+the instance configuration by changing the value controlled by the user - connection entry. If you
+configure a backend secret, it also means the webserver doesn't need to connect to it. This
+simplifies setups with multiple GCP projects, because only one project will require the Secret Manager API
+to be enabled.
+
+### Changes to the core operators/hooks
+
+We strive to ensure that there are no changes that may affect the end user and your files, but this
+release may contain changes that will require changes to your DAG files.
+
+This section describes the changes that have been made, and what you need to do to update your DAG File,
+if you use core operators or any other.
+
+#### BaseSensorOperator now respects the trigger_rule of downstream tasks
+
+Previously, BaseSensorOperator with setting `soft_fail=True` skips itself
+and skips all its downstream tasks unconditionally, when it fails i.e the trigger_rule of downstream tasks is not
+respected.
+
+In the new behavior, the trigger_rule of downstream tasks is respected.
+User can preserve/achieve the original behaviour by setting the trigger_rule of each downstream task to `all_success`.
+
+#### BaseOperator uses metaclass
+
+`BaseOperator` class uses a `BaseOperatorMeta` as a metaclass. This meta class is based on
+`abc.ABCMeta`. If your custom operator uses different metaclass then you will have to adjust it.
+
+#### Remove SQL support in BaseHook
+
+Remove ``get_records`` and ``get_pandas_df`` and ``run`` from BaseHook, which only apply for sql like hook,
+If want to use them, or your custom hook inherit them, please use ``airflow.hooks.dbapi.DbApiHook``
+
+#### Assigning task to a DAG using bitwise shift (bit-shift) operators are no longer supported
+
+Previously, you could assign a task to a DAG as follows:
+
+```python
+dag = DAG('my_dag')
+dummy = DummyOperator(task_id='dummy')
+
+dag >> dummy
+```
+
+This is no longer supported. Instead, we recommend using the DAG as context manager:
+
+```python
+with DAG('my_dag') as dag:
+    dummy = DummyOperator(task_id='dummy')
+```
+
+#### Removed deprecated import mechanism
+
+The deprecated import mechanism has been removed so the import of modules becomes more consistent and explicit.
+
+For example: `from airflow.operators import BashOperator`
+becomes `from airflow.operators.bash_operator import BashOperator`
+
+#### Changes to sensor imports
+
+Sensors are now accessible via `airflow.sensors` and no longer via `airflow.operators.sensors`.
+
+For example: `from airflow.operators.sensors import BaseSensorOperator`
+becomes `from airflow.sensors.base import BaseSensorOperator`
+
+#### Skipped tasks can satisfy wait_for_downstream
+
+Previously, a task instance with `wait_for_downstream=True` will only run if the downstream task of
+the previous task instance is successful. Meanwhile, a task instance with `depends_on_past=True`
+will run if the previous task instance is either successful or skipped. These two flags are close siblings
+yet they have different behavior. This inconsistency in behavior made the API less intuitive to users.
+To maintain consistent behavior, both successful or skipped downstream task can now satisfy the
+`wait_for_downstream=True` flag.
+
+#### `airflow.utils.helpers.cross_downstream`
+
+#### `airflow.utils.helpers.chain`
+
+The `chain` and `cross_downstream` methods are now moved to airflow.models.baseoperator module from
+`airflow.utils.helpers` module.
+
+The baseoperator module seems to be a better choice to keep
+closely coupled methods together. Helpers module is supposed to contain standalone helper methods
+that can be imported by all classes.
+
+The `chain` method and `cross_downstream` method both use BaseOperator. If any other package imports
+any classes or functions from helpers module, then it automatically has an
+implicit dependency to BaseOperator. That can often lead to cyclic dependencies.
+
+More information in [AIRFLOW-6392](https://issues.apache.org/jira/browse/AIRFLOW-6392)
+
+In Airflow <2.0 you imported those two methods like this:
+
+```python
+from airflow.utils.helpers import chain
+from airflow.utils.helpers import cross_downstream
+```
+
+In Airflow 2.0 it should be changed to:
+
+```python
+from airflow.models.baseoperator import chain
+from airflow.models.baseoperator import cross_downstream
+```
+
+#### `airflow.operators.python.BranchPythonOperator`
+
 `BranchPythonOperator` will now return a value equal to the `task_id` of the chosen branch,
 where previously it returned None. Since it inherits from BaseOperator it will do an
 `xcom_push` of this value if `do_xcom_push=True`. This is useful for downstream decision-making.
 
-### Removal of airflow.AirflowMacroPlugin class
+#### `airflow.sensors.sql_sensor.SqlSensor`
 
-The class was there in airflow package but it has not been used (apparently since 2015).
+SQLSensor now consistent with python `bool()` function and the `allow_null` parameter has been removed.
+
+It will resolve after receiving any value  that is casted to `True` with python `bool(value)`. That
+changes the previous response receiving `NULL` or `'0'`. Earlier `'0'` has been treated as success
+criteria. `NULL` has been treated depending on value of `allow_null`parameter.  But all the previous
+behaviour is still achievable setting param `success` to `lambda x: x is None or str(x) not in ('0', '')`.
+
+#### `airflow.operators.trigger_dagrun.TriggerDagRunOperator`
+
+The TriggerDagRunOperator now takes a `conf` argument to which a dict can be provided as conf for the DagRun.
+As a result, the `python_callable` argument was removed. PR: https://github.com/apache/airflow/pull/6317.
+
+#### `airflow.operators.python.PythonOperator`
+
+`provide_context` argument on the PythonOperator was removed. The signature of the callable passed to the PythonOperator is now inferred and argument values are always automatically provided. There is no need to explicitly provide or not provide the context anymore. For example:
+
+```python
+def myfunc(execution_date):
+    print(execution_date)
+
+python_operator = PythonOperator(task_id='mytask', python_callable=myfunc, dag=dag)
+```
+
+Notice you don't have to set provide_context=True, variables from the task context are now automatically detected and provided.
+
+All context variables can still be provided with a double-asterisk argument:
+
+```python
+def myfunc(**context):
+    print(context)  # all variables will be provided to context
+
+python_operator = PythonOperator(task_id='mytask', python_callable=myfunc)
+```
+
+The task context variable names are reserved names in the callable function, hence a clash with `op_args` and `op_kwargs` results in an exception:
+
+```python
+def myfunc(dag):
+    # raises a ValueError because "dag" is a reserved name
+    # valid signature example: myfunc(mydag)
+
+python_operator = PythonOperator(
+    task_id='mytask',
+    op_args=[1],
+    python_callable=myfunc,
+)
+```
+
+The change is backwards compatible, setting `provide_context` will add the `provide_context` variable to the `kwargs` (but won't do anything).
+
+PR: [#5990](https://github.com/apache/airflow/pull/5990)
+
+#### `airflow.sensors.filesystem.FileSensor`
+
+FileSensor is now takes a glob pattern, not just a filename. If the filename you are looking for has `*`, `?`, or `[` in it then you should replace these with `[*]`, `[?]`, and `[[]`.
+
+#### `airflow.operators.subdag_operator.SubDagOperator`
+
+`SubDagOperator` is changed to use Airflow scheduler instead of backfill
+to schedule tasks in the subdag. User no longer need to specify the executor
+in `SubDagOperator`.
+
+
+#### `airflow.providers.google.cloud.operators.datastore.CloudDatastoreExportEntitiesOperator`
+
+#### `airflow.providers.google.cloud.operators.datastore.CloudDatastoreImportEntitiesOperator`
+
+#### `airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`
+
+#### `airflow.providers.ssh.operators.ssh.SSHOperator`
+
+#### `airflow.providers.microsoft.winrm.operators.winrm.WinRMOperator`
+
+#### `airflow.operators.bash.BashOperator`
+
+#### `airflow.providers.docker.operators.docker.DockerOperator`
+
+#### `airflow.providers.http.operators.http.SimpleHttpOperator`
+
+#### `airflow.providers.http.operators.http.SimpleHttpOperator`
+
+The `do_xcom_push` flag (a switch to push the result of an operator to xcom or not) was appearing in different incarnations in different operators. It's function has been unified under a common name (`do_xcom_push`) on `BaseOperator`. This way it is also easy to globally disable pushing results to xcom.
+
+The following operators were affected:
+
+* DatastoreExportOperator (Backwards compatible)
+* DatastoreImportOperator (Backwards compatible)
+* KubernetesPodOperator (Not backwards compatible)
+* SSHOperator (Not backwards compatible)
+* WinRMOperator (Not backwards compatible)
+* BashOperator (Not backwards compatible)
+* DockerOperator (Not backwards compatible)
+* SimpleHttpOperator (Not backwards compatible)
+
+See [AIRFLOW-3249](https://jira.apache.org/jira/browse/AIRFLOW-3249) for details
+
+#### `airflow.operators.latest_only_operator.LatestOnlyOperator`
+
+In previous versions, the `LatestOnlyOperator` forcefully skipped all (direct and undirect) downstream tasks on its own. From this version on the operator will **only skip direct downstream** tasks and the scheduler will handle skipping any further downstream dependencies.
+
+No change is needed if only the default trigger rule `all_success` is being used.
+
+If the DAG relies on tasks with other trigger rules (i.e. `all_done`) being skipped by the `LatestOnlyOperator`, adjustments to the DAG need to be made to commodate the change in behaviour, i.e. with additional edges from the `LatestOnlyOperator`.
+
+The goal of this change is to achieve a more consistent and configurale cascading behaviour based on the `BaseBranchOperator` (see [AIRFLOW-2923](https://jira.apache.org/jira/browse/AIRFLOW-2923) and [AIRFLOW-1784](https://jira.apache.org/jira/browse/AIRFLOW-1784)).
+
+### Changes to the core Python API
+
+We strive to ensure that there are no changes that may affect the end user, and your Python files, but this
+release may contain changes that will require changes to your plugins, DAG File or other integration.
+
+Only changes unique to this provider are described here. You should still pay attention to the changes that
+have been made to the core (including core operators) as they can affect the integration behavior
+of this provider.
+
+This section describes the changes that have been made, and what you need to do to update your Python files.
+
+#### Removed sub-package imports from `airflow/__init__.py`
+
+The imports `LoggingMixin`, `conf`, and `AirflowException` have been removed from `airflow/__init__.py`.
+All implicit references of these objects will no longer be valid. To migrate, all usages of each old path must be
+replaced with its corresponding new path.
+
+| Old Path (Implicit Import)   | New Path (Explicit Import)                       |
+|------------------------------|--------------------------------------------------|
+| ``airflow.LoggingMixin``     | ``airflow.utils.log.logging_mixin.LoggingMixin`` |
+| ``airflow.conf``             | ``airflow.configuration.conf``                   |
+| ``airflow.AirflowException`` | ``airflow.exceptions.AirflowException``          |
+
+#### Variables removed from the task instance context
+
+The following variables were removed from the task instance context:
+
+- end_date
+- latest_date
+- tables
+
+
+#### `airflow.contrib.utils.Weekday`
+
+Formerly the core code was maintained by the original creators - Airbnb. The code that was in the contrib
+package was supported by the community. The project was passed to the Apache community and currently the
+entire code is maintained by the community, so now the division has no justification, and it is only due
+to historical reasons.
+
+To clean up, `Weekday` enum has been moved from `airflow.contrib.utils` into `airflow.utils` module.
+
+#### `airflow.models.connection.Connection`
+
+The connection module has new deprecated methods:
+
+- `Connection.parse_from_uri`
+- `Connection.log_info`
+- `Connection.debug_info`
+
+and one deprecated function:
+
+- `parse_netloc_to_hostname`
+
+Previously, users could create a connection object in two ways
+
+```
+conn_1 = Connection(conn_id="conn_a", uri="mysql://AAA/")
+# or
+conn_2 = Connection(conn_id="conn_a")
+conn_2.parse_uri(uri="mysql://AAA/")
+```
+
+Now the second way is not supported.
+
+`Connection.log_info` and `Connection.debug_info` method have been deprecated. Read each Connection field individually or use the
+default representation (`__repr__`).
+
+The old method is still works but can be abandoned at any time. The changes are intended to delete method
+that are rarely used.
+
+#### `airflow.models.dag.DAG.create_dagrun`
+
+DAG.create_dagrun accepts run_type and does not require run_id
+This change is caused by adding `run_type` column to `DagRun`.
+
+Previous signature:
+
+```python
+def create_dagrun(self,
+                  run_id,
+                  state,
+                  execution_date=None,
+                  start_date=None,
+                  external_trigger=False,
+                  conf=None,
+                  session=None):
+```
+
+current:
+
+```python
+def create_dagrun(self,
+                  state,
+                  execution_date=None,
+                  run_id=None,
+                  start_date=None,
+                  external_trigger=False,
+                  conf=None,
+                  run_type=None,
+                  session=None):
+```
+
+If user provides `run_id` then the `run_type` will be derived from it by checking prefix, allowed types
+: `manual`, `scheduled`, `backfill` (defined by `airflow.utils.types.DagRunType`).
+
+If user provides `run_type` and `execution_date` then `run_id` is constructed as
+`{run_type}__{execution_data.isoformat()}`.
+
+Airflow should construct dagruns using `run_type` and `execution_date`, creation using
+`run_id` is preserved for user actions.
+
+
+#### `airflow.models.dagrun.DagRun`
+
+Use DagRunType.SCHEDULED.value instead of DagRun.ID_PREFIX
+
+All the run_id prefixes for different kind of DagRuns have been grouped into a single
+enum in `airflow.utils.types.DagRunType`.
+
+Previously, there were defined in various places, example as `ID_PREFIX` class variables for
+`DagRun`, `BackfillJob` and in `_trigger_dag` function.
+
+Was:
+
+```python
+>> from airflow.models.dagrun import DagRun
+>> DagRun.ID_PREFIX
+scheduled__
+```
+
+Replaced by:
+
+```python
+>> from airflow.utils.types import DagRunType
+>> DagRunType.SCHEDULED.value
+scheduled
+```
+
+
+#### `airflow.utils.file.TemporaryDirectory`
+
+We remove airflow.utils.file.TemporaryDirectory
+Since Airflow dropped support for Python < 3.5 there's no need to have this custom
+implementation of `TemporaryDirectory` because the same functionality is provided by
+`tempfile.TemporaryDirectory`.
+
+Now users instead of `import from airflow.utils.files import TemporaryDirectory` should
+do `from tempfile import TemporaryDirectory`. Both context managers provide the same
+interface, thus no additional changes should be required.
+
+#### `airflow.AirflowMacroPlugin`
+
+We removed `airflow.AirflowMacroPlugin` class. The class was there in airflow package but it has not been used (apparently since 2015).
 It has been removed.
 
-### Changes to settings
+#### `airflow.settings.CONTEXT_MANAGER_DAG`
 
 CONTEXT_MANAGER_DAG was removed from settings. It's role has been taken by `DagContext` in
 'airflow.models.dag'. One of the reasons was that settings should be rather static than store
@@ -366,20 +918,16 @@ dynamic context from the DAG, but the main one is that moving the context out of
 untangle cyclic imports between DAG, BaseOperator, SerializedDAG, SerializedBaseOperator which was
 part of AIRFLOW-6010.
 
-#### Change default aws_conn_id in EMR operators
+#### `airflow.utils.log.logging_mixin.redirect_stderr`
 
-The default value for the [aws_conn_id](https://airflow.apache.org/howto/manage-connections.html#amazon-web-services) was accidently set to 's3_default' instead of 'aws_default' in some of the emr operators in previous
-versions. This was leading to EmrStepSensor not being able to find their corresponding emr cluster. With the new
-changes in the EmrAddStepsOperator, EmrTerminateJobFlowOperator and EmrCreateJobFlowOperator this issue is
-solved.
-
-### Removal of redirect_stdout, redirect_stderr
+#### `airflow.utils.log.logging_mixin.redirect_stdout`
 
 Function `redirect_stderr` and `redirect_stdout` from `airflow.utils.log.logging_mixin` module has
 been deleted because it can be easily replaced by the standard library.
 The functions of the standard library are more flexible and can be used in larger cases.
 
 The code below
+
 ```python
 import logging
 
@@ -389,7 +937,9 @@ logger = logging.getLogger("custom-logger")
 with redirect_stdout(logger, logging.INFO), redirect_stderr(logger, logging.WARN):
     print("I love Airflow")
 ```
+
 can be replaced by the following code:
+
 ```python
 from contextlib import redirect_stdout, redirect_stderr
 import logging
@@ -403,150 +953,78 @@ with redirect_stdout(StreamLogWriter(logger, logging.INFO)), \
     print("I Love Airflow")
 ```
 
-### Removal of XCom.get_one()
+#### `airflow.models.baseoperator.BaseOperator`
 
-This one is superseded by `XCom.get_many().first()` which will return the same result.
-
-### Changes to SQLSensor
-
-SQLSensor now consistent with python `bool()` function and the `allow_null` parameter has been removed.
-
-It will resolve after receiving any value  that is casted to `True` with python `bool(value)`. That
-changes the previous response receiving `NULL` or `'0'`. Earlier `'0'` has been treated as success
-criteria. `NULL` has been treated depending on value of `allow_null`parameter.  But all the previous
-behaviour is still achievable setting param `success` to `lambda x: x is None or str(x) not in ('0', '')`.
-
-### Idempotency in BigQuery operators
-Idempotency was added to `BigQueryCreateEmptyTableOperator` and `BigQueryCreateEmptyDatasetOperator`.
-But to achieve that try / except clause was removed from `create_empty_dataset` and `create_empty_table`
-methods of `BigQueryHook`.
-
-### Migration of AWS components
-
-All AWS components (hooks, operators, sensors, example DAGs) will be grouped together as decided in
-[AIP-21](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths). Migrated
-components remain backwards compatible but raise a `DeprecationWarning` when imported from the old module.
-Migrated are:
-
-| Old path                                                     | New path                                                 |
-| ------------------------------------------------------------ | -------------------------------------------------------- |
-| airflow.hooks.S3_hook.S3Hook                                 | airflow.providers.amazon.aws.hooks.s3.S3Hook                    |
-| airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook          | airflow.providers.amazon.aws.hooks.athena.AWSAthenaHook         |
-| airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook          | airflow.providers.amazon.aws.hooks.lambda_function.AwsLambdaHook         |
-| airflow.contrib.hooks.aws_sqs_hook.SQSHook                   | airflow.providers.amazon.aws.hooks.sqs.SQSHook        |
-| airflow.contrib.hooks.aws_sns_hook.AwsSnsHook                   | airflow.providers.amazon.aws.hooks.sns.AwsSnsHook        |
-| airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator | airflow.providers.amazon.aws.operators.athena.AWSAthenaOperator |
-| airflow.contrib.operators.awsbatch.AWSBatchOperator | airflow.providers.amazon.aws.operators.batch.AwsBatchOperator |
-| airflow.contrib.operators.awsbatch.BatchProtocol | airflow.providers.amazon.aws.hooks.batch_client.AwsBatchProtocol |
-| private attrs and methods on AWSBatchOperator | airflow.providers.amazon.aws.hooks.batch_client.AwsBatchClient |
-| n/a | airflow.providers.amazon.aws.hooks.batch_waiters.AwsBatchWaiters |
-| airflow.contrib.operators.aws_sqs_publish_operator.SQSPublishOperator | airflow.providers.amazon.aws.operators.sqs.SQSPublishOperator |
-| airflow.contrib.operators.aws_sns_publish_operator.SnsPublishOperator | airflow.providers.amazon.aws.operators.sns.SnsPublishOperator |
-| airflow.contrib.sensors.aws_athena_sensor.AthenaSensor       | airflow.providers.amazon.aws.sensors.athena.AthenaSensor        |
-| airflow.contrib.sensors.aws_sqs_sensor.SQSSensor             | airflow.providers.amazon.aws.sensors.sqs.SQSSensor        |
-
-### AWS Batch Operator
-
-The `AwsBatchOperator` was refactored to extract an `AwsBatchClient` (and inherit from it).  The
-changes are mostly backwards compatible and clarify the public API for these classes; some
-private methods on `AwsBatchOperator` for polling a job status were relocated and renamed
-to surface new public methods on `AwsBatchClient` (and via inheritance on `AwsBatchOperator`).  A
-couple of job attributes are renamed on an instance of `AwsBatchOperator`; these were mostly
-used like private attributes but they were surfaced in the public API, so any use of them needs
-to be updated as follows:
-- `AwsBatchOperator().jobId` -> `AwsBatchOperator().job_id`
-- `AwsBatchOperator().jobName` -> `AwsBatchOperator().job_name`
-
-The `AwsBatchOperator` gets a new option to define a custom model for waiting on job status changes.
-The `AwsBatchOperator` can use a new `waiters` parameter, an instance of `AwsBatchWaiters`, to
-specify that custom job waiters will be used to monitor a batch job.  See the latest API
-documentation for details.
-
-### Additional arguments passed to BaseOperator cause an exception
-
-Previous versions of Airflow took additional arguments and displayed a message on the console. When the
+Now, additional arguments passed to BaseOperator cause an exception. Previous versions of Airflow took additional arguments and displayed a message on the console. When the
 message was not noticed by users, it caused very difficult to detect errors.
 
 In order to restore the previous behavior, you must set an ``True`` in  the ``allow_illegal_arguments``
 option of section ``[operators]`` in the ``airflow.cfg`` file. In the future it is possible to completely
 delete this option.
 
-### Simplification of the TriggerDagRunOperator
+#### `airflow.models.dagbag.DagBag`
 
-The TriggerDagRunOperator now takes a `conf` argument to which a dict can be provided as conf for the DagRun.
-As a result, the `python_callable` argument was removed. PR: https://github.com/apache/airflow/pull/6317.
+Passing `store_serialized_dags` argument to DagBag.__init__ and accessing `DagBag.store_serialized_dags` property
+are deprecated and will be removed in future versions.
 
-### Changes in Google Cloud Platform related hooks
 
-The change in GCP operators implies that GCP Hooks for those operators require now keyword parameters rather
-than positional ones in all methods where `project_id` is used. The methods throw an explanatory exception
-in case they are called using positional parameters.
+**Previous signature**:
 
-Hooks involved:
+```python
+DagBag(
+    dag_folder=None,
+    include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
+    safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
+    store_serialized_dags=False
+):
+```
 
-  * DataflowHook
-  * MLEngineHook
-  * PubSubHook
+**current**:
 
-Other GCP hooks are unaffected.
+```python
+DagBag(
+    dag_folder=None,
+    include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
+    safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
+    read_dags_from_db=False
+):
+```
 
-### Fernet is enabled by default
+If you were using positional arguments, it requires no change but if you were using keyword
+arguments, please change `store_serialized_dags` to `read_dags_from_db`.
 
-The fernet mechanism is enabled by default to increase the security of the default installation.  In order to
-restore the previous behavior, the user must consciously set an empty key in the ``fernet_key`` option of
-section ``[core]`` in the ``airflow.cfg`` file.
+Similarly, if you were using `DagBag().store_serialized_dags` property, change it to
+`DagBag().read_dags_from_db`.
 
-At the same time, this means that the `apache-airflow[crypto]` extra-packages are always installed.
-However, this requires that your operating system has ``libffi-dev`` installed.
+### Changes in `google` provider package
 
-### Changes to Google PubSub Operators, Hook and Sensor
-In the `PubSubPublishOperator` and `PubSubHook.publsh` method the data field in a message should be bytestring (utf-8 encoded) rather than base64 encoded string.
+We strive to ensure that there are no changes that may affect the end user and your Python files, but this
+release may contain changes that will require changes to your configuration, DAG Files or other integration
+e.g. custom operators.
 
-Due to the normalization of the parameters within GCP operators and hooks a parameters like `project` or `topic_project`
-are deprecated and will be substituted by parameter `project_id`.
-In `PubSubHook.create_subscription` hook method in the parameter `subscription_project` is replaced by `subscription_project_id`.
-Template fields are updated accordingly and old ones may not work.
+Only changes unique to this provider are described here. You should still pay attention to the changes that
+have been made to the core (including core operators) as they can affect the integration behavior
+of this provider.
 
-It is required now to pass key-word only arguments to `PubSub` hook.
+This section describes the changes that have been made, and what you need to do to update your if
+you use operators or hooks which integrate with Google services (including Google Cloud - GCP).
 
-These changes are not backward compatible.
+#### Direct impersonation added to operators communicating with Google services
 
-Affected components:
- * airflow.providers.google.cloud.hooks.pubsub.PubSubHook
- * airflow.providers.google.cloud.operators.pubsub.PubSubTopicCreateOperator
- * airflow.providers.google.cloud.operators.pubsub.PubSubSubscriptionCreateOperator
- * airflow.providers.google.cloud.operators.pubsub.PubSubTopicDeleteOperator
- * airflow.providers.google.cloud.operators.pubsub.PubSubSubscriptionDeleteOperator
- * airflow.providers.google.cloud.operators.pubsub.PubSubPublishOperator
- * airflow.providers.google.cloud.sensors.pubsub.PubSubPullSensor
+[Directly impersonating a service account](https://cloud.google.com/iam/docs/understanding-service-accounts#directly_impersonating_a_service_account)
+has been made possible for operators communicating with Google services via new argument called `impersonation_chain`
+(`google_impersonation_chain` in case of operators that also communicate with services of other cloud providers).
+As a result, GCSToS3Operator no longer derivatives from GCSListObjectsOperator.
 
-### Removed Hipchat integration
+#### Normalize gcp_conn_id for Google Cloud
 
-Hipchat has reached end of life and is no longer available.
-
-For more information please see
-https://community.atlassian.com/t5/Stride-articles/Stride-and-Hipchat-Cloud-have-reached-End-of-Life-updated/ba-p/940248
-
-### The gcp_conn_id parameter in GKEPodOperator is required
-
-In previous versions, it was possible to pass the `None` value to the `gcp_conn_id` in the GKEPodOperator
-operator, which resulted in credentials being determined according to the
-[Application Default Credentials](https://cloud.google.com/docs/authentication/production) strategy.
-
-Now this parameter requires a value. To restore the previous behavior, configure the connection without
-specifying the service account.
-
-Detailed information about connection management is available:
-[Google Cloud Platform Connection](https://airflow.apache.org/howto/connection/gcp.html).
-
-### Normalize gcp_conn_id for Google Cloud Platform
-
-Previously not all hooks and operators related to Google Cloud Platform use
+Previously not all hooks and operators related to Google Cloud use
 `gcp_conn_id` as parameter for GCP connection. There is currently one parameter
 which apply to most services. Parameters like ``datastore_conn_id``, ``bigquery_conn_id``,
 ``google_cloud_storage_conn_id`` and similar have been deprecated. Operators that require two connections are not changed.
 
 Following components were affected by normalization:
+
   * airflow.providers.google.cloud.hooks.datastore.DatastoreHook
   * airflow.providers.google.cloud.hooks.bigquery.BigQueryHook
   * airflow.providers.google.cloud.hooks.gcs.GoogleCloudStorageHook
@@ -573,27 +1051,10 @@ Following components were affected by normalization:
   * airflow.operators.cassandra_to_gcs.CassandraToGoogleCloudStorageOperator
   * airflow.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator
 
-### Changes to propagating Kubernetes worker annotations
-
-`kubernetes_annotations` configuration section has been removed.
-A new key `worker_annotations` has been added to existing `kubernetes` section instead.
-That is to remove restriction on the character set for k8s annotation keys.
-All key/value pairs from `kubernetes_annotations` should now go to `worker_annotations` as a json. I.e. instead of e.g.
-```
-[kubernetes_annotations]
-annotation_key = annotation_value
-annotation_key2 = annotation_value2
-```
-it should be rewritten to
-```
-[kubernetes]
-worker_annotations = { "annotation_key" : "annotation_value", "annotation_key2" : "annotation_value2" }
-```
-
-### Changes to import paths and names of GCP operators and hooks
+#### Changes to import paths and names of GCP operators and hooks
 
 According to [AIP-21](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths)
-operators related to Google Cloud Platform has been moved from contrib to core.
+operators related to Google Cloud has been moved from contrib to core.
 The following table shows changes in import paths.
 
 |                                                     Old path                                                     |                                                 New path                                                                     |
@@ -655,14 +1116,14 @@ The following table shows changes in import paths.
 |airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateInstantiateOperator                           |airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateWorkflowTemplateOperator                                 |
 |airflow.contrib.operators.datastore_export_operator.DatastoreExportOperator                                       |airflow.providers.google.cloud.operators.datastore.DatastoreExportOperator                                                    |
 |airflow.contrib.operators.datastore_import_operator.DatastoreImportOperator                                       |airflow.providers.google.cloud.operators.datastore.DatastoreImportOperator                                                    |
-|airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator                                            |airflow.providers.google.cloud.operators.local_to_gcs.FileToGoogleCloudStorageOperator                                        |
+|airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator                                            |airflow.providers.google.cloud.transfers.local_to_gcs.FileToGoogleCloudStorageOperator                                        |
 |airflow.contrib.operators.gcp_bigtable_operator.BigtableClusterUpdateOperator                                     |airflow.providers.google.cloud.operators.bigtable.BigtableUpdateClusterOperator                                               |
 |airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceCreateOperator                                    |airflow.providers.google.cloud.operators.bigtable.BigtableCreateInstanceOperator                                              |
 |airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceDeleteOperator                                    |airflow.providers.google.cloud.operators.bigtable.BigtableDeleteInstanceOperator                                              |
 |airflow.contrib.operators.gcp_bigtable_operator.BigtableTableCreateOperator                                       |airflow.providers.google.cloud.operators.bigtable.BigtableCreateTableOperator                                                 |
 |airflow.contrib.operators.gcp_bigtable_operator.BigtableTableDeleteOperator                                       |airflow.providers.google.cloud.operators.bigtable.BigtableDeleteTableOperator                                                 |
 |airflow.contrib.operators.gcp_bigtable_operator.BigtableTableWaitForReplicationSensor                             |airflow.providers.google.cloud.sensors.bigtable.BigtableTableReplicationCompletedSensor                                       |
-|airflow.contrib.operators.gcp_cloud_build_operator.CloudBuildCreateBuildOperator                                  |airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateOperator                                                 |
+|airflow.contrib.operators.gcp_cloud_build_operator.CloudBuildCreateBuildOperator                                  |airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildOperator                                            |
 |airflow.contrib.operators.gcp_compute_operator.GceBaseOperator                                                    |airflow.providers.google.cloud.operators.compute.GceBaseOperator                                                              |
 |airflow.contrib.operators.gcp_compute_operator.GceInstanceGroupManagerUpdateTemplateOperator                      |airflow.providers.google.cloud.operators.compute.GceInstanceGroupManagerUpdateTemplateOperator                                |
 |airflow.contrib.operators.gcp_compute_operator.GceInstanceStartOperator                                           |airflow.providers.google.cloud.operators.compute.GceInstanceStartOperator                                                     |
@@ -749,7 +1210,7 @@ The following table shows changes in import paths.
 |airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator                         |airflow.providers.google.cloud.operators.gcs.GCSBucketCreateAclEntryOperator                                                  |
 |airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageObjectCreateAclEntryOperator                         |airflow.providers.google.cloud.operators.gcs.GCSObjectCreateAclEntryOperator                                                  |
 |airflow.contrib.operators.gcs_delete_operator.GoogleCloudStorageDeleteOperator                                    |airflow.providers.google.cloud.operators.gcs.GCSDeleteObjectsOperator                                                         |
-|airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator                                |airflow.providers.google.cloud.operators.gcs.GCSToLocalOperator                                                               |
+|airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator                                |airflow.providers.google.cloud.operators.gcs.GCSToLocalFilesystemOperator                                                               |
 |airflow.contrib.operators.gcs_list_operator.GoogleCloudStorageListOperator                                        |airflow.providers.google.cloud.operators.gcs.GCSListObjectsOperator                                                           |
 |airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator                                     |airflow.providers.google.cloud.operators.gcs.GCSCreateBucketOperator                                                          |
 |airflow.contrib.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator                                          |airflow.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator                                                              |
@@ -776,159 +1237,9 @@ The following table shows changes in import paths.
 |airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageUploadSessionCompleteSensor                                  |airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor                                                     |
 |airflow.contrib.sensors.pubsub_sensor.PubSubPullSensor                                                            |airflow.providers.google.cloud.sensors.pubsub.PubSubPullSensor                                                                |
 
+#### Unify default conn_id for Google Cloud
 
-### Remove provide_context
-
-`provide_context` argument on the PythonOperator was removed. The signature of the callable passed to the PythonOperator is now inferred and argument values are always automatically provided. There is no need to explicitly provide or not provide the context anymore. For example:
-
-```python
-def myfunc(execution_date):
-    print(execution_date)
-
-python_operator = PythonOperator(task_id='mytask', python_callable=myfunc, dag=dag)
-```
-
-Notice you don't have to set provide_context=True, variables from the task context are now automatically detected and provided.
-
-All context variables can still be provided with a double-asterisk argument:
-
-```python
-def myfunc(**context):
-    print(context)  # all variables will be provided to context
-
-python_operator = PythonOperator(task_id='mytask', python_callable=myfunc)
-```
-
-The task context variable names are reserved names in the callable function, hence a clash with `op_args` and `op_kwargs` results in an exception:
-
-```python
-def myfunc(dag):
-    # raises a ValueError because "dag" is a reserved name
-    # valid signature example: myfunc(mydag)
-
-python_operator = PythonOperator(
-    task_id='mytask',
-    op_args=[1],
-    python_callable=myfunc,
-)
-```
-
-The change is backwards compatible, setting `provide_context` will add the `provide_context` variable to the `kwargs` (but won't do anything).
-
-PR: [#5990](https://github.com/apache/airflow/pull/5990)
-
-### Changes to FileSensor
-
-FileSensor is now takes a glob pattern, not just a filename. If the filename you are looking for has `*`, `?`, or `[` in it then you should replace these with `[*]`, `[?]`, and `[[]`.
-
-### Change dag loading duration metric name
-Change DAG file loading duration metric from
-`dag.loading-duration.<dag_id>` to `dag.loading-duration.<dag_file>`. This is to
-better handle the case when a DAG file has multiple DAGs.
-
-### Changes to ImapHook, ImapAttachmentSensor and ImapAttachmentToS3Operator
-
-ImapHook:
-* The order of arguments has changed for `has_mail_attachment`,
-`retrieve_mail_attachments` and `download_mail_attachments`.
-* A new `mail_filter` argument has been added to each of those.
-
-ImapAttachmentSensor:
-* The order of arguments has changed for `__init__`.
-* A new `mail_filter` argument has been added to `__init__`.
-
-ImapAttachmentToS3Operator:
-* The order of arguments has changed for `__init__`.
-* A new `imap_mail_filter` argument has been added to `__init__`.
-
-### Changes to `SubDagOperator`
-
-`SubDagOperator` is changed to use Airflow scheduler instead of backfill
-to schedule tasks in the subdag. User no longer need to specify the executor
-in `SubDagOperator`.
-
-### Variables removed from the task instance context
-
-The following variables were removed from the task instance context:
-- end_date
-- latest_date
-- tables
-
-### Moved provide_gcp_credential_file decorator to GoogleCloudBaseHook
-
-To simplify the code, the decorator has been moved from the inner-class.
-
-Instead of `@GoogleCloudBaseHook._Decorators.provide_gcp_credential_file`,
-you should write `@GoogleCloudBaseHook.provide_gcp_credential_file`
-
-### Changes to S3Hook
-
-Note: The order of arguments has changed for `check_for_prefix`.
-The `bucket_name` is now optional. It falls back to the `connection schema` attribute.
-The `delete_objects` now returns `None` instead of a response, since the method now makes multiple api requests when the keys list length is > 1000.
-
-### Changes to Google Transfer Operator
-To obtain pylint compatibility the `filter ` argument in `GcpTransferServiceOperationsListOperator`
-has been renamed to `request_filter`.
-
-### Changes in  Google Cloud Transfer Hook
- To obtain pylint compatibility the `filter` argument in `GCPTransferServiceHook.list_transfer_job` and
- `GCPTransferServiceHook.list_transfer_operations` has been renamed to `request_filter`.
-
-### CLI reorganization
-
-The Airflow CLI has been organized so that related commands are grouped
-together as subcommands. The `airflow list_dags` command is now `airflow
-dags list`, `airflow pause` is `airflow dags pause`, etc. For a complete
-list of updated CLI commands, see https://airflow.apache.org/cli.html.
-
-### Removal of Mesos Executor
-
-The Mesos Executor is removed from the code base as it was not widely used and not maintained. [Mailing List Discussion on deleting it](https://lists.apache.org/thread.html/daa9500026b820c6aaadeffd66166eae558282778091ebbc68819fb7@%3Cdev.airflow.apache.org%3E).
-
-### Increase standard Dataproc disk sizes
-
-It is highly recommended to have 1TB+ disk size for Dataproc to have sufficient throughput:
-https://cloud.google.com/compute/docs/disks/performance
-
-Hence, the default value for `master_disk_size` in DataprocCreateClusterOperator has beeen changes from 500GB to 1TB.
-
-### Changes to SalesforceHook
-
-* renamed `sign_in` function to `get_conn`
-
-### HTTPHook verify default value changed from False to True.
-
-The HTTPHook is now secured by default: `verify=True`.
-This can be overwriten by using the extra_options param as `{'verify': False}`.
-
-### Changes to GoogleCloudStorageHook
-
-* The following parameters have been replaced in all the methods in GCSHook:
-  * `bucket` is changed to `bucket_name`
-  * `object` is changed to `object_name`
-
-* The `maxResults` parameter in `GoogleCloudStorageHook.list` has been renamed to `max_results` for consistency.
-
-### Changes to CloudantHook
-
-* upgraded cloudant version from `>=0.5.9,<2.0` to `>=2.0`
-* removed the use of the `schema` attribute in the connection
-* removed `db` function since the database object can also be retrieved by calling `cloudant_session['database_name']`
-
-For example:
-```python
-from airflow.contrib.hooks.cloudant_hook import CloudantHook
-
-with CloudantHook().get_conn() as cloudant_session:
-    database = cloudant_session['database_name']
-```
-
-See the [docs](https://python-cloudant.readthedocs.io/en/latest/) for more information on how to use the new cloudant version.
-
-### Unify default conn_id for Google Cloud Platform
-
-Previously not all hooks and operators related to Google Cloud Platform use
+Previously not all hooks and operators related to Google Cloud use
 ``google_cloud_default`` as a default conn_id. There is currently one default
 variant. Values like ``google_cloud_storage_default``, ``bigquery_default``,
 ``google_cloud_datastore_default`` have been deprecated. The configuration of
@@ -937,115 +1248,736 @@ deprecated GCP conn_id, you need to explicitly pass their conn_id into
 operators/hooks. Otherwise, ``google_cloud_default`` will be used as GCP's conn_id
 by default.
 
-### Removed deprecated import mechanism
+#### `airflow.providers.google.cloud.hooks.dataflow.DataflowHook`
 
-The deprecated import mechanism has been removed so the import of modules becomes more consistent and explicit.
+#### `airflow.providers.google.cloud.operators.dataflow.DataflowCreateJavaJobOperator`
 
-For example: `from airflow.operators import BashOperator`
-becomes `from airflow.operators.bash_operator import BashOperator`
+#### `airflow.providers.google.cloud.operators.dataflow.DataflowTemplatedJobStartOperator`
 
-### Changes to sensor imports
+#### `airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator`
 
-Sensors are now accessible via `airflow.sensors` and no longer via `airflow.operators.sensors`.
+To use project_id argument consistently across GCP hooks and operators, we did the following changes:
 
-For example: `from airflow.operators.sensors import BaseSensorOperator`
-becomes `from airflow.sensors.base_sensor_operator import BaseSensorOperator`
+- Changed order of arguments in DataflowHook.start_python_dataflow. Uses
+    with positional arguments may break.
+- Changed order of arguments in DataflowHook.is_job_dataflow_running. Uses
+    with positional arguments may break.
+- Changed order of arguments in DataflowHook.cancel_job. Uses
+    with positional arguments may break.
+- Added optional project_id argument to DataflowCreateJavaJobOperator
+    constructor.
+- Added optional project_id argument to DataflowTemplatedJobStartOperator
+    constructor.
+- Added optional project_id argument to DataflowCreatePythonJobOperator
+    constructor.
 
-### Renamed "extra" requirements for cloud providers
+#### `airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor`
 
-Subpackages for specific services have been combined into one variant for
-each cloud provider. The name of the subpackage for the Google Cloud Platform
-has changed to follow style.
+To provide more precise control in handling of changes to objects in
+underlying GCS Bucket the constructor of this sensor now has changed.
 
-If you want to install integration for Microsoft Azure, then instead of
-```
-pip install 'apache-airflow[azure_blob_storage,azure_data_lake,azure_cosmos,azure_container_instances]'
-```
-you should execute `pip install 'apache-airflow[azure]'`
+- Old Behavior: This constructor used to optionally take ``previous_num_objects: int``.
+- New replacement constructor kwarg: ``previous_objects: Optional[Set[str]]``.
 
-If you want to install integration for Amazon Web Services, then instead of
-`pip install 'apache-airflow[s3,emr]'`, you should execute `pip install 'apache-airflow[aws]'`
+Most users would not specify this argument because the bucket begins empty
+and the user wants to treat any files as new.
 
-If you want to install integration for Google Cloud Platform, then instead of
-`pip install 'apache-airflow[gcp_api]'`, you should execute `pip install 'apache-airflow[gcp]'`.
-The old way will work until the release of Airflow 2.1.
+Example of Updating usage of this sensor:
+Users who used to call:
 
-### Deprecate legacy UI in favor of FAB RBAC UI
+``GCSUploadSessionCompleteSensor(bucket='my_bucket', prefix='my_prefix', previous_num_objects=1)``
 
-Previously we were using two versions of UI, which were hard to maintain as we need to implement/update the same feature
-in both versions. With this change we've removed the older UI in favor of Flask App Builder RBAC UI. No need to set the
-RBAC UI explicitly in the configuration now as this is the only default UI.
-Please note that that custom auth backends will need re-writing to target new FAB based UI.
+Will now call:
 
-As part of this change, a few configuration items in `[webserver]` section are removed and no longer applicable,
-including `authenticate`, `filter_by_owner`, `owner_mode`, and `rbac`.
+``GCSUploadSessionCompleteSensor(bucket='my_bucket', prefix='my_prefix', previous_num_objects={'.keep'})``
 
-#### Remove run_duration
+Where '.keep' is a single file at your prefix that the sensor should not consider new.
 
-We should not use the `run_duration` option anymore. This used to be for restarting the scheduler from time to time, but right now the scheduler is getting more stable and therefore using this setting is considered bad and might cause an inconsistent state.
+#### `airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor`
 
-### CLI Changes
+#### `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook`
 
-The ability to manipulate users from the command line has been changed. 'airflow create_user' and 'airflow delete_user' and 'airflow list_users' has been grouped to a single command `airflow users` with optional flags `--create`, `--list` and `--delete`.
+To simplify BigQuery operators (no need of `Cursor`) and standardize usage of hooks within all GCP integration methods from `BiqQueryBaseCursor`
+were moved to `BigQueryHook`. Using them by from `Cursor` object is still possible due to preserved backward compatibility but they will raise `DeprecationWarning`.
+The following methods were moved:
 
-Example Usage:
+| Old path                                                                                       | New path                                                                                 |
+|------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------|
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.cancel_query                  | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.cancel_query                  |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.create_empty_dataset          | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_dataset          |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.create_empty_table            | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_table            |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.create_external_table         | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_external_table         |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.delete_dataset                | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.delete_dataset                |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_dataset                   | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset                   |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_dataset_tables            | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables            |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_dataset_tables_list       | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables_list       |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_datasets_list             | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_datasets_list             |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_schema                    | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_schema                    |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_tabledata                 | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_tabledata                 |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.insert_all                    | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_all                    |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.patch_dataset                 | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.patch_dataset                 |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.patch_table                   | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.patch_table                   |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.poll_job_complete             | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.poll_job_complete             |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_copy                      | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_copy                      |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_extract                   | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_extract                   |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_grant_dataset_view_access | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_grant_dataset_view_access |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_load                      | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_load                      |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_query                     | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_query                     |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_table_delete              | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_table_delete              |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_table_upsert              | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_table_upsert              |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_with_configuration        | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration        |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.update_dataset                | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_dataset                |
 
-To create a new user:
-```bash
-airflow users --create --username jondoe --lastname doe --firstname jon --email jdoe@apache.org --role Viewer --password test
-```
+#### `airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor`
 
-To list users:
-```bash
-airflow users --list
-```
+Since BigQuery is the part of the GCP it was possible to simplify the code by handling the exceptions
+by usage of the `airflow.providers.google.common.hooks.base.GoogleBaseHook.catch_http_exception` decorator however it changes
+exceptions raised by the following methods:
 
-To delete a user:
-```bash
-airflow users --delete --username jondoe
-```
+* `airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_table_delete` raises `AirflowException` instead of `Exception`.
+* `airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.create_empty_dataset` raises `AirflowException` instead of `ValueError`.
+* `airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_dataset` raises `AirflowException` instead of `ValueError`.
 
-To add a user to a role:
-```bash
-airflow users --add-role --username jondoe --role Public
-```
+#### `airflow.providers.google.cloud.operators.bigquery.BigQueryCreateEmptyTableOperator`
 
-To remove a user from a role:
-```bash
-airflow users --remove-role --username jondoe --role Public
-```
+#### `airflow.providers.google.cloud.operators.bigquery.BigQueryCreateEmptyDatasetOperator`
 
-### Unification of `do_xcom_push` flag
-The `do_xcom_push` flag (a switch to push the result of an operator to xcom or not) was appearing in different incarnations in different operators. It's function has been unified under a common name (`do_xcom_push`) on `BaseOperator`. This way it is also easy to globally disable pushing results to xcom.
+Idempotency was added to `BigQueryCreateEmptyTableOperator` and `BigQueryCreateEmptyDatasetOperator`.
+But to achieve that try / except clause was removed from `create_empty_dataset` and `create_empty_table`
+methods of `BigQueryHook`.
 
-The following operators were affected:
+#### `airflow.providers.google.cloud.hooks.dataflow.DataflowHook`
 
-* DatastoreExportOperator (Backwards compatible)
-* DatastoreImportOperator (Backwards compatible)
-* KubernetesPodOperator (Not backwards compatible)
-* SSHOperator (Not backwards compatible)
-* WinRMOperator (Not backwards compatible)
-* BashOperator (Not backwards compatible)
-* DockerOperator (Not backwards compatible)
-* SimpleHttpOperator (Not backwards compatible)
+#### `airflow.providers.google.cloud.hooks.mlengine.MLEngineHook`
 
-See [AIRFLOW-3249](https://jira.apache.org/jira/browse/AIRFLOW-3249) for details
+#### `airflow.providers.google.cloud.hooks.pubsub.PubSubHook`
 
-### Changes to Dataproc related Operators
+The change in GCP operators implies that GCP Hooks for those operators require now keyword parameters rather
+than positional ones in all methods where `project_id` is used. The methods throw an explanatory exception
+in case they are called using positional parameters.
+
+Other GCP hooks are unaffected.
+
+#### `airflow.providers.google.cloud.hooks.pubsub.PubSubHook`
+
+#### `airflow.providers.google.cloud.operators.pubsub.PubSubTopicCreateOperator`
+
+#### `airflow.providers.google.cloud.operators.pubsub.PubSubSubscriptionCreateOperator`
+
+#### `airflow.providers.google.cloud.operators.pubsub.PubSubTopicDeleteOperator`
+
+#### `airflow.providers.google.cloud.operators.pubsub.PubSubSubscriptionDeleteOperator`
+
+#### `airflow.providers.google.cloud.operators.pubsub.PubSubPublishOperator`
+
+#### `airflow.providers.google.cloud.sensors.pubsub.PubSubPullSensor`
+
+In the `PubSubPublishOperator` and `PubSubHook.publsh` method the data field in a message should be bytestring (utf-8 encoded) rather than base64 encoded string.
+
+Due to the normalization of the parameters within GCP operators and hooks a parameters like `project` or `topic_project`
+are deprecated and will be substituted by parameter `project_id`.
+In `PubSubHook.create_subscription` hook method in the parameter `subscription_project` is replaced by `subscription_project_id`.
+Template fields are updated accordingly and old ones may not work.
+
+It is required now to pass key-word only arguments to `PubSub` hook.
+
+These changes are not backward compatible.
+
+#### `airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`
+
+The gcp_conn_id parameter in GKEPodOperator is required. In previous versions, it was possible to pass
+the `None` value to the `gcp_conn_id` in the GKEStartPodOperator
+operator, which resulted in credentials being determined according to the
+[Application Default Credentials](https://cloud.google.com/docs/authentication/production) strategy.
+
+Now this parameter requires a value. To restore the previous behavior, configure the connection without
+specifying the service account.
+
+Detailed information about connection management is available:
+[Google Cloud Connection](https://airflow.apache.org/howto/connection/gcp.html).
+
+
+#### `airflow.providers.google.cloud.hooks.gcs.GCSHook`
+
+* The following parameters have been replaced in all the methods in GCSHook:
+  * `bucket` is changed to `bucket_name`
+  * `object` is changed to `object_name`
+
+* The `maxResults` parameter in `GoogleCloudStorageHook.list` has been renamed to `max_results` for consistency.
+
+#### `airflow.providers.google.cloud.operators.dataproc.DataprocSubmitPigJobOperator`
+
+#### `airflow.providers.google.cloud.operators.dataproc.DataprocSubmitHiveJobOperator`
+
+#### `airflow.providers.google.cloud.operators.dataproc.DataprocSubmitSparkSqlJobOperator`
+
+#### `airflow.providers.google.cloud.operators.dataproc.DataprocSubmitSparkJobOperator`
+
+#### `airflow.providers.google.cloud.operators.dataproc.DataprocSubmitHadoopJobOperator`
+
+#### `airflow.providers.google.cloud.operators.dataproc.DataprocSubmitPySparkJobOperator`
+
 The 'properties' and 'jars' properties for the Dataproc related operators (`DataprocXXXOperator`) have been renamed from
 `dataproc_xxxx_properties` and `dataproc_xxx_jars`  to `dataproc_properties`
 and `dataproc_jars`respectively.
 Arguments for dataproc_properties dataproc_jars
 
-### Changes to skipping behaviour of LatestOnlyOperator
+#### `airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceCreateJobOperator`
 
-In previous versions, the `LatestOnlyOperator` forcefully skipped all (direct and undirect) downstream tasks on its own. From this version on the operator will **only skip direct downstream** tasks and the scheduler will handle skipping any further downstream dependencies.
+To obtain pylint compatibility the `filter` argument in `CloudDataTransferServiceCreateJobOperator`
+has been renamed to `request_filter`.
 
-No change is needed if only the default trigger rule `all_success` is being used.
+#### `airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.CloudDataTransferServiceHook`
 
-If the DAG relies on tasks with other trigger rules (i.e. `all_done`) being skipped by the `LatestOnlyOperator`, adjustments to the DAG need to be made to commodate the change in behaviour, i.e. with additional edges from the `LatestOnlyOperator`.
+ To obtain pylint compatibility the `filter` argument in `CloudDataTransferServiceHook.list_transfer_job` and
+ `CloudDataTransferServiceHook.list_transfer_operations` has been renamed to `request_filter`.
 
-The goal of this change is to achieve a more consistent and configurale cascading behaviour based on the `BaseBranchOperator` (see [AIRFLOW-2923](https://jira.apache.org/jira/browse/AIRFLOW-2923) and [AIRFLOW-1784](https://jira.apache.org/jira/browse/AIRFLOW-1784)).
+#### `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook`
+
+In general all hook methods are decorated with `@GoogleBaseHook.fallback_to_default_project_id` thus
+parameters to hook can only be passed via keyword arguments.
+
+- `create_empty_table` method accepts now `table_resource` parameter. If provided all
+other parameters are ignored.
+- `create_empty_dataset` will now use values from `dataset_reference` instead of raising error
+if parameters were passed in `dataset_reference` and as arguments to method. Additionally validation
+of `dataset_reference` is done using `Dataset.from_api_repr`. Exception and log messages has been
+changed.
+- `update_dataset` requires now new `fields` argument (breaking change)
+- `delete_dataset` has new signature (dataset_id, project_id, ...)
+previous one was (project_id, dataset_id, ...) (breaking change)
+- `get_tabledata` returns list of rows instead of API response in dict format. This method is deprecated in
+ favor of `list_rows`. (breaking change)
+
+#### `airflow.providers.google.cloud.hooks.dataflow.DataflowHook.start_python_dataflow`
+
+#### `airflow.providers.google.cloud.hooks.dataflow.DataflowHook.start_python_dataflow`
+
+#### `airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator`
+
+Change python3 as Dataflow Hooks/Operators default interpreter
+
+Now the `py_interpreter` argument for DataFlow Hooks/Operators has been changed from python2 to python3.
+
+#### `airflow.providers.google.common.hooks.base_google.GoogleBaseHook`
+
+To simplify the code, the decorator provide_gcp_credential_file has been moved from the inner-class.
+
+Instead of `@GoogleBaseHook._Decorators.provide_gcp_credential_file`,
+you should write `@GoogleBaseHook.provide_gcp_credential_file`
+
+#### `airflow.providers.google.cloud.operators.dataproc.DataprocCreateClusterOperator`
+
+It is highly recommended to have 1TB+ disk size for Dataproc to have sufficient throughput:
+https://cloud.google.com/compute/docs/disks/performance
+
+Hence, the default value for `master_disk_size` in `DataprocCreateClusterOperator` has been changed from 500GB to 1TB.
+
+#### `<airflow class="providers google c"></airflow>loud.operators.bigquery.BigQueryGetDatasetTablesOperator`
+
+We changed signature of BigQueryGetDatasetTablesOperator.
+
+Before:
+
+```python
+BigQueryGetDatasetTablesOperator(dataset_id: str, dataset_resource: dict, ...)
+```
+
+After:
+
+```python
+BigQueryGetDatasetTablesOperator(dataset_resource: dict, dataset_id: Optional[str] = None, ...)
+```
+
+### Changes in `amazon` provider package
+
+We strive to ensure that there are no changes that may affect the end user, and your Python files, but this
+release may contain changes that will require changes to your configuration, DAG Files or other integration
+e.g. custom operators.
+
+Only changes unique to this provider are described here. You should still pay attention to the changes that
+have been made to the core (including core operators) as they can affect the integration behavior
+of this provider.
+
+This section describes the changes that have been made, and what you need to do to update your if
+you use operators or hooks which integrate with Amazon services (including Amazon Web Service - AWS).
+
+#### Migration of AWS components
+
+All AWS components (hooks, operators, sensors, example DAGs) will be grouped together as decided in
+[AIP-21](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths). Migrated
+components remain backwards compatible but raise a `DeprecationWarning` when imported from the old module.
+Migrated are:
+
+| Old path                                                     | New path                                                 |
+| ------------------------------------------------------------ | -------------------------------------------------------- |
+| airflow.hooks.S3_hook.S3Hook                                 | airflow.providers.amazon.aws.hooks.s3.S3Hook                    |
+| airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook          | airflow.providers.amazon.aws.hooks.athena.AWSAthenaHook         |
+| airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook          | airflow.providers.amazon.aws.hooks.lambda_function.AwsLambdaHook         |
+| airflow.contrib.hooks.aws_sqs_hook.SQSHook                   | airflow.providers.amazon.aws.hooks.sqs.SQSHook        |
+| airflow.contrib.hooks.aws_sns_hook.AwsSnsHook                   | airflow.providers.amazon.aws.hooks.sns.AwsSnsHook        |
+| airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator | airflow.providers.amazon.aws.operators.athena.AWSAthenaOperator |
+| airflow.contrib.operators.awsbatch.AWSBatchOperator | airflow.providers.amazon.aws.operators.batch.AwsBatchOperator |
+| airflow.contrib.operators.awsbatch.BatchProtocol | airflow.providers.amazon.aws.hooks.batch_client.AwsBatchProtocol |
+| private attrs and methods on AWSBatchOperator | airflow.providers.amazon.aws.hooks.batch_client.AwsBatchClient |
+| n/a | airflow.providers.amazon.aws.hooks.batch_waiters.AwsBatchWaiters |
+| airflow.contrib.operators.aws_sqs_publish_operator.SQSPublishOperator | airflow.providers.amazon.aws.operators.sqs.SQSPublishOperator |
+| airflow.contrib.operators.aws_sns_publish_operator.SnsPublishOperator | airflow.providers.amazon.aws.operators.sns.SnsPublishOperator |
+| airflow.contrib.sensors.aws_athena_sensor.AthenaSensor       | airflow.providers.amazon.aws.sensors.athena.AthenaSensor        |
+| airflow.contrib.sensors.aws_sqs_sensor.SQSSensor             | airflow.providers.amazon.aws.sensors.sqs.SQSSensor        |
+
+#### `airflow.providers.amazon.aws.hooks.emr.EmrHook`
+
+#### `airflow.providers.amazon.aws.operators.emr_add_steps.EmrAddStepsOperator`
+
+#### `airflow.providers.amazon.aws.operators.emr_create_job_flow.EmrCreateJobFlowOperator`
+
+#### `airflow.providers.amazon.aws.operators.emr_terminate_job_flow.EmrTerminateJobFlowOperator`
+
+The default value for the [aws_conn_id](https://airflow.apache.org/howto/manage-connections.html#amazon-web-services) was accidentally set to 's3_default' instead of 'aws_default' in some of the emr operators in previous
+versions. This was leading to EmrStepSensor not being able to find their corresponding emr cluster. With the new
+changes in the EmrAddStepsOperator, EmrTerminateJobFlowOperator and EmrCreateJobFlowOperator this issue is
+solved.
+
+#### `airflow.providers.amazon.aws.operators.batch.AwsBatchOperator`
+
+The `AwsBatchOperator` was refactored to extract an `AwsBatchClient` (and inherit from it).  The
+changes are mostly backwards compatible and clarify the public API for these classes; some
+private methods on `AwsBatchOperator` for polling a job status were relocated and renamed
+to surface new public methods on `AwsBatchClient` (and via inheritance on `AwsBatchOperator`).  A
+couple of job attributes are renamed on an instance of `AwsBatchOperator`; these were mostly
+used like private attributes but they were surfaced in the public API, so any use of them needs
+to be updated as follows:
+
+- `AwsBatchOperator().jobId` -> `AwsBatchOperator().job_id`
+- `AwsBatchOperator().jobName` -> `AwsBatchOperator().job_name`
+
+The `AwsBatchOperator` gets a new option to define a custom model for waiting on job status changes.
+The `AwsBatchOperator` can use a new `waiters` parameter, an instance of `AwsBatchWaiters`, to
+specify that custom job waiters will be used to monitor a batch job.  See the latest API
+documentation for details.
+
+#### `airflow.providers.amazon.aws.sensors.athena.AthenaSensor`
+
+Replace parameter `max_retires` with `max_retries` to fix typo.
+
+#### `airflow.providers.amazon.aws.hooks.s3.S3Hook`
+
+Note: The order of arguments has changed for `check_for_prefix`.
+The `bucket_name` is now optional. It falls back to the `connection schema` attribute.
+The `delete_objects` now returns `None` instead of a response, since the method now makes multiple api requests when the keys list length is > 1000.
+
+### Changes in other provider packages
+
+We strive to ensure that there are no changes that may affect the end user and your Python files, but this
+release may contain changes that will require changes to your configuration, DAG Files or other integration
+e.g. custom operators.
+
+Only changes unique to providers are described here. You should still pay attention to the changes that
+have been made to the core (including core operators) as they can affect the integration behavior
+of this provider.
+
+This section describes the changes that have been made, and what you need to do to update your if
+you use any code located in `airflow.providers` package.
+
+#### Changed return type of `list_prefixes` and `list_keys` methods in `S3Hook`
+
+Previously, the `list_prefixes` and `list_keys` methods returned `None` when there were no
+results. The behavior has been changed to return an empty list instead of `None` in this
+case.
+
+#### Removed Hipchat integration
+
+Hipchat has reached end of life and is no longer available.
+
+For more information please see
+https://community.atlassian.com/t5/Stride-articles/Stride-and-Hipchat-Cloud-have-reached-End-of-Life-updated/ba-p/940248
+
+#### `airflow.providers.salesforce.hooks.salesforce.SalesforceHook`
+
+Replace parameter ``sandbox`` with ``domain``. According to change in simple-salesforce package.
+
+Rename `sign_in` function to `get_conn`.
+
+#### `airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook.create_segment`
+
+Rename parameter name from ``format`` to ``segment_format`` in PinotAdminHook function create_segment fro pylint compatible
+
+#### `airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_partitions`
+
+Rename parameter name from ``filter`` to ``partition_filter`` in HiveMetastoreHook function get_partitions for pylint compatible
+
+#### `airflow.providers.ftp.hooks.ftp.FTPHook.list_directory`
+
+Remove unnecessary parameter ``nlst`` in FTPHook function ``list_directory`` for pylint compatible
+
+#### `airflow.providers.postgres.hooks.postgres.PostgresHook.copy_expert`
+
+Remove unnecessary parameter ``open`` in PostgresHook function ``copy_expert`` for pylint compatible
+
+#### `airflow.providers.opsgenie.operators.opsgenie_alert.OpsgenieAlertOperator`
+
+Change parameter name from ``visibleTo`` to ``visible_to`` in OpsgenieAlertOperator for pylint compatible
+
+#### `airflow.providers.imap.hooks.imap.ImapHook`
+
+#### `airflow.providers.imap.sensors.imap_attachment.ImapAttachmentSensor`
+
+ImapHook:
+
+* The order of arguments has changed for `has_mail_attachment`,
+`retrieve_mail_attachments` and `download_mail_attachments`.
+* A new `mail_filter` argument has been added to each of those.
+
+
+#### `airflow.providers.http.hooks.http.HttpHook`
+
+The HTTPHook is now secured by default: `verify=True` (before: `verify=False`)
+This can be overwriten by using the extra_options param as `{'verify': False}`.
+
+#### `airflow.providers.cloudant.hooks.cloudant.CloudantHook`
+
+* upgraded cloudant version from `>=0.5.9,<2.0` to `>=2.0`
+* removed the use of the `schema` attribute in the connection
+* removed `db` function since the database object can also be retrieved by calling `cloudant_session['database_name']`
+
+For example:
+
+```python
+from airflow.providers.cloudant.hooks.cloudant import CloudantHook
+
+with CloudantHook().get_conn() as cloudant_session:
+    database = cloudant_session['database_name']
+```
+
+See the [docs](https://python-cloudant.readthedocs.io/en/latest/) for more information on how to use the new cloudant version.
+
+#### `airflow.providers.snowflake`
+
+When initializing a Snowflake hook or operator, the value used for `snowflake_conn_id` was always `snowflake_conn_id`, regardless of whether or not you specified a value for it. The default `snowflake_conn_id` value is now switched to `snowflake_default` for consistency and will be properly overridden when specified.
+
+### Other changes
+
+This release also includes changes that fall outside any of the sections above.
+
+#### Standardised "extra" requirements
+
+We standardised the Extras names and synchronized providers package names with the main airflow extras.
+
+We deprecated a number of extras in 2.0.
+
+| Deprecated extras         | New extras       |
+|---------------------------|------------------|
+| atlas                     | apache.atlas     |
+| aws                       | amazon           |
+| azure                     | microsoft.azure  |
+| azure_blob_storage        | microsoft.azure  |
+| azure_data_lake           | microsoft.azure  |
+| azure_cosmos              | microsoft.azure  |
+| azure_container_instances | microsoft.azure  |
+| cassandra                 | apache.cassandra |
+| druid                     | apache.druid     |
+| gcp                       | google           |
+| gcp_api                   | google           |
+| hdfs                      | apache.hdfs      |
+| hive                      | apache.hive      |
+| kubernetes                | cncf.kubernetes  |
+| mssql                     | microsoft.mssql  |
+| pinot                     | apache.pinot     |
+| webhdfs                   | apache.webhdfs   |
+| winrm                     | apache.winrm     |
+
+For example:
+
+If you want to install integration for Microsoft Azure, then instead of `pip install apache-airflow[atlas]`
+you should use `pip install apache-airflow[apache.atlas]`.
+
+
+NOTE!
+
+On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+`pip install --upgrade pip==20.2.4` or, in case you use Pip 20.3, you need to add option
+`--use-deprecated legacy-resolver` to your pip install command.
+
+
+If you want to install integration for Microsoft Azure, then instead of
+
+```
+pip install 'apache-airflow[azure_blob_storage,azure_data_lake,azure_cosmos,azure_container_instances]'
+```
+
+you should execute `pip install 'apache-airflow[azure]'`
+
+If you want to install integration for Amazon Web Services, then instead of
+`pip install 'apache-airflow[s3,emr]'`, you should execute `pip install 'apache-airflow[aws]'`
+
+The deprecated extras will be removed in 3.0.
+
+#### Simplify the response payload of endpoints /dag_stats and /task_stats
+
+The response of endpoints `/dag_stats` and `/task_stats` help UI fetch brief statistics about DAGs and Tasks. The format was like
+
+```json
+{
+    "example_http_operator": [
+        {
+            "state": "success",
+            "count": 0,
+            "dag_id": "example_http_operator",
+            "color": "green"
+        },
+        {
+            "state": "running",
+            "count": 0,
+            "dag_id": "example_http_operator",
+            "color": "lime"
+        },
+        ...
+],
+...
+}
+```
+
+The `dag_id` was repeated in the payload, which makes the response payload unnecessarily bigger.
+
+Now the `dag_id` will not appear repeated in the payload, and the response format is like
+
+```json
+{
+    "example_http_operator": [
+        {
+            "state": "success",
+            "count": 0,
+            "color": "green"
+        },
+        {
+            "state": "running",
+            "count": 0,
+            "color": "lime"
+        },
+        ...
+],
+...
+}
+```
+
+## Airflow 1.10.14
+
+### `[scheduler] max_threads` config has been renamed to `[scheduler] parsing_processes`
+
+From Airflow 1.10.14, `max_threads` config under `[scheduler]` section has been renamed to `parsing_processes`.
+
+This is to align the name with the actual code where the Scheduler launches the number of processes defined by
+`[scheduler] parsing_processes` to parse the DAG files.
+
+### Airflow CLI changes in line with 2.0
+
+The Airflow CLI has been organized so that related commands are grouped together as subcommands,
+which means that if you use these commands in your scripts, they will now raise a DeprecationWarning and
+you have to make changes to them before you upgrade to Airflow 2.0.
+
+This section describes the changes that have been made, and what you need to do to update your script.
+
+The ability to manipulate users from the command line has been changed. ``airflow create_user``,  ``airflow delete_user``
+ and ``airflow list_users`` has been grouped to a single command `airflow users` with optional flags `create`, `list` and `delete`.
+
+The `airflow list_dags` command is now `airflow dags list`, `airflow pause` is `airflow dags pause`, etc.
+
+In Airflow 1.10 and 2.0 there is an `airflow config` command but there is a difference in behavior. In Airflow 1.10,
+it prints all config options while in Airflow 2.0, it's a command group. `airflow config` is now `airflow config list`.
+You can check other options by running the command `airflow config --help`
+
+Compatibility with the old CLI has been maintained, but they will no longer appear in the help
+
+You can learn about the commands by running ``airflow --help``. For example to get help about the ``celery`` group command,
+you have to run the help command: ``airflow celery --help``.
+
+| Old command                   | New command                        |     Group          |
+|-------------------------------|------------------------------------|--------------------|
+| ``airflow worker``            | ``airflow celery worker``          |    ``celery``      |
+| ``airflow flower``            | ``airflow celery flower``          |    ``celery``      |
+| ``airflow trigger_dag``       | ``airflow dags trigger``           |    ``dags``        |
+| ``airflow delete_dag``        | ``airflow dags delete``            |    ``dags``        |
+| ``airflow show_dag``          | ``airflow dags show``              |    ``dags``        |
+| ``airflow list_dag``          | ``airflow dags list``              |    ``dags``        |
+| ``airflow dag_status``        | ``airflow dags status``            |    ``dags``        |
+| ``airflow backfill``          | ``airflow dags backfill``          |    ``dags``        |
+| ``airflow list_dag_runs``     | ``airflow dags list-runs``         |    ``dags``        |
+| ``airflow pause``             | ``airflow dags pause``             |    ``dags``        |
+| ``airflow unpause``           | ``airflow dags unpause``           |    ``dags``        |
+| ``airflow next_execution``    | ``airflow dags next-execution``    |    ``dags``        |
+| ``airflow test``              | ``airflow tasks test``             |    ``tasks``       |
+| ``airflow clear``             | ``airflow tasks clear``            |    ``tasks``       |
+| ``airflow list_tasks``        | ``airflow tasks list``             |    ``tasks``       |
+| ``airflow task_failed_deps``  | ``airflow tasks failed-deps``      |    ``tasks``       |
+| ``airflow task_state``        | ``airflow tasks state``            |    ``tasks``       |
+| ``airflow run``               | ``airflow tasks run``              |    ``tasks``       |
+| ``airflow render``            | ``airflow tasks render``           |    ``tasks``       |
+| ``airflow initdb``            | ``airflow db init``                |     ``db``         |
+| ``airflow resetdb``           | ``airflow db reset``               |     ``db``         |
+| ``airflow upgradedb``         | ``airflow db upgrade``             |     ``db``         |
+| ``airflow checkdb``           | ``airflow db check``               |     ``db``         |
+| ``airflow shell``             | ``airflow db shell``               |     ``db``         |
+| ``airflow pool``              | ``airflow pools``                  |     ``pools``      |
+| ``airflow create_user``       | ``airflow users create``           |     ``users``      |
+| ``airflow delete_user``       | ``airflow users delete``           |     ``users``      |
+| ``airflow list_users``        | ``airflow users list``             |     ``users``      |
+| ``airflow rotate_fernet_key`` | ``airflow rotate-fernet-key``      |                    |
+| ``airflow sync_perm``         | ``airflow sync-perm``              |                    |
+
+## Airflow 1.10.13
+
+### TimeSensor is now timezone aware
+
+Previously `TimeSensor` always compared the `target_time` with the current time in UTC.
+
+Now it will compare `target_time` with the current time in the timezone of the DAG,
+defaulting to the `default_timezone` in the global config.
+
+### Removed Kerberos support for HDFS hook
+
+The HDFS hook's Kerberos support has been removed due to removed python-krbV dependency from PyPI
+and generally lack of support for SSL in Python3 (Snakebite-py3 we use as dependency has no
+support for SSL connection to HDFS).
+
+SSL support still works for WebHDFS hook.
+
+### Unify user session lifetime configuration
+
+In previous version of Airflow user session lifetime could be configured by
+`session_lifetime_days` and `force_log_out_after` options. In practise only `session_lifetime_days`
+had impact on session lifetime, but it was limited to values in day.
+We have removed mentioned options and introduced new `session_lifetime_minutes`
+option which simplify session lifetime configuration.
+
+Before
+
+ ```ini
+[webserver]
+force_log_out_after = 0
+session_lifetime_days = 30
+ ```
+
+After
+
+ ```ini
+[webserver]
+session_lifetime_minutes = 43200
+ ```
+
+### Adding Operators, Hooks and Sensors via Airflow Plugins is deprecated
+
+The ability to import Operators, Hooks and Sensors via the plugin mechanism has been deprecated and will raise warnings
+in Airflow 1.10.13 and will be removed completely in Airflow 2.0.
+
+Check https://airflow.apache.org/docs/1.10.13/howto/custom-operator.html to see how you can create and import
+Custom Hooks, Operators and Sensors.
+
+## Airflow 1.10.12
+
+### Clearing tasks skipped by SkipMixin will skip them
+
+Previously, when tasks skipped by SkipMixin (such as BranchPythonOperator, BaseBranchOperator and ShortCircuitOperator) are cleared, they execute. Since 1.10.12, when such skipped tasks are cleared,
+they will be skipped again by the newly introduced NotPreviouslySkippedDep.
+
+### The pod_mutation_hook function will now accept a kubernetes V1Pod object
+
+As of airflow 1.10.12, using the `airflow.contrib.kubernetes.Pod` class in the `pod_mutation_hook` is now deprecated. Instead we recommend that users
+treat the `pod` parameter as a `kubernetes.client.models.V1Pod` object. This means that users now have access to the full Kubernetes API
+when modifying airflow pods
+
+### pod_template_file option now available in the KubernetesPodOperator
+
+Users can now offer a path to a yaml for the KubernetesPodOperator using the `pod_template_file` parameter.
+
+## Airflow 1.10.11
+
+### Use NULL as default value for dag.description
+
+Now use NULL as default value for dag.description in dag table
+
+### Restrict editing DagRun State in the old UI (Flask-admin based UI)
+
+Before 1.10.11 it was possible to edit DagRun State in the `/admin/dagrun/` page
+ to any text.
+
+In Airflow 1.10.11+, the user can only choose the states from the list.
+
+### Experimental API will deny all request by default.
+
+The previous default setting was to allow all API requests without authentication, but this poses security
+risks to users who miss this fact. This changes the default for new installs to deny all requests by default.
+
+**Note**: This will not change the behavior for existing installs, please update check your airflow.cfg
+
+If you wish to have the experimental API work, and aware of the risks of enabling this without authentication
+(or if you have your own authentication layer in front of Airflow) you can get
+the previous behaviour on a new install by setting this in your airflow.cfg:
+
+```
+[api]
+auth_backend = airflow.api.auth.backend.default
+```
+
+### XCom Values can no longer be added or changed from the Webserver
+
+Since XCom values can contain pickled data, we would no longer allow adding or
+changing XCom values from the UI.
+
+### Default for `run_as_user` configured has been changed to 50000 from 0
+
+The UID to run the first process of the Worker PODs when using has been changed to `50000`
+from the previous default of `0`. The previous default was an empty string but the code used `0` if it was
+empty string.
+
+**Before**:
+
+```ini
+[kubernetes]
+run_as_user =
+```
+
+**After**:
+
+```ini
+[kubernetes]
+run_as_user = 50000
+```
+
+This is done to avoid running the container as `root` user.
+
+## Airflow 1.10.10
+
+### Setting Empty string to a Airflow Variable will return an empty string
+
+Previously when you set an Airflow Variable with an empty string (`''`), the value you used to get
+back was ``None``. This will now return an empty string (`'''`)
+
+Example:
+
+```python
+>> Variable.set('test_key', '')
+>> Variable.get('test_key')
+```
+
+The above code returned `None` previously, now it will return `''`.
+
+### Make behavior of `none_failed` trigger rule consistent with documentation
+
+The behavior of the `none_failed` trigger rule is documented as "all parents have not failed (`failed` or
+    `upstream_failed`) i.e. all parents have succeeded or been skipped." As previously implemented, the actual behavior
+    would skip if all parents of a task had also skipped.
+
+### Add new trigger rule `none_failed_or_skipped`
+
+The fix to `none_failed` trigger rule breaks workflows that depend on the previous behavior.
+    If you need the old behavior, you should change the tasks with `none_failed` trigger rule to `none_failed_or_skipped`.
+
+### Success Callback will be called when a task in marked as success from UI
+
+When a task is marked as success by a user from Airflow UI - `on_success_callback` will be called
 
 ## Airflow 1.10.9
 
@@ -1054,6 +1986,7 @@ No breaking changes.
 ## Airflow 1.10.8
 
 ### Failure callback will be called when task is marked failed
+
 When task is marked failed by user or task fails due to system failures - on failure call back will be called as part of clean up
 
 See [AIRFLOW-5621](https://jira.apache.org/jira/browse/AIRFLOW-5621) for details
@@ -1090,6 +2023,7 @@ positional argument, along with `content` and `context`. This function signature
 the `attr` argument is no longer required (or accepted).
 
 In order to use this function in subclasses of the `BaseOperator`, the `attr` argument must be removed:
+
 ```python
 result = self.render_template('myattr', self.myattr, context)  # Pre-1.10.6 call
 ...
@@ -1129,12 +2063,6 @@ This is the correct behavior for use with BigQuery, since BigQuery
 assumes that TIMESTAMP columns without time zones are in UTC. To
 preserve the previous behavior, set `ensure_utc` to `False.`
 
-### Python 2 support is going away
-
-Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0 will only support Python 3.5 and up.
-
-If you have a specific task that still requires Python 2 then you can use the PythonVirtualenvOperator for this.
-
 ### Changes to DatastoreHook
 
 * removed argument `version` from `get_conn` function and added it to the hook's `__init__` function instead and renamed it to `api_version`
@@ -1172,6 +2100,7 @@ implementation. Default value is "prefork", while choices include "prefork" (def
 in different scenarios.
 
 For more details about Celery pool implementation, please refer to:
+
 - https://docs.celeryproject.org/en/latest/userguide/workers.html#concurrency
 - https://docs.celeryproject.org/en/latest/userguide/concurrency/eventlet.html
 
@@ -1230,6 +2159,7 @@ they contain the strings "airflow" and "DAG". For backwards
 compatibility, this option is enabled by default.
 
 ### RedisPy dependency updated to v3 series
+
 If you are using the Redis Sensor or Hook you may have to update your code. See
 [redis-py porting instructions] to check if your code might be affected (MSET,
 MSETNX, ZADD, and ZINCRBY all were, but read the full doc).
@@ -1262,7 +2192,7 @@ If the `AIRFLOW_CONFIG` environment variable was not set and the
 will discover its config file using the `$AIRFLOW_CONFIG` and `$AIRFLOW_HOME`
 environment variables rather than checking for the presence of a file.
 
-### Changes in Google Cloud Platform related operators
+### Changes in Google Cloud related operators
 
 Most GCP-related operators have now optional `PROJECT_ID` parameter. In case you do not specify it,
 the project id configured in
@@ -1289,7 +2219,7 @@ Operators involved:
 
 Other GCP operators are unaffected.
 
-### Changes in Google Cloud Platform related hooks
+### Changes in Google Cloud related hooks
 
 The change in GCP operators implies that GCP Hooks for those operators require now keyword parameters rather
 than positional ones in all methods where `project_id` is used. The methods throw an explanatory exception
@@ -1304,6 +2234,7 @@ Hooks involved:
 Other GCP hooks are unaffected.
 
 ### Changed behaviour of using default value when accessing variables
+
 It's now possible to use `None` as a default value with the `default_var` parameter when getting a variable, e.g.
 
 ```python
@@ -1336,15 +2267,19 @@ The signature of the `create_transfer_job` method in `GCPTransferServiceHook`
 class has changed. The change does not change the behavior of the method.
 
 Old signature:
+
 ```python
 def create_transfer_job(self, description, schedule, transfer_spec, project_id=None):
 ```
+
 New signature:
+
 ```python
 def create_transfer_job(self, body):
 ```
 
 It is necessary to rewrite calls to method. The new call looks like this:
+
 ```python
 body = {
   'status': 'ENABLED',
@@ -1355,17 +2290,21 @@ body = {
 }
 gct_hook.create_transfer_job(body)
 ```
+
 The change results from the unification of all hooks and adjust to
 [the official recommendations](https://lists.apache.org/thread.html/e8534d82be611ae7bcb21ba371546a4278aad117d5e50361fd8f14fe@%3Cdev.airflow.apache.org%3E)
-for the Google Cloud Platform.
+for the Google Cloud.
 
 The signature of `wait_for_transfer_job` method in `GCPTransferServiceHook` has changed.
 
 Old signature:
+
 ```python
 def wait_for_transfer_job(self, job):
 ```
+
 New signature:
+
 ```python
 def wait_for_transfer_job(self, job, expected_statuses=(GcpTransferOperationStatus.SUCCESS, )):
 ```
@@ -1419,9 +2358,11 @@ that he has permissions on. If a new role wants to access all the dags, the admi
 We also provide a new cli command(``sync_perm``) to allow admin to auto sync permissions.
 
 ### Modification to `ts_nodash` macro
+
 `ts_nodash` previously contained TimeZone information along with execution date. For Example: `20150101T000000+0000`. This is not user-friendly for file or folder names which was a popular use case for `ts_nodash`. Hence this behavior has been changed and using `ts_nodash` will no longer contain TimeZone information, restoring the pre-1.10 behavior of this macro. And a new macro `ts_nodash_with_tz` has been added which can be used to get a string with execution date and timezone info without dashes.
 
 Examples:
+
   * `ts_nodash`: `20150101T000000`
   * `ts_nodash_with_tz`: `20150101T000000+0000`
 
@@ -1430,9 +2371,11 @@ Examples:
 next_ds/prev_ds now map to execution_date instead of the next/previous schedule-aligned execution date for DAGs triggered in the UI.
 
 ### User model changes
+
 This patch changes the `User.superuser` field from a hardcoded boolean to a `Boolean()` database column. `User.superuser` will default to `False`, which means that this privilege will have to be granted manually to any users that may require it.
 
 For example, open a Python shell and
+
 ```python
 from airflow import models, settings
 
@@ -1454,14 +2397,18 @@ custom auth backends might need a small change: `is_active`,
 `is_authenticated`, and `is_anonymous` should now be properties. What this means is if
 previously you had this in your user class
 
-    def is_active(self):
-      return self.active
+```python
+def is_active(self):
+  return self.active
+```
 
 then you need to change it like this
 
-    @property
-    def is_active(self):
-      return self.active
+```python
+@property
+def is_active(self):
+  return self.active
+```
 
 ### Support autodetected schemas to GoogleCloudStorageToBigQueryOperator
 
@@ -1471,21 +2418,27 @@ If BigQuery tables are created outside of airflow and the schema is not defined 
 
 define a schema_fields:
 
-    gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
-      ...
-      schema_fields={...})
+```python
+gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
+  ...
+  schema_fields={...})
+```
 
 or define a schema_object:
 
-    gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
-      ...
-      schema_object='path/to/schema/object)
+```python
+gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
+  ...
+  schema_object='path/to/schema/object')
+```
 
 or enabled autodetect of schema:
 
-    gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
-      ...
-      autodetect=True)
+```python
+gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
+  ...
+  autodetect=True)
+```
 
 ## Airflow 1.10.1
 
@@ -1821,7 +2774,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>>
 >>> from datetime import datetime
 >>> from airflow.models.dag import DAG
->>> from airflow.operators.dummy_operator import DummyOperator
+>>> from airflow.operators.dummy import DummyOperator
 >>>
 >>> dag = DAG('simple_dag', start_date=datetime(2017, 9, 1))
 >>>
@@ -1932,6 +2885,7 @@ indefinitely. This is only available on the command line.
 After how much time should an updated DAG be picked up from the filesystem.
 
 #### min_file_parsing_loop_time
+
 CURRENTLY DISABLED DUE TO A BUG
 How many seconds to wait between file-parsing loops to prevent the logs from being spammed.
 
@@ -1963,21 +2917,18 @@ dags_are_paused_at_creation = False
 
 If you specify a hive conf to the run_cli command of the HiveHook, Airflow add some
 convenience variables to the config. In case you run a secure Hadoop setup it might be
-required to whitelist these variables by adding the following to your configuration:
+required to allow these variables by adjusting you hive configuration to add `airflow\.ctx\..*` to the regex
+of user-editable configuration properties. See
+[the Hive docs on Configuration Properties][hive.security.authorization.sqlstd] for more info.
 
-```
-<property>
-     <name>hive.security.authorization.sqlstd.confwhitelist.append</name>
-     <value>airflow\.ctx\..*</value>
-</property>
-```
+[hive.security.authorization.sqlstd]: https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=82903061#ConfigurationProperties-SQLStandardBasedAuthorization.1
 
 ### Google Cloud Operator and Hook alignment
 
 All Google Cloud Operators and Hooks are aligned and use the same client library. Now you have a single connection
 type for all kinds of Google Cloud Operators.
 
-If you experience problems connecting with your operator make sure you set the connection type "Google Cloud Platform".
+If you experience problems connecting with your operator make sure you set the connection type "Google Cloud".
 
 Also the old P12 key file type is not supported anymore and only the new JSON key files are supported as a service
 account.

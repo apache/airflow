@@ -16,10 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-Utilities for creating a virtual environment
-"""
+"""Utilities for creating a virtual environment"""
+import os
 from typing import List, Optional
+
+import jinja2
 
 from airflow.utils.process_utils import execute_in_subprocess
 
@@ -29,7 +30,7 @@ def _generate_virtualenv_cmd(tmp_dir: str, python_bin: str, system_site_packages
     if system_site_packages:
         cmd.append('--system-site-packages')
     if python_bin is not None:
-        cmd.append('--python={}'.format(python_bin))
+        cmd.append(f'--python={python_bin}')
     return cmd
 
 
@@ -37,15 +38,12 @@ def _generate_pip_install_cmd(tmp_dir: str, requirements: List[str]) -> Optional
     if not requirements:
         return None
     # direct path alleviates need to activate
-    cmd = ['{}/bin/pip'.format(tmp_dir), 'install']
+    cmd = [f'{tmp_dir}/bin/pip', 'install']
     return cmd + requirements
 
 
 def prepare_virtualenv(
-    venv_directory: str,
-    python_bin: str,
-    system_site_packages: bool,
-    requirements: List[str]
+    venv_directory: str, python_bin: str, system_site_packages: bool, requirements: List[str]
 ) -> str:
     """
     Creates a virtual environment and installs the additional python packages
@@ -68,4 +66,20 @@ def prepare_virtualenv(
     if pip_cmd:
         execute_in_subprocess(pip_cmd)
 
-    return '{}/bin/python'.format(venv_directory)
+    return f'{venv_directory}/bin/python'
+
+
+def write_python_script(jinja_context: dict, filename: str):
+    """
+    Renders the python script to a file to execute in the virtual environment.
+
+    :param jinja_context: The jinja context variables to unpack and replace with its placeholders in the
+        template file.
+    :type jinja_context: dict
+    :param filename: The name of the file to dump the rendered script to.
+    :type filename: str
+    """
+    template_loader = jinja2.FileSystemLoader(searchpath=os.path.dirname(__file__))
+    template_env = jinja2.Environment(loader=template_loader, undefined=jinja2.StrictUndefined)
+    template = template_env.get_template('python_virtualenv_script.jinja2')
+    template.stream(**jinja_context).dump(filename)

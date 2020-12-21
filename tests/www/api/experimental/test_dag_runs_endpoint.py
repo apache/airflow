@@ -18,8 +18,6 @@
 import json
 import unittest
 
-from parameterized import parameterized_class
-
 from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.models import DagBag, DagRun
 from airflow.models.serialized_dag import SerializedDagModel
@@ -28,13 +26,7 @@ from airflow.www import app as application
 from tests.test_utils.config import conf_vars
 
 
-@parameterized_class([
-    {"dag_serialzation": "False"},
-    {"dag_serialzation": "True"},
-])
 class TestDagRunsEndpoint(unittest.TestCase):
-    dag_serialzation = "False"
-
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -49,7 +41,12 @@ class TestDagRunsEndpoint(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
-        app, _ = application.create_app(testing=True)
+        with conf_vars(
+            {
+                ('api', 'enable_experimental_api'): 'true',
+            }
+        ):
+            app = application.create_app(testing=True)
         self.app = app.test_client()
 
     def tearDown(self):
@@ -60,105 +57,80 @@ class TestDagRunsEndpoint(unittest.TestCase):
         super().tearDown()
 
     def test_get_dag_runs_success(self):
-        with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
-        ):
-            url_template = '/api/experimental/dags/{}/dag_runs'
-            dag_id = 'example_bash_operator'
-            # Create DagRun
-            dag_run = trigger_dag(
-                dag_id=dag_id, run_id='test_get_dag_runs_success')
+        url_template = '/api/experimental/dags/{}/dag_runs'
+        dag_id = 'example_bash_operator'
+        # Create DagRun
+        dag_run = trigger_dag(dag_id=dag_id, run_id='test_get_dag_runs_success')
 
-            response = self.app.get(url_template.format(dag_id))
-            self.assertEqual(200, response.status_code)
-            data = json.loads(response.data.decode('utf-8'))
+        response = self.app.get(url_template.format(dag_id))
+        self.assertEqual(200, response.status_code)
+        data = json.loads(response.data.decode('utf-8'))
 
-            self.assertIsInstance(data, list)
-            self.assertEqual(len(data), 1)
-            self.assertEqual(data[0]['dag_id'], dag_id)
-            self.assertEqual(data[0]['id'], dag_run.id)
+        self.assertIsInstance(data, list)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['dag_id'], dag_id)
+        self.assertEqual(data[0]['id'], dag_run.id)
 
     def test_get_dag_runs_success_with_state_parameter(self):
-        with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
-        ):
-            url_template = '/api/experimental/dags/{}/dag_runs?state=running'
-            dag_id = 'example_bash_operator'
-            # Create DagRun
-            dag_run = trigger_dag(
-                dag_id=dag_id, run_id='test_get_dag_runs_success')
+        url_template = '/api/experimental/dags/{}/dag_runs?state=running'
+        dag_id = 'example_bash_operator'
+        # Create DagRun
+        dag_run = trigger_dag(dag_id=dag_id, run_id='test_get_dag_runs_success')
 
-            response = self.app.get(url_template.format(dag_id))
-            self.assertEqual(200, response.status_code)
-            data = json.loads(response.data.decode('utf-8'))
+        response = self.app.get(url_template.format(dag_id))
+        self.assertEqual(200, response.status_code)
+        data = json.loads(response.data.decode('utf-8'))
 
-            self.assertIsInstance(data, list)
-            self.assertEqual(len(data), 1)
-            self.assertEqual(data[0]['dag_id'], dag_id)
-            self.assertEqual(data[0]['id'], dag_run.id)
+        self.assertIsInstance(data, list)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['dag_id'], dag_id)
+        self.assertEqual(data[0]['id'], dag_run.id)
 
     def test_get_dag_runs_success_with_capital_state_parameter(self):
-        with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
-        ):
-            url_template = '/api/experimental/dags/{}/dag_runs?state=RUNNING'
-            dag_id = 'example_bash_operator'
-            # Create DagRun
-            dag_run = trigger_dag(
-                dag_id=dag_id, run_id='test_get_dag_runs_success')
+        url_template = '/api/experimental/dags/{}/dag_runs?state=RUNNING'
+        dag_id = 'example_bash_operator'
+        # Create DagRun
+        dag_run = trigger_dag(dag_id=dag_id, run_id='test_get_dag_runs_success')
 
-            response = self.app.get(url_template.format(dag_id))
-            self.assertEqual(200, response.status_code)
-            data = json.loads(response.data.decode('utf-8'))
+        response = self.app.get(url_template.format(dag_id))
+        self.assertEqual(200, response.status_code)
+        data = json.loads(response.data.decode('utf-8'))
 
-            self.assertIsInstance(data, list)
-            self.assertEqual(len(data), 1)
-            self.assertEqual(data[0]['dag_id'], dag_id)
-            self.assertEqual(data[0]['id'], dag_run.id)
+        self.assertIsInstance(data, list)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['dag_id'], dag_id)
+        self.assertEqual(data[0]['id'], dag_run.id)
 
     def test_get_dag_runs_success_with_state_no_result(self):
-        with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
-        ):
-            url_template = '/api/experimental/dags/{}/dag_runs?state=dummy'
-            dag_id = 'example_bash_operator'
-            # Create DagRun
-            trigger_dag(dag_id=dag_id, run_id='test_get_dag_runs_success')
+        url_template = '/api/experimental/dags/{}/dag_runs?state=dummy'
+        dag_id = 'example_bash_operator'
+        # Create DagRun
+        trigger_dag(dag_id=dag_id, run_id='test_get_dag_runs_success')
 
-            response = self.app.get(url_template.format(dag_id))
-            self.assertEqual(200, response.status_code)
-            data = json.loads(response.data.decode('utf-8'))
+        response = self.app.get(url_template.format(dag_id))
+        self.assertEqual(200, response.status_code)
+        data = json.loads(response.data.decode('utf-8'))
 
-            self.assertIsInstance(data, list)
-            self.assertEqual(len(data), 0)
+        self.assertIsInstance(data, list)
+        self.assertEqual(len(data), 0)
 
     def test_get_dag_runs_invalid_dag_id(self):
-        with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
-        ):
-            url_template = '/api/experimental/dags/{}/dag_runs'
-            dag_id = 'DUMMY_DAG'
+        url_template = '/api/experimental/dags/{}/dag_runs'
+        dag_id = 'DUMMY_DAG'
 
-            response = self.app.get(url_template.format(dag_id))
-            self.assertEqual(400, response.status_code)
-            data = json.loads(response.data.decode('utf-8'))
+        response = self.app.get(url_template.format(dag_id))
+        self.assertEqual(400, response.status_code)
+        data = json.loads(response.data.decode('utf-8'))
 
-            self.assertNotIsInstance(data, list)
+        self.assertNotIsInstance(data, list)
 
     def test_get_dag_runs_no_runs(self):
-        with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
-        ):
-            url_template = '/api/experimental/dags/{}/dag_runs'
-            dag_id = 'example_bash_operator'
+        url_template = '/api/experimental/dags/{}/dag_runs'
+        dag_id = 'example_bash_operator'
 
-            response = self.app.get(url_template.format(dag_id))
-            self.assertEqual(200, response.status_code)
-            data = json.loads(response.data.decode('utf-8'))
+        response = self.app.get(url_template.format(dag_id))
+        self.assertEqual(200, response.status_code)
+        data = json.loads(response.data.decode('utf-8'))
 
-            self.assertIsInstance(data, list)
-            self.assertEqual(len(data), 0)
-
-
-if __name__ == '__main__':
-    unittest.main()
+        self.assertIsInstance(data, list)
+        self.assertEqual(len(data), 0)

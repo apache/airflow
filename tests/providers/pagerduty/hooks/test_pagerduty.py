@@ -15,10 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
 import unittest
-from unittest import mock
+
+import requests_mock
 
 from airflow.models import Connection
 from airflow.providers.pagerduty.hooks.pagerduty import PagerdutyHook
@@ -28,21 +27,28 @@ DEFAULT_CONN_ID = "pagerduty_default"
 
 
 class TestPagerdutyHook(unittest.TestCase):
+    @classmethod
     @provide_session
-    def setUp(self, session=None):
-        session.add(Connection(
-            conn_id=DEFAULT_CONN_ID,
-            password="pagerduty_token",
-            extra='{"routing_key": "route"}',
-        ))
+    def setUpClass(cls, session=None):
+        session.add(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type='http',
+                password="pagerduty_token",
+                extra='{"routing_key": "route"}',
+            )
+        )
         session.commit()
 
     @provide_session
     def test_without_routing_key_extra(self, session):
-        session.add(Connection(
-            conn_id="pagerduty_no_extra",
-            password="pagerduty_token_without_extra",
-        ))
+        session.add(
+            Connection(
+                conn_id="pagerduty_no_extra",
+                conn_type='http',
+                password="pagerduty_token_without_extra",
+            )
+        )
         session.commit()
         hook = PagerdutyHook(pagerduty_conn_id="pagerduty_no_extra")
         self.assertEqual(hook.token, 'pagerduty_token_without_extra', 'token initialised.')
@@ -56,61 +62,35 @@ class TestPagerdutyHook(unittest.TestCase):
         hook = PagerdutyHook(token="pagerduty_param_token", pagerduty_conn_id=DEFAULT_CONN_ID)
         self.assertEqual(hook.token, 'pagerduty_param_token', 'token initialised.')
 
-    @mock.patch('airflow.providers.pagerduty.hooks.pagerduty.pypd.EventV2.create')
-    def test_create_event(self, mock_event_create):
+    @requests_mock.mock()
+    def test_get_service(self, m):
         hook = PagerdutyHook(pagerduty_conn_id=DEFAULT_CONN_ID)
-        mock_event_create.return_value = {
+        mock_response_body = {
+            "id": "PZYX321",
+            "name": "Apache Airflow",
+            "status": "active",
+            "type": "service",
+            "summary": "Apache Airflow",
+            "self": "https://api.pagerduty.com/services/PZYX321",
+        }
+        m.get('https://api.pagerduty.com/services/PZYX321', json={"service": mock_response_body})
+        session = hook.get_session()
+        resp = session.rget('/services/PZYX321')
+        self.assertEqual(resp, mock_response_body)
+
+    @requests_mock.mock()
+    def test_create_event(self, m):
+        hook = PagerdutyHook(pagerduty_conn_id=DEFAULT_CONN_ID)
+        mock_response_body = {
             "status": "success",
             "message": "Event processed",
             "dedup_key": "samplekeyhere",
         }
+        m.post('https://events.pagerduty.com/v2/enqueue', json=mock_response_body)
         resp = hook.create_event(
-            routing_key="key",
+            routing_key="different_key",
             summary="test",
             source="airflow_test",
             severity="error",
         )
-        self.assertEqual(resp["status"], "success")
-        mock_event_create.assert_called_once_with(
-            api_key="pagerduty_token",
-            data={
-                "routing_key": "key",
-                "event_action": "trigger",
-                "payload": {
-                    "severity": "error",
-                    "source": "airflow_test",
-                    "summary": "test",
-                },
-            })
-
-    @mock.patch('airflow.providers.pagerduty.hooks.pagerduty.pypd.EventV2.create')
-    def test_create_event_with_default_routing_key(self, mock_event_create):
-        hook = PagerdutyHook(pagerduty_conn_id=DEFAULT_CONN_ID)
-        mock_event_create.return_value = {
-            "status": "success",
-            "message": "Event processed",
-            "dedup_key": "samplekeyhere",
-        }
-        resp = hook.create_event(
-            summary="test",
-            source="airflow_test",
-            severity="error",
-            custom_details='{"foo": "bar"}',
-        )
-        self.assertEqual(resp["status"], "success")
-        mock_event_create.assert_called_once_with(
-            api_key="pagerduty_token",
-            data={
-                "routing_key": "route",
-                "event_action": "trigger",
-                "payload": {
-                    "severity": "error",
-                    "source": "airflow_test",
-                    "summary": "test",
-                    "custom_details": '{"foo": "bar"}',
-                },
-            })
-
-
-if __name__ == '__main__':
-    unittest.main()
+        self.assertEqual(resp, mock_response_body)

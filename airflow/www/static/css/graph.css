@@ -1,4 +1,4 @@
-/**
+/*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,79 +18,116 @@
  */
 
 svg {
-    overflow: hidden;
+  overflow: hidden;
 }
 
 .node rect {
-    stroke: #333;
-    stroke-width: 1px;
-    fill: #fff;
+  stroke: #51504f;
+  stroke-width: 1px;
+  fill: #fff;
 }
 
 .edgeLabel rect {
-    fill: #fff;
+  fill: #fff;
 }
 
 .edgePath {
-    stroke: #333;
-    stroke-width: 1px;
+  stroke: #51504f;
+  stroke-width: 1px;
+}
+
+g.cluster rect {
+  stroke: #fff;
+  stroke-dasharray: 5;
+  rx: 5;
+  ry: 5;
+  opacity: 0.5;
 }
 
 g.node rect {
-    stroke-width: 3px;
-    stroke: white;
-    cursor: pointer;
+  stroke: #fff;
+  stroke-width: 3px;
+  cursor: pointer;
 }
+
+g.node circle {
+  stroke: #51504f;
+  stroke-width: 3px;
+  cursor: pointer;
+}
+
 g.node .label {
   font-size: inherit;
   font-weight: normal;
 }
+
 g.node text {
-    cursor: pointer;
+  cursor: pointer;
 }
+
 g.node.success rect {
-    stroke: green;
+  stroke: green;
 }
+
 g.node.up_for_retry rect {
-    stroke: gold;
+  stroke: gold;
 }
-g.node.up_for_reschedule rect{
-    stroke: turquoise;
+
+g.node.up_for_reschedule rect {
+  stroke: turquoise;
 }
+
+g.node.sensing rect {
+  stroke: lightseagreen;
+}
+
 g.node.queued rect {
-    stroke: grey;
+  stroke: grey;
 }
-g.node.running rect{
-    stroke: lime;
+
+g.node.running rect {
+  stroke: lime;
 }
+
 g.node.failed rect {
-    stroke: red;
-}
-g.node.shutdown rect{
-    stroke: blue;
-}
-g.node.upstream_failed rect{
-    stroke: orange;
-}
-g.node.skipped rect{
-    stroke: pink;
-}
-div#svg_container {
- border: 1px solid black;
- background-color: #EEE;
- cursor: move;
+  stroke: red;
 }
 
-#refresh_button {
-    top: 15px;
-    right: 15px;
-    position: relative;
+g.node.shutdown rect {
+  stroke: blue;
 }
 
-#loading {
-    margin: auto;
-    display: none;
-    position: relative;
-    width: 100px;
-    top: -550px;
+g.node.upstream_failed rect {
+  stroke: orange;
+}
+
+g.node.skipped rect {
+  stroke: pink;
+}
+
+g.node.removed rect {
+  stroke: black;
+}
+
+.svg-wrapper {
+  border-radius: 4px;
+  background-color: #f0f0f0;
+  cursor: move;
+}
+
+.refresh-actions {
+  float: right;
+  display: inline-flex;
+  align-items: center;
+  top: 10px;
+  right: 10px;
+  position: relative;
+}
+
+.refresh-actions > .switch-label {
+  margin: 0 10px 0 20px;
+}
+
+.loading-dots.refresh-loading {
+  display: none;
 }

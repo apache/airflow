@@ -17,23 +17,26 @@
 # under the License.
 #
 
+import os
 import unittest
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
+
+from jinja2 import StrictUndefined
 
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.emr_create_job_flow import EmrCreateJobFlowOperator
 from airflow.utils import timezone
+from tests.test_utils import AIRFLOW_MAIN_FOLDER
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
-RUN_JOB_FLOW_SUCCESS_RETURN = {
-    'ResponseMetadata': {
-        'HTTPStatusCode': 200
-    },
-    'JobFlowId': 'j-8989898989'
-}
+RUN_JOB_FLOW_SUCCESS_RETURN = {'ResponseMetadata': {'HTTPStatusCode': 200}, 'JobFlowId': 'j-8989898989'}
+
+TEMPLATE_SEARCHPATH = os.path.join(
+    AIRFLOW_MAIN_FOLDER, 'tests', 'providers', 'amazon', 'aws', 'config_templates'
+)
 
 
 class TestEmrCreateJobFlowOperator(unittest.TestCase):
@@ -41,25 +44,20 @@ class TestEmrCreateJobFlowOperator(unittest.TestCase):
     _config = {
         'Name': 'test_job_flow',
         'ReleaseLabel': '5.11.0',
-        'Steps': [{
-            'Name': 'test_step',
-            'ActionOnFailure': 'CONTINUE',
-            'HadoopJarStep': {
-                'Jar': 'command-runner.jar',
-                'Args': [
-                    '/usr/lib/spark/bin/run-example',
-                    '{{ macros.ds_add(ds, -1) }}',
-                    '{{ ds }}'
-                ]
+        'Steps': [
+            {
+                'Name': 'test_step',
+                'ActionOnFailure': 'CONTINUE',
+                'HadoopJarStep': {
+                    'Jar': 'command-runner.jar',
+                    'Args': ['/usr/lib/spark/bin/run-example', '{{ macros.ds_add(ds, -1) }}', '{{ ds }}'],
+                },
             }
-        }]
+        ],
     }
 
     def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
 
         # Mock out the emr_client (moto has incorrect response)
         self.emr_client_mock = MagicMock()
@@ -67,9 +65,13 @@ class TestEmrCreateJobFlowOperator(unittest.TestCase):
             task_id='test_task',
             aws_conn_id='aws_default',
             emr_conn_id='emr_default',
-            job_flow_overrides=self._config,
             region_name='ap-southeast-2',
-            dag=DAG('test_dag_id', default_args=args)
+            dag=DAG(
+                'test_dag_id',
+                default_args=args,
+                template_searchpath=TEMPLATE_SEARCHPATH,
+                template_undefined=StrictUndefined,
+            ),
         )
 
     def test_init(self):
@@ -78,24 +80,63 @@ class TestEmrCreateJobFlowOperator(unittest.TestCase):
         self.assertEqual(self.operator.region_name, 'ap-southeast-2')
 
     def test_render_template(self):
+        self.operator.job_flow_overrides = self._config
         ti = TaskInstance(self.operator, DEFAULT_DATE)
         ti.render_templates()
 
         expected_args = {
             'Name': 'test_job_flow',
             'ReleaseLabel': '5.11.0',
-            'Steps': [{
-                'Name': 'test_step',
-                'ActionOnFailure': 'CONTINUE',
-                'HadoopJarStep': {
-                    'Jar': 'command-runner.jar',
-                    'Args': [
-                        '/usr/lib/spark/bin/run-example',
-                        (DEFAULT_DATE - timedelta(days=1)).strftime("%Y-%m-%d"),
-                        DEFAULT_DATE.strftime("%Y-%m-%d"),
-                    ]
+            'Steps': [
+                {
+                    'Name': 'test_step',
+                    'ActionOnFailure': 'CONTINUE',
+                    'HadoopJarStep': {
+                        'Jar': 'command-runner.jar',
+                        'Args': [
+                            '/usr/lib/spark/bin/run-example',
+                            (DEFAULT_DATE - timedelta(days=1)).strftime("%Y-%m-%d"),
+                            DEFAULT_DATE.strftime("%Y-%m-%d"),
+                        ],
+                    },
                 }
-            }]
+            ],
+        }
+
+        self.assertDictEqual(self.operator.job_flow_overrides, expected_args)
+
+    def test_render_template_from_file(self):
+        self.operator.job_flow_overrides = 'job.j2.json'
+        self.operator.params = {'releaseLabel': '5.11.0'}
+
+        ti = TaskInstance(self.operator, DEFAULT_DATE)
+        ti.render_templates()
+
+        self.emr_client_mock.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
+        emr_session_mock = MagicMock()
+        emr_session_mock.client.return_value = self.emr_client_mock
+        boto3_session_mock = MagicMock(return_value=emr_session_mock)
+
+        with patch('boto3.session.Session', boto3_session_mock):
+            self.operator.execute(None)
+
+        expected_args = {
+            'Name': 'test_job_flow',
+            'ReleaseLabel': '5.11.0',
+            'Steps': [
+                {
+                    'Name': 'test_step',
+                    'ActionOnFailure': 'CONTINUE',
+                    'HadoopJarStep': {
+                        'Jar': 'command-runner.jar',
+                        'Args': [
+                            '/usr/lib/spark/bin/run-example',
+                            '2016-12-31',
+                            '2017-01-01',
+                        ],
+                    },
+                }
+            ],
         }
 
         self.assertDictEqual(self.operator.job_flow_overrides, expected_args)
@@ -110,7 +151,3 @@ class TestEmrCreateJobFlowOperator(unittest.TestCase):
 
         with patch('boto3.session.Session', boto3_session_mock):
             self.assertEqual(self.operator.execute(None), 'j-8989898989')
-
-
-if __name__ == '__main__':
-    unittest.main()

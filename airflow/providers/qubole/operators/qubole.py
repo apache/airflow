@@ -17,22 +17,28 @@
 # under the License.
 """Qubole operator"""
 import re
-from typing import FrozenSet, Iterable, Optional
+from datetime import datetime
+from typing import Iterable, Optional
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.qubole.hooks.qubole import (
-    COMMAND_ARGS, HYPHEN_ARGS, POSITIONAL_ARGS, QuboleHook, flatten_list,
+    COMMAND_ARGS,
+    HYPHEN_ARGS,
+    POSITIONAL_ARGS,
+    QuboleHook,
+    flatten_list,
 )
 from airflow.utils.decorators import apply_defaults
 
 
 class QDSLink(BaseOperatorLink):
     """Link to QDS"""
+
     name = 'Go to QDS'
 
-    def get_link(self, operator, dttm):
+    def get_link(self, operator: BaseOperator, dttm: datetime) -> str:
         """
         Get link to qubole command result page.
 
@@ -42,7 +48,9 @@ class QDSLink(BaseOperatorLink):
         """
         ti = TaskInstance(task=operator, execution_date=dttm)
         conn = BaseHook.get_connection(
-            getattr(operator, "qubole_conn_id", None) or operator.kwargs['qubole_conn_id'])
+            getattr(operator, "qubole_conn_id", None)
+            or operator.kwargs['qubole_conn_id']  # type: ignore[attr-defined]
+        )
         if conn and conn.host:
             host = re.sub(r'api$', 'v2/analyze?command_id=', conn.host)
         else:
@@ -100,13 +108,15 @@ class QuboleOperator(BaseOperator):
                 script_location is supplied
         sparkcmd:
             :program: the complete Spark Program in Scala, R, or Python
-            :cmdline: spark-submit command line, all required information must be specify
+            :cmdline: spark-submit command line, all required arguments must be specify
                 in cmdline itself.
             :sql: inline sql query
             :script_location: s3 location containing query statement
             :language: language of the program, Scala, R, or Python
             :app_id: ID of an Spark job server app
-            :arguments: spark-submit command line arguments
+            :arguments: spark-submit command line arguments.
+                If `cmdline` is selected, this should not be used because all
+                required arguments and configurations are to be passed in the `cmdline` itself.
             :user_program_arguments: arguments that the user program takes in
             :macros: macro values which were used in query
             :note_id: Id of the Notebook to run
@@ -146,6 +156,11 @@ class QuboleOperator(BaseOperator):
             :customer_cluster_label: the label of the cluster to run the command on
             :additional_options: Additional Sqoop options which are needed enclose options in
                 double or single quotes
+        jupytercmd:
+            :path: Path including name of the Jupyter notebook to be run with extension.
+            :arguments: Valid JSON to be sent to the notebook. Specify the parameters in notebooks and pass
+                the parameter value using the JSON format. key is the parameter’s name and value is
+                the parameter’s value. Supported types in parameters are string, integer, float and boolean.
 
     .. note:
 
@@ -165,33 +180,51 @@ class QuboleOperator(BaseOperator):
         handler in task definition.
     """
 
-    template_fields = ('query', 'script_location', 'sub_command', 'script', 'files',
-                       'archives', 'program', 'cmdline', 'sql', 'where_clause', 'tags',
-                       'extract_query', 'boundary_query', 'macros', 'name', 'parameters',
-                       'dbtap_id', 'hive_table', 'db_table', 'split_column', 'note_id',
-                       'db_update_keys', 'export_dir', 'partition_spec', 'qubole_conn_id',
-                       'arguments', 'user_program_arguments', 'cluster_label')  # type: Iterable[str]
+    template_fields: Iterable[str] = (
+        'query',
+        'script_location',
+        'sub_command',
+        'script',
+        'files',
+        'archives',
+        'program',
+        'cmdline',
+        'sql',
+        'where_clause',
+        'tags',
+        'extract_query',
+        'boundary_query',
+        'macros',
+        'name',
+        'parameters',
+        'dbtap_id',
+        'hive_table',
+        'db_table',
+        'split_column',
+        'note_id',
+        'db_update_keys',
+        'export_dir',
+        'partition_spec',
+        'qubole_conn_id',
+        'arguments',
+        'user_program_arguments',
+        'cluster_label',
+    )
 
-    template_ext = ('.txt',)  # type: Iterable[str]
+    template_ext: Iterable[str] = ('.txt',)
     ui_color = '#3064A1'
     ui_fgcolor = '#fff'
     qubole_hook_allowed_args_list = ['command_type', 'qubole_conn_id', 'fetch_logs']
 
-    operator_extra_links = (
-        QDSLink(),
-    )
-
-    # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
-    __serialized_fields: Optional[FrozenSet[str]] = None
+    operator_extra_links = (QDSLink(),)
 
     @apply_defaults
-    def __init__(self, qubole_conn_id="qubole_default", *args, **kwargs):
-        self.args = args
+    def __init__(self, *, qubole_conn_id: str = "qubole_default", **kwargs) -> None:
         self.kwargs = kwargs
         self.kwargs['qubole_conn_id'] = qubole_conn_id
-        self.hook = None
+        self.hook: Optional[QuboleHook] = None
         filtered_base_kwargs = self._get_filtered_args(kwargs)
-        super().__init__(*args, **filtered_base_kwargs)
+        super().__init__(**filtered_base_kwargs)
 
         if self.on_failure_callback is None:
             self.on_failure_callback = QuboleHook.handle_failure_retry
@@ -199,37 +232,41 @@ class QuboleOperator(BaseOperator):
         if self.on_retry_callback is None:
             self.on_retry_callback = QuboleHook.handle_failure_retry
 
-    def _get_filtered_args(self, all_kwargs):
-        qubole_args = flatten_list(COMMAND_ARGS.values()) + HYPHEN_ARGS + \
-            flatten_list(POSITIONAL_ARGS.values()) + self.qubole_hook_allowed_args_list
+    def _get_filtered_args(self, all_kwargs) -> dict:
+        qubole_args = (
+            flatten_list(COMMAND_ARGS.values())
+            + HYPHEN_ARGS
+            + flatten_list(POSITIONAL_ARGS.values())
+            + self.qubole_hook_allowed_args_list
+        )
         return {key: value for key, value in all_kwargs.items() if key not in qubole_args}
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         return self.get_hook().execute(context)
 
-    def on_kill(self, ti=None):
+    def on_kill(self, ti=None) -> None:
         if self.hook:
             self.hook.kill(ti)
         else:
             self.get_hook().kill(ti)
 
-    def get_results(self, ti=None, fp=None, inline=True, delim=None, fetch=True):
+    def get_results(self, ti=None, fp=None, inline: bool = True, delim=None, fetch: bool = True) -> str:
         """get_results from Qubole"""
         return self.get_hook().get_results(ti, fp, inline, delim, fetch)
 
-    def get_log(self, ti):
+    def get_log(self, ti) -> None:
         """get_log from Qubole"""
         return self.get_hook().get_log(ti)
 
-    def get_jobs_id(self, ti):
-        """get jobs_id from Qubole"""
+    def get_jobs_id(self, ti) -> None:
+        """Get jobs_id from Qubole"""
         return self.get_hook().get_jobs_id(ti)
 
-    def get_hook(self):
+    def get_hook(self) -> QuboleHook:
         """Reinitialising the hook, as some template fields might have changed"""
-        return QuboleHook(*self.args, **self.kwargs)
+        return QuboleHook(**self.kwargs)
 
-    def __getattribute__(self, name):
+    def __getattribute__(self, name: str) -> str:
         if name in QuboleOperator.template_fields:
             if name in self.kwargs:
                 return self.kwargs[name]
@@ -238,15 +275,8 @@ class QuboleOperator(BaseOperator):
         else:
             return object.__getattribute__(self, name)
 
-    def __setattr__(self, name, value):
+    def __setattr__(self, name: str, value: str) -> None:
         if name in QuboleOperator.template_fields:
             self.kwargs[name] = value
         else:
             object.__setattr__(self, name, value)
-
-    @classmethod
-    def get_serialized_fields(cls):
-        """Serialized QuboleOperator contain exactly these fields."""
-        if not cls.__serialized_fields:
-            cls.__serialized_fields = frozenset(super().get_serialized_fields() | {"qubole_conn_id"})
-        return cls.__serialized_fields

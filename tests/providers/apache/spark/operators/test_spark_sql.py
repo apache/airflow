@@ -38,23 +38,17 @@ class TestSparkSqlOperator(unittest.TestCase):
         'master': 'yarn-client',
         'name': 'special-application-name',
         'num_executors': 8,
-        'yarn_queue': 'special-queue'
+        'verbose': False,
+        'yarn_queue': 'special-queue',
     }
 
     def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG('test_dag_id', default_args=args)
 
     def test_execute(self):
         # Given / When
-        operator = SparkSqlOperator(
-            task_id='spark_sql_job',
-            dag=self.dag,
-            **self._config
-        )
+        operator = SparkSqlOperator(task_id='spark_sql_job', dag=self.dag, **self._config)
 
         self.assertEqual(self._config['sql'], operator._sql)
         self.assertEqual(self._config['conn_id'], operator._conn_id)
@@ -69,8 +63,5 @@ class TestSparkSqlOperator(unittest.TestCase):
         self.assertEqual(self._config['master'], operator._master)
         self.assertEqual(self._config['name'], operator._name)
         self.assertEqual(self._config['num_executors'], operator._num_executors)
+        self.assertEqual(self._config['verbose'], operator._verbose)
         self.assertEqual(self._config['yarn_queue'], operator._yarn_queue)
-
-
-if __name__ == '__main__':
-    unittest.main()

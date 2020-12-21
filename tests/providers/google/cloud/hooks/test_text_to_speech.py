@@ -18,8 +18,7 @@
 #
 
 import unittest
-
-from mock import PropertyMock, patch
+from unittest.mock import PropertyMock, patch
 
 from airflow.providers.google.cloud.hooks.text_to_speech import CloudTextToSpeechHook
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
@@ -32,22 +31,21 @@ AUDIO_CONFIG = {"audio_encoding": "MP3"}
 class TestTextToSpeechHook(unittest.TestCase):
     def setUp(self):
         with patch(
-            "airflow.providers.google.cloud.hooks.base.CloudBaseHook.__init__",
+            "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.gcp_text_to_speech_hook = CloudTextToSpeechHook(gcp_conn_id="test")
 
     @patch(
         "airflow.providers.google.cloud.hooks.text_to_speech.CloudTextToSpeechHook.client_info",
-        new_callable=PropertyMock
+        new_callable=PropertyMock,
     )
     @patch("airflow.providers.google.cloud.hooks.text_to_speech.CloudTextToSpeechHook._get_credentials")
     @patch("airflow.providers.google.cloud.hooks.text_to_speech.TextToSpeechClient")
     def test_text_to_speech_client_creation(self, mock_client, mock_get_creds, mock_client_info):
         result = self.gcp_text_to_speech_hook.get_conn()
         mock_client.assert_called_once_with(
-            credentials=mock_get_creds.return_value,
-            client_info=mock_client_info.return_value
+            credentials=mock_get_creds.return_value, client_info=mock_client_info.return_value
         )
         self.assertEqual(mock_client.return_value, result)
         self.assertEqual(self.gcp_text_to_speech_hook._client, result)

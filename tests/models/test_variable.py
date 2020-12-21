@@ -19,18 +19,22 @@
 import unittest
 
 from cryptography.fernet import Fernet
+from parameterized import parameterized
 
 from airflow import settings
 from airflow.models import Variable, crypto
+from tests.test_utils import db
 from tests.test_utils.config import conf_vars
 
 
 class TestVariable(unittest.TestCase):
     def setUp(self):
         crypto._fernet = None
+        db.clear_db_variables()
 
     def tearDown(self):
         crypto._fernet = None
+        db.clear_db_variables()
 
     @conf_vars({('core', 'fernet_key'): ''})
     def test_variable_no_encryption(self):
@@ -54,7 +58,8 @@ class TestVariable(unittest.TestCase):
         self.assertTrue(test_var.is_encrypted)
         self.assertEqual(test_var.val, 'value')
 
-    def test_var_with_encryption_rotate_fernet_key(self):
+    @parameterized.expand(['value', ''])
+    def test_var_with_encryption_rotate_fernet_key(self, test_value):
         """
         Tests rotating encrypted variables.
         """
@@ -62,23 +67,23 @@ class TestVariable(unittest.TestCase):
         key2 = Fernet.generate_key()
 
         with conf_vars({('core', 'fernet_key'): key1.decode()}):
-            Variable.set('key', 'value')
+            Variable.set('key', test_value)
             session = settings.Session()
             test_var = session.query(Variable).filter(Variable.key == 'key').one()
             self.assertTrue(test_var.is_encrypted)
-            self.assertEqual(test_var.val, 'value')
-            self.assertEqual(Fernet(key1).decrypt(test_var._val.encode()), b'value')
+            self.assertEqual(test_var.val, test_value)
+            self.assertEqual(Fernet(key1).decrypt(test_var._val.encode()), test_value.encode())
 
         # Test decrypt of old value with new key
         with conf_vars({('core', 'fernet_key'): ','.join([key2.decode(), key1.decode()])}):
             crypto._fernet = None
-            self.assertEqual(test_var.val, 'value')
+            self.assertEqual(test_var.val, test_value)
 
             # Test decrypt of new value with new key
             test_var.rotate_fernet_key()
             self.assertTrue(test_var.is_encrypted)
-            self.assertEqual(test_var.val, 'value')
-            self.assertEqual(Fernet(key2).decrypt(test_var._val.encode()), b'value')
+            self.assertEqual(test_var.val, test_value)
+            self.assertEqual(Fernet(key2).decrypt(test_var._val.encode()), test_value.encode())
 
     def test_variable_set_get_round_trip(self):
         Variable.set("tested_var_set_id", "Monday morning breakfast")
@@ -89,10 +94,16 @@ class TestVariable(unittest.TestCase):
         Variable.set("tested_var_set_id", value, serialize_json=True)
         self.assertEqual(value, Variable.get("tested_var_set_id", deserialize_json=True))
 
+    def test_variable_set_existing_value_to_blank(self):
+        test_value = 'Some value'
+        test_key = 'test_key'
+        Variable.set(test_key, test_value)
+        Variable.set(test_key, '')
+        self.assertEqual('', Variable.get('test_key'))
+
     def test_get_non_existing_var_should_return_default(self):
         default_value = "some default val"
-        self.assertEqual(default_value, Variable.get("thisIdDoesNotExist",
-                                                     default_var=default_value))
+        self.assertEqual(default_value, Variable.get("thisIdDoesNotExist", default_var=default_value))
 
     def test_get_non_existing_var_should_raise_key_error(self):
         with self.assertRaises(KeyError):
@@ -103,9 +114,10 @@ class TestVariable(unittest.TestCase):
 
     def test_get_non_existing_var_should_not_deserialize_json_default(self):
         default_value = "}{ this is a non JSON default }{"
-        self.assertEqual(default_value, Variable.get("thisIdDoesNotExist",
-                                                     default_var=default_value,
-                                                     deserialize_json=True))
+        self.assertEqual(
+            default_value,
+            Variable.get("thisIdDoesNotExist", default_var=default_value, deserialize_json=True),
+        )
 
     def test_variable_setdefault_round_trip(self):
         key = "tested_var_setdefault_1_id"

@@ -24,5 +24,6 @@ from airflow.providers.redis.hooks.redis import RedisHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.redis.hooks.redis`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

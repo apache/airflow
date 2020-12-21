@@ -17,13 +17,17 @@
 # under the License.
 
 import unittest
-
-import mock
+from unittest import mock
 
 from airflow.providers.google.cloud.operators.gcs import (
-    GCSBucketCreateAclEntryOperator, GCSCreateBucketOperator, GCSDeleteBucketOperator,
-    GCSDeleteObjectsOperator, GcsFileTransformOperator, GCSListObjectsOperator,
-    GCSObjectCreateAclEntryOperator, GCSToLocalOperator,
+    GCSBucketCreateAclEntryOperator,
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+    GCSDeleteObjectsOperator,
+    GCSFileTransformOperator,
+    GCSListObjectsOperator,
+    GCSObjectCreateAclEntryOperator,
+    GCSSynchronizeBucketsOperator,
 )
 
 TASK_ID = "test-gcs-operator"
@@ -34,6 +38,7 @@ PREFIX = "TEST"
 MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
 TEST_OBJECT = "dir1/test-object"
 LOCAL_FILE_PATH = "/home/airflow/gcp/test-object"
+IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
 class TestGoogleCloudStorageCreateBucket(unittest.TestCase):
@@ -42,11 +47,7 @@ class TestGoogleCloudStorageCreateBucket(unittest.TestCase):
         operator = GCSCreateBucketOperator(
             task_id=TASK_ID,
             bucket_name=TEST_BUCKET,
-            resource={
-                "lifecycle": {
-                    "rule": [{"action": {"type": "Delete"}, "condition": {"age": 7}}]
-                }
-            },
+            resource={"lifecycle": {"rule": [{"action": {"type": "Delete"}, "condition": {"age": 7}}]}},
             storage_class="MULTI_REGIONAL",
             location="EU",
             labels={"env": "prod"},
@@ -60,11 +61,7 @@ class TestGoogleCloudStorageCreateBucket(unittest.TestCase):
             location="EU",
             labels={"env": "prod"},
             project_id=TEST_PROJECT,
-            resource={
-                "lifecycle": {
-                    "rule": [{"action": {"type": "Delete"}, "condition": {"age": 7}}]
-                }
-            },
+            resource={"lifecycle": {"rule": [{"action": {"type": "Delete"}, "condition": {"age": 7}}]}},
         )
 
 
@@ -111,9 +108,7 @@ class TestGoogleCloudStorageAcl(unittest.TestCase):
 class TestGoogleCloudStorageDeleteOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_delete_objects(self, mock_hook):
-        operator = GCSDeleteObjectsOperator(
-            task_id=TASK_ID, bucket_name=TEST_BUCKET, objects=MOCK_FILES[0:2]
-        )
+        operator = GCSDeleteObjectsOperator(task_id=TASK_ID, bucket_name=TEST_BUCKET, objects=MOCK_FILES[0:2])
 
         operator.execute(None)
         mock_hook.return_value.list.assert_not_called()
@@ -128,36 +123,16 @@ class TestGoogleCloudStorageDeleteOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_delete_prefix(self, mock_hook):
         mock_hook.return_value.list.return_value = MOCK_FILES[1:3]
-        operator = GCSDeleteObjectsOperator(
-            task_id=TASK_ID, bucket_name=TEST_BUCKET, prefix=PREFIX
-        )
+        operator = GCSDeleteObjectsOperator(task_id=TASK_ID, bucket_name=TEST_BUCKET, prefix=PREFIX)
 
         operator.execute(None)
-        mock_hook.return_value.list.assert_called_once_with(
-            bucket_name=TEST_BUCKET, prefix=PREFIX
-        )
+        mock_hook.return_value.list.assert_called_once_with(bucket_name=TEST_BUCKET, prefix=PREFIX)
         mock_hook.return_value.delete.assert_has_calls(
             calls=[
                 mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1]),
                 mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[2]),
             ],
             any_order=True,
-        )
-
-
-class TestGoogleCloudStorageDownloadOperator(unittest.TestCase):
-    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
-    def test_execute(self, mock_hook):
-        operator = GCSToLocalOperator(
-            task_id=TASK_ID,
-            bucket=TEST_BUCKET,
-            object_name=TEST_OBJECT,
-            filename=LOCAL_FILE_PATH,
-        )
-
-        operator.execute(None)
-        mock_hook.return_value.download.assert_called_once_with(
-            bucket_name=TEST_BUCKET, object_name=TEST_OBJECT, filename=LOCAL_FILE_PATH
         )
 
 
@@ -177,7 +152,7 @@ class TestGoogleCloudStorageListOperator(unittest.TestCase):
         self.assertEqual(sorted(files), sorted(MOCK_FILES))
 
 
-class TestGcsFileTransformOperator(unittest.TestCase):
+class TestGCSFileTransformOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.gcs.NamedTemporaryFile")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
@@ -205,7 +180,7 @@ class TestGcsFileTransformOperator(unittest.TestCase):
         mock_subprocess.Popen.return_value.wait.return_value = None
         mock_subprocess.Popen.return_value.returncode = 0
 
-        op = GcsFileTransformOperator(
+        op = GCSFileTransformOperator(
             task_id=TASK_ID,
             source_bucket=source_bucket,
             source_object=source_object,
@@ -236,8 +211,40 @@ class TestGcsFileTransformOperator(unittest.TestCase):
 class TestGCSDeleteBucketOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_delete_bucket(self, mock_hook):
-        operator = GCSDeleteBucketOperator(
-            task_id=TASK_ID, bucket_name=TEST_BUCKET)
+        operator = GCSDeleteBucketOperator(task_id=TASK_ID, bucket_name=TEST_BUCKET)
 
         operator.execute(None)
         mock_hook.return_value.delete_bucket.assert_called_once_with(bucket_name=TEST_BUCKET, force=True)
+
+
+class TestGoogleCloudStorageSync(unittest.TestCase):
+    @mock.patch('airflow.providers.google.cloud.operators.gcs.GCSHook')
+    def test_execute(self, mock_hook):
+        task = GCSSynchronizeBucketsOperator(
+            task_id="task-id",
+            source_bucket="SOURCE_BUCKET",
+            destination_bucket="DESTINATION_BUCKET",
+            source_object="SOURCE_OBJECT",
+            destination_object="DESTINATION_OBJECT",
+            recursive=True,
+            delete_extra_files=True,
+            allow_overwrite=True,
+            gcp_conn_id="GCP_CONN_ID",
+            delegate_to="DELEGATE_TO",
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        task.execute({})
+        mock_hook.assert_called_once_with(
+            google_cloud_storage_conn_id='GCP_CONN_ID',
+            delegate_to='DELEGATE_TO',
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.sync.assert_called_once_with(
+            source_bucket='SOURCE_BUCKET',
+            source_object='SOURCE_OBJECT',
+            destination_bucket='DESTINATION_BUCKET',
+            destination_object='DESTINATION_OBJECT',
+            delete_extra_files=True,
+            recursive=True,
+            allow_overwrite=True,
+        )

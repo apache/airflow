@@ -17,15 +17,15 @@
   under the License.
 -#}
 {% if slack_rc -%}
-@here We've just released {{ project_name }} {{ version }} :tada:
-:package: https://pypi.org/project/{{ project_module }}/{{ version }}/
-:books: https://{{ project_module }}.apache.org/docs/{{ version }}/
-:hammer_and_wrench: https://{{ project_module }}.apache.org/docs/{{ version }}/changelog.html
+@here We've just released Apache Airflow {{ version }} :tada:
+:package: https://pypi.org/project/apache-airflow/{{ version }}/
+:books: https://airflow.apache.org/docs/{{ version }}/
+:hammer_and_wrench: https://airflow.apache.org/docs/{{ version }}/changelog.html
 {% else -%}
-@here  Hot off the press :hotsprings: :fire: {{ project_name }} {{ version_rc }} available for testing.
+@here  Hot off the press :hotsprings: :fire: Apache Airflow {{ version_rc }} available for testing.
 
-Snapshots have been uploaded on PyPI too: `pip install {{ project_module }}=={{ version_rc }}`
-**ChangeLog:** https://github.com/apache/{{ project_module }}/blob/{{ version_rc }}/CHANGELOG.txt
+Snapshots have been uploaded on PyPI too: `pip install apache-airflow=={{ version_rc }}`
+**ChangeLog:** https://github.com/apache/airflow/blob/{{ version_rc }}/CHANGELOG.txt
 
 Please let us know if you have any issues on {{ receiver_email }}
 {%- endif %}

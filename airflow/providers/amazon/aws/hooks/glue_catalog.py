@@ -16,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains AWS Glue Catalog Hook
-"""
+"""This module contains AWS Glue Catalog Hook"""
+from typing import Optional, Set
+
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
@@ -26,35 +26,24 @@ class AwsGlueCatalogHook(AwsBaseHook):
     """
     Interact with AWS Glue Catalog
 
-    :param aws_conn_id: ID of the Airflow connection where
-        credentials and extra configuration are stored
-    :type aws_conn_id: str
-    :param region_name: aws region name (example: us-east-1)
-    :type region_name: str
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    def __init__(self,
-                 aws_conn_id='aws_default',
-                 region_name=None,
-                 *args,
-                 **kwargs):
-        self.region_name = region_name
-        self.conn = None
-        super().__init__(aws_conn_id=aws_conn_id, *args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(client_type='glue', *args, **kwargs)
 
-    def get_conn(self):
-        """
-        Returns glue connection object.
-        """
-        self.conn = self.get_client_type('glue', self.region_name)
-        return self.conn
-
-    def get_partitions(self,
-                       database_name,
-                       table_name,
-                       expression='',
-                       page_size=None,
-                       max_items=None):
+    def get_partitions(
+        self,
+        database_name: str,
+        table_name: str,
+        expression: str = '',
+        page_size: Optional[int] = None,
+        max_items: Optional[int] = None,
+    ) -> Set[tuple]:
         """
         Retrieves the partition values for a table.
 
@@ -81,10 +70,7 @@ class AwsGlueCatalogHook(AwsBaseHook):
 
         paginator = self.get_conn().get_paginator('get_partitions')
         response = paginator.paginate(
-            DatabaseName=database_name,
-            TableName=table_name,
-            Expression=expression,
-            PaginationConfig=config
+            DatabaseName=database_name, TableName=table_name, Expression=expression, PaginationConfig=config
         )
 
         partitions = set()
@@ -94,7 +80,7 @@ class AwsGlueCatalogHook(AwsBaseHook):
 
         return partitions
 
-    def check_for_partition(self, database_name, table_name, expression):
+    def check_for_partition(self, database_name: str, table_name: str, expression: str) -> bool:
         """
         Checks whether a partition exists
 
@@ -116,7 +102,7 @@ class AwsGlueCatalogHook(AwsBaseHook):
 
         return bool(partitions)
 
-    def get_table(self, database_name, table_name):
+    def get_table(self, database_name: str, table_name: str) -> dict:
         """
         Get the information of the table
 
@@ -130,12 +116,11 @@ class AwsGlueCatalogHook(AwsBaseHook):
         >>> r = hook.get_table('db', 'table_foo')
         >>> r['Name'] = 'table_foo'
         """
-
         result = self.get_conn().get_table(DatabaseName=database_name, Name=table_name)
 
         return result['Table']
 
-    def get_table_location(self, database_name, table_name):
+    def get_table_location(self, database_name: str, table_name: str) -> str:
         """
         Get the physical location of the table
 
@@ -145,7 +130,6 @@ class AwsGlueCatalogHook(AwsBaseHook):
         :type table_name: str
         :return: str
         """
-
         table = self.get_table(database_name, table_name)
 
         return table['StorageDescriptor']['Location']

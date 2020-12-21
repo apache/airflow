@@ -24,5 +24,6 @@ from airflow.providers.ssh.hooks.ssh import SSHHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.ssh.hooks.ssh`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

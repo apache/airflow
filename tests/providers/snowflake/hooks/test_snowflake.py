@@ -28,7 +28,6 @@ from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
 
 class TestSnowflakeHook(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
 
@@ -39,11 +38,13 @@ class TestSnowflakeHook(unittest.TestCase):
         self.conn.login = 'user'
         self.conn.password = 'pw'
         self.conn.schema = 'public'
-        self.conn.extra_dejson = {'database': 'db',
-                                  'account': 'airflow',
-                                  'warehouse': 'af_wh',
-                                  'region': 'af_region',
-                                  'role': 'af_role'}
+        self.conn.extra_dejson = {
+            'database': 'db',
+            'account': 'airflow',
+            'warehouse': 'af_wh',
+            'region': 'af_region',
+            'role': 'af_role',
+        }
 
         class UnitTestSnowflakeHook(SnowflakeHook):
             conn_name_attr = 'snowflake_conn_id'
@@ -54,33 +55,26 @@ class TestSnowflakeHook(unittest.TestCase):
             def get_connection(self, _):
                 return conn
 
-        self.db_hook = UnitTestSnowflakeHook()
+        self.db_hook = UnitTestSnowflakeHook(session_parameters={"QUERY_TAG": "This is a test hook"})
 
         self.non_encrypted_private_key = "/tmp/test_key.pem"
         self.encrypted_private_key = "/tmp/test_key.p8"
 
         # Write some temporary private keys. First is not encrypted, second is with a passphrase.
-        key = rsa.generate_private_key(
-            backend=default_backend(),
-            public_exponent=65537,
-            key_size=2048
+        key = rsa.generate_private_key(backend=default_backend(), public_exponent=65537, key_size=2048)
+        private_key = key.private_bytes(
+            serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
         )
-        private_key = key.private_bytes(serialization.Encoding.PEM,
-                                        serialization.PrivateFormat.PKCS8,
-                                        serialization.NoEncryption())
 
         with open(self.non_encrypted_private_key, "wb") as file:
             file.write(private_key)
 
-        key = rsa.generate_private_key(
-            backend=default_backend(),
-            public_exponent=65537,
-            key_size=2048
+        key = rsa.generate_private_key(backend=default_backend(), public_exponent=65537, key_size=2048)
+        private_key = key.private_bytes(
+            serialization.Encoding.PEM,
+            serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.BestAvailableEncryption(self.conn.password.encode()),
         )
-        private_key = key.private_bytes(serialization.Encoding.PEM,
-                                        serialization.PrivateFormat.PKCS8,
-                                        encryption_algorithm=serialization.BestAvailableEncryption(
-                                            self.conn.password.encode()))
 
         with open(self.encrypted_private_key, "wb") as file:
             file.write(private_key)
@@ -90,41 +84,52 @@ class TestSnowflakeHook(unittest.TestCase):
         os.remove(self.non_encrypted_private_key)
 
     def test_get_uri(self):
-        uri_shouldbe = 'snowflake://user:pw@airflow/db/public?warehouse=af_wh&role=af_role'
+        uri_shouldbe = (
+            'snowflake://user:pw@airflow/db/public?warehouse=af_wh&role=af_role&authenticator=snowflake'
+        )
         self.assertEqual(uri_shouldbe, self.db_hook.get_uri())
 
     def test_get_conn_params(self):
-        conn_params_shouldbe = {'user': 'user',
-                                'password': 'pw',
-                                'schema': 'public',
-                                'database': 'db',
-                                'account': 'airflow',
-                                'warehouse': 'af_wh',
-                                'region': 'af_region',
-                                'role': 'af_role'}
+        conn_params_shouldbe = {
+            'user': 'user',
+            'password': 'pw',
+            'schema': 'public',
+            'database': 'db',
+            'account': 'airflow',
+            'warehouse': 'af_wh',
+            'region': 'af_region',
+            'role': 'af_role',
+            'authenticator': 'snowflake',
+            'session_parameters': {"QUERY_TAG": "This is a test hook"},
+        }
+        self.assertEqual(self.db_hook.snowflake_conn_id, 'snowflake_default')  # pylint: disable=no-member
         self.assertEqual(conn_params_shouldbe, self.db_hook._get_conn_params())
 
     def test_get_conn(self):
         self.assertEqual(self.db_hook.get_conn(), self.conn)
 
     def test_key_pair_auth_encrypted(self):
-        self.conn.extra_dejson = {'database': 'db',
-                                  'account': 'airflow',
-                                  'warehouse': 'af_wh',
-                                  'region': 'af_region',
-                                  'role': 'af_role',
-                                  'private_key_file': self.encrypted_private_key}
+        self.conn.extra_dejson = {
+            'database': 'db',
+            'account': 'airflow',
+            'warehouse': 'af_wh',
+            'region': 'af_region',
+            'role': 'af_role',
+            'private_key_file': self.encrypted_private_key,
+        }
 
         params = self.db_hook._get_conn_params()
         self.assertTrue('private_key' in params)
 
     def test_key_pair_auth_not_encrypted(self):
-        self.conn.extra_dejson = {'database': 'db',
-                                  'account': 'airflow',
-                                  'warehouse': 'af_wh',
-                                  'region': 'af_region',
-                                  'role': 'af_role',
-                                  'private_key_file': self.non_encrypted_private_key}
+        self.conn.extra_dejson = {
+            'database': 'db',
+            'account': 'airflow',
+            'warehouse': 'af_wh',
+            'region': 'af_region',
+            'role': 'af_role',
+            'private_key_file': self.non_encrypted_private_key,
+        }
 
         self.conn.password = ''
         params = self.db_hook._get_conn_params()

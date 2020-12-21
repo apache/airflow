@@ -17,26 +17,28 @@
 # under the License.
 
 import unittest
+from datetime import datetime
 from unittest import mock
 
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
+from airflow.models import TaskInstance
+from airflow.models.dag import DAG
+from airflow.models.variable import Variable
 from airflow.providers.amazon.aws.sensors.s3_key import S3KeySensor
 
 
 class TestS3KeySensor(unittest.TestCase):
-
     def test_bucket_name_none_and_bucket_key_as_relative_path(self):
         """
         Test if exception is raised when bucket_name is None
         and bucket_key is provided as relative path rather than s3:// url.
         :return:
         """
+        op = S3KeySensor(task_id='s3_key_sensor', bucket_key="file_in_bucket")
         with self.assertRaises(AirflowException):
-            S3KeySensor(
-                task_id='s3_key_sensor',
-                bucket_key="file_in_bucket")
+            op.poke(None)
 
     def test_bucket_name_provided_and_bucket_key_is_s3_url(self):
         """
@@ -44,30 +46,61 @@ class TestS3KeySensor(unittest.TestCase):
         while bucket_key is provided as a full s3:// url.
         :return:
         """
+        op = S3KeySensor(
+            task_id='s3_key_sensor', bucket_key="s3://test_bucket/file", bucket_name='test_bucket'
+        )
         with self.assertRaises(AirflowException):
-            S3KeySensor(
-                task_id='s3_key_sensor',
-                bucket_key="s3://test_bucket/file",
-                bucket_name='test_bucket')
+            op.poke(None)
 
-    @parameterized.expand([
-        ['s3://bucket/key', None, 'key', 'bucket'],
-        ['key', 'bucket', 'key', 'bucket'],
-    ])
-    def test_parse_bucket_key(self, key, bucket, parsed_key, parsed_bucket):
+    @parameterized.expand(
+        [
+            ['s3://bucket/key', None, 'key', 'bucket'],
+            ['key', 'bucket', 'key', 'bucket'],
+        ]
+    )
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3_key.S3Hook')
+    def test_parse_bucket_key(self, key, bucket, parsed_key, parsed_bucket, mock_hook):
+        mock_hook.return_value.check_for_key.return_value = False
+
         op = S3KeySensor(
             task_id='s3_key_sensor',
             bucket_key=key,
             bucket_name=bucket,
         )
+
+        op.poke(None)
+
         self.assertEqual(op.bucket_key, parsed_key)
         self.assertEqual(op.bucket_name, parsed_bucket)
 
-    @mock.patch('airflow.providers.amazon.aws.hooks.s3.S3Hook')
-    def test_poke(self, mock_hook):
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3_key.S3Hook')
+    def test_parse_bucket_key_from_jinja(self, mock_hook):
+        mock_hook.return_value.check_for_key.return_value = False
+
+        Variable.set("test_bucket_key", "s3://bucket/key")
+
+        execution_date = datetime(2020, 1, 1)
+
+        dag = DAG("test_s3_key", start_date=execution_date)
         op = S3KeySensor(
             task_id='s3_key_sensor',
-            bucket_key='s3://test_bucket/file')
+            bucket_key='{{ var.value.test_bucket_key }}',
+            bucket_name=None,
+            dag=dag,
+        )
+
+        ti = TaskInstance(task=op, execution_date=execution_date)
+        context = ti.get_template_context()
+        ti.render_templates(context)
+
+        op.poke(None)
+
+        self.assertEqual(op.bucket_key, "key")
+        self.assertEqual(op.bucket_name, "bucket")
+
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3_key.S3Hook')
+    def test_poke(self, mock_hook):
+        op = S3KeySensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file')
 
         mock_check_for_key = mock_hook.return_value.check_for_key
         mock_check_for_key.return_value = False
@@ -77,12 +110,9 @@ class TestS3KeySensor(unittest.TestCase):
         mock_hook.return_value.check_for_key.return_value = True
         self.assertTrue(op.poke(None))
 
-    @mock.patch('airflow.providers.amazon.aws.hooks.s3.S3Hook')
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3_key.S3Hook')
     def test_poke_wildcard(self, mock_hook):
-        op = S3KeySensor(
-            task_id='s3_key_sensor',
-            bucket_key='s3://test_bucket/file',
-            wildcard_match=True)
+        op = S3KeySensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file', wildcard_match=True)
 
         mock_check_for_wildcard_key = mock_hook.return_value.check_for_wildcard_key
         mock_check_for_wildcard_key.return_value = False

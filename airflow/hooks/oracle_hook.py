@@ -24,5 +24,6 @@ from airflow.providers.oracle.hooks.oracle import OracleHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.oracle.hooks.oracle`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

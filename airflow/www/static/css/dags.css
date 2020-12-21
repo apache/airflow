@@ -1,0 +1,127 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.dags-table-wrap {
+  margin-bottom: 16px;
+  border-radius: 4px 4px 0 0;
+  background-color: #f0f0f0;
+}
+
+.dags-table-header {
+  margin: 0;
+  padding-top: 16px;
+}
+
+.dags-table-body {
+  margin: 0 1px;
+  overflow-x: auto;
+}
+
+.dags-table-more {
+  position: relative;
+}
+
+.dags-table-more__toggle,
+.dags-table-more__toggle:hover,
+.dags-table-more__toggle:focus {
+  display: block;
+  padding: 8px 16px;
+  cursor: default;
+  border-color: transparent;
+  background: transparent;
+}
+
+.dags-table-more__menu {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  padding-right: 4px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.dags-table-more__menu:hover {
+  overflow: visible;
+}
+
+.dags-table-more__menu::before {
+  width: 0;
+  height: 100%;
+  content: '';
+  pointer-events: none;
+  transition: width 0.3s ease-in;
+}
+
+.dags-table-more__menu:hover::before {
+  margin-left: -200px;
+  width: 200px;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0) 0%, #fff 100%);
+}
+
+tr:nth-child(odd) .dags-table-more__menu:hover {
+  background-color: #fff;
+}
+
+tr:nth-child(2n) .dags-table-more__menu:hover {
+  background-color: #f9f9f9;
+}
+
+tr:nth-child(2n) .dags-table-more__menu:hover::before {
+  background: linear-gradient(to right, rgba(255, 255, 255, 0) 0%, #f9f9f9 100%);
+}
+
+tr:nth-child(odd):hover .dags-table-more__menu:hover,
+tr:nth-child(2n):hover .dags-table-more__menu:hover {
+  background-color: #f5f5f5;
+}
+
+tr:nth-child(odd):hover .dags-table-more__menu:hover::before,
+tr:nth-child(2n):hover .dags-table-more__menu:hover::before {
+  background: linear-gradient(to right, rgba(255, 255, 255, 0) 0%, #f5f5f5 100%);
+}
+
+.dags-table-more__links {
+  margin-right: 16px;
+  width: 0;
+  overflow: hidden;
+}
+
+.dags-table-more__menu:hover .dags-table-more__links {
+  width: auto;
+  overflow: visible;
+}
+
+.dags-table-more__link {
+  display: inline-block;
+  max-width: 0;
+  overflow: hidden;
+  margin-right: 16px;
+  transition: max-width 0.3s ease-in;
+}
+
+.dags-table-more__link:last-child {
+  margin-right: 0;
+}
+
+.dags-table-more__menu:hover .dags-table-more__link {
+  max-width: 200px;
+}

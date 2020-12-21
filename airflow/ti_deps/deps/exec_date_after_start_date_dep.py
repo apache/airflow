@@ -21,9 +21,8 @@ from airflow.utils.session import provide_session
 
 
 class ExecDateAfterStartDateDep(BaseTIDep):
-    """
-    Determines whether a task's execution date is after start date.
-    """
+    """Determines whether a task's execution date is after start date."""
+
     NAME = "Execution Date"
     IGNOREABLE = True
 
@@ -31,15 +30,14 @@ class ExecDateAfterStartDateDep(BaseTIDep):
     def _get_dep_statuses(self, ti, session, dep_context):
         if ti.task.start_date and ti.execution_date < ti.task.start_date:
             yield self._failing_status(
-                reason="The execution date is {0} but this is before the task's start "
-                "date {1}.".format(
-                    ti.execution_date.isoformat(),
-                    ti.task.start_date.isoformat()))
+                reason="The execution date is {} but this is before the task's start "
+                "date {}.".format(ti.execution_date.isoformat(), ti.task.start_date.isoformat())
+            )
 
-        if (ti.task.dag and ti.task.dag.start_date and
-                ti.execution_date < ti.task.dag.start_date):
+        if ti.task.dag and ti.task.dag.start_date and ti.execution_date < ti.task.dag.start_date:
             yield self._failing_status(
-                reason="The execution date is {0} but this is before the task's "
-                "DAG's start date {1}.".format(
-                    ti.execution_date.isoformat(),
-                    ti.task.dag.start_date.isoformat()))
+                reason="The execution date is {} but this is before the task's "
+                "DAG's start date {}.".format(
+                    ti.execution_date.isoformat(), ti.task.dag.start_date.isoformat()
+                )
+            )

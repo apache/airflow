@@ -34,6 +34,7 @@ from sphinx.util.nodes import set_source_info
 
 try:
     import sphinx_airflow_theme  # pylint: disable=unused-import
+
     airflow_theme_is_available = True
 except ImportError:
     airflow_theme_is_available = False
@@ -42,9 +43,7 @@ logger = logging.getLogger(__name__)
 
 
 class ExampleHeader(nodes.reference, nodes.FixedTextElement):  # pylint: disable=too-many-ancestors
-    """
-    Header for examples.
-    """
+    """Header for examples."""
 
 
 class ExampleInclude(SphinxDirective):
@@ -130,7 +129,6 @@ class ExampleInclude(SphinxDirective):
 
 
 # pylint: disable=protected-access
-# noinspection PyProtectedMember
 def register_source(app, env, modname):
     """
     Registers source code.
@@ -140,20 +138,20 @@ def register_source(app, env, modname):
     :param modname: name of the module to load
     :return: True if the code is registered successfully, False otherwise
     """
-    entry = env._viewcode_modules.get(modname, None)  # type: ignore
+    entry = env._viewcode_modules.get(modname, None)
     if entry is False:
         print("[%s] Entry is false for " % modname)
         return False
 
     code_tags = app.emit_firstresult("viewcode-find-source", modname)
     if code_tags is None:
-        # noinspection PyBroadException
         try:
             analyzer = ModuleAnalyzer.for_module(modname)
         except Exception as ex:  # pylint: disable=broad-except
-            logger.info("Module \"%s\" could not be loaded. Full source will not be available. \"%s\"",
-                        modname, ex)
-            env._viewcode_modules[modname] = False  # type: ignore
+            logger.info(
+                "Module \"%s\" could not be loaded. Full source will not be available. \"%s\"", modname, ex
+            )
+            env._viewcode_modules[modname] = False
             return False
 
         if not isinstance(analyzer.code, str):
@@ -169,9 +167,11 @@ def register_source(app, env, modname):
 
     if entry is None or entry[0] != code:
         entry = code, tags, {}, ""
-        env._viewcode_modules[modname] = entry  # type: ignore
+        env._viewcode_modules[modname] = entry
 
     return True
+
+
 # pylint: enable=protected-access
 
 
@@ -208,7 +208,6 @@ def create_node(env, relative_path, show_button):
     return paragraph
 
 
-# noinspection PyProtectedMember
 # pylint: disable=protected-access
 def doctree_read(app, doctree):
     """
@@ -222,7 +221,7 @@ def doctree_read(app, doctree):
     """
     env = app.builder.env
     if not hasattr(env, "_viewcode_modules"):
-        env._viewcode_modules = {}  # type: ignore
+        env._viewcode_modules = {}
 
     if app.builder.name == "singlehtml":
         return
@@ -237,6 +236,8 @@ def doctree_read(app, doctree):
         onlynode = create_node(env, relative_path, show_button)
 
         objnode.replace_self(onlynode)
+
+
 # pylint: enable=protected-access
 
 
@@ -252,5 +253,5 @@ def setup(app):
     app.add_config_value("exampleinclude_sourceroot", None, "env")
     if not airflow_theme_is_available:
         # Sphinx airflow theme has its own styles.
-        app.add_stylesheet('exampleinclude.css')
+        app.add_css_file('exampleinclude.css')
     return {"version": "builtin", "parallel_read_safe": False, "parallel_write_safe": False}

@@ -26,13 +26,11 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
 
-default_args = {"start_date": days_ago(1)}
-
 with models.DAG(
     dag_id="example_complex",
-    default_args=default_args,
     schedule_interval=None,
-    tags=['example'],
+    start_date=days_ago(1),
+    tags=['example', 'example2', 'example3'],
 ) as dag:
 
     # Create
@@ -81,7 +79,7 @@ with models.DAG(
     )
 
     create_tag_template_field_result2 = BashOperator(
-        task_id="create_tag_template_field_result", bash_command="echo create_tag_template_field_result"
+        task_id="create_tag_template_field_result2", bash_command="echo create_tag_template_field_result"
     )
 
     # Delete

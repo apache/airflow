@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Any, Dict, List, Tuple
 
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -39,17 +40,19 @@ class NamedHivePartitionSensor(BaseSensorOperator):
 
     template_fields = ('partition_names',)
     ui_color = '#8d99ae'
+    poke_context_fields = ('partition_names', 'metastore_conn_id')
 
     @apply_defaults
-    def __init__(self,
-                 partition_names,
-                 metastore_conn_id='metastore_default',
-                 poke_interval=60 * 3,
-                 hook=None,
-                 *args,
-                 **kwargs):
-        super().__init__(
-            poke_interval=poke_interval, *args, **kwargs)
+    def __init__(
+        self,
+        *,
+        partition_names: List[str],
+        metastore_conn_id: str = 'metastore_default',
+        poke_interval: int = 60 * 3,
+        hook: Any = None,
+        **kwargs: Any,
+    ):
+        super().__init__(poke_interval=poke_interval, **kwargs)
 
         self.next_index_to_poke = 0
         if isinstance(partition_names, str):
@@ -60,11 +63,11 @@ class NamedHivePartitionSensor(BaseSensorOperator):
         self.hook = hook
         if self.hook and metastore_conn_id != 'metastore_default':
             self.log.warning(
-                'A hook was passed but a non defaul metastore_conn_id=%s was used', metastore_conn_id
+                'A hook was passed but a non default metastore_conn_id=%s was used', metastore_conn_id
             )
 
     @staticmethod
-    def parse_partition_name(partition):
+    def parse_partition_name(partition: str) -> Tuple[Any, ...]:
         """Get schema, table, and partition info."""
         first_split = partition.split('.', 1)
         if len(first_split) == 1:
@@ -74,26 +77,24 @@ class NamedHivePartitionSensor(BaseSensorOperator):
             schema, table_partition = first_split
         second_split = table_partition.split('/', 1)
         if len(second_split) == 1:
-            raise ValueError('Could not parse ' + partition +
-                             'into table, partition')
+            raise ValueError('Could not parse ' + partition + 'into table, partition')
         else:
             table, partition = second_split
         return schema, table, partition
 
-    def poke_partition(self, partition):
+    def poke_partition(self, partition: str) -> Any:
         """Check for a named partition."""
         if not self.hook:
             from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
-            self.hook = HiveMetastoreHook(
-                metastore_conn_id=self.metastore_conn_id)
+
+            self.hook = HiveMetastoreHook(metastore_conn_id=self.metastore_conn_id)
 
         schema, table, partition = self.parse_partition_name(partition)
 
         self.log.info('Poking for %s.%s/%s', schema, table, partition)
-        return self.hook.check_for_named_partition(
-            schema, table, partition)
+        return self.hook.check_for_named_partition(schema, table, partition)
 
-    def poke(self, context):
+    def poke(self, context: Dict[str, Any]) -> bool:
 
         number_of_partitions = len(self.partition_names)
         poke_index_start = self.next_index_to_poke
@@ -104,3 +105,12 @@ class NamedHivePartitionSensor(BaseSensorOperator):
 
         self.next_index_to_poke = 0
         return True
+
+    def is_smart_sensor_compatible(self):
+        result = (
+            not self.soft_fail
+            and not self.hook
+            and len(self.partition_names) <= 30
+            and super().is_smart_sensor_compatible()
+        )
+        return result

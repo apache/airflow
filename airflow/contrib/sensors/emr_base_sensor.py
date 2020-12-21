@@ -24,5 +24,6 @@ from airflow.providers.amazon.aws.sensors.emr_base import EmrBaseSensor  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.emr_base`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

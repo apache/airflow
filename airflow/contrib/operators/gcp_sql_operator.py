@@ -15,32 +15,38 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module is deprecated. Please use `airflow.providers.google.cloud.operators.cloud_sql`.
-"""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.operators.cloud_sql`."""
 
 import warnings
 
 from airflow.providers.google.cloud.operators.cloud_sql import (
-    CloudSQLBaseOperator, CloudSQLCreateInstanceDatabaseOperator, CloudSQLCreateInstanceOperator,
-    CloudSQLDeleteInstanceDatabaseOperator, CloudSQLDeleteInstanceOperator, CloudSQLExecuteQueryOperator,
-    CloudSQLExportInstanceOperator, CloudSQLImportInstanceOperator, CloudSQLInstancePatchOperator,
+    CloudSQLBaseOperator,
+    CloudSQLCreateInstanceDatabaseOperator,
+    CloudSQLCreateInstanceOperator,
+    CloudSQLDeleteInstanceDatabaseOperator,
+    CloudSQLDeleteInstanceOperator,
+    CloudSQLExecuteQueryOperator,
+    CloudSQLExportInstanceOperator,
+    CloudSQLImportInstanceOperator,
+    CloudSQLInstancePatchOperator,
     CloudSQLPatchInstanceDatabaseOperator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.cloud_sql`",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 
 class CloudSqlBaseOperator(CloudSQLBaseOperator):
     """
-    This class is deprecated. Please use `airflow.providers.google.cloud.operators.sql.CloudSQLBaseOperator`.
+    This class is deprecated. Please use
+    `airflow.providers.google.cloud.operators.sql.CloudSQLBaseOperator`.
     """
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2)
+        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=3)
         super().__init__(*args, **kwargs)
 
 
@@ -51,7 +57,7 @@ class CloudSqlInstanceCreateOperator(CloudSQLCreateInstanceOperator):
     """
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2)
+        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=3)
         super().__init__(*args, **kwargs)
 
 
@@ -62,7 +68,7 @@ class CloudSqlInstanceDatabaseCreateOperator(CloudSQLCreateInstanceDatabaseOpera
     """
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2)
+        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=3)
         super().__init__(*args, **kwargs)
 
 
@@ -73,7 +79,7 @@ class CloudSqlInstanceDatabaseDeleteOperator(CloudSQLDeleteInstanceDatabaseOpera
     """
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2)
+        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=3)
         super().__init__(*args, **kwargs)
 
 
@@ -84,7 +90,7 @@ class CloudSqlInstanceDatabasePatchOperator(CloudSQLPatchInstanceDatabaseOperato
     """
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2)
+        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=3)
         super().__init__(*args, **kwargs)
 
 
@@ -95,7 +101,7 @@ class CloudSqlInstanceDeleteOperator(CloudSQLDeleteInstanceOperator):
     """
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2)
+        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=3)
         super().__init__(*args, **kwargs)
 
 
@@ -106,7 +112,7 @@ class CloudSqlInstanceExportOperator(CloudSQLExportInstanceOperator):
     """
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2)
+        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=3)
         super().__init__(*args, **kwargs)
 
 
@@ -117,7 +123,7 @@ class CloudSqlInstanceImportOperator(CloudSQLImportInstanceOperator):
     """
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2)
+        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=3)
         super().__init__(*args, **kwargs)
 
 
@@ -128,7 +134,7 @@ class CloudSqlInstancePatchOperator(CloudSQLInstancePatchOperator):
     """
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2)
+        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=3)
         super().__init__(*args, **kwargs)
 
 
@@ -139,5 +145,5 @@ class CloudSqlQueryOperator(CloudSQLExecuteQueryOperator):
     """
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2)
+        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=3)
         super().__init__(*args, **kwargs)

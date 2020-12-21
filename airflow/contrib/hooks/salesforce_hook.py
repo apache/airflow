@@ -24,5 +24,6 @@ from airflow.providers.salesforce.hooks.salesforce import SalesforceHook, pd  # 
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.salesforce.hooks.salesforce`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

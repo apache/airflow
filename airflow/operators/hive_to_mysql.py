@@ -15,14 +15,36 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.apache.hive.operators.hive_to_mysql`."""
+"""This module is deprecated.
+
+Please use `airflow.providers.apache.hive.transfers.hive_to_mysql`.
+"""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.apache.hive.operators.hive_to_mysql import HiveToMySqlTransfer  # noqa
+from airflow.providers.apache.hive.transfers.hive_to_mysql import HiveToMySqlOperator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.apache.hive.operators.hive_to_mysql`.",
-    DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.providers.apache.hive.transfers.hive_to_mysql`.",
+    DeprecationWarning,
+    stacklevel=2,
 )
+
+
+class HiveToMySqlTransfer(HiveToMySqlOperator):
+    """This class is deprecated.
+
+    Please use:
+    `airflow.providers.apache.hive.transfers.hive_to_mysql.HiveToMySqlOperator`.
+    """
+
+    def __init__(self, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.apache.hive.transfers.hive_to_mysql.HiveToMySqlOperator`.""",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        super().__init__(**kwargs)

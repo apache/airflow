@@ -15,10 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Translate Speech operator.
-"""
-from typing import Optional
+"""This module contains a Google Cloud Translate Speech operator."""
+from typing import Optional, Sequence, Union
 
 from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
 from google.protobuf.json_format import MessageToDict
@@ -30,7 +28,7 @@ from airflow.providers.google.cloud.hooks.translate import CloudTranslateHook
 from airflow.utils.decorators import apply_defaults
 
 
-class GcpTranslateSpeechOperator(BaseOperator):
+class CloudTranslateSpeechOperator(BaseOperator):
     """
     Recognizes speech in audio input and translates it.
 
@@ -43,7 +41,7 @@ class GcpTranslateSpeechOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GcpTranslateSpeechOperator`
+        :ref:`howto/operator:CloudTranslateSpeechOperator`
 
     See https://cloud.google.com/translate/docs/translating-text
 
@@ -87,35 +85,55 @@ class GcpTranslateSpeechOperator(BaseOperator):
         as ``'base'`` or ``'nmt'``.
     :type model: str or None
 
-    :param project_id: Optional, Google Cloud Platform Project ID where the Compute
-        Engine Instance exists.  If set to None or missing, the default project_id from the GCP connection is
-        used.
+    :param project_id: Optional, Google Cloud Project ID where the Compute
+        Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
+        connection is used.
     :type project_id: str
 
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
 
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+
     """
+
     # [START translate_speech_template_fields]
-    template_fields = ('target_language', 'format_', 'source_language', 'model', 'project_id', 'gcp_conn_id')
+    template_fields = (
+        'target_language',
+        'format_',
+        'source_language',
+        'model',
+        'project_id',
+        'gcp_conn_id',
+        'impersonation_chain',
+    )
     # [END translate_speech_template_fields]
 
     @apply_defaults
     def __init__(
         self,
+        *,
         audio: RecognitionAudio,
         config: RecognitionConfig,
         target_language: str,
         format_: str,
-        source_language: str,
+        source_language: Optional[str],
         model: str,
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        *args,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.audio = audio
         self.config = config
         self.target_language = target_language
@@ -124,14 +142,19 @@ class GcpTranslateSpeechOperator(BaseOperator):
         self.model = model
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
-        speech_to_text_hook = CloudSpeechToTextHook(gcp_conn_id=self.gcp_conn_id)
-        translate_hook = CloudTranslateHook(gcp_conn_id=self.gcp_conn_id)
-
-        recognize_result = speech_to_text_hook.recognize_speech(
-            config=self.config, audio=self.audio
+    def execute(self, context) -> dict:
+        speech_to_text_hook = CloudSpeechToTextHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
+        translate_hook = CloudTranslateHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+        recognize_result = speech_to_text_hook.recognize_speech(config=self.config, audio=self.audio)
         recognize_dict = MessageToDict(recognize_result)
 
         self.log.info("Recognition operation finished")
@@ -144,8 +167,9 @@ class GcpTranslateSpeechOperator(BaseOperator):
         try:
             transcript = recognize_dict['results'][0]['alternatives'][0]['transcript']
         except KeyError as key:
-            raise AirflowException("Wrong response '{}' returned - it should contain {} field"
-                                   .format(recognize_dict, key))
+            raise AirflowException(
+                f"Wrong response '{recognize_dict}' returned - it should contain {key} field"
+            )
 
         try:
             translation = translate_hook.translate(
@@ -153,7 +177,7 @@ class GcpTranslateSpeechOperator(BaseOperator):
                 target_language=self.target_language,
                 format_=self.format_,
                 source_language=self.source_language,
-                model=self.model
+                model=self.model,
             )
             self.log.info('Translated output: %s', translation)
             return translation

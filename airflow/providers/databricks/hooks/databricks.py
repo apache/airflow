@@ -26,12 +26,12 @@ from time import sleep
 from urllib.parse import urlparse
 
 import requests
-from requests import exceptions as requests_exceptions
+from requests import PreparedRequest, exceptions as requests_exceptions
 from requests.auth import AuthBase
 
 from airflow import __version__
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
 START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
@@ -41,14 +41,16 @@ RUN_NOW_ENDPOINT = ('POST', 'api/2.0/jobs/run-now')
 SUBMIT_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/submit')
 GET_RUN_ENDPOINT = ('GET', 'api/2.0/jobs/runs/get')
 CANCEL_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/cancel')
-USER_AGENT_HEADER = {'user-agent': 'airflow-{v}'.format(v=__version__)}
+USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
+
+INSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/install')
+UNINSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/uninstall')
 
 
 class RunState:
-    """
-    Utility class for the run state concept of Databricks runs.
-    """
-    def __init__(self, life_cycle_state, result_state, state_message):
+    """Utility class for the run state concept of Databricks runs."""
+
+    def __init__(self, life_cycle_state: str, result_state: str, state_message: str) -> None:
         self.life_cycle_state = life_cycle_state
         self.result_state = result_state
         self.state_message = state_message
@@ -58,10 +60,12 @@ class RunState:
         """True if the current state is a terminal state."""
         if self.life_cycle_state not in RUN_LIFE_CYCLE_STATES:
             raise AirflowException(
-                ('Unexpected life cycle state: {}: If the state has '
-                 'been introduced recently, please check the Databricks user '
-                 'guide for troubleshooting information').format(
-                    self.life_cycle_state))
+                (
+                    'Unexpected life cycle state: {}: If the state has '
+                    'been introduced recently, please check the Databricks user '
+                    'guide for troubleshooting information'
+                ).format(self.life_cycle_state)
+            )
         return self.life_cycle_state in ('TERMINATED', 'SKIPPED', 'INTERNAL_ERROR')
 
     @property
@@ -69,17 +73,20 @@ class RunState:
         """True if the result state is SUCCESS"""
         return self.result_state == 'SUCCESS'
 
-    def __eq__(self, other):
-        return self.life_cycle_state == other.life_cycle_state and \
-            self.result_state == other.result_state and \
-            self.state_message == other.state_message
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, RunState):
+            return NotImplemented
+        return (
+            self.life_cycle_state == other.life_cycle_state
+            and self.result_state == other.result_state
+            and self.state_message == other.state_message
+        )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return str(self.__dict__)
 
 
-# noinspection PyAbstractClass
-class DatabricksHook(BaseHook):
+class DatabricksHook(BaseHook):  # noqa
     """
     Interact with Databricks.
 
@@ -95,8 +102,20 @@ class DatabricksHook(BaseHook):
         might be a floating point number).
     :type retry_delay: float
     """
-    def __init__(self, databricks_conn_id='databricks_default', timeout_seconds=180, retry_limit=3,
-                 retry_delay=1.0):
+
+    conn_name_attr = 'databricks_conn_id'
+    default_conn_name = 'databricks_default'
+    conn_type = 'databricks'
+    hook_name = 'Databricks'
+
+    def __init__(
+        self,
+        databricks_conn_id: str = default_conn_name,
+        timeout_seconds: int = 180,
+        retry_limit: int = 3,
+        retry_delay: float = 1.0,
+    ) -> None:
+        super().__init__()
         self.databricks_conn_id = databricks_conn_id
         self.databricks_conn = self.get_connection(databricks_conn_id)
         self.timeout_seconds = timeout_seconds
@@ -106,7 +125,7 @@ class DatabricksHook(BaseHook):
         self.retry_delay = retry_delay
 
     @staticmethod
-    def _parse_host(host):
+    def _parse_host(host: str) -> str:
         """
         The purpose of this function is to be robust to improper connections
         settings provided by users, specifically in the host field.
@@ -150,20 +169,23 @@ class DatabricksHook(BaseHook):
         if 'token' in self.databricks_conn.extra_dejson:
             self.log.info('Using token auth. ')
             auth = _TokenAuth(self.databricks_conn.extra_dejson['token'])
-            host = self._parse_host(self.databricks_conn.extra_dejson['host'])
+            if 'host' in self.databricks_conn.extra_dejson:
+                host = self._parse_host(self.databricks_conn.extra_dejson['host'])
+            else:
+                host = self.databricks_conn.host
         else:
             self.log.info('Using basic auth. ')
             auth = (self.databricks_conn.login, self.databricks_conn.password)
             host = self.databricks_conn.host
 
-        url = 'https://{host}/{endpoint}'.format(
-            host=self._parse_host(host),
-            endpoint=endpoint)
+        url = 'https://{host}/{endpoint}'.format(host=self._parse_host(host), endpoint=endpoint)
 
         if method == 'GET':
             request_func = requests.get
         elif method == 'POST':
             request_func = requests.post
+        elif method == 'PATCH':
+            request_func = requests.patch
         else:
             raise AirflowException('Unexpected HTTP Method: ' + method)
 
@@ -172,35 +194,36 @@ class DatabricksHook(BaseHook):
             try:
                 response = request_func(
                     url,
-                    json=json,
+                    json=json if method in ('POST', 'PATCH') else None,
+                    params=json if method == 'GET' else None,
                     auth=auth,
                     headers=USER_AGENT_HEADER,
-                    timeout=self.timeout_seconds)
+                    timeout=self.timeout_seconds,
+                )
                 response.raise_for_status()
                 return response.json()
             except requests_exceptions.RequestException as e:
                 if not _retryable_error(e):
                     # In this case, the user probably made a mistake.
                     # Don't retry.
-                    raise AirflowException('Response: {0}, Status Code: {1}'.format(
-                        e.response.content, e.response.status_code))
+                    raise AirflowException(
+                        f'Response: {e.response.content}, Status Code: {e.response.status_code}'
+                    )
 
                 self._log_request_error(attempt_num, e)
 
             if attempt_num == self.retry_limit:
-                raise AirflowException(('API requests to Databricks failed {} times. ' +
-                                        'Giving up.').format(self.retry_limit))
+                raise AirflowException(
+                    ('API requests to Databricks failed {} times. ' + 'Giving up.').format(self.retry_limit)
+                )
 
             attempt_num += 1
             sleep(self.retry_delay)
 
-    def _log_request_error(self, attempt_num, error):
-        self.log.error(
-            'Attempt %s API Request to Databricks failed with reason: %s',
-            attempt_num, error
-        )
+    def _log_request_error(self, attempt_num: int, error: str) -> None:
+        self.log.error('Attempt %s API Request to Databricks failed with reason: %s', attempt_num, error)
 
-    def run_now(self, json):
+    def run_now(self, json: dict) -> str:
         """
         Utility function to call the ``api/2.0/jobs/run-now`` endpoint.
 
@@ -212,7 +235,7 @@ class DatabricksHook(BaseHook):
         response = self._do_api_call(RUN_NOW_ENDPOINT, json)
         return response['run_id']
 
-    def submit_run(self, json):
+    def submit_run(self, json: dict) -> str:
         """
         Utility function to call the ``api/2.0/jobs/runs/submit`` endpoint.
 
@@ -234,6 +257,18 @@ class DatabricksHook(BaseHook):
         json = {'run_id': run_id}
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
         return response['run_page_url']
+
+    def get_job_id(self, run_id: str) -> str:
+        """
+        Retrieves job_id from run_id.
+
+        :param run_id: id of the run
+        :type run_id: str
+        :return: Job id for given Databricks run
+        """
+        json = {'run_id': run_id}
+        response = self._do_api_call(GET_RUN_ENDPOINT, json)
+        return response['job_id']
 
     def get_run_state(self, run_id: str) -> RunState:
         """
@@ -284,20 +319,38 @@ class DatabricksHook(BaseHook):
         """
         self._do_api_call(TERMINATE_CLUSTER_ENDPOINT, json)
 
+    def install(self, json: dict) -> None:
+        """
+        Install libraries on the cluster.
 
-def _retryable_error(exception):
-    return isinstance(exception, (requests_exceptions.ConnectionError, requests_exceptions.Timeout)) \
-        or exception.response is not None and exception.response.status_code >= 500
+        Utility function to call the ``2.0/libraries/install`` endpoint.
+
+        :param json: json dictionary containing cluster_id and an array of library
+        :type json: dict
+        """
+        self._do_api_call(INSTALL_LIBS_ENDPOINT, json)
+
+    def uninstall(self, json: dict) -> None:
+        """
+        Uninstall libraries on the cluster.
+
+        Utility function to call the ``2.0/libraries/uninstall`` endpoint.
+
+        :param json: json dictionary containing cluster_id and an array of library
+        :type json: dict
+        """
+        self._do_api_call(UNINSTALL_LIBS_ENDPOINT, json)
 
 
-RUN_LIFE_CYCLE_STATES = [
-    'PENDING',
-    'RUNNING',
-    'TERMINATING',
-    'TERMINATED',
-    'SKIPPED',
-    'INTERNAL_ERROR'
-]
+def _retryable_error(exception) -> bool:
+    return (
+        isinstance(exception, (requests_exceptions.ConnectionError, requests_exceptions.Timeout))
+        or exception.response is not None
+        and exception.response.status_code >= 500
+    )
+
+
+RUN_LIFE_CYCLE_STATES = ['PENDING', 'RUNNING', 'TERMINATING', 'TERMINATED', 'SKIPPED', 'INTERNAL_ERROR']
 
 
 class _TokenAuth(AuthBase):
@@ -305,9 +358,10 @@ class _TokenAuth(AuthBase):
     Helper class for requests Auth field. AuthBase requires you to implement the __call__
     magic function.
     """
-    def __init__(self, token):
+
+    def __init__(self, token: str) -> None:
         self.token = token
 
-    def __call__(self, r):
+    def __call__(self, r: PreparedRequest) -> PreparedRequest:
         r.headers['Authorization'] = 'Bearer ' + self.token
         return r

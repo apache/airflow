@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional
 
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.providers.amazon.aws.hooks.glue_catalog import AwsGlueCatalogHook
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -46,48 +48,48 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
         between each tries
     :type poke_interval: int
     """
-    template_fields = ('database_name', 'table_name', 'expression',)
+
+    template_fields = (
+        'database_name',
+        'table_name',
+        'expression',
+    )
     ui_color = '#C5CAE9'
 
     @apply_defaults
-    def __init__(self,
-                 table_name, expression="ds='{{ ds }}'",
-                 aws_conn_id='aws_default',
-                 region_name=None,
-                 database_name='default',
-                 poke_interval=60 * 3,
-                 *args,
-                 **kwargs):
-        super().__init__(
-            poke_interval=poke_interval, *args, **kwargs)
+    def __init__(
+        self,
+        *,
+        table_name: str,
+        expression: str = "ds='{{ ds }}'",
+        aws_conn_id: str = 'aws_default',
+        region_name: Optional[str] = None,
+        database_name: str = 'default',
+        poke_interval: int = 60 * 3,
+        **kwargs,
+    ):
+        super().__init__(poke_interval=poke_interval, **kwargs)
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
         self.table_name = table_name
         self.expression = expression
         self.database_name = database_name
-        self.hook = None
+        self.hook: Optional[AwsGlueCatalogHook] = None
 
     def poke(self, context):
-        """
-        Checks for existence of the partition in the AWS Glue Catalog table
-        """
+        """Checks for existence of the partition in the AWS Glue Catalog table"""
         if '.' in self.table_name:
             self.database_name, self.table_name = self.table_name.split('.')
         self.log.info(
             'Poking for table %s. %s, expression %s', self.database_name, self.table_name, self.expression
         )
-        self.hook = self.get_hook()
 
-        return self.hook.check_for_partition(
-            self.database_name, self.table_name, self.expression)
+        return self.get_hook().check_for_partition(self.database_name, self.table_name, self.expression)
 
-    def get_hook(self):
-        """
-        Gets the AwsGlueCatalogHook
-        """
-        from airflow.providers.amazon.aws.hooks.glue_catalog import AwsGlueCatalogHook
-        hook = AwsGlueCatalogHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region_name)
+    def get_hook(self) -> AwsGlueCatalogHook:
+        """Gets the AwsGlueCatalogHook"""
+        if self.hook:
+            return self.hook
 
-        return hook
+        self.hook = AwsGlueCatalogHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+        return self.hook

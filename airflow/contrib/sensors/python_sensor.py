@@ -23,6 +23,5 @@ import warnings
 from airflow.sensors.python import PythonSensor  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.sensors.python`.",
-    DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.sensors.python`.", DeprecationWarning, stacklevel=2
 )

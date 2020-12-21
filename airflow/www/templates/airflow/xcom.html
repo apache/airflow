@@ -21,20 +21,18 @@
 {% block title %}Airflow - DAGs{% endblock %}
 
 {% block content %}
-    {{ super() }}
-    <h4>{{ title }}</h4>
-    <div>
-        <table class="table table-striped table-bordered">
-            <tr>
-                <th>Key</th>
-                <th>Value</th>
-            </tr>
-            {% for attr, value in attributes %}
-                <tr>
-                    <td>{{ attr }}</td>
-                    <td class='code'>{{ value }}</td>
-                </tr>
-            {% endfor %}
-        </table>
-    </div>
+  {{ super() }}
+  <h4>{{ title }}</h4>
+  <table class="table table-striped table-bordered">
+    <tr>
+      <th>Key</th>
+      <th>Value</th>
+    </tr>
+    {% for attr, value in attributes %}
+      <tr>
+        <td>{{ attr }}</td>
+        <td class="code">{{ value }}</td>
+      </tr>
+    {% endfor %}
+  </table>
 {% endblock %}

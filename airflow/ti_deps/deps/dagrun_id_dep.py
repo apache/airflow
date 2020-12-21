@@ -18,17 +18,14 @@
 
 """This module defines dep for DagRun ID validation"""
 
-from re import match
-
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 
 
 class DagrunIdDep(BaseTIDep):
-    """
-    Dep for valid DagRun ID to schedule from scheduler
-    """
+    """Dep for valid DagRun ID to schedule from scheduler"""
+
     NAME = "Dagrun run_id is not backfill job ID"
     IGNOREABLE = True
 
@@ -47,11 +44,12 @@ class DagrunIdDep(BaseTIDep):
         """
         dagrun = ti.get_dagrun(session)
 
-        if not dagrun.run_id or not match(DagRunType.BACKFILL_JOB.value + '.*', dagrun.run_id):
+        if not dagrun or not dagrun.run_id or dagrun.run_type != DagRunType.BACKFILL_JOB:
             yield self._passing_status(
-                reason=f"Task's DagRun run_id is either NULL "
-                       f"or doesn't start with {DagRunType.BACKFILL_JOB.value}")
+                reason=f"Task's DagRun doesn't exist or run_id is either NULL "
+                f"or run_type is not {DagRunType.BACKFILL_JOB}"
+            )
         else:
             yield self._failing_status(
-                reason=f"Task's DagRun run_id is not NULL "
-                       f"and starts with {DagRunType.BACKFILL_JOB.value}")
+                reason=f"Task's DagRun run_id is not NULL " f"and run type is {DagRunType.BACKFILL_JOB}"
+            )

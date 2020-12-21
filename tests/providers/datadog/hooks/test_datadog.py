@@ -43,14 +43,17 @@ DEVICE_NAME = 'device-name'
 
 
 class TestDatadogHook(unittest.TestCase):
-
     @mock.patch('airflow.providers.datadog.hooks.datadog.initialize')
     @mock.patch('airflow.providers.datadog.hooks.datadog.DatadogHook.get_connection')
     def setUp(self, mock_get_connection, mock_initialize):
-        mock_get_connection.return_value = Connection(extra=json.dumps({
-            'app_key': APP_KEY,
-            'api_key': API_KEY,
-        }))
+        mock_get_connection.return_value = Connection(
+            extra=json.dumps(
+                {
+                    'app_key': APP_KEY,
+                    'api_key': API_KEY,
+                }
+            )
+        )
         self.hook = DatadogHook()
 
     @mock.patch('airflow.providers.datadog.hooks.datadog.initialize')
@@ -59,8 +62,7 @@ class TestDatadogHook(unittest.TestCase):
         mock_get_connection.return_value = Connection()
         with self.assertRaises(AirflowException) as ctx:
             DatadogHook()
-        self.assertEqual(str(ctx.exception),
-                         'api_key must be specified in the Datadog connection details')
+        self.assertEqual(str(ctx.exception), 'api_key must be specified in the Datadog connection details')
 
     def test_validate_response_valid(self):
         try:
@@ -133,7 +135,3 @@ class TestDatadogHook(unittest.TestCase):
             device_name=DEVICE_NAME,
             source_type_name=self.hook.source_type_name,
         )
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -20,41 +20,9 @@
 import datetime
 import ftplib
 import os.path
+from typing import Any, List, Optional
 
-from airflow.hooks.base_hook import BaseHook
-
-
-def mlsd(conn, path="", facts=None):
-    """
-    BACKPORT FROM PYTHON3 FTPLIB.
-
-    List a directory in a standardized format by using MLSD
-    command (RFC-3659). If path is omitted the current directory
-    is assumed. "facts" is a list of strings representing the type
-    of information desired (e.g. ["type", "size", "perm"]).
-
-    Return a generator object yielding a tuple of two elements
-    for every file found in path.
-    First element is the file name, the second one is a dictionary
-    including a variable number of "facts" depending on the server
-    and whether "facts" argument has been provided.
-    """
-    facts = facts or []
-    if facts:
-        conn.sendcmd("OPTS MLST " + ";".join(facts) + ";")
-    if path:
-        cmd = "MLSD %s" % path
-    else:
-        cmd = "MLSD"
-    lines = []
-    conn.retrlines(cmd, lines.append)
-    for line in lines:
-        facts_found, _, name = line.rstrip(ftplib.CRLF).partition(' ')
-        entry = {}
-        for fact in facts_found[:-1].split(";"):
-            key, _, value = fact.partition("=")
-            entry[key.lower()] = value
-        yield (name, entry)
+from airflow.hooks.base import BaseHook
 
 
 class FTPHook(BaseHook):
@@ -66,21 +34,25 @@ class FTPHook(BaseHook):
     connection as ``{"passive": "true"}``.
     """
 
-    def __init__(self, ftp_conn_id='ftp_default'):
+    conn_name_attr = 'ftp_conn_id'
+    default_conn_name = 'ftp_default'
+    conn_type = 'ftp'
+    hook_name = 'FTP'
+
+    def __init__(self, ftp_conn_id: str = default_conn_name) -> None:
+        super().__init__()
         self.ftp_conn_id = ftp_conn_id
-        self.conn = None
+        self.conn: Optional[ftplib.FTP] = None
 
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         if self.conn is not None:
             self.close_conn()
 
-    def get_conn(self):
-        """
-        Returns a FTP connection object
-        """
+    def get_conn(self) -> ftplib.FTP:
+        """Returns a FTP connection object"""
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
             pasv = params.extra_dejson.get("passive", True)
@@ -98,7 +70,7 @@ class FTPHook(BaseHook):
         conn.quit()
         self.conn = None
 
-    def describe_directory(self, path):
+    def describe_directory(self, path: str) -> dict:
         """
         Returns a dictionary of {filename: {attributes}} for all files
         on the remote system (where the MLSD command is supported).
@@ -108,14 +80,10 @@ class FTPHook(BaseHook):
         """
         conn = self.get_conn()
         conn.cwd(path)
-        try:
-            # only works in Python 3
-            files = dict(conn.mlsd())
-        except AttributeError:
-            files = dict(mlsd(conn))
+        files = dict(conn.mlsd())
         return files
 
-    def list_directory(self, path, nlst=False):
+    def list_directory(self, path: str) -> List[str]:
         """
         Returns a list of files on the remote system.
 
@@ -128,7 +96,7 @@ class FTPHook(BaseHook):
         files = conn.nlst()
         return files
 
-    def create_directory(self, path):
+    def create_directory(self, path: str) -> None:
         """
         Creates a directory on the remote system.
 
@@ -138,7 +106,7 @@ class FTPHook(BaseHook):
         conn = self.get_conn()
         conn.mkd(path)
 
-    def delete_directory(self, path):
+    def delete_directory(self, path: str) -> None:
         """
         Deletes a directory on the remote system.
 
@@ -148,11 +116,7 @@ class FTPHook(BaseHook):
         conn = self.get_conn()
         conn.rmd(path)
 
-    def retrieve_file(
-            self,
-            remote_full_path,
-            local_full_path_or_buffer,
-            callback=None):
+    def retrieve_file(self, remote_full_path, local_full_path_or_buffer, callback=None):
         """
         Transfers the remote file to a local location.
 
@@ -222,7 +186,7 @@ class FTPHook(BaseHook):
         if is_path and output_handle:
             output_handle.close()
 
-    def store_file(self, remote_full_path, local_full_path_or_buffer):
+    def store_file(self, remote_full_path: str, local_full_path_or_buffer: Any) -> None:
         """
         Transfers a local file to the remote location.
 
@@ -251,7 +215,7 @@ class FTPHook(BaseHook):
         if is_path:
             input_handle.close()
 
-    def delete_file(self, path):
+    def delete_file(self, path: str) -> None:
         """
         Removes a file on the FTP Server.
 
@@ -261,7 +225,7 @@ class FTPHook(BaseHook):
         conn = self.get_conn()
         conn.delete(path)
 
-    def rename(self, from_name, to_name):
+    def rename(self, from_name: str, to_name: str) -> str:
         """
         Rename a file.
 
@@ -271,7 +235,7 @@ class FTPHook(BaseHook):
         conn = self.get_conn()
         return conn.rename(from_name, to_name)
 
-    def get_mod_time(self, path):
+    def get_mod_time(self, path: str) -> datetime.datetime:
         """
         Returns a datetime object representing the last time the file was modified
 
@@ -287,7 +251,7 @@ class FTPHook(BaseHook):
         except ValueError:
             return datetime.datetime.strptime(time_val, '%Y%m%d%H%M%S')
 
-    def get_size(self, path):
+    def get_size(self, path: str) -> Optional[int]:
         """
         Returns the size of a file (in bytes)
 
@@ -295,15 +259,15 @@ class FTPHook(BaseHook):
         :type path: str
         """
         conn = self.get_conn()
-        return conn.size(path)
+        size = conn.size(path)
+        return int(size) if size else None
 
 
 class FTPSHook(FTPHook):
+    """Interact with FTPS."""
 
-    def get_conn(self):
-        """
-        Returns a FTPS connection object.
-        """
+    def get_conn(self) -> ftplib.FTP:
+        """Returns a FTPS connection object."""
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
             pasv = params.extra_dejson.get("passive", True)
@@ -311,9 +275,7 @@ class FTPSHook(FTPHook):
             if params.port:
                 ftplib.FTP_TLS.port = params.port
 
-            self.conn = ftplib.FTP_TLS(
-                params.host, params.login, params.password
-            )
+            self.conn = ftplib.FTP_TLS(params.host, params.login, params.password)
             self.conn.set_pasv(pasv)
 
         return self.conn

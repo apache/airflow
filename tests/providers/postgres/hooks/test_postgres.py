@@ -29,16 +29,10 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 
 class TestPostgresHookConn(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
 
-        self.connection = Connection(
-            login='login',
-            password='password',
-            host='host',
-            schema='schema'
-        )
+        self.connection = Connection(login='login', password='password', host='host', schema='schema')
 
         class UnitTestPostgresHook(PostgresHook):
             conn_name_attr = 'test_conn_id'
@@ -51,24 +45,30 @@ class TestPostgresHookConn(unittest.TestCase):
     def test_get_conn_non_default_id(self, mock_connect):
         self.db_hook.test_conn_id = 'non_default'  # pylint: disable=attribute-defined-outside-init
         self.db_hook.get_conn()
-        mock_connect.assert_called_once_with(user='login', password='password',
-                                             host='host', dbname='schema',
-                                             port=None)
+        mock_connect.assert_called_once_with(
+            user='login', password='password', host='host', dbname='schema', port=None
+        )
         self.db_hook.get_connection.assert_called_once_with('non_default')
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     def test_get_conn(self, mock_connect):
         self.db_hook.get_conn()
-        mock_connect.assert_called_once_with(user='login', password='password', host='host',
-                                             dbname='schema', port=None)
+        mock_connect.assert_called_once_with(
+            user='login', password='password', host='host', dbname='schema', port=None
+        )
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     def test_get_conn_cursor(self, mock_connect):
         self.connection.extra = '{"cursor": "dictcursor"}'
         self.db_hook.get_conn()
-        mock_connect.assert_called_once_with(cursor_factory=psycopg2.extras.DictCursor,
-                                             user='login', password='password', host='host',
-                                             dbname='schema', port=None)
+        mock_connect.assert_called_once_with(
+            cursor_factory=psycopg2.extras.DictCursor,
+            user='login',
+            password='password',
+            host='host',
+            dbname='schema',
+            port=None,
+        )
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     def test_get_conn_with_invalid_cursor(self, mock_connect):
@@ -100,24 +100,35 @@ class TestPostgresHookConn(unittest.TestCase):
         self.connection.extra = '{"iam":true}'
         mock_client.return_value.generate_db_auth_token.return_value = 'aws_token'
         self.db_hook.get_conn()
-        mock_connect.assert_called_once_with(user='login', password='aws_token', host='host',
-                                             dbname='schema', port=5432)
+        mock_connect.assert_called_once_with(
+            user='login', password='aws_token', host='host', dbname='schema', port=5432
+        )
+
+    @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
+    def test_get_conn_extra(self, mock_connect):
+        self.connection.extra = '{"connect_timeout": 3}'
+        self.db_hook.get_conn()
+        mock_connect.assert_called_once_with(
+            user='login', password='password', host='host', dbname='schema', port=None, connect_timeout=3
+        )
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_client_type')
     def test_get_conn_rds_iam_redshift(self, mock_client, mock_connect):
         self.connection.extra = '{"iam":true, "redshift":true}'
         self.connection.host = 'cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com'
-        login = 'IAM:{login}'.format(login=self.connection.login)
-        mock_client.return_value.get_cluster_credentials.return_value = {'DbPassword': 'aws_token',
-                                                                         'DbUser': login}
+        login = f'IAM:{self.connection.login}'
+        mock_client.return_value.get_cluster_credentials.return_value = {
+            'DbPassword': 'aws_token',
+            'DbUser': login,
+        }
         self.db_hook.get_conn()
-        mock_connect.assert_called_once_with(user=login, password='aws_token', host=self.connection.host,
-                                             dbname='schema', port=5439)
+        mock_connect.assert_called_once_with(
+            user=login, password='aws_token', host=self.connection.host, dbname='schema', port=5439
+        )
 
 
 class TestPostgresHook(unittest.TestCase):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.table = "test_postgres_hook_table"
@@ -142,7 +153,7 @@ class TestPostgresHook(unittest.TestCase):
 
         with PostgresHook().get_conn() as conn:
             with conn.cursor() as cur:
-                cur.execute("DROP TABLE IF EXISTS {}".format(self.table))
+                cur.execute(f"DROP TABLE IF EXISTS {self.table}")
 
     @pytest.mark.backend("postgres")
     def test_copy_expert(self):
@@ -153,7 +164,7 @@ class TestPostgresHook(unittest.TestCase):
 
             self.cur.fetchall.return_value = None
 
-            self.assertEqual(None, self.db_hook.copy_expert(statement, filename, open=open_mock))
+            self.assertEqual(None, self.db_hook.copy_expert(statement, filename))
 
             assert self.conn.close.call_count == 1
             assert self.cur.close.call_count == 1
@@ -168,7 +179,7 @@ class TestPostgresHook(unittest.TestCase):
 
         with hook.get_conn() as conn:
             with conn.cursor() as cur:
-                cur.execute("CREATE TABLE {} (c VARCHAR)".format(self.table))
+                cur.execute(f"CREATE TABLE {self.table} (c VARCHAR)")
                 conn.commit()
 
                 with NamedTemporaryFile() as f:
@@ -176,7 +187,7 @@ class TestPostgresHook(unittest.TestCase):
                     f.flush()
                     hook.bulk_load(self.table, f.name)
 
-                cur.execute("SELECT * FROM {}".format(self.table))
+                cur.execute(f"SELECT * FROM {self.table}")
                 results = [row[0] for row in cur.fetchall()]
 
         self.assertEqual(sorted(input_data), sorted(results))
@@ -188,9 +199,9 @@ class TestPostgresHook(unittest.TestCase):
 
         with hook.get_conn() as conn:
             with conn.cursor() as cur:
-                cur.execute("CREATE TABLE {} (c VARCHAR)".format(self.table))
-                values = ",".join("('{}')".format(data) for data in input_data)
-                cur.execute("INSERT INTO {} VALUES {}".format(self.table, values))
+                cur.execute(f"CREATE TABLE {self.table} (c VARCHAR)")
+                values = ",".join(f"('{data}')" for data in input_data)
+                cur.execute(f"INSERT INTO {self.table} VALUES {values}")
                 conn.commit()
 
                 with NamedTemporaryFile() as f:
@@ -199,3 +210,97 @@ class TestPostgresHook(unittest.TestCase):
                     results = [line.rstrip().decode("utf-8") for line in f.readlines()]
 
         self.assertEqual(sorted(input_data), sorted(results))
+
+    @pytest.mark.backend("postgres")
+    def test_insert_rows(self):
+        table = "table"
+        rows = [("hello",), ("world",)]
+
+        self.db_hook.insert_rows(table, rows)
+
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+
+        commit_count = 2  # The first and last commit
+        self.assertEqual(commit_count, self.conn.commit.call_count)
+
+        sql = f"INSERT INTO {table}  VALUES (%s)"
+        for row in rows:
+            self.cur.execute.assert_any_call(sql, row)
+
+    @pytest.mark.backend("postgres")
+    def test_insert_rows_replace(self):
+        table = "table"
+        rows = [
+            (
+                1,
+                "hello",
+            ),
+            (
+                2,
+                "world",
+            ),
+        ]
+        fields = ("id", "value")
+
+        self.db_hook.insert_rows(table, rows, fields, replace=True, replace_index=fields[0])
+
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+
+        commit_count = 2  # The first and last commit
+        self.assertEqual(commit_count, self.conn.commit.call_count)
+
+        sql = (
+            "INSERT INTO {0} ({1}, {2}) VALUES (%s,%s) "
+            "ON CONFLICT ({1}) DO UPDATE SET {2} = excluded.{2}".format(table, fields[0], fields[1])
+        )
+        for row in rows:
+            self.cur.execute.assert_any_call(sql, row)
+
+    @pytest.mark.xfail
+    @pytest.mark.backend("postgres")
+    def test_insert_rows_replace_missing_target_field_arg(self):
+        table = "table"
+        rows = [
+            (
+                1,
+                "hello",
+            ),
+            (
+                2,
+                "world",
+            ),
+        ]
+        fields = ("id", "value")
+        self.db_hook.insert_rows(table, rows, replace=True, replace_index=fields[0])
+
+    @pytest.mark.xfail
+    @pytest.mark.backend("postgres")
+    def test_insert_rows_replace_missing_replace_index_arg(self):
+        table = "table"
+        rows = [
+            (
+                1,
+                "hello",
+            ),
+            (
+                2,
+                "world",
+            ),
+        ]
+        fields = ("id", "value")
+        self.db_hook.insert_rows(table, rows, fields, replace=True)
+
+    @pytest.mark.backend("postgres")
+    def test_rowcount(self):
+        hook = PostgresHook()
+        input_data = ["foo", "bar", "baz"]
+
+        with hook.get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"CREATE TABLE {self.table} (c VARCHAR)")
+                values = ",".join(f"('{data}')" for data in input_data)
+                cur.execute(f"INSERT INTO {self.table} VALUES {values}")
+                conn.commit()
+                self.assertEqual(cur.rowcount, len(input_data))

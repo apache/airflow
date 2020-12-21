@@ -24,5 +24,6 @@ from airflow.providers.microsoft.azure.sensors.wasb import WasbBlobSensor, WasbP
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.sensors.wasb`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
