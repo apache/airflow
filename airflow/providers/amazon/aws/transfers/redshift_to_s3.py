@@ -18,6 +18,7 @@
 """Transfers data from AWS Redshift into a S3 Bucket."""
 from typing import List, Optional, Union
 
+from airflow.exceptions import AirflowBadRequest
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
@@ -37,6 +38,8 @@ class RedshiftToS3Operator(BaseOperator):
     :param s3_key: reference to a specific S3 key. If ``table_as_file_name`` is set
         to False, this param must include the desired file name
     :type s3_key: str
+    :param custom_select_query: query string with parameters
+    :type custom_select_query: str
     :param redshift_conn_id: reference to a specific redshift database
     :type redshift_conn_id: str
     :param aws_conn_id: reference to a specific S3 connection
@@ -75,6 +78,7 @@ class RedshiftToS3Operator(BaseOperator):
         table: str,
         s3_bucket: str,
         s3_key: str,
+        custom_select_query: Optional[str] = None,
         redshift_conn_id: str = 'redshift_default',
         aws_conn_id: str = 'aws_default',
         verify: Optional[Union[bool, str]] = None,
@@ -87,6 +91,7 @@ class RedshiftToS3Operator(BaseOperator):
         super().__init__(**kwargs)
         self.schema = schema
         self.table = table
+        self.custom_select_query = custom_select_query
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
         self.redshift_conn_id = redshift_conn_id
@@ -103,13 +108,20 @@ class RedshiftToS3Operator(BaseOperator):
             ]
 
     def execute(self, context) -> None:
+        if all([self.schema, self.table]):
+            select_query = f"SELECT * FROM {self.schema}.{self.table}"
+        elif self.custom_select_query:
+            select_query = self.custom_select_query
+        else:
+            raise AirflowBadRequest("Either (schema, table) or custom_select_query should be set. "
+                                    f"They are ({self.schema},{self.table}) and {self.custom_select_query}")
+
         postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         credentials = s3_hook.get_credentials()
         unload_options = '\n\t\t\t'.join(self.unload_options)
-        s3_key = f'{self.s3_key}/{self.table}_' if self.table_as_file_name else self.s3_key
-        select_query = f"SELECT * FROM {self.schema}.{self.table}"
+        s3_key = '{}/{}_'.format(self.s3_key, self.table) if self.table_as_file_name else self.s3_key
         unload_query = """
                     UNLOAD ('{select_query}')
                     TO 's3://{s3_bucket}/{s3_key}'
