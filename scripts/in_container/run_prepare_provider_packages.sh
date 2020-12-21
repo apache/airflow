@@ -160,7 +160,7 @@ function build_provider_packages() {
             package_suffix="${VERSION_SUFFIX_FOR_PYPI}"
         fi
         python3 "${PREPARE_PROVIDER_PACKAGES_PY}" --version-suffix "${package_suffix}" \
-            "${PROVIDER_PACKAGE}">"${LOG_FILE}" 2>&1
+            --packages "${PROVIDER_PACKAGE}">"${LOG_FILE}" 2>&1
         RES="${?}"
         set -e
         if [[ ${RES} != "0" ]]; then
