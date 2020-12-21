@@ -103,7 +103,6 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
         assert mock_run.call_count == 1
         assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_query)
 
-
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run")
     def test_execute_with_no_schema_param(self, mock_run):
         s3_keys = ['1.csv', '2.csv']
