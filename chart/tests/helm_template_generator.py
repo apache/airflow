@@ -17,7 +17,9 @@
 
 import subprocess
 import sys
+from collections import namedtuple
 from functools import lru_cache
+from io import StringIO
 from tempfile import NamedTemporaryFile
 from typing import Any, Dict, Tuple
 
@@ -31,9 +33,16 @@ api_client = ApiClient()
 
 BASE_URL_SPEC = "https://raw.githubusercontent.com/instrumenta/kubernetes-json-schema/master/v1.14.0"
 
+K8sObject = namedtuple('K8sObject', ['api_version', 'kind'])
 
-@lru_cache(maxsize=None)
-def create_validator(api_version, kind):
+crd_lookup = {
+    K8sObject(
+        'keda.sh/v1alpha1', 'ScaledObject'
+    ): 'https://raw.githubusercontent.com/kedacore/keda/v2.0.0/config/crd/bases/keda.sh_scaledobjects.yaml',
+}
+
+
+def get_schema_k8s(api_version, kind):
     api_version = api_version.lower()
     kind = kind.lower()
 
@@ -46,6 +55,24 @@ def create_validator(api_version, kind):
     request = requests.get(url)
     request.raise_for_status()
     schema = request.json()
+    return schema
+
+
+def get_schema_crd(api_version, kind):
+    url = crd_lookup.get(K8sObject(api_version, kind))
+    if not url:
+        return None
+    response = requests.get(url)
+    yaml_schema = response.content.decode('utf-8')
+    schema = yaml.safe_load(StringIO(yaml_schema))
+    return schema
+
+
+@lru_cache(maxsize=None)
+def create_validator(api_version, kind):
+    schema = get_schema_crd(api_version, kind)
+    if not schema:
+        schema = get_schema_k8s(api_version, kind)
     jsonschema.Draft7Validator.check_schema(schema)
     validator = jsonschema.Draft7Validator(schema)
     return validator
@@ -61,7 +88,7 @@ def validate_k8s_object(instance):
     validate.validate(instance)
 
 
-def render_chart(name="RELEASE-NAME", values=None, show_only=None, validate_schema=True):
+def render_chart(name="RELEASE-NAME", values=None, show_only=None):
     """
     Function that renders a helm chart into dictionaries. For helm chart testing only
     """
@@ -77,9 +104,8 @@ def render_chart(name="RELEASE-NAME", values=None, show_only=None, validate_sche
         templates = subprocess.check_output(command)
         k8s_objects = yaml.full_load_all(templates)
         k8s_objects = [k8s_object for k8s_object in k8s_objects if k8s_object]  # type: ignore
-        if validate_schema:
-            for k8s_object in k8s_objects:
-                validate_k8s_object(k8s_object)
+        for k8s_object in k8s_objects:
+            validate_k8s_object(k8s_object)
         return k8s_objects
 
 
