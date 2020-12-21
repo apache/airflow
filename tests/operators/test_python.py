@@ -24,7 +24,6 @@ from datetime import date, datetime, timedelta
 from subprocess import CalledProcessError
 from typing import Dict, List, Tuple
 
-import funcsigs
 import pytest
 
 from airflow.exceptions import AirflowException
@@ -1204,8 +1203,6 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         self._run_as_operator(f, requirements=['funcsigs'], system_site_packages=True)
 
     def test_with_requirements_pinned(self):
-        self.assertNotEqual('0.4', funcsigs.__version__, 'Please update this string if this fails')
-
         def f():
             import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported
 
