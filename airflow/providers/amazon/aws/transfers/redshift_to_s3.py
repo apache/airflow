@@ -66,8 +66,8 @@ class RedshiftToS3Operator(BaseOperator):
     :type table_as_file_name: bool
     """
 
-    template_fields = ('s3_bucket', 's3_key', 'schema', 'table', 'unload_options')
-    template_ext = ()
+    template_fields = ('s3_bucket', 's3_key', 'schema', 'table', 'unload_options', 'custom_select_query')
+    template_ext = ('.sql',)
     ui_color = '#ededed'
 
     @apply_defaults
@@ -108,12 +108,12 @@ class RedshiftToS3Operator(BaseOperator):
             ]
 
     def execute(self, context) -> None:
-        if all([self.schema, self.table]):
+        if self.schema and self.table:
             select_query = f"SELECT * FROM {self.schema}.{self.table}"
         elif self.custom_select_query:
             select_query = self.custom_select_query
         else:
-            raise AirflowBadRequest("Either (schema, table) or custom_select_query should be set. "
+            raise AirflowBadRequest("Either (schema, table) combination, or custom_select_query should be set."
                                     f"They are ({self.schema},{self.table}) and {self.custom_select_query}")
 
         postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
