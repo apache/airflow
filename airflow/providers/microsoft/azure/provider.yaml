@@ -62,6 +62,7 @@ operators:
   - integration-name: Microsoft Azure Data Lake Storage
     python-modules:
       - airflow.providers.microsoft.azure.operators.adls_list
+      - airflow.providers.microsoft.azure.operators.adls_delete
   - integration-name: Microsoft Azure Data Explorer
     python-modules:
       - airflow.providers.microsoft.azure.operators.adx
